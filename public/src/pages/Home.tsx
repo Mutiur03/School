@@ -3,7 +3,7 @@ import Slider from "../components/Slider";
 import { Calendar, BookOpen, Award, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { Calendar as ShadCalendar } from "@/components/ui/calendar";
+import { Calendar as ShadCalendar } from "@/components/calendar";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import axios from "axios";
@@ -91,7 +91,7 @@ export default function Home() {
         try {
             const response = await axios.get("/api/notices/getNotices");
             console.log("notices", response.data);
-            
+
             setNotices(response.data.data || []);
         } catch (error) {
             console.error("Error fetching notices:", error);
@@ -120,7 +120,7 @@ export default function Home() {
     };
 
     const isHoliday = (date: Date): boolean => {
-        const checkDate = date.setHours(0, 0, 0, 0);
+        const checkDate = new Date(date).setHours(0, 0, 0, 0);
         return holidays.some((h) => {
             const start = new Date(h.start_date).setHours(0, 0, 0, 0);
             const end = new Date(h.end_date).setHours(0, 0, 0, 0);
@@ -446,25 +446,12 @@ export default function Home() {
                                 </p>
                                 <div className="flex justify-center">
                                     <ShadCalendar
-                                        className="bg-card p-5 rounded-lg shadow-lg"
-                                        mode="single"
-                                        onDayClick={(date: Date) => {
-                                            if (selectedDate && date.toDateString() === selectedDate.toDateString()) {
-                                                setSelectedDate(null);
-                                            } else {
-                                                setSelectedDate(date);
-                                            }
-                                        }}
-                                        selected={selectedDate ? selectedDate : undefined}
+                                        onDateSelect={setSelectedDate}
                                         modifiers={{
                                             holiday: (date) => isHoliday(date),
-                                            weekend: (date) => date.getDay() === 5 || date.getDay() === 6,
                                         }}
                                         modifiersClassNames={{
-                                            holiday:
-                                                "bg-red-500 p-2 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white text-white",
-                                            weekend: "text-red-500 hover:text-red-600 p-2",
-                                            selected: "bg-primary text-white hover:bg-primary/90",
+                                            holiday: "bg-red-500 text-white hover:bg-red-600 hover:text-white",
                                         }}
                                     />
                                 </div>
