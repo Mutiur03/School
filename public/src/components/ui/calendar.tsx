@@ -58,11 +58,11 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("size-4", className)} {...props} />
+        PreviousMonthButton: ({ className }: { className?: string }) => (
+          <ChevronLeft className={cn("w-4 h-4", className)} aria-label="Previous" />
         ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("size-4", className)} {...props} />
+        NextMonthButton: ({ className }: { className?: string }) => (
+          <ChevronRight className={cn("w-4 h-4", className)} aria-label="Next" />
         ),
       }}
       {...props}
