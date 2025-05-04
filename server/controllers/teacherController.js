@@ -3,54 +3,61 @@ import { google } from "googleapis";
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import fs from "fs";
+import { initGoogleSheets } from "./studController.js";
 const removeNonNumber = (str) => str.replace(/\D/g, "");
+const { sheets, spreadsheetId } = await initGoogleSheets();
 
 export const addTeacher = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: "../server/utils/lbpghs-76d5794c5a45.json",
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  const sheets = google.sheets({ version: "v4", auth });
-  const spreadsheetId = "1a49EfWqAsH9BQLCHMLunVlC9-mqgdOmH685GjOaadtI";
-
-  // const metadata = await sheets.spreadsheets.get({
-  //   auth,
-  //   spreadsheetId,
-  // });
-  // console.log(metadata.data);
-
   try {
     const { teachers } = req.body;
     if (!Array.isArray(teachers) || teachers.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: "An array of teachers is required",
       });
     }
     console.log(teachers);
     const values = await Promise.all(
-      teachers.map(async ({ name, email, subject, phone, address, dob, blood_group, academic_qualification, designation }) => { 
-        const originalPassword = generatePassword();
-        const hashedPassword = await bcrypt.hash(originalPassword, 10);
-        return [
-          name.trim() || null,
-          email.trim() || null,
-          subject?.trim() || null,
-          "0" + removeNonNumber(String(phone)).slice(-10) || null,
-          academic_qualification?.trim() || null,
-          designation?.trim() || null,
-          address?.trim() || null,
-          dob ? dob.replace("/", "-") : null,
-          blood_group?.trim() || null,
-          hashedPassword || null, 
-          originalPassword || null,
-        ];
-      }) 
+      teachers.map(
+        async ({
+          name,
+          email,
+          subject,
+          phone,
+          address,
+          dob,
+          blood_group,
+          academic_qualification,
+          designation,
+        }) => {
+          const originalPassword = generatePassword();
+          const hashedPassword = await bcrypt.hash(originalPassword, 10);
+          return [
+            name.trim() || null,
+            email.trim() || null,
+            subject?.trim() || null,
+            "0" + removeNonNumber(String(phone)).slice(-10) || null,
+            academic_qualification?.trim() || null,
+            designation?.trim() || null,
+            address?.trim() || null,
+            dob ? dob.replace("/", "-") : null,
+            blood_group?.trim() || null,
+            hashedPassword || null,
+            originalPassword || null,
+          ];
+        }
+      )
     );
 
     const placeholders = values
-      .map((_, index) => `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${index * 10 + 4}, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${index * 10 + 8}, $${index * 10 + 9}, $${index * 10 + 10})`)
+      .map(
+        (_, index) =>
+          `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${
+            index * 10 + 4
+          }, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${
+            index * 10 + 8
+          }, $${index * 10 + 9}, $${index * 10 + 10})`
+      )
       .join(", ");
 
     const flatValues = values.map((v) => v.slice(0, -1)).flat(); // Exclude original password for DB query
@@ -62,18 +69,17 @@ export const addTeacher = async (req, res) => {
     `;
 
     const result = await pool.query(query, flatValues);
-    await sheets.spreadsheets.values.append({
-      auth,
+    sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "teachers!A:E", // Update range to include the password column
+      range: "teachers!A:E",
       valueInputOption: "USER_ENTERED",
       resource: {
-        values: teachers.map(({ name, email, phone,subject }, index) => [
+        values: teachers.map(({ name, email, phone, subject }, index) => [
           name,
           email,
           phone,
           subject,
-          values[index][values[index].length - 1], // Add the original password to the sheet
+          values[index][values[index].length - 1],
         ]),
       },
     });
@@ -100,7 +106,17 @@ export const getTeachers = async (_, res) => {
 
 export const updateTeacher = async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, subject, address, dob, blood_group, academic_qualification, designation  } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    subject,
+    address,
+    dob,
+    blood_group,
+    academic_qualification,
+    designation,
+  } = req.body;
   console.log(req.body);
 
   try {
@@ -163,23 +179,23 @@ export const deleteTeacher = async (req, res) => {
   }
 };
 
-
 export const UpdateTeacherImage = async (req, res) => {
   try {
     const { id } = req.params;
-    const  image  = req.file;
+    const image = req.file;
     console.log(req.file);
-    
+
     if (!image) {
-      return res.status(400).json({ success: false, error: "Image is required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Image is required" });
     }
-    const exists = await pool.query(
-      `SELECT * FROM teachers WHERE id = $1`,
-      [id]
-    );
-    if(exists.rows[0].image){
+    const exists = await pool.query(`SELECT * FROM teachers WHERE id = $1`, [
+      id,
+    ]);
+    if (exists.rows[0].image) {
       const oldImage = exists.rows[0].image;
-      if(fs.existsSync(oldImage)){
+      if (fs.existsSync(oldImage)) {
         fs.unlinkSync(oldImage);
       }
     }
@@ -194,6 +210,8 @@ export const UpdateTeacherImage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating teacher image:", error.message);
-    res.status(500).json({ success: false, error: "Error updating teacher image" });
+    res
+      .status(500)
+      .json({ success: false, error: "Error updating teacher image" });
   }
 };

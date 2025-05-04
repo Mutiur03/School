@@ -4,13 +4,27 @@ import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+export const initGoogleSheets = async () => {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.client_email,
+        private_key: process.env.private_key.replace(/\\n/g, "\n"), 
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-const auth = new google.auth.GoogleAuth({
-  keyFile: "../server/utils/lbpghs-76d5794c5a45.json",
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
-const sheets = google.sheets({ version: "v4", auth });
-const spreadsheetId = "1a49EfWqAsH9BQLCHMLunVlC9-mqgdOmH685GjOaadtI";
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.SHEET_ID;
+    return { sheets, spreadsheetId };
+  } catch (error) {
+    console.error("Error in initGoogleSheets:", error.message);
+    console.error("Ensure the key file and SHEET_ID are configured correctly.");
+    throw new Error("Initialization of Google Sheets API failed.");
+  }
+};
+const { sheets, spreadsheetId } = await initGoogleSheets();
+
 const removeNonNumber = (str) => str.replace(/\D/g, "");
 const removeInitialZeros = (str) => str.replace(/^0+/, "");
 const current_year = new Date().getFullYear();
@@ -297,10 +311,12 @@ export const deleteStudentController = async (req, res) => {
     }
     const loginId = studentResult.rows[0].login_id;
     await pool.query("DELETE FROM students WHERE id = $1", [id]);
+    // console.log(sheets.spreadsheets.values);
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "students!A1:Z",
     });
+
     const rows = sheetData.data.values || [];
     const rowIndex = rows.findIndex((row) => row[0] === String(loginId));
     if (rowIndex !== -1) {
@@ -336,7 +352,7 @@ export const updateAcademicInfoController = async (req, res) => {
     const values = [];
     let index = 1;
     console.log(updates);
-    
+
     for (const [key, value] of Object.entries(updates)) {
       fields.push(`${key} = $${index}`);
       values.push(value || null);
@@ -420,7 +436,7 @@ export const updateAcademicInfoController = async (req, res) => {
 export const updateStudentImageController = async (req, res) => {
   try {
     const { id } = req.params;
-    const filePath = req.file? req.file.path : null;
+    const filePath = req.file ? req.file.path : null;
     console.log(filePath);
     const exists = await pool.query("SELECT * FROM students WHERE id = $1", [
       id,
@@ -458,10 +474,9 @@ export const changePasswordController = async (req, res) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = decoded.id;
-    const result = await pool.query(
-      "SELECT * FROM students WHERE id = $1",
-      [studentId]
-    );
+    const result = await pool.query("SELECT * FROM students WHERE id = $1", [
+      studentId,
+    ]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Student not found" });
     }
@@ -471,29 +486,30 @@ export const changePasswordController = async (req, res) => {
       return res.status(400).json({ error: "Current password is incorrect" });
     }
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      "UPDATE students SET password = $1 WHERE id = $2",
-      [hashedNewPassword, studentId]
-    );
-
+    await pool.query("UPDATE students SET password = $1 WHERE id = $2", [
+      hashedNewPassword,
+      studentId,
+    ]);
 
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "students!A1:Z",
     });
     const rows = sheetData.data.values || [];
-    const rowIndex = rows.findIndex((row) => row[0] === String(result.rows[0].login_id));
+    const rowIndex = rows.findIndex(
+      (row) => row[0] === String(result.rows[0].login_id)
+    );
     console.log(rowIndex);
     const loginId = result.rows[0].login_id;
     console.log(loginId);
-    
+
     if (rowIndex !== -1) {
       const updatedRow = rows[rowIndex];
-        const columnIndex = getColumnIndex("originalPassword");
-        if (columnIndex !== -1) {
-          updatedRow[columnIndex] = newPassword;
-        }
-      console.log(updatedRow,columnIndex);
+      const columnIndex = getColumnIndex("originalPassword");
+      if (columnIndex !== -1) {
+        updatedRow[columnIndex] = newPassword;
+      }
+      console.log(updatedRow, columnIndex);
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `students!A${rowIndex + 1}:Z${rowIndex + 1}`,
@@ -504,8 +520,9 @@ export const changePasswordController = async (req, res) => {
       });
     }
 
-
-    res.status(200).json({ success: true, message: "Password changed successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Password changed successfully" });
   } catch (error) {
     console.error("Error changing password:", error);
     res.status(500).json({ error: "Internal server error" });
