@@ -21,6 +21,8 @@ import {
   getRejectedStudentGalleriesController,
   getGalleriesByEventId,
   getGalleriesByCategoryId,
+  updateCategoryThumbnailController,
+  updateEventThumbnailController,
 } from "../controllers/galleryController.js";
 import path from "path";
 import fs from "fs";
@@ -42,7 +44,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-galleryRouter.post("/upload", upload.array("images"), addGalleryController); 
+galleryRouter.post("/upload", upload.array("images"), addGalleryController);
 galleryRouter.get("/getGalleries", getGalleryController);
 galleryRouter.put(
   "/updateGallery/:id",
@@ -68,8 +70,16 @@ galleryRouter.get("/approvedStudents", getApprovedStudentGalleryController);
 galleryRouter.get("/pendingStudents", getPendingStudentGalleriesController);
 galleryRouter.get("/rejectedStudents", getRejectedStudentGalleriesController);
 
-
 // Client side routes
 galleryRouter.get("/getGalleries/event/:id", getGalleriesByEventId);
 galleryRouter.get("/getGalleries/campus/:id", getGalleriesByCategoryId);
+
+galleryRouter.put(
+  "/setCategoryThumbnail/:category_id/:image_id",
+  updateCategoryThumbnailController
+);
+galleryRouter.put(
+  "/setEventThumbnail/:event_id/:image_id",
+  updateEventThumbnailController
+);
 export default galleryRouter;

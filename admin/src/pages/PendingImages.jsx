@@ -268,7 +268,7 @@ export default function PendingGalleries() {
                 <div className="relative aspect-square">
                   <img
                     src={`${host}/${img.image_path}`}
-                    alt={img.caption || "Pending gallery image"}
+                    alt={ "Pending gallery image"}
                     className="object-cover w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />

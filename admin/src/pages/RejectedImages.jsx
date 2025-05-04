@@ -484,10 +484,10 @@ export default function RejectedImages() {
                           />
                         </div>
                         <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
-                          <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white">
+                          {/* <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white">
                             {selectedGroup[currentIndex].caption ||
                               "No caption provided"}
-                          </h3>
+                          </h3> */}
                           <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>

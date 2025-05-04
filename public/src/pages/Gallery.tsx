@@ -38,7 +38,7 @@ export default function GalleryPage() {
     const [events, setEvents] = useState<GalleryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
+    const host = import.meta.env.VITE_BACKEND_URL;
     const fetchEvents = async () => {
         try {
             setLoading(true);
@@ -110,7 +110,7 @@ export default function GalleryPage() {
                                 >
                                     <div className="relative aspect-[4/3]">
                                         <img
-                                            src={item.thumbnail || "/placeholder.svg"}
+                                            src={item.thumbnail? `${host}/${item.thumbnail}` : "/placeholder.svg"}
                                             alt={item.title}
                                             className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
                                             loading="lazy"

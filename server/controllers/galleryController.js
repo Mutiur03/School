@@ -727,3 +727,47 @@ WHERE g.category_id = $1 AND g.status = 'approved';
     res.status(500).json({ error: error.message });
   }
 };
+
+export const updateCategoryThumbnailController = async (req, res) => {
+  try {
+    const { image_id, category_id } = req.params;
+    const exist = await pool.query("SELECT * FROM gallery WHERE id = $1", [
+      image_id,
+    ]);
+    if (!exist.rows[0]) {
+      return res.status(404).json({ error: "Image not found" });
+    }
+    const filePath = exist.rows[0].image_path;
+    const result = await pool.query(
+      "UPDATE categories SET thumbnail = $1 WHERE id = $2 RETURNING *",
+      [filePath, category_id]
+    );
+    console.log(result.rows);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateEventThumbnailController = async (req, res) => {
+  try {
+    const { image_id, event_id } = req.params;
+    const exist = await pool.query("SELECT * FROM gallery WHERE id = $1", [
+      image_id,
+    ]);
+    if (!exist.rows[0]) {
+      return res.status(404).json({ error: "Image not found" });
+    }
+    const filePath = exist.rows[0].image_path;
+    const result = await pool.query(
+      "UPDATE events SET thumbnail = $1 WHERE id = $2 RETURNING *",
+      [filePath, event_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error.message });
+  }
+}

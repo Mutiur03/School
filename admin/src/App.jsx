@@ -69,10 +69,7 @@ function App() {
                           setOpenDropdown={setOpenDropdown}
                         />
                         <div
-                          className={`content-area flex-1 overflow-y-auto relative px-[3rem] p-[1rem]  transition-all duration-100 ${
-                            sidebarExpanded
-                              ? "ml-[15rem] w-[calc(100%-15rem)]"
-                              : "ml-[4rem] w-[calc(100%-4rem)]"
+                          className={`content-area flex-1 overflow-y-auto relative px-[3rem] p-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)] ml-[4rem] w-[calc(100%-4rem)]
                           }`}
                         >
                           <Routes>

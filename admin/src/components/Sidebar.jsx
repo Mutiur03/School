@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   FaHome,
   FaUser,
@@ -35,7 +35,7 @@ const Sidebar = ({
   setMobileSidebarOpen,
 }) => {
   const location = useLocation();
-
+  const sidebarRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(null);
 
   const sidebarItems = [
@@ -224,6 +224,28 @@ const Sidebar = ({
       }
     }
   }, [location.pathname]);
+  const closeSidebar = () => {
+    if (mobileSidebarOpen) {
+      setMobileSidebarOpen(false);
+    }
+
+    if (sidebarExpanded && window.innerWidth <= 768) {
+      setSidebarExpanded(false);
+    }
+  };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        closeSidebar();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [mobileSidebarOpen, sidebarExpanded]);
 
   const toggleDropdown = (dropdownId) => {
     if (sidebarExpanded) {
@@ -261,7 +283,8 @@ const Sidebar = ({
           width: sidebarExpanded ? "250px" : "64px",
           left: mobileSidebarOpen ? "0" : "0",
         }}
-        transition={{ type: "spring", damping: 25 }}
+        ref={sidebarRef}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar flex-col z-50 border-r border-border shadow-xl`}
       >
         {/* Toggle Button */}

@@ -156,7 +156,6 @@ const Sidebar = () => {
           width: sidebarExpanded ? "250px" : "64px",
           left: mobileSidebarOpen ? "0" : "0",
         }}
-        transi
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar  flex-col z-50 border-r border-border shadow-xl`}

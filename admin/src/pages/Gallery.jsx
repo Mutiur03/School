@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import toast from "react-hot-toast";
+import DeleteConfirmationIcon from "../components/DeleteConfimationIcon";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -256,66 +257,69 @@ export default function Gallery() {
       toast.error("Failed to update image");
     }
   };
-const handleReject = async (id) => {
-  try {
-    await axios.patch(`/api/gallery/reject/${id}`);
-    toast.success("Image rejected successfully!");
-    handleActionComplete(id);
-  } catch (error) {
-    console.error("Error rejecting image:", error);
-    toast.error("Failed to reject image");
-  }
-};
-const handleActionComplete = (processedId) => {
-  // Refetch the latest pending images
-  fetchGallery().then(() => {
-    // Find the next image to show
-    const currentGroupIndex = selectedGroup.findIndex(
-      (img) => img.id === processedId
-    );
-    let nextIndex = null;
+  const handleReject = async (id) => {
+    try {
+      await axios.patch(`/api/gallery/reject/${id}`);
+      toast.success("Image rejected successfully!");
+      handleActionComplete(id);
+    } catch (error) {
+      console.error("Error rejecting image:", error);
+      toast.error("Failed to reject image");
+    }
+  };
+  const handleActionComplete = (processedId) => {
+    // Refetch the latest pending images
+    fetchGallery().then(() => {
+      // Find the next image to show
+      const currentGroupIndex = selectedGroup.findIndex(
+        (img) => img.id === processedId
+      );
+      let nextIndex = null;
 
-    // Try to find next image in current group
-    if (currentGroupIndex !== -1) {
-      if (currentGroupIndex < selectedGroup.length - 1) {
-        nextIndex = currentGroupIndex;
-      } else if (currentGroupIndex > 0) {
-        nextIndex = currentGroupIndex - 1;
+      // Try to find next image in current group
+      if (currentGroupIndex !== -1) {
+        if (currentGroupIndex < selectedGroup.length - 1) {
+          nextIndex = currentGroupIndex;
+        } else if (currentGroupIndex > 0) {
+          nextIndex = currentGroupIndex - 1;
+        }
       }
-    }
 
-    if (nextIndex !== null) {
-      setCurrentIndex(nextIndex);
-      setSelectedGroup((prev) => prev.filter((img) => img.id !== processedId));
-    } else {
-      // No more images in this group, close the dialog
-      setSelectedGroup([]);
-      setCurrentIndex(null);
-    }
-  });
-};
-const handleRejectAll = async (images) => {
-  if (
-    !window.confirm(
-      `Are you sure you want to delete all ${images.length} images?`
+      if (nextIndex !== null) {
+        setCurrentIndex(nextIndex);
+        setSelectedGroup((prev) =>
+          prev.filter((img) => img.id !== processedId)
+        );
+      } else {
+        // No more images in this group, close the dialog
+        setSelectedGroup([]);
+        setCurrentIndex(null);
+      }
+    });
+  };
+  const handleRejectAll = async (images) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete all ${images.length} images?`
+      )
     )
-  )
-    return;
+      return;
 
-  try {
-    const ids = images.map((img) => img.id);
-    await axios.post("/api/gallery/rejectMultiple", { ids });
+    try {
+      const ids = images.map((img) => img.id);
+      await axios.post("/api/gallery/rejectMultiple", { ids });
 
-    toast.success(`Deleted ${images.length} images successfully!`);
-    fetchGallery(); // Refresh the list
-  } catch (error) {
-    console.error("Error deleting images:", error);
-    toast.error("Failed to delete images");
-  }
-};
+      toast.success(`Deleted ${images.length} images successfully!`);
+      fetchGallery(); // Refresh the list
+    } catch (error) {
+      console.error("Error deleting images:", error);
+      toast.error("Failed to delete images");
+    }
+  };
   const handleCategoryDelete = async (category_id) => {
     console.log(category_id);
-    if (!window.confirm("Are you sure you want to delete this category?")) return;
+    if (!window.confirm("Are you sure you want to delete this category?"))
+      return;
     try {
       await axios.delete(`/api/gallery/deleteCategoryGallery/${category_id}`);
       toast.success("Images deleted successfully!");
@@ -327,6 +331,41 @@ const handleRejectAll = async (images) => {
       toast.error("Failed to delete images");
     }
   };
+
+  const handleThumbnailChange = async (id) => {
+    console.log(id, selectedGroup);
+    if(selectedGroup[0].event_id) {
+      try {
+        await axios.put(
+          `/api/gallery/setEventThumbnail/${selectedGroup[0].event_id}/${id}`
+        );
+        toast.success("Thumbnail changed successfully!");
+      } catch (error) {
+        console.error("Error changing thumbnail:", error);
+        toast.error("Failed to change thumbnail");
+      }
+    }
+    else{
+      try {
+        await axios.put(
+          `/api/gallery/setCategoryThumbnail/${selectedGroup[0].category_id}/${id}`
+        );
+        toast.success("Thumbnail changed successfully!");
+      } catch (error) {
+        console.error("Error changing thumbnail:", error);
+        toast.error("Failed to change thumbnail");
+      }
+    }
+    // try {
+    //   await axios.patch(`/api/gallery/setThumbnail/${id}`);
+    //   toast.success("Thumbnail changed successfully!");
+    //   fetchGallery();
+    // } catch (error) {
+    //   console.error("Error changing thumbnail:", error);
+    //   toast.error("Failed to change thumbnail");
+    // }
+  };
+
   const renderImageGroup = (title, images = []) => {
     const isFolded = foldedCategories[title] || false;
     const groupKey = images[0]?.event_id || images[0]?.category_id || title;
@@ -806,10 +845,10 @@ const handleRejectAll = async (images) => {
                           />
                         </div>
                         <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
-                          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                          {/* <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
                             {selectedGroup[currentIndex].caption &&
                               selectedGroup[currentIndex].caption}
-                          </h3>
+                          </h3> */}
                           <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
@@ -829,14 +868,33 @@ const handleRejectAll = async (images) => {
                               {selectedGroup[currentIndex].category || "N/A"}
                             </div>
                             <div>
-                              {" "}
+                              <button
+                                className="text-primary hover:underline"
+                                onClick={() => {
+                                  handleThumbnailChange(
+                                    selectedGroup[currentIndex].id
+                                  );
+                                }}
+                              >
+                                Set as Thumbnail
+                              </button>
+                            </div>
+                            {/* <div>
                               <FiTrash2
                                 size={20}
                                 onClick={() =>
                                   handleReject(selectedGroup[currentIndex].id)
                                 }
                               />
-                            </div>
+                            </div> */}
+                            <DeleteConfirmationIcon
+                              onDelete={() =>
+                                handleReject(selectedGroup[currentIndex].id)
+                              }
+                              msg={
+                                "Are you sure you want to reject this image?"
+                              }
+                            />
                           </div>
                         </div>
                       </div>
