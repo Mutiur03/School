@@ -150,10 +150,10 @@ const Sidebar = ({
       ],
     },
     {
-      label: "Attendance",
+      label: "Attendence",
       icon: Calendar,
       dropdown: false,
-      link: "/attecndence",
+      link: "/attendence",
       id: "attendance",
     },
     {
