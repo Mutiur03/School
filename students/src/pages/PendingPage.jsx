@@ -398,16 +398,13 @@ export default function PendingPage() {
   };
 
   const renderSkeletonLoader = () => (
-    <div className="space-y-8 sm:space-y-12">
+    <div className="space-y-12">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="space-y-4 sm:space-y-6">
-          <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 rounded-full" />
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+        <div key={i} className="space-y-6">
+          <Skeleton className="h-8 w-48 rounded-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, j) => (
-              <Skeleton
-                key={j}
-                className="aspect-square rounded-lg sm:rounded-xl"
-              />
+              <Skeleton key={j} className="aspect-square rounded-xl" />
             ))}
           </div>
         </div>

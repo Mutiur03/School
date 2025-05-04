@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { Edit } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import DeleteConfirmationIcon from "../components/DeleteConfimationIcon";
 import Loading from "../components/Loading";
 function NewSubject() {
