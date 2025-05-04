@@ -25,18 +25,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
+// const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
+const allowedOrigins = [
+  "https://school-public-client.onrender.com",
+  "http://localhost:5174",
+];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      //   callback(null, true);
-      // } else {
-      //   callback(new Error("Not allowed by CORS"));
-      // }
-      callback(null, true);
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -81,7 +78,7 @@ app.use("/api/attendance", attendenceRouter);
 app.use("/api/notices", noticeRouter);
 app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
-app.use('/api/gallery',galleryRouter);
+app.use("/api/gallery", galleryRouter);
 pool
   .connect()
   .then(() => {
@@ -93,5 +90,5 @@ pool
   })
   .catch((err) => {
     console.error("Error connecting to database:", err);
-    process.exit(1); 
+    process.exit(1);
   });
