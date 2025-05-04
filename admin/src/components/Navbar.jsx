@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import ThemeChange from "../components/ThemeChange";
-import LogoutConfirmation from "@/components/LogoutConfirmation";
+import LogoutConfirmation from "@/components/LogOutConfirmation";
 function Navbar({ setOpenDropdown }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
