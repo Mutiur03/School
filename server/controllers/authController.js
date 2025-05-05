@@ -53,7 +53,7 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "lax" : "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       // maxAge: 60 * 1000,
     });
     res.json({ success: true, message: "Login successful" });
@@ -93,7 +93,7 @@ export const student_login = async (req, res) => {
   res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     // maxAge: 60 * 1000,
   });
   res.json({ success: true, message: "Login successful" });
