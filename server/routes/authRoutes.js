@@ -1,5 +1,10 @@
 import express from "express";
-import { authenticateUser, login, student_login, authenticateStudent } from "../controllers/authController.js";
+import {
+  authenticateUser,
+  login,
+  student_login,
+  authenticateStudent,
+} from "../controllers/authController.js";
 
 const authRouter = express.Router();
 
@@ -9,11 +14,11 @@ authRouter.get("/protected", authenticateUser, (req, res) => {
 });
 authRouter.get("/logout", (req, res) => {
   console.log("Logging out...");
-  
+
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "strict",
   });
   res.json({ message: "Logout successful" });
 });

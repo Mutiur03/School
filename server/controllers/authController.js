@@ -53,7 +53,7 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "strict",
       // maxAge: 60 * 1000,
     });
     res.json({ success: true, message: "Login successful" });
@@ -70,7 +70,7 @@ export const student_login = async (req, res) => {
   const query = "SELECT * FROM students WHERE login_id = $1";
   const result = await pool.query(query, [login_id]);
   if (result.rows.length === 0) {
-    return res.status(401).json({ message: "Invalid login id" });
+    return res.status(401).json({ message: "Invalid login id" }); 
   }
   console.log(result.rows[0].password);
   const hashedPassword = result.rows[0].password;
@@ -93,7 +93,7 @@ export const student_login = async (req, res) => {
   res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "strict",
     // maxAge: 60 * 1000,
   });
   res.json({ success: true, message: "Login successful" });

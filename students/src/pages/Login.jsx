@@ -77,7 +77,7 @@ export default function Login() {
                 </label>
                 <input
                   id="login_id"
-                  type="text"
+                  type="number"
                   placeholder="Enter your Login ID"
                   minLength={5}
                   maxLength={5}
