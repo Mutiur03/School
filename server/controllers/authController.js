@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 export const authenticateUser = async (req, res, next) => {
-  const token = req.cookies?.token; 
+  const token = req.cookies?.token;
   console.log(token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
   // console.log(token);
@@ -12,8 +12,9 @@ export const authenticateUser = async (req, res, next) => {
     req.user = decoded;
     console.log(req.user);
     console.log(req.user.id);
-    if(!req.user.id) return res.status(401).json({ message: "Unauthorized" });
-    if(req.user.role !== "admin") return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.id) return res.status(401).json({ message: "Unauthorized" });
+    if (req.user.role !== "admin")
+      return res.status(401).json({ message: "Unauthorized" });
     const check = await pool.query("SELECT * FROM admin WHERE id = $1", [
       req.user.id,
     ]);
@@ -52,7 +53,7 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "strict",
       // maxAge: 60 * 1000,
     });
     res.json({ success: true, message: "Login successful" });
@@ -89,11 +90,10 @@ export const student_login = async (req, res) => {
     { expiresIn: "7d" }
   );
   console.log(token);
-
   res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
     // maxAge: 60 * 1000,
   });
   res.json({ success: true, message: "Login successful" });
@@ -101,14 +101,12 @@ export const student_login = async (req, res) => {
 
 export const authenticateStudent = async (req, res, next) => {
   const token = req.cookies?.token; // Use optional chaining to avoid errors
-  console.log("Authenticating",token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
   // console.log(token);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log(decoded);
-    
     req.user = decoded;
     const check = await pool.query(
       "SELECT * FROM students WHERE login_id = $1",
