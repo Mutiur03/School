@@ -32,7 +32,6 @@ export default function Login() {
     const form = e.currentTarget;
     const formData = new FormData(e.currentTarget);
     try {
-      axios.defaults.withCredentials = true;
       const response = await axios.post(
         "/api/auth/student_login",
         formData,
