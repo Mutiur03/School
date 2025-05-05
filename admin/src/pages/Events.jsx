@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import DatePicker from "../components/DatePicker";
+import DatePicker from "../components/DatePickerF";
 import DeleteConfirmation from "../components/DeleteConfimation";
+import {format} from "date-fns";
 const Events = () => {
   const [events, setEvents] = useState([]);
   const [popup, setPopup] = useState({
@@ -154,7 +155,7 @@ const Events = () => {
                   className="resize-none"
                 />
               </div>
-              <div className="flex justify-between lg:flex-row gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="file">Upload PDF Notice</Label>
                   <Input
@@ -224,10 +225,10 @@ const Events = () => {
                   )}
                 </div>
               </div>
-              <div className="flex gap-4 items-center justify-between">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="date">Event Date</Label>
-                  <Input
+                  {/* <Input
                     type="date"
                     name="date"
                     required
@@ -236,12 +237,13 @@ const Events = () => {
                     onChange={(e) =>
                       setFormValues({ ...formValues, date: e.target.value })
                     }
-                  />
+                  /> */}
                   <DatePicker
                     value={formValues.date}
                     onChange={(e) =>
                       setFormValues({ ...formValues, date: e.target.value })
                     }
+                      
                   />
                 </div>
                 <div className="space-y-1">
@@ -327,7 +329,7 @@ const Events = () => {
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-lg mb-1">{event.title}</h3>
-                <p className="text-sm text-gray-500 mb-2">{event.date}</p>
+                <p className="text-sm text-gray-500 mb-2">{format(new Date(event.date), "dd MMM yyyy")}</p>
                 <button
                   className="text-primary text-sm hover:underline"
                   onClick={() => openPopup("view", event)}
@@ -365,7 +367,7 @@ const Events = () => {
                     <strong>Details:</strong> {popup.event.details}
                   </div>
                   <div>
-                    <strong>Date:</strong> {popup.event.date}
+                    <strong>Date:</strong> {format(new Date(popup.event.date), "dd MMM yyyy")}
                   </div>
                   <div>
                     <strong>Location:</strong> {popup.event.location}

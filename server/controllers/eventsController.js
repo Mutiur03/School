@@ -1,21 +1,26 @@
 import pool from "../config/db.js";
 import fs from "fs";
 export const addEventController = async (req, res) => {
-  
   try {
-    const { title, details, date,location } = req.body;
+    let { title, details, date, location } = req.body;
     const image = req.files.image[0];
     const file = req.files.file[0];
     console.log(title, details, date, image, file);
+    date = new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).replace(/\//g, "-");
+    console.log(date);
 
     const result = await pool.query(
       "INSERT INTO events (title, details, date, image, file,location) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, details, date, image.path, file.path,location]
+      [title, details, date, image.path, file.path, location]
     );
     res.json(result.rows);
     // res.json({ message: "Event added successfully" });
   } catch (error) {
-    console.log(error); 
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -61,17 +66,17 @@ export const deleteEventController = async (req, res) => {
 export const updateEventController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, details, date,location } = req.body;
+    const { title, details, date, location } = req.body;
     const file = req.files?.file?.[0];
     const image = req.files?.image?.[0];
 
     let paramIndex = 5;
     const fields = [];
-    const values = [title, details,location, date];
+    const values = [title, details, location, date];
 
     if (file) {
       fields.push(`file = $${paramIndex++}`);
-      values.push(file.filename); 
+      values.push(file.filename);
     }
     if (image) {
       fields.push(`image = $${paramIndex++}`);

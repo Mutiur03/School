@@ -179,7 +179,7 @@ const Sidebar = () => {
                 )}
               </button>
 
-              <div className="flex-1 overflow-x-hidden py-4 scrollbar-thin">
+              <div className="flex-1 overflow-x-hidden h-[calc(100vh-6rem)] py-4 scrollbar-thin">
                 <ul className="space-y-1 px-2">
                   {sidebarItems.map((item) => (
                     <li key={item.id}>

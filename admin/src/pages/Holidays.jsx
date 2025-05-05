@@ -12,11 +12,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
 import DeleteConfirmation from "../components/DeleteConfimation";
-import { DatePickerWithRange } from "../components/DateRangePicker";
+import { Calendar } from "@/components/Calendar";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import DateRangePickerF from "@/components/DateRangePickerF";
 
 const HolidayCalendar = () => {
   const [holidays, setHolidays] = useState([]);
@@ -70,16 +70,17 @@ const HolidayCalendar = () => {
     };
     console.log(payload);
 
-    try {if (editingId) {
-      await axios.put(`/api/holidays/updateHoliday/${editingId}`, payload);
-      toast.success("Holiday updated successfully");
-    } else {
-      await axios.post("/api/holidays/addHoliday", payload);
-      toast.success("Holiday added successfully");
-    }
-    setDateRange({ from: null, to: null });
-    fetchHolidays();
-    handleClose();
+    try {
+      if (editingId) {
+        await axios.put(`/api/holidays/updateHoliday/${editingId}`, payload);
+        toast.success("Holiday updated successfully");
+      } else {
+        await axios.post("/api/holidays/addHoliday", payload);
+        toast.success("Holiday added successfully");
+      }
+      setDateRange({ from: null, to: null });
+      fetchHolidays();
+      handleClose();
     } catch (error) {
       console.log(error);
       toast.error("Failed to add holiday. Please try again.");
@@ -141,23 +142,15 @@ const HolidayCalendar = () => {
       </div>
 
       <Calendar
-        className="bg-card w-fit mx-auto p-5 rounded-lg shadow-lg"
-        mode="single"
-        onDayClick={(date) => {
-          const holidaysOnDate = getHolidaysForDate(date);
-          if (holidaysOnDate.length > 0) {
-            setSelectedDate(date);
-            setDateDialogOpen(true);
-          }
+        onDateSelect={(setDate) => {
+          setSelectedDate(setDate);
+          setDateDialogOpen(true);
         }}
         modifiers={{
           holiday: (date) => isHoliday(date),
-          weekend: (date) => date.getDay() === 5 || date.getDay() === 6,
         }}
         modifiersClassNames={{
-          holiday:
-            "bg-red-500 p-2 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white text-white",
-          weekend: "text-red-500 hover:text-red-600 p-2",
+          holiday: "bg-red-500 text-white dark:text-white dark:hover:bg-red-600 hover:bg-red-600 hover:text-white",
         }}
       />
 
@@ -194,7 +187,12 @@ const HolidayCalendar = () => {
               ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDateDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDateDialogOpen(false);
+              }}
+            >
               Close
             </Button>
           </DialogFooter>
@@ -214,11 +212,7 @@ const HolidayCalendar = () => {
               </p>
             </div>
             <div className="space-x-2">
-              <Button
-                onClick={() => handleEdit(holiday)}
-              >
-                Edit
-              </Button>
+              <Button onClick={() => handleEdit(holiday)}>Edit</Button>
               <DeleteConfirmation onDelete={() => handleDelete(holiday.id)} />
             </div>
           </li>
@@ -240,17 +234,22 @@ const HolidayCalendar = () => {
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                className="col-span-3"
+                className="w-[325%]"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label>Date Range</Label>
-              <DatePickerWithRange
+              {/* <DatePickerWithRange
                 className="col-span-3"
                 date={dateRange}
                 setDate={setDateRange}
+              /> */}
+              <DateRangePickerF
+                date={dateRange}
+                setDate={setDateRange}
+                className="w-[325%]"
               />
             </div>
 
@@ -258,7 +257,7 @@ const HolidayCalendar = () => {
               <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
-                className="col-span-3"
+                className="w-[325%]"
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
