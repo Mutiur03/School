@@ -93,7 +93,7 @@ export const student_login = async (req, res) => {
   res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     // maxAge: 60 * 1000,
   });
   res.json({ success: true, message: "Login successful" });
@@ -101,6 +101,7 @@ export const student_login = async (req, res) => {
 
 export const authenticateStudent = async (req, res, next) => {
   const token = req.cookies?.token; // Use optional chaining to avoid errors
+  console.log("Authenticating",token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
   // console.log(token);
 

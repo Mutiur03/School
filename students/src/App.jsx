@@ -7,12 +7,13 @@ import PrivateRoute from "./components/PrivateRoutes";
 import StudentProfile from "./pages/StudentProfile";
 import ChangePasswordPage from "./pages/ChangePassword";
 import Result from "./pages/Result";
-import axios from "axios";
+import axios, { Axios } from "axios";
 import UploadPage from "./pages/UploadPage";
 import RejectedPage from "./pages/RejectedPage";
 import PendingPage from "./pages/PendingPage";
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+  axios.defaults.withCredentials = true;
   return (
     <>
       <Toaster
