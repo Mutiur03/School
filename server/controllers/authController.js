@@ -77,7 +77,7 @@ export const student_login = async (req, res) => {
   if (!isValidPassword) {
     return res.status(401).json({ message: "Invalid password" });
   }
-  console.log(result.rows[0]);
+  // console.log(result.rows[0]);
 
   const token = jwt.sign(
     {
