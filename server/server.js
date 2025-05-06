@@ -18,14 +18,15 @@ import eventsRouter from "./routes/eventsRoutes.js";
 import galleryRouter from "./routes/galleryRoutes.js";
 import runQuery from "./config/query.js";
 import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
+const storagePath = path.join(__dirname, "uploads");
+
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"]; 
 const allowedOrigins = [
   "https://school-public-client.onrender.com",
   "https://school-students.onrender.com",
@@ -48,28 +49,7 @@ app.use("/uploads", express.static("uploads"));
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
-// app.get("/uploads/:filename", (req, res) => {
-//   const fileName = req.params.filename;
-//   const filePath = path.join(__dirname, "uploads", fileName);
 
-//   // Check if file exists
-//   if (!fs.existsSync(filePath)) {
-//     return res.status(404).send("File not found");
-//   }
-
-//   const fileExtension = path.extname(fileName).toLowerCase();
-
-//   // Serve PDF with inline disposition
-//   if (fileExtension === ".pdf") {
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
-//   } else {
-//     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-//   }
-
-//   res.sendFile(filePath);
-// });
-// Routes
 app.use("/api/students", studRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/sub", subRouter);
@@ -85,9 +65,17 @@ app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
 pool
   .connect()
-  .then(() => {
+  .then(async () => {
     console.log("Connected to PostgreSQL database");
-    runQuery();
+    await runQuery();
+    fs.mkdir(storagePath, { recursive: true }, (err) => {
+      if (err) {
+        console.error("Error creating uploads directory:", err);
+      } else {
+        console.log("Uploads directory created successfully");
+      }
+    });
+    
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
     });

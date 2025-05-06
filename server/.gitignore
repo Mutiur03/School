@@ -6,7 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-
 secrets.json
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
