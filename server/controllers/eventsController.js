@@ -6,11 +6,13 @@ export const addEventController = async (req, res) => {
     const image = req.files.image[0];
     const file = req.files.file[0];
     console.log(title, details, date, image, file);
-    date = new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).replace(/\//g, "-");
+    date = new Date(date)
+      .toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\//g, "-");
     console.log(date);
 
     const result = await pool.query(
@@ -28,7 +30,14 @@ export const addEventController = async (req, res) => {
 export const getEventsController = async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM events");
-    res.json(result.rows);
+    const thumbnails = result.rows.map((event) => {
+      if (fs.existsSync(event.thumbnail)) {
+        return { ...event, thumbnail: event.thumbnail.replace(/\\/g, "/") };
+      }
+      return { ...event, thumbnail: event.image.replace(/\\/g, "/") };
+    });
+    console.log(thumbnails);
+    res.json(thumbnails);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });

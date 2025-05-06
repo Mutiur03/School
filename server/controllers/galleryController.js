@@ -165,20 +165,6 @@ export const deleteEventGalleryController = async (req, res) => {
 export const deleteCategoryGalleryController = async (req, res) => {
   try {
     const { id } = req.params;
-    // const exists = await pool.query(
-    //   "SELECT * FROM gallery WHERE category_id = $1",
-    //   [id]
-    // );
-    // exists.rows.forEach((image) => {
-    //   const filePath = image.image_path;
-    //   if (fs.existsSync(filePath)) {
-    //     fs.unlinkSync(filePath);
-    //   }
-    // });
-    // const result = await pool.query(
-    //   "DELETE FROM gallery WHERE category_id = $1",
-    //   [id]
-    // );
     const result = await pool.query(
       "UPDATE gallery SET status = 'rejected' WHERE category_id = $1",
       [id]
@@ -205,7 +191,15 @@ export const addCategoryController = async (req, res) => {
 export const getCategoriesController = async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM categories");
-    res.json(result.rows);
+    const categories = result.rows.map((category) => {
+      if (fs.existsSync(category.thumbnail)) {
+        return { ...category, thumbnail: category.thumbnail.replace(/\\/g, "/") };
+      }
+      return { ...category, thumbnail: null };
+    });
+    console.log(categories);
+
+    res.json(categories);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });
