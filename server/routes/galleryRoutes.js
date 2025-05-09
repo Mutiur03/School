@@ -50,7 +50,7 @@ galleryRouter.put(
   "/updateGallery/:id",
   upload.single("images"),
   updateGalleryController
-);
+); 
 galleryRouter.delete("/deleteGallery/:id", deleteGalleryController);
 galleryRouter.delete("/deleteEventGallery/:id", deleteEventGalleryController);
 galleryRouter.delete(
