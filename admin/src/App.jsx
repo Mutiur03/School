@@ -2,32 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/Dashboard";
-import Settings from "./pages/Settings";
-import NewStudent from "./pages/NewStudent";
-import NewTeacher from "./pages/NewTeacher";
-import NewSubject from "./pages/NewSubject";
-import AddExam from "./pages/AddExam";
-import StudentList from "./pages/StudentList";
 import AlumniList from "./pages/AlumniList";
 import { Toaster } from "react-hot-toast";
-import AddMarks from "./pages/AddMarks";
-import ViewMarks from "./pages/ViewMarks";
-import GenerateResult from "./pages/GenerateResult";
-import UpdateStatus from "./pages/UpdateStatus";
-import Login from "./pages/Login";
 import PrivateRoute from "./components/PrivateRoute.jsx";
-import TeacherList from "./pages/TeacherList.jsx";
-import AddLevel from "./pages/AddLevel.jsx";
-import ShowMarkSheet from "./pages/ShowMarkSheet.jsx";
-import Attendence from "./pages/Attendence.jsx";
 import axios from "axios";
-import Notice from "./pages/Notice.jsx";
-import HolidayCalendar from "./pages/Holidays.jsx";
-import Events from "./pages/Events.jsx";
-import Gallery from "./pages/Gallery.jsx";
-import PendingImages from "./pages/PendingImages.jsx";
-import RejectedImages from "./pages/RejectedImages.jsx";
+import {Login, AddMarks, NewSubject, AddLevel, Dashboard, UpdateStatus, Attendence, Notice, Holidays, Events, Gallery, PendingImages, RejectedImages, TeacherList, StudentList, ShowMarkSheet, GenerateResult, ViewMarks, AddExam, Settings} from "./pages"
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -135,7 +114,7 @@ function App() {
                             <Route path="/notice" element={<Notice />} />
                             <Route
                               path="/holiday"
-                              element={<HolidayCalendar />}
+                              element={<Holidays />}
                             ></Route>
                             <Route path="/events" element={<Events />}></Route>
                             <Route

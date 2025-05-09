@@ -4,13 +4,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import axios from "axios";
-import { toast } from "react-hot-toast";
 import { FiTrash2, FiEdit } from "react-icons/fi";
 import { FiEye } from "react-icons/fi";
-import Loading from "@/components/Loading";
+import { Loading } from "@/components";
+import { useNoticeStore } from "@/store";
+import { Loader2 } from "lucide-react";
 const NoticeUploadPage = () => {
-  const [notices, setNotices] = useState([]);
   const [popup, setPopup] = useState({
     visible: false,
     type: "",
@@ -25,20 +24,17 @@ const NoticeUploadPage = () => {
     details: "",
     file: null,
   });
-  const [loading, setLoading] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
-
-  const fetchNotices = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("/api/notices/getNotices");
-      setNotices(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching notices:", error);
-      // toast.error("Failed to fetch notices.");
-    }
-    setLoading(false);
-  };
+  const {
+    notices,
+    fetchNotices,
+    deleteNotice,
+    isDeleting,
+    isSubmitting,
+    addNotice,
+    updateNotice,
+    isLoading,
+  } = useNoticeStore();
 
   useEffect(() => {
     fetchNotices();
@@ -48,28 +44,16 @@ const NoticeUploadPage = () => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    try {
-      if (isEditing) {
-        await axios.put(`/api/notices/updateNotice/${editId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Notice updated successfully!");
-      } else {
-        await axios.post("/api/notices/addNotice", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Notice uploaded successfully!");
-      }
-      setFormValues({ title: "", details: "", file: null });
-      form.reset();
-      setIsEditing(false);
-      setEditId(null);
-      setShowForm(false);
-      fetchNotices();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to upload notice.");
+    if (isEditing) {
+      await updateNotice(editId, formData);
+    } else {
+      await addNotice(formData);
     }
+    setFormValues({ title: "", details: "", file: null });
+    form.reset();
+    setIsEditing(false);
+    setEditId(null);
+    setShowForm(false);
   };
 
   const openPopup = (type, notice) => {
@@ -80,17 +64,6 @@ const NoticeUploadPage = () => {
     setPopup({ visible: false, type: "", notice: null });
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`/api/notices/deleteNotice/${id}`);
-      fetchNotices();
-      toast.success("Notice deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting notice:", error);
-      toast.error("Failed to delete notice.");
-    }
-  };
-  // if(loading) return null
   return (
     <div className="max-w-6xl mx-auto mt-10 px-4">
       <div className="flex justify-between items-center mb-4">
@@ -169,13 +142,33 @@ const NoticeUploadPage = () => {
                 )}
               </div>
               <div className="flex justify-between gap-4">
-                <Button type="submit" className="">
-                  {isEditing ? "Update Notice" : "Publish Notice"}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isEditing ? (
+                    isSubmitting ? (
+                      <>
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          Updating...
+                        </span>
+                      </>
+                    ) : (
+                      "Update Notice"
+                    )
+                  ) : isSubmitting ? (
+                    <>
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="animate-spin h-4 w-4" />
+                        Uploading...
+                      </span>
+                    </>
+                  ) : (
+                    "Publish Notice"
+                  )}
                 </Button>
 
                 <Button
                   variant="outline"
-                  className=""
+                  type="button"
                   onClick={() => {
                     setIsEditing(false);
                     setEditId(null);
@@ -213,7 +206,7 @@ const NoticeUploadPage = () => {
                 <tr>
                   <td colSpan="3" className="py-2">
                     <div className="flex justify-center items-center w-full h-full">
-                      {loading ? (
+                      {isLoading ? (
                         <Loading />
                       ) : (
                         <p className="text-gray-500">No notices found</p>
@@ -330,19 +323,32 @@ const NoticeUploadPage = () => {
                 </p>
                 <div className="flex justify-end gap-3 pt-4">
                   <button
+                    type="button"
+                    disabled={isDeleting}
                     onClick={closePopup}
                     className="px-4 py-2 border border-gray-300 rounded"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
+                    disabled={isDeleting}
                     onClick={async () => {
-                      await handleDelete(popup.notice.id);
+                      await deleteNotice(popup.notice.id);
                       closePopup();
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
                   >
-                    Delete
+                    {isDeleting ? (
+                      <>
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          Deleting...
+                        </span>
+                      </>
+                    ) : (
+                      "Delete"
+                    )}
                   </button>
                 </div>
               </>
