@@ -1,7 +1,6 @@
 import pool from "../config/db.js";
 
 export const addHolidayController = async (req, res) => {
-  
   try {
     const { title, start_date, end_date, description, is_optional } = req.body;
     console.log(title, start_date, end_date, description, is_optional);
@@ -10,7 +9,6 @@ export const addHolidayController = async (req, res) => {
       "INSERT INTO holidays (title, start_date, end_date, description, is_optional) VALUES ($1, $2, $3, $4, $5) RETURNING *",
       [title, start_date, end_date, description, is_optional]
     );
-    console.log(result.rows[0]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

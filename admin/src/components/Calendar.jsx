@@ -155,6 +155,7 @@ export function Calendar({
                       ? "hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                       : ""
                   }
+                  
                   ${
                     (dayIndex === 5 || dayIndex === 6) && day.isCurrentMonth
                       ? "text-red-500 dark:text-red-400"

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,9 +16,18 @@ import { Calendar } from "@/components/Calendar";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import DateRangePickerF from "@/components/DateRangePickerF";
+import { useHolidayStore } from "@/store";
+import { Loader2 } from "lucide-react";
 
 const HolidayCalendar = () => {
-  const [holidays, setHolidays] = useState([]);
+  const {
+    holidays,
+    fetchHolidays,
+    isLoading,
+    deleteHoliday,
+    addHoliday,
+    updateHoliday,
+  } = useHolidayStore();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -53,16 +61,10 @@ const HolidayCalendar = () => {
 
   useEffect(() => {
     fetchHolidays();
-  }, []);
-
-  const fetchHolidays = async () => {
-    const res = await axios.get("/api/holidays/getHolidays");
-    setHolidays(res.data);
-  };
+  }, [fetchHolidays]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const payload = {
       ...form,
       start_date: form.start_date,
@@ -72,25 +74,16 @@ const HolidayCalendar = () => {
 
     try {
       if (editingId) {
-        await axios.put(`/api/holidays/updateHoliday/${editingId}`, payload);
-        toast.success("Holiday updated successfully");
+        await updateHoliday(editingId, payload);
       } else {
-        await axios.post("/api/holidays/addHoliday", payload);
-        toast.success("Holiday added successfully");
+        await addHoliday(payload);
       }
       setDateRange({ from: null, to: null });
-      fetchHolidays();
       handleClose();
     } catch (error) {
       console.log(error);
       toast.error("Failed to add holiday. Please try again.");
     }
-  };
-
-  const handleDelete = async (id) => {
-    await axios.delete(`/api/holidays/deleteHoliday/${id}`);
-    toast.success("Holiday deleted successfully");
-    fetchHolidays();
   };
 
   const handleClose = () => {
@@ -141,83 +134,102 @@ const HolidayCalendar = () => {
         <Button onClick={() => setOpen(true)}>Add Holiday</Button>
       </div>
 
-      <Calendar
-        onDateSelect={(setDate) => {
-          setSelectedDate(setDate);
-          setDateDialogOpen(true);
-        }}
-        modifiers={{
-          holiday: (date) => isHoliday(date),
-        }}
-        modifiersClassNames={{
-          holiday: "bg-red-500 text-white dark:text-white dark:hover:bg-red-600 hover:bg-red-600 hover:text-white",
-        }}
-      />
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading holidays...</span>
+        </div>
+      ) : holidays.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-lg text-muted-foreground">No holidays available</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Click the "Add Holiday" button to add new holidays
+          </p>
+        </div>
+      ) : (
+        <>
+          <Calendar
+            onDateSelect={(setDate) => {
+              setSelectedDate(setDate);
+              setDateDialogOpen(true);
+            }}
+            modifiers={{
+              holiday: (date) => isHoliday(date),
+            }}
+            modifiersClassNames={{
+              holiday:
+                "bg-red-500 text-white dark:text-white dark:bg-red-500 dark:hover:bg-red-600 hover:bg-red-600 hover:text-white",
+            }}
+          />
 
-      <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Holiday Info</DialogTitle>
-            <DialogDescription>
-              {selectedDate &&
-                new Date(selectedDate).toLocaleDateString(undefined, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedDate &&
-              getHolidaysForDate(selectedDate).map((holiday) => (
-                <div
-                  key={holiday.id}
-                  className="border p-2 rounded-lg space-y-1 "
+          <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Holiday Info</DialogTitle>
+                <DialogDescription>
+                  {selectedDate &&
+                    new Date(selectedDate).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedDate &&
+                  getHolidaysForDate(selectedDate).map((holiday) => (
+                    <div
+                      key={holiday.id}
+                      className="border p-2 rounded-lg space-y-1 "
+                    >
+                      <p className="font-semibold">{holiday.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {holiday.start_date} to {holiday.end_date}
+                      </p>
+                      <p className="text-sm">{holiday.description}</p>
+                      <p className="text-sm italic">
+                        {holiday.is_optional ? "Depends on moon" : "Mandatory"}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDateDialogOpen(false);
+                  }}
                 >
-                  <p className="font-semibold">{holiday.title}</p>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <ul className="space-y-2">
+            {holidays.map((holiday) => (
+              <li
+                key={holiday.id}
+                className="border p-2 rounded-xl flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-medium">{holiday.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {holiday.start_date} to {holiday.end_date}
-                  </p>
-                  <p className="text-sm">{holiday.description}</p>
-                  <p className="text-sm italic">
-                    {holiday.is_optional ? "Depends on moon" : "Mandatory"}
+                    {holiday.start_date} - {holiday.end_date}
                   </p>
                 </div>
-              ))}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDateDialogOpen(false);
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <ul className="space-y-2">
-        {holidays.map((holiday) => (
-          <li
-            key={holiday.id}
-            className="border p-2 rounded-xl flex justify-between items-center"
-          >
-            <div>
-              <p className="font-medium">{holiday.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {holiday.start_date} - {holiday.end_date}
-              </p>
-            </div>
-            <div className="space-x-2">
-              <Button onClick={() => handleEdit(holiday)}>Edit</Button>
-              <DeleteConfirmation onDelete={() => handleDelete(holiday.id)} />
-            </div>
-          </li>
-        ))}
-      </ul>
+                <div className="space-x-2">
+                  <Button onClick={() => handleEdit(holiday)}>Edit</Button>
+                  <DeleteConfirmation
+                    onDelete={() => deleteHoliday(holiday.id)}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -241,11 +253,6 @@ const HolidayCalendar = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label>Date Range</Label>
-              {/* <DatePickerWithRange
-                className="col-span-3"
-                date={dateRange}
-                setDate={setDateRange}
-              /> */}
               <DateRangePickerF
                 date={dateRange}
                 setDate={setDateRange}

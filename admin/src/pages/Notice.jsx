@@ -38,7 +38,7 @@ const NoticeUploadPage = () => {
 
   useEffect(() => {
     fetchNotices();
-  }, []);
+  }, [fetchNotices]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
