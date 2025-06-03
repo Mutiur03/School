@@ -41,7 +41,7 @@ const sliderData = [
         image: "/placeholder.svg?height=500&width=1200",
         title: "Welcome to Panchbibi LBP govt. High School",
         description:
-            "Providing quality education and shaping the future of our nation since 1965.",
+            "Providing quality education and shaping the future of our nation since 1940.",
     },
     {
         image: "/placeholder.svg?height=500&width=1200",

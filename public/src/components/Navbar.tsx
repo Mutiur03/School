@@ -115,7 +115,7 @@ export default function Navbar() {
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold">
-                Panchbibi LBP govt. High School
+                Panchbibi LBP Govt. High School
               </h1>
               <p className="text-sm md:text-base">
                 Excellence in Education Since 1940
