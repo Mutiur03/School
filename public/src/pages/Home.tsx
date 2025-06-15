@@ -331,7 +331,7 @@ export default function Home() {
                                     initial="hidden"
                                     animate="visible"
                                     variants={staggerContainer}
-                                    className="bg-white rounded-lg shadow-md overflow-hidden"
+                                    className="bg-white rounded-lg  overflow-hidden"
                                 >
                                     {notices.length > 0 ? (
                                         notices.slice(0, 3).map((notice) => (
