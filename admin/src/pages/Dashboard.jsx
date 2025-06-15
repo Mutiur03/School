@@ -140,7 +140,7 @@ function Dashboard() {
         return (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="space-y-6">
-              {dashboardData.attendanceData.length > 0 && (
+              {dashboardData.attendanceData && dashboardData.attendanceData.length > 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                     Attendance Overview
@@ -173,6 +173,16 @@ function Dashboard() {
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                    Attendance Overview
+                  </h3>
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <div className="text-6xl mb-4">📊</div>
+                    <div>No attendance data available</div>
                   </div>
                 </div>
               )}
@@ -212,7 +222,7 @@ function Dashboard() {
             <h3 className="text-xl font-semibold mb-6 text-gray-900 dark:text-white">
               Attendance Trend Analysis
             </h3>
-            {dashboardData.attendanceData.length > 0 ? (
+            {dashboardData.attendanceData && dashboardData.attendanceData.length > 0 ? (
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dashboardData.attendanceData}>
