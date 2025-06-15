@@ -17,6 +17,7 @@ export const addAttendenceController = async (req, res) => {
     day: "2-digit",
   });
   try {
+    const API_KEY = process.env.BULK_SMS_API_KEY;
     const { records } = req.body;
     records.forEach(async (record) => {
       let { studentId, date, status } = record;
@@ -56,19 +57,27 @@ export const addAttendenceController = async (req, res) => {
           console.log("Sending SMS to parent:", parent_phone, message);
           await pool.query(
             "UPDATE attendence SET send_msg = $1 WHERE student_id = $2 AND date = $3",
-            [true, studentId, date] 
+            [true, studentId, date]
           );
         } else {
           console.log("Message already sent for this date.");
           return;
         }
-        // Uncomment the following lines to send SMS using Twilio
-        // const twilioClient = require("twilio")(process.env.ACCOUNT_SID, process.env.AUTH_TOKEN);
-        // await twilioClient.messages.create({
-        //   body: message,
-        //   from: process.env.TWILIO_PHONE_NUMBER,
-        //   to: parent_phone,
-        // });
+        // try {
+        //   console.log(`SMS sent to ${parent_phone}: ${message}`);
+        //   // const smsResponse = await axios.post(
+        //   //   `http://bulksmsbd.net/api/smsapi?api_key=${API_KEY}&type=text&number=88${parent_phone}&senderid=Random&message=${encodeURIComponent(
+        //   //     message
+        //   //   )}`
+        //   // );
+        //   const smsResponse = await axios.post(
+        //     "http://bulksmsbd.net/api/smsapi?api_key=f8mYcTU58r5ixte7IMm6&type=text&number=8801934453796&senderid=Random&message=TestSMS"
+        //   );
+
+        //   console.log("SMS Response:", smsResponse.data);
+        // } catch (smsError) {
+        //   console.error("Error sending SMS:", smsError);
+        // }
       }
     });
     res.status(200).json({ message: "Attendence added successfully" });

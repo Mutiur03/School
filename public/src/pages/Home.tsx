@@ -38,19 +38,19 @@ type Notice = {
 
 const sliderData = [
     {
-        image: "/placeholder.svg?height=500&width=1200",
+        image: "/school_1.jpg",
         title: "Welcome to Panchbibi LBP govt. High School",
         description:
             "Providing quality education and shaping the future of our nation since 1940.",
     },
     {
-        image: "/placeholder.svg?height=500&width=1200",
+        image: "/school_2.jpg",
         title: "Excellence in Education",
         description:
             "Committed to academic excellence and holistic development of students.",
     },
     {
-        image: "/placeholder.svg?height=500&width=1200",
+        image: "/school_3.jpg",
         title: "Building Future Leaders",
         description:
             "Nurturing young minds to become responsible citizens and future leaders.",
@@ -87,32 +87,54 @@ export default function Home() {
     }, []);
 
     const host = import.meta.env.VITE_BACKEND_URL;
+
     const fetchNotices = async () => {
         try {
-            const response = await axios.get("/api/notices/getNotices");
-            console.log("notices", response.data);
+            const response = await axios.get(`${host}/api/notices/getNotices`);
+            console.log("notices response:", response.data);
 
-            setNotices(response.data.data || []);
+            // Handle different possible response structures
+            if (response.data.data) {
+                setNotices(response.data.data);
+            } else if (Array.isArray(response.data)) {
+                setNotices(response.data);
+            } else {
+                console.warn("Unexpected notices response structure:", response.data);
+                setNotices([]);
+            }
         } catch (error) {
             console.error("Error fetching notices:", error);
+            setNotices([]);
         }
     };
 
     const fetchEvents = async () => {
         try {
-            const response = await axios.get("/api/events/getEvents");
-            console.log(response.data);
-            setEvents(response.data || []);
+            const response = await axios.get(`${host}/api/events/getEvents`);
+            console.log("events response:", response.data);
+
+            // Handle different possible response structures
+            if (response.data.data) {
+                setEvents(response.data.data);
+            } else if (Array.isArray(response.data)) {
+                setEvents(response.data);
+            } else {
+                console.warn("Unexpected events response structure:", response.data);
+                setEvents([]);
+            }
         } catch (error) {
-            console.error("Error fetching notices:", error);
+            console.error("Error fetching events:", error);
+            setEvents([]);
         }
     };
 
     const fetchHolidays = async () => {
         try {
-            const res = await axios.get<Holiday[]>("/api/holidays/getHolidays");
-            console.log(res.data);
+            const res = await axios.get<Holiday[]>(`${host}/api/holidays/getHolidays`);
+            console.log("holidays response:", res.data);
+
             setHolidays(res.data);
+
         } catch (error) {
             console.error("Error fetching holidays:", error);
             setHolidays([]);
@@ -253,7 +275,7 @@ export default function Home() {
                                         academic excellence, character development, and social
                                         responsibility in our students.
                                     </p>
-                                    <Link to="/about/history" className="btn-primary">
+                                    <Link to="/about/glance" className="text-primary hover:underline inline-flex items-center gap-2">
                                         Learn More
                                     </Link>
                                 </motion.div>
@@ -311,27 +333,33 @@ export default function Home() {
                                     variants={staggerContainer}
                                     className="bg-white rounded-lg shadow-md overflow-hidden"
                                 >
-                                    {notices.map((notice) => (
-                                        <motion.div
-                                            key={notice.id}
-                                            variants={fadeIn}
-                                            className="p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
-                                        >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="font-semibold text-lg">{notice.title}</h3>
-                                                <span className="text-sm text-gray-500">
-                                                    {format(new Date(notice.created_at), "MMM dd, yyyy")}
-                                                </span>
-                                            </div>
-                                            <p className="text-gray-600 text-start">{notice.details}</p>
-                                            <Link
-                                                to={`/notice/${notice.id}`}
-                                                className="text-primary text-sm hover:underline mt-2 inline-block"
+                                    {notices.length > 0 ? (
+                                        notices.slice(0, 3).map((notice) => (
+                                            <motion.div
+                                                key={notice.id}
+                                                variants={fadeIn}
+                                                className="p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
                                             >
-                                                Read More
-                                            </Link>
-                                        </motion.div>
-                                    ))}
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h3 className="font-semibold text-lg">{notice.title}</h3>
+                                                    <span className="text-sm text-gray-500">
+                                                        {format(new Date(notice.created_at), "MMM dd, yyyy")}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-600 text-start">{notice.details}</p>
+                                                <Link
+                                                    to={`/notice/${notice.id}`}
+                                                    className="text-primary text-sm hover:underline mt-2 inline-block"
+                                                >
+                                                    Read More
+                                                </Link>
+                                            </motion.div>
+                                        ))
+                                    ) : (
+                                        <div className="p-4 text-center text-gray-500">
+                                            No notices available at the moment.
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </div>
@@ -364,39 +392,46 @@ export default function Home() {
                                     variants={staggerContainer}
                                     className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                                 >
-                                    {events
-                                        .filter((event) => new Date(event.date).setHours(0, 0, 0, 0) > new Date().setHours(0, 0, 0, 0))
-                                        .map((event) => (
-                                            <motion.div
-                                                key={event.id}
-                                                variants={fadeIn}
-                                                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                                            >
-                                                <div className="relative h-40">
-                                                    <img
-                                                        src={
-                                                            event.image ? `${host}/${event.image}` : "/placeholder.svg"
-                                                        }
-                                                        alt={event.title}
-                                                        className="object-cover w-full h-full"
-                                                    />
-                                                </div>
-                                                <div className="p-4">
-                                                    <h3 className="font-semibold text-lg mb-1">
-                                                        {event.title}
-                                                    </h3>
-                                                    <p className="text-sm text-gray-500 mb-2">
-                                                        {format(new Date(event.date), "dd MMM, yyyy")}
-                                                    </p>
-                                                    <Link
-                                                        to={`/event/${event.id}`}
-                                                        className="text-primary text-sm hover:underline"
-                                                    >
-                                                        View Details
-                                                    </Link>
-                                                </div>
-                                            </motion.div>
-                                        ))}
+                                    {events.length > 0 ? (
+                                        events
+                                            .filter((event) => new Date(event.date).setHours(0, 0, 0, 0) > new Date().setHours(0, 0, 0, 0))
+                                            .slice(0, 4)
+                                            .map((event) => (
+                                                <motion.div
+                                                    key={event.id}
+                                                    variants={fadeIn}
+                                                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                                                >
+                                                    <div className="relative h-40">
+                                                        <img
+                                                            src={
+                                                                event.image ? `${host}/${event.image}` : "/placeholder.svg"
+                                                            }
+                                                            alt={event.title}
+                                                            className="object-cover w-full h-full"
+                                                        />
+                                                    </div>
+                                                    <div className="p-4">
+                                                        <h3 className="font-semibold text-lg mb-1">
+                                                            {event.title}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-500 mb-2">
+                                                            {format(new Date(event.date), "dd MMM, yyyy")}
+                                                        </p>
+                                                        <Link
+                                                            to={`/event/${event.id}`}
+                                                            className="text-primary text-sm hover:underline"
+                                                        >
+                                                            View Details
+                                                        </Link>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                    ) : (
+                                        <div className="col-span-full p-4 text-center text-gray-500 bg-white rounded-lg">
+                                            No upcoming events at the moment.
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </div>
@@ -517,19 +552,19 @@ export default function Home() {
                             className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
                         >
                             <motion.div variants={fadeIn}>
-                                <div className="text-4xl font-bold mb-2">1965</div>
+                                <div className="text-4xl font-bold mb-2">1940</div>
                                 <p className="text-lg">Established</p>
                             </motion.div>
                             <motion.div variants={fadeIn}>
-                                <div className="text-4xl font-bold mb-2">1000+</div>
+                                <div className="text-4xl font-bold mb-2">500+</div>
                                 <p className="text-lg">Students</p>
                             </motion.div>
                             <motion.div variants={fadeIn}>
-                                <div className="text-4xl font-bold mb-2">50+</div>
+                                <div className="text-4xl font-bold mb-2">20+</div>
                                 <p className="text-lg">Teachers</p>
                             </motion.div>
                             <motion.div variants={fadeIn}>
-                                <div className="text-4xl font-bold mb-2">95%</div>
+                                <div className="text-4xl font-bold mb-2">99%</div>
                                 <p className="text-lg">Success Rate</p>
                             </motion.div>
                         </motion.div>

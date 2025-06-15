@@ -46,7 +46,7 @@ export default function Slider({ slides, autoplayInterval = 5000 }: SliderProps)
             }`}
         >
           <img
-            src={slide.image || "/placeholder.svg"}
+            src={slide.image || "/placeholder.svg?height=500&width=1200"}
             alt={slide.title}
 
             className="object-cover w-full h-full"

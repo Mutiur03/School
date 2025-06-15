@@ -142,6 +142,48 @@ export const updateTeacher = async (req, res) => {
         .json({ success: false, error: "Teacher not found" });
     }
 
+    // Update Google Sheet
+    try {
+      // Get current sheet data to find the teacher's row
+      const sheetData = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "teachers!A:E",
+      });
+
+      const rows = sheetData.data.values || [];
+      let rowIndex = -1;
+
+      // Find the row with matching email (assuming email is unique)
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][1] === email) {
+          rowIndex = i + 1; // Google Sheets is 1-indexed
+          break;
+        }
+      }
+
+      if (rowIndex > 0) {
+        // Update the specific row
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `teachers!A${rowIndex}:D${rowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          resource: {
+            values: [
+              [
+                name,
+                email,
+                "0" + removeNonNumber(phone).slice(-10),
+                subject.trim(),
+              ],
+            ],
+          },
+        });
+      }
+    } catch (sheetError) {
+      console.error("Error updating Google Sheet:", sheetError.message);
+      // Don't fail the request if sheet update fails
+    }
+
     res.status(200).json({
       success: true,
       data: result.rows[0],

@@ -2,11 +2,32 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import AlumniList from "./pages/AlumniList";
 import { Toaster } from "react-hot-toast";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import axios from "axios";
-import {Login, AddMarks, NewSubject, AddLevel, Dashboard, UpdateStatus, Attendence, Notice, Holidays, Events, Gallery, PendingImages, RejectedImages, TeacherList, StudentList, ShowMarkSheet, GenerateResult, ViewMarks, AddExam, Settings} from "./pages"
+import {
+  Login,
+  AddMarks,
+  NewSubject,
+  AddLevel,
+  Dashboard,
+  UpdateStatus,
+  Attendence,
+  Notice,
+  Holidays,
+  Events,
+  Gallery,
+  PendingImages,
+  RejectedImages,
+  TeacherList,
+  StudentList,
+  ShowMarkSheet,
+  GenerateResult,
+  ViewMarks,
+  AddExam,
+  Settings,
+  AlumniList,
+} from "./pages";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768

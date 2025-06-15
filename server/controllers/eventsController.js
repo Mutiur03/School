@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import fs from "fs";
+import { uploadPDFToDrive, DeletePDF } from "./noticeController.js";
 export const addEventController = async (req, res) => {
   try {
     let { title, details, date, location } = req.body;
@@ -14,10 +15,13 @@ export const addEventController = async (req, res) => {
       })
       .replace(/\//g, "-");
     console.log(date);
-
+    const { previewUrl } = await uploadPDFToDrive(file);
+    fs.unlink(file.path, (err) => {
+      if (err) console.error("Error deleting local file:", err);
+    });
     const result = await pool.query(
       "INSERT INTO events (title, details, date, image, file,location) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, details, date, image.path, file.path, location]
+      [title, details, date, image.path, previewUrl, location]
     );
     res.json(result.rows);
     // res.json({ message: "Event added successfully" });
@@ -63,6 +67,7 @@ export const deleteEventController = async (req, res) => {
     if (fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     }
+    await DeletePDF(result.rows[0].file);
     res
       .status(200)
       .json({ success: true, message: "Event deleted successfully" });
@@ -81,11 +86,26 @@ export const updateEventController = async (req, res) => {
 
     let paramIndex = 5;
     const fields = [];
-    const values = [title, details, location, date];
+    const values = [
+      title,
+      details,
+      location,
+      new Date(date)
+        .toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        })
+        .replace(/\//g, "-"),
+    ];
 
     if (file) {
+      const { previewUrl } = await uploadPDFToDrive(file);
       fields.push(`file = $${paramIndex++}`);
-      values.push(file.filename);
+      values.push(previewUrl);
+      fs.unlink(file.path, (err) => {
+        if (err) console.error("Error deleting local file:", err);
+      });
     }
     if (image) {
       fields.push(`image = $${paramIndex++}`);
@@ -103,6 +123,7 @@ export const updateEventController = async (req, res) => {
       if (fs.existsSync(imagePath) && image) {
         fs.unlinkSync(imagePath);
       }
+      await DeletePDF(exists.rows[0].file);
     }
     const setClause = fields.length > 0 ? `, ${fields.join(", ")}` : "";
 

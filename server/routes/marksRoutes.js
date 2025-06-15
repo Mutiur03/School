@@ -26,8 +26,8 @@ marksRouter.get(
   generateMarksheetController
 ); // Single exam indivisuall marksheet download
 
-marksRouter.get("/:id/:year/preview", previewMarksheetController); // All indivisuall marksheet preview
-marksRouter.get("/:id/:year/download", downloadPreviewMarksheet); // All indivisuall marksheet download
-marksRouter.get("/all/:year", downloadAllMarksheetPDF); // All indivisuall marksheet download
+marksRouter.get("/:id/:year/preview", previewMarksheetController); // indivisuall marksheet preview
+marksRouter.get("/:id/:year/download", downloadPreviewMarksheet); //  indivisuall marksheet download pdf
+marksRouter.get("/all/:year", downloadAllMarksheetPDF); // All indivisuall marksheet download pdf
 
 export default marksRouter;

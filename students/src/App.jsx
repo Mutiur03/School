@@ -35,21 +35,13 @@ function App() {
                     className={`px-[3rem] p-[2rem] ml-[4rem] w-[calc(100%-4rem)] md:ml-[15rem] md:w-[calc(100%-15rem)] transition-all duration-100`}
                   >
                     <Routes>
-                      <Route
-                        path="/"
-                        element={
-                          <div>
-                            <h1>Dashboard</h1>
-                          </div>
-                        }
-                      ></Route>
                       <Route path="/reports" element={<Result />}></Route>
                       <Route
                         path="/settings"
                         element={<ChangePasswordPage />}
                       ></Route>
                       <Route
-                        path="/profile"
+                        path="/"
                         element={<StudentProfile />}
                       ></Route>
                       <Route

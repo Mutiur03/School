@@ -38,8 +38,14 @@ const Sidebar = () => {
   const location = useLocation();
 
   const sidebarItems = [
-    { label: "Home", icon: FaHome, dropdown: false, link: "/", id: "home" },
-
+    // { label: "Home", icon: FaHome, dropdown: false, link: "/", id: "home" },
+    {
+      label: "Profile",
+      icon: FaUser,
+      dropdown: false,
+      link: "/profile",
+      id: "profile",
+    },
     {
       label: "Reports",
       icon: FaClipboardList,
@@ -48,13 +54,6 @@ const Sidebar = () => {
       id: "reports",
     },
 
-    {
-      label: "Profile",
-      icon: FaUser,
-      dropdown: false,
-      link: "/profile",
-      id: "profile",
-    },
     {
       label: "Settings",
       icon: FaGear,

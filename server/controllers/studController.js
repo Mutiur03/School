@@ -6,10 +6,28 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 export const initGoogleSheets = async () => {
   try {
+    // Validate required environment variables
+    const requiredEnvVars = {
+      client_email: process.env.client_email,
+      private_key: process.env.private_key,
+      SHEET_ID: process.env.SHEET_ID,
+    };
+    // console.log("Initializing Google Sheets API with environment variables:", requiredEnvVars);
+    
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingVars.length > 0) {
+      throw new Error(
+        `Missing required environment variables: ${missingVars.join(", ")}`
+      );
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.client_email,
-        private_key: process.env.private_key.replace(/\\n/g, "\n"), 
+        private_key: process.env.private_key.replace(/\\n/g, "\n"),
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
@@ -19,8 +37,12 @@ export const initGoogleSheets = async () => {
     return { sheets, spreadsheetId };
   } catch (error) {
     console.error("Error in initGoogleSheets:", error.message);
-    console.error("Ensure the key file and SHEET_ID are configured correctly.");
-    throw new Error("Initialization of Google Sheets API failed.");
+    console.error(
+      "Ensure the following environment variables are set: client_email, private_key, SHEET_ID"
+    );
+    throw new Error(
+      `Google Sheets API initialization failed: ${error.message}`
+    );
   }
 };
 const { sheets, spreadsheetId } = await initGoogleSheets();

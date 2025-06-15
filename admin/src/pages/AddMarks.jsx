@@ -111,7 +111,10 @@ const AddMarks = () => {
     return subjects
       .filter((s) => s.class.toString() == level) // Include subjects for the selected class or available for all
       .filter(
-        (s) => studentDepartments.has(s.department) || s.department === ""
+        (s) =>
+          studentDepartments.has(s.department) ||
+          s.department === "" ||
+          s.department == null
       );
   }, [filteredStudents, subjects, level, specific]);
 
@@ -129,7 +132,7 @@ const AddMarks = () => {
       const res = await axios.get(`/api/marks/getGPA/${year}`);
       console.log("GPA data:", res.data);
       const gpaDatas = res.data?.data || [];
-      
+
       const initialData = {}; // Preserve existing gpaData
       if (examName == "JSC") {
         gpaDatas.forEach((student) => {
@@ -242,14 +245,11 @@ const AddMarks = () => {
     if (examName === "SSC" || examName === "JSC") {
       const gpaDataToSend = Object.entries(gpaData)
         .filter(([studentId]) => {
+          // Only include students that are currently visible/filtered
           const student = filteredStudents.find(
             (s) => s?.student_id === Number(studentId)
           );
-          return (
-            student &&
-            ((examName === "JSC" && student.class === 8) ||
-              (examName === "SSC" && student.class === 10))
-          );
+          return student; // This ensures only visible students are submitted
         })
         .map(([studentId, data]) => ({
           studentId: parseInt(studentId),
@@ -274,16 +274,27 @@ const AddMarks = () => {
     try {
       console.log("Submitting marks data:", marksData);
 
+      // Get currently visible subjects based on filters
+      const visibleSubjects = subjectsForClass.filter((s) => !specific || s.id == specific);
+      const visibleSubjectIds = visibleSubjects.map(s => s.id);
+
       const submissionData = Object.entries(marksData)
+        .filter(([studentId]) => {
+          // Only include students that are currently visible/filtered
+          return filteredStudents.some(s => s.student_id === Number(studentId));
+        })
         .filter(([, data]) => data?.subjectMarks?.length > 0)
         .map(([studentId, data]) => ({
           studentId: parseInt(studentId),
-          subjectMarks: data.subjectMarks.map((m) => ({
-            subjectId: m.subjectId,
-            marks: Math.max(0, parseInt(m.marks) || 0), // Default to 0 if no value is provided
-          })),
+          subjectMarks: data.subjectMarks
+            .filter(m => visibleSubjectIds.includes(m.subjectId)) // Only include visible subjects
+            .map((m) => ({
+              subjectId: m.subjectId,
+              marks: Math.max(0, parseInt(m.marks) || 0), // Default to 0 if no value is provided
+            })),
         }))
         .filter((student) => student.subjectMarks.length > 0);
+      
       console.log("Submission data:", submissionData);
 
       if (submissionData.length === 0) {
@@ -501,7 +512,8 @@ const AddMarks = () => {
 
                           if (
                             sub.department !== student.department &&
-                            sub.department !== ""
+                            sub.department !== "" &&
+                            sub.department !== null
                           )
                             return null;
                           return (

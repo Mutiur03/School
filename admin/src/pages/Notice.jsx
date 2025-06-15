@@ -24,7 +24,6 @@ const NoticeUploadPage = () => {
     details: "",
     file: null,
   });
-  const host = import.meta.env.VITE_BACKEND_URL;
   const {
     notices,
     fetchNotices,
@@ -44,16 +43,23 @@ const NoticeUploadPage = () => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    if (isEditing) {
-      await updateNotice(editId, formData);
-    } else {
-      await addNotice(formData);
+    try {
+      if (isEditing) {
+        await updateNotice(editId, formData);
+      } else {
+        await addNotice(formData);
+      }
+      // Only reset and hide form on successful submission
+      setFormValues({ title: "", details: "", file: null });
+      form.reset();
+      setIsEditing(false);
+      setEditId(null);
+      setShowForm(false);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      // Don't hide form on error - let user see the error and retry
+      openPopup("error", error.message || "An error occurred");
     }
-    setFormValues({ title: "", details: "", file: null });
-    form.reset();
-    setIsEditing(false);
-    setEditId(null);
-    setShowForm(false);
   };
 
   const openPopup = (type, notice) => {
@@ -105,6 +111,7 @@ const NoticeUploadPage = () => {
                   name="details"
                   placeholder="Enter detailed notice text"
                   value={formValues.details}
+                  maxLength={100}
                   onChange={(e) =>
                     setFormValues({ ...formValues, details: e.target.value })
                   }
@@ -129,15 +136,13 @@ const NoticeUploadPage = () => {
                 />
                 {formValues.file && (
                   <p className="text-sm text-gray-500">
-                    {formValues.file.name
-                      ? "Selected file: " + formValues.file.name
+                    {formValues.file
+                      ? "Selected file: " +
+                        formValues.file.name.slice(0, 20) +
+                        "..."
                       : "Uploaded file: " +
-                        formValues.file
-                          .split("\\")
-                          .pop()
-                          .split("-")
-                          .slice(2)
-                          .join("-")}
+                        formValues.file.slice(0, 20) +
+                        "..."}
                   </p>
                 )}
               </div>
@@ -276,29 +281,24 @@ const NoticeUploadPage = () => {
                     <strong>Details:</strong> {popup.notice.details}
                   </div>
                   <div>
-                    <strong>File:</strong>{" "}
-                    {/* <a
-                      href={`${host}/${popup.notice.file}`}
+                    <a
+                      href={`${popup.notice.file}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
-                      View/Download PDF
-                    </a> */}
+                      View PDF
+                    </a>
+                  </div>
+                  <div>
                     <a
-                      href={`${host}/${popup.notice.file}`}
+                      href={`${popup.notice.download_url}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
                       Download PDF
                     </a>
-                    {/* <iframe
-                      src={`${host}/${popup.notice.file}`}
-                      width="100%"
-                      height="600px"
-                      title="PDF Preview"
-                    /> */}
                   </div>
                 </div>
                 <div className="flex justify-end pt-4">

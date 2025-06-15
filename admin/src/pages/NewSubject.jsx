@@ -26,6 +26,7 @@ function NewSubject() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showFormatInfo, setShowFormatInfo] = useState(false);
   const excelFileRef = React.useRef(null);
   useEffect(() => {
     fetchTeachers();
@@ -409,6 +410,17 @@ function NewSubject() {
                 </form>
               ) : (
                 <form onSubmit={sendToBackend} className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Excel File Upload</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowFormatInfo(true)}
+                      className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                      title="View Excel format requirements"
+                    >
+                      i
+                    </button>
+                  </div>
                   <div className="relative">
                     <input
                       type="file"
@@ -591,6 +603,105 @@ function NewSubject() {
           </div>
         </div>
       </div>
+
+      {/* Excel Format Info Popup */}
+      {showFormatInfo && (
+        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
+          <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">
+                  Excel File Format Requirements
+                </h2>
+                <button
+                  onClick={() => setShowFormatInfo(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Your Excel file must contain the following columns with exact
+                  names (case-sensitive):
+                </p>
+
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="font-medium">Required Columns:</div>
+                    <div></div>
+
+                    <div>• name</div>
+                    <div>• class</div>
+
+                    <div>• full_mark</div>
+                    <div>• pass_mark</div>
+
+                    <div>• department</div>
+                    <div>• year</div>
+
+                    <div>• teacher_id</div>
+                    <div></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-medium">Important Notes:</h3>
+                  <ul className="text-sm space-y-1 list-disc list-inside text-gray-600 dark:text-gray-300">
+                    <li>
+                      <strong>name:</strong> Subject name (e.g., Mathematics,
+                      Physics)
+                    </li>
+                    <li>
+                      <strong>class:</strong> Class number (6-10)
+                    </li>
+                    <li>
+                      <strong>full_mark:</strong> Maximum marks for the subject
+                    </li>
+                    <li>
+                      <strong>pass_mark:</strong> Minimum marks required to pass
+                    </li>
+                    <li>
+                      <strong>department:</strong> Science/Arts/Commerce (leave
+                      empty for classes 6-8)
+                    </li>
+                    <li>
+                      <strong>year:</strong> Academic year (e.g., 2024)
+                    </li>
+                    <li>
+                      <strong>teacher_id:</strong> ID of the assigned teacher
+                    </li>
+                    <li>
+                      <strong>File Format:</strong> Only .xlsx or .xls files are
+                      accepted
+                    </li>
+                    <li>First row should contain column headers</li>
+                    <li>All required fields must be present</li>
+                  </ul>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <strong>Tip:</strong> To find teacher IDs, check the Teachers
+                    section in the admin panel. Make sure the column headers in
+                    your Excel file match exactly as listed above.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowFormatInfo(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

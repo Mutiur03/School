@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import puppeteer from "puppeteer";
-
-// Helper function to validate data
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 const validateMarksData = (data) => {
   if (!Array.isArray(data.students)) {
     throw new Error("Students data must be an array");
@@ -23,10 +23,9 @@ const validateMarksData = (data) => {
 };
 
 export const addMarksController = async (req, res) => {
-  console.log("Received request to add marks:", req.body); // Debug log
-
   try {
     validateMarksData(req.body);
+
     const { students, examName, year } = req.body;
 
     // Get exam ID
@@ -41,9 +40,9 @@ export const addMarksController = async (req, res) => {
         error: `Exam "${examName}" not found for year ${year}`,
       });
     }
+
     const examId = examResult.rows[0].id;
 
-    await pool.query("BEGIN");
     const results = [];
     const errors = [];
 
@@ -57,51 +56,63 @@ export const addMarksController = async (req, res) => {
         );
 
         if (enrollmentResult.rows.length === 0) {
-          errors.push(`Student ${student.studentId} not enrolled in ${year}`);
+          const errorMsg = `Student ${student.studentId} not enrolled in ${year}`;
+          errors.push(errorMsg);
           continue;
         }
+
         const enrollmentId = enrollmentResult.rows[0].id;
 
         // Process each subject mark
         for (const { subjectId, marks } of student.subjectMarks) {
-          console.log(`Processing subjectId: ${subjectId}, marks: ${marks}`); // Debug log
           try {
-            const result = await pool.query(
-              `INSERT INTO marks 
-               (enrollment_id, subject_id, exam_id, marks)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT ON CONSTRAINT unique_marks_entry
-               DO UPDATE SET 
-                 marks = COALESCE(EXCLUDED.marks, 0), -- Ensure null or undefined is stored as 0
-                 updated_at = NOW()
-               RETURNING id`,
-              [enrollmentId, subjectId, examId, marks ?? 0] // Use nullish coalescing to default to 0
-            );
-            results.push(result.rows[0]);
+            const result = await prisma.marks.upsert({
+              where: {
+                unique_marks_entry: {
+                  enrollment_id: enrollmentId,
+                  subject_id: subjectId,
+                  exam_id: examId,
+                },
+              },
+              create: {
+                enrollment_id: enrollmentId,
+                subject_id: subjectId,
+                exam_id: examId,
+                marks: marks || 0,
+              },
+              update: {
+                marks: marks || 0,
+              },
+            });
+
+            results.push(result);
           } catch (error) {
-            errors.push(
-              `Failed to process student ${student.studentId} subject ${subjectId}: ${error.message}`
-            );
+            const errorMsg = `Failed to process student ${student.studentId} subject ${subjectId}: ${error.message}`;
+            errors.push(errorMsg);
           }
         }
       } catch (error) {
-        errors.push(
-          `Error processing student ${student.studentId}: ${error.message}`
-        );
+        const errorMsg = `Error processing student ${student.studentId}: ${error.message}`;
+        errors.push(errorMsg);
       }
     }
 
-    await pool.query("COMMIT");
-
-    res.json({
+    const response = {
       success: true,
       message: `Processed ${results.length} mark records`,
       count: results.length,
       errors: errors.length > 0 ? errors : undefined,
-    });
+    };
+
+    res.json(response);
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error in addMarksController:", error);
+    // Only rollback if we're using pool transactions
+    try {
+      await pool.query("ROLLBACK");
+    } catch (rollbackError) {
+      // Rollback failed or not needed
+    }
+
     res.status(400).json({
       success: false,
       error: error.message || "Error processing marks",
@@ -115,82 +126,75 @@ export const getClassMarksController = async (req, res) => {
 
     console.log("Received parameters:", { className, year, exam }); // Debug log
 
-    // const result = await pool.query(
-    //   `
-    //   SELECT
-    //     s.id AS student_id,
-    //     s.name AS student_name,
-    //     se.roll,
-    //     se.class AS class_level,
-    //     se.department,
-    //     se.section,
-    //     sub.id AS subject_id,
-    //     sub.name AS subject_name,
-    //     m.marks
-    //   FROM marks m
-    //   JOIN student_enrollments se ON m.enrollment_id = se.id
-    //   JOIN students s ON se.student_id = s.id
-    //   JOIN subjects sub ON m.subject_id = sub.id
-    //   JOIN exams e ON m.exam_id = e.id
-    //   WHERE se.class = $1 AND se.year = $2 AND e.exam_name = $3
-    //   ORDER BY se.roll, sub.name
-    //   `,
-    //   [className, year, exam]
-    // );
-    const result = await pool.query(
-      `
-      SELECT 
-    s.id AS student_id,
-    s.name AS student_name,
-    se.roll,
-    se.class AS class_level,
-    se.department,
-    se.section,
-    sub.id AS subject_id,
-    sub.name AS subject_name,
-    m.marks
-FROM student_enrollments se 
-LEFT JOIN students s ON se.student_id = s.id
-LEFT JOIN subjects sub ON TRUE  
-LEFT JOIN marks m ON se.id = m.enrollment_id AND m.subject_id = sub.id
-LEFT JOIN exams e ON m.exam_id = e.id AND e.exam_name = $3
-WHERE se.class = $1 AND se.year = $2
-ORDER BY se.roll, sub.name;
-      `,
-      [className, year, exam]
-    );
-    console.log("Query result:", result.rows); // Debug log
+    const result = await prisma.student_enrollments.findMany({
+      where: {
+        class: Number(className),
+        year: parseInt(year), 
+      },
+      include: {
+        student: { 
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        marks: {
+          where: {
+            exam: {
+              exam_name: exam,
+            },
+          },
+          include: {
+            subject: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            exam: {
+              select: {
+                exam_name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        {
+          roll: "asc",
+        },
+        {
+          student: {
+            name: "asc",
+          },
+        },
+      ],
+    });
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No marks found for the specified class, year, and exam.",
       });
     }
 
-    const marksByStudent = {};
-    result.rows.forEach((row) => {
-      if (!marksByStudent[row.student_id]) {
-        marksByStudent[row.student_id] = {
-          student_id: row.student_id,
-          name: row.student_name,
-          roll: row.roll,
-          class: row.class_level,
-          department: row.department,
-          section: row.section,
-          marks: [],
-        };
-      }
-      marksByStudent[row.student_id].marks.push({
-        subject_id: row.subject_id,
-        subject: row.subject_name,
-        marks: row.marks,
-      });
-    });
+    const formattedData = result.map((enrollment) => ({
+      student_id: enrollment.student.id,
+      name: enrollment.student.name,
+      roll: enrollment.roll,
+      class: enrollment.class,
+      department: enrollment.department,
+      section: enrollment.section,
+      marks: enrollment.marks.map((mark) => ({
+        subject_id: mark.subject.id,
+        subject: mark.subject.name,
+        marks: mark.marks,
+      })),
+    }));
 
     res.json({
       success: true,
-      data: Object.values(marksByStudent),
+      data: formattedData,
     });
   } catch (error) {
     console.error("Error fetching class marks:", error);
@@ -289,78 +293,29 @@ export const generateMarksheetController = async (req, res) => {
       <html>
       <head>
         <title>Marksheet</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-          }
-          .marksheet {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-            padding: 20px;
-            text-align: center;
-          }
-          .header {
-            margin-bottom: 20px;
-          }
-          .header h2 {
-            margin: 0;
-            font-size: 24px;
-          }
-          .header p {
-            margin: 5px 0;
-            font-style: italic;
-          }
-          .student-info {
-            margin-bottom: 20px;
-            text-align: left;
-          }
-          .student-info p {
-            margin: 5px 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-          }
-          th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-          }
-          th {
-            background-color: #f2f2f2;
-          }
-          .total-marks {
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 20px;
-          }
-        </style>
+        <script src="https://cdn.tailwindcss.com"></script>
       </head>
-      <body>
-        <div class="marksheet">
-          <div class="header">
-            <h2>PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL</h2>
-            <p>Panchbibi, Joypurhat</p>
-            <h3>ACADEMIC TRANSCRIPT</h3>
+      <body class="font-sans m-0 p-5">
+        <div class="max-w-4xl mx-auto border border-gray-300 p-5 text-center">
+          <div class="mb-5">
+            <h2 class="m-0 text-2xl font-bold">PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL</h2>
+            <p class="my-1 italic">Panchbibi, Joypurhat</p>
+            <h3 class="text-xl font-semibold mt-4">ACADEMIC TRANSCRIPT</h3>
           </div>
 
-          <div class="student-info">
-            <p><strong>Name:</strong> ${studentName}</p>
-            <p><strong>Class:</strong> ${studentClass}</p>
-            <p><strong>Roll No:</strong> ${studentRoll}</p>
-            <p><strong>Year:</strong> ${year}</p>
-            <p><strong>Exam:</strong> ${exam}</p>
+          <div class="mb-5 text-left">
+            <p class="my-1"><strong>Name:</strong> ${studentName}</p>
+            <p class="my-1"><strong>Class:</strong> ${studentClass}</p>
+            <p class="my-1"><strong>Roll No:</strong> ${studentRoll}</p>
+            <p class="my-1"><strong>Year:</strong> ${year}</p>
+            <p class="my-1"><strong>Exam:</strong> ${exam}</p>
           </div>
 
-          <table>
+          <table class="w-full border-collapse border border-gray-300 mb-5">
             <thead>
               <tr>
-                <th>Subject</th>
-                <th>Marks</th>
+                <th class="border border-gray-300 p-2 text-left bg-gray-100">Subject</th>
+                <th class="border border-gray-300 p-2 text-left bg-gray-100">Marks</th>
               </tr>
             </thead>
             <tbody>
@@ -368,8 +323,8 @@ export const generateMarksheetController = async (req, res) => {
                 .map(
                   (row) => `
                   <tr>
-                    <td>${row.subject}</td>
-                    <td>${row.subject_marks}</td>
+                    <td class="border border-gray-300 p-2">${row.subject}</td>
+                    <td class="border border-gray-300 p-2">${row.subject_marks}</td>
                   </tr>
                 `
                 )
@@ -377,7 +332,7 @@ export const generateMarksheetController = async (req, res) => {
             </tbody>
           </table>
 
-          <div class="total-marks">
+          <div class="text-base font-bold mt-5">
             Total Marks: ${totalMarks}
           </div>
         </div>

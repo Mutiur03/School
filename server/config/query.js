@@ -9,10 +9,7 @@ const runQuery = async () => {
     role char(5) default 'admin'
     )
   `);
-  await pool.query(`
-    insert into admin (username,password,role) values
-    ('Mutiur', '1234', 'admin')
-  `);
+  
   await pool.query(` 
       CREATE TABLE IF NOT EXISTS students (
         id SERIAL PRIMARY KEY,
@@ -165,9 +162,9 @@ const runQuery = async () => {
             title VARCHAR(255) NOT NULL,
             details TEXT NOT NULL,
             file VARCHAR(255),
+            download_url VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`
   );
   console.log("Query executed successfully");
 };
-export default runQuery;

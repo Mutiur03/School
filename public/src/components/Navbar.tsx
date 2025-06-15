@@ -12,14 +12,16 @@ const navItems = [
       { name: "LBP at a glance", path: "/about/glance" },
     ],
   },
-  {
-    name: "Administration",
-    path: "/administration",
-    dropdown: [
-      { name: "Teacher", path: "/administration/teacher" },
-      { name: "Staff", path: "/administration/staff" },
-    ],
-  },
+  // {
+  //   name: "Administration",
+  //   path: "/administration",
+  //   dropdown: [
+  //     { name: "Teacher", path: "/administration/teacher" },
+  //     { name: "Staff", path: "/administration/staff" },
+  //   ],
+  // },
+  { name: "Teacher", path: "/administration/teacher" },
+
   {
     name: "Gallery", path: "/gallery",
     dropdown: [

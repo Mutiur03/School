@@ -16,13 +16,11 @@ import noticeRouter from "./routes/noticeRoutes.js";
 import holidayRouter from "./routes/holidayRoutes.js";
 import eventsRouter from "./routes/eventsRoutes.js";
 import galleryRouter from "./routes/galleryRoutes.js";
-import runQuery from "./config/query.js";
+import dashboardRouter from "./routes/dashboardRoutes.js";
 import path from "path";
 import fs from "fs";
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads");
-
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,12 +37,75 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: allowedOrigins,
-    credentials: true,
+    credentials: true, 
   })
 );
 app.use(express.json());
 app.use(cookieParser());
-app.use("/uploads", express.static("uploads"));
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".pdf")) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline"); // display PDF in browser
+      }
+    },
+  })
+);
+
+app.get("/pdf/:filename", (req, res) => {
+  const filename = req.params.filename;
+
+  // Try different possible locations for the file
+  const possiblePaths = [
+    path.join(__dirname, "uploads", "notice", filename),
+    path.join(__dirname, "uploads", filename),
+    path.join(__dirname, filename),
+  ];
+
+  let filePath = null;
+  for (const tryPath of possiblePaths) {
+    if (fs.existsSync(tryPath)) {
+      filePath = tryPath;
+      break;
+    }
+  }
+
+  if (!filePath) {
+    console.log(`PDF not found. Tried paths:`, possiblePaths);
+    return res.status(404).send("PDF not found");
+  }
+
+  // Check if client connection is still alive
+  if (req.destroyed || res.destroyed) {
+    return;
+  }
+
+  // Set headers
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+
+  // Handle client disconnect
+  req.on("aborted", () => {
+    console.log("Client disconnected from PDF request");
+  });
+
+  // Send file with improved error handling
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      // Only log non-abort errors
+      if (err.code !== "ECONNABORTED" && !req.destroyed) {
+        console.error("PDF send error:", err);
+        if (!res.headersSent) {
+          res.status(500).send("Error loading PDF");
+        }
+      }
+    }
+  });
+});
 
 app.get("/", (req, res) => {
   res.send("Hello World");
@@ -63,11 +124,11 @@ app.use("/api/notices", noticeRouter);
 app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
+app.use("/api/dashboard", dashboardRouter);
 pool
   .connect()
   .then(async () => {
     console.log("Connected to PostgreSQL database");
-    await runQuery();
     fs.mkdir(storagePath, { recursive: true }, (err) => {
       if (err) {
         console.error("Error creating uploads directory:", err);
@@ -75,7 +136,7 @@ pool
         console.log("Uploads directory created successfully");
       }
     });
-    
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
     });
