@@ -209,6 +209,6 @@ The backend will be running at: `http://localhost:3001`
 ## 🤝 Contact
 
 Looking to collaborate or hire for full-stack projects?  
-📬 Reach out via [LinkedIn](https://linkedin.com/in/yourprofile) or [Fiverr](https://www.fiverr.com/mutiur_rahman03)
+📬 Reach out via [LinkedIn](https://www.linkedin.com/in/mutiur-rahman-mr/) or [Fiverr](https://www.fiverr.com/mutiur_rahman03)
 
 ---
