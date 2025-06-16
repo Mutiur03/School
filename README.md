@@ -196,3 +196,19 @@ The app will be running at: `http://localhost:5173*`
 
 The backend will be running at: `http://localhost:3001`
 
+---
+
+## 🚀 Live Demo 
+
+🔗 **Live Site:** [Live](https://www.mutiurrahman.com/projects/school-management-system)  
+🎥 **Detailed Video:** [YouTube](https://www.youtube.com/watch?v=EIk6t_aUbpY)
+
+
+---
+
+## 🤝 Contact
+
+Looking to collaborate or hire for full-stack projects?  
+📬 Reach out via [LinkedIn](https://linkedin.com/in/yourprofile) or [Fiverr](https://www.fiverr.com/mutiur_rahman03)
+
+---
