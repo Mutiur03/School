@@ -1,12 +1,13 @@
-import pool from "../config/db.js";
 import fs from "fs";
 import { uploadPDFToDrive, DeletePDF } from "./noticeController.js";
+
+import { prisma } from "../config/prisma.js";
+
 export const addEventController = async (req, res) => {
   try {
     let { title, details, date, location } = req.body;
     const image = req.files.image[0];
     const file = req.files.file[0];
-    console.log(title, details, date, image, file);
     date = new Date(date)
       .toLocaleDateString("en-US", {
         year: "numeric",
@@ -14,17 +15,21 @@ export const addEventController = async (req, res) => {
         day: "2-digit",
       })
       .replace(/\//g, "-");
-    console.log(date);
     const { previewUrl } = await uploadPDFToDrive(file);
     fs.unlink(file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
-    const result = await pool.query(
-      "INSERT INTO events (title, details, date, image, file,location) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, details, date, image.path, previewUrl, location]
-    );
-    res.json(result.rows);
-    // res.json({ message: "Event added successfully" });
+    const result = await prisma.events.create({
+      data: {
+        title,
+        details,
+        date,
+        image: image.path,
+        file: previewUrl,
+        location,
+      },
+    });
+    res.json([result]);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });
@@ -33,14 +38,13 @@ export const addEventController = async (req, res) => {
 
 export const getEventsController = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM events");
-    const thumbnails = result.rows.map((event) => {
+    const result = await prisma.events.findMany();
+    const thumbnails = result.map((event) => {
       if (fs.existsSync(event.thumbnail)) {
         return { ...event, thumbnail: event.thumbnail.replace(/\\/g, "/") };
       }
       return { ...event, thumbnail: event.image.replace(/\\/g, "/") };
     });
-    console.log(thumbnails);
     res.json(thumbnails);
   } catch (error) {
     console.log(error);
@@ -51,27 +55,25 @@ export const getEventsController = async (req, res) => {
 export const deleteEventController = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      `DELETE FROM events WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, error: "Event not found" });
-    }
-    const filePath = result.rows[0].file;
+    const result = await prisma.events.delete({
+      where: { id: parseInt(id) },
+    });
+
+    const filePath = result.file;
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    const imagePath = result.rows[0].image;
+    const imagePath = result.image;
     if (fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     }
-    await DeletePDF(result.rows[0].file);
-    res
-      .status(200)
-      .json({ success: true, message: "Event deleted successfully" });
+    await DeletePDF(result.file);
+    res.status(200).json({ success: true, message: "Event deleted successfully" });
   } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ success: false, error: "Event not found" });
+    }
     console.log(error);
     res.status(500).json({ error: error.message });
   }
@@ -84,57 +86,49 @@ export const updateEventController = async (req, res) => {
     const file = req.files?.file?.[0];
     const image = req.files?.image?.[0];
 
-    let paramIndex = 5;
-    const fields = [];
-    const values = [
+    const updateData = {
       title,
       details,
       location,
-      new Date(date)
+      date: new Date(date)
         .toLocaleDateString("en-US", {
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         })
         .replace(/\//g, "-"),
-    ];
+    };
 
     if (file) {
       const { previewUrl } = await uploadPDFToDrive(file);
-      fields.push(`file = $${paramIndex++}`);
-      values.push(previewUrl);
+      updateData.file = previewUrl;
       fs.unlink(file.path, (err) => {
         if (err) console.error("Error deleting local file:", err);
       });
     }
     if (image) {
-      fields.push(`image = $${paramIndex++}`);
-      values.push(image.filename);
+      updateData.image = image.filename;
     }
     if (file || image) {
-      const exists = await pool.query("SELECT * FROM events WHERE id = $1", [
-        id,
-      ]);
-      const filePath = exists.rows[0].file;
-      const imagePath = exists.rows[0].image;
+      const exists = await prisma.events.findUnique({
+        where: { id: parseInt(id) },
+      });
+      const filePath = exists.file;
+      const imagePath = exists.image;
       if (fs.existsSync(filePath) && file) {
         fs.unlinkSync(filePath);
       }
       if (fs.existsSync(imagePath) && image) {
         fs.unlinkSync(imagePath);
       }
-      await DeletePDF(exists.rows[0].file);
+      await DeletePDF(exists.file);
     }
-    const setClause = fields.length > 0 ? `, ${fields.join(", ")}` : "";
 
-    const query = `UPDATE events SET title = $1, details = $2, location = $3, date = $4${setClause} WHERE id = $${paramIndex} RETURNING *`;
-    values.push(id);
-
-    console.log(query);
-    console.log(values);
-
-    const result = await pool.query(query, values);
-    res.json(result.rows);
+    const result = await prisma.events.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    });
+    res.json([result]);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });

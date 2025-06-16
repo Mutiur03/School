@@ -43,7 +43,7 @@ const Sidebar = () => {
       label: "Profile",
       icon: FaUser,
       dropdown: false,
-      link: "/profile",
+      link: "/",
       id: "profile",
     },
     {

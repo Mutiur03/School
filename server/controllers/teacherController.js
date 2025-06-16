@@ -1,11 +1,34 @@
-import pool from "../config/db.js";
-import { google } from "googleapis";
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import fs from "fs";
 import { initGoogleSheets } from "./studController.js";
 const removeNonNumber = (str) => str.replace(/\D/g, "");
 const { sheets, spreadsheetId } = await initGoogleSheets();
+import { prisma } from "../config/prisma.js";
+
+
+const validateFieldLengths = (data) => {
+  const limits = {
+    name: 100,
+    email: 100,
+    subject: 50,
+    phone: 15,
+    academic_qualification: 200,
+    designation: 50,
+    address: 255,
+    blood_group: 5,
+  };
+
+  const validated = { ...data };
+
+  Object.keys(limits).forEach((field) => {
+    if (validated[field] && validated[field].length > limits[field]) {
+      validated[field] = validated[field].substring(0, limits[field]);
+    }
+  });
+
+  return validated;
+};
 
 export const addTeacher = async (req, res) => {
   try {
@@ -17,7 +40,8 @@ export const addTeacher = async (req, res) => {
       });
     }
     console.log(teachers);
-    const values = await Promise.all(
+
+    const teacherData = await Promise.all(
       teachers.map(
         async ({
           name,
@@ -32,43 +56,37 @@ export const addTeacher = async (req, res) => {
         }) => {
           const originalPassword = generatePassword();
           const hashedPassword = await bcrypt.hash(originalPassword, 10);
-          return [
-            name.trim() || null,
-            email.trim() || null,
-            subject?.trim() || null,
-            "0" + removeNonNumber(String(phone)).slice(-10) || null,
-            academic_qualification?.trim() || null,
-            designation?.trim() || null,
-            address?.trim() || null,
-            dob ? dob.replace("/", "-") : null,
-            blood_group?.trim() || null,
-            hashedPassword || null,
-            originalPassword || null,
-          ];
+          const rawData = {
+            name: name?.trim() || null,
+            email: email?.trim() || null,
+            subject: subject?.trim() || null,
+            phone: "0" + removeNonNumber(String(phone)).slice(-10) || null,
+            academic_qualification: academic_qualification?.trim() || null,
+            designation: designation?.trim() || null,
+            address: address?.trim() || null,
+            dob: dob ? dob.replace("/", "-") : null,
+            blood_group: blood_group?.trim() || null,
+            password: hashedPassword || null,
+            originalPassword,
+          };
+
+          return validateFieldLengths(rawData);
         }
       )
     );
 
-    const placeholders = values
-      .map(
-        (_, index) =>
-          `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${
-            index * 10 + 4
-          }, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${
-            index * 10 + 8
-          }, $${index * 10 + 9}, $${index * 10 + 10})`
-      )
-      .join(", ");
+    const result = await prisma.teachers.createMany({
+      data: teacherData.map(({ originalPassword, ...data }) => data),
+    });
 
-    const flatValues = values.map((v) => v.slice(0, -1)).flat(); // Exclude original password for DB query
+    const createdTeachers = await prisma.teachers.findMany({
+      where: {
+        email: {
+          in: teacherData.map((t) => t.email),
+        },
+      },
+    });
 
-    const query = `
-      INSERT INTO teachers (name, email,subject, phone, academic_qualification, designation, address, dob, blood_group, password)
-      VALUES ${placeholders}
-      RETURNING *
-    `;
-
-    const result = await pool.query(query, flatValues);
     sheets.spreadsheets.values.append({
       spreadsheetId,
       range: "teachers!A:E",
@@ -79,13 +97,14 @@ export const addTeacher = async (req, res) => {
           email,
           phone,
           subject,
-          values[index][values[index].length - 1],
+          teacherData[index].originalPassword,
         ]),
       },
     });
+
     res.status(201).json({
       success: true,
-      data: result.rows,
+      data: createdTeachers,
       message: "Teachers added successfully",
     });
   } catch (error) {
@@ -96,8 +115,8 @@ export const addTeacher = async (req, res) => {
 
 export const getTeachers = async (_, res) => {
   try {
-    const teachers = await pool.query(`SELECT * FROM teachers`);
-    res.status(200).json({ success: true, data: teachers.rows });
+    const teachers = await prisma.teachers.findMany();
+    res.status(200).json({ success: true, data: teachers });
   } catch (error) {
     console.error("Error fetching teachers:", error.message);
     res.status(500).json({ success: false, error: "Error fetching teachers" });
@@ -120,31 +139,26 @@ export const updateTeacher = async (req, res) => {
   console.log(req.body);
 
   try {
-    const result = await pool.query(
-      `UPDATE teachers SET name = $1, email = $2, phone = $3,subject = $4, address = $6, dob = $7, blood_group = $8, academic_qualification = $9, designation = $10 WHERE id = $5 RETURNING *`,
-      [
-        name || null,
-        email || null,
-        "0" + removeNonNumber(phone).slice(-10) || null,
-        subject.trim() || null,
-        id,
-        address || null,
-        dob ? dob.replace("/", "-") : null,
-        blood_group?.trim() || null,
-        academic_qualification?.trim() || null,
-        designation?.trim() || null,
-      ]
-    );
+    const rawData = {
+      name: name || null,
+      email: email || null,
+      phone: "0" + removeNonNumber(phone).slice(-10) || null,
+      subject: subject?.trim() || null,
+      address: address || null,
+      dob: dob ? dob.replace("/", "-") : null,
+      blood_group: blood_group?.trim() || null,
+      academic_qualification: academic_qualification?.trim() || null,
+      designation: designation?.trim() || null,
+    };
 
-    if (result.rowCount === 0) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Teacher not found" });
-    }
+    const validatedData = validateFieldLengths(rawData);
 
-    // Update Google Sheet
+    const result = await prisma.teachers.update({
+      where: { id: parseInt(id) },
+      data: validatedData,
+    });
+
     try {
-      // Get current sheet data to find the teacher's row
       const sheetData = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range: "teachers!A:E",
@@ -153,16 +167,14 @@ export const updateTeacher = async (req, res) => {
       const rows = sheetData.data.values || [];
       let rowIndex = -1;
 
-      // Find the row with matching email (assuming email is unique)
       for (let i = 0; i < rows.length; i++) {
         if (rows[i][1] === email) {
-          rowIndex = i + 1; // Google Sheets is 1-indexed
+          rowIndex = i + 1;
           break;
         }
       }
 
       if (rowIndex > 0) {
-        // Update the specific row
         await sheets.spreadsheets.values.update({
           spreadsheetId,
           range: `teachers!A${rowIndex}:D${rowIndex}`,
@@ -181,12 +193,11 @@ export const updateTeacher = async (req, res) => {
       }
     } catch (sheetError) {
       console.error("Error updating Google Sheet:", sheetError.message);
-      // Don't fail the request if sheet update fails
     }
 
     res.status(200).json({
       success: true,
-      data: result.rows[0],
+      data: result,
       message: "Teacher updated successfully",
     });
   } catch (error) {
@@ -199,20 +210,14 @@ export const deleteTeacher = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query(
-      `update teachers set available = false where id = $1 RETURNING *`,
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Teacher not found" });
-    }
+    const result = await prisma.teachers.update({
+      where: { id: parseInt(id) },
+      data: { available: false },
+    });
 
     res.status(200).json({
       success: true,
-      data: result.rows[0],
+      data: result,
       message: "Teacher deleted successfully",
     });
   } catch (error) {
@@ -232,22 +237,26 @@ export const UpdateTeacherImage = async (req, res) => {
         .status(400)
         .json({ success: false, error: "Image is required" });
     }
-    const exists = await pool.query(`SELECT * FROM teachers WHERE id = $1`, [
-      id,
-    ]);
-    if (exists.rows[0].image) {
-      const oldImage = exists.rows[0].image;
+
+    const exists = await prisma.teachers.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (exists?.image) {
+      const oldImage = exists.image;
       if (fs.existsSync(oldImage)) {
         fs.unlinkSync(oldImage);
       }
     }
-    const result = await pool.query(
-      `UPDATE teachers SET image = $1 WHERE id = $2 RETURNING *`,
-      [image.path, id]
-    );
+
+    const result = await prisma.teachers.update({
+      where: { id: parseInt(id) },
+      data: { image: image.path },
+    });
+
     res.status(200).json({
       success: true,
-      data: result.rows,
+      data: result,
       message: "Teacher image updated successfully",
     });
   } catch (error) {

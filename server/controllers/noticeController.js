@@ -1,6 +1,7 @@
-import pool from "../config/db.js";
 import fs from "fs";
 import { google } from "googleapis";
+import { prisma } from "../config/prisma.js";
+
 
 function extractFileIdFromUrl(url) {
   const regex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
@@ -21,7 +22,7 @@ const driveService = google.drive({ version: "v3", auth });
 export async function uploadPDFToDrive(file) {
   const fileMetadata = {
     name: file.originalname,
-    parents: [process.env.GOOGLE_DRIVE_FOLDER_ID], // 👈 your target folder
+    parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
   };
 
   const media = {
@@ -37,7 +38,6 @@ export async function uploadPDFToDrive(file) {
 
   const fileId = response.data.id;
 
-  // Make the file public
   await driveService.permissions.create({
     fileId,
     requestBody: {
@@ -67,22 +67,20 @@ export const addNoticeController = async (req, res) => {
     const { title, details } = req.body;
     const { previewUrl, downloadUrl } = await uploadPDFToDrive(req.file);
 
-    const insert = `INSERT INTO notices (title, details, file, download_url) VALUES ($1, $2, $3, $4) RETURNING *`;
+    const result = await prisma.notices.create({
+      data: {
+        title,
+        details,
+        file: previewUrl,
+        download_url: downloadUrl,
+      },
+    });
+
     fs.unlink(req.file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
-    pool.query(
-      insert,
-      [title, details, previewUrl, downloadUrl],
-      (err, result) => {
-        if (err) {
-          console.error("Error inserting notice:", err);
-          res.status(500).json({ error: "Error inserting notice" });
-        } else {
-          res.status(201).json(result.rows[0]);
-        }
-      }
-    );
+
+    res.status(201).json(result);
   } catch (error) {
     console.error("Error adding notice:", error);
     res.status(500).json({ error: "Error adding notice" });
@@ -91,10 +89,10 @@ export const addNoticeController = async (req, res) => {
 
 export const getNoticesController = async (_, res) => {
   try {
-    const notices = await pool.query(`SELECT * FROM notices`);
-    console.log(notices.rows);
+    const notices = await prisma.notices.findMany();
+    console.log(notices);
 
-    res.status(200).json(notices.rows);
+    res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
     res.status(500).json({ error: "Error fetching notices" });
@@ -104,19 +102,23 @@ export const getNoticesController = async (_, res) => {
 export const deleteNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      `DELETE FROM notices WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    if (result.rowCount === 0) {
+    const notice = await prisma.notices.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!notice) {
       return res.status(404).json({ error: "Notice not found" });
     }
 
-    const filePath = result.rows[0].file;
+    await prisma.notices.delete({
+      where: { id: parseInt(id) },
+    });
+
+    const filePath = notice.file;
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    await DeletePDF(result.rows[0].download_url);
+    await DeletePDF(notice.download_url);
     res.status(200).json({ message: "Notice deleted successfully" });
   } catch (error) {
     console.error("Error deleting notice:", error.message);
@@ -130,31 +132,40 @@ export const updateNoticeController = async (req, res) => {
     const { title, details } = req.body;
     const { file } = req;
     let result;
+
     if (!file) {
-      result = await pool.query(
-        `UPDATE notices SET title = $1, details = $2 WHERE id = $3 RETURNING *`,
-        [title, details, id]
-      );
+      result = await prisma.notices.update({
+        where: { id: parseInt(id) },
+        data: { title, details },
+      });
     } else {
       const { previewUrl, downloadUrl } = await uploadPDFToDrive(file);
-      const exists = await pool.query("SELECT * FROM notices WHERE id = $1", [
-        id,
-      ]);
-      const filePath = exists.rows[0].file;
+      const existingNotice = await prisma.notices.findUnique({
+        where: { id: parseInt(id) },
+      });
+
+      if (!existingNotice) {
+        return res.status(404).json({ error: "Notice not found" });
+      }
+
+      const filePath = existingNotice.file;
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
-      await DeletePDF(exists.rows[0].download_url);
-      result = await pool.query(
-        `UPDATE notices SET title = $1, details = $2, file = $3, download_url = $4 WHERE id = $5 RETURNING *`,
-        [title, details, previewUrl, downloadUrl, id]
-      );
-    }
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Notice not found" });
+      await DeletePDF(existingNotice.download_url);
+
+      result = await prisma.notices.update({
+        where: { id: parseInt(id) },
+        data: {
+          title,
+          details,
+          file: previewUrl,
+          download_url: downloadUrl,
+        },
+      });
     }
 
-    res.status(200).json(result.rows[0]);
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error updating notice:", error.message);
     res.status(500).json({ error: "Error updating notice" });

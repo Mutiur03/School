@@ -1,19 +1,18 @@
-import pool from "../config/db.js";
 import { google } from "googleapis";
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+import { prisma } from "../config/prisma.js";
+
 export const initGoogleSheets = async () => {
   try {
-    // Validate required environment variables
     const requiredEnvVars = {
       client_email: process.env.client_email,
       private_key: process.env.private_key,
       SHEET_ID: process.env.SHEET_ID,
     };
-    // console.log("Initializing Google Sheets API with environment variables:", requiredEnvVars);
-    
+
     const missingVars = Object.entries(requiredEnvVars)
       .filter(([key, value]) => !value)
       .map(([key]) => key);
@@ -36,216 +35,402 @@ export const initGoogleSheets = async () => {
     const spreadsheetId = process.env.SHEET_ID;
     return { sheets, spreadsheetId };
   } catch (error) {
-    console.error("Error in initGoogleSheets:", error.message);
-    console.error(
-      "Ensure the following environment variables are set: client_email, private_key, SHEET_ID"
-    );
     throw new Error(
       `Google Sheets API initialization failed: ${error.message}`
     );
   }
 };
+
 const { sheets, spreadsheetId } = await initGoogleSheets();
 
 const removeNonNumber = (str) => str.replace(/\D/g, "");
 const removeInitialZeros = (str) => str.replace(/^0+/, "");
 const current_year = new Date().getFullYear();
+
 export const getAlumniController = async (_req, res) => {
   try {
-    const students = await pool.query("SELECT * FROM students");
-    res.status(200).json(students.rows);
+    const students = await prisma.students.findMany();
+    res.status(200).json(students);
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: "Error fetching students" });
   }
 };
+
 export const getStudentsController = async (_req, res) => {
   try {
     const { year } = _req.params;
-    const result = await pool.query(
-      `SELECT
-        s.*,
-        se.*,
-        se.id AS enrollment_id
-        FROM students s
-        JOIN student_enrollments se ON s.id = se.student_id
-        WHERE se.year = $1
-        ORDER BY se.year DESC;
-        `,
-      [year]
-    );
-    if (result.rows.length === 0) {
+
+    // Validate year parameter
+    if (!year || isNaN(parseInt(year))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid year parameter. Year must be a valid number.",
+      });
+    }
+
+    const parsedYear = parseInt(year);
+
+    // Validate year range (optional but recommended)
+    const currentYear = new Date().getFullYear();
+    if (parsedYear < 2000 || parsedYear > currentYear + 5) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid year. Year must be between 2000 and ${
+          currentYear + 5
+        }.`,
+      });
+    }
+
+    console.log(`Fetching students for year: ${parsedYear}`);
+
+    const result = await prisma.students.findMany({
+      include: {
+        enrollments: {
+          where: { year: parsedYear },
+          orderBy: { year: "desc" },
+        },
+      },
+    });
+
+    console.log(`Found ${result.length} students`);
+
+    if (result.length === 0) {
       return res
         .status(404)
-        .json({ success: false, message: "No students found" });
+        .json({
+          success: false,
+          message: "No students found for the specified year",
+        });
     }
-    res.status(200).json({ success: true, data: result.rows });
+
+    const formattedResult = result.flatMap((student) =>
+      student.enrollments.map((enrollment) => ({
+        ...student,
+        ...enrollment,
+        enrollment_id: enrollment.id,
+      }))
+    );
+
+    console.log(`Formatted ${formattedResult.length} student enrollments`);
+
+    res.status(200).json({ success: true, data: formattedResult });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, error: "Error fetching students" });
+    console.error("Error in getStudentsController:", error);
+    console.error("Error stack:", error.stack);
+
+    // More specific error responses
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        error: "Database constraint violation",
+      });
+    }
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: "Record not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Error fetching students",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
+
 export const getStudentController = async (req, res) => {
   try {
     const token = req.cookies?.token;
-    console.log(token);
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = decoded.id;
-    console.log(studentId);
-    const result = await pool.query(
-      `SELECT s.*, se.*, se.id AS enrollment_id FROM students s JOIN student_enrollments se ON s.id = se.student_id WHERE s.id = $1 and se.year = $2 ORDER BY se.year DESC LIMIT 1;`,
-      [studentId, new Date().getFullYear()]
-    );
-    if (result.rows.length === 0) {
+
+    const result = await prisma.students.findUnique({
+      where: { id: studentId },
+      include: {
+        enrollments: {
+          where: { year: new Date().getFullYear() },
+          orderBy: { year: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!result || result.enrollments.length === 0) {
       return res.status(404).json({ error: "Student not found" });
     }
-    res.status(200).json({ success: true, data: result.rows[0] });
+
+    const responseData = {
+      ...result,
+      ...result.enrollments[0],
+      enrollment_id: result.enrollments[0].id,
+    };
+
+    res.status(200).json({ success: true, data: responseData });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: "Error fetching student" });
   }
 };
+
 export const addStudentController = async (req, res) => {
   try {
     const { students } = req.body;
-    console.log(students);
+
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({
         success: false,
         error: "Students must be an array with at least one element.",
       });
     }
+
+    console.log(`Processing ${students.length} students`);
+
     const batchLoginIdMap = {};
-    for (let student of students) {
-      console.log(student);
-      student.name = student.name?.trim();
-      student.father_name = student.father_name?.trim();
-      student.mother_name = student.mother_name?.trim();
-      student.phone = "0" + removeNonNumber(String(student.phone)).slice(-10);
-      student.parent_phone =
-        "0" + removeNonNumber(String(student.parent_phone)).slice(-10);
-      student.address = student.address?.trim();
-      student.dob = student.dob ? student.dob.replace("/", "-") : null;
-      student.has_stipend = student.has_stipend || false;
-      student.blood_group = student.blood_group?.trim() || null;
-      let password = generatePassword();
-      student.originalPassword = password;
-      student.password = await bcrypt.hash(password, 10);
-      student.class = Number(removeInitialZeros(String(student.class)));
-      student.section = student.section?.trim() || "Z";
-      student.roll = Number(removeInitialZeros(String(student.roll)));
-      student.batch = current_year + 11 - Number(student.class);
-      student.department = student.class >= 9 && student.department?.trim();
-      if (!batchLoginIdMap[student.batch]) {
-        const result = await pool.query(
-          "SELECT MAX(login_id) AS max_login_id FROM students WHERE batch = $1",
-          [student.batch]
-        );
-        batchLoginIdMap[student.batch] = result.rows[0].max_login_id
-          ? result.rows[0].max_login_id + 1
-          : parseInt(student.batch.toString().slice(-2) + "001");
+    const processedStudents = [];
+
+    // Process and validate each student
+    for (let i = 0; i < students.length; i++) {
+      try {
+        const student = students[i];
+
+        // Basic validation
+        if (!student.name || !student.name.trim()) {
+          throw new Error(`Student at index ${i}: Name is required`);
+        }
+
+        // Clean and validate data
+        student.name = student.name?.trim();
+        student.father_name = student.father_name?.trim() || null;
+        student.mother_name = student.mother_name?.trim() || null;
+
+        // Fix phone number processing
+        if (student.phone) {
+          const cleanPhone = removeNonNumber(String(student.phone));
+          student.phone =
+            cleanPhone.length >= 10 ? "0" + cleanPhone.slice(-10) : null;
+        } else {
+          student.phone = null;
+        }
+
+        if (student.parent_phone) {
+          const cleanParentPhone = removeNonNumber(
+            String(student.parent_phone)
+          );
+          student.parent_phone =
+            cleanParentPhone.length >= 10
+              ? "0" + cleanParentPhone.slice(-10)
+              : null;
+        } else {
+          student.parent_phone = null;
+        }
+
+        student.address = student.address?.trim() || null;
+        student.dob = student.dob ? student.dob.replace("/", "-") : null;
+        student.has_stipend = Boolean(student.has_stipend);
+        student.blood_group = student.blood_group?.trim() || null;
+
+        // Generate and hash password
+        let password = generatePassword();
+        student.originalPassword = password;
+        student.password = await bcrypt.hash(password, 10);
+
+        // Process academic data
+        const classNum = Number(removeInitialZeros(String(student.class || 1)));
+        if (classNum < 1 || classNum > 12) {
+          throw new Error(
+            `Student at index ${i}: Invalid class number: ${classNum}`
+          );
+        }
+
+        student.class = classNum;
+        student.section = (student.section?.trim() || "A").toUpperCase();
+        student.roll = Number(removeInitialZeros(String(student.roll || 1)));
+
+        // Fix batch calculation - convert to string as required by schema
+        const batchYear = current_year + 11 - classNum;
+        student.batch = String(batchYear); // Convert to string to match Char(4) type
+
+        student.department =
+          classNum >= 9 ? student.department?.trim() || null : null;
+        student.year = student.year || current_year;
+
+        // Generate login_id
+        if (!batchLoginIdMap[student.batch]) {
+          const result = await prisma.students.findMany({
+            where: { batch: student.batch },
+            orderBy: { login_id: "desc" },
+            take: 1,
+          });
+
+          batchLoginIdMap[student.batch] =
+            result.length > 0 && result[0].login_id
+              ? result[0].login_id + 1
+              : parseInt(student.batch.toString().slice(-2) + "001");
+        }
+
+        student.login_id = batchLoginIdMap[student.batch];
+        batchLoginIdMap[student.batch] += 1;
+
+        processedStudents.push(student);
+        console.log(`Processed student ${i + 1}:`, {
+          name: student.name,
+          login_id: student.login_id,
+          batch: student.batch,
+          class: student.class,
+        });
+      } catch (error) {
+        console.error(`Error processing student at index ${i}:`, error.message);
+        return res.status(400).json({
+          success: false,
+          error: `Error processing student at index ${i}: ${error.message}`,
+        });
       }
-      student.login_id = batchLoginIdMap[student.batch];
-      batchLoginIdMap[student.batch] += 1;
     }
-    const valuesForStudent = students.map(
-      ({
-        name,
-        phone,
-        batch,
-        address,
-        dob,
-        password,
-        login_id,
-        father_name,
-        mother_name,
-        parent_phone,
-        has_stipend,
-        blood_group,
-      }) => [
-        login_id || null,
-        name || null,
-        phone || null,
-        batch || null,
-        address || null,
-        dob || null,
-        password || null,
-        father_name || null,
-        mother_name || null,
-        parent_phone || null,
-        has_stipend,
-        blood_group || null,
-      ]
-    );
-    const flatValuesForStudent = valuesForStudent.flat();
-    const placeholderForStudent = valuesForStudent
-      .map(
-        (_, index) =>
-          `($${index * 12 + 1}, $${index * 12 + 2}, $${index * 12 + 3}, $${
-            index * 12 + 4
-          }, $${index * 12 + 5}, $${index * 12 + 6}, $${index * 12 + 7}, $${
-            index * 12 + 8
-          }, $${index * 12 + 9}, $${index * 12 + 10}, $${index * 12 + 11}, $${
-            index * 12 + 12
-          })`
-      )
-      .join(",");
-    const queryForStudent = `INSERT INTO students (login_id, name, phone, batch, address, dob, password, father_name, mother_name, parent_phone, has_stipend, blood_group) VALUES ${placeholderForStudent} RETURNING id`;
-    const insertedStudents = await pool.query(
-      queryForStudent,
-      flatValuesForStudent
-    );
-    const studentIds = insertedStudents.rows.map((student) => student.id);
-    const valuesForEnrollment = students.map((student, index) => [
-      studentIds[index],
-      student.class,
-      student.roll,
-      student.section,
-      student.year || new Date().getFullYear(),
-      student.department === false ? null : student.department,
-    ]);
-    const flatValuesForEnrollment = valuesForEnrollment.flat();
-    const placeholderForEnrollment = valuesForEnrollment
-      .map(
-        (_, index) =>
-          `($${index * 6 + 1}, $${index * 6 + 2}, $${index * 6 + 3}, $${
-            index * 6 + 4
-          }, $${index * 6 + 5}, $${index * 6 + 6})`
-      )
-      .join(",");
-    const queryForEnrollment = `INSERT INTO student_enrollments (student_id, class, roll, section, year, department) VALUES ${placeholderForEnrollment} RETURNING *`;
-    const insertedEnrollments = await pool.query(
-      queryForEnrollment,
-      flatValuesForEnrollment
-    );
-    const sheetData = students.map((student) => [
-      student.login_id,
-      student.name,
-      student.phone,
-      student.originalPassword,
-      student.batch,
-    ]);
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "students!A1",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: sheetData,
-      },
+
+    // Use transaction to ensure data consistency
+    const result = await prisma.$transaction(async (tx) => {
+      const insertedStudents = [];
+      const insertedEnrollments = [];
+
+      for (let i = 0; i < processedStudents.length; i++) {
+        const student = processedStudents[i];
+
+        try {
+          console.log(`Inserting student ${i + 1}:`, {
+            login_id: student.login_id,
+            name: student.name,
+            phone: student.phone,
+            batch: student.batch,
+          });
+
+          const insertedStudent = await tx.students.create({
+            data: {
+              login_id: student.login_id,
+              name: student.name,
+              father_name: student.father_name,
+              mother_name: student.mother_name,
+              phone: student.phone,
+              parent_phone: student.parent_phone,
+              batch: student.batch,
+              address: student.address,
+              dob: student.dob,
+              blood_group: student.blood_group,
+              has_stipend: student.has_stipend,
+              password: student.password,
+            },
+          });
+
+          insertedStudents.push(insertedStudent);
+          console.log(
+            `Successfully inserted student ${i + 1} with ID: ${
+              insertedStudent.id
+            }`
+          );
+
+          const insertedEnrollment = await tx.student_enrollments.create({
+            data: {
+              student_id: insertedStudent.id,
+              class: student.class,
+              roll: student.roll,
+              section: student.section,
+              year: student.year,
+              department: student.department,
+            },
+          });
+
+          insertedEnrollments.push(insertedEnrollment);
+          console.log(
+            `Successfully inserted enrollment ${i + 1} with ID: ${
+              insertedEnrollment.id
+            }`
+          );
+        } catch (error) {
+          console.error(`Database error for student ${i + 1}:`, error);
+          throw new Error(
+            `Failed to insert student "${student.name}": ${error.message}`
+          );
+        }
+      }
+
+      return { insertedStudents, insertedEnrollments };
     });
+
+    // Update Google Sheets
+    try {
+      const sheetData = processedStudents.map((student) => [
+        student.login_id,
+        student.name,
+        student.phone || "",
+        student.originalPassword,
+        student.batch,
+      ]);
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: "students!A1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: sheetData,
+        },
+      });
+      console.log("Successfully updated Google Sheets");
+    } catch (sheetError) {
+      console.error("Google Sheets update failed:", sheetError.message);
+      // Don't fail the entire operation if sheets update fails
+    }
+
+    console.log(
+      `Successfully inserted ${result.insertedStudents.length} students and ${result.insertedEnrollments.length} enrollments`
+    );
+
     res.status(201).json({
       success: true,
-      data: insertedEnrollments.rows,
-      message: "Students added successfully",
+      data: result.insertedEnrollments,
+      message: `Successfully added ${result.insertedStudents.length} students`,
+      inserted_count: result.insertedStudents.length,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, error: "Error adding students" });
+    console.error("Error in addStudentController:", error);
+    console.error("Error stack:", error.stack);
+
+    // More specific error responses
+    if (error.code === "P2002") {
+      const target = error.meta?.target;
+      return res.status(409).json({
+        success: false,
+        error: `Duplicate entry detected${
+          target ? ` for ${target.join(", ")}` : ""
+        }`,
+        details: "A student with this login_id or phone number already exists",
+      });
+    }
+
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        success: false,
+        error: "Foreign key constraint failed",
+        details: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Error adding students",
+      details:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
   }
 };
+
 const columnMapping = {
   login_id: 0,
   name: 1,
@@ -253,9 +438,11 @@ const columnMapping = {
   originalPassword: 3,
   batch: 4,
 };
+
 const getColumnIndex = (field) => {
   return columnMapping[field] !== undefined ? columnMapping[field] : -1;
 };
+
 export const updateStudentController = async (req, res) => {
   try {
     if (req.body.phone) {
@@ -268,44 +455,38 @@ export const updateStudentController = async (req, res) => {
     if (req.body.dob) {
       req.body.dob = new Date(req.body.dob).toISOString().split("T")[0];
     }
+
     const { id } = req.params;
     const updates = req.body;
-    const fields = [];
-    const values = [];
-    let index = 1;
-    for (const [key, value] of Object.entries(updates)) {
-      fields.push(`${key} = $${index}`);
-      values.push(value || null);
-      index++;
-    }
-    if (fields.length === 0) {
+
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
-    console.log(req.body);
-    values.push(id);
-    const query = `UPDATE students SET ${fields.join(
-      ", "
-    )} WHERE id = $${index} RETURNING *`;
-    const result = await pool.query(query, values);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-    const updatedStudent = result.rows[0];
-    const loginId = updatedStudent.login_id;
+
+    const result = await prisma.students.update({
+      where: { id: parseInt(id) },
+      data: updates,
+    });
+
+    const loginId = result.login_id;
+
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "students!A1:Z",
     });
+
     const rows = sheetData.data.values || [];
     const rowIndex = rows.findIndex((row) => row[0] === String(loginId));
+
     if (rowIndex !== -1) {
       const updatedRow = rows[rowIndex];
-      Object.keys(updates).forEach((key, i) => {
+      Object.keys(updates).forEach((key) => {
         const columnIndex = getColumnIndex(key);
         if (columnIndex !== -1) {
-          updatedRow[columnIndex] = updatedStudent[key];
+          updatedRow[columnIndex] = result[key];
         }
       });
+
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `students!A${rowIndex + 1}:Z${rowIndex + 1}`,
@@ -315,25 +496,31 @@ export const updateStudentController = async (req, res) => {
         },
       });
     }
-    res.status(200).json(result.rows[0]);
+
+    res.status(200).json(result);
   } catch (error) {
-    console.error("Error updating student:", error);
     res.status(500).json({ error: "Error updating student" });
   }
 };
+
 export const deleteStudentController = async (req, res) => {
   try {
     const { id } = req.params;
-    const studentResult = await pool.query(
-      "SELECT login_id FROM students WHERE id = $1",
-      [id]
-    );
-    if (studentResult.rows.length === 0) {
+
+    const student = await prisma.students.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!student) {
       return res.status(404).json({ error: "Student not found" });
     }
-    const loginId = studentResult.rows[0].login_id;
-    await pool.query("DELETE FROM students WHERE id = $1", [id]);
-    // console.log(sheets.spreadsheets.values);
+
+    const loginId = student.login_id;
+
+    await prisma.students.delete({
+      where: { id: parseInt(id) },
+    });
+
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "students!A1:Z",
@@ -341,6 +528,7 @@ export const deleteStudentController = async (req, res) => {
 
     const rows = sheetData.data.values || [];
     const rowIndex = rows.findIndex((row) => row[0] === String(loginId));
+
     if (rowIndex !== -1) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -360,129 +548,254 @@ export const deleteStudentController = async (req, res) => {
         },
       });
     }
+
     res.status(200).json({ message: "Student deleted successfully" });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: "Error deleting student" });
   }
 };
+
 export const updateAcademicInfoController = async (req, res) => {
   try {
     const { enrollment_id } = req.params;
     const updates = req.body;
-    const fields = [];
-    const values = [];
-    let index = 1;
-    console.log(updates);
 
-    for (const [key, value] of Object.entries(updates)) {
-      fields.push(`${key} = $${index}`);
-      values.push(value || null);
-      index++;
-    }
-    if (fields.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No valid academic fields provided" });
-    }
-    values.push(enrollment_id);
-    const enrollmentQuery = `
-      UPDATE student_enrollments
-      SET ${fields.join(", ")}
-      WHERE id = $${index}
-      RETURNING *`;
-    const result = await pool.query(enrollmentQuery, values);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Enrollment record not found" });
-    }
-    const updatedEnrollment = result.rows[0];
-    const updatedClass = updatedEnrollment.class;
-    const studentInfo = await pool.query(
-      "SELECT batch, login_id FROM students WHERE id = $1",
-      [updatedEnrollment.student_id]
-    );
-    if (studentInfo.rows.length === 0) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-    const oldBatch = parseInt(studentInfo.rows[0].batch);
-    const currentLoginId = studentInfo.rows[0].login_id;
-    const currentYear = new Date().getFullYear();
-    const newBatch = currentYear + 11 - updatedClass;
-    let newLoginId = currentLoginId;
-    if (newBatch !== oldBatch) {
-      const loginIdResult = await pool.query(
-        "SELECT MAX(login_id) AS max_login_id FROM students WHERE batch = $1",
-        [newBatch]
-      );
-      const maxLoginId = loginIdResult.rows[0].max_login_id;
-      newLoginId = maxLoginId
-        ? maxLoginId + 1
-        : parseInt(newBatch.toString().slice(-2) + "001");
-      await pool.query(
-        "UPDATE students SET batch = $1, login_id = $2 WHERE id = $3",
-        [newBatch, newLoginId, updatedEnrollment.student_id]
-      );
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: "students!A1:Z",
+    // Validate enrollment_id
+    if (!enrollment_id || isNaN(parseInt(enrollment_id))) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid enrollment_id parameter",
       });
-      const rows = sheetData.data.values || [];
-      const batchCol = getColumnIndex("batch");
-      const loginIdCol = getColumnIndex("login_id");
-      const rowIndex = rows.findIndex((row, i) => {
-        return String(row[loginIdCol]).trim() === String(currentLoginId).trim();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid academic fields provided",
       });
-      if (rowIndex !== -1) {
-        rows[rowIndex][loginIdCol] = newLoginId;
-        rows[rowIndex][batchCol] = newBatch;
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `students!A${rowIndex + 1}:Z${rowIndex + 1}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [rows[rowIndex]],
-          },
+    }
+
+    // Validate and convert data types
+    const processedUpdates = {};
+
+    if (updates.class !== undefined) {
+      const classNum = parseInt(updates.class);
+      if (isNaN(classNum) || classNum < 1 || classNum > 12) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid class number. Must be between 1 and 12.",
         });
       }
+      processedUpdates.class = classNum;
     }
+
+    if (updates.roll !== undefined) {
+      const rollNum = parseInt(updates.roll);
+      if (isNaN(rollNum) || rollNum < 1) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid roll number. Must be a positive integer.",
+        });
+      }
+      processedUpdates.roll = rollNum;
+    }
+
+    if (updates.section !== undefined) {
+      processedUpdates.section = updates.section
+        .toString()
+        .trim()
+        .toUpperCase();
+    }
+
+    if (updates.department !== undefined) {
+      processedUpdates.department = updates.department
+        ? updates.department.toString().trim()
+        : null;
+    }
+
+    if (updates.year !== undefined) {
+      const yearNum = parseInt(updates.year);
+      if (isNaN(yearNum)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid year. Must be a valid number.",
+        });
+      }
+      processedUpdates.year = yearNum;
+    }
+
+    console.log(
+      `Updating academic info for enrollment_id: ${enrollment_id}`,
+      processedUpdates
+    );
+
+    // Use transaction for data consistency
+    const result = await prisma.$transaction(async (tx) => {
+      const enrollment = await tx.student_enrollments.update({
+        where: { id: parseInt(enrollment_id) },
+        data: processedUpdates,
+      });
+
+      if (!enrollment) {
+        throw new Error("Enrollment record not found");
+      }
+
+      const updatedClass = enrollment.class;
+
+      const studentInfo = await tx.students.findUnique({
+        where: { id: enrollment.student_id },
+        select: { batch: true, login_id: true, id: true },
+      });
+
+      if (!studentInfo) {
+        throw new Error("Student not found");
+      }
+
+      const oldBatch = parseInt(studentInfo.batch);
+      const currentLoginId = studentInfo.login_id;
+      const currentYear = new Date().getFullYear();
+      const newBatch = currentYear + 11 - updatedClass;
+
+      let newLoginId = currentLoginId;
+      let updatedStudent = null;
+
+      if (newBatch !== oldBatch) {
+        console.log(`Batch change detected: ${oldBatch} -> ${newBatch}`);
+
+        const maxLoginResult = await tx.students.findMany({
+          where: { batch: String(newBatch) },
+          orderBy: { login_id: "desc" },
+          take: 1,
+        });
+
+        const maxLoginId =
+          maxLoginResult.length > 0 ? maxLoginResult[0].login_id : null;
+        newLoginId = maxLoginId
+          ? maxLoginId + 1
+          : parseInt(newBatch.toString().slice(-2) + "001");
+
+        updatedStudent = await tx.students.update({
+          where: { id: enrollment.student_id },
+          data: {
+            batch: String(newBatch),
+            login_id: newLoginId,
+          },
+        });
+
+        console.log(`Updated student batch and login_id: ${newLoginId}`);
+      }
+
+      return {
+        enrollment,
+        updatedStudent,
+        oldLoginId: currentLoginId,
+        newLoginId,
+      };
+    });
+
+    // Update Google Sheets (non-blocking)
+    if (result.updatedStudent) {
+      try {
+        const sheetData = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: "students!A1:Z",
+        });
+
+        const rows = sheetData.data.values || [];
+        const batchCol = getColumnIndex("batch");
+        const loginIdCol = getColumnIndex("login_id");
+
+        const rowIndex = rows.findIndex((row) => {
+          return (
+            String(row[loginIdCol]).trim() === String(result.oldLoginId).trim()
+          );
+        });
+
+        if (rowIndex !== -1) {
+          rows[rowIndex][loginIdCol] = result.newLoginId;
+          rows[rowIndex][batchCol] = result.updatedStudent.batch;
+
+          await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `students!A${rowIndex + 1}:Z${rowIndex + 1}`,
+            valueInputOption: "RAW",
+            requestBody: {
+              values: [rows[rowIndex]],
+            },
+          });
+          console.log("Successfully updated Google Sheets");
+        }
+      } catch (sheetError) {
+        console.error(
+          "Google Sheets update failed (non-blocking):",
+          sheetError.message
+        );
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "Academic info updated successfully",
-      data: updatedEnrollment,
+      data: result.enrollment,
     });
   } catch (error) {
-    console.error("Error updating academic info:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error in updateAcademicInfoController:", error);
+    console.error("Error stack:", error.stack);
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: "Enrollment record not found",
+      });
+    }
+
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        error: "Duplicate entry detected",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
+
 export const updateStudentImageController = async (req, res) => {
   try {
     const { id } = req.params;
     const filePath = req.file ? req.file.path : null;
-    console.log(filePath);
-    const exists = await pool.query("SELECT * FROM students WHERE id = $1", [
-      id,
-    ]);
-    if (exists.rows[0].image) {
-      const filePath = exists.rows[0].image;
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+
+    const existingStudent = await prisma.students.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (existingStudent?.image) {
+      const oldFilePath = existingStudent.image;
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
       }
     }
-    const result = await pool.query(
-      "UPDATE students SET image = $1 WHERE id = $2 RETURNING *",
-      [filePath, id]
-    );
-    if (result.rows.length === 0) {
+
+    const result = await prisma.students.update({
+      where: { id: parseInt(id) },
+      data: { image: filePath },
+    });
+
+    if (!result) {
       return res.status(404).json({ error: "Student not found" });
     }
+
     res.status(200).json({
       success: true,
       message: "Student image updated successfully",
-      data: result.rows[0],
+      data: result,
     });
   } catch (error) {
-    console.error("Error updating student image:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -491,39 +804,43 @@ export const changePasswordController = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const token = req.cookies?.token;
+
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = decoded.id;
-    const result = await pool.query("SELECT * FROM students WHERE id = $1", [
-      studentId,
-    ]);
-    if (result.rows.length === 0) {
+
+    const student = await prisma.students.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student) {
       return res.status(404).json({ error: "Student not found" });
     }
-    const student = result.rows[0];
+
     const isMatch = await bcrypt.compare(currentPassword, student.password);
     if (!isMatch) {
       return res.status(400).json({ error: "Current password is incorrect" });
     }
+
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query("UPDATE students SET password = $1 WHERE id = $2", [
-      hashedNewPassword,
-      studentId,
-    ]);
+
+    await prisma.students.update({
+      where: { id: studentId },
+      data: { password: hashedNewPassword },
+    });
 
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "students!A1:Z",
     });
+
     const rows = sheetData.data.values || [];
     const rowIndex = rows.findIndex(
-      (row) => row[0] === String(result.rows[0].login_id)
+      (row) => row[0] === String(student.login_id)
     );
-    console.log(rowIndex);
-    const loginId = result.rows[0].login_id;
-    console.log(loginId);
 
     if (rowIndex !== -1) {
       const updatedRow = rows[rowIndex];
@@ -531,7 +848,7 @@ export const changePasswordController = async (req, res) => {
       if (columnIndex !== -1) {
         updatedRow[columnIndex] = newPassword;
       }
-      console.log(updatedRow, columnIndex);
+
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `students!A${rowIndex + 1}:Z${rowIndex + 1}`,
@@ -546,7 +863,6 @@ export const changePasswordController = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Password changed successfully" });
   } catch (error) {
-    console.error("Error changing password:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

@@ -59,7 +59,7 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-2 sm:p-4 lg:p-6 xl:p-8">
+      <div className="min-h-screen  p-2 sm:p-4 lg:p-6 xl:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4 sm:mb-6 animate-pulse"></div>
 

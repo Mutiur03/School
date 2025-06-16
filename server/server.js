@@ -3,7 +3,6 @@ import "dotenv/config";
 import cors from "cors";
 import studRouter from "./routes/studRoutes.js";
 import examRouter from "./routes/examRoutes.js";
-import pool from "./config/db.js";
 import subRouter from "./routes/subRoutes.js";
 import marksRouter from "./routes/marksRoutes.js";
 import promotionRouter from "./routes/promotionRoutes.js";
@@ -37,7 +36,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: allowedOrigins,
-    credentials: true, 
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -55,57 +54,7 @@ app.use(
   })
 );
 
-app.get("/pdf/:filename", (req, res) => {
-  const filename = req.params.filename;
 
-  // Try different possible locations for the file
-  const possiblePaths = [
-    path.join(__dirname, "uploads", "notice", filename),
-    path.join(__dirname, "uploads", filename),
-    path.join(__dirname, filename),
-  ];
-
-  let filePath = null;
-  for (const tryPath of possiblePaths) {
-    if (fs.existsSync(tryPath)) {
-      filePath = tryPath;
-      break;
-    }
-  }
-
-  if (!filePath) {
-    console.log(`PDF not found. Tried paths:`, possiblePaths);
-    return res.status(404).send("PDF not found");
-  }
-
-  // Check if client connection is still alive
-  if (req.destroyed || res.destroyed) {
-    return;
-  }
-
-  // Set headers
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Cache-Control", "public, max-age=3600");
-  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
-
-  // Handle client disconnect
-  req.on("aborted", () => {
-    console.log("Client disconnected from PDF request");
-  });
-
-  // Send file with improved error handling
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      // Only log non-abort errors
-      if (err.code !== "ECONNABORTED" && !req.destroyed) {
-        console.error("PDF send error:", err);
-        if (!res.headersSent) {
-          res.status(500).send("Error loading PDF");
-        }
-      }
-    }
-  });
-});
 
 app.get("/", (req, res) => {
   res.send("Hello World");
@@ -125,23 +74,23 @@ app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
 app.use("/api/dashboard", dashboardRouter);
-pool
-  .connect()
-  .then(async () => {
-    console.log("Connected to PostgreSQL database");
-    fs.mkdir(storagePath, { recursive: true }, (err) => {
-      if (err) {
-        console.error("Error creating uploads directory:", err);
-      } else {
-        console.log("Uploads directory created successfully");
-      }
-    });
+// pool
+//   .connect()
+//   .then(async () => {
+// console.log("Connected to PostgreSQL database");
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Error connecting to database:", err);
-    process.exit(1);
+app.listen(PORT, "0.0.0.0", () => {
+  fs.mkdir(storagePath, { recursive: true }, (err) => {
+    if (err) {
+      console.error("Error creating uploads directory:", err);
+    } else {
+      console.log("Uploads directory created successfully");
+    }
   });
+  console.log(`Server running on port ${PORT}`);
+});
+// })
+// .catch((err) => {
+//   console.error("Error connecting to database:", err);
+//   process.exit(1);
+// });

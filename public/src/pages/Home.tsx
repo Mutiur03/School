@@ -368,7 +368,7 @@ export default function Home() {
                         <div>
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="section-title">Upcoming Events</h2>
-                                <Link to="/event" className="text-primary hover:underline">
+                                <Link to="/events" className="text-primary hover:underline">
                                     View All
                                 </Link>
                             </div>
@@ -392,11 +392,13 @@ export default function Home() {
                                     variants={staggerContainer}
                                     className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                                 >
-                                    {events.length > 0 ? (
-                                        events
-                                            .filter((event) => new Date(event.date).setHours(0, 0, 0, 0) > new Date().setHours(0, 0, 0, 0))
-                                            .slice(0, 4)
-                                            .map((event) => (
+                                    {(() => {
+                                        const upcomingEvents = events.filter((event) => 
+                                            new Date(event.date).setHours(0, 0, 0, 0) > new Date().setHours(0, 0, 0, 0)
+                                        );
+
+                                        if (upcomingEvents.length > 0) {
+                                            return upcomingEvents.slice(0, 4).map((event) => (
                                                 <motion.div
                                                     key={event.id}
                                                     variants={fadeIn}
@@ -426,12 +428,21 @@ export default function Home() {
                                                         </Link>
                                                     </div>
                                                 </motion.div>
-                                            ))
-                                    ) : (
-                                        <div className="col-span-full p-4 text-center text-gray-500 bg-white rounded-lg">
-                                            No upcoming events at the moment.
-                                        </div>
-                                    )}
+                                            ));
+                                        } else if (events.length > 0) {
+                                            return (
+                                                <div className="col-span-full p-4 text-center text-gray-500 bg-white rounded-lg">
+                                                    No upcoming events at the moment. Check out our past events in the events section.
+                                                </div>
+                                            );
+                                        } else {
+                                            return (
+                                                <div className="col-span-full p-4 text-center text-gray-500 bg-white rounded-lg">
+                                                    No events available at the moment.
+                                                </div>
+                                            );
+                                        }
+                                    })()}
                                 </motion.div>
                             )}
                         </div>

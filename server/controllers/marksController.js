@@ -1,7 +1,7 @@
-import pool from "../config/db.js";
 import puppeteer from "puppeteer";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma.js";
+
+
 const validateMarksData = (data) => {
   if (!Array.isArray(data.students)) {
     throw new Error("Students data must be an array");
@@ -16,7 +16,6 @@ const validateMarksData = (data) => {
       if (!mark.subjectId || typeof mark.marks !== "number") {
         throw new Error("Invalid marks data structure");
       }
-      // Ensure marks are at least 0
       mark.marks = Math.max(0, mark.marks);
     });
   });
@@ -24,75 +23,169 @@ const validateMarksData = (data) => {
 
 export const addMarksController = async (req, res) => {
   try {
+    console.log("=== ADD MARKS CONTROLLER START ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+
+    // Basic validation first
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        error: "Request body is required",
+      });
+    }
+
     validateMarksData(req.body);
 
     const { students, examName, year } = req.body;
 
-    // Get exam ID
-    const examResult = await pool.query(
-      `SELECT id FROM exams WHERE exam_name = $1 AND exam_year = $2`,
-      [examName, year]
-    );
-
-    if (examResult.rows.length === 0) {
-      return res.status(404).json({
+    // Validate required fields
+    if (!examName || !year) {
+      return res.status(400).json({
         success: false,
-        error: `Exam "${examName}" not found for year ${year}`,
+        error: "examName and year are required",
       });
     }
 
-    const examId = examResult.rows[0].id;
+    console.log(`Looking for exam: ${examName}, year: ${year}`);
+
+    // Check if exam exists
+    const exam = await prisma.exams.findFirst({
+      where: {
+        exam_name: examName,
+        exam_year: parseInt(year),
+      },
+    });
+
+    if (!exam) {
+      console.log(`Exam not found: ${examName} for year ${year}`);
+      
+      // Let's check what exams exist for debugging
+      const allExams = await prisma.exams.findMany({
+        select: {
+          id: true,
+          exam_name: true,
+          exam_year: true,
+        },
+      });
+      console.log("Available exams:", allExams);
+      
+      return res.status(404).json({
+        success: false,
+        error: `Exam "${examName}" not found for year ${year}`,
+        availableExams: allExams,
+      });
+    }
+
+    console.log(`Found exam:`, exam);
 
     const results = [];
     const errors = [];
 
     for (const student of students) {
       try {
-        // Get enrollment ID
-        const enrollmentResult = await pool.query(
-          `SELECT id FROM student_enrollments 
-           WHERE student_id = $1 AND year = $2`,
-          [student.studentId, year]
-        );
+        console.log(`Processing student: ${student.studentId}`);
 
-        if (enrollmentResult.rows.length === 0) {
+        const enrollment = await prisma.student_enrollments.findFirst({
+          where: {
+            student_id: student.studentId,
+            year: parseInt(year),
+          },
+        });
+
+        if (!enrollment) {
           const errorMsg = `Student ${student.studentId} not enrolled in ${year}`;
+          console.log(errorMsg);
           errors.push(errorMsg);
           continue;
         }
 
-        const enrollmentId = enrollmentResult.rows[0].id;
+        console.log(`Found enrollment:`, enrollment);
 
-        // Process each subject mark
         for (const { subjectId, marks } of student.subjectMarks) {
           try {
-            const result = await prisma.marks.upsert({
-              where: {
-                unique_marks_entry: {
-                  enrollment_id: enrollmentId,
-                  subject_id: subjectId,
-                  exam_id: examId,
-                },
-              },
-              create: {
-                enrollment_id: enrollmentId,
-                subject_id: subjectId,
-                exam_id: examId,
-                marks: marks || 0,
-              },
-              update: {
-                marks: marks || 0,
-              },
+            console.log(
+              `Processing marks for student ${student.studentId}, subject ${subjectId}, marks ${marks}`
+            );
+
+            // Validate subject exists
+            const subject = await prisma.subjects.findUnique({
+              where: { id: subjectId },
             });
+
+            if (!subject) {
+              const errorMsg = `Subject ${subjectId} not found`;
+              console.log(errorMsg);
+              errors.push(errorMsg);
+              continue;
+            }
+
+            console.log(`Found subject:`, subject);
+
+            // Try different approaches for the upsert
+            let result;
+            try {
+              // First, try to find existing mark
+              const existingMark = await prisma.marks.findFirst({
+                where: {
+                  enrollment_id: enrollment.id,
+                  subject_id: subjectId,
+                  exam_id: exam.id,
+                },
+              });
+
+              if (existingMark) {
+                // Update existing mark
+                result = await prisma.marks.update({
+                  where: {
+                    id: existingMark.id,
+                  },
+                  data: {
+                    marks: marks || 0,
+                  },
+                });
+                console.log(`Updated existing mark:`, result);
+              } else {
+                // Create new mark
+                result = await prisma.marks.create({
+                  data: {
+                    enrollment_id: enrollment.id,
+                    subject_id: subjectId,
+                    exam_id: exam.id,
+                    marks: marks || 0,
+                  },
+                });
+                console.log(`Created new mark:`, result);
+              }
+            } catch (upsertError) {
+              console.error("Upsert error:", upsertError);
+              
+              // Fallback: try with a different constraint name or without unique constraint
+              try {
+                result = await prisma.marks.create({
+                  data: {
+                    enrollment_id: enrollment.id,
+                    subject_id: subjectId,
+                    exam_id: exam.id,
+                    marks: marks || 0,
+                  },
+                });
+                console.log(`Created mark with fallback:`, result);
+              } catch (createError) {
+                console.error("Create error:", createError);
+                throw createError;
+              }
+            }
 
             results.push(result);
           } catch (error) {
             const errorMsg = `Failed to process student ${student.studentId} subject ${subjectId}: ${error.message}`;
+            console.error(errorMsg, error);
             errors.push(errorMsg);
           }
         }
       } catch (error) {
         const errorMsg = `Error processing student ${student.studentId}: ${error.message}`;
+        console.error(errorMsg, error);
         errors.push(errorMsg);
       }
     }
@@ -104,18 +197,22 @@ export const addMarksController = async (req, res) => {
       errors: errors.length > 0 ? errors : undefined,
     };
 
+    console.log("Final response:", response);
+    console.log("=== ADD MARKS CONTROLLER END ===");
     res.json(response);
   } catch (error) {
-    // Only rollback if we're using pool transactions
-    try {
-      await pool.query("ROLLBACK");
-    } catch (rollbackError) {
-      // Rollback failed or not needed
-    }
-
-    res.status(400).json({
+    console.error("=== CONTROLLER ERROR ===");
+    console.error("Error in addMarksController:", error);
+    console.error("Error name:", error.name);
+    console.error("Error code:", error.code);
+    console.error("Stack trace:", error.stack);
+    
+    res.status(500).json({
       success: false,
       error: error.message || "Error processing marks",
+      errorName: error.name,
+      errorCode: error.code,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -124,15 +221,13 @@ export const getClassMarksController = async (req, res) => {
   try {
     const { className, year, exam } = req.params;
 
-    console.log("Received parameters:", { className, year, exam }); // Debug log
-
     const result = await prisma.student_enrollments.findMany({
       where: {
         class: Number(className),
-        year: parseInt(year), 
+        year: parseInt(year),
       },
       include: {
-        student: { 
+        student: {
           select: {
             id: true,
             name: true,
@@ -197,7 +292,6 @@ export const getClassMarksController = async (req, res) => {
       data: formattedData,
     });
   } catch (error) {
-    console.error("Error fetching class marks:", error);
     res.status(500).json({
       success: false,
       error: "Error fetching marks",
@@ -208,41 +302,157 @@ export const getClassMarksController = async (req, res) => {
 
 export const getIndividualMarksController = async (req, res) => {
   try {
+    console.log("=== GET INDIVIDUAL MARKS CONTROLLER START ===");
+    console.log("Request params:", req.params);
+
     const { id, year, exam } = req.params;
-    console.log("Received parameters:", { id, year, exam });
 
-    const result = await pool.query(
-      `
-        SELECT
-          s.name,
-          sub.name AS subject,
-          sub.full_mark,sub.pass_mark,
-          e.exam_name AS exam,
-          m.marks,
-          se.class,
-          se.roll,
-          se.year
-        FROM marks m
-        JOIN student_enrollments se ON m.enrollment_id = se.id
-        JOIN students s ON se.student_id = s.id
-        JOIN subjects sub ON m.subject_id = sub.id
-        JOIN exams e ON m.exam_id = e.id
-        WHERE se.student_id = $1
-        AND se.year = $2
-        AND e.exam_name = $3
-      `,
-      [id, year, exam]
-    );
-    console.log("Query result:", result.rows);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "No marks found" });
+    // Validate parameters
+    if (!id || isNaN(parseInt(id))) {
+      console.log("Invalid student ID:", id);
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid student ID parameter" 
+      });
     }
 
-    res.json(result.rows);
+    if (!year || isNaN(parseInt(year))) {
+      console.log("Invalid year:", year);
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid year parameter" 
+      });
+    }
+
+    if (!exam) {
+      console.log("Missing exam parameter");
+      return res.status(400).json({ 
+        success: false,
+        error: "Exam parameter is required" 
+      });
+    }
+
+    console.log(`Searching for marks - Student ID: ${id}, Year: ${year}, Exam: ${exam}`);
+
+    const result = await prisma.marks.findMany({
+      where: {
+        enrollment: {
+          student_id: parseInt(id),
+          year: parseInt(year),
+        },
+        exam: {
+          exam_name: exam,
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        subject: {
+          select: {
+            name: true,
+            full_mark: true,
+            pass_mark: true,
+          },
+        },
+        exam: {
+          select: {
+            exam_name: true,
+          },
+        },
+      },
+    });
+
+    console.log(`Found ${result.length} marks records`);
+
+    if (result.length === 0) {
+      // Check if student exists
+      const studentExists = await prisma.students.findUnique({
+        where: { id: parseInt(id) }
+      });
+
+      if (!studentExists) {
+        console.log(`Student ${id} not found`);
+        return res.status(404).json({ 
+          success: false,
+          message: "Student not found" 
+        });
+      }
+
+      // Check if enrollment exists
+      const enrollmentExists = await prisma.student_enrollments.findFirst({
+        where: {
+          student_id: parseInt(id),
+          year: parseInt(year),
+        }
+      });
+
+      if (!enrollmentExists) {
+        console.log(`Student ${id} not enrolled in year ${year}`);
+        return res.status(404).json({ 
+          success: false,
+          message: "Student not enrolled for the specified year" 
+        });
+      }
+
+      // Check if exam exists
+      const examExists = await prisma.exams.findFirst({
+        where: { exam_name: exam }
+      });
+
+      if (!examExists) {
+        console.log(`Exam ${exam} not found`);
+        return res.status(404).json({ 
+          success: false,
+          message: "Exam not found" 
+        });
+      }
+
+      console.log("Student, enrollment, and exam exist but no marks found");
+      return res.status(404).json({ 
+        success: false,
+        message: "No marks found for this student, year, and exam" 
+      });
+    }
+
+    const formattedResult = result.map((mark) => ({
+      name: mark.enrollment.student.name,
+      subject: mark.subject.name,
+      full_mark: mark.subject.full_mark,
+      pass_mark: mark.subject.pass_mark,
+      exam: mark.exam.exam_name,
+      marks: mark.marks,
+      class: mark.enrollment.class,
+      roll: mark.enrollment.roll,
+      year: mark.enrollment.year,
+    }));
+
+    console.log("Successfully formatted result");
+    console.log("=== GET INDIVIDUAL MARKS CONTROLLER END ===");
+
+    res.json({
+      success: true,
+      data: formattedResult
+    });
   } catch (error) {
-    console.error("Error fetching marks:", error);
-    res.status(500).json({ error: "Error fetching marks" });
+    console.error("=== ERROR IN GET INDIVIDUAL MARKS CONTROLLER ===");
+    console.error("Error details:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Stack trace:", error.stack);
+
+    res.status(500).json({ 
+      success: false,
+      error: "Error fetching marks",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -252,42 +462,50 @@ export const generateMarksheetController = async (req, res) => {
   try {
     const { id, year, exam } = req.params;
 
-    const result = await pool.query(
-      `
-        SELECT 
-          s.name AS student_name, 
-          sub.name AS subject, 
-          e.exam_name AS exam, 
-          m.marks AS subject_marks, 
-          SUM(m.marks) OVER(PARTITION BY se.student_id, e.exam_name, se.year) AS total_marks, 
-          se.class, 
-          se.roll, 
-          se.year 
-        FROM marks m
-        JOIN student_enrollments se ON m.enrollment_id = se.id
-        JOIN students s ON se.student_id = s.id
-        JOIN subjects sub ON m.subject_id = sub.id
-        JOIN exams e ON m.exam_id = e.id
-        WHERE se.student_id = $1
-        AND se.year = $2
-        AND e.exam_name = $3;
-      `,
-      [id, year, exam]
-    );
+    const result = await prisma.marks.findMany({
+      where: {
+        enrollment: {
+          student_id: parseInt(id),
+          year: parseInt(year),
+        },
+        exam: {
+          exam_name: exam,
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        subject: {
+          select: {
+            name: true,
+          },
+        },
+        exam: {
+          select: {
+            exam_name: true,
+          },
+        },
+      },
+    });
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res
         .status(404)
         .json({ message: "No marks found for the student" });
     }
 
-    const studentData = result.rows;
-    const studentName = studentData[0].student_name;
-    const studentClass = studentData[0].class;
-    const studentRoll = studentData[0].roll;
-    const totalMarks = studentData[0].total_marks;
+    const studentName = result[0].enrollment.student.name;
+    const studentClass = result[0].enrollment.class;
+    const studentRoll = result[0].enrollment.roll;
+    const totalMarks = result.reduce((sum, mark) => sum + mark.marks, 0);
 
-    // Generate HTML content for the PDF
     const html = `
       <!DOCTYPE html>
       <html>
@@ -319,12 +537,12 @@ export const generateMarksheetController = async (req, res) => {
               </tr>
             </thead>
             <tbody>
-              ${studentData
+              ${result
                 .map(
-                  (row) => `
+                  (mark) => `
                   <tr>
-                    <td class="border border-gray-300 p-2">${row.subject}</td>
-                    <td class="border border-gray-300 p-2">${row.subject_marks}</td>
+                    <td class="border border-gray-300 p-2">${mark.subject.name}</td>
+                    <td class="border border-gray-300 p-2">${mark.marks}</td>
                   </tr>
                 `
                 )
@@ -340,7 +558,6 @@ export const generateMarksheetController = async (req, res) => {
       </html>
     `;
 
-    // Launch Puppeteer
     browser = await puppeteer.launch({
       headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -348,10 +565,8 @@ export const generateMarksheetController = async (req, res) => {
 
     const page = await browser.newPage();
 
-    // Set the HTML content
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // Generate PDF
     const pdfBuffer = await page.pdf({
       format: "A4",
       margin: {
@@ -363,29 +578,27 @@ export const generateMarksheetController = async (req, res) => {
       printBackground: true,
     });
 
-    // Close the browser
     await browser.close();
     browser = null;
 
-    // Set response headers
     const filename = `marksheet_${id}_${exam}_${year}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", pdfBuffer.length);
 
-    // Send the PDF buffer
     res.end(pdfBuffer);
   } catch (error) {
-    console.error("Error generating marksheet:", error);
-
-    // Ensure the browser is closed
+    console.error("Error in generateMarksheetController:", error);
     if (browser) {
       await browser
         .close()
         .catch((e) => console.error("Error closing browser:", e));
     }
 
-    res.status(500).json({ error: "Error generating marksheet" });
+    res.status(500).json({ 
+      error: "Error generating marksheet",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -393,53 +606,79 @@ export const previewMarksheetController = async (req, res) => {
   try {
     const { id, year } = req.params;
 
-    // Updated database query to pivot exam marks
-    const result = await pool.query(
-      `
-      SELECT 
-  s.name AS student_name,
-  sub.name AS subject,
-  se.class,
-  se.roll,
-  se.year,
-  se.final_merit,
-  json_object_agg(e.exam_name, m.marks) AS exam_marks,
-  json_object_agg(e.exam_name, tm.total) AS total_marks_per_exam
-FROM marks m
-JOIN student_enrollments se ON m.enrollment_id = se.id 
-JOIN students s ON se.student_id = s.id
-JOIN subjects sub ON m.subject_id = sub.id
-JOIN exams e ON m.exam_id = e.id
-JOIN (
-  SELECT 
-    m.exam_id,
-    SUM(m.marks) AS total
-  FROM marks m
-  JOIN student_enrollments se ON m.enrollment_id = se.id
-  WHERE se.student_id = $1 AND se.year = $2
-  GROUP BY m.exam_id
-) AS tm ON m.exam_id = tm.exam_id
-WHERE se.student_id = $1 AND se.year = $2 
-GROUP BY 
-  s.name, 
-  sub.name, 
-  se.class, 
-  se.roll, 
-  se.year, 
-  se.final_merit
-ORDER BY sub.name;
-      `,
-      [id, year]
-    );
+    const marks = await prisma.marks.findMany({
+      where: {
+        enrollment: {
+          student_id: parseInt(id),
+          year: parseInt(year),
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        subject: {
+          select: {
+            name: true,
+          },
+        },
+        exam: {
+          select: {
+            exam_name: true,
+          },
+        },
+      },
+    });
 
-    if (result.rows.length === 0) {
+    if (marks.length === 0) {
       return res.status(404).json({ message: "No marks found" });
     }
 
-    res.status(200).json(result.rows);
+    const groupedData = {};
+    const totalMarksByExam = {};
+
+    marks.forEach((mark) => {
+      const subjectName = mark.subject.name;
+      const examName = mark.exam.exam_name;
+
+      if (!groupedData[subjectName]) {
+        groupedData[subjectName] = {
+          student_name: mark.enrollment.student.name,
+          subject: subjectName,
+          class: mark.enrollment.class,
+          roll: mark.enrollment.roll,
+          year: mark.enrollment.year,
+          final_merit: mark.enrollment.final_merit,
+          exam_marks: {},
+        };
+      }
+
+      groupedData[subjectName].exam_marks[examName] = mark.marks;
+
+      if (!totalMarksByExam[examName]) {
+        totalMarksByExam[examName] = 0;
+      }
+      totalMarksByExam[examName] += mark.marks;
+    });
+
+    const result = Object.values(groupedData).map((subject) => ({
+      ...subject,
+      total_marks_per_exam: totalMarksByExam,
+    }));
+
+    res.status(200).json(result);
   } catch (error) {
-    console.error("Error generating preview:", error);
-    res.status(500).json({ error: "Error generating preview" });
+    console.error("Error in previewMarksheetController:", error);
+    res.status(500).json({ 
+      error: "Error generating preview",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -447,54 +686,73 @@ export const downloadPreviewMarksheet = async (req, res) => {
   try {
     const { id, year } = req.params;
 
-    const result = await pool.query(
-      `
-      SELECT 
-        s.name AS student_name,
-        sub.name AS subject,
-        se.class,
-        se.roll,
-        se.year,
-        se.final_merit,
-        json_object_agg(e.exam_name, m.marks) AS exam_marks,
-        json_object_agg(e.exam_name, tm.total) AS total_marks_per_exam
-      FROM marks m
-      JOIN student_enrollments se ON m.enrollment_id = se.id 
-      JOIN students s ON se.student_id = s.id
-      JOIN subjects sub ON m.subject_id = sub.id
-      JOIN exams e ON m.exam_id = e.id
-      JOIN (
-        SELECT 
-          m.exam_id,
-          SUM(m.marks) AS total
-        FROM marks m
-        JOIN student_enrollments se ON m.enrollment_id = se.id
-        WHERE se.student_id = $1 AND se.year = $2
-        GROUP BY m.exam_id
-      ) AS tm ON m.exam_id = tm.exam_id
-      WHERE se.student_id = $1 AND se.year = $2 
-      GROUP BY 
-        s.name, 
-        sub.name, 
-        se.class, 
-        se.roll, 
-        se.year, 
-        se.final_merit
-      ORDER BY sub.name;
-      `,
-      [id, year]
-    );
+    const marks = await prisma.marks.findMany({
+      where: {
+        enrollment: {
+          student_id: parseInt(id),
+          year: parseInt(year),
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        subject: {
+          select: {
+            name: true,
+          },
+        },
+        exam: {
+          select: {
+            exam_name: true,
+          },
+        },
+      },
+    });
 
-    if (result.rows.length === 0) {
+    if (marks.length === 0) {
       return res.status(404).json({ message: "No marks found" });
     }
 
-    const studentData = result.rows;
+    const groupedData = {};
+    const totalMarksByExam = {};
+    const exams = new Set();
+
+    marks.forEach((mark) => {
+      const subjectName = mark.subject.name;
+      const examName = mark.exam.exam_name;
+      exams.add(examName);
+
+      if (!groupedData[subjectName]) {
+        groupedData[subjectName] = {
+          student_name: mark.enrollment.student.name,
+          subject: subjectName,
+          class: mark.enrollment.class,
+          roll: mark.enrollment.roll,
+          year: mark.enrollment.year,
+          exam_marks: {},
+        };
+      }
+
+      groupedData[subjectName].exam_marks[examName] = mark.marks;
+
+      if (!totalMarksByExam[examName]) {
+        totalMarksByExam[examName] = 0;
+      }
+      totalMarksByExam[examName] += mark.marks;
+    });
+
+    const studentData = Object.values(groupedData);
     const studentName = studentData[0].student_name;
     const studentClass = studentData[0].class;
     const studentRoll = studentData[0].roll;
-    const exams = Object.keys(studentData[0].exam_marks);
-    const totalMarks = studentData[0].total_marks_per_exam;
+    const examsList = Array.from(exams);
 
     const html = `
       <!DOCTYPE html>
@@ -525,7 +783,7 @@ export const downloadPreviewMarksheet = async (req, res) => {
             <thead>
               <tr class="bg-gray-200 text-center">
                 <th class="border border-gray-300 px-4 py-2 text-left">Subject</th>
-                ${exams
+                ${examsList
                   .map(
                     (exam) =>
                       `<th class="border border-gray-300 px-4 py-2">${exam}</th>`
@@ -541,7 +799,7 @@ export const downloadPreviewMarksheet = async (req, res) => {
                     <td class="border border-gray-300 px-4 py-2">${
                       row.subject
                     }</td>
-                    ${exams
+                    ${examsList
                       .map((exam) => {
                         const marks = row.exam_marks[exam];
                         return `<td class="border text-center border-gray-300 px-4 py-2">${
@@ -556,9 +814,9 @@ export const downloadPreviewMarksheet = async (req, res) => {
 
               <tr class="bg-gray-100 font-semibold">
                 <td class="border border-gray-300 px-4 py-2 text-right">Total</td>
-                ${exams
+                ${examsList
                   .map((exam) => {
-                    const total = totalMarks[exam];
+                    const total = totalMarksByExam[exam];
                     return `<td class="border text-center border-gray-300 px-4 py-2">${
                       total ?? "-"
                     }</td>`;
@@ -599,8 +857,11 @@ export const downloadPreviewMarksheet = async (req, res) => {
     res.setHeader("Content-Length", pdfBuffer.length);
     res.end(pdfBuffer);
   } catch (error) {
-    console.error("Error downloading preview marksheet:", error);
-    res.status(500).json({ error: "Error downloading preview marksheet" });
+    console.error("Error in downloadPreviewMarksheet:", error);
+    res.status(500).json({ 
+      error: "Error downloading preview marksheet",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -608,73 +869,111 @@ export const downloadAllMarksheetPDF = async (req, res) => {
   try {
     const { year } = req.params;
 
-    const result = await pool.query(
-      `
-      SELECT 
-        s.name AS student_name,
-        sub.name AS subject,
-        se.class,
-        se.roll,
-        se.year,
-        se.final_merit,
-        se.student_id,
-        json_object_agg(e.exam_name, m.marks) AS exam_marks,
-        json_object_agg(e.exam_name, tm.total) AS total_marks_per_exam
-      FROM marks m
-      JOIN student_enrollments se ON m.enrollment_id = se.id 
-      JOIN students s ON se.student_id = s.id
-      JOIN subjects sub ON m.subject_id = sub.id
-      JOIN exams e ON m.exam_id = e.id
-      JOIN (
-        SELECT 
-          se.student_id,
-          m.exam_id,
-          SUM(m.marks) AS total
-        FROM marks m
-        JOIN student_enrollments se ON m.enrollment_id = se.id
-        WHERE se.year = $1
-        GROUP BY se.student_id, m.exam_id
-      ) AS tm ON m.exam_id = tm.exam_id AND se.student_id = tm.student_id
-      WHERE se.year = $1
-      GROUP BY 
-        s.name, 
-        sub.name, 
-        se.class, 
-        se.roll, 
-        se.year, 
-        se.final_merit,
-        se.student_id
-      ORDER BY s.name, sub.name
-      `,
-      [year]
-    );
+    const marks = await prisma.marks.findMany({
+      where: {
+        enrollment: {
+          year: parseInt(year),
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        subject: {
+          select: {
+            name: true,
+          },
+        },
+        exam: {
+          select: {
+            exam_name: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          enrollment: {
+            student: {
+              name: "asc",
+            },
+          },
+        },
+        {
+          subject: {
+            name: "asc",
+          },
+        },
+      ],
+    });
 
-    if (result.rows.length === 0) {
+    if (marks.length === 0) {
       return res.status(404).json({ message: "No marks found" });
     }
 
-    // Group data by student
     const grouped = {};
-    for (const row of result.rows) {
-      const sid = row.student_id;
-      if (!grouped[sid]) {
-        grouped[sid] = {
-          student_name: row.student_name,
-          class: row.class,
-          roll: row.roll,
-          year: row.year,
-          final_merit: row.final_merit,
+    const totalMarksByStudentExam = {};
+
+    marks.forEach((mark) => {
+      const studentId = mark.enrollment.student.id;
+      const examName = mark.exam.exam_name;
+      const key = `${studentId}_${examName}`;
+
+      if (!grouped[studentId]) {
+        grouped[studentId] = {
+          student_id: studentId,
+          student_name: mark.enrollment.student.name,
+          class: mark.enrollment.class,
+          roll: mark.enrollment.roll,
+          year: mark.enrollment.year,
+          final_merit: mark.enrollment.final_merit,
           subjects: [],
-          total_marks_per_exam: row.total_marks_per_exam,
+          exam_marks: {},
         };
       }
-      grouped[sid].subjects.push({
-        subject: row.subject,
-        exam_marks: row.exam_marks,
-      });
-    }
 
-    // Generate HTML
+      let subject = grouped[studentId].subjects.find(
+        (s) => s.subject === mark.subject.name
+      );
+      if (!subject) {
+        subject = {
+          subject: mark.subject.name,
+          exam_marks: {},
+        };
+        grouped[studentId].subjects.push(subject);
+      }
+
+      subject.exam_marks[examName] = mark.marks;
+
+      if (!totalMarksByStudentExam[key]) {
+        totalMarksByStudentExam[key] = 0;
+      }
+      totalMarksByStudentExam[key] += mark.marks;
+    });
+
+    Object.values(grouped).forEach((student) => {
+      const examHeaders = new Set();
+      student.subjects.forEach((subject) => {
+        Object.keys(subject.exam_marks).forEach((exam) =>
+          examHeaders.add(exam)
+        );
+      });
+
+      const totalMarks = {};
+      Array.from(examHeaders).forEach((exam) => {
+        const key = `${student.student_id}_${exam}`;
+        totalMarks[exam] = totalMarksByStudentExam[key] || 0;
+      });
+
+      student.total_marks_per_exam = totalMarks;
+    });
+
     const allMarksheetHTML = Object.values(grouped)
       .map((student) => {
         const examHeaders = Object.keys(student.subjects[0]?.exam_marks || {});
@@ -768,7 +1067,6 @@ export const downloadAllMarksheetPDF = async (req, res) => {
       </html>
     `;
 
-    // Generate PDF with Puppeteer
     const browser = await puppeteer.launch({
       headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -796,91 +1094,193 @@ export const downloadAllMarksheetPDF = async (req, res) => {
     res.setHeader("Content-Length", pdfBuffer.length);
     res.end(pdfBuffer);
   } catch (error) {
-    console.error("Error generating all marksheets PDF:", error);
-    res.status(500).json({ error: "Error generating all marksheets PDF" });
+    console.error("Error in downloadAllMarksheetPDF:", error);
+    res.status(500).json({ 
+      error: "Error generating all marksheets PDF",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
 export const addGPAController = async (req, res) => {
   try {
+    console.log("=== ADD GPA CONTROLLER START ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+
     const { students, examName } = req.body;
-    if (!Array.isArray(students)) {
-      return res.status(400).json({ error: "students is not iterable" });
+
+    // Validate required fields
+    if (!examName) {
+      return res.status(400).json({
+        success: false,
+        error: "examName is required"
+      });
     }
-    console.log("Received students:", students);
+
+    if (!Array.isArray(students)) {
+      return res.status(400).json({
+        success: false,
+        error: "students must be an array"
+      });
+    }
+
+    const results = [];
+    const errors = [];
 
     for (const student of students) {
-      console.log(student);
+      try {
+        console.log(`Processing student GPA: ${student.studentId}, GPA: ${student.gpa}`);
 
-      // Check if student_id exists in the students table
-      const studentExists = await pool.query(
-        `SELECT id FROM students WHERE id = $1`,
-        [student.studentId]
-      );
+        // Validate student data
+        if (!student.studentId) {
+          errors.push("Student ID is required");
+          continue;
+        }
 
-      if (studentExists.rows.length === 0) {
-        console.error(`Student ID ${student.studentId} does not exist.`);
-        continue; // Skip this student if the ID does not exist
-      }
+        if (student.gpa === undefined || student.gpa === null) {
+          errors.push(`GPA is required for student ${student.studentId}`);
+          continue;
+        }
 
-      if (examName === "JSC") {
-        const result = await pool.query(
-          `INSERT INTO gpa (jsc_gpa, student_id) 
-           VALUES ($1, $2) 
-           ON CONFLICT (student_id) 
-           DO UPDATE SET jsc_gpa = COALESCE($1, 0)`,
-          [student.gpa || 0, student.studentId]
-        );
-      } else if (examName === "SSC") {
-        const result = await pool.query(
-          `INSERT INTO gpa (ssc_gpa, student_id) 
-           VALUES ($1, $2) 
-           ON CONFLICT (student_id) 
-           DO UPDATE SET ssc_gpa = COALESCE($1, 0)`,
-          [student.gpa || 0, student.studentId]
-        );
+        // Convert GPA to float and validate
+        const gpaValue = parseFloat(student.gpa);
+        if (isNaN(gpaValue)) {
+          errors.push(`Invalid GPA value for student ${student.studentId}: ${student.gpa}`);
+          continue;
+        }
+
+        // Check if student exists
+        const studentExists = await prisma.students.findUnique({
+          where: { id: student.studentId },
+        });
+
+        if (!studentExists) {
+          errors.push(`Student ${student.studentId} not found`);
+          continue;
+        }
+
+        let result;
+        if (examName === "JSC") {
+          result = await prisma.gpa.upsert({
+            where: { student_id: student.studentId },
+            create: {
+              jsc_gpa: gpaValue,
+              student_id: student.studentId,
+            },
+            update: {
+              jsc_gpa: gpaValue,
+            },
+          });
+        } else if (examName === "SSC") {
+          result = await prisma.gpa.upsert({
+            where: { student_id: student.studentId },
+            create: {
+              ssc_gpa: gpaValue,
+              student_id: student.studentId,
+            },
+            update: {
+              ssc_gpa: gpaValue,
+            },
+          });
+        } else {
+          errors.push(`Invalid exam name: ${examName}. Must be JSC or SSC`);
+          continue;
+        }
+
+        console.log(`Successfully processed GPA for student ${student.studentId}:`, result);
+        results.push(result);
+      } catch (error) {
+        const errorMsg = `Error processing student ${student.studentId}: ${error.message}`;
+        console.error(errorMsg, error);
+        errors.push(errorMsg);
       }
     }
-    res.status(200).json({ message: "Marks saved successfully" });
+
+    const response = {
+      success: true,
+      message: `Processed ${results.length} GPA records`,
+      count: results.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+
+    console.log("GPA Controller response:", response);
+    res.status(200).json(response);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error in addGPAController:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
 };
 
 export const getAllStudentsGPAController = async (req, res) => {
   try {
     const { year } = req.params;
-    console.log("Received year:", year);
 
-    const result = await pool.query(
-      `
-      SELECT 
-        s.id AS student_id,
-        s.name AS student_name,
-        se.class,
-        se.roll,
-        g.jsc_gpa,
-        g.ssc_gpa
-      FROM students s
-      LEFT JOIN gpa g ON s.id = g.student_id
-      JOIN student_enrollments se ON s.id = se.student_id
-      WHERE se.year = $1
-      `,
-      [year]
-    );
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No GPA records found for the specified year" });
+    // Validate year parameter
+    if (!year || isNaN(parseInt(year))) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid year parameter",
+      });
     }
+
+    const result = await prisma.student_enrollments.findMany({
+      where: {
+        year: parseInt(year),
+      },
+      include: {
+        student: {
+          include: {
+            gpa: {
+              select: {
+                jsc_gpa: true,
+                ssc_gpa: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        {
+          class: "asc",
+        },
+        {
+          roll: "asc",
+        },
+      ],
+    });
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No students found for the specified year",
+      });
+    }
+
+    const formattedResult = result.map((enrollment) => ({
+      student_id: enrollment.student.id,
+      student_name: enrollment.student.name,
+      class: enrollment.class,
+      roll: enrollment.roll,
+      department: enrollment.department,
+      section: enrollment.section,
+      jsc_gpa: enrollment.student.gpa?.jsc_gpa || null,
+      ssc_gpa: enrollment.student.gpa?.ssc_gpa || null,
+    }));
 
     res.status(200).json({
       success: true,
-      data: result.rows,
+      data: formattedResult,
     });
   } catch (error) {
-    console.error("Error fetching all students' GPA:", error);
-    res.status(500).json({ error: "Error fetching all students' GPA" });
+    console.error("Error in getAllStudentsGPAController:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error fetching all students' GPA",
+      details: error.message,
+    });
   }
 };

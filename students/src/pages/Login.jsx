@@ -43,7 +43,6 @@ export default function Login() {
       );
       checkAuth();
       toast.success(response.data.message);
-    //   console.log(response.data);
       navigate("/");
     } catch (error) {
         form.reset();

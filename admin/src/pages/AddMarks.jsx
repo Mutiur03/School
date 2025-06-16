@@ -124,6 +124,18 @@ const AddMarks = () => {
     }
   }, [subjectsForClass, specific, setValue]);
 
+  // Auto-select department when specific subject is chosen
+  useEffect(() => {
+    if (specific && specific !== 0) {
+      const selectedSubject = subjectsForClass.find(sub => sub.id == specific);
+      if (selectedSubject && selectedSubject.department) {
+        setValue("department", selectedSubject.department);
+      }
+    } else if (specific === 0) {
+      setValue("department", ""); // Reset to "All Departments" when "All Subjects" is selected
+    }
+  }, [specific, subjectsForClass, setValue]);
+
   // Fetch existing marks
   const fetchGPA = async () => {
     if (!year || !examName) return; // Skip if any required field is empty
@@ -276,29 +288,30 @@ const AddMarks = () => {
 
       // Get currently visible subjects based on filters
       const visibleSubjects = subjectsForClass.filter((s) => !specific || s.id == specific);
-      const visibleSubjectIds = visibleSubjects.map(s => s.id);
 
-      const submissionData = Object.entries(marksData)
-        .filter(([studentId]) => {
-          // Only include students that are currently visible/filtered
-          return filteredStudents.some(s => s.student_id === Number(studentId));
-        })
-        .filter(([, data]) => data?.subjectMarks?.length > 0)
-        .map(([studentId, data]) => ({
-          studentId: parseInt(studentId),
-          subjectMarks: data.subjectMarks
-            .filter(m => visibleSubjectIds.includes(m.subjectId)) // Only include visible subjects
-            .map((m) => ({
-              subjectId: m.subjectId,
-              marks: Math.max(0, parseInt(m.marks) || 0), // Default to 0 if no value is provided
-            })),
-        }))
-        .filter((student) => student.subjectMarks.length > 0);
+      // Include all visible students, even those without marks entered
+      const submissionData = filteredStudents.map((student) => {
+        const studentData = marksData[student.student_id];
+        
+        // Create subject marks for all visible subjects
+        const subjectMarks = visibleSubjects.map((subject) => {
+          const existingMark = studentData?.subjectMarks?.find(m => m.subjectId === subject.id);
+          return {
+            subjectId: subject.id,
+            marks: Math.max(0, parseInt(existingMark?.marks) || 0), // Default to 0 if no value is provided
+          };
+        });
+
+        return {
+          studentId: student.student_id,
+          subjectMarks: subjectMarks,
+        };
+      });
       
       console.log("Submission data:", submissionData);
 
       if (submissionData.length === 0) {
-        throw new Error("No valid marks to submit");
+        throw new Error("No students found to submit marks for");
       }
 
       const response = await axios.post("/api/marks/addMarks", {

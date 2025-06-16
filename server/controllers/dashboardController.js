@@ -1,17 +1,16 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma.js";
 
 export const getAllDashboardData = async (req, res) => {
   try {
     const year = new Date().getFullYear();
     const currentDate = new Date();
-    
+
     // Helper function to convert MM-DD-YYYY to Date object
     const parseEventDate = (dateStr) => {
-      const [month, day, year] = dateStr.split('-');
+      const [month, day, year] = dateStr.split("-");
       return new Date(year, month - 1, day);
     };
-    
+
     // Execute queries with individual error handling
     let studentCount = 0;
     let teacherCount = 0;
@@ -22,13 +21,17 @@ export const getAllDashboardData = async (req, res) => {
     let examSchedule = [];
 
     try {
-      studentCount = await prisma.student_enrollments.count({ where: { year: year } });
+      studentCount = await prisma.student_enrollments.count({
+        where: { year: year },
+      });
     } catch (error) {
       console.warn("Error fetching student count:", error.message);
     }
 
     try {
-      teacherCount = await prisma.teachers.count({ where: { available: true } });
+      teacherCount = await prisma.teachers.count({
+        where: { available: true },
+      });
     } catch (error) {
       console.warn("Error fetching teacher count:", error.message);
     }
@@ -104,19 +107,21 @@ export const getAllDashboardData = async (req, res) => {
     }
 
     // Filter events that are upcoming (date >= current date)
-    const upcomingEvents = (events || []).filter(event => {
-      try {
-        if (!event.date) return false;
-        const eventDate = parseEventDate(event.date);
-        return eventDate >= currentDate;
-      } catch (error) {
-        console.error('Error parsing event date:', event.date);
-        return false;
-      }
-    }).slice(0, 10);
+    const upcomingEvents = (events || [])
+      .filter((event) => {
+        try {
+          if (!event.date) return false;
+          const eventDate = parseEventDate(event.date);
+          return eventDate >= currentDate;
+        } catch (error) {
+          console.error("Error parsing event date:", event.date);
+          return false;
+        }
+      })
+      .slice(0, 10);
 
     // Count upcoming events
-    const upcomingEventCount = (events || []).filter(event => {
+    const upcomingEventCount = (events || []).filter((event) => {
       try {
         if (!event.date) return false;
         const eventDate = parseEventDate(event.date);
@@ -126,12 +131,14 @@ export const getAllDashboardData = async (req, res) => {
       }
     }).length;
 
-    const formattedAnnouncements = (announcements || []).map((announcement) => ({
-      id: announcement.id,
-      title: announcement.title || 'No title',
-      content: announcement.details || 'No details available',
-      date: announcement.created_at,
-    }));
+    const formattedAnnouncements = (announcements || []).map(
+      (announcement) => ({
+        id: announcement.id,
+        title: announcement.title || "No title",
+        content: announcement.details || "No details available",
+        date: announcement.created_at,
+      })
+    );
 
     const allData = {
       quickStats: {
@@ -143,7 +150,7 @@ export const getAllDashboardData = async (req, res) => {
       attendanceData: attendanceData || [],
       events: upcomingEvents || [],
       examSchedule: (examSchedule || []).map((exam) => ({
-        name: exam.exam_name || 'Unnamed exam',
+        name: exam.exam_name || "Unnamed exam",
         start_date: exam.start_date,
         end_date: exam.end_date,
       })),
@@ -152,9 +159,12 @@ export const getAllDashboardData = async (req, res) => {
     res.status(200).json({
       success: true,
       data: allData,
-      message: allData.announcements.length === 0 && allData.events.length === 0 && allData.examSchedule.length === 0 
-        ? "Dashboard data retrieved successfully (no announcements, events, or exams found)"
-        : "All dashboard data retrieved successfully",
+      message:
+        allData.announcements.length === 0 &&
+        allData.events.length === 0 &&
+        allData.examSchedule.length === 0
+          ? "Dashboard data retrieved successfully (no announcements, events, or exams found)"
+          : "All dashboard data retrieved successfully",
     });
   } catch (error) {
     console.error("Dashboard error:", error);
@@ -168,7 +178,7 @@ export const getAllDashboardData = async (req, res) => {
         attendanceData: [],
         events: [],
         examSchedule: [],
-      }
+      },
     });
   }
 };

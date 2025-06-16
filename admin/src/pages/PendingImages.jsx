@@ -95,7 +95,7 @@ export default function PendingGalleries() {
       setGroupedGalleries(response.data || { events: {}, categories: {} });
     } catch (error) {
       console.error("Error fetching pending galleries:", error);
-      toast.error("Failed to load pending galleries");
+      // toast.error("Failed to load pending galleries");
     } finally {
       setIsLoading(false);
     }

@@ -89,7 +89,7 @@ function StudentList() {
   };
   const getStudentList = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       const response = await axios.get(`/api/students/getStudents/${year}`);
       console.log("Students:", response.data.data);
       const filteredStudents = (response.data.data || []).filter(

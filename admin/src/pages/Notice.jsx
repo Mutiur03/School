@@ -51,14 +51,16 @@ const NoticeUploadPage = () => {
       }
       // Only reset and hide form on successful submission
       setFormValues({ title: "", details: "", file: null });
-      form.reset();
+      if (fileref.current) {
+        fileref.current.value = "";
+      }
       setIsEditing(false);
       setEditId(null);
       setShowForm(false);
     } catch (error) {
       console.error("Error submitting form:", error);
       // Don't hide form on error - let user see the error and retry
-      openPopup("error", error.message || "An error occurred");
+      openPopup("error", { message: error.message || "An error occurred" });
     }
   };
 
@@ -129,20 +131,18 @@ const NoticeUploadPage = () => {
                   onChange={(e) =>
                     setFormValues({
                       ...formValues,
-                      file: e.target.files?.[0],
+                      file: e.target.files?.[0] || null,
                     })
                   }
                   {...(!isEditing && { required: true })}
                 />
-                {formValues.file && (
+                {(formValues.file || (isEditing && typeof formValues.file === 'string')) && (
                   <p className="text-sm text-gray-500">
-                    {formValues.file
-                      ? "Selected file: " +
-                        formValues.file.name.slice(0, 20) +
-                        "..."
-                      : "Uploaded file: " +
-                        formValues.file.slice(0, 20) +
-                        "..."}
+                    {formValues.file && typeof formValues.file === 'object'
+                      ? "Selected file: " + formValues.file.name.slice(0, 20) + "..."
+                      : isEditing && typeof formValues.file === 'string'
+                      ? "Current file: " + formValues.file.split('/').pop().slice(0, 20) + "..."
+                      : ""}
                   </p>
                 )}
               </div>
@@ -178,7 +178,9 @@ const NoticeUploadPage = () => {
                     setIsEditing(false);
                     setEditId(null);
                     setFormValues({ title: "", details: "", file: null });
-                    fileref.current.value = null;
+                    if (fileref.current) {
+                      fileref.current.value = "";
+                    }
                     setShowForm(false);
                   }}
                 >
@@ -349,6 +351,20 @@ const NoticeUploadPage = () => {
                     ) : (
                       "Delete"
                     )}
+                  </button>
+                </div>
+              </>
+            )}
+            {popup.type === "error" && (
+              <>
+                <h2 className="text-xl font-bold text-red-600 mb-4">Error</h2>
+                <p>{popup.notice?.message || "An unexpected error occurred"}</p>
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={closePopup}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Close
                   </button>
                 </div>
               </>

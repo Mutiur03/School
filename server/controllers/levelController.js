@@ -1,12 +1,16 @@
-import pool from "../config/db.js";
+import { prisma } from "../config/prisma.js";
 
 export const addLevelController = async (req, res) => {
   try {
     const { class_name, section, year, teacher_id } = req.body;
-    await pool.query(
-      "INSERT INTO levels (class_name, section, year, teacher_id) VALUES ($1, $2, $3, $4)",
-      [class_name, section, year, teacher_id]
-    );
+    await prisma.levels.create({
+      data: {
+        class_name: parseInt(class_name),
+        section,
+        year,
+        teacher_id: parseInt(teacher_id),
+      },
+    });
 
     res.status(201).json({ message: "Level added successfully" });
   } catch (error) {
@@ -17,13 +21,31 @@ export const addLevelController = async (req, res) => {
 
 export const getLevelsController = async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT levels.id AS id, class_name, section, year, teachers.name AS teacher_name, teachers.id AS teacher_id FROM levels JOIN teachers ON levels.teacher_id = teachers.id ORDER BY class_name, section"
-    );
-    res.status(200).json({ data: result.rows });
+    const result = await prisma.levels.findMany({
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [{ class_name: "asc" }, { section: "asc" }],
+    });
+
+    const formattedData = result.map((level) => ({
+      id: level.id,
+      class_name: level.class_name,
+      section: level.section,
+      year: level.year,
+      teacher_name: level.teacher.name,
+      teacher_id: level.teacher.id,
+    }));
+
+    res.status(200).json({ data: formattedData });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "An error occurred while fetching levels" }); 
+    res.status(500).json({ error: "An error occurred while fetching levels" });
   }
 };
 
@@ -32,11 +54,15 @@ export const updateLevelController = async (req, res) => {
     const { class_name, section, year, teacher_id } = req.body;
     const { id } = req.params;
 
-    // Update data in the 'levels' table
-    await pool.query(
-      "UPDATE levels SET class_name = $1, section = $2, year = $3, teacher_id = $4 WHERE id = $5",
-      [class_name, section, year, teacher_id, id]
-    );
+    await prisma.levels.update({
+      where: { id: parseInt(id) },
+      data: {
+        class_name: parseInt(class_name),
+        section,
+        year,
+        teacher_id: parseInt(teacher_id),
+      },
+    });
 
     res.status(200).json({ message: "Level updated successfully" });
   } catch (error) {
@@ -46,12 +72,14 @@ export const updateLevelController = async (req, res) => {
       .json({ error: "An error occurred while updating the level" });
   }
 };
+
 export const deleteLevelController = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Delete data from the 'levels' table
-    await pool.query("DELETE FROM levels WHERE id = $1", [id]);
+    await prisma.levels.delete({
+      where: { id: parseInt(id) },
+    });
 
     res.status(200).json({ message: "Level deleted successfully" });
   } catch (error) {
