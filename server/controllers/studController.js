@@ -95,12 +95,10 @@ export const getStudentsController = async (_req, res) => {
     console.log(`Found ${result.length} students`);
 
     if (result.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "No students found for the specified year",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "No students found for the specified year",
+      });
     }
 
     const formattedResult = result.flatMap((student) =>
@@ -295,21 +293,14 @@ export const addStudentController = async (req, res) => {
     }
 
     // Use transaction to ensure data consistency
-    const result = await prisma.$transaction(async (tx) => {
-      const insertedStudents = [];
-      const insertedEnrollments = [];
+    const insertedStudents = [];
+    const insertedEnrollments = [];
 
-      for (let i = 0; i < processedStudents.length; i++) {
-        const student = processedStudents[i];
+    for (let i = 0; i < processedStudents.length; i++) {
+      const student = processedStudents[i];
 
-        try {
-          console.log(`Inserting student ${i + 1}:`, {
-            login_id: student.login_id,
-            name: student.name,
-            phone: student.phone,
-            batch: student.batch,
-          });
-
+      try {
+        const result = await prisma.$transaction(async (tx) => {
           const insertedStudent = await tx.students.create({
             data: {
               login_id: student.login_id,
@@ -327,13 +318,6 @@ export const addStudentController = async (req, res) => {
             },
           });
 
-          insertedStudents.push(insertedStudent);
-          console.log(
-            `Successfully inserted student ${i + 1} with ID: ${
-              insertedStudent.id
-            }`
-          );
-
           const insertedEnrollment = await tx.student_enrollments.create({
             data: {
               student_id: insertedStudent.id,
@@ -345,22 +329,24 @@ export const addStudentController = async (req, res) => {
             },
           });
 
-          insertedEnrollments.push(insertedEnrollment);
-          console.log(
-            `Successfully inserted enrollment ${i + 1} with ID: ${
-              insertedEnrollment.id
-            }`
-          );
-        } catch (error) {
-          console.error(`Database error for student ${i + 1}:`, error);
-          throw new Error(
-            `Failed to insert student "${student.name}": ${error.message}`
-          );
-        }
-      }
+          return { insertedStudent, insertedEnrollment };
+        });
 
-      return { insertedStudents, insertedEnrollments };
-    });
+        insertedStudents.push(result.insertedStudent);
+        insertedEnrollments.push(result.insertedEnrollment);
+
+        console.log(`Inserted student ${i + 1}: ${student.name}`);
+      } catch (error) {
+        console.error(
+          `Error inserting student "${student.name}":`,
+          error.message
+        );
+        return res.status(500).json({
+          success: false,
+          error: `Failed to insert student "${student.name}": ${error.message}`,
+        });
+      }
+    }
 
     // Update Google Sheets
     try {
@@ -387,14 +373,14 @@ export const addStudentController = async (req, res) => {
     }
 
     console.log(
-      `Successfully inserted ${result.insertedStudents.length} students and ${result.insertedEnrollments.length} enrollments`
+      `Successfully inserted ${insertedStudents.length} students and ${insertedEnrollments.length} enrollments`
     );
 
     res.status(201).json({
       success: true,
-      data: result.insertedEnrollments,
-      message: `Successfully added ${result.insertedStudents.length} students`,
-      inserted_count: result.insertedStudents.length,
+      data: insertedEnrollments,
+      message: `Successfully added ${insertedStudents.length} students`,
+      inserted_count: insertedStudents.length,
     });
   } catch (error) {
     console.error("Error in addStudentController:", error);
@@ -864,5 +850,90 @@ export const changePasswordController = async (req, res) => {
       .json({ success: true, message: "Password changed successfully" });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getClassStudentsController = async (_req, res) => {
+  try {
+    const { year, level } = _req.params;
+
+    // Validate year parameter
+    if (!year || isNaN(parseInt(year)) || !level || isNaN(parseInt(level))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid year parameter. Year must be a valid number.",
+      });
+    }
+
+    const parsedYear = parseInt(year);
+    const parsedLevel = parseInt(level);
+
+    // Validate year range (optional but recommended)
+    const currentYear = new Date().getFullYear();
+    if (parsedYear < 2000 || parsedYear > currentYear + 5) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid year. Year must be between 2000 and ${
+          currentYear + 5
+        }.`,
+      });
+    }
+
+    console.log(`Fetching students for year: ${parsedYear}`);
+
+    const result = await prisma.students.findMany({
+      include: {
+        enrollments: {
+          where: { year: parsedYear, class: parsedLevel },
+          orderBy: { year: "desc" },
+        },
+      },
+    });
+
+    console.log(`Found ${result.length} students`);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No students found for the specified year",
+      });
+    }
+
+    const formattedResult = result.flatMap((student) =>
+      student.enrollments.map((enrollment) => ({
+        ...student,
+        ...enrollment,
+        enrollment_id: enrollment.id,
+      }))
+    );
+
+    console.log(`Formatted ${formattedResult.length} student enrollments`);
+
+    res.status(200).json({ success: true, data: formattedResult });
+  } catch (error) {
+    console.error("Error in getStudentsController:", error);
+    console.error("Error stack:", error.stack);
+
+    // More specific error responses
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        error: "Database constraint violation",
+      });
+    }
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: "Record not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Error fetching students",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };

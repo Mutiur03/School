@@ -107,7 +107,7 @@ export const addTeacher = async (req, res) => {
       data: createdTeachers,
       message: "Teachers added successfully",
     });
-  } catch (error) {
+  } catch (error) { 
     console.error("Error adding teachers:", error.message);
     res.status(500).json({ success: false, error: "Error adding teachers" });
   }

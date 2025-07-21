@@ -15,6 +15,12 @@ function NewSubject() {
     class: "",
     full_mark: "",
     pass_mark: "",
+    cq_mark: "",
+    mcq_mark: "",
+    practical_mark: "",
+    cq_pass_mark: "",
+    mcq_pass_mark: "",
+    practical_pass_mark: "",
     department: "",
     year: new Date().getFullYear(),
     teacher_id: "",
@@ -27,6 +33,8 @@ function NewSubject() {
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showFormatInfo, setShowFormatInfo] = useState(false);
+  const [showSubjectDetails, setShowSubjectDetails] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState(null);
   const excelFileRef = React.useRef(null);
   useEffect(() => {
     fetchTeachers();
@@ -67,6 +75,12 @@ function NewSubject() {
         class: "",
         full_mark: "",
         pass_mark: "",
+        cq_mark: "",
+        mcq_mark: "",
+        practical_mark: "",
+        cq_pass_mark: "",
+        mcq_pass_mark: "",
+        practical_pass_mark: "",
         department: "",
         year: new Date().getFullYear(),
         teacher_id: "",
@@ -92,6 +106,12 @@ function NewSubject() {
               class: "",
               full_mark: "",
               pass_mark: "",
+              cq_mark: "",
+              mcq_mark: "",
+              practical_mark: "",
+              cq_pass_mark: "",
+              mcq_pass_mark: "",
+              practical_pass_mark: "",
               department: "",
               year: new Date().getFullYear(),
               teacher_id: "",
@@ -118,6 +138,12 @@ function NewSubject() {
               class: "",
               full_mark: "",
               pass_mark: "",
+              cq_mark: "",
+              mcq_mark: "",
+              practical_mark: "",
+              cq_pass_mark: "",
+              mcq_pass_mark: "",
+              practical_pass_mark: "",
               department: "",
               year: new Date().getFullYear(),
               teacher_id: "",
@@ -154,6 +180,12 @@ function NewSubject() {
         "class",
         "full_mark",
         "pass_mark",
+        "cq_mark",
+        "mcq_mark",
+        "practical_mark",
+        "cq_pass_mark",
+        "mcq_pass_mark",
+        "practical_pass_mark",
         "department",
         "year",
         "teacher_id",
@@ -232,6 +264,12 @@ function NewSubject() {
       class: subject.class,
       full_mark: subject.full_mark,
       pass_mark: subject.pass_mark,
+      cq_mark: subject.cq_mark || "",
+      mcq_mark: subject.mcq_mark || "",
+      practical_mark: subject.practical_mark || "",
+      cq_pass_mark: subject.cq_pass_mark || "",
+      mcq_pass_mark: subject.mcq_pass_mark || "",
+      practical_pass_mark: subject.practical_pass_mark || "",
       department: subject.department,
       year: subject.year,
       teacher_id: subject.teacher_id,
@@ -247,6 +285,12 @@ function NewSubject() {
       class: "",
       full_mark: "",
       pass_mark: "",
+      cq_mark: "",
+      mcq_mark: "",
+      practical_mark: "",
+      cq_pass_mark: "",
+      mcq_pass_mark: "",
+      practical_pass_mark: "",
       department: "",
       year: new Date().getFullYear(),
       teacher_id: "",
@@ -258,6 +302,11 @@ function NewSubject() {
       excelFileRef.current.value = null;
     }
     setShowForm(false); // Ensure this is called to hide the form
+  };
+
+  const showSubjectInfo = (subject) => {
+    setSelectedSubject(subject);
+    setShowSubjectDetails(true);
   };
 
   const filteredSubjects = subjects
@@ -355,7 +404,59 @@ function NewSubject() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <input
+                      type="number"
+                      name="cq_mark"
+                      placeholder="CQ Mark (Optional)"
+                      value={formData.cq_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="number"
+                      name="mcq_mark"
+                      placeholder="MCQ Mark (Optional)"
+                      value={formData.mcq_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="number"
+                      name="practical_mark"
+                      placeholder="Practical Mark (Optional)"
+                      value={formData.practical_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <input
+                      type="number"
+                      name="cq_pass_mark"
+                      placeholder="CQ Pass Mark (Optional)"
+                      value={formData.cq_pass_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="number"
+                      name="mcq_pass_mark"
+                      placeholder="MCQ Pass Mark (Optional)"
+                      value={formData.mcq_pass_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="number"
+                      name="practical_pass_mark"
+                      placeholder="Practical Pass Mark (Optional)"
+                      value={formData.practical_pass_mark}
+                      onChange={handleChange}
+                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
                     <select
                       name="department"
                       value={formData.department}
@@ -366,31 +467,6 @@ function NewSubject() {
                       {["Science", "Arts", "Commerce"].map((department) => (
                         <option key={department} value={department}>
                           {department}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      name="year"
-                      placeholder="Year"
-                      value={formData.year}
-                      onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <select
-                      name="teacher_id"
-                      value={formData.teacher_id}
-                      onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
-                      required
-                    >
-                      <option value="">Select a Teacher</option>
-                      {teachers.map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>
-                          {teacher.name}
                         </option>
                       ))}
                     </select>
@@ -572,6 +648,31 @@ function NewSubject() {
                       </td>
                       <td className=" px-4 py-2">
                         <div className="flex space-x-2 justify-center items-center">
+                          <button
+                            onClick={() => showSubjectInfo(subject)}
+                            className="p-1 text-green-500 hover:text-green-700 transition-colors"
+                            title="Show Details"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
                           <button onClick={() => editSubject(subject)}>
                             <Edit className="sm:w-4 sm:h-4 w-3 h-3 text-blue-500 hover:text-blue-700" />
                           </button>
@@ -603,6 +704,145 @@ function NewSubject() {
           </div>
         </div>
       </div>
+
+      {/* Subject Details Popup */}
+      {showSubjectDetails && selectedSubject && (
+        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
+          <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Subject Details</h2>
+                <button
+                  onClick={() => setShowSubjectDetails(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Basic Information
+                    </h3>
+                    <div className="space-y-2">
+                      <div>
+                        <strong>Name:</strong> {selectedSubject.name}
+                      </div>
+                      <div>
+                        <strong>Class:</strong> {selectedSubject.class}
+                      </div>
+                      <div>
+                        <strong>Department:</strong>{" "}
+                        {selectedSubject.department || "Not specified"}
+                      </div>
+                      <div>
+                        <strong>Year:</strong> {selectedSubject.year}
+                      </div>
+                      <div>
+                        <strong>Teacher:</strong>{" "}
+                        {teachers.find(
+                          (teacher) => teacher.id === selectedSubject.teacher_id
+                        )?.name || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Main Marks
+                    </h3>
+                    <div className="space-y-2">
+                      <div>
+                        <strong>Full Mark:</strong> {selectedSubject.full_mark}
+                      </div>
+                      <div>
+                        <strong>Pass Mark:</strong> {selectedSubject.pass_mark}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Detailed Mark Distribution
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
+                        Mark Allocation
+                      </h4>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <strong>CQ Mark:</strong>{" "}
+                          {selectedSubject.cq_mark || "Not set"}
+                        </div>
+                        <div>
+                          <strong>MCQ Mark:</strong>{" "}
+                          {selectedSubject.mcq_mark || "Not set"}
+                        </div>
+                        <div>
+                          <strong>Practical Mark:</strong>{" "}
+                          {selectedSubject.practical_mark || "Not set"}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-green-600 dark:text-green-400 mb-2">
+                        Pass Mark Requirements
+                      </h4>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <strong>CQ Pass Mark:</strong>{" "}
+                          {selectedSubject.cq_pass_mark || "Not set"}
+                        </div>
+                        <div>
+                          <strong>MCQ Pass Mark:</strong>{" "}
+                          {selectedSubject.mcq_pass_mark || "Not set"}
+                        </div>
+                        <div>
+                          <strong>Practical Pass Mark:</strong>{" "}
+                          {selectedSubject.practical_pass_mark || "Not set"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Created:</span>
+                    <span className="text-sm">
+                      {new Date(
+                        selectedSubject.created_at
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowSubjectDetails(false);
+                    editSubject(selectedSubject);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Edit Subject
+                </button>
+                <button
+                  onClick={() => setShowSubjectDetails(false)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Excel Format Info Popup */}
       {showFormatInfo && (
@@ -643,6 +883,19 @@ function NewSubject() {
 
                     <div>• teacher_id</div>
                     <div></div>
+
+                    <div className="font-medium col-span-2 mt-2">
+                      Optional Columns:
+                    </div>
+
+                    <div>• cq_mark</div>
+                    <div>• mcq_mark</div>
+
+                    <div>• practical_mark</div>
+                    <div>• cq_pass_mark</div>
+
+                    <div>• mcq_pass_mark</div>
+                    <div>• practical_pass_mark</div>
                   </div>
                 </div>
 
@@ -663,6 +916,30 @@ function NewSubject() {
                       <strong>pass_mark:</strong> Minimum marks required to pass
                     </li>
                     <li>
+                      <strong>cq_mark:</strong> Creative Question marks
+                      (optional)
+                    </li>
+                    <li>
+                      <strong>mcq_mark:</strong> Multiple Choice Question marks
+                      (optional)
+                    </li>
+                    <li>
+                      <strong>practical_mark:</strong> Practical examination
+                      marks (optional)
+                    </li>
+                    <li>
+                      <strong>cq_pass_mark:</strong> Minimum CQ marks to pass
+                      (optional)
+                    </li>
+                    <li>
+                      <strong>mcq_pass_mark:</strong> Minimum MCQ marks to pass
+                      (optional)
+                    </li>
+                    <li>
+                      <strong>practical_pass_mark:</strong> Minimum practical
+                      marks to pass (optional)
+                    </li>
+                    <li>
                       <strong>department:</strong> Science/Arts/Commerce (leave
                       empty for classes 6-8)
                     </li>
@@ -678,14 +955,15 @@ function NewSubject() {
                     </li>
                     <li>First row should contain column headers</li>
                     <li>All required fields must be present</li>
+                    <li>Optional mark fields can be left empty or omitted</li>
                   </ul>
                 </div>
 
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Tip:</strong> To find teacher IDs, check the Teachers
-                    section in the admin panel. Make sure the column headers in
-                    your Excel file match exactly as listed above.
+                    <strong>Tip:</strong> To find teacher IDs, check the
+                    Teachers section in the admin panel. Make sure the column
+                    headers in your Excel file match exactly as listed above.
                   </p>
                 </div>
               </div>

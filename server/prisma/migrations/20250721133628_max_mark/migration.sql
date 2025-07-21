@@ -1,0 +1,12 @@
+-- AlterTable
+ALTER TABLE "marks" ADD COLUMN     "cq_marks" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "mcq_marks" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "practical_marks" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "subjects" ADD COLUMN     "cq_mark" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "cq_pass_mark" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "mcq_mark" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "mcq_pass_mark" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "practical_mark" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "practical_pass_mark" INTEGER NOT NULL DEFAULT 0;

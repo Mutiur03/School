@@ -40,42 +40,49 @@ export const addSubController = async (req, res) => {
       subject.department === "general" && (subject.department = null);
 
       // Convert numeric fields to integers
-      subject.class = parseInt(subject.class);
-      if (isNaN(subject.class)) {
+      const numericFields = [
+        "class",
+        "full_mark",
+        "pass_mark",
+        "teacher_id",
+        "cq_mark",
+        "mcq_mark",
+        "practical_mark",
+        "cq_pass_mark",
+        "mcq_pass_mark",
+        "practical_pass_mark",
+      ];
+
+      for (const field of numericFields) {
+        if (
+          subject[field] !== undefined &&
+          subject[field] !== null &&
+          subject[field] !== ""
+        ) {
+          subject[field] = parseInt(subject[field]);
+          if (isNaN(subject[field])) {
+            return res.status(400).json({
+              success: false,
+              error: `${field.replace("_", " ")} must be a valid number`,
+            });
+          }
+        } else {
+          // Set to 0 for mark fields that don't allow null, null for optional fields like teacher_id
+          if (field.includes("mark") || field === "class") {
+            subject[field] =
+              field === "class" && !subject[field] ? subject[field] : 0;
+          } else {
+            subject[field] = null;
+          }
+        }
+      }
+
+      // Validate required fields
+      if (!subject.class) {
         return res.status(400).json({
           success: false,
-          error: "Class must be a valid number",
+          error: "Class is required",
         });
-      }
-
-      if (subject.full_mark) {
-        subject.full_mark = parseInt(subject.full_mark);
-        if (isNaN(subject.full_mark)) {
-          return res.status(400).json({
-            success: false,
-            error: "Full mark must be a valid number",
-          });
-        }
-      }
-
-      if (subject.pass_mark) {
-        subject.pass_mark = parseInt(subject.pass_mark);
-        if (isNaN(subject.pass_mark)) {
-          return res.status(400).json({
-            success: false,
-            error: "Pass mark must be a valid number",
-          });
-        }
-      }
-
-      if (subject.teacher_id) {
-        subject.teacher_id = parseInt(subject.teacher_id);
-        if (isNaN(subject.teacher_id)) {
-          return res.status(400).json({
-            success: false,
-            error: "Teacher ID must be a valid number",
-          });
-        }
       }
     }
 
@@ -111,8 +118,14 @@ export const addSubController = async (req, res) => {
     const subjectData = subjects.map((subject) => ({
       name: subject.name || null,
       class: subject.class || null,
-      full_mark: subject.full_mark || null,
-      pass_mark: subject.pass_mark || null,
+      full_mark: subject.full_mark || 0,
+      pass_mark: subject.pass_mark || 0,
+      cq_mark: subject.cq_mark || 0,
+      mcq_mark: subject.mcq_mark || 0,
+      practical_mark: subject.practical_mark || 0,
+      cq_pass_mark: subject.cq_pass_mark || 0,
+      mcq_pass_mark: subject.mcq_pass_mark || 0,
+      practical_pass_mark: subject.practical_pass_mark || 0,
       year: subject.year || current_year,
       teacher_id: subject.teacher_id || null,
       department: subject.department || null,
@@ -180,7 +193,9 @@ export const deleteSubController = async (req, res) => {
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     if (error.code === "P2025") {
-      return res.status(404).json({ success: false, error: "Subject not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Subject not found" });
     }
     return handleDatabaseError(error, res);
   }
@@ -194,20 +209,41 @@ export const updateSubController = async (req, res) => {
       class: className,
       full_mark,
       pass_mark,
+      cq_mark,
+      mcq_mark,
+      practical_mark,
+      cq_pass_mark,
+      mcq_pass_mark,
+      practical_pass_mark,
       year,
       teacher_id,
       department,
     } = req.body;
 
+    // Helper function to parse numeric values - use 0 for mark fields, null for optional fields
+    const parseNumeric = (value, isMarkField = false) => {
+      if (value === undefined || value === null || value === "") {
+        return isMarkField ? 0 : null;
+      }
+      const parsed = parseInt(value);
+      return isNaN(parsed) ? (isMarkField ? 0 : null) : parsed;
+    };
+
     const result = await prisma.subjects.update({
       where: { id: parseInt(id) },
       data: {
         name: name || null,
-        class: className ? parseInt(className) : null,
-        full_mark: full_mark ? parseInt(full_mark) : null,
-        pass_mark: pass_mark ? parseInt(pass_mark) : null,
+        class: parseNumeric(className),
+        full_mark: parseNumeric(full_mark, true),
+        pass_mark: parseNumeric(pass_mark, true),
+        cq_mark: parseNumeric(cq_mark, true),
+        mcq_mark: parseNumeric(mcq_mark, true),
+        practical_mark: parseNumeric(practical_mark, true),
+        cq_pass_mark: parseNumeric(cq_pass_mark, true),
+        mcq_pass_mark: parseNumeric(mcq_pass_mark, true),
+        practical_pass_mark: parseNumeric(practical_pass_mark, true),
         year: year || new Date().getFullYear(),
-        teacher_id: teacher_id ? parseInt(teacher_id) : null,
+        teacher_id: parseNumeric(teacher_id),
         department: department || null,
       },
     });
@@ -215,7 +251,9 @@ export const updateSubController = async (req, res) => {
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     if (error.code === "P2025") {
-      return res.status(404).json({ success: false, error: "Subject not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Subject not found" });
     }
     return handleDatabaseError(error, res);
   }

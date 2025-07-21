@@ -28,6 +28,7 @@ const AddMarks = () => {
   const [classList, setClassList] = useState([]);
   const [loading, setLoading] = useState({
     initial: true,
+    students: false,
     marks: false,
     submit: false,
   });
@@ -44,18 +45,13 @@ const AddMarks = () => {
     try {
       setLoading((prev) => ({ ...prev, initial: true }));
 
-      const [studentsRes, subjectsRes, examsRes] = await Promise.all([
-        axios
-          .get(`/api/students/getStudents/${year}`)
-          .catch(() => ({ data: { data: [] } })),
+      const [subjectsRes, examsRes] = await Promise.all([
         axios.get("/api/sub/getSubjects").catch(() => ({ data: { data: [] } })),
         axios.get("/api/exams/getExams").catch(() => ({ data: { data: [] } })),
       ]);
 
-      setStudents(studentsRes.data?.data || []);
       setSubjects(subjectsRes.data?.data || []);
       console.log("Subjects:", subjectsRes.data?.data || []);
-      console.log("Students:", studentsRes.data?.data || []);
       const exams = examsRes.data?.data || [];
       const currentYearExams = exams.filter(
         (e) => e.exam_year === Number(year)
@@ -69,38 +65,66 @@ const AddMarks = () => {
       setLoading((prev) => ({ ...prev, initial: false }));
     }
   };
+
+  // Fetch students after class selection
+  const fetchStudents = async () => {
+    if (!level) {
+      setStudents([]);
+      return;
+    }
+
+    try {
+      setLoading((prev) => ({ ...prev, students: true }));
+      const studentsRes = await axios.get(
+        `/api/students/getStudentsByClass/${year}/${level}`
+      );
+      const studentsData = studentsRes.data?.data || [];
+      setStudents(studentsData);
+      console.log("Students:", studentsData);
+    } catch (error) {
+      console.error("Students fetch error:", error);
+      toast.error("Failed to load students");
+      setStudents([]);
+    } finally {
+      setLoading((prev) => ({ ...prev, students: false }));
+    }
+  };
+
   useEffect(() => {
     fetchInitialData();
-  }, [year, examName, level, setValue]);
+  }, [year]);
 
   useEffect(() => {
     setValue("level", ""); // Reset level when examName is empty
+    setValue("department", "");
+    setValue("section", "");
+    setValue("specific", 0);
+    setStudents([]); // Clear students when exam changes
+
+    // Auto-set class for JSC and SSC
+    if (examName === "JSC") {
+      setValue("level", "8");
+    } else if (examName === "SSC") {
+      setValue("level", "10");
+    }
   }, [examName, setValue]);
+
+  useEffect(() => {
+    if (level) {
+      fetchStudents();
+    } else {
+      setStudents([]);
+      setSections([]);
+    }
+  }, [level, year]);
 
   // Filtered data
   const filteredStudents = useMemo(() => {
-    if (examName == "JSC") {
-      setValue("level", "8");
-      return students
-        .filter((s) => s.class == Number(8))
-        .filter((s) => (department ? s.department === department : true))
-        .filter((s) => !section || s.section === section)
-        .sort((a, b) => a.roll - b.roll);
-    }
-    if (examName == "SSC") {
-      setValue("level", "10");
-      return students
-        .filter((s) => s.class == Number(10))
-        .filter((s) => (department ? s.department === department : true))
-        .filter((s) => !section || s.section === section)
-        .sort((a, b) => a.roll - b.roll);
-    }
     return students
-      .filter((s) => s.class === Number(level)) // Match the selected class
       .filter((s) => (department ? s.department === department : true)) // Match department or include all
       .filter((s) => !section || s.section === section) // Match section or include all
       .sort((a, b) => a.roll - b.roll); // Sort by roll number
-  }, [students, level, department, section]);
+  }, [students, department, section]);
 
   const subjectsForClass = useMemo(() => {
     const studentDepartments = new Set(
@@ -127,7 +151,9 @@ const AddMarks = () => {
   // Auto-select department when specific subject is chosen
   useEffect(() => {
     if (specific && specific !== 0) {
-      const selectedSubject = subjectsForClass.find(sub => sub.id == specific);
+      const selectedSubject = subjectsForClass.find(
+        (sub) => sub.id == specific
+      );
       if (selectedSubject && selectedSubject.department) {
         setValue("department", selectedSubject.department);
       }
@@ -137,42 +163,18 @@ const AddMarks = () => {
   }, [specific, subjectsForClass, setValue]);
 
   // Fetch existing marks
-  const fetchGPA = async () => {
-    if (!year || !examName) return; // Skip if any required field is empty
-    try {
-      setLoading((prev) => ({ ...prev, marks: true }));
-      const res = await axios.get(`/api/marks/getGPA/${year}`);
-      console.log("GPA data:", res.data);
-      const gpaDatas = res.data?.data || [];
-
-      const initialData = {}; // Preserve existing gpaData
-      if (examName == "JSC") {
-        gpaDatas.forEach((student) => {
-          initialData[student.student_id] = {
-            gpa: student.jsc_gpa, // Ensure the key matches the rendering logic
-          };
-        });
-      } else if (examName == "SSC") {
-        gpaDatas.forEach((student) => {
-          initialData[student.student_id] = {
-            studentId: student.student_id,
-            gpa: student.ssc_gpa, // Ensure the key matches the rendering logic
-          };
-        });
-      }
-      console.log("Initial GPA data:", initialData);
-      setGpaData(initialData);
-    } catch (error) {
-      console.error("GPA fetch error:", error);
-      toast.error("Failed to load existing GPA");
-    } finally {
-      setLoading((prev) => ({ ...prev, marks: false }));
-    }
-  };
   const fetchExistingMarks = async () => {
-    if (!level || !year || !examName) return; // Skip if any required field is empty
-    if (examName == "JSC" || examName == "SSC") return; // Skip if exam is JSC or SSC
-    setMarksData({}); // Reset marks data when filters change
+    if (
+      !level ||
+      !year ||
+      !examName ||
+      examName === "JSC" ||
+      examName === "SSC"
+    ) {
+      setMarksData({});
+      return;
+    }
+
     try {
       setLoading((prev) => ({ ...prev, marks: true }));
       setMarksData({});
@@ -193,7 +195,9 @@ const AddMarks = () => {
             );
             return {
               subjectId: subject.id,
-              marks: existingMark?.marks, // Default to 0 if no marks exist
+              cq_marks: existingMark?.cq_marks || 0,
+              mcq_marks: existingMark?.mcq_marks || 0,
+              practical_marks: existingMark?.practical_marks || 0,
             };
           }),
         };
@@ -208,37 +212,147 @@ const AddMarks = () => {
       setLoading((prev) => ({ ...prev, marks: false }));
     }
   };
-  useEffect(() => {
-    setSections(() => {
-      if (!level) return [];
-      return Array.from(
-        new Set(students.filter((s) => s.class == level).map((s) => s.section))
-      );
-    });
 
-    fetchExistingMarks();
-    fetchGPA();
-  }, [level, year, examName]);
+  const fetchGPA = async () => {
+    if (!year || !examName || (examName !== "JSC" && examName !== "SSC")) {
+      setGpaData({});
+      return;
+    }
+
+    try {
+      setLoading((prev) => ({ ...prev, marks: true }));
+      const res = await axios.get(`/api/marks/getGPA/${year}`);
+      console.log("GPA data:", res.data);
+      const gpaDatas = res.data?.data || [];
+
+      const initialData = {};
+      if (examName == "JSC") {
+        gpaDatas.forEach((student) => {
+          initialData[student.student_id] = {
+            gpa: student.jsc_gpa,
+          };
+        });
+      } else if (examName == "SSC") {
+        gpaDatas.forEach((student) => {
+          initialData[student.student_id] = {
+            studentId: student.student_id,
+            gpa: student.ssc_gpa,
+          };
+        });
+      }
+      console.log("Initial GPA data:", initialData);
+      setGpaData(initialData);
+    } catch (error) {
+      console.error("GPA fetch error:", error);
+      toast.error("Failed to load existing GPA");
+    } finally {
+      setLoading((prev) => ({ ...prev, marks: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (students.length > 0) {
+      setSections(() => {
+        return Array.from(new Set(students.map((s) => s.section)));
+      });
+
+      // Fetch marks/GPA data when students are loaded AND exam is selected
+      if (examName === "JSC" || examName === "SSC") {
+        fetchGPA();
+      } else if (
+        examName &&
+        level &&
+        examName !== "JSC" &&
+        examName !== "SSC"
+      ) {
+        fetchExistingMarks();
+      }
+    } else {
+      setSections([]);
+      setMarksData({});
+      setGpaData({});
+    }
+  }, [students, examName, level, year]);
+
+  // Fetch marks when subject changes for non-JSC/SSC exams - only if students are loaded
+  useEffect(() => {
+    if (
+      examName &&
+      examName !== "JSC" &&
+      examName !== "SSC" &&
+      level &&
+      students.length > 0 &&
+      subjectsForClass.length > 0
+    ) {
+      fetchExistingMarks();
+    }
+  }, [specific, subjectsForClass.length]);
 
   // Handle marks change
-  const handleMarksChange = (studentId, subjectId, value) => {
-    console.log("Marks changed:", studentId, subjectId, value);
+  const handleMarksChange = (studentId, subjectId, markType, value) => {
+    console.log("Marks changed:", studentId, subjectId, markType, value);
+    const subject = subjectsForClass.find((s) => s.id === subjectId);
     const marks = value;
-    const validatedMarks =
-      marks === "" ? 0 : parseInt(marks) > 100 ? "100" : marks.slice(0, 3);
 
-    setMarksData((prev) => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        subjectMarks: [
-          ...(prev[studentId]?.subjectMarks?.filter(
-            (m) => m.subjectId !== subjectId
-          ) || []),
-          { subjectId, marks: validatedMarks },
-        ],
-      },
-    }));
+    // Get max mark based on mark type and subject
+    let maxMark = 100; // default fallback
+    if (subject) {
+      switch (markType) {
+        case "cq_marks":
+          maxMark = subject.cq_mark || 0;
+          break;
+        case "mcq_marks":
+          maxMark = subject.mcq_mark || 0;
+          break;
+        case "practical_marks":
+          maxMark = subject.practical_mark || 0;
+          break;
+      }
+    }
+
+    const validatedMarks =
+      marks === ""
+        ? 0
+        : parseInt(marks) > maxMark
+        ? maxMark.toString()
+        : marks.slice(0, 3);
+
+    setMarksData((prev) => {
+      const currentStudent = prev[studentId] || { subjectMarks: [] };
+      const currentSubjectIndex = currentStudent.subjectMarks.findIndex(
+        (m) => m.subjectId === subjectId
+      );
+
+      let updatedSubjectMarks;
+      if (currentSubjectIndex >= 0) {
+        // Update existing subject marks
+        updatedSubjectMarks = [...currentStudent.subjectMarks];
+        updatedSubjectMarks[currentSubjectIndex] = {
+          ...updatedSubjectMarks[currentSubjectIndex],
+          [markType]: validatedMarks,
+        };
+      } else {
+        // Add new subject marks
+        updatedSubjectMarks = [
+          ...currentStudent.subjectMarks,
+          {
+            subjectId,
+            cq_marks: markType === "cq_marks" ? validatedMarks : 0,
+            mcq_marks: markType === "mcq_marks" ? validatedMarks : 0,
+            practical_marks:
+              markType === "practical_marks" ? validatedMarks : 0,
+          },
+        ];
+      }
+
+      return {
+        ...prev,
+        [studentId]: {
+          ...currentStudent,
+          subjectMarks: updatedSubjectMarks,
+        },
+      };
+    });
   };
 
   const handleGPAchange = (studentId, value) => {
@@ -287,18 +401,27 @@ const AddMarks = () => {
       console.log("Submitting marks data:", marksData);
 
       // Get currently visible subjects based on filters
-      const visibleSubjects = subjectsForClass.filter((s) => !specific || s.id == specific);
+      const visibleSubjects = subjectsForClass.filter(
+        (s) => !specific || s.id == specific
+      );
 
       // Include all visible students, even those without marks entered
       const submissionData = filteredStudents.map((student) => {
         const studentData = marksData[student.student_id];
-        
+
         // Create subject marks for all visible subjects
         const subjectMarks = visibleSubjects.map((subject) => {
-          const existingMark = studentData?.subjectMarks?.find(m => m.subjectId === subject.id);
+          const existingMark = studentData?.subjectMarks?.find(
+            (m) => m.subjectId === subject.id
+          );
           return {
             subjectId: subject.id,
-            marks: Math.max(0, parseInt(existingMark?.marks) || 0), // Default to 0 if no value is provided
+            cq_marks: Math.max(0, parseInt(existingMark?.cq_marks) || 0),
+            mcq_marks: Math.max(0, parseInt(existingMark?.mcq_marks) || 0),
+            practical_marks: Math.max(
+              0,
+              parseInt(existingMark?.practical_marks) || 0
+            ),
           };
         });
 
@@ -307,7 +430,7 @@ const AddMarks = () => {
           subjectMarks: subjectMarks,
         };
       });
-      
+
       console.log("Submission data:", submissionData);
 
       if (submissionData.length === 0) {
@@ -396,29 +519,29 @@ const AddMarks = () => {
             <select
               {...register("level", { required: true })}
               className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
-              disabled={!examName || loading.initial}
+              disabled={
+                !examName ||
+                loading.initial ||
+                examName === "JSC" ||
+                examName === "SSC"
+              }
+              value={level}
             >
               <option value="">Select Class</option>
-              {examName &&
+              {examName === "JSC" ? (
+                <option value="8">Class 8</option>
+              ) : examName === "SSC" ? (
+                <option value="10">Class 10</option>
+              ) : (
+                examName &&
                 classList[examList.indexOf(examName)]
                   ?.sort((a, b) => a - b)
                   .map((cls, index) => (
                     <option key={index} value={cls}>
                       Class {cls}
                     </option>
-                  ))}
-              {examName === "JSC" &&
-                ["8"].map((cls, index) => (
-                  <option key={index} value={cls}>
-                    Class {cls}
-                  </option>
-                ))}
-              {examName === "SSC" &&
-                ["10"].map((cls, index) => (
-                  <option key={index} value={cls}>
-                    Class {cls}
-                  </option>
-                ))}
+                  ))
+              )}
             </select>
           </div>
 
@@ -481,157 +604,336 @@ const AddMarks = () => {
           </div>
         </div>
 
-        {loading.marks ? (
+        {loading.initial ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">
+              Loading initial data...
+            </span>
+          </div>
+        ) : loading.students ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">
+              Loading students...
+            </span>
+          </div>
+        ) : loading.marks ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">
+              Loading marks data...
+            </span>
           </div>
         ) : filteredStudents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredStudents.map((student) => {
-              // console.log("Student object:", student); // Debugging log
-              return (
-                <div
-                  key={student.student_id}
-                  className="p-6 rounded-lg dark:bg-gray-700 bg-gray-50 shadow space-y-6"
-                >
-                  <div className="text-center space-y-2">
-                    <h2 className="text-lg font-bold ">
-                      {`${student.name} ${
-                        student.department ? ` (${student.department})` : ""
-                      }`}
-                    </h2>
-                    <div className="flex font-semibold items-center justify-center space-x-4">
-                      <p className="text-sm ">
-                        Section:{" "}
-                        <span className="font-medium">
-                          {student.section || "N/A"}
-                        </span>
-                      </p>
-                      <p className="text-sm ">
-                        Roll No:{" "}
-                        <span className="font-medium">{student.roll}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {examName !== "JSC" && examName !== "SSC" ? (
-                      subjectsForClass
-                        .filter((s) => !specific || s.id == specific) // Match specific subject if selected
-                        .map((sub) => {
-                          const studentSubject = marksData[
-                            student.student_id //check
-                          ]?.subjectMarks?.find((m) => m.subjectId === sub.id);
-                          // console.log(sub);
-
-                          if (
-                            sub.department !== student.department &&
-                            sub.department !== "" &&
-                            sub.department !== null
-                          )
-                            return null;
-                          return (
-                            <div
-                              key={sub.id}
-                              className="flex justify-between items-center"
-                            >
-                              <label className="text-sm font-medium ">
-                                {sub.name} - by {sub.teacher_name}:
-                              </label>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={studentSubject?.marks}
-                                  onChange={(e) =>
-                                    handleMarksChange(
-                                      student.student_id,
-                                      sub.id,
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-20 p-2 border dark:border-gray-400 border-gray-700 rounded focus:ring-2 focus:ring-blue-500 text-center"
-                                />
-                              </div>
-                            </div>
+          <div>
+            {examName !== "JSC" && examName !== "SSC" ? (
+              // Only show table if a specific subject is selected
+              specific && specific !== "0" ? (
+                <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Student Info
+                        </th>
+                        {(() => {
+                          const selectedSubject = subjectsForClass.find(
+                            (sub) => sub.id == specific
                           );
-                        })
-                    ) : (
-                      <div
-                        className="flex justify-between items-center"
+                          return selectedSubject ? (
+                            <>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                CQ ({selectedSubject.cq_mark || 0})
+                              </th>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                MCQ ({selectedSubject.mcq_mark || 0})
+                              </th>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Practical ({selectedSubject.practical_mark || 0}
+                                )
+                              </th>
+                            </>
+                          ) : null;
+                        })()}
+                      </tr>
+                      <tr className="bg-blue-50 dark:bg-blue-900">
+                        <td className="px-6 py-2 text-sm font-semibold text-blue-900 dark:text-blue-100">
+                          Subject:{" "}
+                          {
+                            subjectsForClass.find((sub) => sub.id == specific)
+                              ?.name
+                          }
+                        </td>
+                        <td
+                          className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
+                          colSpan="3"
+                        >
+                          Teacher:{" "}
+                          {
+                            subjectsForClass.find((sub) => sub.id == specific)
+                              ?.teacher_name
+                          }
+                        </td>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {filteredStudents.map((student) => {
+                        const selectedSubject = subjectsForClass.find(
+                          (sub) => sub.id == specific
+                        );
+
+                        // Check if subject matches student department
+                        if (
+                          selectedSubject.department !== student.department &&
+                          selectedSubject.department !== "" &&
+                          selectedSubject.department !== null
+                        ) {
+                          return (
+                            <tr
+                              key={student.student_id}
+                              className="bg-gray-100 dark:bg-gray-700"
+                            >
+                              <td className="px-6 py-4">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {student.name}
+                                  </div>
+                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    Roll: {student.roll} | Section:{" "}
+                                    {student.section || "N/A"} | Class:{" "}
+                                    {student.class}
+                                    {student.department && (
+                                      <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                        {student.department}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td
+                                colSpan="3"
+                                className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                              >
+                                Subject not available for this student's
+                                department
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        const studentSubject = marksData[
+                          student.student_id
+                        ]?.subjectMarks?.find(
+                          (m) => m.subjectId === selectedSubject.id
+                        );
+
+                        const cqMarks = studentSubject?.cq_marks || 0;
+                        const mcqMarks = studentSubject?.mcq_marks || 0;
+                        const practicalMarks =
+                          studentSubject?.practical_marks || 0;
+
+                        return (
+                          <tr
+                            key={student.student_id}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <td className="px-6 py-4">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {student.name}
+                                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  Roll: {student.roll} | Section:{" "}
+                                  {student.section || "N/A"} | Class:{" "}
+                                  {student.class}
+                                  {student.department && (
+                                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                      {student.department}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max={selectedSubject.cq_mark || 100}
+                                value={cqMarks}
+                                onChange={(e) =>
+                                  handleMarksChange(
+                                    student.student_id,
+                                    selectedSubject.id,
+                                    "cq_marks",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max={selectedSubject.mcq_mark || 100}
+                                value={mcqMarks}
+                                onChange={(e) =>
+                                  handleMarksChange(
+                                    student.student_id,
+                                    selectedSubject.id,
+                                    "mcq_marks",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max={selectedSubject.practical_mark || 100}
+                                value={practicalMarks}
+                                onChange={(e) =>
+                                  handleMarksChange(
+                                    student.student_id,
+                                    selectedSubject.id,
+                                    "practical_marks",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                // Show message when no subject is selected
+                <div className="p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Please select a subject from the dropdown above to enter
+                    marks for students.
+                  </p>
+                </div>
+              )
+            ) : (
+              // JSC/SSC GPA Table - always show
+              <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Student Info
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        GPA (Out of 5.00)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredStudents.map((student) => (
+                      <tr
                         key={student.student_id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
-                        <label className="text-sm font-medium ">GPA:</label>
-                        <div className="flex items-center space-x-2">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {student.name}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              Roll: {student.roll} | Section:{" "}
+                              {student.section || "N/A"} | Class:{" "}
+                              {student.class}
+                              {student.department && (
+                                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                  {student.department}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
                           <input
                             type="number"
-                            step={"0.01"}
+                            step="0.01"
                             min="0"
                             max="5"
-                            value={gpaData[student.student_id]?.gpa}
+                            value={gpaData[student.student_id]?.gpa || ""}
                             onChange={(e) =>
                               handleGPAchange(
                                 student.student_id,
                                 e.target.value
                               )
                             }
-                            className="w-20 p-2 border dark:border-gray-400 border-gray-700 rounded focus:ring-2 focus:ring-blue-500 text-center"
+                            className="w-24 p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-semibold bg-white dark:bg-gray-700"
+                            placeholder="0.00"
                           />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         ) : (
           <div className=" p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
             <p className="">
-              {students.length === 0
-                ? "No students found in the system"
+              {!level
+                ? "Please select a class to view students"
+                : students.length === 0
+                ? "No students found in the system for the selected class"
                 : "No students match the selected filters"}
             </p>
           </div>
         )}
 
-        {filteredStudents.length > 0 && (
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
-              disabled={loading.submit}
-            >
-              {loading.submit ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Processing...
-                </>
-              ) : (
-                "Save Marks"
-              )}
-            </button>
-          </div>
-        )}
+        {filteredStudents.length > 0 &&
+          (examName === "JSC" ||
+            examName === "SSC" ||
+            (specific && specific !== "0")) && (
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
+                disabled={loading.submit}
+              >
+                {loading.submit ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  "Save Marks"
+                )}
+              </button>
+            </div>
+          )}
       </form>
     </div>
   );

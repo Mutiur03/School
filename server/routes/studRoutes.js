@@ -9,6 +9,7 @@ import {
   updateAcademicInfoController,
   updateStudentImageController,
   changePasswordController,
+  getClassStudentsController,
 } from "../controllers/studController.js";
 import multer from "multer";
 import path from "path";
@@ -30,6 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 // Route to create student table  
 studRouter.get("/getStudents/:year", getStudentsController);
+studRouter.get("/getStudentsByClass/:year/:level", getClassStudentsController);
 studRouter.get("/getAlumni", getAlumniController); 
 studRouter.get("/getStudent", getStudentController);
 studRouter.post("/addStudents",addStudentController); 
