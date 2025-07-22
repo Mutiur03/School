@@ -127,20 +127,9 @@ const AddMarks = () => {
   }, [students, department, section]);
 
   const subjectsForClass = useMemo(() => {
-    const studentDepartments = new Set(
-      filteredStudents.map((s) => s.department)
-    );
-    // console.log(subjects, level, department);
-
-    return subjects
-      .filter((s) => s.class.toString() == level) // Include subjects for the selected class or available for all
-      .filter(
-        (s) =>
-          studentDepartments.has(s.department) ||
-          s.department === "" ||
-          s.department == null
-      );
-  }, [filteredStudents, subjects, level, specific]);
+    // Remove department filtering - show all subjects for the selected class
+    return subjects.filter((s) => s.class.toString() == level); // Only filter by class
+  }, [subjects, level]);
 
   useEffect(() => {
     if (!subjectsForClass.some((sub) => sub.id == specific)) {
@@ -154,11 +143,21 @@ const AddMarks = () => {
       const selectedSubject = subjectsForClass.find(
         (sub) => sub.id == specific
       );
-      if (selectedSubject && selectedSubject.department) {
-        setValue("department", selectedSubject.department);
+      if (selectedSubject) {
+        if (
+          selectedSubject.department &&
+          selectedSubject.department !== "" &&
+          selectedSubject.department !== null
+        ) {
+          // Auto-select department if the subject has a specific department
+          setValue("department", selectedSubject.department);
+        } else {
+          // Reset to "All Departments" if subject is general (for all departments)
+          setValue("department", "");
+        }
       }
     } else if (specific === 0) {
-      setValue("department", ""); // Reset to "All Departments" when "All Subjects" is selected
+      setValue("department", ""); // Reset to "All Departments" when "Select Subject" is selected
     }
   }, [specific, subjectsForClass, setValue]);
 
@@ -273,20 +272,6 @@ const AddMarks = () => {
       setGpaData({});
     }
   }, [students, examName, level, year]);
-
-  // Fetch marks when subject changes for non-JSC/SSC exams - only if students are loaded
-  useEffect(() => {
-    if (
-      examName &&
-      examName !== "JSC" &&
-      examName !== "SSC" &&
-      level &&
-      students.length > 0 &&
-      subjectsForClass.length > 0
-    ) {
-      fetchExistingMarks();
-    }
-  }, [specific, subjectsForClass.length]);
 
   // Handle marks change
   const handleMarksChange = (studentId, subjectId, markType, value) => {
@@ -592,7 +577,7 @@ const AddMarks = () => {
               className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
               disabled={!level || loading.initial}
             >
-              <option value="0">All Subjects</option>
+              <option value="0">Select Subject</option>
               {examName !== "JSC" &&
                 examName !== "SSC" &&
                 subjectsForClass.map((sub) => (
@@ -682,6 +667,11 @@ const AddMarks = () => {
                         const selectedSubject = subjectsForClass.find(
                           (sub) => sub.id == specific
                         );
+
+                        // Safety check: if selectedSubject is undefined, skip this student
+                        if (!selectedSubject) {
+                          return null;
+                        }
 
                         // Check if subject matches student department
                         if (
@@ -883,7 +873,7 @@ const AddMarks = () => {
             )}
           </div>
         ) : (
-          <div className=" p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
+          <div className="p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
             <p className="">
               {!level
                 ? "Please select a class to view students"
@@ -895,9 +885,9 @@ const AddMarks = () => {
         )}
 
         {filteredStudents.length > 0 &&
-          (examName === "JSC" ||
-            examName === "SSC" ||
-            (specific && specific !== "0")) && (
+          (examName === "JSC" || examName === "SSC") &&
+          specific &&
+          specific !== "0" && (
             <div className="flex justify-end">
               <button
                 type="submit"
