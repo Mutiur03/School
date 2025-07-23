@@ -101,7 +101,11 @@ app.listen(PORT, "0.0.0.0", () => {
       console.log("Uploads directory created successfully");
     }
   });
-  console.log(`Server running on port ${PORT}`);
+  console.log(
+    `Server running on port ${PORT} in ${
+      process.env.NODE_ENV === "production" ? "production" : "development"
+    } mode`
+  );
 });
 // })
 // .catch((err) => {
