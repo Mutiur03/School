@@ -227,6 +227,6 @@ model notices {
   title        String
   file         String?
   download_url String?
-  public_id    String
+  public_id    String?
   created_at   DateTime @default(now())
 }
