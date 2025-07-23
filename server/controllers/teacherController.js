@@ -6,7 +6,6 @@ const removeNonNumber = (str) => str.replace(/\D/g, "");
 const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
 
-
 const validateFieldLengths = (data) => {
   const limits = {
     name: 100,
@@ -110,7 +109,7 @@ export const addTeacher = async (req, res) => {
       data: createdTeachers,
       message: "Teachers added successfully",
     });
-  } catch (error) { 
+  } catch (error) {
     console.error("Error adding teachers:", error.message);
     res.status(500).json({ success: false, error: "Error adding teachers" });
   }
@@ -177,7 +176,8 @@ export const updateTeacher = async (req, res) => {
 
       // Use previous email to find the correct row
       for (let i = 0; i < rows.length; i++) {
-        if (rows[i][2] === prevTeacher.email) { // column C is email
+        if (rows[i][2] === prevTeacher.email) {
+          // column C is email
           rowIndex = i + 1;
           break;
         }
