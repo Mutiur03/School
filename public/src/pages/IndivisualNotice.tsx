@@ -15,7 +15,7 @@ export default function NoticeDetailPage() {
         fetchNotices();
     }, [fetchNotices]);
 
-    
+
 
     if (loading) {
         return (
@@ -78,10 +78,6 @@ export default function NoticeDetailPage() {
                             <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
                                 {notice.category || "General"}
                             </span>
-                        </div>
-
-                        <div className="prose max-w-none text-gray-700 whitespace-pre-wrap mb-6">
-                            {notice.details}
                         </div>
 
                         {notice.file && (

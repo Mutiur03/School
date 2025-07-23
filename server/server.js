@@ -18,6 +18,7 @@ import galleryRouter from "./routes/galleryRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import path from "path";
 import fs from "fs";
+import axios from "axios";
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads");
 
@@ -42,19 +43,32 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"), {
+  "/pdf/notice",
+  express.static(path.join(__dirname, "uploads", "notice"), {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith(".pdf")) {
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline"); // display PDF in browser
+        res.setHeader("Content-Disposition", "inline"); // Ensures inline viewing
       }
     },
   })
 );
 
+// app.get("/preview/:fileName", async (req, res) => {
+//   const { fileName } = req.params;
+//   const cloudinaryUrl = `https://res.cloudinary.com/dgplti59u/raw/upload/notices/${fileName}`;
 
+//   const fileResponse = await axios.get(cloudinaryUrl, {
+//     responseType: "stream",
+//   });
+
+//   res.setHeader("Content-Type", "application/pdf");
+//   res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+
+//   fileResponse.data.pipe(res);
+// });
 
 app.get("/", (req, res) => {
   res.send("Hello World");

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +20,6 @@ const NoticeUploadPage = () => {
   const [editId, setEditId] = useState(null);
   const [formValues, setFormValues] = useState({
     title: "",
-    details: "",
     file: null,
   });
   const {
@@ -50,7 +48,7 @@ const NoticeUploadPage = () => {
         await addNotice(formData);
       }
       // Only reset and hide form on successful submission
-      setFormValues({ title: "", details: "", file: null });
+      setFormValues({ title: "", file: null });
       if (fileref.current) {
         fileref.current.value = "";
       }
@@ -107,20 +105,6 @@ const NoticeUploadPage = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="details">Notice Details</Label>
-                <Textarea
-                  id="details"
-                  name="details"
-                  placeholder="Enter detailed notice text"
-                  value={formValues.details}
-                  maxLength={100}
-                  onChange={(e) =>
-                    setFormValues({ ...formValues, details: e.target.value })
-                  }
-                  className="resize-none"
-                />
-              </div>
-              <div className="space-y-1">
                 <Label htmlFor="file">Upload File</Label>
                 <Input
                   id="file"
@@ -136,12 +120,17 @@ const NoticeUploadPage = () => {
                   }
                   {...(!isEditing && { required: true })}
                 />
-                {(formValues.file || (isEditing && typeof formValues.file === 'string')) && (
+                {(formValues.file ||
+                  (isEditing && typeof formValues.file === "string")) && (
                   <p className="text-sm text-gray-500">
-                    {formValues.file && typeof formValues.file === 'object'
-                      ? "Selected file: " + formValues.file.name.slice(0, 20) + "..."
-                      : isEditing && typeof formValues.file === 'string'
-                      ? "Current file: " + formValues.file.split('/').pop().slice(0, 20) + "..."
+                    {formValues.file && typeof formValues.file === "object"
+                      ? "Selected file: " +
+                        formValues.file.name.slice(0, 20) +
+                        "..."
+                      : isEditing && typeof formValues.file === "string"
+                      ? "Current file: " +
+                        formValues.file.split("/").pop().slice(0, 20) +
+                        "..."
                       : ""}
                   </p>
                 )}
@@ -177,7 +166,7 @@ const NoticeUploadPage = () => {
                   onClick={() => {
                     setIsEditing(false);
                     setEditId(null);
-                    setFormValues({ title: "", details: "", file: null });
+                    setFormValues({ title: "", file: null });
                     if (fileref.current) {
                       fileref.current.value = "";
                     }
@@ -242,7 +231,6 @@ const NoticeUploadPage = () => {
                           onClick={() => {
                             setFormValues({
                               title: notice.title,
-                              details: notice.details || "",
                               file: notice.file,
                             });
                             setIsEditing(true);
@@ -280,9 +268,6 @@ const NoticeUploadPage = () => {
                     <strong>Title:</strong> {popup.notice.title}
                   </div>
                   <div>
-                    <strong>Details:</strong> {popup.notice.details}
-                  </div>
-                  <div>
                     <a
                       href={`${popup.notice.file}`}
                       target="_blank"
@@ -291,6 +276,16 @@ const NoticeUploadPage = () => {
                     >
                       View PDF
                     </a>
+                    {/* <iframe
+                      src="http://localhost:3001/pdf/notice/1753181378922-645960636-Fundit.pdf"
+                      width="100%"
+                      height="600px"
+                    ></iframe> */}
+                    {/* <iframe
+                      src={`${popup.notice.file}`}
+                      width="100%"
+                      height="600px"
+                    ></iframe> */}
                   </div>
                   <div>
                     <a

@@ -1,6 +1,8 @@
 import fs from "fs";
-import { uploadPDFToDrive, DeletePDF } from "./noticeController.js";
-
+import {
+  uploadPDFToCloudinary,
+  deletePDFFromCloudinary,
+} from "./noticeController.js";
 import { prisma } from "../config/prisma.js";
 
 export const addEventController = async (req, res) => {
@@ -8,6 +10,7 @@ export const addEventController = async (req, res) => {
     let { title, details, date, location } = req.body;
     const image = req.files.image[0];
     const file = req.files.file[0];
+
     date = new Date(date)
       .toLocaleDateString("en-US", {
         year: "numeric",
@@ -15,20 +18,25 @@ export const addEventController = async (req, res) => {
         day: "2-digit",
       })
       .replace(/\//g, "-");
-    const { previewUrl } = await uploadPDFToDrive(file);
+
+    const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
+
     fs.unlink(file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
+
     const result = await prisma.events.create({
       data: {
         title,
         details,
         date,
+        location,
         image: image.path,
         file: previewUrl,
-        location,
+        public_id: public_id,
       },
     });
+
     res.json([result]);
   } catch (error) {
     console.log(error);
@@ -40,10 +48,10 @@ export const getEventsController = async (req, res) => {
   try {
     const result = await prisma.events.findMany();
     const thumbnails = result.map((event) => {
-      if (fs.existsSync(event.thumbnail)) {
-        return { ...event, thumbnail: event.thumbnail.replace(/\\/g, "/") };
-      }
-      return { ...event, thumbnail: event.image.replace(/\\/g, "/") };
+      return {
+        ...event,
+        thumbnail: event.image?.replace(/\\/g, "/") ?? "",
+      };
     });
     res.json(thumbnails);
   } catch (error) {
@@ -59,17 +67,18 @@ export const deleteEventController = async (req, res) => {
       where: { id: parseInt(id) },
     });
 
-    const filePath = result.file;
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
     const imagePath = result.image;
-    if (fs.existsSync(imagePath)) {
+    if (imagePath && fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     }
-    await DeletePDF(result.file);
-    res.status(200).json({ success: true, message: "Event deleted successfully" });
+
+    if (result.public_id) {
+      await deletePDFFromCloudinary(result.public_id);
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: "Event deleted successfully" });
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({ success: false, error: "Event not found" });
@@ -86,6 +95,14 @@ export const updateEventController = async (req, res) => {
     const file = req.files?.file?.[0];
     const image = req.files?.image?.[0];
 
+    const existingEvent = await prisma.events.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!existingEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
     const updateData = {
       title,
       details,
@@ -100,34 +117,32 @@ export const updateEventController = async (req, res) => {
     };
 
     if (file) {
-      const { previewUrl } = await uploadPDFToDrive(file);
+      const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
       updateData.file = previewUrl;
+      updateData.public_id = public_id;
+
       fs.unlink(file.path, (err) => {
         if (err) console.error("Error deleting local file:", err);
       });
+
+      if (existingEvent.public_id) {
+        await deletePDFFromCloudinary(existingEvent.public_id);
+      }
     }
+
     if (image) {
-      updateData.image = image.filename;
-    }
-    if (file || image) {
-      const exists = await prisma.events.findUnique({
-        where: { id: parseInt(id) },
-      });
-      const filePath = exists.file;
-      const imagePath = exists.image;
-      if (fs.existsSync(filePath) && file) {
-        fs.unlinkSync(filePath);
+      updateData.image = image.path;
+
+      if (fs.existsSync(existingEvent.image)) {
+        fs.unlinkSync(existingEvent.image);
       }
-      if (fs.existsSync(imagePath) && image) {
-        fs.unlinkSync(imagePath);
-      }
-      await DeletePDF(exists.file);
     }
 
     const result = await prisma.events.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
+
     res.json([result]);
   } catch (error) {
     console.log(error);

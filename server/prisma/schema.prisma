@@ -191,15 +191,16 @@ model categories {
 }
 
 model events {
-  id         Int      @id @default(autoincrement())
-  title      String
-  details    String?
-  date       String   @db.VarChar(10)
-  image      String?
-  file       String?
-  category   String   @default("Event")
-  location   String?
-  thumbnail  String?
+  id        Int     @id @default(autoincrement())
+  title     String
+  details   String?
+  date      String  @db.VarChar(10)
+  image     String?
+  file      String?
+  category  String  @default("Event")
+  location  String?
+  thumbnail String?
+  public_id String
   created_at DateTime @default(now())
 
   galleries gallery[]
@@ -224,8 +225,8 @@ model gallery {
 model notices {
   id           Int      @id @default(autoincrement())
   title        String
-  details      String
   file         String?
   download_url String?
+  public_id    String
   created_at   DateTime @default(now())
 }

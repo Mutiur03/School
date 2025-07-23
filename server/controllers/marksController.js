@@ -583,10 +583,12 @@ export const generateMarksheetController = async (req, res) => {
 export const previewMarksheetController = async (req, res) => {
   try {
     const { id, year } = req.params;
+    console.log("=== PREVIEW MARKSHEET CONTROLLER START ===");
+    
     const marks = await prisma.marks.findMany({
       where: {
         enrollment: {
-          student_id: parseInt(id),
+          id: parseInt(id),
           year: parseInt(year),
         },
       },
@@ -612,6 +614,8 @@ export const previewMarksheetController = async (req, res) => {
         },
       },
     });
+    console.log(`Found ${marks.length} marks records for student ID ${id} and year ${year}`);
+    
     if (marks.length === 0) {
       return res.status(404).json({ message: "No marks found" });
     }

@@ -1,83 +1,55 @@
 import fs from "fs";
-import { google } from "googleapis";
 import { prisma } from "../config/prisma.js";
+import cloudinary from "../config/cloudinary.js"; // Cloudinary config must be correctly imported
 
-
-function extractFileIdFromUrl(url) {
-  const regex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
-  const match = url.match(regex);
-  return match ? match[1] || match[2] : null;
-}
-
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.client_email_drive,
-    private_key: process.env.private_key_drive.replace(/\\n/g, "\n"),
-  },
-  scopes: ["https://www.googleapis.com/auth/drive"],
-});
-
-const driveService = google.drive({ version: "v3", auth });
-
-export async function uploadPDFToDrive(file) {
-  const fileMetadata = {
-    name: file.originalname,
-    parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
-  };
-
-  const media = {
-    mimeType: file.mimetype,
-    body: fs.createReadStream(file.path),
-  };
-
-  const response = await driveService.files.create({
-    resource: fileMetadata,
-    media: media,
-    fields: "id",
-  });
-
-  const fileId = response.data.id;
-
-  await driveService.permissions.create({
-    fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
-  });
-
-  const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-  const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-
-  return { previewUrl, downloadUrl };
-}
- 
-export async function DeletePDF(url) {
-  const fileId = extractFileIdFromUrl(url);
+export async function uploadPDFToCloudinary(file) {
   try {
-    await driveService.files.delete({ fileId });
-    console.log(`File with ID ${fileId} deleted successfully.`);
-  } catch (err) { 
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "notices",
+      use_filename: true,
+      unique_filename: false,
+    });
+
+    fs.unlink(file.path, (err) => {
+      if (err) console.error("Error deleting local file:", err);
+    });
+    console.log(result);
+    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+    return {
+      previewUrl: result.url,
+      downloadUrl: `https://res.cloudinary.com/${cloud_name}/image/upload/fl_attachment:${result.original_filename}/${result.public_id}.${result.format}`,
+      public_id: result.public_id,
+    };
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error.message);
+    throw new Error("Cloudinary upload failed");
+  }
+}
+
+export async function deletePDFFromCloudinary(publicId) {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+    console.log(`File with public ID "${publicId}" deleted successfully.`);
+  } catch (err) {
     console.error("Error deleting file:", err.message);
   }
 }
 
+// Add notice
 export const addNoticeController = async (req, res) => {
   try {
-    const { title, details } = req.body;
-    const { previewUrl, downloadUrl } = await uploadPDFToDrive(req.file);
+    const { title } = req.body;
+    const { previewUrl, downloadUrl, public_id } = await uploadPDFToCloudinary(
+      req.file
+    );
 
     const result = await prisma.notices.create({
       data: {
         title,
-        details,
         file: previewUrl,
         download_url: downloadUrl,
+        public_id: public_id,
       },
-    });
-
-    fs.unlink(req.file.path, (err) => {
-      if (err) console.error("Error deleting local file:", err);
     });
 
     res.status(201).json(result);
@@ -87,11 +59,10 @@ export const addNoticeController = async (req, res) => {
   }
 };
 
+// Get notices
 export const getNoticesController = async (_, res) => {
   try {
     const notices = await prisma.notices.findMany();
-    console.log(notices);
-
     res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
@@ -99,6 +70,7 @@ export const getNoticesController = async (_, res) => {
   }
 };
 
+// Delete notice
 export const deleteNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -114,11 +86,10 @@ export const deleteNoticeController = async (req, res) => {
       where: { id: parseInt(id) },
     });
 
-    const filePath = notice.file;
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (notice.public_id) {
+      await deletePDFFromCloudinary(notice.public_id);
     }
-    await DeletePDF(notice.download_url);
+
     res.status(200).json({ message: "Notice deleted successfully" });
   } catch (error) {
     console.error("Error deleting notice:", error.message);
@@ -126,44 +97,44 @@ export const deleteNoticeController = async (req, res) => {
   }
 };
 
+// Update notice
 export const updateNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, details } = req.body;
+    const { title } = req.body;
     const { file } = req;
-    let result;
 
-    if (!file) {
-      result = await prisma.notices.update({
-        where: { id: parseInt(id) },
-        data: { title, details },
-      });
-    } else {
-      const { previewUrl, downloadUrl } = await uploadPDFToDrive(file);
-      const existingNotice = await prisma.notices.findUnique({
-        where: { id: parseInt(id) },
-      });
+    const existingNotice = await prisma.notices.findUnique({
+      where: { id: parseInt(id) },
+    });
 
-      if (!existingNotice) {
-        return res.status(404).json({ error: "Notice not found" });
-      }
-
-      const filePath = existingNotice.file;
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      await DeletePDF(existingNotice.download_url);
-
-      result = await prisma.notices.update({
-        where: { id: parseInt(id) },
-        data: {
-          title,
-          details,
-          file: previewUrl,
-          download_url: downloadUrl,
-        },
-      });
+    if (!existingNotice) {
+      return res.status(404).json({ error: "Notice not found" });
     }
+
+    let updatedData = { title };
+
+    if (file) {
+      const { previewUrl, downloadUrl, public_id } =
+        await uploadPDFToCloudinary(file);
+
+      // Delete previous PDF from Cloudinary
+      if (existingNotice.public_id) {
+        await deletePDFFromCloudinary(existingNotice.public_id);
+      }
+
+      updatedData = {
+        ...updatedData,
+        file: previewUrl,
+        download_url: downloadUrl,
+        public_id: public_id,
+      };
+    }
+
+    const result = await prisma.notices.update({
+      where: { id: parseInt(id) },
+      data: updatedData,
+    });
 
     res.status(200).json(result);
   } catch (error) {

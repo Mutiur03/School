@@ -1,7 +1,7 @@
 import ThemeChange from "./ThemeChange";
 import { useAuth } from "../context/appContext";
 function Navbar() {
-   const {student} = useAuth();
+  const { student } = useAuth();
   const host = import.meta.env.VITE_BACKEND_URL;
   return (
     <>
@@ -10,7 +10,11 @@ function Navbar() {
         <div className="mr-8">
           <div className="flex items-center justify-between">
             <img
-              src={`${host}/${student.image}`}
+              src={
+                student.image
+                  ? `${host}/${student.image}`
+                  : "/placeholder-profile.jpg"
+              }
               alt="Profile"
               className="w-10 h-10 rounded-full border-4 border-gray-300 shadow-sm object-cover"
             />

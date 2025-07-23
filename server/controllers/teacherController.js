@@ -79,6 +79,7 @@ export const addTeacher = async (req, res) => {
       data: teacherData.map(({ originalPassword, ...data }) => data),
     });
 
+    // Fetch created teachers with their IDs
     const createdTeachers = await prisma.teachers.findMany({
       where: {
         email: {
@@ -87,16 +88,18 @@ export const addTeacher = async (req, res) => {
       },
     });
 
+    // Append to sheet: [id, name, email, phone, subject, originalPassword]
     sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "teachers!A:E",
+      range: "teachers!A:F",
       valueInputOption: "USER_ENTERED",
       resource: {
-        values: teachers.map(({ name, email, phone, subject }, index) => [
-          name,
-          email,
-          phone,
-          subject,
+        values: createdTeachers.map((teacher, index) => [
+          teacher.id,
+          teacher.name,
+          teacher.email,
+          teacher.phone,
+          teacher.subject,
           teacherData[index].originalPassword,
         ]),
       },
@@ -139,6 +142,11 @@ export const updateTeacher = async (req, res) => {
   console.log(req.body);
 
   try {
+    // Fetch previous teacher info to get the old email
+    const prevTeacher = await prisma.teachers.findUnique({
+      where: { id: parseInt(id) },
+    });
+
     const rawData = {
       name: name || null,
       email: email || null,
@@ -161,14 +169,15 @@ export const updateTeacher = async (req, res) => {
     try {
       const sheetData = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "teachers!A:E",
+        range: "teachers!A:F",
       });
 
       const rows = sheetData.data.values || [];
       let rowIndex = -1;
 
+      // Use previous email to find the correct row
       for (let i = 0; i < rows.length; i++) {
-        if (rows[i][1] === email) {
+        if (rows[i][2] === prevTeacher.email) { // column C is email
           rowIndex = i + 1;
           break;
         }
@@ -177,15 +186,16 @@ export const updateTeacher = async (req, res) => {
       if (rowIndex > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `teachers!A${rowIndex}:D${rowIndex}`,
+          range: `teachers!A${rowIndex}:E${rowIndex}`,
           valueInputOption: "USER_ENTERED",
           resource: {
             values: [
               [
-                name,
-                email,
+                id, // update teacher id in column A
+                name?.trim() || "",
+                email?.trim() || "",
                 "0" + removeNonNumber(phone).slice(-10),
-                subject.trim(),
+                subject?.trim() || "",
               ],
             ],
           },

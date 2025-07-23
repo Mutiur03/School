@@ -3,7 +3,6 @@ import { Button } from "../components/ui/button";
 
 const Marksheet = ({ studentInfo, marks }) => {
   const hasPassed = marks.every((mark) => mark.marks >= mark.pass_mark);
-  console.log(hasPassed);
 
   const getTotalMarks = () => {
     return marks.reduce((total, mark) => total + mark.marks, 0);
@@ -11,12 +10,11 @@ const Marksheet = ({ studentInfo, marks }) => {
   const getFullMarks = () => {
     return marks.reduce((total, mark) => total + mark.full_mark, 0);
   };
-  getTotalMarks();
-  getFullMarks();
   const getPercentage = () => {
     const totalMarks = getTotalMarks();
-    return ((totalMarks / (marks.length * 100)) * 100).toFixed(2);
+    return ((totalMarks / getFullMarks()) * 100).toFixed(2);
   };
+
   return (
     <div className="print-container p-6 rounded-lg bg-card shadow-2xl max-w-4xl mx-auto ">
       <div className="text-center mb-2">
@@ -35,7 +33,7 @@ const Marksheet = ({ studentInfo, marks }) => {
               Name: <span>{studentInfo.name}</span>
             </p>
             <p className="font-semibold">
-              Roll No: <span>{studentInfo.roll}</span> 
+              Roll No: <span>{studentInfo.roll}</span>
             </p>
           </div>
           <div className="flex items-start flex-col">
@@ -60,7 +58,10 @@ const Marksheet = ({ studentInfo, marks }) => {
           <tr className="bg-popover">
             <th className="border border-gray-300 px-4 py-2">SL</th>
             <th className="border border-gray-300 px-4 py-2">Subject</th>
-            <th className="border border-gray-300 px-4 py-2">Marks</th>
+            <th className="border border-gray-300 px-4 py-2">CQ</th>
+            <th className="border border-gray-300 px-4 py-2">MCQ</th>
+            <th className="border border-gray-300 px-4 py-2">Practical</th>
+            <th className="border border-gray-300 px-4 py-2">Total</th>
             <th className="border border-gray-300 px-4 py-2">Grade</th>
             <th className="border border-gray-300 px-4 py-2">Remarks</th>
           </tr>
@@ -84,7 +85,6 @@ const Marksheet = ({ studentInfo, marks }) => {
             };
 
             const result = grade();
-            // console.log(result);
 
             const remarks =
               subject.marks >= 90
@@ -102,6 +102,15 @@ const Marksheet = ({ studentInfo, marks }) => {
                 </td>
                 <td className="border border-gray-300 px-4 py-2">
                   {subject.subject}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {subject.cq_marks}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {subject.mcq_marks}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {subject.practical_marks}
                 </td>
                 <td className="border border-gray-300 px-4 py-2">
                   {subject.marks}
@@ -141,8 +150,6 @@ const Marksheet = ({ studentInfo, marks }) => {
 };
 
 const MarksheetPage = ({ studentInfo, marks }) => {
-  
-
   const handleDownload = (e) => {
     e.preventDefault();
     const url = `http://localhost:3001/api/marks/markSheet/${studentInfo.id}/marks/${marks[0].year}/${marks[0].exam}/download`;
@@ -151,7 +158,7 @@ const MarksheetPage = ({ studentInfo, marks }) => {
 
   return (
     <div className="flex flex-col items-center p-4 min-h-screen">
-      <div >
+      <div>
         <Marksheet studentInfo={studentInfo} marks={marks} />
       </div>
 

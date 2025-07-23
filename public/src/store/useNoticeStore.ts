@@ -4,7 +4,7 @@ import axios from "axios";
 type Notice = {
   id: number;
   title: string;
-  details: string;
+  details?: string; // Make optional
   created_at: string;
   category: string;
   file?: string; // PDF file path/URL

@@ -50,7 +50,7 @@ export default function NoticePage() {
                                 key={notice.id}
                                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
                             >
-                                <div className="p-6">
+                                <div className="p-6 relative">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                                         <h2 className="text-xl font-bold text-primary">{notice.title}</h2>
                                         <div className="flex items-center gap-4 mt-2 md:mt-0">
@@ -63,8 +63,7 @@ export default function NoticePage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <p className="text-gray-600 mb-4 text-start">{notice.details}</p>
-                                    <Link to={notice.category === "Event" ? `/event/${notice.id}` : `/notice/${notice.id}`} className="inline-block text-primary hover:underline">
+                                    <Link to={notice.category === "Event" ? `/event/${notice.id}` : `/notice/${notice.id}`} className="absolute right-5 bottom-3 text-primary hover:underline">
                                         Read More
                                     </Link>
                                 </div>

@@ -48,9 +48,10 @@ This system enables schools to manage all core operations digitally — from enr
 - Promote students based on performance
 
 ### 📢 Notice Board
-- Post notices to specific roles (students, teachers, all)
-- Attach PDFs securely using Google Drive
-- Preview/download files via live Drive links
+- Post notices with titles and PDF attachments
+- Attach PDFs securely using Cloudinary
+- Preview/download files via live links
+- Simple and clean notice management
 
 ### 🖼️ Gallery & Event Management
 - Create public or internal events with media

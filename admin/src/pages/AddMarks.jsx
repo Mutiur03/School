@@ -449,19 +449,24 @@ const AddMarks = () => {
   // }
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      <h1 className="text-2xl font-bold mb-6">Student Marks Management</h1>
+    <div className="container mx-auto p-2 sm:p-4 max-w-7xl">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 px-2 sm:px-0">
+        Student Marks Management
+      </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card p-6 rounded-lg shadow">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4 sm:space-y-6"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-card p-4 sm:p-6 rounded-lg shadow">
           {/* Year Select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
+          <div className="col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
               Academic Year
             </label>
             <select
               {...register("year", { required: true })}
-              className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={loading.initial}
             >
               {Array.from({ length: 10 }, (_, i) => (
@@ -473,13 +478,13 @@ const AddMarks = () => {
           </div>
 
           {/* Exam Select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
+          <div className="col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
               Examination
             </label>
             <select
               {...register("examName", { required: true })}
-              className="w-full p-2 text-input dark:bg-accent border rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 text-input dark:bg-accent border rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={!year || loading.initial}
             >
               <option value="">Select Exam</option>
@@ -497,13 +502,13 @@ const AddMarks = () => {
           </div>
 
           {/* Class Select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
               Class/Grade
             </label>
             <select
               {...register("level", { required: true })}
-              className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={
                 !examName ||
                 loading.initial ||
@@ -531,11 +536,13 @@ const AddMarks = () => {
           </div>
 
           {/* Department Select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Department</label>
+          <div className="col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
+              Department
+            </label>
             <select
               {...register("department")}
-              className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={!level || loading.initial}
             >
               {level >= 9
@@ -553,11 +560,13 @@ const AddMarks = () => {
           </div>
 
           {/* Section Select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Section</label>
+          <div className="col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
+              Section
+            </label>
             <select
               {...register("section")}
-              className="w-full p-2 border  text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={!level || loading.initial}
             >
               <option value="">All Sections</option>
@@ -570,11 +579,13 @@ const AddMarks = () => {
           </div>
 
           {/* Subject Filter */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Subject</label>
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium mb-1 sm:mb-2">
+              Subject
+            </label>
             <select
               {...register("specific")}
-              className="w-full p-2 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={!level || loading.initial}
             >
               <option value="0">Select Subject</option>
@@ -590,36 +601,51 @@ const AddMarks = () => {
         </div>
 
         {loading.initial ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400 text-center px-4">
               Loading initial data...
             </span>
           </div>
         ) : loading.students ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400 text-center px-4">
               Loading students...
             </span>
           </div>
         ) : loading.marks ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400 text-center px-4">
               Loading marks data...
             </span>
           </div>
         ) : filteredStudents.length > 0 ? (
-          <div>
+          <div className="px-2 sm:px-0">
             {examName !== "JSC" && examName !== "SSC" ? (
               // Only show table if a specific subject is selected
               specific && specific !== "0" ? (
                 <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                  {/* Mobile Subject Header */}
+                  <div className="block sm:hidden bg-blue-50 dark:bg-blue-900 p-3 border-b border-gray-200 dark:border-gray-600">
+                    <div className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                      Subject:{" "}
+                      {subjectsForClass.find((sub) => sub.id == specific)?.name}
+                    </div>
+                    <div className="text-xs text-blue-700 dark:text-blue-200 mt-1">
+                      Teacher:{" "}
+                      {
+                        subjectsForClass.find((sub) => sub.id == specific)
+                          ?.teacher_name
+                      }
+                    </div>
+                  </div>
+
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Student Info
                         </th>
                         {(() => {
@@ -628,21 +654,31 @@ const AddMarks = () => {
                           );
                           return selectedSubject ? (
                             <>
-                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                CQ ({selectedSubject.cq_mark || 0})
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="hidden sm:inline">
+                                  CQ ({selectedSubject.cq_mark || 0})
+                                </span>
+                                <span className="sm:hidden">CQ</span>
                               </th>
-                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                MCQ ({selectedSubject.mcq_mark || 0})
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="hidden sm:inline">
+                                  MCQ ({selectedSubject.mcq_mark || 0})
+                                </span>
+                                <span className="sm:hidden">MCQ</span>
                               </th>
-                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                Practical ({selectedSubject.practical_mark || 0}
-                                )
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="hidden sm:inline">
+                                  Practical (
+                                  {selectedSubject.practical_mark || 0})
+                                </span>
+                                <span className="sm:hidden">Prac</span>
                               </th>
                             </>
                           ) : null;
                         })()}
                       </tr>
-                      <tr className="bg-blue-50 dark:bg-blue-900">
+                      {/* Desktop Subject Header */}
+                      <tr className="hidden sm:table-row bg-blue-50 dark:bg-blue-900">
                         <td className="px-6 py-2 text-sm font-semibold text-blue-900 dark:text-blue-100">
                           Subject:{" "}
                           {
@@ -668,12 +704,10 @@ const AddMarks = () => {
                           (sub) => sub.id == specific
                         );
 
-                        // Safety check: if selectedSubject is undefined, skip this student
                         if (!selectedSubject) {
                           return null;
                         }
 
-                        // Check if subject matches student department
                         if (
                           selectedSubject.department !== student.department &&
                           selectedSubject.department !== "" &&
@@ -684,17 +718,27 @@ const AddMarks = () => {
                               key={student.student_id}
                               className="bg-gray-100 dark:bg-gray-700"
                             >
-                              <td className="px-6 py-4">
+                              <td className="px-3 sm:px-6 py-3 sm:py-4">
                                 <div>
                                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                                     {student.name}
                                   </div>
-                                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    Roll: {student.roll} | Section:{" "}
-                                    {student.section || "N/A"} | Class:{" "}
-                                    {student.class}
+                                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                      <span>Roll: {student.roll}</span>
+                                      <span className="hidden sm:inline">
+                                        |
+                                      </span>
+                                      <span>
+                                        Sec: {student.section || "N/A"}
+                                      </span>
+                                      <span className="hidden sm:inline">
+                                        |
+                                      </span>
+                                      <span>Class: {student.class}</span>
+                                    </div>
                                     {student.department && (
-                                      <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                      <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                                         {student.department}
                                       </span>
                                     )}
@@ -703,7 +747,7 @@ const AddMarks = () => {
                               </td>
                               <td
                                 colSpan="3"
-                                className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                                className="px-3 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400"
                               >
                                 Subject not available for this student's
                                 department
@@ -728,24 +772,28 @@ const AddMarks = () => {
                             key={student.student_id}
                             className="hover:bg-gray-50 dark:hover:bg-gray-700"
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4">
                               <div>
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
                                   {student.name}
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                  Roll: {student.roll} | Section:{" "}
-                                  {student.section || "N/A"} | Class:{" "}
-                                  {student.class}
+                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                    <span>Roll: {student.roll}</span>
+                                    <span className="hidden sm:inline">|</span>
+                                    <span>Sec: {student.section || "N/A"}</span>
+                                    <span className="hidden sm:inline">|</span>
+                                    <span>Class: {student.class}</span>
+                                  </div>
                                   {student.department && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                    <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                                       {student.department}
                                     </span>
                                   )}
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
@@ -759,10 +807,19 @@ const AddMarks = () => {
                                     e.target.value
                                   )
                                 }
-                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                disabled={
+                                  !selectedSubject.cq_mark ||
+                                  selectedSubject.cq_mark === 0
+                                }
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                  !selectedSubject.cq_mark ||
+                                  selectedSubject.cq_mark === 0
+                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                    : "bg-white dark:bg-gray-700"
+                                }`}
                               />
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
@@ -776,10 +833,19 @@ const AddMarks = () => {
                                     e.target.value
                                   )
                                 }
-                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                disabled={
+                                  !selectedSubject.mcq_mark ||
+                                  selectedSubject.mcq_mark === 0
+                                }
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                  !selectedSubject.mcq_mark ||
+                                  selectedSubject.mcq_mark === 0
+                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                    : "bg-white dark:bg-gray-700"
+                                }`}
                               />
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
@@ -793,7 +859,16 @@ const AddMarks = () => {
                                     e.target.value
                                   )
                                 }
-                                className="w-16 p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-sm bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                disabled={
+                                  !selectedSubject.practical_mark ||
+                                  selectedSubject.practical_mark === 0
+                                }
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                  !selectedSubject.practical_mark ||
+                                  selectedSubject.practical_mark === 0
+                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                    : "bg-white dark:bg-gray-700"
+                                }`}
                               />
                             </td>
                           </tr>
@@ -804,8 +879,8 @@ const AddMarks = () => {
                 </div>
               ) : (
                 // Show message when no subject is selected
-                <div className="p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
-                  <p className="text-gray-600 dark:text-gray-400">
+                <div className="p-6 sm:p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center mx-2 sm:mx-0">
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                     Please select a subject from the dropdown above to enter
                     marks for students.
                   </p>
@@ -817,11 +892,14 @@ const AddMarks = () => {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Student Info
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        GPA (Out of 5.00)
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <span className="hidden sm:inline">
+                          GPA (Out of 5.00)
+                        </span>
+                        <span className="sm:hidden">GPA</span>
                       </th>
                     </tr>
                   </thead>
@@ -831,24 +909,28 @@ const AddMarks = () => {
                         key={student.student_id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {student.name}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              Roll: {student.roll} | Section:{" "}
-                              {student.section || "N/A"} | Class:{" "}
-                              {student.class}
+                            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                <span>Roll: {student.roll}</span>
+                                <span className="hidden sm:inline">|</span>
+                                <span>Sec: {student.section || "N/A"}</span>
+                                <span className="hidden sm:inline">|</span>
+                                <span>Class: {student.class}</span>
+                              </div>
                               {student.department && (
-                                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                                   {student.department}
                                 </span>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
                           <input
                             type="number"
                             step="0.01"
@@ -861,7 +943,7 @@ const AddMarks = () => {
                                 e.target.value
                               )
                             }
-                            className="w-24 p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-semibold bg-white dark:bg-gray-700"
+                            className="w-16 sm:w-24 p-2 sm:p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-semibold bg-white dark:bg-gray-700 text-sm sm:text-base"
                             placeholder="0.00"
                           />
                         </td>
@@ -873,8 +955,8 @@ const AddMarks = () => {
             )}
           </div>
         ) : (
-          <div className="p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center">
-            <p className="">
+          <div className="p-6 sm:p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center mx-2 sm:mx-0">
+            <p className="text-sm sm:text-base">
               {!level
                 ? "Please select a class to view students"
                 : students.length === 0
@@ -885,13 +967,17 @@ const AddMarks = () => {
         )}
 
         {filteredStudents.length > 0 &&
-          (examName === "JSC" || examName === "SSC") &&
-          specific &&
-          specific !== "0" && (
-            <div className="flex justify-end">
+          (examName === "JSC" ||
+            examName === "SSC" ||
+            (examName !== "JSC" &&
+              examName !== "SSC" &&
+              specific &&
+              specific !== "0" &&
+              specific !== 0)) && (
+            <div className="flex justify-center sm:justify-end px-2 sm:px-0">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 flex items-center justify-center text-sm sm:text-base font-medium"
                 disabled={loading.submit}
               >
                 {loading.submit ? (
@@ -919,7 +1005,9 @@ const AddMarks = () => {
                     Processing...
                   </>
                 ) : (
-                  "Save Marks"
+                  `Save ${
+                    examName === "JSC" || examName === "SSC" ? "GPA" : "Marks"
+                  }`
                 )}
               </button>
             </div>

@@ -346,7 +346,6 @@ export default function Home() {
                                                         {format(new Date(notice.created_at), "MMM dd, yyyy")}
                                                     </span>
                                                 </div>
-                                                <p className="text-gray-600 text-start">{notice.details}</p>
                                                 <Link
                                                     to={`/notice/${notice.id}`}
                                                     className="text-primary text-sm hover:underline mt-2 inline-block"
@@ -393,7 +392,7 @@ export default function Home() {
                                     className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                                 >
                                     {(() => {
-                                        const upcomingEvents = events.filter((event) => 
+                                        const upcomingEvents = events.filter((event) =>
                                             new Date(event.date).setHours(0, 0, 0, 0) > new Date().setHours(0, 0, 0, 0)
                                         );
 
