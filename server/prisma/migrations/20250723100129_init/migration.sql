@@ -124,11 +124,17 @@ CREATE TABLE "subjects" (
     "id" SERIAL NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "class" INTEGER NOT NULL,
-    "full_mark" INTEGER NOT NULL,
-    "pass_mark" INTEGER NOT NULL,
+    "full_mark" INTEGER NOT NULL DEFAULT 0,
+    "pass_mark" INTEGER NOT NULL DEFAULT 0,
+    "cq_mark" INTEGER NOT NULL DEFAULT 0,
+    "mcq_mark" INTEGER NOT NULL DEFAULT 0,
+    "practical_mark" INTEGER NOT NULL DEFAULT 0,
+    "cq_pass_mark" INTEGER NOT NULL DEFAULT 0,
+    "mcq_pass_mark" INTEGER NOT NULL DEFAULT 0,
+    "practical_pass_mark" INTEGER NOT NULL DEFAULT 0,
     "year" INTEGER NOT NULL DEFAULT EXTRACT(year FROM CURRENT_DATE),
     "teacher_id" INTEGER,
-    "department" VARCHAR(100) NOT NULL DEFAULT '',
+    "department" VARCHAR(100),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subjects_pkey" PRIMARY KEY ("id")
@@ -140,6 +146,9 @@ CREATE TABLE "marks" (
     "enrollment_id" INTEGER NOT NULL,
     "subject_id" INTEGER NOT NULL,
     "exam_id" INTEGER NOT NULL,
+    "cq_marks" INTEGER NOT NULL DEFAULT 0,
+    "mcq_marks" INTEGER NOT NULL DEFAULT 0,
+    "practical_marks" INTEGER NOT NULL DEFAULT 0,
     "marks" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -179,6 +188,7 @@ CREATE TABLE "events" (
     "category" TEXT NOT NULL DEFAULT 'Event',
     "location" TEXT,
     "thumbnail" TEXT,
+    "public_id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "events_pkey" PRIMARY KEY ("id")
@@ -203,9 +213,9 @@ CREATE TABLE "gallery" (
 CREATE TABLE "notices" (
     "id" SERIAL NOT NULL,
     "title" TEXT NOT NULL,
-    "details" TEXT NOT NULL,
     "file" TEXT,
     "download_url" TEXT,
+    "public_id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "notices_pkey" PRIMARY KEY ("id")
@@ -234,6 +244,9 @@ CREATE UNIQUE INDEX "marks_enrollment_id_subject_id_exam_id_key" ON "marks"("enr
 
 -- CreateIndex
 CREATE UNIQUE INDEX "gpa_student_id_key" ON "gpa"("student_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "categories_category_key" ON "categories"("category");
 
 -- AddForeignKey
 ALTER TABLE "student_enrollments" ADD CONSTRAINT "student_enrollments_student_id_fkey" FOREIGN KEY ("student_id") REFERENCES "students"("id") ON DELETE CASCADE ON UPDATE CASCADE;

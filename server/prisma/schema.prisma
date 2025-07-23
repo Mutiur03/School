@@ -133,8 +133,8 @@ model subjects {
   id                  Int      @id @default(autoincrement())
   name                String   @db.VarChar(100)
   class               Int
-  full_mark           Int
-  pass_mark           Int
+  full_mark           Int      @default(0)
+  pass_mark           Int      @default(0)
   cq_mark             Int      @default(0)
   mcq_mark            Int      @default(0)
   practical_mark      Int      @default(0)
@@ -191,16 +191,16 @@ model categories {
 }
 
 model events {
-  id        Int     @id @default(autoincrement())
-  title     String
-  details   String?
-  date      String  @db.VarChar(10)
-  image     String?
-  file      String?
-  category  String  @default("Event")
-  location  String?
-  thumbnail String?
-  public_id String
+  id         Int      @id @default(autoincrement())
+  title      String
+  details    String?
+  date       String   @db.VarChar(10)
+  image      String?
+  file       String?
+  category   String   @default("Event")
+  location   String?
+  thumbnail  String?
+  public_id  String?
   created_at DateTime @default(now())
 
   galleries gallery[]

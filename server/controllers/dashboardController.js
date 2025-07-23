@@ -47,7 +47,6 @@ export const getAllDashboardData = async (req, res) => {
         select: {
           id: true,
           title: true,
-          details: true,
           created_at: true,
         },
         orderBy: { created_at: "desc" },
