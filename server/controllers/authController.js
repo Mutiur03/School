@@ -49,13 +49,13 @@ export const login = async (req, res) => {
       { id: user.id, role: user.role, username: user.username },
       process.env.JWT_SECRET
     );
-   res.cookie("token", token, {
-     httpOnly: true,
-     secure: true, 
-     sameSite: "none",
-     maxAge: 3600000, 
-     partitioned: true,  
-   });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 3600000,
+      partitioned: true,
+    });
     res.json({ success: true, message: "Login successful" });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
@@ -117,8 +117,10 @@ export const student_login = async (req, res) => {
     console.log(process.env.NODE_ENV === "production");
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      secure: true,
+      sameSite: "none",
+      maxAge: 3600000,
+      partitioned: true,
     });
     res.json({ success: true, message: "Login successful" });
   } catch (error) {
@@ -142,6 +144,74 @@ export const authenticateStudent = async (req, res, next) => {
     });
     if (!check) return res.status(401).json({ message: "Unauthorized" });
     next();
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid Token" });
+  }
+};
+
+
+export const teacher_login = async (req, res) => {
+  console.log("Received login data:", req.body);
+  
+  const { email, password } = req.body;
+
+  try {
+    const user = await prisma.teachers.findUnique({
+      where: {
+        email: email,
+      }
+    });
+
+    if (!user || !user.password) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: "teacher", email: user.email },
+      process.env.JWT_SECRET
+    );
+    console.log("Teacher logging in:", user.email);
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 3600000,
+      partitioned: true,
+    });
+    console.log("Login successful for teacher:", user.email, token);
+    res.json({ success: true, message: "Login successful" });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: "Error logging in" });
+  }
+}
+
+
+export const teacher_me = async (req, res) => {
+  console.log("Fetching teacher profile...");
+  
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+
+    const teacher = await prisma.teachers.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
+    res.json({ teacher });
   } catch (error) {
     return res.status(401).json({ message: "Invalid Token" });
   }

@@ -4,6 +4,8 @@ import {
   login,
   student_login,
   authenticateStudent,
+  teacher_login,
+  teacher_me,
 } from "../controllers/authController.js";
 
 const authRouter = express.Router();
@@ -19,7 +21,6 @@ authRouter.get("/logout", (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-    maxAge: 3600000,
     partitioned: true,
   });
   res.json({ message: "Logout successful" });
@@ -27,6 +28,8 @@ authRouter.get("/logout", (req, res) => {
 export default authRouter;
 
 authRouter.post("/student_login", student_login);
+authRouter.post("/teacher_login", teacher_login);
+authRouter.get("/teacher_me", teacher_me);
 authRouter.get("/student-protected", authenticateStudent, (req, res) => {
   res.json({ message: "You are authenticated!", user: req.user });
 });

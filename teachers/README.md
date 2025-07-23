@@ -1,24 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Teacher Dashboard (Next.js)
+
+This is a Next.js project for the Teacher Dashboard, designed to match the Student Dashboard in style and features.
+
+## Features
+
+- Teacher authentication (login/logout)
+- Responsive dashboard with profile and password change
+- Navbar with teacher info and theme switcher
+- Profile page showing teacher details
+- Change password functionality
+- Uses Tailwind CSS for styling
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Folder Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/` - Next.js pages and routing
+- `components/` - UI and layout components
+- `context/` - Authentication context
+
+## API Endpoints
+
+- `/api/auth/teacher_login` - Teacher login
+- `/api/auth/teacher_me` - Get current teacher
+- `/api/teachers/change-password` - Change password
+
+## Customization
+
+You can modify the UI components in `components/ui/` for custom styles.
 
 ## Learn More
 

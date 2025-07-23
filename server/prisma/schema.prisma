@@ -102,7 +102,7 @@ model holidays {
 model teachers {
   id                     Int      @id @default(autoincrement())
   name                   String   @db.VarChar(100)
-  email                  String   @db.VarChar(100)
+  email                  String   @db.VarChar(100) @unique
   phone                  String   @db.Char(11)
   subject                String?  @db.VarChar(100)
   academic_qualification String?
