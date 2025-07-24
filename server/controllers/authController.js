@@ -184,7 +184,6 @@ export const teacher_login = async (req, res) => {
       secure: true,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 3600000,
-      partitioned: true,
     });
 
     // console.log("Login successful for teacher:", user.email, token);
