@@ -24,12 +24,13 @@ authRouter.get("/logout", (req, res) => {
     path: "/",
     partitioned: true,
   });
+  console.log(process.env.NODE_ENV === "production");
+  
   res.clearCookie("client_token", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
-    maxAge: 3600000,
     partitioned: true,
   });
   res.json({ message: "Logout successful" });
