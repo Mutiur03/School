@@ -21,20 +21,20 @@ authRouter.get("/logout", (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
+    path: "/",
     partitioned: true,
   });
-  res.json({ message: "Logout successful" });
-});
-authRouter.get("/teacher_logout", (req, res) => {
-  console.log("Logging out...");
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: true,
+  res.clearCookie("client_token", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+    maxAge: 3600000,
     partitioned: true,
   });
   res.json({ message: "Logout successful" });
 });
+
 export default authRouter;
 
 authRouter.post("/student_login", student_login);
