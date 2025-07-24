@@ -27,7 +27,7 @@ import {
   updateCategoryThumbnailController,
   updateEventThumbnailController,
 } from "../controllers/galleryController.js";
-import { compressImageToLocation } from "../middlewares/compressIMage.js";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads/gallery");

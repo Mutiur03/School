@@ -8,7 +8,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { compressImageToLocation } from "../middlewares/compressIMage.js";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 const eventsRouter = router.Router();
 const __dirname = path.resolve();
 const storage = multer.diskStorage({

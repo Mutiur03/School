@@ -14,7 +14,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { compressImageToLocation } from "../middlewares/compressIMage.js";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 const studRouter = express.Router();
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

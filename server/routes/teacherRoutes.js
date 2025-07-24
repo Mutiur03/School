@@ -10,8 +10,8 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { compressImageToLocation } from "../middlewares/compressIMage.js";
 import { teacher_me } from "../middlewares/auth.js";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 const routerTeacher = express.Router();
 
 const __dirname = path.resolve();
