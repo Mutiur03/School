@@ -2,6 +2,7 @@ import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import fs from "fs";
 import { initGoogleSheets } from "./studController.js";
+import { fixUrl } from "../utils/fixURL.js"; // Add this import
 const removeNonNumber = (str) => str.replace(/\D/g, "");
 const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
@@ -261,12 +262,15 @@ export const UpdateTeacherImage = async (req, res) => {
 
     const result = await prisma.teachers.update({
       where: { id: parseInt(id) },
-      data: { image: image.path },
+      data: { image: fixUrl(image.path) }, // Fix here
     });
 
     res.status(200).json({
       success: true,
-      data: result,
+      data: {
+        ...result,
+        image: fixUrl(result.image), // Fix here for response
+      },
       message: "Teacher image updated successfully",
     });
   } catch (error) {
@@ -274,5 +278,88 @@ export const UpdateTeacherImage = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Error updating teacher image" });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    // You may want to get teacher id from session/auth, here we assume it's from req.user or req.body
+    // For demo, let's assume req.user.id is available (set by auth middleware)
+    const teacherId = req.user?.id || req.body.id;
+    if (!teacherId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: "Missing fields" });
+    }
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Password must be at least 8 characters",
+        });
+    }
+    const teacher = await prisma.teachers.findUnique({
+      where: { id: teacherId },
+    });
+    if (!teacher) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Teacher not found" });
+    }
+    const isMatch = await bcrypt.compare(currentPassword, teacher.password);
+    if (!isMatch) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Current password is incorrect" });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.teachers.update({
+      where: { id: teacherId },
+      data: { password: hashedPassword },
+    });
+
+    // --- Update password in Google Sheet ---
+    try {
+      // Find the row for this teacher by email (column C, index 2)
+      const sheetData = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "teachers!A:F",
+      });
+      const rows = sheetData.data.values || [];
+      let rowIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][2] === teacher.email) {
+          rowIndex = i + 1; // 1-based index for Sheets API
+          break;
+        }
+      }
+      if (rowIndex > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `teachers!F${rowIndex}:F${rowIndex}`, // Column F is password
+          valueInputOption: "USER_ENTERED",
+          resource: {
+            values: [[newPassword]],
+          },
+        });
+      }
+    } catch (sheetError) {
+      console.error(
+        "Error updating password in Google Sheet:",
+        sheetError.message
+      );
+      // Do not fail the API if sheet update fails
+    }
+    // --- End update password in Google Sheet ---
+
+    res
+      .status(200)
+      .json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Error changing password:", error.message);
+    res.status(500).json({ success: false, error: "Error changing password" });
   }
 };

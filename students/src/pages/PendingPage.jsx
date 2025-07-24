@@ -146,7 +146,6 @@ export default function PendingPage() {
   }, []);
 
   const fetchPendingGalleries = async () => {
-    setIsLoading(true);
     try {
       const response = await axios.get("/api/gallery/pendingStudents");
       setGroupedGalleries(response.data || { events: {}, categories: {} });

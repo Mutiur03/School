@@ -5,8 +5,8 @@ import {
   student_login,
   authenticateStudent,
   teacher_login,
-  teacher_me,
 } from "../controllers/authController.js";
+import { teacher_me } from "../middlewares/auth.js";
 
 const authRouter = express.Router();
 
@@ -29,7 +29,11 @@ export default authRouter;
 
 authRouter.post("/student_login", student_login);
 authRouter.post("/teacher_login", teacher_login);
-authRouter.get("/teacher_me", teacher_me);
+authRouter.get("/teacher_me", teacher_me, (req, res) => {
+  console.log("Authenticated Teacher:", req.user);
+  
+  res.json({ message: "You are authenticated!", user: req.user });
+});
 authRouter.get("/student-protected", authenticateStudent, (req, res) => {
   res.json({ message: "You are authenticated!", user: req.user });
 });

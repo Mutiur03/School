@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.js";
 
-// Helper function to handle database errors
 const handleDatabaseError = (error, res) => {
   if (error.name === "PrismaClientInitializationError") {
     return res.status(503).json({
@@ -32,14 +31,12 @@ export const addSubController = async (req, res) => {
       });
     }
 
-    // Use for...of instead of forEach for async operations
     for (const subject of subjects) {
       subject.name = subject.name.trim();
       subject.department = subject.department?.trim();
       subject.department === "General" && (subject.department = null);
       subject.department === "general" && (subject.department = null);
 
-      // Convert numeric fields to integers
       const numericFields = [
         "class",
         "full_mark",
@@ -67,7 +64,6 @@ export const addSubController = async (req, res) => {
             });
           }
         } else {
-          // Set to 0 for mark fields that don't allow null, null for optional fields like teacher_id
           if (field.includes("mark") || field === "class") {
             subject[field] =
               field === "class" && !subject[field] ? subject[field] : 0;
@@ -77,7 +73,22 @@ export const addSubController = async (req, res) => {
         }
       }
 
-      // Validate required fields
+      const fullMarkSum =
+        (subject.cq_mark || 0) +
+        (subject.mcq_mark || 0) +
+        (subject.practical_mark || 0);
+      if (fullMarkSum > 0) {
+        subject.full_mark = fullMarkSum;
+      }
+
+      const passMarkSum =
+        (subject.cq_pass_mark || 0) +
+        (subject.mcq_pass_mark || 0) +
+        (subject.practical_pass_mark || 0);
+      if (passMarkSum > 0) {
+        subject.pass_mark = passMarkSum;
+      }
+
       if (!subject.class) {
         return res.status(400).json({
           success: false,
@@ -172,7 +183,6 @@ export const getSubsController = async (req, res) => {
         },
       },
     });
-
     const formattedSubjects = subjects.map((subject) => ({
       ...subject,
       teacher_name: subject.teacher?.name || null,
@@ -220,7 +230,6 @@ export const updateSubController = async (req, res) => {
       department,
     } = req.body;
 
-    // Helper function to parse numeric values - use 0 for mark fields, null for optional fields
     const parseNumeric = (value, isMarkField = false) => {
       if (value === undefined || value === null || value === "") {
         return isMarkField ? 0 : null;
@@ -229,19 +238,38 @@ export const updateSubController = async (req, res) => {
       return isNaN(parsed) ? (isMarkField ? 0 : null) : parsed;
     };
 
+    const cqMarkVal = parseNumeric(cq_mark, true);
+    const mcqMarkVal = parseNumeric(mcq_mark, true);
+    const practicalMarkVal = parseNumeric(practical_mark, true);
+    const cqPassMarkVal = parseNumeric(cq_pass_mark, true);
+    const mcqPassMarkVal = parseNumeric(mcq_pass_mark, true);
+    const practicalPassMarkVal = parseNumeric(practical_pass_mark, true);
+
+    let fullMark = parseNumeric(full_mark, true);
+    let passMark = parseNumeric(pass_mark, true);
+
+    const fullMarkSum = cqMarkVal + mcqMarkVal + practicalMarkVal;
+    if (fullMarkSum > 0) {
+      fullMark = fullMarkSum;
+    }
+    const passMarkSum = cqPassMarkVal + mcqPassMarkVal + practicalPassMarkVal;
+    if (passMarkSum > 0) {
+      passMark = passMarkSum;
+    }
+
     const result = await prisma.subjects.update({
       where: { id: parseInt(id) },
       data: {
         name: name || null,
         class: parseNumeric(className),
-        full_mark: parseNumeric(full_mark, true),
-        pass_mark: parseNumeric(pass_mark, true),
-        cq_mark: parseNumeric(cq_mark, true),
-        mcq_mark: parseNumeric(mcq_mark, true),
-        practical_mark: parseNumeric(practical_mark, true),
-        cq_pass_mark: parseNumeric(cq_pass_mark, true),
-        mcq_pass_mark: parseNumeric(mcq_pass_mark, true),
-        practical_pass_mark: parseNumeric(practical_pass_mark, true),
+        full_mark: fullMark,
+        pass_mark: passMark,
+        cq_mark: cqMarkVal,
+        mcq_mark: mcqMarkVal,
+        practical_mark: practicalMarkVal,
+        cq_pass_mark: cqPassMarkVal,
+        mcq_pass_mark: mcqPassMarkVal,
+        practical_pass_mark: practicalPassMarkVal,
         year: year || new Date().getFullYear(),
         teacher_id: parseNumeric(teacher_id),
         department: department || null,

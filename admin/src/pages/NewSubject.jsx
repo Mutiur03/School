@@ -380,6 +380,7 @@ function NewSubject() {
                       max={10}
                       value={formData.class}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -391,6 +392,7 @@ function NewSubject() {
                       placeholder="Full Mark"
                       value={formData.full_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -400,6 +402,7 @@ function NewSubject() {
                       placeholder="Pass Mark"
                       value={formData.pass_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -411,6 +414,7 @@ function NewSubject() {
                       placeholder="CQ Mark (Optional)"
                       value={formData.cq_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -419,6 +423,7 @@ function NewSubject() {
                       placeholder="MCQ Mark (Optional)"
                       value={formData.mcq_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -427,6 +432,7 @@ function NewSubject() {
                       placeholder="Practical Mark (Optional)"
                       value={formData.practical_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                   </div>
@@ -437,6 +443,7 @@ function NewSubject() {
                       placeholder="CQ Pass Mark (Optional)"
                       value={formData.cq_pass_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -445,6 +452,7 @@ function NewSubject() {
                       placeholder="MCQ Pass Mark (Optional)"
                       value={formData.mcq_pass_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -453,6 +461,7 @@ function NewSubject() {
                       placeholder="Practical Pass Mark (Optional)"
                       value={formData.practical_pass_mark}
                       onChange={handleChange}
+                      onWheel={(e) => e.target.blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                   </div>

@@ -4,6 +4,7 @@ import {
   deletePDFFromCloudinary,
 } from "./noticeController.js";
 import { prisma } from "../config/prisma.js";
+import { fixUrl } from "../utils/fixURL.js";
 
 export const addEventController = async (req, res) => {
   try {
@@ -31,7 +32,7 @@ export const addEventController = async (req, res) => {
         details,
         date,
         location,
-        image: image.path,
+        image: fixUrl(image.path),
         file: previewUrl,
         public_id: public_id,
       },
@@ -50,7 +51,7 @@ export const getEventsController = async (req, res) => {
     const thumbnails = result.map((event) => {
       return {
         ...event,
-        thumbnail: event.image?.replace(/\\/g, "/") ?? "",
+        thumbnail: event.image ? fixUrl(event.image).replace(/\\/g, "/") : "",
       };
     });
     res.json(thumbnails);
@@ -131,7 +132,7 @@ export const updateEventController = async (req, res) => {
     }
 
     if (image) {
-      updateData.image = image.path;
+      updateData.image = fixUrl(image.path);
 
       if (fs.existsSync(existingEvent.image)) {
         fs.unlinkSync(existingEvent.image);

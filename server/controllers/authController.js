@@ -149,17 +149,16 @@ export const authenticateStudent = async (req, res, next) => {
   }
 };
 
-
 export const teacher_login = async (req, res) => {
   console.log("Received login data:", req.body);
-  
+
   const { email, password } = req.body;
 
   try {
     const user = await prisma.teachers.findUnique({
       where: {
         email: email,
-      }
+      },
     });
 
     if (!user || !user.password) {
@@ -187,32 +186,10 @@ export const teacher_login = async (req, res) => {
       maxAge: 3600000,
       partitioned: true,
     });
-    console.log("Login successful for teacher:", user.email, token);
+    // console.log("Login successful for teacher:", user.email, token);
     res.json({ success: true, message: "Login successful" });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
   }
-}
-
-
-export const teacher_me = async (req, res) => {
-  console.log("Fetching teacher profile...");
-  
-  const token = req.cookies?.token;
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-
-    const teacher = await prisma.teachers.findUnique({
-      where: { id: req.user.id },
-    });
-
-    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
-
-    res.json({ teacher });
-  } catch (error) {
-    return res.status(401).json({ message: "Invalid Token" });
-  }
 };
+

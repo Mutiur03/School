@@ -1,32 +1,34 @@
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
-
+import { fixUrl } from "../utils/fixURL.js"; // Add this import
 
 export const getGalleryController = async (req, res) => {
   try {
     const images = await prisma.gallery.findMany({
-      where: { status: 'approved' },
+      where: { status: "approved" },
       include: {
         event: { select: { id: true, title: true } },
         category: { select: { id: true, category: true } },
-        uploader: { select: { name: true, batch: true } }
-      }
+        uploader: { select: { name: true, batch: true } },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event?.id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category?.id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -57,23 +59,23 @@ export const addGalleryController = async (req, res) => {
 
   try {
     const insertPromises = req.files.map((file) => {
-      const imagePath = `${file.path}`;
+      const imagePath = fixUrl(file.path); // file.path is set by compressImageToLocation
       return prisma.gallery.create({
         data: {
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
           category_id: category && category !== "" ? parseInt(category) : null,
-          uploader_id: uploaderType === 'student' ? parseInt(uploaderId) : null,
+          uploader_id: uploaderType === "student" ? parseInt(uploaderId) : null,
           uploader_type: uploaderType,
           image_path: imagePath,
           caption: caption,
-          status: status || "pending"
-        }
+          status: status || "pending",
+        },
       });
     });
     await Promise.all(insertPromises);
     res.json({ message: "Images uploaded successfully" });
   } catch (err) {
-    console.error('Error in addGalleryController:', err);
+    console.error("Error in addGalleryController:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -81,7 +83,9 @@ export const addGalleryController = async (req, res) => {
 export const deleteGalleryController = async (req, res) => {
   try {
     const { id } = req.params;
-    const exist = await prisma.gallery.findUnique({ where: { id: parseInt(id) } });
+    const exist = await prisma.gallery.findUnique({
+      where: { id: parseInt(id) },
+    });
     const filePath = exist.image_path;
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -97,10 +101,12 @@ export const updateGalleryController = async (req, res) => {
   try {
     const { id } = req.params;
     const { caption, eventId, category } = req.body;
-    const image = req.file ? req.file.path : null;
+    const image = req.file ? fixUrl(req.file.path) : null; // file.path is set by compressImageToLocation
 
     if (image) {
-      const exist = await prisma.gallery.findUnique({ where: { id: parseInt(id) } });
+      const exist = await prisma.gallery.findUnique({
+        where: { id: parseInt(id) },
+      });
       const filePath = exist.image_path;
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
@@ -111,8 +117,8 @@ export const updateGalleryController = async (req, res) => {
           image_path: image,
           caption: caption,
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
-          category_id: category && category !== "" ? parseInt(category) : null
-        }
+          category_id: category && category !== "" ? parseInt(category) : null,
+        },
       });
       res.json(result);
     } else {
@@ -121,13 +127,13 @@ export const updateGalleryController = async (req, res) => {
         data: {
           caption: caption,
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
-          category_id: category && category !== "" ? parseInt(category) : null
-        }
+          category_id: category && category !== "" ? parseInt(category) : null,
+        },
       });
       res.json(result);
     }
   } catch (error) {
-    console.error('Error in updateGalleryController:', error);
+    console.error("Error in updateGalleryController:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -135,14 +141,18 @@ export const updateGalleryController = async (req, res) => {
 export const deleteEventGalleryController = async (req, res) => {
   try {
     const { id } = req.params;
-    const exists = await prisma.gallery.findMany({ where: { event_id: parseInt(id) } });
+    const exists = await prisma.gallery.findMany({
+      where: { event_id: parseInt(id) },
+    });
     exists.forEach((image) => {
       const filePath = image.image_path;
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     });
-    const result = await prisma.gallery.deleteMany({ where: { event_id: parseInt(id) } });
+    const result = await prisma.gallery.deleteMany({
+      where: { event_id: parseInt(id) },
+    });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -154,7 +164,7 @@ export const deleteCategoryGalleryController = async (req, res) => {
     const { id } = req.params;
     const result = await prisma.gallery.updateMany({
       where: { category_id: parseInt(id) },
-      data: { status: 'rejected' }
+      data: { status: "rejected" },
     });
     res.json(result);
   } catch (error) {
@@ -166,7 +176,7 @@ export const addCategoryController = async (req, res) => {
   try {
     const { category } = req.body;
     const result = await prisma.categories.create({
-      data: { category: category }
+      data: { category: category },
     });
     res.json(result);
   } catch (error) {
@@ -179,7 +189,10 @@ export const getCategoriesController = async (req, res) => {
     const result = await prisma.categories.findMany();
     const categories = result.map((category) => {
       if (fs.existsSync(category.thumbnail)) {
-        return { ...category, thumbnail: category.thumbnail.replace(/\\/g, "/") };
+        return {
+          ...category,
+          thumbnail: category.thumbnail.replace(/\\/g, "/"),
+        };
       }
       return { ...category, thumbnail: null };
     });
@@ -192,33 +205,35 @@ export const getCategoriesController = async (req, res) => {
 export const getPendingGalleriesController = async (req, res) => {
   try {
     const images = await prisma.gallery.findMany({
-      where: { status: 'pending' },
+      where: { status: "pending" },
       include: {
-        event: { 
-          select: { id: true, title: true }
+        event: {
+          select: { id: true, title: true },
         },
-        category: { 
-          select: { id: true, category: true }
+        category: {
+          select: { id: true, category: true },
         },
-        uploader: { 
-          select: { name: true, batch: true }
-        }
-      }
+        uploader: {
+          select: { name: true, batch: true },
+        },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event_id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category_id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -236,7 +251,7 @@ export const getPendingGalleriesController = async (req, res) => {
     });
     res.json(grouped);
   } catch (error) {
-    console.error('Error in getPendingGalleriesController:', error);
+    console.error("Error in getPendingGalleriesController:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -246,7 +261,7 @@ export const approveGalleryController = async (req, res) => {
     const { id } = req.params;
     const result = await prisma.gallery.update({
       where: { id: parseInt(id) },
-      data: { status: 'approved' }
+      data: { status: "approved" },
     });
     res.json(result);
   } catch (error) {
@@ -259,7 +274,7 @@ export const rejectGalleryController = async (req, res) => {
     const { id } = req.params;
     const result = await prisma.gallery.update({
       where: { id: parseInt(id) },
-      data: { status: 'rejected' }
+      data: { status: "rejected" },
     });
     res.json(result);
   } catch (error) {
@@ -272,7 +287,7 @@ export const rejectMultipleGalleryController = async (req, res) => {
     const { ids } = req.body;
     const result = await prisma.gallery.updateMany({
       where: { id: { in: ids } },
-      data: { status: 'rejected' }
+      data: { status: "rejected" },
     });
     res.json(result);
   } catch (error) {
@@ -283,33 +298,35 @@ export const rejectMultipleGalleryController = async (req, res) => {
 export const getRejectedGalleriesController = async (req, res) => {
   try {
     const images = await prisma.gallery.findMany({
-      where: { status: 'rejected' },
+      where: { status: "rejected" },
       include: {
-        event: { 
-          select: { id: true, title: true }
+        event: {
+          select: { id: true, title: true },
         },
-        category: { 
-          select: { id: true, category: true }
+        category: {
+          select: { id: true, category: true },
         },
-        uploader: { 
-          select: { name: true, batch: true }
-        }
-      }
+        uploader: {
+          select: { name: true, batch: true },
+        },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event_id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category_id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -327,7 +344,7 @@ export const getRejectedGalleriesController = async (req, res) => {
     });
     res.json(grouped);
   } catch (error) {
-    console.error('Error in getRejectedGalleriesController:', error);
+    console.error("Error in getRejectedGalleriesController:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -335,14 +352,18 @@ export const getRejectedGalleriesController = async (req, res) => {
 export const deleteMultipleGalleryController = async (req, res) => {
   try {
     const { ids } = req.body;
-    const exists = await prisma.gallery.findMany({ where: { id: { in: ids } } });
+    const exists = await prisma.gallery.findMany({
+      where: { id: { in: ids } },
+    });
     exists.forEach((image) => {
       const filePath = image.image_path;
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     });
-    const result = await prisma.gallery.deleteMany({ where: { id: { in: ids } } });
+    const result = await prisma.gallery.deleteMany({
+      where: { id: { in: ids } },
+    });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -359,31 +380,33 @@ export const getApprovedStudentGalleryController = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
     const images = await prisma.gallery.findMany({
-      where: { 
-        status: 'approved',
+      where: {
+        status: "approved",
         uploader_id: studentId,
-        uploader_type: 'student'
+        uploader_type: "student",
       },
       include: {
         event: { select: { id: true, title: true } },
         category: { select: { id: true, category: true } },
-        uploader: { select: { name: true, batch: true } }
-      }
+        uploader: { select: { name: true, batch: true } },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event?.id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category?.id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -415,37 +438,39 @@ export const getPendingStudentGalleriesController = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
     const images = await prisma.gallery.findMany({
-      where: { 
-        status: 'pending',
+      where: {
+        status: "pending",
         uploader_id: studentId,
-        uploader_type: 'student'
+        uploader_type: "student",
       },
       include: {
-        event: { 
-          select: { id: true, title: true }
+        event: {
+          select: { id: true, title: true },
         },
-        category: { 
-          select: { id: true, category: true }
+        category: {
+          select: { id: true, category: true },
         },
-        uploader: { 
-          select: { name: true, batch: true }
-        }
-      }
+        uploader: {
+          select: { name: true, batch: true },
+        },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event_id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category_id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -463,7 +488,7 @@ export const getPendingStudentGalleriesController = async (req, res) => {
     });
     res.json(grouped);
   } catch (error) {
-    console.error('Error in getPendingStudentGalleriesController:', error);
+    console.error("Error in getPendingStudentGalleriesController:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -478,37 +503,39 @@ export const getRejectedStudentGalleriesController = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
     const images = await prisma.gallery.findMany({
-      where: { 
-        status: 'rejected',
+      where: {
+        status: "rejected",
         uploader_id: studentId,
-        uploader_type: 'student'
+        uploader_type: "student",
       },
       include: {
-        event: { 
-          select: { id: true, title: true }
+        event: {
+          select: { id: true, title: true },
         },
-        category: { 
-          select: { id: true, category: true }
+        category: {
+          select: { id: true, category: true },
         },
-        uploader: { 
-          select: { name: true, batch: true }
-        }
-      }
+        uploader: {
+          select: { name: true, batch: true },
+        },
+      },
     });
 
     const grouped = { events: {}, categories: {} };
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: image.image_path,
+        image_path: fixUrl(image.image_path), // Fix here
         caption: image.caption,
         event_id: image.event_id || null,
         event_name: image.event?.title || null,
         category: image.category?.category || null,
         category_id: image.category_id || null,
         created_at: image.created_at,
-        student_name: image.uploader_type !== 'admin' ? image.uploader?.name : null,
-        student_batch: image.uploader_type !== 'admin' ? image.uploader?.batch : null,
+        student_name:
+          image.uploader_type !== "admin" ? image.uploader?.name : null,
+        student_batch:
+          image.uploader_type !== "admin" ? image.uploader?.batch : null,
         uploader_type: image.uploader_type,
         status: image.status,
       };
@@ -526,7 +553,7 @@ export const getRejectedStudentGalleriesController = async (req, res) => {
     });
     res.json(grouped);
   } catch (error) {
-    console.error('Error in getRejectedStudentGalleriesController:', error);
+    console.error("Error in getRejectedStudentGalleriesController:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -535,17 +562,22 @@ export const getGalleriesByEventId = async (req, res) => {
   try {
     const { id } = req.params;
     const images = await prisma.gallery.findMany({
-      where: { 
+      where: {
         event_id: parseInt(id),
-        status: 'approved'
+        status: "approved",
       },
       include: {
         event: { select: { id: true, title: true } },
         category: { select: { id: true, category: true } },
-        uploader: { select: { name: true, batch: true } }
-      }
+        uploader: { select: { name: true, batch: true } },
+      },
     });
-    res.json(images);
+    // Fix all image_path before sending
+    const fixedImages = images.map((img) => ({
+      ...img,
+      image_path: fixUrl(img.image_path),
+    }));
+    res.json(fixedImages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -555,17 +587,22 @@ export const getGalleriesByCategoryId = async (req, res) => {
   try {
     const { id } = req.params;
     const images = await prisma.gallery.findMany({
-      where: { 
+      where: {
         category_id: parseInt(id),
-        status: 'approved'
+        status: "approved",
       },
       include: {
         event: { select: { id: true, title: true } },
         category: { select: { id: true, category: true } },
-        uploader: { select: { name: true, batch: true } }
-      }
+        uploader: { select: { name: true, batch: true } },
+      },
     });
-    res.json(images);
+    // Fix all image_path before sending
+    const fixedImages = images.map((img) => ({
+      ...img,
+      image_path: fixUrl(img.image_path),
+    }));
+    res.json(fixedImages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -574,14 +611,16 @@ export const getGalleriesByCategoryId = async (req, res) => {
 export const updateCategoryThumbnailController = async (req, res) => {
   try {
     const { image_id, category_id } = req.params;
-    const exist = await prisma.gallery.findUnique({ where: { id: parseInt(image_id) } });
+    const exist = await prisma.gallery.findUnique({
+      where: { id: parseInt(image_id) },
+    });
     if (!exist) {
       return res.status(404).json({ error: "Image not found" });
     }
-    const filePath = exist.image_path;
+    const filePath = fixUrl(exist.image_path); // Fix here
     const result = await prisma.categories.update({
       where: { id: parseInt(category_id) },
-      data: { thumbnail: filePath }
+      data: { thumbnail: filePath },
     });
     res.json(result);
   } catch (error) {
@@ -592,17 +631,19 @@ export const updateCategoryThumbnailController = async (req, res) => {
 export const updateEventThumbnailController = async (req, res) => {
   try {
     const { image_id, event_id } = req.params;
-    const exist = await prisma.gallery.findUnique({ where: { id: parseInt(image_id) } });
+    const exist = await prisma.gallery.findUnique({
+      where: { id: parseInt(image_id) },
+    });
     if (!exist) {
       return res.status(404).json({ error: "Image not found" });
     }
-    const filePath = exist.image_path;
+    const filePath = fixUrl(exist.image_path); // Fix here
     const result = await prisma.events.update({
       where: { id: parseInt(event_id) },
-      data: { thumbnail: filePath }
+      data: { thumbnail: filePath },
     });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
+};

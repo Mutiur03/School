@@ -3,7 +3,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import axios from "axios";
 import { redirect, useRouter } from "next/navigation";
 
-// Define Teacher type
+export interface Level {
+    id: number;
+    class_name: number;
+    section: string;
+    year: number;
+}
 export interface Teacher {
     id: number;
     name: string;
@@ -13,10 +18,8 @@ export interface Teacher {
     designation?: string;
     address?: string;
     image?: string;
-    // ...add other fields as needed
+    levels?: Level[]
 }
-
-// Context value type
 interface AuthContextType {
     teacher: Teacher | null;
     loading: boolean;
@@ -33,14 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("http://localhost:3001/api/auth/teacher_me", { withCredentials: true });
-            console.log("Authenticated Teacher:", res.data.teacher);
-
-            setTeacher(res.data.teacher);
-        } catch {
+            const res = await axios.get("/api/auth/teacher_me");
+            console.log("Authenticated Teacher:", res.data.user);
+            setTeacher(res.data.user);
+        } catch (error) {
+            console.error("Error fetching authenticated teacher: ", error);
             setTeacher(null);
+            await logout();
+            redirect("/login");
         }
-        setLoading(false);
+        finally {
+            setLoading(false);
+        }
     };
 
     const logout = async () => {

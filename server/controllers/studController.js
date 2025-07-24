@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
+import { fixUrl } from "../utils/fixURL.js";
 
 export const initGoogleSheets = async () => {
   try {
@@ -754,7 +755,7 @@ export const updateAcademicInfoController = async (req, res) => {
 export const updateStudentImageController = async (req, res) => {
   try {
     const { id } = req.params;
-    const filePath = req.file ? req.file.path : null;
+    const filePath = req.file ? fixUrl(req.file.path) : null;
 
     const existingStudent = await prisma.students.findUnique({
       where: { id: parseInt(id) },
@@ -766,7 +767,7 @@ export const updateStudentImageController = async (req, res) => {
         fs.unlinkSync(oldFilePath);
       }
     }
-
+    
     const result = await prisma.students.update({
       where: { id: parseInt(id) },
       data: { image: filePath },

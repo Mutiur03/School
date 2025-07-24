@@ -419,6 +419,7 @@ function StudentList() {
         toast.success("Image removed successfully.");
         // handleEdit(response.data.data);
         data.image = null;
+        setShowForm(false);
       } else {
         toast.error(response.data.error || "Failed to remove image.");
       }
@@ -987,6 +988,7 @@ function StudentList() {
                           alt="Student"
                           className="w-32 h-32 object-cover rounded-full"
                         />
+                        <p>{popup.student.image}</p>
                       </div>
                     )}
                     {Object.entries({

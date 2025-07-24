@@ -89,7 +89,6 @@ export default function PendingGalleries() {
   };
 
   const fetchPendingGalleries = async () => {
-    setIsLoading(true);
     try {
       const response = await axios.get("/api/gallery/pending");
       setGroupedGalleries(response.data || { events: {}, categories: {} });

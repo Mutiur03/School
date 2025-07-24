@@ -108,7 +108,6 @@ export default function Gallery() {
     }
   };
   const fetchGallery = async () => {
-    setIsLoading(true);
     try {
       const res = await axios.get("/api/gallery/getGalleries");
       console.log(res.data);

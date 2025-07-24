@@ -640,43 +640,15 @@ const AddMarks = () => {
                           ?.teacher_name
                       }
                     </div>
+                    <div>
+                      Total Marks:{" "}
+                      {subjectsForClass.find((sub) => sub.id == specific)
+                        ?.full_mark || 0}{" "}
+                    </div>
                   </div>
 
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
-                      <tr>
-                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                          Student Info
-                        </th>
-                        {(() => {
-                          const selectedSubject = subjectsForClass.find(
-                            (sub) => sub.id == specific
-                          );
-                          return selectedSubject ? (
-                            <>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                <span className="hidden sm:inline">
-                                  CQ ({selectedSubject.cq_mark || 0})
-                                </span>
-                                <span className="sm:hidden">CQ</span>
-                              </th>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                <span className="hidden sm:inline">
-                                  MCQ ({selectedSubject.mcq_mark || 0})
-                                </span>
-                                <span className="sm:hidden">MCQ</span>
-                              </th>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                <span className="hidden sm:inline">
-                                  Practical (
-                                  {selectedSubject.practical_mark || 0})
-                                </span>
-                                <span className="sm:hidden">Prac</span>
-                              </th>
-                            </>
-                          ) : null;
-                        })()}
-                      </tr>
                       {/* Desktop Subject Header */}
                       <tr className="hidden sm:table-row bg-blue-50 dark:bg-blue-900">
                         <td className="px-6 py-2 text-sm font-semibold text-blue-900 dark:text-blue-100">
@@ -688,7 +660,7 @@ const AddMarks = () => {
                         </td>
                         <td
                           className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
-                          colSpan="3"
+                          colSpan="2"
                         >
                           Teacher:{" "}
                           {
@@ -696,6 +668,47 @@ const AddMarks = () => {
                               ?.teacher_name
                           }
                         </td>
+                        <td
+                          className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
+                          colSpan="1"
+                        >
+                          Total Marks:{" "}
+                          {subjectsForClass.find((sub) => sub.id == specific)
+                            ?.full_mark || 0}
+                        </td>
+                      </tr>
+                      <tr>
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Student Info
+                        </th>
+                        {(() => {
+                          const selectedSubject = subjectsForClass.find(
+                            (sub) => sub.id == specific
+                          );
+                          return selectedSubject ? (
+                            <>
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="inline">
+                                  CQ ({selectedSubject.cq_mark || 0})
+                                </span>
+                              </th>
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="inline">
+                                  MCQ ({selectedSubject.mcq_mark || 0})
+                                </span>
+                              </th>
+                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span className="hidden sm:inline">
+                                  Practical (
+                                  {selectedSubject.practical_mark || 0})
+                                </span>
+                                <span className="sm:hidden">
+                                  Prac ({selectedSubject.practical_mark || 0})
+                                </span>
+                              </th>
+                            </>
+                          ) : null;
+                        })()}
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -937,12 +950,15 @@ const AddMarks = () => {
                             min="0"
                             max="5"
                             value={gpaData[student.student_id]?.gpa || ""}
-                            onChange={(e) =>
-                              handleGPAchange(
-                                student.student_id,
-                                e.target.value
-                              )
-                            }
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (parseFloat(val) > 5) val = "5.00";
+                              if (val && val.includes(".")) {
+                                const [intPart, decPart] = val.split(".");
+                                val = intPart + "." + decPart.slice(0, 2);
+                              }
+                              handleGPAchange(student.student_id, val);
+                            }}
                             className="w-16 sm:w-24 p-2 sm:p-3 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-semibold bg-white dark:bg-gray-700 text-sm sm:text-base"
                             placeholder="0.00"
                           />
@@ -972,8 +988,12 @@ const AddMarks = () => {
             (examName !== "JSC" &&
               examName !== "SSC" &&
               specific &&
-              specific !== "0" &&
-              specific !== 0)) && (
+              specific !== 0)) &&
+          subjectsForClass.find((sub) => sub.id == specific)?.full_mark > 0 &&
+          (subjectsForClass.find((sub) => sub.id == specific)?.cq_mark ||
+            subjectsForClass.find((sub) => sub.id == specific)?.mcq_mark ||
+            subjectsForClass.find((sub) => sub.id == specific)
+              ?.practical_mark) && (
             <div className="flex justify-center sm:justify-end px-2 sm:px-0">
               <button
                 type="submit"

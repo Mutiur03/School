@@ -6,17 +6,17 @@ import { motion } from "framer-motion";
 import axios, { isAxiosError } from "axios";
 import ThemeChange from "@/components/ThemeChange";
 import { toast } from "@/hooks/use-toast";
-import { redirect, useRouter } from "next/navigation";
+import {  useRouter } from "next/navigation";
 import { useAuth } from "@/context/authContext"; // Import provider
 export default function Login() {
-    const { teacher, loading, checkAuth } = useAuth();
+    const {  loading, checkAuth } = useAuth();
     const [form, setForm] = useState({ email: "", password: "" }); // changed from login_id to email
     const [error, setError] = useState("");
     const [isLoggingIn, setIsLoggingIn] = useState(false); // new state
     const router = useRouter();
-    useEffect(() => {
-        if (teacher) router.push("/");
-    }, [teacher]);
+    // useEffect(() => {
+    //     if (teacher) router.push("/");
+    // }, [teacher]);
 
     // Prevent rendering login form while logging in
     if ( loading || isLoggingIn) {

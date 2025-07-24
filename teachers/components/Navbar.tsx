@@ -2,17 +2,17 @@
 import { useAuth } from "@/context/authContext";
 import ThemeChange from "@/components/ThemeChange";
 import Image from "next/image";
+import { fixURL } from "@/lib/fixURL";
 
 export default function Navbar() {
     const { teacher } = useAuth();
-    const host = process.env.NEXT_PUBLIC_BACKEND_URL;
     return (
         <nav className="navbar h-[3.5rem] flex z-30 justify-between sticky top-0 w-full bg-sidebar border-b shadow-md px-5 items-center backdrop-blur-xl">
             <h2>Teacher Dashboard</h2>
             <div className="mr-8 flex items-center gap-4">
                 {teacher?.image ? (
                     <Image
-                        src={`${host}/${teacher.image}`}
+                        src={fixURL(teacher.image)}
                         alt="Profile"
                         width={40}
                         height={40}
