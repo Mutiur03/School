@@ -54,8 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await axios.get("/api/auth/logout");
             router.push("/login");
-            // setTeacher(null); // Remove this line here
-            // Optionally, you can clear teacher info after navigation if needed
         } catch (error) {
             console.error("Error logging out:", error);
         }

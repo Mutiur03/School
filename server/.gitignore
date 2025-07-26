@@ -137,3 +137,7 @@ dist
 .pnp.*
 
 /generated/prisma
+
+
+uploads
+uploads/*

@@ -188,21 +188,12 @@ export const teacher_login = async (req, res) => {
       secure: true,
       sameSite: "none",
       path: "/",
-
       maxAge: 3600000,
-      partitioned: true,
+      // partitioned: true,
     });
     console.log(process.env.NODE_ENV === "production");
 
-    res.cookie("client_token", "1", {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-      maxAge: 3600000,
-      partitioned: true,
-    });
-    // console.log("Login successful for teacher:", user.email, token);
+    
     res.json({ success: true, message: "Login successful" });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
