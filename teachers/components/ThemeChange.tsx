@@ -14,7 +14,9 @@ function ThemeChange() {
     }, [theme, setTheme]);
 
     let icon;
-    if (resolvedTheme === "light") {
+    if (theme === "system") {
+        icon = <Monitor className="h-5 w-5" />;
+    } else if (resolvedTheme === "light") {
         icon = <Sun className="h-5 w-5" />; // Show Sun for light mode
     } else if (resolvedTheme === "dark") {
         icon = <Moon className="h-5 w-5" />; // Show Moon for dark mode

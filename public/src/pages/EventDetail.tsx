@@ -104,7 +104,14 @@ export default function EventDetail() {
                         {event.file && (
                             <div className="bg-gray-50 rounded-lg p-4">
                                 <h3 className="font-semibold mb-2">Related Documents</h3>
-                                <iframe src={event.file} width={"100%"} height={"600px"}></iframe>
+                                <a
+                                    href={event.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 transition-colors"
+                                >
+                                    Open Document
+                                </a>
                             </div>
                         )}
                     </div>

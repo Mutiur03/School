@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import { FaUser, FaClipboardList } from "react-icons/fa";
 import { FaGear } from "react-icons/fa6";
 import type { IconType } from "react-icons";
@@ -13,6 +13,9 @@ import LogoutConfirmation from "./LogOutConfirmation";
 
 interface SidebarProps {
   children: ReactNode;
+  open?: boolean;
+  onClose?: () => void;
+  navbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 interface SidebarItem {
@@ -52,12 +55,14 @@ const sidebarItems: SidebarItem[] = [
   }
 ];
 
-const Sidebar = ({ children }: SidebarProps) => {
+const SIDEBAR_WIDTH = 320;
+
+const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) => {
   const { sidebarExpanded, setSidebarExpanded } = useApp();
   const { logout } = useAuth();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
     const updateSize = () => setSidebarExpanded(window.innerWidth > 768);
     updateSize();
@@ -65,7 +70,6 @@ const Sidebar = ({ children }: SidebarProps) => {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Open dropdown if current path matches a subitem
   useEffect(() => {
     let foundActive = false;
     for (const item of sidebarItems) {
@@ -86,181 +90,118 @@ const Sidebar = ({ children }: SidebarProps) => {
       }
     }
     if (!foundActive) setOpenDropdown(null);
-    // Close mobile sidebar on navigation
-    closeMobileSidebar();
   }, [pathname]);
-  const sidebarRef = useRef<HTMLDivElement | null>(null);
-  const closeMobileSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
-  };
-  const closeSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
 
-    if (sidebarExpanded && window.innerWidth <= 768) {
-      setSidebarExpanded(false);
-    }
-  };
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
+      const clickedInsideSidebar = sidebarRef.current && sidebarRef.current.contains(target);
+      const clickedInsideNavbar = navbarRef?.current && navbarRef.current.contains(target);
       if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(target)
+        !clickedInsideSidebar &&
+        !clickedInsideNavbar
       ) {
-        closeSidebar();
+        if (window.innerWidth < 768 && open && onClose) {
+          onClose();
+        }
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [mobileSidebarOpen, sidebarExpanded]);
-  const toggleDropdown = (dropdownId: string) => {
-    setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
-  };
+  }, [open, onClose, navbarRef]);
 
+  // Sidebar style for mobile and desktop
   return (
-    <div className="flex w-full">
+    <div className="flex">
+      {/* Overlay for mobile */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 md:hidden ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        style={{ top: "3.5rem", height: "calc(100vh - 3.5rem)" }}
+        aria-hidden={!open}
+        onClick={onClose}
+      />
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className="fixed left-0 top-[3.5rem] flex flex-col z-50"
+        className={`
+          fixed z-50 left-0 flex flex-col
+          shadow-xl
+          md:bg-[var(--color-sidebar)] md:shadow-none
+          transition-transform duration-300
+          ${open ? "translate-x-0" : "-translate-x-full"}
+          md:static md:translate-x-0
+        `}
         style={{
-          width: sidebarExpanded ? "250px" : "64px",
+          top: "3.5rem",
+          width: typeof window !== "undefined" && window.innerWidth < 768 ? SIDEBAR_WIDTH : (sidebarExpanded ? "250px" : "64px"),
+          maxWidth: "90vw",
           height: "calc(100vh - 3.5rem)",
-          transition: "width 0.2s",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          background: "var(--color-sidebar)",
           borderRight: "1px solid var(--color-sidebar-border)",
+          background: "var(--color-sidebar)"
         }}
       >
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Close button on mobile
+        <div className="flex items-center h-[3.5rem] px-4 border-b md:hidden">
+          <button
+            className="p-2 rounded-full hover:bg-gray-200 transition"
+            onClick={onClose}
+            aria-label="Close sidebar"
+            type="button"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <span className="ml-3 text-lg font-semibold">Teacher Dashboard</span>
+        </div> */}
+        <div className="flex-1 flex flex-col overflow-hidden pt-2 md:pt-0">
           <div className="flex-1 overflow-y-auto">
-            <div className="min-h-full">
-              {/* Toggle Button */}
-              <button
-                className="absolute md:hidden -right-4 top-6 p-1 rounded-full shadow-md z-50"
-                style={{
-                  background: "var(--color-sidebar)",
-                  color: "var(--color-sidebar-foreground)",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                }}
-                onClick={() => {
-                  setSidebarExpanded(!sidebarExpanded);
-                }}
-              >
-                {sidebarExpanded ? (
-                  <ChevronLeft className="text-sm" />
-                ) : (
-                  <ChevronRight className="text-sm" />
-                )}
-              </button>
-              <div className="flex-1 overflow-x-hidden h-[calc(100vh-6rem)] py-4 scrollbar-thin">
-                <ul className="space-y-1 px-2">
-                  {sidebarItems.map((item) => (
-                    <li key={item.id}>
-                      {!item.dropdown ? (
-                        <Link
-                          href={item.link ?? "/"}
-                          className={`flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${pathname === item.link
-                            ? ""
-                            : ""} ${sidebarExpanded ? "gap-3" : "justify-center"}`}
-                          style={{
-                            background: pathname === item.link ? "var(--color-sidebar-accent)" : "var(--color-sidebar)",
-                            color: pathname === item.link ? "var(--color-sidebar-accent-foreground)" : "var(--color-sidebar-foreground)",
-                          }}
-                          onClick={() => {
-                            setOpenDropdown(null);
-                            closeMobileSidebar();
-                          }}
-                        >
-                          <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
-                          {sidebarExpanded && (
-                            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                              {item.label}
-                            </span>
-                          )}
-                        </Link>
-                      ) : (
-                        <div>
-                          <button
-                            className={`flex items-center w-full p-3 rounded-md transition-all duration-200 ${sidebarExpanded ? "justify-between gap-3" : "justify-center"}`}
-                            style={{
-                              background: "var(--color-sidebar)",
-                              color: "var(--color-sidebar-foreground)",
-                            }}
-                            onClick={() => {
-                              if (!sidebarExpanded) setSidebarExpanded(true);
-                              toggleDropdown(item.id);
-                              closeMobileSidebar();
-                            }}
-                          >
-                            <div
-                              className={`flex items-center ${sidebarExpanded ? "gap-3" : ""}`}
-                            >
-                              <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
-                              {sidebarExpanded && (
-                                <span className="whitespace-nowrap overflow-hidden text-ellipsis text-left">
-                                  {item.label}
-                                </span>
-                              )}
-                            </div>
-                            {sidebarExpanded && (
-                              <span
-                                style={{
-                                  display: "inline-block",
-                                  transform: openDropdown === item.id ? "rotate(180deg)" : "none",
-                                  transition: "transform 0.2s",
-                                }}
-                              >
-                                <ChevronDown className="text-xs" />
-                              </span>
-                            )}
-                          </button>
-                          {sidebarExpanded && openDropdown === item.id && (
-                            <ul className="overflow-visible space-y-1 pl-9">
-                              {item.items?.map((subItem) => (
-                                <li key={subItem.id}>
-                                  <Link
-                                    href={subItem.link}
-                                    className="flex items-center w-full px-3 py-2 rounded-md transition-all duration-200"
-                                    style={{
-                                      background: pathname === subItem.link ? "var(--color-sidebar-accent)" : "var(--color-sidebar)",
-                                      color: pathname === subItem.link ? "var(--color-sidebar-accent-foreground)" : "var(--color-sidebar-foreground)",
-                                    }}
-                                    onClick={closeMobileSidebar}
-                                  >
-                                    <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                                      {subItem.label}
-                                    </span>
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <ul className="space-y-1 px-2 py-2">
+              {sidebarItems.map((item) => (
+                <li key={item.id}>
+                  {!item.dropdown ? (
+                    <Link
+                      href={item.link ?? "/"}
+                      className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 ${pathname === item.link
+                        ? "bg-[var(--color-sidebar-accent)] text-[var(--color-sidebar-accent-foreground)]"
+                        : "hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-accent-foreground)] text-[var(--color-sidebar-foreground)]"
+                        } gap-4`}
+                      style={{
+                        fontWeight: pathname === item.link ? 600 : 400,
+                      }}
+                      onClick={() => {
+                        setOpenDropdown(null);
+                        if (window.innerWidth < 768 && onClose) onClose();
+                      }}
+                    >
+                      <item.icon className="flex-shrink-0 h-5 w-5" />
+                      <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                        {item.label}
+                      </span>
+                    </Link>
+                  ) : (
+                    <div />
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
           {/* Logout Button */}
-          <LogoutConfirmation
-            onClick={logout}
-            sidebarExpanded={sidebarExpanded}
-          />
+          <div className="px-4 pb-4">
+            <LogoutConfirmation
+              onClick={logout}
+              sidebarExpanded={true}
+            />
+          </div>
         </div>
       </aside>
       {/* Main content */}
-      <main className={`flex-1 ${sidebarExpanded ? "ml-[250px]" : "ml-[64px]"} transition-all duration-200`}>
+      <main className="flex-1">
         {children}
       </main>
     </div>

@@ -62,8 +62,8 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="flex min-h-[95%] justify-center items-center px-4">
-      <Card className="w-full max-w-md shadow-xl rounded-2xl border">
+    <div className="flex  justify-center items-center px-4">
+      <Card className="w-full my-4 sm:my-12 mx-auto max-w-md shadow-xl rounded-2xl border">
         <form
           onSubmit={handleSubmit}
           className="space-y-5 p-6"

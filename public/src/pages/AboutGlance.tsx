@@ -5,23 +5,26 @@ export default function GlancePage() {
     return (
         <div className="glance-page py-12">
             <div className="container-custom">
-                <h1 className="section-title page-title text-4xl md:text-5xl font-bold text-center mb-8">LBP at a Glance</h1>
+                <h1 className="section-title page-title text-4xl md:text-5xl font-bold text-center mb-8">
+                    Panchbibi L. B. Pilot Government High School at a Glance
+                </h1>
 
                 <div className="content-grid grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
                     <div className="main-content md:col-span-2">
                         <div className="school-description prose max-w-none">
                             <p className="intro-paragraph text-lg leading-relaxed text-gray-700 mb-6">
-                                Panchbibi LBP govt. High School is a renowned educational institution located in Panchbibi, Joypurhat.
-                                Established in 1940, the school has been providing quality education to students for decades.
+                                Panchbibi L. B. Pilot Government High School (Bengali: পাঁচবিবি এল. বি. পাইলট সরকারী উচ্চ বিদ্যালয়),
+                                also known as Panchbibi Lal Bihari Pilot Government High School, is a prominent boys’ secondary school
+                                located in Panchbibi Upazila, Joypurhat District, Rajshahi Division, Bangladesh. Established in 1940,
+                                the school has a long-standing reputation for academic excellence and community leadership.
                             </p>
 
                             <p className="description-paragraph text-base leading-relaxed text-gray-600 mb-8">
-                                The school offers education from Class 6 to Class 10 following the national curriculum. With a team of
-                                dedicated teachers and modern facilities, the school aims to provide a holistic education that nurtures
-                                academic excellence, character development, and social responsibility.
+                                The school offers education from Class 6 to Class 10 (SSC level) under the Rajshahi Education Board.
+                                With a dedicated faculty led by Headmaster Md. Ataur Rahman, and a student body of around 1,000 boys
+                                aged 11–16, the school provides a holistic environment that fosters academic achievement, character
+                                development, and social responsibility.
                             </p>
-
-                   
                         </div>
 
                         <div className="info-cards-grid grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
@@ -33,10 +36,10 @@ export default function GlancePage() {
                                     <h3 className="card-title text-xl font-bold text-gray-800">Academic Programs</h3>
                                 </div>
                                 <ul className="card-list space-y-2 text-gray-600">
-                                    <li className="list-item text-sm">• Secondary Education (Class 6-10)</li>
+                                    <li className="list-item text-sm">• Secondary Education (Class 6–10, SSC level)</li>
+                                    <li className="list-item text-sm">• National Curriculum (Bangla medium)</li>
                                     <li className="list-item text-sm">• Science, Arts, and Commerce Streams</li>
                                     <li className="list-item text-sm">• Special Coaching for Board Exams</li>
-                                    <li className="list-item text-sm">• Remedial Classes for Weak Students</li>
                                 </ul>
                             </div>
 
@@ -48,10 +51,10 @@ export default function GlancePage() {
                                     <h3 className="card-title text-xl font-bold text-gray-800">Student Body</h3>
                                 </div>
                                 <ul className="card-list space-y-2 text-gray-600">
-                                    <li className="list-item text-sm">• Total Students: 500+</li>
-                                    <li className="list-item text-sm">• Average Class Size: 120 students</li>
-                                    <li className="list-item text-sm">• Student-Teacher Ratio: 15:1</li>
-                                    <li className="list-item text-sm">• Active Student Council</li>
+                                    <li className="list-item text-sm">• Enrollment: ~1,000 boys</li>
+                                    <li className="list-item text-sm">• Age Range: 11–16 years</li>
+                                    <li className="list-item text-sm">• Student-Teacher Ratio: ~25:1</li>
+                                    <li className="list-item text-sm">• Active Student Council & Publication "Anushilon"</li>
                                 </ul>
                             </div>
 
@@ -60,13 +63,13 @@ export default function GlancePage() {
                                     <div className="icon-container w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mr-4">
                                         <Award size={24} />
                                     </div>
-                                    <h3 className="card-title text-xl font-bold text-gray-800">Achievements</h3>
+                                    <h3 className="card-title text-xl font-bold text-gray-800">Achievements & Reputation</h3>
                                 </div>
                                 <ul className="card-list space-y-2 text-gray-600">
-                                    <li className="list-item text-sm">• 99% Pass Rate in Board Exams</li>
-                                    <li className="list-item text-sm">• District Champions in Sports</li>
-                                    <li className="list-item text-sm">• National Science Fair Winners</li>
-                                    <li className="list-item text-sm">• Cultural Competition Awards</li>
+                                    <li className="list-item text-sm">• Consistently strong SSC results</li>
+                                    <li className="list-item text-sm">• Recognized as a leading school in Joypurhat</li>
+                                    <li className="list-item text-sm">• Notable alumni and community impact</li>
+                                    <li className="list-item text-sm">• School magazine: "Anushilon"</li>
                                 </ul>
                             </div>
 
@@ -75,13 +78,13 @@ export default function GlancePage() {
                                     <div className="icon-container w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mr-4">
                                         <Clock size={24} />
                                     </div>
-                                    <h3 className="card-title text-xl font-bold text-gray-800">School Hours</h3>
+                                    <h3 className="card-title text-xl font-bold text-gray-800">School Details</h3>
                                 </div>
                                 <ul className="card-list space-y-2 text-gray-600">
-                                    <li className="list-item text-sm">• Sunday to Thursday: 8:00 AM - 1:00 PM</li>
-                                    <li className="list-item text-sm">• Friday & Saturday: Closed</li>
-                                    <li className="list-item text-sm">• Office Hours: 8:00 AM - 3:00 PM</li>
-                                    <li className="list-item text-sm">• Extra-curricular: 1:30 PM - 3:30 PM</li>
+                                    <li className="list-item text-sm">• Founded: 1940</li>
+                                    <li className="list-item text-sm">• Nationalized: 1986</li>
+                                    <li className="list-item text-sm">• Motto: “Learn it and give all”</li>
+                                    <li className="list-item text-sm">• School Colors: White & Navy Blue</li>
                                 </ul>
                             </div>
                         </div>
@@ -94,27 +97,43 @@ export default function GlancePage() {
                                 <ul className="facts-list space-y-3">
                                     <li className="fact-item flex items-start gap-2">
                                         <span className="fact-label font-semibold text-sm text-gray-700">Established:</span>
-                                        <span className="fact-value text-sm text-gray-600">1965</span>
+                                        <span className="fact-value text-sm text-gray-600">1940</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Nationalized:</span>
+                                        <span className="fact-value text-sm text-gray-600">1986</span>
                                     </li>
                                     <li className="fact-item flex items-start gap-2">
                                         <span className="fact-label font-semibold text-sm text-gray-700">Type:</span>
-                                        <span className="fact-value text-sm text-gray-600">Government Secondary School</span>
+                                        <span className="fact-value text-sm text-gray-600">Government Boys’ Secondary School</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Headmaster:</span>
+                                        <span className="fact-value text-sm text-gray-600">Md. Ataur Rahman</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">EIIN:</span>
+                                        <span className="fact-value text-sm text-gray-600">121983</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Grades:</span>
+                                        <span className="fact-value text-sm text-gray-600">6–10 (SSC)</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Enrollment:</span>
+                                        <span className="fact-value text-sm text-gray-600">~1,000 boys</span>
+                                    </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Student-Teacher Ratio:</span>
+                                        <span className="fact-value text-sm text-gray-600">~25:1</span>
                                     </li>
                                     <li className="fact-item flex items-start gap-2">
                                         <span className="fact-label font-semibold text-sm text-gray-700">Campus Size:</span>
-                                        <span className="fact-value text-sm text-gray-600">5 acres</span>
+                                        <span className="fact-value text-sm text-gray-600">~548 decimals, 54 rooms, 17,850 ft²</span>
                                     </li>
                                     <li className="fact-item flex items-start gap-2">
-                                        <span className="fact-label font-semibold text-sm text-gray-700">Students:</span>
-                                        <span className="fact-value text-sm text-gray-600">1000+</span>
-                                    </li>
-                                    <li className="fact-item flex items-start gap-2">
-                                        <span className="fact-label font-semibold text-sm text-gray-700">Teachers:</span>
-                                        <span className="fact-value text-sm text-gray-600">50+</span>
-                                    </li>
-                                    <li className="fact-item flex items-start gap-2">
-                                        <span className="fact-label font-semibold text-sm text-gray-700">Staff:</span>
-                                        <span className="fact-value text-sm text-gray-600">20+</span>
+                                        <span className="fact-label font-semibold text-sm text-gray-700">Playground:</span>
+                                        <span className="fact-value text-sm text-gray-600">160 decimals</span>
                                     </li>
                                     <li className="fact-item flex items-start gap-2">
                                         <span className="fact-label font-semibold text-sm text-gray-700">Medium:</span>
@@ -124,6 +143,10 @@ export default function GlancePage() {
                                         <span className="fact-label font-semibold text-sm text-gray-700">Board:</span>
                                         <span className="fact-value text-sm text-gray-600">Rajshahi Education Board</span>
                                     </li>
+                                    <li className="fact-item flex items-start gap-2">
+                                        <span className="fact-label font-semibold text-sm text-gray-700">School Colors:</span>
+                                        <span className="fact-value text-sm text-gray-600">White & Navy Blue</span>
+                                    </li>
                                 </ul>
                             </div>
 
@@ -132,7 +155,7 @@ export default function GlancePage() {
                                 <ul className="contact-list space-y-3">
                                     <li className="contact-item flex items-start gap-2">
                                         <MapPin size={20} className="contact-icon mt-1 text-primary shrink-0" />
-                                        <span className="contact-text text-sm text-gray-600">Panchbibi, Joypurhat, Bangladesh</span>
+                                        <span className="contact-text text-sm text-gray-600">Panchbibi, Joypurhat, Rajshahi Division, Bangladesh</span>
                                     </li>
                                     <li className="contact-item flex items-center gap-2">
                                         <Phone size={20} className="contact-icon text-primary shrink-0" />

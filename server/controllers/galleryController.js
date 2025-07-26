@@ -372,7 +372,7 @@ export const deleteMultipleGalleryController = async (req, res) => {
 
 export const getApprovedStudentGalleryController = async (req, res) => {
   try {
-    const token = req.cookies.token;
+    const token = req.cookies.token;   
     const user = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = user.id;
     const studentRole = user.role;

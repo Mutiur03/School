@@ -19,6 +19,7 @@ export const authenticateUser = async (req, res, next) => {
       where: { id: req.user.id },
     });
     if (!check) return res.status(401).json({ message: "Unauthorized" });
+    req.admin = check; 
     next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid Token" });
@@ -32,13 +33,19 @@ export const login = async (req, res) => {
     const user = await prisma.admin.findFirst({
       where: {
         username: username,
-        password: password,
         role: "admin",
       },
     });
     console.log("User found:", user);
     if (!user) {
       console.log(username, password);
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
@@ -54,7 +61,6 @@ export const login = async (req, res) => {
       secure: true,
       sameSite: "none",
       path: "/",
-
       maxAge: 3600000,
       partitioned: true,
     });
@@ -69,7 +75,6 @@ export const student_login = async (req, res) => {
   const { login_id, password } = req.body;
   console.log("Received login data:", login_id, password);
 
-  // Add input validation
   if (!login_id || !password) {
     return res
       .status(400)
@@ -77,7 +82,6 @@ export const student_login = async (req, res) => {
   }
 
   try {
-    // Convert login_id to integer
     const loginIdInt = parseInt(login_id);
     if (isNaN(loginIdInt)) {
       return res.status(400).json({ message: "Invalid login ID format" });
@@ -93,7 +97,6 @@ export const student_login = async (req, res) => {
 
     console.log("Student found:", student.login_id);
 
-    // Check if password exists in database
     if (!student.password) {
       console.error("No password found for student:", student.login_id);
       return res.status(401).json({ message: "Invalid credentials" });
@@ -183,19 +186,51 @@ export const teacher_login = async (req, res) => {
       process.env.JWT_SECRET
     );
     console.log("Teacher logging in:", user.email);
+    const cookieDomain =
+      process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
+
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "Lax", // Change from "none" to "Lax" or "Strict"
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
       path: "/",
       maxAge: 3600000,
-      domain: ".lbp.mutiurrahman.com", // <--- CRITICAL CHANGE HERE!
-      // partitioned: true, // Make sure this is still removed
+      domain: cookieDomain,
     });
     console.log(process.env.NODE_ENV === "production");
 
     res.json({ success: true, message: "Login successful" });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
+  }
+};
+
+export const addAdmin = async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password)
+    return res
+      .status(400)
+      .json({ message: "Username and password are required" });
+
+  try {
+    const existing = await prisma.admin.findUnique({ where: { username } });
+    if (existing) {
+      return res.status(409).json({ message: "Admin already exists" });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = await prisma.admin.create({
+      data: {
+        username,
+        password: hashedPassword,
+        role: "admin",
+      },
+    });
+    res.json({
+      success: true,
+      message: "Admin created successfully",
+      admin: { id: admin.id, username: admin.username },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Error creating admin" });
   }
 };

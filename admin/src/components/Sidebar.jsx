@@ -9,7 +9,6 @@ import {
   FaChevronRight,
   FaUsers,
   FaCogs,
-
 } from "react-icons/fa";
 import {
   FaGear,
@@ -26,17 +25,18 @@ import {
   Image,
   CalendarClock,
   TreePalm,
+  ChevronDown,
 } from "lucide-react";
 
 const Sidebar = ({
   sidebarExpanded,
   setSidebarExpanded,
-  mobileSidebarOpen,
-  setMobileSidebarOpen,
+  open = false,
+  onClose,
+  navbarRef,
 }) => {
   const location = useLocation();
   const sidebarRef = useRef(null);
-  const [openDropdown, setOpenDropdown] = useState(null);
 
   const sidebarItems = [
     {
@@ -202,6 +202,21 @@ const Sidebar = ({
     },
   ];
 
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarExpanded(true);
+      } else {
+        setSidebarExpanded(open);
+      }
+    };
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, [open, setSidebarExpanded]);
+
   useEffect(() => {
     const currentPath = location.pathname;
     let foundActive = false;
@@ -224,30 +239,30 @@ const Sidebar = ({
       }
     }
   }, [location.pathname]);
-  const closeSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
-
-    if (sidebarExpanded && window.innerWidth <= 768) {
-      setSidebarExpanded(false);
-    }
-  };
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        closeSidebar();
+      const target = event.target;
+      const clickedInsideSidebar =
+        sidebarRef.current && sidebarRef.current.contains(target);
+      const clickedInsideNavbar =
+        navbarRef?.current && navbarRef.current.contains(target);
+      if (!clickedInsideSidebar && !clickedInsideNavbar) {
+        if (window.innerWidth < 768 && open && onClose) {
+          onClose();
+        }
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [mobileSidebarOpen, sidebarExpanded]);
+  }, [open, onClose, navbarRef]);
 
   const toggleDropdown = (dropdownId) => {
+    console.log("Toggling:", dropdownId);
     if (sidebarExpanded) {
       setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
     } else {
@@ -255,56 +270,25 @@ const Sidebar = ({
     }
   };
 
-  const closeMobileSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
-  };
-
   return (
     <>
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {mobileSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-opacity-50 z-30 lg:hidden"
-            onClick={closeMobileSidebar}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={{
           width: sidebarExpanded ? "250px" : "64px",
-          left: mobileSidebarOpen ? "0" : "0",
+          // Only slide in/out on mobile (width < 768px)
+          left: window.innerWidth < 768 ? (open ? "0" : "-260px") : "0",
         }}
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar flex-col z-50 border-r border-border shadow-xl`}
+        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar  flex-col z-50 border-r border-border shadow-xl`}
       >
-        {/* Toggle Button */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
-            {" "}
             {/* Add height constraints here */}
-            <div className="scrollbar-thin min-h-full">
-              <button
-                className="absolute md:hidden -right-3 top-6 p-1 rounded-full shadow-md z-50"
-                onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              >
-                {sidebarExpanded ? (
-                  <FaChevronLeft className="text-sm" />
-                ) : (
-                  <FaChevronRight className="text-sm" />
-                )}
-              </button>
-
-              <div className="flex-1 overflow-x-hidden py-4 scrollbar-thin">
+            <div className="scrollbar min-h-full [&::-webkit-scrollbar]:hidden scrollbar-hide">
+              <div className="flex-1 overflow-x-hidden h-[calc(100vh-4rem)] py-4 scrollbar-thin [&::-webkit-scrollbar]:hidden scrollbar-hide">
                 <ul className="space-y-1 px-2">
                   {sidebarItems.map((item) => (
                     <li key={item.id}>
@@ -320,11 +304,11 @@ const Sidebar = ({
                           }
                           onClick={() => {
                             console.log(item);
-                            closeMobileSidebar();
+                            // closeMobileSidebar();
                             setOpenDropdown(null);
                           }}
                         >
-                          <item.icon  className="flex-shrink-0 h-4 w-4 text-lg" />
+                          <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
                           {sidebarExpanded && (
                             <motion.span
                               initial={{ opacity: 0 }}
@@ -368,7 +352,7 @@ const Sidebar = ({
                                 }}
                                 transition={{ duration: 0.2 }}
                               >
-                                <FaChevronDown className="text-xs" />
+                                <ChevronDown className="text-xs" />
                               </motion.div>
                             )}
                           </button>
@@ -399,7 +383,7 @@ const Sidebar = ({
                                         }
                                         onClick={() => {
                                           console.log(subItem);
-                                          closeMobileSidebar();
+                                          // closeMobileSidebar();
                                         }}
                                       >
                                         <span className="whitespace-nowrap overflow-hidden text-ellipsis">

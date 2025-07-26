@@ -1,6 +1,6 @@
 "use client"
 import {
- 
+
   Mail,
   Phone,
   MapPin,
@@ -16,11 +16,11 @@ export default function Footer() {
           {/* School info */}
           <div>
             <h3 className="text-xl font-bold mb-4 border-b-2 border-secondary pb-2 inline-block">
-              Panchbibi LBP govt. High School
+              Panchbibi L. B. Pilot Government High School
             </h3>
             <p className="mb-4">
               Providing quality education and shaping the future of our nation
-              since 1965.
+              since 1940.
             </p>
             {/* <div className="flex space-x-4">
               <a to="#" className="hover:text-secondary transition-colors" aria-label="Facebook">
@@ -109,7 +109,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="mt-8 pt-6 border-t border-gray-700 text-center text-sm">
           <p>
-            © {currentYear} Panchbibi LBP govt. High School. All rights
+            © {currentYear} Panchbibi L. B. Pilot Government High School. All rights
             reserved.
           </p>
         </div>

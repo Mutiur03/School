@@ -34,7 +34,7 @@ export const AppProvider = ({ children }) => {
       const response = await axios.get("/api/students/getStudent");
       const data = response.data.data;
       console.log("Student data:", data);
-      
+
       setStudent(data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -54,9 +54,13 @@ export const AppProvider = ({ children }) => {
         console.error("Error logging out:", error);
       });
   };
-  const [sidebarExpanded, setSidebarExpanded] = useState(
-    window.innerWidth >= 768
-  );
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSidebarExpanded(window.innerWidth >= 768);
+    }
+  }, []);
   return (
     <AppContext.Provider
       value={{

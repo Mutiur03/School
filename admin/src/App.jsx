@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -32,16 +32,15 @@ function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
   );
-  const [openDropdown, setOpenDropdown] = useState(null);
 
-  useEffect(() => {
-    const updateSize = () => setSidebarExpanded(window.innerWidth > 768);
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navbarRef = useRef(null);
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
-
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSidebarExpanded(window.innerWidth >= 768);
+    }
+  }, []);
   return (
     <>
       <Toaster
@@ -60,16 +59,23 @@ function App() {
                 <PrivateRoute
                   element={
                     <div className="flex flex-col">
-                      <Navbar setOpenDropdown={setOpenDropdown} />
+                      <Navbar
+                        ref={navbarRef}
+                        onBurgerClick={() => {
+                          setSidebarOpen((prev) => !prev);
+                          console.log("Sidebar open:", !sidebarOpen);
+                        }}
+                      />
                       <div className="">
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}
                           setSidebarExpanded={setSidebarExpanded}
-                          openDropdown={openDropdown}
-                          setOpenDropdown={setOpenDropdown}
+                          open={sidebarOpen}
+                          onClose={() => setSidebarOpen(false)}
+                          navbarRef={navbarRef}
                         />
                         <div
-                          className={`content-area flex-1 overflow-y-auto relative px-[3rem] p-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)] ml-[4rem] w-[calc(100%-4rem)]
+                          className={`content-area flex-1 overflow-y-auto relative p-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]
                           }`}
                         >
                           <Routes>

@@ -1,5 +1,4 @@
 import { Calendar } from "lucide-react"
-import { Link } from "react-router-dom"
 import { useEffect } from "react"
 import { format } from "date-fns"
 import { useNoticeStore } from "../store/useNoticeStore"
@@ -63,9 +62,15 @@ export default function NoticePage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <Link to={notice.category === "Event" ? `/event/${notice.id}` : `/notice/${notice.id}`} className="absolute right-5 bottom-3 text-primary hover:underline">
-                                        Read More
-                                    </Link>
+                                    {/* Show Notice button */}
+                                    {notice.file && (
+                                        <button
+                                            className="absolute right-5 bottom-3 text-primary hover:underline"
+                                            onClick={() => window.open(notice.file, "_blank")}
+                                        >
+                                            Show Notice
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

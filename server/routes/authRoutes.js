@@ -5,6 +5,7 @@ import {
   student_login,
   authenticateStudent,
   teacher_login,
+  addAdmin,
 } from "../controllers/authController.js";
 import { teacher_me } from "../middlewares/auth.js";
 
@@ -16,6 +17,8 @@ authRouter.get("/protected", authenticateUser, (req, res) => {
 });
 authRouter.get("/logout", (req, res) => {
   console.log("Logging out...");
+  const cookieDomain =
+    process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
 
   res.clearCookie("token", {
     httpOnly: true,
@@ -25,19 +28,16 @@ authRouter.get("/logout", (req, res) => {
     partitioned: true,
   });
   console.log(process.env.NODE_ENV === "production");
-  
-  res.clearCookie("client_token", {
-    httpOnly: false,
+
+  res.clearCookie("token", {
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
     path: "/",
-    partitioned: true,
+    domain: cookieDomain,
   });
   res.json({ message: "Logout successful" });
 });
-
-export default authRouter;
-
 authRouter.post("/student_login", student_login);
 authRouter.post("/teacher_login", teacher_login);
 authRouter.get("/teacher_me", teacher_me, (req, res) => {
@@ -48,3 +48,6 @@ authRouter.get("/teacher_me", teacher_me, (req, res) => {
 authRouter.get("/student-protected", authenticateStudent, (req, res) => {
   res.json({ message: "You are authenticated!", user: req.user });
 });
+authRouter.post("/add-admin", addAdmin); // <-- add this line
+
+export default authRouter;

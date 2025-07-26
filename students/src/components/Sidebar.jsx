@@ -1,21 +1,9 @@
 /* eslint-disable no-unused-vars */
 
 import { useEffect, useState, useRef } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  ChevronLeft,
-} from "lucide-react";
-import {
-  FaHome,
-  FaUser,
-  FaClipboardList,
-
-} from "react-icons/fa";
-import {
-  FaGear,
-  FaRegImage,
-} from "react-icons/fa6";
+import { ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { FaHome, FaUser, FaClipboardList } from "react-icons/fa";
+import { FaGear, FaRegImage } from "react-icons/fa6";
 import LogoutConfirmation from "./LogOutConfirmation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, NavLink } from "react-router-dom";
@@ -23,68 +11,73 @@ import AppContext from "../context/appContext";
 import { useContext } from "react";
 import { useAuth } from "../context/appContext";
 
-const Sidebar = () => {
+const sidebarItems = [
+  // { label: "Home", icon: FaHome, dropdown: false, link: "/", id: "home" },
+  {
+    label: "Profile",
+    icon: FaUser,
+    dropdown: false,
+    link: "/",
+    id: "profile",
+  },
+  {
+    label: "Reports",
+    icon: FaClipboardList,
+    dropdown: false,
+    link: "/reports",
+    id: "reports",
+  },
+
+  {
+    label: "Settings",
+    icon: FaGear,
+    dropdown: false,
+    link: "/settings",
+    id: "settings",
+  },
+  {
+    label: "Gallery",
+    icon: FaRegImage,
+    dropdown: true,
+    id: "gallery",
+    items: [
+      {
+        label: "Approved Images",
+        link: "/gallery/approved",
+        id: "upload-image",
+      },
+      {
+        label: "Pending Images",
+        link: "/gallery/pending",
+        id: "approve-image",
+      },
+      {
+        label: "Rejected Images",
+        link: "/gallery/rejected",
+        id: "rejected-image",
+      },
+    ],
+  },
+];
+const Sidebar = ({ open = false, onClose, navbarRef }) => {
   const { sidebarExpanded, setSidebarExpanded } = useContext(AppContext);
   const { logout } = useAuth();
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
-    const updateSize = () => setSidebarExpanded(window.innerWidth > 768);
+    const updateSize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarExpanded(true);
+      } else {
+        setSidebarExpanded(open);
+      }
+    };
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, []);
+  }, [open, setSidebarExpanded]);
 
   const location = useLocation();
-
-  const sidebarItems = [
-    // { label: "Home", icon: FaHome, dropdown: false, link: "/", id: "home" },
-    {
-      label: "Profile",
-      icon: FaUser,
-      dropdown: false,
-      link: "/",
-      id: "profile",
-    },
-    {
-      label: "Reports",
-      icon: FaClipboardList,
-      dropdown: false,
-      link: "/reports",
-      id: "reports",
-    },
-
-    {
-      label: "Settings",
-      icon: FaGear,
-      dropdown: false,
-      link: "/settings",
-      id: "settings",
-    },
-    {
-      label: "Gallery",
-      icon: FaRegImage,
-      dropdown: true,
-      id: "gallery",
-      items: [
-        {
-          label: "Approved Images",
-          link: "/gallery/approved",
-          id: "upload-image",
-        },
-        {
-          label: "Pending Images",
-          link: "/gallery/pending",
-          id: "approve-image",
-        },
-        {
-          label: "Rejected Images",
-          link: "/gallery/rejected",
-          id: "rejected-image",
-        },
-      ],
-    },
-  ];
 
   useEffect(() => {
     const currentPath = location.pathname;
@@ -109,33 +102,27 @@ const Sidebar = () => {
     }
   }, [location.pathname]);
   const sidebarRef = useRef();
-  const closeMobileSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
-  };
-  const closeSidebar = () => {
-    if (mobileSidebarOpen) {
-      setMobileSidebarOpen(false);
-    }
-
-    if (sidebarExpanded && window.innerWidth <= 768) {
-      setSidebarExpanded(false);
-    }
-  };
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        closeSidebar();
+      const target = event.target;
+      const clickedInsideSidebar =
+        sidebarRef.current && sidebarRef.current.contains(target);
+      const clickedInsideNavbar =
+        navbarRef?.current && navbarRef.current.contains(target);
+      if (!clickedInsideSidebar && !clickedInsideNavbar) {
+        if (window.innerWidth < 768 && open && onClose) {
+          onClose();
+        }
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [mobileSidebarOpen, sidebarExpanded]);
+  }, [open, onClose, navbarRef]);
 
   const toggleDropdown = (dropdownId) => {
     console.log("Toggling:", dropdownId);
@@ -153,7 +140,8 @@ const Sidebar = () => {
         initial={false}
         animate={{
           width: sidebarExpanded ? "250px" : "64px",
-          left: mobileSidebarOpen ? "0" : "0",
+          // Only slide in/out on mobile (width < 768px)
+          left: window.innerWidth < 768 ? (open ? "0" : "-260px") : "0",
         }}
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
@@ -165,19 +153,6 @@ const Sidebar = () => {
             {" "}
             {/* Add height constraints here */}
             <div className="scrollbar-thin min-h-full">
-              <button
-                className="absolute md:hidden -right-4 top-6 p-1 rounded-full shadow-md z-50"
-                onClick={() => {
-                  setSidebarExpanded(!sidebarExpanded);
-                }}
-              >
-                {sidebarExpanded ? (
-                  <ChevronLeft className="text-sm" />
-                ) : (
-                  <ChevronRight className="text-sm" />
-                )}
-              </button>
-
               <div className="flex-1 overflow-x-hidden h-[calc(100vh-6rem)] py-4 scrollbar-thin">
                 <ul className="space-y-1 px-2">
                   {sidebarItems.map((item) => (
@@ -194,7 +169,7 @@ const Sidebar = () => {
                           }
                           onClick={() => {
                             console.log(item);
-                            closeMobileSidebar();
+                            // closeMobileSidebar();
                             setOpenDropdown(null);
                           }}
                         >
@@ -273,7 +248,7 @@ const Sidebar = () => {
                                         }
                                         onClick={() => {
                                           console.log(subItem);
-                                          closeMobileSidebar();
+                                          // closeMobileSidebar();
                                         }}
                                       >
                                         <span className="whitespace-nowrap overflow-hidden text-ellipsis">

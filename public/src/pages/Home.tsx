@@ -34,12 +34,13 @@ type Notice = {
     details: string;
     image: string;
     created_at: string;
+    file: string;
 }
 
 const sliderData = [
     {
         image: "/school_1.jpg",
-        title: "Welcome to Panchbibi LBP govt. High School",
+        title: "Welcome to Panchbibi L. B. Pilot Government High School",
         description:
             "Providing quality education and shaping the future of our nation since 1940.",
     },
@@ -185,12 +186,7 @@ export default function Home() {
                         variants={staggerContainer}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
                     >
-                        {loading ? (
-                            Array(4).fill(0).map((_, i) => (
-                                <Skeleton key={i} className="h-48 w-full rounded-lg" />
-                            ))
-                        ) : (
-                            <>
+                       
                                 <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
                                     <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
                                         <BookOpen size={32} />
@@ -230,8 +226,7 @@ export default function Home() {
                                         Well-equipped classrooms, library, and laboratories.
                                     </p>
                                 </motion.div>
-                            </>
-                        )}
+                           
                     </motion.div>
                 </div>
             </motion.section>
@@ -245,54 +240,36 @@ export default function Home() {
             >
                 <div className="container-custom">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                        {loading ? (
-                            <>
-                                <div className="space-y-4">
-                                    <Skeleton className="h-8 w-3/4" />
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-4 w-5/6" />
-                                    <Skeleton className="h-4 w-4/5" />
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-10 w-32 mt-4" />
-                                </div>
-                                <Skeleton className="h-[300px] rounded-lg" />
-                            </>
-                        ) : (
-                            <>
-                                <motion.div
-                                    initial="hidden"
-                                    animate="visible"
-                                    variants={fadeIn}
-                                >
-                                    <h2 className="section-title">About Our School</h2>
-                                    <p className="mb-4">
-                                        Panchbibi LBP govt. High School, established in 1965, is one of
-                                        the leading educational institutions in the region. The school
-                                        has been providing quality education to students for decades.
-                                    </p>
-                                    <p className="mb-6">
-                                        Our mission is to provide a holistic education that nurtures
-                                        academic excellence, character development, and social
-                                        responsibility in our students.
-                                    </p>
-                                    <Link to="/about/glance" className="text-primary hover:underline inline-flex items-center gap-2">
-                                        Learn More
-                                    </Link>
-                                </motion.div>
-                                <motion.div
-                                    initial="hidden"
-                                    animate="visible"
-                                    variants={fadeIn}
-                                    className="relative h-[300px] rounded-lg overflow-hidden shadow-lg"
-                                >
-                                    <img
-                                        src="/placeholder.svg?height=300&width=500"
-                                        alt="School Building"
-                                        className="object-cover w-full h-full"
-                                    />
-                                </motion.div>
-                            </>
-                        )}
+
+                        <motion.div
+                            initial="hidden"
+                            animate="visible"
+                            variants={fadeIn}
+                        >
+                            <h2 className="section-title">About Our School</h2>
+                            <p className="mb-4">
+                                Panchbibi L. B. Pilot Government High School (Bengali: পাঁচবিবি এল. বি. পাইলট সরকারী উচ্চ বিদ্যালয়), established in 1940, is one of the most prominent boys’ secondary schools in Panchbibi, Joypurhat, Bangladesh. The school is renowned for its academic excellence, strong community values, and commitment to holistic student development.
+                            </p>
+                            <p className="mb-6">
+                                Our mission is to provide a holistic education that nurtures academic excellence, character development, and social responsibility in our students. Led by Headmaster Md. Ataur Rahman, the school offers education from grades 6 to 10 under the Rajshahi Education Board, with a vibrant campus, active sports, and a proud tradition of achievement.
+                            </p>
+                            <Link to="/about/glance" className="text-primary hover:underline inline-flex items-center gap-2">
+                                Learn More
+                            </Link>
+                        </motion.div>
+                        <motion.div
+                            initial="hidden"
+                            animate="visible"
+                            variants={fadeIn}
+                            className="relative h-[300px] rounded-lg overflow-hidden shadow-lg"
+                        >
+                            <img
+                                src="/placeholder.svg?height=300&width=500"
+                                alt="School Building"
+                                className="object-cover w-full h-full"
+                            />
+                        </motion.div>
+
                     </div>
                 </div>
             </motion.section>
@@ -341,17 +318,22 @@ export default function Home() {
                                                 className="p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
                                             >
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <h3 className="font-semibold text-lg">{notice.title}</h3>
+                                                    <h3
+                                                        className="font-semibold text-lg max-w-xs truncate"
+                                                        title={notice.title}
+                                                    >
+                                                        {notice.title}
+                                                    </h3>
                                                     <span className="text-sm text-gray-500">
                                                         {format(new Date(notice.created_at), "MMM dd, yyyy")}
                                                     </span>
                                                 </div>
-                                                <Link
-                                                    to={`/notice/${notice.id}`}
-                                                    className="text-primary text-sm hover:underline mt-2 inline-block"
+                                                <button
+                                                    className=" right-5 bottom-3 text-primary hover:underline"
+                                                    onClick={() => window.open(notice.file, "_blank")}
                                                 >
                                                     Read More
-                                                </Link>
+                                                </button>
                                             </motion.div>
                                         ))
                                     ) : (
@@ -413,7 +395,10 @@ export default function Home() {
                                                         />
                                                     </div>
                                                     <div className="p-4">
-                                                        <h3 className="font-semibold text-lg mb-1">
+                                                        <h3
+                                                            className="font-semibold text-lg mb-1 max-w-xs truncate"
+                                                            title={event.title}
+                                                        >
                                                             {event.title}
                                                         </h3>
                                                         <p className="text-sm text-gray-500 mb-2">
