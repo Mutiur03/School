@@ -182,10 +182,10 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
               ))}
             </ul>
           </div>
-          <div className="px-4 pb-4 flex-1 flex">
+          <div className="px-4 pb-4">
             <LogoutConfirmation
               onClick={logout}
-              sidebarExpanded={true}
+              sidebarExpanded={open}
             />
           </div>
         </div>
