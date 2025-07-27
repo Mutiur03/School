@@ -137,6 +137,7 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
           transition-transform duration-300
           ${open ? "translate-x-0" : "-translate-x-full"}
           md:static md:translate-x-0
+          bg-[var(--color-sidebar)]
         `}
         style={{
           top: "3.5rem",
@@ -144,21 +145,12 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
           maxWidth: "90vw",
           height: "calc(100vh - 3.5rem)",
           borderRight: "1px solid var(--color-sidebar-border)",
-          background: "var(--color-sidebar)"
+          background: "var(--color-sidebar)",
+          // Ensure sidebar is scrollable on mobile if content overflows
+          overflowY: "auto"
         }}
       >
-        {/* Close button on mobile
-        <div className="flex items-center h-[3.5rem] px-4 border-b md:hidden">
-          <button
-            className="p-2 rounded-full hover:bg-gray-200 transition"
-            onClick={onClose}
-            aria-label="Close sidebar"
-            type="button"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <span className="ml-3 text-lg font-semibold">Teacher Dashboard</span>
-        </div> */}
+
         <div className="flex-1 flex flex-col overflow-hidden pt-2 md:pt-0">
           <div className="flex-1 overflow-y-auto">
             <ul className="space-y-1 px-2 py-2">
@@ -191,7 +183,6 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
               ))}
             </ul>
           </div>
-          {/* Logout Button */}
           <div className="px-4 pb-4">
             <LogoutConfirmation
               onClick={logout}
@@ -200,7 +191,6 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
           </div>
         </div>
       </aside>
-      {/* Main content */}
       <main className="flex-1">
         {children}
       </main>
