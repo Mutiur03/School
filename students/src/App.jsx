@@ -7,12 +7,16 @@ import PrivateRoute from "./components/PrivateRoutes";
 import StudentProfile from "./pages/StudentProfile";
 import ChangePasswordPage from "./pages/ChangePassword";
 import Result from "./pages/Result";
-import axios from "axios";
+import axios, { Axios } from "axios";
 import UploadPage from "./pages/UploadPage";
 import RejectedPage from "./pages/RejectedPage";
 import PendingPage from "./pages/PendingPage";
+import React, { useRef, useState } from "react";
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+  axios.defaults.withCredentials = true;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navbarRef = useRef(null);
   return (
     <>
       <Toaster
@@ -28,29 +32,28 @@ function App() {
             <PrivateRoute
               element={
                 <>
-                  <Navbar />
-                  <Sidebar />
+                  <Navbar
+                    ref={navbarRef}
+                    onBurgerClick={() => {
+                      setSidebarOpen((prev) => !prev);
+                      console.log("Sidebar open:", !sidebarOpen);
+                    }}
+                  />
+                  <Sidebar
+                    open={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                    navbarRef={navbarRef}
+                  />
                   <div
-                    className={`px-[3rem] p-[2rem] ml-[4rem] w-[calc(100%-4rem)] md:ml-[15rem] md:w-[calc(100%-15rem)] transition-all duration-100`}
+                    className={` p-[2rem]  md:ml-[15rem] md:w-[calc(100%-15rem)] transition-all duration-100`}
                   >
                     <Routes>
-                      <Route
-                        path="/"
-                        element={
-                          <div>
-                            <h1>Dashboard</h1>
-                          </div>
-                        }
-                      ></Route>
                       <Route path="/reports" element={<Result />}></Route>
                       <Route
                         path="/settings"
                         element={<ChangePasswordPage />}
                       ></Route>
-                      <Route
-                        path="/profile"
-                        element={<StudentProfile />}
-                      ></Route>
+                      <Route path="/" element={<StudentProfile />}></Route>
                       <Route
                         path="/gallery/approved"
                         element={<UploadPage />}

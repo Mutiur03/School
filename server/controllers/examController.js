@@ -1,6 +1,27 @@
-import pool from "../config/db.js";
+import { prisma } from "../config/prisma.js";
 
-// Update addExamController to include dates
+// Helper function to handle database connection errors
+const handleDatabaseError = (error, res, operation = "database operation") => {
+  console.error(`Error during ${operation}:`, error);
+
+  if (error.name === "PrismaClientInitializationError") {
+    return res.status(503).json({
+      success: false,
+      error: "Database connection failed. Please try again later.",
+      details: "Unable to connect to the database server.",
+    });
+  }
+
+  if (error.code === "P2025") {
+    return res.status(404).json({ success: false, error: "Record not found" });
+  }
+
+  return res.status(500).json({
+    success: false,
+    error: `Failed to perform ${operation}. Please try again later.`,
+  });
+};
+
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
 
@@ -14,11 +35,13 @@ export const addExamController = async (req, res) => {
 
     for (let exam of exams) {
       exam.exam_name = exam.exam_name?.trim();
-      const exists = await pool.query(
-        "SELECT * FROM exams WHERE exam_name = $1 AND exam_year = $2",
-        [exam.exam_name, exam.exam_year]
-      );
-      if (exists.rows.length !== 0) {
+      const exists = await prisma.exams.findFirst({
+        where: {
+          exam_name: exam.exam_name,
+          exam_year: exam.exam_year,
+        },
+      });
+      if (exists) {
         return res.status(400).json({
           success: false,
           error: `Exam "${exam.exam_name}" for year ${exam.exam_year} already exists`,
@@ -26,151 +49,105 @@ export const addExamController = async (req, res) => {
       }
     }
 
-    const examValues = exams.map((exam) => [
-      exam.exam_name || null,
-      exam.exam_year || null,
-      exam.levels || null,
-      exam.start_date || null,
-      exam.end_date || null,
-      exam.result_date || null,
-    ]);
-    const placeholders = examValues
-      .map(
-        (_, index) =>
-          `($${index * 6 + 1}, $${index * 6 + 2}, $${index * 6 + 3}, $${
-            index * 6 + 4
-          }, $${index * 6 + 5}, $${index * 6 + 6})`
-      )
-      .join(", ");
-    const flattenedValues = examValues.flat();
+    const insertedExams = await prisma.exams.createMany({
+      data: exams.map((exam) => ({
+        exam_name: exam.exam_name || null,
+        exam_year: exam.exam_year || null,
+        levels: exam.levels || null,
+        start_date: exam.start_date || null,
+        end_date: exam.end_date || null,
+        result_date: exam.result_date || null,
+      })),
+    });
 
-    const query = `INSERT INTO exams (exam_name, exam_year, levels, start_date, end_date, result_date) VALUES ${placeholders} RETURNING *`;
-    const insertedExams = await pool.query(query, flattenedValues);
+    const createdExams = await prisma.exams.findMany({
+      where: {
+        exam_name: { in: exams.map((e) => e.exam_name) },
+        exam_year: { in: exams.map((e) => e.exam_year) },
+      },
+    });
 
     res.status(201).json({
       success: true,
-      data: insertedExams.rows,
+      data: createdExams,
       message: "Exam added successfully",
     });
   } catch (error) {
-    console.error("Error adding exams:", error);
-    res.status(500).json({
-      success: false,
-      error: "Error adding exams. Check if there are any duplicates or issues",
-    });
+    return handleDatabaseError(error, res, "adding exams");
   }
 };
 
-// Update updateExamController to include dates
 export const updateExamController = async (req, res) => {
   const { examId } = req.params;
   const { exam_name, exam_year, levels, start_date, end_date, result_date } =
     req.body;
 
   try {
-    console.log(start_date);
-
-    const updated = await pool.query(
-      `UPDATE exams 
-       SET exam_name = $1, exam_year = $2, levels = $3, start_date = $4, end_date = $5, result_date = $6
-       WHERE id = $7 
-       RETURNING *`,
-      [
-        exam_name.trim() || null,
-        exam_year || null,
-        levels || null,
-        start_date || null,
-        end_date || null,
-        result_date || null,
-        examId ,
-      ]
-    );
-
-    if (updated.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Exam not found" });
-    }
+    const updated = await prisma.exams.update({
+      where: { id: parseInt(examId) },
+      data: {
+        exam_name: exam_name.trim() || null,
+        exam_year: exam_year || null,
+        levels: levels || null,
+        start_date: start_date || null,
+        end_date: end_date || null,
+        result_date: result_date || null,
+      },
+    });
 
     res.status(200).json({
       success: true,
-      data: updated.rows[0],
+      data: updated,
       message: "Exam updated successfully",
     });
   } catch (error) {
-    console.error("Error updating exam:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update exam. Check for duplicates or data issues.",
-    });
+    return handleDatabaseError(error, res, "updating exam");
   }
 };
 
-// Get Exams
 export const getExamsController = async (req, res) => {
   try {
-    const exams = await pool.query("SELECT * FROM exams");
-    res.status(200).json({ success: true, data: exams.rows });
+    const exams = await prisma.exams.findMany();
+    res.status(200).json({ success: true, data: exams });
   } catch (error) {
-    console.error("Error fetching exams:", error);
-    res.status(500).json({ success: false, error: "Error fetching exams" });
+    return handleDatabaseError(error, res, "fetching exams");
   }
 };
 
-// Update Visibility
 export const updateExamVisibilityController = async (req, res) => {
   const { examId } = req.params;
   const { visible } = req.body;
 
   try {
-    const result = await pool.query(
-      "UPDATE exams SET visible = $1 WHERE id = $2 RETURNING *",
-      [visible, examId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: "Exam not found" });
-    }
+    const result = await prisma.exams.update({
+      where: { id: parseInt(examId) },
+      data: { visible: visible },
+    });
 
     res.status(200).json({
       success: true,
-      data: result.rows[0],
+      data: result,
       message: `Exam visibility updated to ${visible}`,
     });
   } catch (error) {
-    console.error("Error updating exam visibility:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Error updating visibility" });
+    return handleDatabaseError(error, res, "updating exam visibility");
   }
 };
-
 
 export const deleteExamController = async (req, res) => {
   const { examId } = req.params;
 
   try {
-    const deleted = await pool.query(
-      "DELETE FROM exams WHERE id = $1 RETURNING *",
-      [examId]
-    );
-
-    if (deleted.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Exam not found" });
-    }
+    const deleted = await prisma.exams.delete({
+      where: { id: parseInt(examId) },
+    });
 
     res.status(200).json({
       success: true,
-      data: deleted.rows[0],
+      data: deleted,
       message: "Exam deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting exam:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to delete exam. Please try again later.",
-    });
+    return handleDatabaseError(error, res, "deleting exam");
   }
 };

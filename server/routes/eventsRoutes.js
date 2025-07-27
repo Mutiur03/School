@@ -8,6 +8,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 const eventsRouter = router.Router();
 const __dirname = path.resolve();
 const storage = multer.diskStorage({
@@ -17,7 +18,7 @@ const storage = multer.diskStorage({
       if (err) {
         return cb(err, uploadPath);
       }
-      cb(null, 'uploads/events');
+      cb(null, "uploads/events");
     });
   },
   filename: function (req, file, cb) {
@@ -26,12 +27,17 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+
 eventsRouter.post(
   "/addEvent",
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "file", maxCount: 1 },
   ]),
+  compressImageToLocation({
+    targetLocation: "uploads/events",
+    targetSizeKB: 200,
+  }),
   addEventController
 );
 eventsRouter.get("/getEvents", getEventsController);
@@ -42,6 +48,10 @@ eventsRouter.put(
     { name: "image", maxCount: 1 },
     { name: "file", maxCount: 1 },
   ]),
+  compressImageToLocation({
+    targetLocation: "uploads/events",
+    targetSizeKB: 200,
+  }),
   updateEventController
 );
 

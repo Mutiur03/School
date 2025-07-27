@@ -5,10 +5,13 @@ import {
   updateTeacher,
   deleteTeacher,
   UpdateTeacherImage,
+  changePassword, // add this import
 } from "../controllers/teacherController.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { teacher_me } from "../middlewares/auth.js";
+import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 const routerTeacher = express.Router();
 
 const __dirname = path.resolve();
@@ -37,6 +40,13 @@ routerTeacher.delete("/deleteTeacher/:id", deleteTeacher);
 routerTeacher.post(
   "/uploadImage/:id",
   upload.single("image"),
+  compressImageToLocation({
+    targetLocation: "uploads/teacher",
+    targetSizeKB: 200,
+  }),
   UpdateTeacherImage
 );
+
+routerTeacher.post("/change-password", teacher_me, changePassword);
+
 export default routerTeacher;

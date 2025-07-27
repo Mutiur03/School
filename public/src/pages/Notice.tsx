@@ -1,53 +1,55 @@
-"use client"
 import { Calendar } from "lucide-react"
-import { Link } from "react-router-dom"
-import { useEffect, useState } from "react"
-import axios from "axios"
+import { useEffect } from "react"
 import { format } from "date-fns"
-type Notice = {
-    id: number;
-    title: string;
-    details: string;
-    created_at: string;
-    category: string;
-}
+import { useNoticeStore } from "../store/useNoticeStore"
 
 export default function NoticePage() {
-    const [notices, setNotices] = useState<Notice[]>([]);
+    const { loading, error, fetchNotices, getSortedNotices } = useNoticeStore();
+
     useEffect(() => {
-        const fetchAll = async () => {
-            try {
-                const [noticesRes, eventsRes] = await Promise.all([
-                    axios.get("/api/notices/getNotices"),
-                    axios.get("/api/events/getEvents"),
-                ]);
+        fetchNotices();
+    }, [fetchNotices]);
 
-                const noticesData = noticesRes.data?.data || [];
-                const eventsData = eventsRes.data || [];
+    if (loading) {
+        return (
+            <div className="py-12">
+                <div className="container-custom">
+                    <div className="text-center">Loading notices...</div>
+                </div>
+            </div>
+        );
+    }
 
-                setNotices([...noticesData, ...eventsData]);
-            } catch (error) {
-                console.error("Error fetching notices or events:", error);
-            }
-        };
+    if (error) {
+        return (
+            <div className="py-12">
+                <div className="container-custom">
+                    <div className="text-center text-red-500">Error: {error}</div>
+                </div>
+            </div>
+        );
+    }
 
-        fetchAll();
-    }, []);
+    const sortedNotices = getSortedNotices();
 
     return (
         <div className="py-12">
             <div className="container-custom">
                 <h1 className="section-title">Notices</h1>
 
-                <div className="grid grid-cols-1 gap-6 mt-8">
-                    {notices
-                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                        .map((notice) => (
+                {sortedNotices.length === 0 ? (
+                    <div className="text-center py-12">
+                        <div className="text-gray-500 text-lg">No notices available at the moment.</div>
+                        <p className="text-gray-400 mt-2">Please check back later for updates.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-6 mt-8">
+                        {sortedNotices.map((notice) => (
                             <div
                                 key={notice.id}
                                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
                             >
-                                <div className="p-6">
+                                <div className="p-6 relative">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                                         <h2 className="text-xl font-bold text-primary">{notice.title}</h2>
                                         <div className="flex items-center gap-4 mt-2 md:mt-0">
@@ -60,14 +62,20 @@ export default function NoticePage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <p className="text-gray-600 mb-4 text-start">{notice.details}</p>
-                                    <Link to={notice.category === "Event" ? `/events/${notice.id}` : `/notice/${notice.id}`} className="inline-block text-primary hover:underline">
-                                        Read More
-                                    </Link>
+                                    {/* Show Notice button */}
+                                    {notice.file && (
+                                        <button
+                                            className="absolute right-5 bottom-3 text-primary hover:underline"
+                                            onClick={() => window.open(notice.file, "_blank")}
+                                        >
+                                            Show Notice
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     )

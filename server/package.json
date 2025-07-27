@@ -5,25 +5,44 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "server": "nodemon server.js"
+    "build": "npx prisma generate && npx prisma migrate deploy && npx prisma db seed",
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "keywords": [],
   "author": "Mutiur Rahman",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "@react-pdf-viewer/core": "^3.12.0",
+    "@react-pdf-viewer/default-layout": "^3.12.0",
+    "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
+    "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "firebase-admin": "^13.4.0",
     "googleapis": "^148.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.2",
     "pg": "^8.14.1",
+    "prisma": "^6.12.0",
     "puppeteer": "^24.4.0",
     "react-hook-form": "^7.55.0",
+    "react-pdf": "^10.0.1",
+    "sharp": "^0.34.3",
     "validator": "^13.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

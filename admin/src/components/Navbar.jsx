@@ -4,8 +4,9 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
 import ThemeChange from "../components/ThemeChange";
-import LogoutConfirmation from "@/components/LogoutConfirmation";
-function Navbar({ setOpenDropdown }) {
+import LogoutConfirmation from "@/components/LogOutConfirmation";
+import { Menu } from "lucide-react";
+const Navbar = React.forwardRef(function Navbar({ onBurgerClick }, ref) {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const handleLogout = async () => {
@@ -19,14 +20,25 @@ function Navbar({ setOpenDropdown }) {
     }
   };
   return (
-    <nav className="navbar h-[3.5rem] flex z-40 justify-between sticky top-0 w-full shadow-md bg-sidebar px-5 items-center backdrop-blur-xl border-b border-border">
-      <Link
-        to="/admin"
+    <nav
+      ref={ref}
+      className="navbar h-[3.5rem] flex z-40 justify-between sticky top-0 w-full shadow-md bg-sidebar px-5 items-center backdrop-blur-xl border-b border-border"
+    >
+      {/* Burger menu only on mobile */}
+      <button
+        className="md:hidden mr-2 p-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
         onClick={() => {
-          setOpenDropdown(null);
+          if (onBurgerClick) {
+            onBurgerClick();
+            console.log("Burger clicked");
+          }
         }}
-        className="text-xl text-nowrap flex items-center"
+        aria-label="Open sidebar"
+        type="button"
       >
+        <Menu className="w-6 h-6" />
+      </button>
+      <Link to="/admin" className="text-xl text-nowrap flex items-center">
         Admin
       </Link>
       <div className="flex items-center justify-between">
@@ -37,5 +49,5 @@ function Navbar({ setOpenDropdown }) {
       </div>
     </nav>
   );
-}
+});
 export default Navbar;

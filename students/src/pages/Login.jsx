@@ -32,7 +32,6 @@ export default function Login() {
     const form = e.currentTarget;
     const formData = new FormData(e.currentTarget);
     try {
-      axios.defaults.withCredentials = true;
       const response = await axios.post(
         "/api/auth/student_login",
         formData,
@@ -44,7 +43,6 @@ export default function Login() {
       );
       checkAuth();
       toast.success(response.data.message);
-    //   console.log(response.data);
       navigate("/");
     } catch (error) {
         form.reset();
@@ -62,7 +60,7 @@ export default function Login() {
         className="w-full max-w-md"
       >
         <Card className="shadow-2xl relative rounded-2xl">
-          <ThemeChange />
+          <ThemeChange vars={"top-0 absolute right-0"}/>
           <CardContent className="p-6">
             <h2 className="text-2xl font-semibold text-center mb-6">
               Student Login
@@ -77,7 +75,7 @@ export default function Login() {
                 </label>
                 <input
                   id="login_id"
-                  type="text"
+                  type="number"
                   placeholder="Enter your Login ID"
                   minLength={5}
                   maxLength={5}

@@ -2,7 +2,7 @@ import React from "react";
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon, MonitorSmartphone } from "lucide-react";
 
-function ThemeChange() {
+function ThemeChange({ vars }) {
   const { theme, setTheme } = useTheme();
   const themes = ["light", "dark", "system"];
 
@@ -12,7 +12,7 @@ function ThemeChange() {
   };
   return (
     <>
-      <div className="flex scale-80 absolute top-0 right-0 bg-popover p-2 rounded-full m-2 ">
+      <div className={`flex scale-80  bg-popover p-2 rounded-full m-2 ${vars}`}>
         <button onClick={handleThemeChange}>
           {theme === "dark" && (
             <h1>

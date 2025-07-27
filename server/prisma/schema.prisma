@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model admin {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+  role     String @default("admin")
+}
+
+model students {
+  id           Int      @id @default(autoincrement())
+  login_id     Int      @unique
+  name         String   @db.VarChar(100)
+  father_name  String?  @db.VarChar(100)
+  mother_name  String?  @db.VarChar(100)
+  phone        String?  @db.Char(11)
+  parent_phone String?  @db.Char(11)
+  batch        String   @db.Char(4)
+  address      String?
+  dob          String?  @db.VarChar(10)
+  blood_group  String?  @db.VarChar(10)
+  has_stipend  Boolean  @default(false)
+  image        String?
+  password     String?  @db.VarChar(100)
+  available    Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  enrollments student_enrollments[]
+  attendances attendence[]
+  gpa         gpa?
+
+  galleries gallery[] @relation("StudentGalleryUploader")
+
+  @@unique([login_id, phone])
+}
+
+model student_enrollments {
+  id                Int      @id @default(autoincrement())
+  student_id        Int
+  class             Int
+  roll              Int
+  section           String   @db.Char(1)
+  year              Int
+  department        String?  @db.VarChar(100)
+  fail_count        Int      @default(0)
+  status            String   @default("Passed") @db.VarChar(100)
+  final_merit       Int      @default(0)
+  next_year_roll    Int      @default(0)
+  next_year_section String?  @db.Char(1)
+  created_at        DateTime @default(now())
+
+  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  marks   marks[]
+
+  @@unique([student_id, class, year])
+}
+
+model attendence {
+  id         Int      @id @default(autoincrement())
+  student_id Int
+  date       String   @db.VarChar(10)
+  status     String
+  send_msg   Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+}
+
+model exams {
+  id          Int      @id @default(autoincrement())
+  exam_name   String   @db.VarChar(100)
+  exam_year   Int
+  levels      Int[]
+  start_date  String   @db.VarChar(10)
+  end_date    String   @db.VarChar(10)
+  result_date String   @db.VarChar(10)
+  visible     Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  marks marks[]
+
+  @@unique([exam_name, exam_year, levels])
+}
+
+model holidays {
+  id          Int      @id @default(autoincrement())
+  title       String?
+  start_date  String?  @db.VarChar(10)
+  end_date    String?  @db.VarChar(10)
+  description String?
+  is_optional Boolean?
+}
+
+model teachers {
+  id                     Int      @id @default(autoincrement())
+  name                   String   @db.VarChar(100)
+  email                  String   @db.VarChar(100) @unique
+  phone                  String   @db.Char(11)
+  subject                String?  @db.VarChar(100)
+  academic_qualification String?
+  designation            String?  @db.VarChar(100)
+  password               String
+  image                  String?
+  address                String?
+  dob                    String?  @db.VarChar(10)
+  blood_group            String?  @db.VarChar(10)
+  available              Boolean  @default(true)
+  created_at             DateTime @default(now())
+
+  levels   levels[]
+  subjects subjects[]
+}
+
+model levels {
+  id         Int    @id @default(autoincrement())
+  class_name Int
+  section    String @db.Char(1)
+  year       Int
+  teacher_id Int
+
+  teacher teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+}
+
+model subjects {
+  id                  Int      @id @default(autoincrement())
+  name                String   @db.VarChar(100)
+  class               Int
+  full_mark           Int      @default(0)
+  pass_mark           Int      @default(0)
+  cq_mark             Int      @default(0)
+  mcq_mark            Int      @default(0)
+  practical_mark      Int      @default(0)
+  cq_pass_mark        Int      @default(0)
+  mcq_pass_mark       Int      @default(0)
+  practical_pass_mark Int      @default(0)
+  year                Int      @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  teacher_id          Int?
+  department          String?  @db.VarChar(100)
+  created_at          DateTime @default(now())
+
+  teacher teachers? @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+  marks   marks[]
+
+  @@unique([name, class, department, year])
+}
+
+model marks {
+  id              Int      @id @default(autoincrement())
+  enrollment_id   Int
+  subject_id      Int
+  exam_id         Int
+  cq_marks        Int      @default(0)
+  mcq_marks       Int      @default(0)
+  practical_marks Int      @default(0)
+  marks           Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
+
+  enrollment student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
+  subject    subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  exam       exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
+}
+
+model gpa {
+  id         Int      @id @default(autoincrement())
+  student_id Int      @unique
+  jsc_gpa    Float    @default(0)
+  ssc_gpa    Float    @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+}
+
+model categories {
+  id        Int     @id @default(autoincrement())
+  category  String  @unique
+  thumbnail String?
+
+  galleries gallery[]
+}
+
+model events {
+  id         Int      @id @default(autoincrement())
+  title      String
+  details    String?
+  date       String   @db.VarChar(10)
+  image      String?
+  file       String?
+  category   String   @default("Event")
+  location   String?
+  thumbnail  String?
+  public_id  String?
+  created_at DateTime @default(now())
+
+  galleries gallery[]
+}
+
+model gallery {
+  id            Int      @id @default(autoincrement())
+  event_id      Int?
+  category_id   Int?
+  image_path    String?
+  caption       String?
+  status        String   @default("pending")
+  uploader_id   Int?
+  uploader_type String?
+  created_at    DateTime @default(now())
+
+  uploader students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
+  event    events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  category categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
+}
+
+model notices {
+  id           Int      @id @default(autoincrement())
+  title        String
+  file         String?
+  download_url String?
+  public_id    String?
+  created_at   DateTime @default(now())
+}

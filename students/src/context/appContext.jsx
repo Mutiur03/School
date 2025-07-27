@@ -18,7 +18,6 @@ export const AppProvider = ({ children }) => {
   const checkAuth = async () => {
     setLoading(true);
     try {
-      axios.defaults.withCredentials = true;
       const res = await axios.get("/api/auth/student-protected");
       setUser(res.data.user);
       await fetchingdata();
@@ -32,12 +31,10 @@ export const AppProvider = ({ children }) => {
   const fetchingdata = async () => {
     try {
       setLoading(true);
-
-      axios.defaults.withCredentials = true;
       const response = await axios.get("/api/students/getStudent");
       const data = response.data.data;
       console.log("Student data:", data);
-      
+
       setStudent(data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -47,7 +44,6 @@ export const AppProvider = ({ children }) => {
   };
 
   const logout = () => {
-    axios.defaults.withCredentials = true;
     axios
       .get("/api/auth/logout")
       .then(() => {
@@ -58,9 +54,13 @@ export const AppProvider = ({ children }) => {
         console.error("Error logging out:", error);
       });
   };
-  const [sidebarExpanded, setSidebarExpanded] = useState(
-    window.innerWidth >= 768
-  );
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSidebarExpanded(window.innerWidth >= 768);
+    }
+  }, []);
   return (
     <AppContext.Provider
       value={{

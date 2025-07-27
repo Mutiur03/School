@@ -1,47 +1,46 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/Dashboard";
-import Settings from "./pages/Settings";
-import NewStudent from "./pages/NewStudent";
-import NewTeacher from "./pages/NewTeacher";
-import NewSubject from "./pages/NewSubject";
-import AddExam from "./pages/AddExam";
-import StudentList from "./pages/StudentList";
-import AlumniList from "./pages/AlumniList";
 import { Toaster } from "react-hot-toast";
-import AddMarks from "./pages/AddMarks";
-import ViewMarks from "./pages/ViewMarks";
-import GenerateResult from "./pages/GenerateResult";
-import UpdateStatus from "./pages/UpdateStatus";
-import Login from "./pages/Login";
 import PrivateRoute from "./components/PrivateRoute.jsx";
-import TeacherList from "./pages/TeacherList.jsx";
-import AddLevel from "./pages/AddLevel.jsx";
-import ShowMarkSheet from "./pages/ShowMarkSheet.jsx";
-import Attendence from "./pages/Attendence.jsx";
 import axios from "axios";
-import Notice from "./pages/Notice.jsx";
-import HolidayCalendar from "./pages/Holidays.jsx";
-import Events from "./pages/Events.jsx";
-import Gallery from "./pages/Gallery.jsx";
-import PendingImages from "./pages/PendingImages.jsx";
-import RejectedImages from "./pages/RejectedImages.jsx";
+import {
+  Login,
+  AddMarks,
+  NewSubject,
+  AddLevel,
+  Dashboard,
+  UpdateStatus,
+  Attendence,
+  Notice,
+  Holidays,
+  Events,
+  Gallery,
+  PendingImages,
+  RejectedImages,
+  TeacherList,
+  StudentList,
+  ShowMarkSheet,
+  GenerateResult,
+  ViewMarks,
+  AddExam,
+  Settings,
+  AlumniList,
+} from "./pages";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
   );
-  const [openDropdown, setOpenDropdown] = useState(null);
 
-  useEffect(() => {
-    const updateSize = () => setSidebarExpanded(window.innerWidth > 768);
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navbarRef = useRef(null);
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
-
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSidebarExpanded(window.innerWidth >= 768);
+    }
+  }, []);
   return (
     <>
       <Toaster
@@ -60,19 +59,23 @@ function App() {
                 <PrivateRoute
                   element={
                     <div className="flex flex-col">
-                      <Navbar setOpenDropdown={setOpenDropdown} />
+                      <Navbar
+                        ref={navbarRef}
+                        onBurgerClick={() => {
+                          setSidebarOpen((prev) => !prev);
+                          console.log("Sidebar open:", !sidebarOpen);
+                        }}
+                      />
                       <div className="">
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}
                           setSidebarExpanded={setSidebarExpanded}
-                          openDropdown={openDropdown}
-                          setOpenDropdown={setOpenDropdown}
+                          open={sidebarOpen}
+                          onClose={() => setSidebarOpen(false)}
+                          navbarRef={navbarRef}
                         />
                         <div
-                          className={`content-area flex-1 overflow-y-auto relative px-[3rem] p-[1rem]  transition-all duration-100 ${
-                            sidebarExpanded
-                              ? "ml-[15rem] w-[calc(100%-15rem)]"
-                              : "ml-[4rem] w-[calc(100%-4rem)]"
+                          className={`content-area flex-1 overflow-y-auto relative p-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]
                           }`}
                         >
                           <Routes>
@@ -132,13 +135,13 @@ function App() {
                               element={<UpdateStatus />}
                             />
                             <Route
-                              path="/attecndence"
+                              path="/attendence"
                               element={<Attendence />}
                             />
                             <Route path="/notice" element={<Notice />} />
                             <Route
                               path="/holiday"
-                              element={<HolidayCalendar />}
+                              element={<Holidays />}
                             ></Route>
                             <Route path="/events" element={<Events />}></Route>
                             <Route

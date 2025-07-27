@@ -1,29 +1,60 @@
-import pool from "../config/db.js";
 import fs from "fs";
+import {
+  uploadPDFToCloudinary,
+  deletePDFFromCloudinary,
+} from "./noticeController.js";
+import { prisma } from "../config/prisma.js";
+import { fixUrl } from "../utils/fixURL.js";
+
 export const addEventController = async (req, res) => {
-  
   try {
-    const { title, details, date,location } = req.body;
+    let { title, details, date, location } = req.body;
     const image = req.files.image[0];
     const file = req.files.file[0];
-    console.log(title, details, date, image, file);
 
-    const result = await pool.query(
-      "INSERT INTO events (title, details, date, image, file,location) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, details, date, image.path, file.path,location]
-    );
-    res.json(result.rows);
-    // res.json({ message: "Event added successfully" });
+    date = new Date(date)
+      .toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\//g, "-");
+
+    const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
+
+    fs.unlink(file.path, (err) => {
+      if (err) console.error("Error deleting local file:", err);
+    });
+
+    const result = await prisma.events.create({
+      data: {
+        title,
+        details,
+        date,
+        location,
+        image: fixUrl(image.path),
+        file: previewUrl,
+        public_id: public_id,
+      },
+    });
+
+    res.json([result]);
   } catch (error) {
-    console.log(error); 
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
 
 export const getEventsController = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM events");
-    res.json(result.rows);
+    const result = await prisma.events.findMany();
+    const thumbnails = result.map((event) => {
+      return {
+        ...event,
+        thumbnail: event.image ? fixUrl(event.image).replace(/\\/g, "/") : "",
+      };
+    });
+    res.json(thumbnails);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });
@@ -33,26 +64,26 @@ export const getEventsController = async (req, res) => {
 export const deleteEventController = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      `DELETE FROM events WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, error: "Event not found" });
-    }
-    const filePath = result.rows[0].file;
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    const result = await prisma.events.delete({
+      where: { id: parseInt(id) },
+    });
 
-    const imagePath = result.rows[0].image;
-    if (fs.existsSync(imagePath)) {
+    const imagePath = result.image;
+    if (imagePath && fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     }
+
+    if (result.public_id) {
+      await deletePDFFromCloudinary(result.public_id);
+    }
+
     res
       .status(200)
       .json({ success: true, message: "Event deleted successfully" });
   } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ success: false, error: "Event not found" });
+    }
     console.log(error);
     res.status(500).json({ error: error.message });
   }
@@ -61,45 +92,59 @@ export const deleteEventController = async (req, res) => {
 export const updateEventController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, details, date,location } = req.body;
+    const { title, details, date, location } = req.body;
     const file = req.files?.file?.[0];
     const image = req.files?.image?.[0];
 
-    let paramIndex = 5;
-    const fields = [];
-    const values = [title, details,location, date];
+    const existingEvent = await prisma.events.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!existingEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const updateData = {
+      title,
+      details,
+      location,
+      date: new Date(date)
+        .toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        })
+        .replace(/\//g, "-"),
+    };
 
     if (file) {
-      fields.push(`file = $${paramIndex++}`);
-      values.push(file.filename); 
+      const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
+      updateData.file = previewUrl;
+      updateData.public_id = public_id;
+
+      fs.unlink(file.path, (err) => {
+        if (err) console.error("Error deleting local file:", err);
+      });
+
+      if (existingEvent.public_id) {
+        await deletePDFFromCloudinary(existingEvent.public_id);
+      }
     }
+
     if (image) {
-      fields.push(`image = $${paramIndex++}`);
-      values.push(image.filename);
-    }
-    if (file || image) {
-      const exists = await pool.query("SELECT * FROM events WHERE id = $1", [
-        id,
-      ]);
-      const filePath = exists.rows[0].file;
-      const imagePath = exists.rows[0].image;
-      if (fs.existsSync(filePath) && file) {
-        fs.unlinkSync(filePath);
-      }
-      if (fs.existsSync(imagePath) && image) {
-        fs.unlinkSync(imagePath);
+      updateData.image = fixUrl(image.path);
+
+      if (fs.existsSync(existingEvent.image)) {
+        fs.unlinkSync(existingEvent.image);
       }
     }
-    const setClause = fields.length > 0 ? `, ${fields.join(", ")}` : "";
 
-    const query = `UPDATE events SET title = $1, details = $2, location = $3, date = $4${setClause} WHERE id = $${paramIndex} RETURNING *`;
-    values.push(id);
+    const result = await prisma.events.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    });
 
-    console.log(query);
-    console.log(values);
-
-    const result = await pool.query(query, values);
-    res.json(result.rows);
+    res.json([result]);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });

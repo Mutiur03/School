@@ -12,14 +12,16 @@ const navItems = [
       { name: "LBP at a glance", path: "/about/glance" },
     ],
   },
-  {
-    name: "Administration",
-    path: "/administration",
-    dropdown: [
-      { name: "Teacher", path: "/administration/teacher" },
-      { name: "Staff", path: "/administration/staff" },
-    ],
-  },
+  // {
+  //   name: "Administration",
+  //   path: "/administration",
+  //   dropdown: [
+  //     { name: "Teacher", path: "/administration/teacher" },
+  //     { name: "Staff", path: "/administration/staff" },
+  //   ],
+  // },
+  { name: "Teacher", path: "/administration/teacher" },
+
   {
     name: "Gallery", path: "/gallery",
     dropdown: [
@@ -67,6 +69,23 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClick);
     };
   }, [openDropdown]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const menu = document.querySelector(".mobile-menu");
+      if (menu && !menu.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
@@ -84,40 +103,39 @@ export default function Navbar() {
   };
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
-      {/* Top header with logo and school name */}
       <div className="bg-primary text-white py-4">
         <div className="container-custom flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center gap-4 mb-3 md:mb-0">
-            <div className="relative h-16 w-16 rounded-full overflow-hidden bg-white p-1">
+            <div className="relative h-12 w-12 md:h-16 md:w-16 rounded-full overflow-hidden bg-white p-1">
               <img
                 src="/placeholder.svg?height=60&width=60"
                 alt="School Logo"
                 width={60}
                 height={60}
-                className="object-contain"
+                className="object-contain w-full h-full"
               />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold">
-                Panchbibi LBP govt. High School
+              <h1 className="text-lg md:text-2xl font-bold leading-tight">
+                Panchbibi L. B. Pilot Government High School
               </h1>
-              <p className="text-sm md:text-base">
+              <p className="text-xs md:text-base">
                 Excellence in Education Since 1940
               </p>
             </div>
           </div>
-          <div className="flex gap-4 text-sm">
-            <Link to="/contact" className="hover:underline">
-              Contact
-            </Link>
-            <Link to="/login" className="hover:underline">
-              Login
-            </Link>
+          <div className="flex gap-2 md:gap-4 text-xs md:text-sm">
+            {/* <Link to="/contact" className="hover:underline">
+              Contact Us
+            </Link> */}
+            <a href="https://student.lbphs.gov.bd" className="hover:underline">
+              Student's Portal
+            </a>
           </div>
         </div>
       </div>
       {/* Main navigation */}
-      <nav className="container-custom py-3">
+      <nav className="container-custom py-2 md:py-3">
         <div className="flex items-center justify-between">
           {/* Mobile menu button */}
           <button
@@ -125,7 +143,7 @@ export default function Navbar() {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isMenuOpen ? <X size={28} className="sm:size-6" /> : <Menu size={28} className="sm:size-6" />}
           </button>
           {/* Desktop navigation */}
           <div className="hidden md:flex items-center space-x-1 w-full">
@@ -141,21 +159,19 @@ export default function Navbar() {
                 }}
               >
                 {item.dropdown ? (
-                  <div
-                    className="relative"
-                  >
+                  <div className="relative">
                     <button
-                      className={`desktop-dropdown-btn px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1 ${isActive(item.path)
+                      className={`desktop-dropdown-btn px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium flex items-center gap-1 ${isActive(item.path)
                         ? "text-white bg-primary"
                         : "text-gray-700 hover:bg-gray-100"
                         }`}
                     >
                       {item.name}
-                      <ChevronDown size={16} />
+                      <ChevronDown size={16} className="inline md:size-4 size-3" />
                     </button>
                     {/* Desktop dropdown */}
                     {openDropdown === item.name && (
-                      <div className="desktop-dropdown absolute top-full left-0  w-48 bg-white shadow-lg rounded-md overflow-hidden z-20">
+                      <div className="desktop-dropdown absolute top-full left-0 w-40 md:w-48 bg-white shadow-lg rounded-md overflow-hidden z-20">
                         {item.dropdown.map((subItem) => (
                           <Link
                             key={subItem.name}
@@ -164,7 +180,7 @@ export default function Navbar() {
                               setIsMenuOpen(false);
                               setOpenDropdown(null);
                             }}
-                            className={`block px-4 py-2 text-sm ${pathname === subItem.path
+                            className={`block px-4 py-2 text-xs md:text-sm ${pathname === subItem.path
                               ? "bg-primary/10 text-primary"
                               : "text-gray-700 hover:bg-gray-100"
                               }`}
@@ -181,7 +197,7 @@ export default function Navbar() {
                     onClick={() => {
                       setIsMenuOpen(false);
                       setOpenDropdown(null);
-                    }} className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1 ${isActive(item.path || "#")
+                    }} className={`px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium flex items-center gap-1 ${isActive(item.path || "#")
                       ? "text-white bg-primary"
                       : "text-gray-700 hover:bg-gray-100"
                       }`}
@@ -195,25 +211,25 @@ export default function Navbar() {
         </div>
         {/* Mobile navigation */}
         {isMenuOpen && (
-          <div className="md:hidden mt-3 bg-white rounded-md shadow-lg w-full max-w-sm mx-auto z-50">
-            <div className="px-4 pt-4 pb-4 space-y-2">
+          <div className="mobile-menu md:hidden mt-3 bg-white rounded-md shadow-lg w-full max-w-sm mx-auto z-50">
+            <div className="px-2 pt-3 pb-4 space-y-2">
               {navItems.map((item) => (
                 <div key={item.name} className="relative">
                   {item.dropdown ? (
                     <div className="relative">
                       <button
                         onClick={() => toggleDropdown(item.name)}
-                        className={`desktop-dropdown-btn px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1 ${isActive(item.path)
+                        className={`desktop-dropdown-btn px-3 py-2 w-full rounded-md text-xs font-medium flex items-center gap-1 ${isActive(item.path)
                           ? "text-white bg-primary"
                           : "text-gray-700 hover:bg-gray-100"
                           }`}
                       >
                         {item.name}
-                        <ChevronDown size={16} />
+                        <ChevronDown size={14} className="inline" />
                       </button>
                       {/* Desktop dropdown */}
                       {openDropdown === item.name && (
-                        <div className="desktop-dropdown absolute top-full left-0 mt-1 w-48 bg-white shadow-lg rounded-md overflow-hidden z-20">
+                        <div className="desktop-dropdown w-full absolute top-full left-0 mt-1 bg-white shadow-lg rounded-md overflow-hidden z-20">
                           {item.dropdown.map((subItem) => (
                             <Link
                               key={subItem.name}
@@ -222,7 +238,7 @@ export default function Navbar() {
                                 setIsMenuOpen(false);
                                 setOpenDropdown(null);
                               }}
-                              className={`block px-4 py-2 text-sm font-medium ${pathname === subItem.path
+                              className={`block px-4 py-2 text-xs font-medium ${pathname === subItem.path
                                 ? "bg-primary/10 text-primary"
                                 : "text-gray-700 hover:bg-gray-100"
                                 }`}
@@ -239,7 +255,7 @@ export default function Navbar() {
                       onClick={() => {
                         setIsMenuOpen(false);
                         setOpenDropdown(null);
-                      }} className={`px-3 py-2 rounded-md text-sm font-medium ${isActive(item.path || "#")
+                      }} className={`px-3 py-2 rounded-md text-xs font-medium ${isActive(item.path || "#")
                         ? "text-white bg-primary"
                         : "text-gray-700 hover:bg-gray-100"
                         }`}

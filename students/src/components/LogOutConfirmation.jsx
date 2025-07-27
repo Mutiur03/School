@@ -9,26 +9,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { LogOut } from "lucide-react";
+import { Power } from "lucide-react";
 
-const LogoutConfirmation = ({ onClick, sidebarExpanded }) => {
+const LogoutConfirmation = ({ onClick }) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <div className="absolute bottom-0 left-0 w-full px-4 py-2 border-t border-border bg-sidebar">
-          <button
-            className={`flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 hover:inset-1 hover:inset-ring ${
-              sidebarExpanded ? "gap-3" : "justify-center"
-            }`}
-          >
-            <LogOut className="flex-shrink-0 h-4 w-4 text-lg" />
-            {sidebarExpanded && (
-              <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                Logout
-              </span>
-            )}
-          </button>
-        </div>
+        <Power />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

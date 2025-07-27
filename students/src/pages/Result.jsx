@@ -37,12 +37,26 @@ function Result() {
 
   const showMarksheet = async (e) => {
     e.preventDefault();
-    const marks = await axios.get(
-      `/api/marks/getMarks/${student.student_id}/${selectedYear}/${examName}`
-    );
-    console.log(marks.data);
-    setMarks(marks.data);
-    setShow(true);
+    try {
+      const response = await axios.get(
+        `/api/marks/getMarks/${student.student_id}/${selectedYear}/${examName}`
+      );
+      console.log(response.data);
+
+      // Ensure marks is always an array
+      const marksData =
+        Array.isArray(response.data) ||
+        Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
+
+      setMarks(marksData);
+      setShow(true);
+    } catch (error) {
+      console.error("Error fetching marks:", error);
+      toast.error("Failed to fetch marks");
+      setMarks([]);
+    }
   };
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => {

@@ -1,3 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+* {
+  font-family: "Outfit", sans-serif;
+}
+
 @import "tailwindcss";
 @import "tw-animate-css";
 /*
@@ -8,8 +14,8 @@
 @source '../../*.{js,ts,jsx,tsx,mdx}';
 
 @theme {
-  --color-primary: oklch(37.9% 0.146 265.522);
-  --color-secondary: #64748b;
+  --color-primary:#1E3A8A;
+  --color-secondary: #60A5FA;
   --color-secondary-foreground: #ffffff;
   --color-accent: oklch(92.9% 0.013 255.508);
   --color-dark: #1e293b;
@@ -81,6 +87,7 @@
 @utility container-custom {
   @apply container mx-auto px-4 md:px-6;
 }
+
 /*
 @utility btn-primary {
   @apply bg-[var(--color-primary)] text-white px-4 py-2 rounded hover:bg-[color-mix(in_srgb, var(--color-primary), 90%)] transition-colors;
@@ -88,7 +95,7 @@
 */
 @utility section-title {
   @apply text-2xl md:text-3xl font-bold text-[color:var(--color-primary)] mb-6 pb-2 border-b-2 border-[color:var(--color-secondary)] inline-block;
-} 
+}
 
 @layer utilities {
   :root {
@@ -100,9 +107,8 @@
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-rgb));
   }
-} 
+}
 
 /*
 ---break---
-*/ 
-
+*/

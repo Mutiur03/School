@@ -84,7 +84,6 @@ export default function RejectedImages() {
   };
 
   const fetchPendingGalleries = async () => {
-    setIsLoading(true);
     try {
       const response = await axios.get("/api/gallery/rejectedStudents");
       setGroupedGalleries(response.data || { events: {}, categories: {} });

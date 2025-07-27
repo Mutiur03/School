@@ -111,7 +111,6 @@ export default function UploadPage() {
     }
   };
   const fetchGallery = async () => {
-    setIsLoading(true);
     try {
       const res = await axios.get("/api/gallery/approvedStudents");
       console.log(res.data);

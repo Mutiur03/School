@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import axios from "axios";
-import { toast } from "react-hot-toast";
 import { FiTrash2, FiEdit } from "react-icons/fi";
 import { FiEye } from "react-icons/fi";
-import Loading from "@/components/Loading";
+import { Loading } from "@/components";
+import { useNoticeStore } from "@/store";
+import { Loader2 } from "lucide-react";
 const NoticeUploadPage = () => {
-  const [notices, setNotices] = useState([]);
   const [popup, setPopup] = useState({
     visible: false,
     type: "",
@@ -22,27 +20,22 @@ const NoticeUploadPage = () => {
   const [editId, setEditId] = useState(null);
   const [formValues, setFormValues] = useState({
     title: "",
-    details: "",
     file: null,
   });
-  const [loading, setLoading] = useState(false);
-  const host = import.meta.env.VITE_BACKEND_URL;
-
-  const fetchNotices = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("/api/notices/getNotices");
-      setNotices(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching notices:", error);
-      // toast.error("Failed to fetch notices.");
-    }
-    setLoading(false);
-  };
+  const {
+    notices,
+    fetchNotices,
+    deleteNotice,
+    isDeleting,
+    isSubmitting,
+    addNotice,
+    updateNotice,
+    isLoading,
+  } = useNoticeStore();
 
   useEffect(() => {
     fetchNotices();
-  }, []);
+  }, [fetchNotices]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,25 +43,22 @@ const NoticeUploadPage = () => {
     const formData = new FormData(form);
     try {
       if (isEditing) {
-        await axios.put(`/api/notices/updateNotice/${editId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Notice updated successfully!");
+        await updateNotice(editId, formData);
       } else {
-        await axios.post("/api/notices/addNotice", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Notice uploaded successfully!");
+        await addNotice(formData);
       }
-      setFormValues({ title: "", details: "", file: null });
-      form.reset();
+      // Only reset and hide form on successful submission
+      setFormValues({ title: "", file: null });
+      if (fileref.current) {
+        fileref.current.value = "";
+      }
       setIsEditing(false);
       setEditId(null);
       setShowForm(false);
-      fetchNotices();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to upload notice.");
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      // Don't hide form on error - let user see the error and retry
+      openPopup("error", { message: error.message || "An error occurred" });
     }
   };
 
@@ -80,17 +70,6 @@ const NoticeUploadPage = () => {
     setPopup({ visible: false, type: "", notice: null });
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`/api/notices/deleteNotice/${id}`);
-      fetchNotices();
-      toast.success("Notice deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting notice:", error);
-      toast.error("Failed to delete notice.");
-    }
-  };
-  // if(loading) return null
   return (
     <div className="max-w-6xl mx-auto mt-10 px-4">
       <div className="flex justify-between items-center mb-4">
@@ -126,19 +105,6 @@ const NoticeUploadPage = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="details">Notice Details</Label>
-                <Textarea
-                  id="details"
-                  name="details"
-                  placeholder="Enter detailed notice text"
-                  value={formValues.details}
-                  onChange={(e) =>
-                    setFormValues({ ...formValues, details: e.target.value })
-                  }
-                  className="resize-none"
-                />
-              </div>
-              <div className="space-y-1">
                 <Label htmlFor="file">Upload File</Label>
                 <Input
                   id="file"
@@ -149,38 +115,61 @@ const NoticeUploadPage = () => {
                   onChange={(e) =>
                     setFormValues({
                       ...formValues,
-                      file: e.target.files?.[0],
+                      file: e.target.files?.[0] || null,
                     })
                   }
                   {...(!isEditing && { required: true })}
                 />
-                {formValues.file && (
+                {(formValues.file ||
+                  (isEditing && typeof formValues.file === "string")) && (
                   <p className="text-sm text-gray-500">
-                    {formValues.file.name
-                      ? "Selected file: " + formValues.file.name
-                      : "Uploaded file: " +
-                        formValues.file
-                          .split("\\")
-                          .pop()
-                          .split("-")
-                          .slice(2)
-                          .join("-")}
+                    {formValues.file && typeof formValues.file === "object"
+                      ? "Selected file: " +
+                        formValues.file.name.slice(0, 20) +
+                        "..."
+                      : isEditing && typeof formValues.file === "string"
+                      ? "Current file: " +
+                        formValues.file.split("/").pop().slice(0, 20) +
+                        "..."
+                      : ""}
                   </p>
                 )}
               </div>
               <div className="flex justify-between gap-4">
-                <Button type="submit" className="">
-                  {isEditing ? "Update Notice" : "Publish Notice"}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isEditing ? (
+                    isSubmitting ? (
+                      <>
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          Updating...
+                        </span>
+                      </>
+                    ) : (
+                      "Update Notice"
+                    )
+                  ) : isSubmitting ? (
+                    <>
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="animate-spin h-4 w-4" />
+                        Uploading...
+                      </span>
+                    </>
+                  ) : (
+                    "Publish Notice"
+                  )}
                 </Button>
 
                 <Button
                   variant="outline"
-                  className=""
+                  type="button"
                   onClick={() => {
                     setIsEditing(false);
                     setEditId(null);
-                    setFormValues({ title: "", details: "", file: null });
-                    fileref.current.value = null;
+                    setFormValues({ title: "", file: null });
+                    if (fileref.current) {
+                      fileref.current.value = "";
+                    }
                     setShowForm(false);
                   }}
                 >
@@ -213,7 +202,7 @@ const NoticeUploadPage = () => {
                 <tr>
                   <td colSpan="3" className="py-2">
                     <div className="flex justify-center items-center w-full h-full">
-                      {loading ? (
+                      {isLoading ? (
                         <Loading />
                       ) : (
                         <p className="text-gray-500">No notices found</p>
@@ -242,7 +231,6 @@ const NoticeUploadPage = () => {
                           onClick={() => {
                             setFormValues({
                               title: notice.title,
-                              details: notice.details || "",
                               file: notice.file,
                             });
                             setIsEditing(true);
@@ -280,32 +268,34 @@ const NoticeUploadPage = () => {
                     <strong>Title:</strong> {popup.notice.title}
                   </div>
                   <div>
-                    <strong>Details:</strong> {popup.notice.details}
-                  </div>
-                  <div>
-                    <strong>File:</strong>{" "}
-                    {/* <a
-                      href={`${host}/${popup.notice.file}`}
+                    <a
+                      href={`${popup.notice.file}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
-                      View/Download PDF
-                    </a> */}
+                      View PDF
+                    </a>
+                    {/* <iframe
+                      src="http://localhost:3001/pdf/notice/1753181378922-645960636-Fundit.pdf"
+                      width="100%"
+                      height="600px"
+                    ></iframe> */}
+                    {/* <iframe
+                      src={`${popup.notice.file}`}
+                      width="100%"
+                      height="600px"
+                    ></iframe> */}
+                  </div>
+                  <div>
                     <a
-                      href={`${host}/${popup.notice.file}`}
+                      href={`${popup.notice.download_url}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
                       Download PDF
                     </a>
-                    {/* <iframe
-                      src={`${host}/${popup.notice.file}`}
-                      width="100%"
-                      height="600px"
-                      title="PDF Preview"
-                    /> */}
                   </div>
                 </div>
                 <div className="flex justify-end pt-4">
@@ -330,19 +320,46 @@ const NoticeUploadPage = () => {
                 </p>
                 <div className="flex justify-end gap-3 pt-4">
                   <button
+                    type="button"
+                    disabled={isDeleting}
                     onClick={closePopup}
                     className="px-4 py-2 border border-gray-300 rounded"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
+                    disabled={isDeleting}
                     onClick={async () => {
-                      await handleDelete(popup.notice.id);
+                      await deleteNotice(popup.notice.id);
                       closePopup();
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
                   >
-                    Delete
+                    {isDeleting ? (
+                      <>
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="animate-spin h-4 w-4" />
+                          Deleting...
+                        </span>
+                      </>
+                    ) : (
+                      "Delete"
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+            {popup.type === "error" && (
+              <>
+                <h2 className="text-xl font-bold text-red-600 mb-4">Error</h2>
+                <p>{popup.notice?.message || "An unexpected error occurred"}</p>
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={closePopup}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Close
                   </button>
                 </div>
               </>

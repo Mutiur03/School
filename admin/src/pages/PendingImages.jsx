@@ -89,13 +89,12 @@ export default function PendingGalleries() {
   };
 
   const fetchPendingGalleries = async () => {
-    setIsLoading(true);
     try {
       const response = await axios.get("/api/gallery/pending");
       setGroupedGalleries(response.data || { events: {}, categories: {} });
     } catch (error) {
       console.error("Error fetching pending galleries:", error);
-      toast.error("Failed to load pending galleries");
+      // toast.error("Failed to load pending galleries");
     } finally {
       setIsLoading(false);
     }
@@ -268,7 +267,7 @@ export default function PendingGalleries() {
                 <div className="relative aspect-square">
                   <img
                     src={`${host}/${img.image_path}`}
-                    alt={img.caption || "Pending gallery image"}
+                    alt={ "Pending gallery image"}
                     className="object-cover w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />

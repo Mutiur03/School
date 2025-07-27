@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import DatePicker from "../components/DatePicker";
+import DatePicker from "../components/DatePickerF";
 import DeleteConfirmation from "../components/DeleteConfimation";
+import { format } from "date-fns";
 const Events = () => {
   const [events, setEvents] = useState([]);
   const [popup, setPopup] = useState({
@@ -28,6 +29,8 @@ const Events = () => {
     date: null,
   });
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
 
   const fetchEvents = async () => {
@@ -49,6 +52,9 @@ const Events = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // Prevent multiple submissions
+
+    setSubmitting(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
     console.log(...formData.entries());
@@ -83,6 +89,8 @@ const Events = () => {
     } catch (err) {
       console.error(err);
       toast.error("Failed to upload notice.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -95,6 +103,9 @@ const Events = () => {
   };
 
   const handleDelete = async (id) => {
+    if (deleting) return; // Prevent multiple deletions
+
+    setDeleting(true);
     try {
       await axios.delete(`/api/events/deleteEvent/${id}`);
       fetchEvents();
@@ -102,10 +113,12 @@ const Events = () => {
     } catch (error) {
       console.error("Error deleting notice:", error);
       toast.error("Failed to delete notice.");
+    } finally {
+      setDeleting(false);
     }
     closePopup();
   };
-  
+
   return (
     <div className="max-w-6xl mx-auto mt-10 px-4">
       <div className="flex justify-between items-center mb-4">
@@ -147,6 +160,7 @@ const Events = () => {
                   name="details"
                   placeholder="Enter detailed event text"
                   required
+                  maxLength={100}
                   value={formValues.details}
                   onChange={(e) =>
                     setFormValues({ ...formValues, details: e.target.value })
@@ -154,7 +168,7 @@ const Events = () => {
                   className="resize-none"
                 />
               </div>
-              <div className="flex justify-between lg:flex-row gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="file">Upload PDF Notice</Label>
                   <Input
@@ -178,13 +192,7 @@ const Events = () => {
                           formValues.file.name.slice(0, 20) +
                           "..."
                         : "Uploaded file: " +
-                          formValues.file
-                            .split("\\")
-                            .pop()
-                            .split("-")
-                            .slice(2)
-                            .join("-")
-                            .slice(0, 20) +
+                          formValues.file.slice(0, 20) +
                           "..."}
                     </p>
                   )}
@@ -207,12 +215,12 @@ const Events = () => {
                   />
                   {formValues.image && (
                     <p className="text-sm text-gray-500">
-                      {formValues.file.name
+                      {formValues.image.name
                         ? "Selected file: " +
-                          formValues.file.name.slice(0, 20) +
+                          formValues.image.name.slice(0, 20) +
                           "..."
                         : "Uploaded file: " +
-                          formValues.file
+                          formValues.image
                             .split("\\")
                             .pop()
                             .split("-")
@@ -224,19 +232,9 @@ const Events = () => {
                   )}
                 </div>
               </div>
-              <div className="flex gap-4 items-center justify-between">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="date">Event Date</Label>
-                  <Input
-                    type="date"
-                    name="date"
-                    required
-                    hidden
-                    value={formValues.date || ""}
-                    onChange={(e) =>
-                      setFormValues({ ...formValues, date: e.target.value })
-                    }
-                  />
                   <DatePicker
                     value={formValues.date}
                     onChange={(e) =>
@@ -262,8 +260,14 @@ const Events = () => {
                 </div>
               </div>
               <div className="flex justify-between gap-4">
-                <Button type="submit" className="">
-                  {isEditing ? "Update Event" : "Creat Event"}
+                <Button type="submit" disabled={submitting} className="">
+                  {submitting
+                    ? isEditing
+                      ? "Updating..."
+                      : "Creating..."
+                    : isEditing
+                    ? "Update Event"
+                    : "Create Event"}
                 </Button>
 
                 <Button
@@ -292,57 +296,61 @@ const Events = () => {
         </Card>
       )}
       {loading ? (
-      <div className="max-w-6xl mx-auto mt-10 px-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="bg-card rounded-lg shadow-md text-center overflow-hidden hover:shadow-lg transition-shadow animate-pulse"
-            >
-              <div className="relative h-40 bg-gray-300"></div>
-              <div className="p-4">
-                <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                <div className="h-3 bg-gray-300 rounded w-1/2 mx-auto"></div>
+        <div className="max-w-6xl mx-auto mt-10 px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-card rounded-lg shadow-md text-center overflow-hidden hover:shadow-lg transition-shadow animate-pulse"
+              >
+                <div className="relative h-40 bg-gray-300"></div>
+                <div className="p-4">
+                  <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-300 rounded w-1/2 mx-auto"></div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {events.length > 0 ? (
-          events.map((event) => (
-            <div
-              key={event.id}
-              className="bg-card rounded-lg shadow-md text-center overflow-hidden hover:shadow-lg transition-shadow"
-            >
-              <div className="relative h-40">
-                <img
-                  src={
-                    event.image ? `${host}/${event.image}` : "/placeholder.svg"
-                  }
-                  alt={event.title}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-1">{event.title}</h3>
-                <p className="text-sm text-gray-500 mb-2">{event.date}</p>
-                <button
-                  className="text-primary text-sm hover:underline"
-                  onClick={() => openPopup("view", event)}
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center col-span-full text-gray-500">
-            No events available.
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {events.length > 0 ? (
+            events.map((event) => (
+              <div
+                key={event.id}
+                className="bg-card rounded-lg shadow-md text-center overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="relative h-40">
+                  <img
+                    src={
+                      event.image
+                        ? `${host}/${event.image}`
+                        : "/placeholder.svg"
+                    }
+                    alt={event.title}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-1">{event.title}</h3>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {format(new Date(event.date), "dd MMM yyyy")}
+                  </p>
+                  <button
+                    className="text-primary text-sm hover:underline"
+                    onClick={() => openPopup("view", event)}
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center col-span-full text-gray-500">
+              No events available.
+            </div>
+          )}
+        </div>
       )}
       {popup.visible && popup.event && (
         <div className="fixed inset-0 backdrop-blur-2xl bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -365,41 +373,30 @@ const Events = () => {
                     <strong>Details:</strong> {popup.event.details}
                   </div>
                   <div>
-                    <strong>Date:</strong> {popup.event.date}
+                    <strong>Date:</strong>{" "}
+                    {format(new Date(popup.event.date), "dd MMM yyyy")}
                   </div>
                   <div>
                     <strong>Location:</strong> {popup.event.location}
                   </div>
                   <div>
                     <strong>File:</strong>{" "}
-                    {/* <a
-                      href={`${host}/${popup.notice.file}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline"
-                    >
-                      View/Download PDF
-                    </a> */}
                     <a
-                      href={`${host}/${popup.event.file}`}
+                      href={`${popup.event.file}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
-                      Download PDF
+                      View PDF
                     </a>
-                    {/* <iframe
-                      src={`${host}/${popup.notice.file}`}
-                      width="100%"
-                      height="600px"
-                      title="PDF Preview"
-                    /> */}
                   </div>
                 </div>
                 <div className="flex justify-between pt-4">
                   <div className="flex gap-2">
                     <DeleteConfirmation
                       onDelete={() => handleDelete(popup.event.id)}
+                      disabled={deleting}
+                      buttonText={deleting ? "Deleting..." : "Delete"}
                     />
                     <Button
                       type="button"
