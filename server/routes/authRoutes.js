@@ -20,16 +20,44 @@ authRouter.get("/logout", (req, res) => {
   const cookieDomain =
     process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
 
-  res.clearCookie("token", {
+  res.clearCookie("admin_token", {
     httpOnly: true,
     secure: true,
     sameSite: "none",
     path: "/",
     partitioned: true,
   });
-  console.log(process.env.NODE_ENV === "production");
+  res.clearCookie("admin_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
+    path: "/",
+    domain: cookieDomain,
+  });
 
-  res.clearCookie("token", {
+  res.clearCookie("student_token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    partitioned: true,
+  });
+  res.clearCookie("student_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
+    path: "/",
+    domain: cookieDomain,
+  });
+
+  res.clearCookie("teacher_token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    partitioned: true,
+  });
+  res.clearCookie("teacher_token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
