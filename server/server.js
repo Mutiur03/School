@@ -25,17 +25,11 @@ const storagePath = path.join(__dirname, "uploads");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const allowedOrigins = [
-  "https://school-public-client.onrender.com",
-  "https://school-students.onrender.com",
-  "https://school-admin-ae6r.onrender.com",
-  "https://teacherdashboardlbp.vercel.app",
-  "https://teacher.lbp.mutiurrahman.com",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
-  "http://localhost:3000",
-];
+const envAllowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : null;
+
+const allowedOrigins = envAllowedOrigins;
 
 app.use(
   cors({

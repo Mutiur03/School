@@ -17,15 +17,14 @@ import Event from "./pages/Event";
 import axios from "axios";
 import CategoryGallery from "./pages/CategoryGallery";
 import Images from "./pages/Images";
-// YourComponent.tsx
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import EventDetail from "./pages/EventDetail";
 
 
 function App() {
-    axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
-  
+  axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+
   return (
     <>
       <Navbar />
@@ -46,8 +45,6 @@ function App() {
           <Route path="/notice/:id" element={<IndivisulNotice />}></Route>
           <Route path="/event/:id" element={<EventDetail />}></Route>
           <Route path="/syllabus" element={<SyllabusPage />}></Route>
-          <Route path="/contact" element={<div>Contact</div>}></Route>
-          <Route path="/login" element={<div>Login</div>}></Route>
           <Route path="/routine/class" element={<ClassRoutinePage />}></Route>
           <Route path="/routine/exam" element={<ExamRoutinePage />}></Route>
 
