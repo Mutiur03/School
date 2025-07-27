@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error fetching authenticated teacher: ", error);
             setTeacher(null);
-            await logout();
+            // await logout();
             redirect("/login");
         }
         finally {
