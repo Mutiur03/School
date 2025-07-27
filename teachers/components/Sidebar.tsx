@@ -121,12 +121,12 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
   return (
     <div className="flex">
       {/* Overlay for mobile */}
-      <div
+      {/* <div
         className={`fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 md:hidden ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         style={{ top: "3.5rem", height: "calc(100vh - 3.5rem)" }}
         aria-hidden={!open}
         onClick={onClose}
-      />
+      /> */}
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
