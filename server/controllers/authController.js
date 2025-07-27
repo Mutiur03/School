@@ -2,8 +2,9 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
 
+// Admin authentication middleware
 export const authenticateUser = async (req, res, next) => {
-  const token = req.cookies?.token;
+  const token = req.cookies?.admin_token;
   console.log(token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
@@ -19,7 +20,7 @@ export const authenticateUser = async (req, res, next) => {
       where: { id: req.user.id },
     });
     if (!check) return res.status(401).json({ message: "Unauthorized" });
-    req.admin = check; 
+    req.admin = check;
     next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid Token" });
@@ -56,7 +57,7 @@ export const login = async (req, res) => {
       { id: user.id, role: user.role, username: user.username },
       process.env.JWT_SECRET
     );
-    res.cookie("token", token, {
+    res.cookie("admin_token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "none",
@@ -120,12 +121,11 @@ export const student_login = async (req, res) => {
       { expiresIn: "7d" }
     );
     console.log(process.env.NODE_ENV === "production");
-    res.cookie("token", token, {
+    res.cookie("student_token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "none",
       path: "/",
-
       maxAge: 3600000,
       partitioned: true,
     });
@@ -139,7 +139,7 @@ export const student_login = async (req, res) => {
 };
 
 export const authenticateStudent = async (req, res, next) => {
-  const token = req.cookies?.token;
+  const token = req.cookies?.student_token;
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
   try {
@@ -189,7 +189,7 @@ export const teacher_login = async (req, res) => {
     const cookieDomain =
       process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
 
-    res.cookie("token", token, {
+    res.cookie("teacher_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
