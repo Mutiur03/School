@@ -135,7 +135,7 @@ function App() {
                               element={<UpdateStatus />}
                             />
                             <Route
-                              path="/attendence"
+                              path="/attendance"
                               element={<Attendence />}
                             />
                             <Route path="/notice" element={<Notice />} />
