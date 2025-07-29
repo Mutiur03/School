@@ -27,7 +27,7 @@ export const teacher_me = async (req, res, next) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
     if (teacher.password) {
-      delete teacher.password; // Remove password from response
+      delete teacher.password;
     }
     req.user = teacher;
     next();
