@@ -9,7 +9,7 @@ export default function HistoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
                     <div className="md:col-span-2">
                         <p className="mb-4">
-                            Panchbibi L. B. Pilot Government High School (Bengali: পাঁচবিবি এল. বি. পাইলট সরকারী উচ্চ বিদ্যালয়), locally known as Panchbibi Lal Bihari Pilot Government High School, was established in 1940 in Panchbibi, Joypurhat. The school began with a vision to provide quality education to the boys of Panchbibi and surrounding areas.
+                            Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়), formerly known as Panchbibi L. B. Pilot Government High School, was established in 1940 in Panchbibi, Joypurhat. The school began with a vision to provide quality education to the boys of Panchbibi and surrounding areas.
                         </p>
                         <p className="mb-4">
                             Over the decades, the school has grown in both size and reputation. It was nationalized in 1986, becoming a government-run institution and further strengthening its commitment to accessible, high-quality education. The school is currently led by Headmaster Md. Ataur Rahman.

@@ -40,7 +40,7 @@ type Notice = {
 const sliderData = [
     {
         image: "/school_1.jpg",
-        title: "Welcome to Panchbibi L. B. Pilot Government High School",
+        title: "Welcome to Panchbibi Lal Bihari Pilot Government High School",
         description:
             "Providing quality education and shaping the future of our nation since 1940.",
     },
@@ -186,47 +186,47 @@ export default function Home() {
                         variants={staggerContainer}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
                     >
-                       
-                                <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
-                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
-                                        <BookOpen size={32} />
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2">Quality Education</h3>
-                                    <p className="text-gray-600">
-                                        Providing high-quality education with modern teaching methods.
-                                    </p>
-                                </motion.div>
 
-                                <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
-                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
-                                        <Award size={32} />
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2">Skilled Teachers</h3>
-                                    <p className="text-gray-600">
-                                        Our experienced teachers are dedicated to student success.
-                                    </p>
-                                </motion.div>
+                        <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
+                                <BookOpen size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Quality Education</h3>
+                            <p className="text-gray-600">
+                                Providing high-quality education with modern teaching methods.
+                            </p>
+                        </motion.div>
 
-                                <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
-                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
-                                        <Calendar size={32} />
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2">Regular Activities</h3>
-                                    <p className="text-gray-600">
-                                        Various extracurricular activities for holistic development.
-                                    </p>
-                                </motion.div>
+                        <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
+                                <Award size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Skilled Teachers</h3>
+                            <p className="text-gray-600">
+                                Our experienced teachers are dedicated to student success.
+                            </p>
+                        </motion.div>
 
-                                <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
-                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
-                                        <Bell size={32} />
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2">Modern Facilities</h3>
-                                    <p className="text-gray-600">
-                                        Well-equipped classrooms, library, and laboratories.
-                                    </p>
-                                </motion.div>
-                           
+                        <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
+                                <Calendar size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Regular Activities</h3>
+                            <p className="text-gray-600">
+                                Various extracurricular activities for holistic development.
+                            </p>
+                        </motion.div>
+
+                        <motion.div variants={fadeIn} className="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-shadow">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-full mb-4">
+                                <Bell size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">Modern Facilities</h3>
+                            <p className="text-gray-600">
+                                Well-equipped classrooms, library, and laboratories.
+                            </p>
+                        </motion.div>
+
                     </motion.div>
                 </div>
             </motion.section>
@@ -248,7 +248,7 @@ export default function Home() {
                         >
                             <h2 className="section-title">About Our School</h2>
                             <p className="mb-4">
-                                Panchbibi L. B. Pilot Government High School (Bengali: পাঁচবিবি এল. বি. পাইলট সরকারী উচ্চ বিদ্যালয়), established in 1940, is one of the most prominent boys’ secondary schools in Panchbibi, Joypurhat, Bangladesh. The school is renowned for its academic excellence, strong community values, and commitment to holistic student development.
+                                Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়), established in 1940, is one of the most prominent boys’ secondary schools in Panchbibi, Joypurhat, Bangladesh. The school is renowned for its academic excellence, strong community values, and commitment to holistic student development.
                             </p>
                             <p className="mb-6">
                                 Our mission is to provide a holistic education that nurtures academic excellence, character development, and social responsibility in our students. Led by Headmaster Md. Ataur Rahman, the school offers education from grades 6 to 10 under the Rajshahi Education Board, with a vibrant campus, active sports, and a proud tradition of achievement.

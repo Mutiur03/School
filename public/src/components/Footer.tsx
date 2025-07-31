@@ -16,7 +16,8 @@ export default function Footer() {
           {/* School info */}
           <div>
             <h3 className="text-xl font-bold mb-4 border-b-2 border-secondary pb-2 inline-block">
-              Panchbibi L. B. Pilot Government High School
+              Panchbibi Lal Bihari Pilot Government High School
+
             </h3>
             <p className="mb-4">
               Providing quality education and shaping the future of our nation
@@ -96,11 +97,11 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Phone size={20} className="shrink-0" />
-                <span>+880 1234-567890</span>
+                <span>+880 1309-121983</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail size={20} className="shrink-0" />
-                <span>info@panchbibilbp.edu.bd</span>
+                <span>lbpgovtschool@gmail.com</span>
               </li>
             </ul>
           </div>
@@ -109,7 +110,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="mt-8 pt-6 border-t border-gray-700 text-center text-sm">
           <p>
-            © {currentYear} Panchbibi L. B. Pilot Government High School. All rights
+            © {currentYear} Panchbibi Lal Bihari Pilot Government High School. All rights
             reserved.
           </p>
         </div>

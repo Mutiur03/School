@@ -4,6 +4,20 @@ The **School Management System** is a comprehensive web application developed to
 
 ---
 
+## 🗂️ Monorepo Structure
+
+This repository contains multiple apps and services:
+
+- `admin/` — Admin dashboard (React + Vite)
+- `students/` — Student dashboard (React + Vite)
+- `teachers/` — Teacher dashboard (Next.js)
+- `server/` — Backend API (Node.js + Express + Prisma)
+- `public/` — Shared frontend assets and styles
+
+Each app is independently deployable and communicates with the backend via REST APIs.
+
+---
+
 ## 🌟 Project Overview
 
 This system enables schools to manage all core operations digitally — from enrolling students and scheduling exams to tracking attendance and generating report cards. It’s built with scalability and real-world usage in mind, supporting multiple user roles (Admin, Teacher, Student) with dedicated dashboards and permissions.
@@ -16,7 +30,7 @@ This system enables schools to manage all core operations digitally — from enr
 - Enable transparent academic record tracking
 - Digitize attendance and exam processes
 - Foster better communication through notices and real-time updates
-- Securely manage and share documents using Google Drive
+- Securely manage and share documents
 
 ---
 
@@ -72,7 +86,8 @@ This system enables schools to manage all core operations digitally — from enr
 ## 💻 Tech Stack
 
 ### Frontend:
-- React + Vite
+- React + Vite (admin, students)
+- Next.js (teachers)
 - Tailwind CSS
 - Zustand (State Management)
 - Shadcn UI + Lucide Icons
@@ -84,10 +99,10 @@ This system enables schools to manage all core operations digitally — from enr
 - PostgreSQL
 
 ### Additional Integrations:
-- Google Drive API (PDF Storage & Sharing)
 - Puppeteer (PDF Generation)
 - XLSX (Bulk Excel Import)
 - Multer (File Upload)
+- Cloudinary (Notice PDF hosting)
 
 ---
 
@@ -95,7 +110,6 @@ This system enables schools to manage all core operations digitally — from enr
 
 - Fully responsive and modern UI for mobile and desktop
 - Excel-based bulk student and subject import
-- Real-time file hosting with Google Drive
 - Server-side rendered, print-ready reports
 - Designed for scalability, privacy, and performance
 
@@ -112,37 +126,37 @@ git clone https://github.com/Mutiur03/School.git
 cd School
 ```
 
-
+---
 
 ### 🔷 Frontend Setup 
 
-**Tech Stack:** React + Vite, Tailwind CSS, Zustand, Shadcn UI, Framer Motion
+**Apps:** `admin/`, `students/`, `teachers/`
 
-1. Navigate to the frontend folder:
+Each frontend app is independent. Example for `admin`:
+
+1. Navigate to the app folder:
    ```bash
-   cd admin/students/public
-    ```
+   cd admin
+   # or cd students
+   # or cd teachers
+   ```
 
 2. Install dependencies:
-    
-    ```bash
-    npm install
-    ```
-    
-3. Create a `.env` file:
-    
-    ```env
-    VITE_BACKEND_URL=EXPRESS BACKEND URL
-    ```
-    
-4. Start the frontend development server:
-    
-    ```bash
-    npm run dev
-    ```
-    
+   ```bash
+   npm install
+   ```
 
-The app will be running at: `http://localhost:5173*`
+3. Create a `.env` file:
+   ```env
+   VITE_BACKEND_URL=http://localhost:3001
+   ```
+
+4. Start the frontend development server:
+   ```bash
+   npm run dev
+   ```
+
+The app will be running at: `http://localhost:5173` (or the port shown in your terminal).
 
 ---
 
@@ -151,49 +165,45 @@ The app will be running at: `http://localhost:5173*`
 **Tech Stack:** Node.js, Express.js, Prisma, PostgreSQL
 
 1. Navigate to the backend folder:
-    
-    ```bash
-    cd server
-    ```
-    
-2. Install dependencies:
-    
-    ```bash
-    npm install
-    ```
-    
-3. Create a `.env` file:
-    
-```env
-	PORT=3001
-	POSTGRES_USER="postgres.xwkgtdbnqasgbtnaxmws"
-	DATABASE_URL=...
-	JWT_SECRET=...
-	private_key= ...
-	client_email= ...
-	SHEET_ID=...
-	GOOGLE_DRIVE_FOLDER_ID=...
-	client_email_drive=...
-	private_key_drive=...
-```
+   ```bash
+   cd server
+   ```
 
-1. Generate Prisma client:
-    
-    ```bash
-    npx prisma generate
-    ```
-    
-2. Run migrations:
-    
-    ```bash
-    npx prisma migrate dev
-    ```
-    
-3. Start the backend development server:
-    
-    ```bash
-    npm run dev
-    ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env` file:
+   ```env
+    PORT=3001
+    DATABASE_URL=...
+    JWT_SECRET=...
+    private_key= Google Service Private Key
+    client_email= Google Service Client Email
+    SHEET_ID= Google Sheet ID
+    BULK_SMS_API_KEY= SMS API key
+    CLOUDINARY_CLOUD_NAME= ...
+    CLOUDINARY_API_KEY= ...
+    CLOUDINARY_SECRET_KEY= ...
+    DOMAIN=".example.com"
+    ALLOWED_ORIGINS="https://subdomain.example.com,https://subdomain.example.com,https://subdomain.example.com,https://subdomain.example.com,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:3000"
+   ```
+
+4. Generate Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+
+5. Run migrations:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+6. Start the backend development server:
+   ```bash
+   npm run dev
+   ```
 
 The backend will be running at: `http://localhost:3001`
 
@@ -204,7 +214,6 @@ The backend will be running at: `http://localhost:3001`
 🔗 **Live Site:** [Live](https://www.mutiurrahman.com/projects/school-management-system)  
 🎥 **Detailed Video:** [YouTube](https://www.youtube.com/watch?v=EIk6t_aUbpY)
 
-
 ---
 
 ## 🤝 Contact
@@ -213,3 +222,4 @@ Looking to collaborate or hire for full-stack projects?
 📬 Reach out via [LinkedIn](https://www.linkedin.com/in/mutiur-rahman-mr/) or [Fiverr](https://www.fiverr.com/mutiur_rahman03)
 
 ---
+
