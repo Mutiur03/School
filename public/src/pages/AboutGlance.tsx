@@ -5,16 +5,17 @@ export default function GlancePage() {
     return (
         <div className="glance-page py-12">
             <div className="container-custom">
-                <h1 className="section-title page-title text-4xl md:text-5xl font-bold text-center mb-8">
-                    Panchbibi L. B. Pilot Government High School at a Glance
+                <h1 className="section-title page-title text-3xl md:text-5xl font-bold text-center mb-8">
+                    Panchbibi Lal Bihari Pilot Government High School
+
                 </h1>
 
                 <div className="content-grid grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
                     <div className="main-content md:col-span-2">
                         <div className="school-description prose max-w-none">
                             <p className="intro-paragraph text-lg leading-relaxed text-gray-700 mb-6">
-                                Panchbibi L. B. Pilot Government High School (Bengali: পাঁচবিবি এল. বি. পাইলট সরকারী উচ্চ বিদ্যালয়),
-                                also known as Panchbibi Lal Bihari Pilot Government High School, is a prominent boys’ secondary school
+                                Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়),
+                                formerly known as Panchbibi L. B. Pilot Government High School, is a prominent boys’ secondary school
                                 located in Panchbibi Upazila, Joypurhat District, Rajshahi Division, Bangladesh. Established in 1940,
                                 the school has a long-standing reputation for academic excellence and community leadership.
                             </p>
@@ -159,11 +160,11 @@ export default function GlancePage() {
                                     </li>
                                     <li className="contact-item flex items-center gap-2">
                                         <Phone size={20} className="contact-icon text-primary shrink-0" />
-                                        <span className="contact-text text-sm text-gray-600">+880 1234-567890</span>
+                                        <span className="contact-text text-sm text-gray-600">+880 1309-121983</span>
                                     </li>
                                     <li className="contact-item flex items-center gap-2">
                                         <Mail size={20} className="contact-icon text-primary shrink-0" />
-                                        <span className="contact-text text-sm text-gray-600">info@panchbibilbp.edu.bd</span>
+                                        <span className="contact-text text-sm text-gray-600">lbpgovtschool@gmail.com</span>
                                     </li>
                                 </ul>
                             </div>

@@ -106,9 +106,9 @@ export default function Navbar() {
       <div className="bg-primary text-white py-4">
         <div className="container-custom flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center gap-4 mb-3 md:mb-0">
-            <div className="relative h-12 w-12 md:h-16 md:w-16 rounded-full overflow-hidden bg-white p-1">
+            <div className="relative h-12 w-12 md:h-16 md:w-16 bg-white rounded-full overflow-hidden  p-1">
               <img
-                src="/placeholder.svg?height=60&width=60"
+                src="/icon.png"
                 alt="School Logo"
                 width={60}
                 height={60}
@@ -117,7 +117,8 @@ export default function Navbar() {
             </div>
             <div>
               <h1 className="text-lg md:text-2xl font-bold leading-tight">
-                Panchbibi L. B. Pilot Government High School
+                Panchbibi Lal Bihari Pilot Government High School
+
               </h1>
               <p className="text-xs md:text-base">
                 Excellence in Education Since 1940
