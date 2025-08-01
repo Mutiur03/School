@@ -1,26 +1,5 @@
 import { prisma } from "../config/prisma.js";
-
-// Helper function to handle database connection errors
-const handleDatabaseError = (error, res, operation = "database operation") => {
-  console.error(`Error during ${operation}:`, error);
-
-  if (error.name === "PrismaClientInitializationError") {
-    return res.status(503).json({
-      success: false,
-      error: "Database connection failed. Please try again later.",
-      details: "Unable to connect to the database server.",
-    });
-  }
-
-  if (error.code === "P2025") {
-    return res.status(404).json({ success: false, error: "Record not found" });
-  }
-
-  return res.status(500).json({
-    success: false,
-    error: `Failed to perform ${operation}. Please try again later.`,
-  });
-};
+import cloudinary from "../config/cloudinary.js";
 
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
@@ -101,7 +80,10 @@ export const updateExamController = async (req, res) => {
       message: "Exam updated successfully",
     });
   } catch (error) {
-    return handleDatabaseError(error, res, "updating exam");
+    res.status(500).json({
+      success: false,
+      error: error.message || "Error updating exam",
+    });
   }
 };
 
@@ -110,7 +92,8 @@ export const getExamsController = async (req, res) => {
     const exams = await prisma.exams.findMany();
     res.status(200).json({ success: true, data: exams });
   } catch (error) {
-    return handleDatabaseError(error, res, "fetching exams");
+    console.error("Error fetching exams:", error.message);
+    res.status(500).json({ success: false, error: "Error fetching exams" });
   }
 };
 
@@ -130,7 +113,11 @@ export const updateExamVisibilityController = async (req, res) => {
       message: `Exam visibility updated to ${visible}`,
     });
   } catch (error) {
-    return handleDatabaseError(error, res, "updating exam visibility");
+    console.error("Error updating exam visibility:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Error updating exam visibility",
+    });
   }
 };
 
@@ -148,7 +135,11 @@ export const deleteExamController = async (req, res) => {
       message: "Exam deleted successfully",
     });
   } catch (error) {
-    return handleDatabaseError(error, res, "deleting exam");
+    console.error("Error deleting exam:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Error deleting exam",
+    });
   }
 };
 
@@ -168,14 +159,19 @@ export const addExamRoutineController = async (req, res) => {
     });
     res.status(201).json({ success: true, data: routine });
   } catch (error) {
-    return handleDatabaseError(error, res, "adding exam routine");
+    res.status(500).json({
+      success: false,
+      error: error.message || "Error adding exam routine",
+    });
   }
 };
 
 export const getExamRoutinesController = async (req, res) => {
   const { exam_id, class: classNum } = req.query;
-  console.log(`Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`);
-  
+  console.log(
+    `Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`
+  );
+
   try {
     const where = {};
     if (exam_id) where.exam_id = parseInt(exam_id);
@@ -186,7 +182,10 @@ export const getExamRoutinesController = async (req, res) => {
     });
     res.status(200).json({ success: true, data: routines });
   } catch (error) {
-    return handleDatabaseError(error, res, "fetching exam routines");
+    console.error("Error fetching exam routines:", error.message);
+    res
+      .status(500)
+      .json({ success: false, error: "Error fetching exam routines" });
   }
 };
 
@@ -200,7 +199,11 @@ export const updateExamRoutineController = async (req, res) => {
     });
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    return handleDatabaseError(error, res, "updating exam routine");
+    console.error("Error updating exam routine:", error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Error updating exam routine",
+    });
   }
 };
 
@@ -212,6 +215,133 @@ export const deleteExamRoutineController = async (req, res) => {
     });
     res.status(200).json({ success: true, message: "Routine deleted" });
   } catch (error) {
-    return handleDatabaseError(error, res, "deleting exam routine");
+    console.error("Error deleting exam routine:", error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Error deleting exam routine",
+    });
+  }
+};
+
+// Helper function to upload PDF to Cloudinary (supports memory storage)
+async function uploadPDFToCloudinary(file) {
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "exam_routines",
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: true,
+          filename_override: file.originalname,
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      uploadStream.end(file.buffer);
+    });
+    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+    return {
+      previewUrl: result.secure_url,
+      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
+      public_id: result.public_id,
+    };
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error.message);
+    throw new Error("Cloudinary upload failed");
+  }
+}
+
+// Controller to handle PDF routine upload
+export const uploadExamRoutinePDFController = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: "No PDF file uploaded" });
+    }
+    const { previewUrl, public_id, downloadUrl } = await uploadPDFToCloudinary(
+      req.file
+    );
+
+    const updatedExam = await prisma.exams.update({
+      where: { id: parseInt(examId) },
+      data: {
+        routine: previewUrl,
+        public_id: public_id,
+        download_url: downloadUrl,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: updatedExam,
+      message: "PDF routine uploaded successfully",
+      routine_url: previewUrl,
+      public_id,
+      download_url: downloadUrl,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: error.message || "PDF upload failed" });
+  }
+};
+
+// Remove PDF routine from exam and Cloudinary
+export const removeExamRoutinePDFController = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    // Find the exam to get the Cloudinary public_id from the routine URL if needed
+    const exam = await prisma.exams.findUnique({
+      where: { id: parseInt(examId) },
+    });
+    if (!exam) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+    if (!exam.routine) {
+      return res.status(400).json({ error: "No routine PDF to remove" });
+    }
+
+    // Try to extract public_id from the routine URL or use the stored public_id
+    let public_id = exam.public_id;
+    if (!public_id) {
+      try {
+        // Cloudinary URLs look like: https://res.cloudinary.com/<cloud>/raw/upload/v<version>/exam_routines/<filename>
+        const match = exam.routine.match(
+          /\/(?:raw|image)\/upload\/(?:v\d+\/)?(.+)\.(pdf|PDF)$/
+        );
+        if (match) {
+          public_id = match[1];
+        }
+      } catch (e) {}
+    }
+
+    // Remove from Cloudinary if possible
+    if (public_id) {
+      try {
+        cloudinary.uploader.destroy(public_id, { resource_type: "raw" });
+      } catch (err) {
+        // Log but don't fail the request if Cloudinary deletion fails
+        console.error("Error deleting routine from Cloudinary:", err.message);
+      }
+    }
+
+    // Remove routine, public_id, and download_url fields from exam
+    const updatedExam = await prisma.exams.update({
+      where: { id: parseInt(examId) },
+      data: { routine: null, public_id: null, download_url: null },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: updatedExam,
+      message: "PDF routine removed successfully",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: error.message || "Failed to remove PDF routine" });
   }
 };

@@ -75,15 +75,18 @@ model attendence {
 }
 
 model exams {
-  id          Int      @id @default(autoincrement())
-  exam_name   String   @db.VarChar(100)
-  exam_year   Int
-  levels      Int[]
-  start_date  String   @db.VarChar(10)
-  end_date    String   @db.VarChar(10)
-  result_date String   @db.VarChar(10)
-  visible     Boolean  @default(false)
-  created_at  DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  exam_name    String   @db.VarChar(100)
+  exam_year    Int
+  levels       Int[]
+  routine      String?
+  public_id    String? // Cloudinary public_id for routine PDF
+  download_url String? // Download URL for routine PDF
+  start_date   String   @db.VarChar(10)
+  end_date     String   @db.VarChar(10)
+  result_date  String   @db.VarChar(10)
+  visible      Boolean  @default(false)
+  created_at   DateTime @default(now())
 
   marks         marks[]
   exam_routines exam_routines[]
@@ -276,4 +279,12 @@ model exam_routines {
   exam exams @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
   @@index([exam_id, class])
+}
+
+model class_routine_pdf {
+  id           Int      @id @default(autoincrement())
+  pdf_url      String
+  download_url String
+  public_id    String
+  created_at   DateTime @default(now())
 }

@@ -4,7 +4,7 @@ import cloudinary from "../config/cloudinary.js";
 export async function uploadPDFToCloudinary(file) {
   try {
     console.log(process.env.CLOUDINARY_SECRET_KEY);
-    
+
     const result = await cloudinary.uploader.upload(file.path, {
       folder: "notices",
       resource_type: "raw",
@@ -15,7 +15,7 @@ export async function uploadPDFToCloudinary(file) {
     fs.unlink(file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
-    console.log(result); 
+    console.log(result);
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
       previewUrl: result.secure_url,
@@ -24,7 +24,7 @@ export async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.log("Error uploading to Cloudinary:", error);
-    
+
     console.error("Cloudinary upload failed:", error.message);
     throw new Error("Cloudinary upload failed");
   }
@@ -66,7 +66,9 @@ export const addNoticeController = async (req, res) => {
 // Get notices
 export const getNoticesController = async (_, res) => {
   try {
-    const notices = await prisma.notices.findMany();
+    const notices = await prisma.notices.findMany({
+      orderBy: { created_at: "desc" },
+    });
     res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
