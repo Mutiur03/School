@@ -86,8 +86,8 @@ export default function SyllabusPage() {
                                                     <button
                                                         key={year}
                                                         className={`px-4 py-2 rounded border transition ${selected === year
-                                                                ? "bg-primary text-white border-primary"
-                                                                : "bg-white text-primary border-primary hover:bg-primary/10"
+                                                            ? "bg-primary text-white border-primary"
+                                                            : "bg-white text-primary border-primary hover:bg-primary/10"
                                                             }`}
                                                         onClick={() =>
                                                             setSelectedYear((prev) => ({
@@ -126,6 +126,21 @@ export default function SyllabusPage() {
                                                 >
                                                     Download
                                                 </a>
+                                            </div>
+                                            {/* Syllabus PDF Preview */}
+                                            <div className="w-full flex justify-center mt-6">
+                                                <div className="w-full bg-gray-100 rounded-lg overflow-hidden border border-border shadow aspect-video max-h-[90vh] min-h-[600px] flex items-center justify-center">
+                                                    <iframe
+                                                        src={syllabus.pdf_url}
+                                                        title={`Syllabus PDF Class ${classNum} Year ${selected}`}
+                                                        className="w-full h-full"
+                                                        style={{
+                                                            border: "none",
+                                                            minHeight: "600px",
+                                                            maxHeight: "90vh"
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     ) : years.length > 0 ? (

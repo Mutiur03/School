@@ -69,16 +69,21 @@ const Sidebar = ({
       label: "Teacher",
       icon: FaUser,
       dropdown: true,
-      id: "teacher",
+      id: "administration",
       items: [
         {
           label: "Teacher List",
-          link: "/teachers/list",
+          link: "/administration/teacher-list",
           id: "teachers",
         },
         {
+          label: "Staff List",
+          link: "/administration/staff-list",
+          id: "staff-list",
+        },
+        {
           label: "Assigned Teachers",
-          link: "/teachers/assigned-teachers",
+          link: "/administration/assigned-teachers",
           id: "assignments",
         },
       ],

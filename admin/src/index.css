@@ -1,8 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@font-face {
+    font-family: "MixedFont";
+    src: url("/fonts/SolaimanLipi.woff2") format("woff2");
+    unicode-range: U+0980-09FF;
+}
+
+@font-face {
+    font-family: "MixedFont";
+    src: url("/fonts/Outfit.woff2") format("woff2");
+    unicode-range: U+0000-00FF;
+}
 
 * {
-    font-family: "Outfit", sans-serif;
+    font-family: "MixedFont", sans-serif;
 }
+
+
 @import "tailwindcss";
 @import "tw-animate-css";
 

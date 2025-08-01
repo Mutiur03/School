@@ -9,7 +9,6 @@ import AdminStaff from "./pages/AdminStaff";
 import Gallery from "./pages/Gallery";
 import NoticePage from "./pages/Notice";
 import IndivisulNotice from "./pages/IndivisualNotice";
-import ClassRoutinePage from "./pages/ClassRoutine";
 import ExamRoutinePage from "./pages/ExamRoutine";
 import SyllabusPage from "./pages/Syllabus";
 import ScrollToTop from "./components/ScrollToTop";
@@ -20,6 +19,7 @@ import Images from "./pages/Images";
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import EventDetail from "./pages/EventDetail";
+import ClassRoutinePDF from "./pages/ClassRoutinePDF";
 
 
 function App() {
@@ -45,7 +45,7 @@ function App() {
           <Route path="/notice/:id" element={<IndivisulNotice />}></Route>
           <Route path="/event/:id" element={<EventDetail />}></Route>
           <Route path="/syllabus" element={<SyllabusPage />}></Route>
-          <Route path="/routine/class" element={<ClassRoutinePage />}></Route>
+          <Route path="/routine/class" element={<ClassRoutinePDF />}></Route>
           <Route path="/routine/exam" element={<ExamRoutinePage />}></Route>
 
           <Route path="*" element={<Navigate to="/" />}></Route>
