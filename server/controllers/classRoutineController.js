@@ -1,4 +1,35 @@
 import { prisma } from "../config/prisma.js";
+import cloudinary from "../config/cloudinary.js";
+// Helper function for PDF upload
+async function uploadPDFToCloudinary(file) {
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "class_routines",
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: true,
+          filename_override: file.originalname,
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      uploadStream.end(file.buffer);
+    });
+    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+    return {
+      previewUrl: result.secure_url,
+      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
+      public_id: result.public_id,
+    };
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error.message);
+    throw new Error("Cloudinary upload failed");
+  }
+}
 
 // CRUD for class slots
 export const getClassSlots = async (req, res) => {
@@ -122,5 +153,90 @@ export const deleteRoutine = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete routine" });
+  }
+};
+
+// Upload class routine PDF
+export const uploadClassRoutinePDF = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const { previewUrl, downloadUrl, public_id } = await uploadPDFToCloudinary(
+      req.file
+    );
+
+    const pdf = await prisma.class_routine_pdf.create({
+      data: {
+        pdf_url: previewUrl,
+        download_url: downloadUrl,
+        public_id: public_id,
+      },
+    });
+    res.status(201).json(pdf);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to upload PDF" });
+  }
+};
+
+// Get all class routine PDFs
+export const getClassRoutinePDFs = async (req, res) => {
+  try {
+    const pdfs = await prisma.class_routine_pdf.findMany({
+      orderBy: [{ id: "desc" }],
+    });
+    res.json(pdfs);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch PDFs" });
+  }
+};
+
+// Delete a class routine PDF
+export const deleteClassRoutinePDF = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const pdf = await prisma.class_routine_pdf.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!pdf) return res.status(404).json({ error: "PDF not found" });
+    // Delete from Cloudinary
+    cloudinary.uploader.destroy(pdf.public_id, { resource_type: "raw" });
+    await prisma.class_routine_pdf.delete({ where: { id: Number(id) } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete PDF" });
+  }
+};
+
+// Update (replace) a class routine PDF
+export const updateClassRoutinePDF = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const pdf = await prisma.class_routine_pdf.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!pdf) return res.status(404).json({ error: "PDF not found" });
+
+    let updateData = {};
+
+    if (req.file) {
+      // Delete old from Cloudinary
+      cloudinary.uploader.destroy(pdf.public_id, {
+        resource_type: "raw",
+      });
+      // Upload new PDF using provided helper
+      const { previewUrl, downloadUrl, public_id } =
+        await uploadPDFToCloudinary(req.file);
+      updateData.pdf_url = previewUrl;
+      updateData.download_url = downloadUrl;
+      updateData.public_id = public_id;
+    }
+
+    const updated = await prisma.class_routine_pdf.update({
+      where: { id: Number(id) },
+      data: updateData,
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update PDF" });
   }
 };
