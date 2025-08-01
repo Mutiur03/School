@@ -42,7 +42,7 @@ export async function deletePDFFromCloudinary(publicId) {
 // Add notice
 export const addNoticeController = async (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, created_at } = req.body;
     const { previewUrl, downloadUrl, public_id } = await uploadPDFToCloudinary(
       req.file
     );
@@ -53,6 +53,7 @@ export const addNoticeController = async (req, res) => {
         file: previewUrl,
         download_url: downloadUrl,
         public_id: public_id,
+        ...(created_at && { created_at: new Date(created_at) }),
       },
     });
 
@@ -107,7 +108,7 @@ export const deleteNoticeController = async (req, res) => {
 export const updateNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title } = req.body;
+    const { title, created_at } = req.body;
     const { file } = req;
 
     const existingNotice = await prisma.notices.findUnique({
@@ -119,6 +120,9 @@ export const updateNoticeController = async (req, res) => {
     }
 
     let updatedData = { title };
+    if (created_at) {
+      updatedData.created_at = new Date(created_at);
+    }
 
     if (file) {
       const { previewUrl, downloadUrl, public_id } =
