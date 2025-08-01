@@ -21,6 +21,7 @@ const NoticeUploadPage = () => {
   const [formValues, setFormValues] = useState({
     title: "",
     file: null,
+    created_at: "", 
   });
   const {
     notices,
@@ -41,6 +42,10 @@ const NoticeUploadPage = () => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
+    // Add created_at to formData if set
+    if (formValues.created_at) {
+      formData.set("created_at", formValues.created_at);
+    }
     try {
       if (isEditing) {
         await updateNotice(editId, formData);
@@ -48,7 +53,7 @@ const NoticeUploadPage = () => {
         await addNotice(formData);
       }
       // Only reset and hide form on successful submission
-      setFormValues({ title: "", file: null });
+      setFormValues({ title: "", file: null, created_at: "" });
       if (fileref.current) {
         fileref.current.value = "";
       }
@@ -139,6 +144,21 @@ const NoticeUploadPage = () => {
                       : ""}
                   </p>
                 )}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="created_at">Publish Date</Label>
+                <Input
+                  id="created_at"
+                  name="created_at"
+                  type="date"
+                  value={formValues.created_at}
+                  onChange={(e) =>
+                    setFormValues({ ...formValues, created_at: e.target.value })
+                  }
+                />
+                <p className="text-xs text-gray-400">
+                  Leave blank to use today's date.
+                </p>
               </div>
               <div className="flex justify-between gap-4">
                 <Button type="submit" disabled={isSubmitting}>
@@ -237,6 +257,9 @@ const NoticeUploadPage = () => {
                             setFormValues({
                               title: notice.title,
                               file: notice.file,
+                              created_at: notice.created_at
+                                ? notice.created_at.split("T")[0]
+                                : "",
                             });
                             setIsEditing(true);
                             setEditId(notice.id);
