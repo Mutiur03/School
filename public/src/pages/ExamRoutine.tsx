@@ -113,7 +113,7 @@ export default function ExamRoutinePage() {
                 <h1 className="section-title">Exam Routine</h1>
                 {/* Exam selection */}
                 <div className="mb-6">
-                    <label className="block mb-2 font-medium text-gray-700">Select Exam:</label>
+                    {/* <label className="block mb-2 font-medium text-gray-700">Select Exam:</label> */}
                     <select
                         className="border rounded px-3 py-2"
                         value={selectedExam?.id ?? ""}
@@ -148,7 +148,7 @@ export default function ExamRoutinePage() {
                         }}
                         className="w-full"
                     >
-                        <TabsList className={`grid grid-cols-2 md:grid-cols-${availableClasses.length} mb-8`}>
+                        <TabsList className={` mb-8`}>
                             {availableClasses.map((cls) => (
                                 <TabsTrigger key={cls} value={`class${cls}`}>{`Class ${cls}`}</TabsTrigger>
                             ))}

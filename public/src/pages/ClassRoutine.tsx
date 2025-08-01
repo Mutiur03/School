@@ -117,7 +117,7 @@ export default function ClassRoutinePage() {
                 <h1 className="section-title">Class Routine</h1>
                 <div className="mt-8">
                     <Tabs defaultValue="class6" className="w-full">
-                        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-8">
+                        <TabsList className=" mb-8">
                             <TabsTrigger value="class6">Class 6</TabsTrigger>
                             <TabsTrigger value="class7">Class 7</TabsTrigger>
                             <TabsTrigger value="class8">Class 8</TabsTrigger>
