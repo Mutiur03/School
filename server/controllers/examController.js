@@ -151,3 +151,67 @@ export const deleteExamController = async (req, res) => {
     return handleDatabaseError(error, res, "deleting exam");
   }
 };
+
+// Exam Routine Controllers
+
+export const addExamRoutineController = async (req, res) => {
+  const { exam_id, class: classNum, date, day, subject } = req.body;
+  try {
+    const routine = await prisma.exam_routines.create({
+      data: {
+        exam_id,
+        class: classNum,
+        date,
+        day,
+        subject,
+      },
+    });
+    res.status(201).json({ success: true, data: routine });
+  } catch (error) {
+    return handleDatabaseError(error, res, "adding exam routine");
+  }
+};
+
+export const getExamRoutinesController = async (req, res) => {
+  const { exam_id, class: classNum } = req.query;
+  console.log(`Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`);
+  
+  try {
+    const where = {};
+    if (exam_id) where.exam_id = parseInt(exam_id);
+    if (classNum) where.class = parseInt(classNum);
+    const routines = await prisma.exam_routines.findMany({
+      where,
+      orderBy: [{ date: "asc" }],
+    });
+    res.status(200).json({ success: true, data: routines });
+  } catch (error) {
+    return handleDatabaseError(error, res, "fetching exam routines");
+  }
+};
+
+export const updateExamRoutineController = async (req, res) => {
+  const { routineId } = req.params;
+  const { date, day, subject } = req.body;
+  try {
+    const updated = await prisma.exam_routines.update({
+      where: { id: parseInt(routineId) },
+      data: { date, day, subject },
+    });
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    return handleDatabaseError(error, res, "updating exam routine");
+  }
+};
+
+export const deleteExamRoutineController = async (req, res) => {
+  const { routineId } = req.params;
+  try {
+    await prisma.exam_routines.delete({
+      where: { id: parseInt(routineId) },
+    });
+    res.status(200).json({ success: true, message: "Routine deleted" });
+  } catch (error) {
+    return handleDatabaseError(error, res, "deleting exam routine");
+  }
+};

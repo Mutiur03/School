@@ -260,16 +260,6 @@ const Events = () => {
                 </div>
               </div>
               <div className="flex justify-between gap-4">
-                <Button type="submit" disabled={submitting} className="">
-                  {submitting
-                    ? isEditing
-                      ? "Updating..."
-                      : "Creating..."
-                    : isEditing
-                    ? "Update Event"
-                    : "Create Event"}
-                </Button>
-
                 <Button
                   variant="outline"
                   type="button"
@@ -289,6 +279,15 @@ const Events = () => {
                   }}
                 >
                   {isEditing ? "Cancel Update" : "Cancel"}
+                </Button>
+                <Button type="submit" disabled={submitting} className="">
+                  {submitting
+                    ? isEditing
+                      ? "Updating..."
+                      : "Creating..."
+                    : isEditing
+                    ? "Update Event"
+                    : "Create Event"}
                 </Button>
               </div>
             </form>

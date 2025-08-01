@@ -18,7 +18,8 @@ import galleryRouter from "./routes/galleryRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import path from "path";
 import fs from "fs";
-import axios from "axios";
+import syllabusRoutes from "./routes/syllabusRoutes.js";
+import classRoutineRouter from "./routes/classRoutineRoutes.js";
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads");
 
@@ -41,17 +42,18 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use(
-  "/pdf/notice",
-  express.static(path.join(__dirname, "uploads", "notice"), {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".pdf")) {
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline"); // Ensures inline viewing
-      }
-    },
-  })
-);
+// app.use("/uploads/notice", express.static(path.join(__dirname, "uploads/notice")));
+// app.use(
+//   "/pdf/notice",
+//   express.static(path.join(__dirname, "uploads", "notice"), {
+//     setHeaders: (res, filePath) => {
+//       if (filePath.endsWith(".pdf")) {
+//         res.setHeader("Content-Type", "application/pdf");
+//         res.setHeader("Content-Disposition", "inline"); // Ensures inline viewing
+//       }
+//     },
+//   })
+// );
 
 // app.get("/preview/:fileName", async (req, res) => {
 //   const { fileName } = req.params;
@@ -85,6 +87,8 @@ app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/syllabus", syllabusRoutes);
+app.use("/api/class-routine", classRoutineRouter);
 // pool
 //   .connect()
 //   .then(async () => {

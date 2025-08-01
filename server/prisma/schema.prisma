@@ -85,7 +85,8 @@ model exams {
   visible     Boolean  @default(false)
   created_at  DateTime @default(now())
 
-  marks marks[]
+  marks         marks[]
+  exam_routines exam_routines[]
 
   @@unique([exam_name, exam_year, levels])
 }
@@ -102,7 +103,7 @@ model holidays {
 model teachers {
   id                     Int      @id @default(autoincrement())
   name                   String   @db.VarChar(100)
-  email                  String   @db.VarChar(100) @unique
+  email                  String   @unique @db.VarChar(100)
   phone                  String   @db.Char(11)
   subject                String?  @db.VarChar(100)
   academic_qualification String?
@@ -191,17 +192,18 @@ model categories {
 }
 
 model events {
-  id         Int      @id @default(autoincrement())
-  title      String
-  details    String?
-  date       String   @db.VarChar(10)
-  image      String?
-  file       String?
-  category   String   @default("Event")
-  location   String?
-  thumbnail  String?
-  public_id  String?
-  created_at DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  title        String
+  details      String?
+  date         String   @db.VarChar(10)
+  image        String?
+  file         String?
+  download_url String?
+  category     String   @default("Event")
+  location     String?
+  thumbnail    String?
+  public_id    String?
+  created_at   DateTime @default(now())
 
   galleries gallery[]
 }
@@ -229,4 +231,49 @@ model notices {
   download_url String?
   public_id    String?
   created_at   DateTime @default(now())
+}
+
+model syllabus {
+  id           Int      @id @default(autoincrement())
+  class        Int
+  year         Int
+  pdf_url      String
+  download_url String
+  public_id    String
+  created_at   DateTime @default(now())
+}
+
+model class_slot_time {
+  id         Int             @id @default(autoincrement())
+  start_time String          @db.VarChar(8) // "08:00 AM"
+  end_time   String          @db.VarChar(8) // "01:00 PM"
+  created_at DateTime        @default(now())
+  routines   class_routine[]
+}
+
+model class_routine {
+  id         Int      @id @default(autoincrement())
+  class      Int
+  slot_id    Int
+  day        String   @db.VarChar(10)
+  subject    String   @db.VarChar(100)
+  created_at DateTime @default(now())
+
+  slot class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
+
+  @@unique([class, slot_id, day], name: "unique_class_slot_day")
+}
+
+model exam_routines {
+  id         Int      @id @default(autoincrement())
+  exam_id    Int
+  class      Int
+  date       String   @db.VarChar(10)
+  day        String   @db.VarChar(10)
+  subject    String   @db.VarChar(100)
+  created_at DateTime @default(now())
+
+  exam exams @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@index([exam_id, class])
 }

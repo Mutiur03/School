@@ -11,7 +11,7 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import Loading from "@/components/Loading";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "../components/DeleteConfimationIcon";
 function AddExam() {
@@ -31,6 +31,13 @@ function AddExam() {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedRoutineExam, setSelectedRoutineExam] = useState(null);
+  const [selectedRoutineClass, setSelectedRoutineClass] = useState(null);
+  const [routines, setRoutines] = useState([]);
+  const [routineForm, setRoutineForm] = useState({ date: "", subject: "" });
+  const [routineEditId, setRoutineEditId] = useState(null);
+  const [routineLoading, setRoutineLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (type === "checkbox") {
@@ -142,6 +149,90 @@ function AddExam() {
       toast.error("Failed to delete exam");
     } finally {
       fetchExamList();
+    }
+  };
+
+  // Routine CRUD
+  const openRoutineSection = (exam, classNum) => {
+    setSelectedRoutineExam(exam);
+    setSelectedRoutineClass(classNum);
+    fetchRoutines(exam.id, classNum);
+    setRoutineForm({ date: "", subject: "" });
+    setRoutineEditId(null);
+  };
+
+  const closeRoutineSection = () => {
+    setSelectedRoutineExam(null);
+    setSelectedRoutineClass(null);
+    setRoutines([]);
+    setRoutineForm({ date: "", subject: "" });
+    setRoutineEditId(null);
+  };
+
+  const fetchRoutines = async (exam_id, classNum) => {
+    setRoutineLoading(true);
+    try {
+      const { data } = await axios.get("/api/exams/getExamRoutines", {
+        params: { exam_id, class: classNum },
+      });
+      setRoutines(data.data);
+    } catch (e) {
+      toast.error("Failed to fetch routines");
+    }
+    setRoutineLoading(false);
+  };
+
+  const handleRoutineFormChange = (e) => {
+    setRoutineForm({ ...routineForm, [e.target.name]: e.target.value });
+  };
+
+  const handleRoutineSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Automatically get day from date
+      const day = routineForm.date
+        ? format(parseISO(routineForm.date), "EEEE")
+        : "";
+      if (routineEditId) {
+        await axios.put(`/api/exams/updateExamRoutine/${routineEditId}`, {
+          date: routineForm.date,
+          day,
+          subject: routineForm.subject,
+        });
+        toast.success("Routine updated");
+      } else {
+        await axios.post("/api/exams/addExamRoutine", {
+          exam_id: selectedRoutineExam.id,
+          class: selectedRoutineClass,
+          date: routineForm.date,
+          day,
+          subject: routineForm.subject,
+        });
+        toast.success("Routine added");
+      }
+      fetchRoutines(selectedRoutineExam.id, selectedRoutineClass);
+      setRoutineForm({ date: "", subject: "" });
+      setRoutineEditId(null);
+    } catch {
+      toast.error("Routine save failed");
+    }
+  };
+
+  const handleRoutineEdit = (routine) => {
+    setRoutineForm({
+      date: routine.date,
+      subject: routine.subject,
+    });
+    setRoutineEditId(routine.id);
+  };
+
+  const handleRoutineDelete = async (routineId) => {
+    try {
+      await axios.delete(`/api/exams/deleteExamRoutine/${routineId}`);
+      toast.success("Routine deleted");
+      fetchRoutines(selectedRoutineExam.id, selectedRoutineClass);
+    } catch {
+      toast.error("Delete failed");
     }
   };
 
@@ -343,7 +434,21 @@ function AddExam() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm ">
-                        {exam.levels.map((l) => `Class ${l}`).join(", ")}
+                        {exam.levels.map((l) => (
+                          <span
+                            key={l}
+                            className="inline-flex items-center mr-2"
+                          >
+                            Class {l}
+                            <button
+                              className="ml-1 text-xs text-blue-500 underline"
+                              onClick={() => openRoutineSection(exam, l)}
+                              title="Manage Routine"
+                            >
+                              Routine
+                            </button>
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -417,6 +522,107 @@ function AddExam() {
           </table>
         </div>
       </div>
+
+      {/* Exam Routine Section */}
+      {selectedRoutineExam && selectedRoutineClass && (
+        <div className="mt-8 bg-white dark:bg-card rounded-lg shadow-lg p-6 max-w-2xl mx-auto border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">
+              Manage Routine: {selectedRoutineExam.exam_name} - Class{" "}
+              {selectedRoutineClass}
+            </h2>
+            <Button variant="outline" onClick={closeRoutineSection}>
+              Close
+            </Button>
+          </div>
+          <form
+            onSubmit={handleRoutineSubmit}
+            className="flex flex-col md:flex-row gap-2 mb-4"
+          >
+            <input
+              type="date"
+              name="date"
+              value={routineForm.date}
+              onChange={handleRoutineFormChange}
+              required
+              className="border px-2 py-1 rounded"
+            />
+            <input
+              type="text"
+              name="subject"
+              value={routineForm.subject}
+              onChange={handleRoutineFormChange}
+              placeholder="Subject"
+              required
+              className="border px-2 py-1 rounded"
+            />
+            <Button type="submit" className="px-3">
+              {routineEditId ? "Update" : "Add"}
+            </Button>
+            {routineEditId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setRoutineForm({ date: "", subject: "" });
+                  setRoutineEditId(null);
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+          </form>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr>
+                  <th className="border px-2 py-1">Date</th>
+                  <th className="border px-2 py-1">Day</th>
+                  <th className="border px-2 py-1">Subject</th>
+                  <th className="border px-2 py-1">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {routineLoading ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-2">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : routines.length > 0 ? (
+                  routines.map((r) => (
+                    <tr key={r.id}>
+                      <td className="border px-2 py-1">{r.date}</td>
+                      <td className="border px-2 py-1">{r.day}</td>
+                      <td className="border px-2 py-1">{r.subject}</td>
+                      <td className="border px-2 py-1">
+                        <button
+                          className="text-blue-500 mr-2"
+                          onClick={() => handleRoutineEdit(r)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-red-500"
+                          onClick={() => handleRoutineDelete(r.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="text-center py-2">
+                      No routines found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

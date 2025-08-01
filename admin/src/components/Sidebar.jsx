@@ -133,7 +133,7 @@ const Sidebar = ({
         //   id: "add-number",
         // },
         {
-          label: "Add Subject",
+          label: "Subjects",
           link: "/settings/add-subject",
           id: "add-subject",
         },
@@ -143,9 +143,19 @@ const Sidebar = ({
         //   id: "add-new-level",
         // },
         {
-          label: "Add Exam",
+          label: "Exam",
           link: "/settings/add-exam",
           id: "add-exam",
+        },
+        {
+          label: "Syllabus",
+          link: "/syllabus",
+          id: "syllabus",
+        },
+        {
+          label: "Class Routine",
+          link: "/classRoutine",
+          id: "class-routine",
         },
       ],
     },
@@ -306,6 +316,9 @@ const Sidebar = ({
                             console.log(item);
                             // closeMobileSidebar();
                             setOpenDropdown(null);
+                            if (window.innerWidth < 768 && onClose) {
+                              onClose();
+                            }
                           }}
                         >
                           <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
@@ -384,6 +397,12 @@ const Sidebar = ({
                                         onClick={() => {
                                           console.log(subItem);
                                           // closeMobileSidebar();
+                                          if (
+                                            window.innerWidth < 768 &&
+                                            onClose
+                                          ) {
+                                            onClose();
+                                          }
                                         }}
                                       >
                                         <span className="whitespace-nowrap overflow-hidden text-ellipsis">

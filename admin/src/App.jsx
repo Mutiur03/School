@@ -28,6 +28,8 @@ import {
   Settings,
   AlumniList,
 } from "./pages";
+import Syllabus from "./pages/Syllabus";
+import ClassRoutine from "./pages/ClassRoutine";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -142,6 +144,14 @@ function App() {
                             <Route
                               path="/holiday"
                               element={<Holidays />}
+                            ></Route>
+                            <Route
+                              path="/syllabus"
+                              element={<Syllabus />}
+                            ></Route>
+                            <Route
+                              path="/classRoutine"
+                              element={<ClassRoutine />}
                             ></Route>
                             <Route path="/events" element={<Events />}></Route>
                             <Route
