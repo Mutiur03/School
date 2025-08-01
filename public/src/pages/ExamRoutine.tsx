@@ -1,9 +1,6 @@
 "use client"
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const CLASS_LIST = [6, 7, 8, 9, 10];
 
 interface Exam {
     id: number;
@@ -11,20 +8,13 @@ interface Exam {
     visible: boolean;
     levels: number[];
     start_date: string;
-}
-
-interface Routine {
-    id: number;
-    date: string;
-    day: string;
-    subject: string;
+    routine?: string | null;
+    download_url?: string | null;
 }
 
 export default function ExamRoutinePage() {
     const [exams, setExams] = useState<Exam[]>([]);
     const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
-    const [selectedClass, setSelectedClass] = useState<number | null>(null);
-    const [routines, setRoutines] = useState<{ [key: number]: Routine[] }>({});
     const [loading, setLoading] = useState<boolean>(false);
 
     // Fetch exams on mount
@@ -47,65 +37,23 @@ export default function ExamRoutinePage() {
                     const sorted = [...currentYearExams].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
                     const closestExam = sorted.find(e => new Date(e.start_date) >= now) || sorted[sorted.length - 1];
                     setSelectedExam(closestExam);
-
-                    // Pick the lowest class available for that exam
-                    const available = closestExam.levels.filter((cls) => CLASS_LIST.includes(cls));
-                    if (available.length > 0) {
-                        setSelectedClass(Math.min(...available));
-                    } else {
-                        setSelectedClass(null);
-                    }
                 } else {
                     setSelectedExam(null);
-                    setSelectedClass(null);
                 }
             } catch {
                 setExams([]);
                 setSelectedExam(null);
-                setSelectedClass(null);
             }
             setLoading(false);
         };
         fetchExams();
     }, []);
 
-    // Fetch routines when selectedExam changes
-    useEffect(() => {
-        if (!selectedExam) {
-            setRoutines({});
-            return;
-        }
-        const fetchRoutines = async () => {
-            setLoading(true);
-            try {
-                const routineData: { [key: number]: Routine[] } = {};
-                await Promise.all(
-                    selectedExam.levels.map(async (cls) => {
-                        const routineRes = await axios.get<{ data: Routine[] }>("/api/exams/getExamRoutines", {
-                            params: { exam_id: selectedExam.id, class: cls },
-                        });
-                        routineData[cls] = routineRes.data.data;
-                    })
-                );
-                setRoutines(routineData);
-
-                // If selectedClass is not in available, set to lowest available
-                const available = selectedExam.levels.filter((cls) => CLASS_LIST.includes(cls));
-                if (!selectedClass || !available.includes(selectedClass)) {
-                    if (available.length > 0) setSelectedClass(Math.min(...available));
-                    else setSelectedClass(null);
-                }
-            } catch {
-                setRoutines({});
-            }
-            setLoading(false);
-        };
-        fetchRoutines();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedExam]);
-
-    // Only show classes available for selected exam
-    const availableClasses = selectedExam ? selectedExam.levels.filter((cls) => CLASS_LIST.includes(cls)) : [];
+    // Find the PDF routine for the selected exam
+    const pdfRoutineUrl = selectedExam?.routine || null;
+    const pdfDownloadUrl = selectedExam?.download_url || (pdfRoutineUrl
+        ? pdfRoutineUrl.replace("/upload/", "/upload/fl_attachment/")
+        : null);
 
     return (
         <div className="py-12">
@@ -113,19 +61,12 @@ export default function ExamRoutinePage() {
                 <h1 className="section-title">Exam Routine</h1>
                 {/* Exam selection */}
                 <div className="mb-6">
-                    {/* <label className="block mb-2 font-medium text-gray-700">Select Exam:</label> */}
                     <select
-                        className="border rounded px-3 py-2"
+                        className="border rounded px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary transition"
                         value={selectedExam?.id ?? ""}
                         onChange={e => {
                             const exam = exams.find(ex => ex.id === Number(e.target.value));
                             setSelectedExam(exam ?? null);
-                            if (exam) {
-                                const available = exam.levels.filter((cls) => CLASS_LIST.includes(cls));
-                                setSelectedClass(available.length > 0 ? Math.min(...available) : null);
-                            } else {
-                                setSelectedClass(null);
-                            }
                         }}
                         disabled={loading || exams.length === 0}
                     >
@@ -139,58 +80,61 @@ export default function ExamRoutinePage() {
                         ))}
                     </select>
                 </div>
-                <div className="mt-8">
-                    <Tabs
-                        value={selectedClass ? `class${selectedClass}` : ""}
-                        onValueChange={val => {
-                            const cls = Number(val.replace("class", ""));
-                            setSelectedClass(cls);
-                        }}
-                        className="w-full"
-                    >
-                        <TabsList className={` mb-8`}>
-                            {availableClasses.map((cls) => (
-                                <TabsTrigger key={cls} value={`class${cls}`}>{`Class ${cls}`}</TabsTrigger>
-                            ))}
-                        </TabsList>
-                        {availableClasses.map((cls) => (
-                            <TabsContent key={cls} value={`class${cls}`}>
-                                <div className="overflow-x-auto">
-                                    {loading ? (
-                                        <div className="py-8 text-center text-gray-500">Loading...</div>
-                                    ) : routines[cls] && routines[cls].length > 0 ? (
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="bg-primary text-white">
-                                                    <th className="border p-2">Date</th>
-                                                    <th className="border p-2">Day</th>
-                                                    <th className="border p-2">Subject</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {routines[cls].map((r: Routine) => (
-                                                    <tr key={r.id} className="hover:bg-gray-50">
-                                                        <td className="border p-2">{r.date}</td>
-                                                        <td className="border p-2 font-medium">{r.day}</td>
-                                                        <td className="border p-2">{r.subject}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    ) : (
-                                        <div className="bg-gray-50 p-8 rounded-lg text-center">
-                                            <h3 className="text-xl font-medium text-gray-600">
-                                                Class {cls} Exam Routine
-                                            </h3>
-                                            <p className="mt-2 text-gray-500">
-                                                Exam routine will be updated soon.
-                                            </p>
-                                        </div>
-                                    )}
+                <div className="mt-8 flex flex-col items-center">
+                    {/* PDF Routine section */}
+                    {pdfRoutineUrl ? (
+                        <>
+                            <div className="mb-8 flex flex-col sm:flex-row items-center gap-4">
+                                <a
+                                    href={pdfRoutineUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-4 py-2 bg-primary text-white rounded shadow hover:bg-primary-dark transition font-medium"
+                                    style={{ backgroundColor: "#2563eb" }} // Tailwind blue-600
+                                >
+                                    {/* View PDF */}
+                                    View Routine
+                                </a>
+                                {pdfDownloadUrl && (
+                                    <a
+                                        href={pdfDownloadUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 transition font-medium"
+                                        style={{ backgroundColor: "#16a34a" }} // Tailwind green-600
+                                        download
+                                    >
+                                        {/* Download PDF */}
+                                        Download Routine
+                                    </a>
+                                )}
+                            </div>
+                            {/* PDF Preview */}
+                            <div className="w-full flex justify-center">
+                                <div className="w-full bg-gray-100 rounded-lg overflow-hidden border border-border shadow aspect-video max-h-[90vh] min-h-[600px] flex items-center justify-center">
+                                    <iframe
+                                        src={pdfRoutineUrl}
+                                        title="Exam Routine PDF"
+                                        className="w-full h-full"
+                                        style={{
+                                            border: "none",
+                                            minHeight: "600px",
+                                            maxHeight: "90vh"
+                                        }}
+                                    />
                                 </div>
-                            </TabsContent>
-                        ))}
-                    </Tabs>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="bg-gray-50 p-8 rounded-lg text-center">
+                            <h3 className="text-xl font-medium text-gray-600">
+                                Exam Routine
+                            </h3>
+                            <p className="mt-2 text-gray-500">
+                                Exam routine will be updated soon.
+                            </p>
+                        </div>
+                    )}
                 </div>
                 <div className="mt-8 bg-yellow-50 border-l-4 border-yellow-400 p-4">
                     <h3 className="text-lg font-medium text-yellow-800">Note:</h3>

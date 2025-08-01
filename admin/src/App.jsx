@@ -30,6 +30,9 @@ import {
 } from "./pages";
 import Syllabus from "./pages/Syllabus";
 import ClassRoutine from "./pages/ClassRoutine";
+import ExamPDFRoutine from "./pages/ExamPDFRoutine";
+import ClassRoutinePDF from "./pages/ClassRoutinePDF";
+import StaffList from "./pages/StaffList";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -100,8 +103,12 @@ function App() {
                               element={<AlumniList />}
                             />
                             <Route
-                              path="/teachers/list"
+                              path="/administration/teacher-list"
                               element={<TeacherList />}
+                            />
+                            <Route
+                              path="/administration/staff-list"
+                              element={<StaffList />}
                             />
                             <Route
                               path="/classes"
@@ -118,7 +125,7 @@ function App() {
 
                             <Route
                               path="/settings/add-exam"
-                              element={<AddExam />}
+                              element={<ExamPDFRoutine />}
                             />
                             <Route
                               path="/result/add-marks"
@@ -129,7 +136,7 @@ function App() {
                               element={<NewSubject />}
                             />
                             <Route
-                              path="/teachers/assigned-teachers"
+                              path="/administration/assigned-teachers"
                               element={<AddLevel />}
                             />
                             <Route
@@ -151,7 +158,7 @@ function App() {
                             ></Route>
                             <Route
                               path="/classRoutine"
-                              element={<ClassRoutine />}
+                              element={<ClassRoutinePDF />}
                             ></Route>
                             <Route path="/events" element={<Events />}></Route>
                             <Route
