@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import axios from "axios";
 
@@ -57,7 +57,7 @@ export default function SyllabusPage() {
                 <h1 className="section-title">Class Syllabus</h1>
                 <div className="mt-8">
                     <Tabs defaultValue="class6" className="w-full">
-                        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-8">
+                        <TabsList className=" mb-8">
                             {[6, 7, 8, 9, 10].map((classNum) => (
                                 <TabsTrigger value={`class${classNum}`} key={classNum}>
                                     Class {classNum}

@@ -106,12 +106,10 @@ export default function Navbar() {
       <div className="bg-primary text-white py-4">
         <div className="container-custom flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center gap-4 mb-3 md:mb-0">
-            <div className="relative h-12 w-12 md:h-16 md:w-16 bg-white rounded-full overflow-hidden  p-1">
+            <div className="relative w-12 h-12 md:w-16 md:h-16 aspect-square bg-white rounded-full overflow-hidden p-1 flex items-center justify-center">
               <img
                 src="/icon.png"
                 alt="School Logo"
-                width={60}
-                height={60}
                 className="object-contain w-full h-full"
               />
             </div>
