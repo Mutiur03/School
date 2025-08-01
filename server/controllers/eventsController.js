@@ -20,11 +20,21 @@ export const addEventController = async (req, res) => {
       })
       .replace(/\//g, "-");
 
-    const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
+    const { previewUrl, public_id, downloadUrl } = await uploadPDFToCloudinary(
+      file
+    );
 
-    fs.unlink(file.path, (err) => {
-      if (err) console.error("Error deleting local file:", err);
-    });
+    // Remove both local PDF and image files after upload (check existence)
+    const filePath = file.path.startsWith("uploads")
+      ? `${process.cwd()}/${file.path}`
+      : file.path;
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (err) {
+        console.error("Error deleting local file:", err);
+      }
+    }
 
     const result = await prisma.events.create({
       data: {
@@ -34,6 +44,7 @@ export const addEventController = async (req, res) => {
         location,
         image: fixUrl(image.path),
         file: previewUrl,
+        download_url: downloadUrl,
         public_id: public_id,
       },
     });
@@ -116,15 +127,27 @@ export const updateEventController = async (req, res) => {
         })
         .replace(/\//g, "-"),
     };
-
+    console.log("====================================");
+    console.log(file);
+    console.log("====================================");
     if (file) {
-      const { previewUrl, public_id } = await uploadPDFToCloudinary(file);
+      const { previewUrl, public_id, downloadUrl } =
+        await uploadPDFToCloudinary(file);
       updateData.file = previewUrl;
       updateData.public_id = public_id;
+      updateData.download_url = downloadUrl;
 
-      fs.unlink(file.path, (err) => {
-        if (err) console.error("Error deleting local file:", err);
-      });
+      // Remove local PDF file after upload (check existence)
+      const filePath = file.path.startsWith("uploads")
+        ? `${process.cwd()}/${file.path}`
+        : file.path;
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error("Error deleting local file:", err);
+        }
+      }
 
       if (existingEvent.public_id) {
         await deletePDFFromCloudinary(existingEvent.public_id);

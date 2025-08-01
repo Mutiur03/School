@@ -1,11 +1,13 @@
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
-import cloudinary from "../config/cloudinary.js"; // Cloudinary config must be correctly imported
-
+import cloudinary from "../config/cloudinary.js";
 export async function uploadPDFToCloudinary(file) {
   try {
+    console.log(process.env.CLOUDINARY_SECRET_KEY);
+    
     const result = await cloudinary.uploader.upload(file.path, {
       folder: "notices",
+      resource_type: "raw",
       use_filename: true,
       unique_filename: false,
     });
@@ -13,14 +15,16 @@ export async function uploadPDFToCloudinary(file) {
     fs.unlink(file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
-    console.log(result);
+    console.log(result); 
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
-      previewUrl: result.url,
-      downloadUrl: `https://res.cloudinary.com/${cloud_name}/image/upload/fl_attachment:${result.original_filename}/${result.public_id}.${result.format}`,
+      previewUrl: result.secure_url,
+      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
       public_id: result.public_id,
     };
   } catch (error) {
+    console.log("Error uploading to Cloudinary:", error);
+    
     console.error("Cloudinary upload failed:", error.message);
     throw new Error("Cloudinary upload failed");
   }
@@ -28,7 +32,7 @@ export async function uploadPDFToCloudinary(file) {
 
 export async function deletePDFFromCloudinary(publicId) {
   try {
-    await cloudinary.uploader.destroy(publicId);
+    await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
     console.log(`File with public ID "${publicId}" deleted successfully.`);
   } catch (err) {
     console.error("Error deleting file:", err.message);

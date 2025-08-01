@@ -63,20 +63,39 @@ export default function NoticePage() {
                                         </div>
                                     </div>
                                     {/* Show Notice button */}
-                                    {notice.file && (
-                                        <button
-                                            className="absolute right-5 bottom-3 text-primary hover:underline"
-                                            onClick={() => window.open(notice.file, "_blank")}
-                                        >
-                                            Show Notice
-                                        </button>
-                                    )}
+                                    <div className="absolute right-5 bottom-3 flex  gap-2">
+                                        {notice.download_url && (
+                                            <a
+                                                href={notice.download_url}
+                                                download
+                                                className="text-primary hover:underline"
+                                            >
+                                                Download PDF
+                                            </a>
+
+                                        )}
+                                        {notice.file && (
+                                            <button
+                                                className=" text-primary hover:underline"
+                                                onClick={() => window.open(notice.file, "_blank")}
+                                            >
+                                                Show Notice
+                                            </button>
+                                        )}
+
+
+                                    </div>
+                                    {/* <iframe src={notice.file} width="100%"
+                                        height="600px"
+                                        title="PDF Preview"></iframe> */}
+
+
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

@@ -129,7 +129,12 @@ const NoticeUploadPage = () => {
                         "..."
                       : isEditing && typeof formValues.file === "string"
                       ? "Current file: " +
-                        formValues.file.split("/").pop().slice(0, 20) +
+                        formValues.file
+                          .split("/")
+                          .pop()
+                          .split("-")
+                          .pop()
+                          .slice(0, 20) +
                         "..."
                       : ""}
                   </p>
