@@ -2,16 +2,6 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 async function main() {
-  await prisma.admin.createMany({
-    data: [
-      {
-        username: "Mutiur",
-        password: "1234",
-      },
-    ],
-    skipDuplicates: true,
-  });
-
   await prisma.categories.createMany({
     data: [{ category: "Event" }, { category: "Campus" }, { category: "Labs" }],
     skipDuplicates: true,
