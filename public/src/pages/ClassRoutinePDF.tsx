@@ -20,8 +20,8 @@ export default function ClassRoutinePDF() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center py-10 px-2">
-            <h1 className="section-title mb-6 text-2xl md:text-3xl text-center">Class Routine</h1>
+        <div className="min-h-screen bg-background flex flex-col items-center  py-10 px-2">
+            <h1 className="section-title mb-6 text-2xl md:text-3xl ">Class Routine</h1>
             <div className="w-full max-w-3xl flex flex-col items-center justify-center mx-auto">
                 {routinePDF ? (
                     <div className="w-full flex flex-col items-center gap-6">
