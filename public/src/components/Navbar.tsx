@@ -215,8 +215,8 @@ export default function Navbar() {
                     <button
                       data-dropdown={item.name}
                       className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all duration-200 ${isActive(item.path) || openDropdown === item.name
-                          ? "text-white bg-primary shadow-md"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-primary"
+                        ? "text-white bg-primary shadow-md"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-primary"
                         }`}
                       aria-expanded={openDropdown === item.name}
                       aria-haspopup="true"
@@ -242,8 +242,8 @@ export default function Navbar() {
                             key={subItem.name}
                             to={subItem.path}
                             className={`block px-4 py-3 text-sm transition-colors duration-200 ${isActive(subItem.path)
-                                ? "bg-primary/10 text-primary border-r-2 border-primary"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-primary"
+                              ? "bg-primary/10 text-primary border-r-2 border-primary"
+                              : "text-gray-700 hover:bg-gray-50 hover:text-primary"
                               }`}
                           >
                             {subItem.name}
@@ -256,8 +256,8 @@ export default function Navbar() {
                   <Link
                     to={item.path || "#"}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                        ? "text-white bg-primary shadow-md"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-primary"
+                      ? "text-white bg-primary shadow-md"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-primary"
                       }`}
                   >
                     {item.name}
@@ -282,30 +282,27 @@ export default function Navbar() {
                       <div>
                         <button
                           onClick={() => toggleDropdown(item.name)}
-                          className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-all duration-200 ${
-                            isActive(item.path) || openDropdown === item.name
+                          className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-all duration-200 ${isActive(item.path) || openDropdown === item.name
                               ? "text-primary bg-primary/10"
                               : "text-gray-700 hover:bg-gray-100"
-                          }`}
+                            }`}
                           aria-expanded={openDropdown === item.name}
                           type="button"
                         >
                           <span>{item.name}</span>
                           <ChevronDown
                             size={16}
-                            className={`transition-transform duration-200 ${
-                              openDropdown === item.name ? "rotate-180" : ""
-                            }`}
+                            className={`transition-transform duration-200 ${openDropdown === item.name ? "rotate-180" : ""
+                              }`}
                           />
                         </button>
 
                         {/* Mobile dropdown */}
                         <div
-                          className={`overflow-hidden transition-all duration-300 ${
-                            openDropdown === item.name
+                          className={`overflow-hidden transition-all duration-300 ${openDropdown === item.name
                               ? "max-h-96 opacity-100 mt-1"
                               : "max-h-0 opacity-0"
-                          }`}
+                            }`}
                         >
                           <div className="ml-4 space-y-1 border-l-2 border-primary/20 pl-4">
                             {item.dropdown.map((subItem) => (
@@ -316,11 +313,10 @@ export default function Navbar() {
                                   setIsMenuOpen(false);
                                   setOpenDropdown(null);
                                 }}
-                                className={`block px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                                  isActive(subItem.path)
+                                className={`block px-3 py-2 rounded-md text-sm transition-colors duration-200 ${isActive(subItem.path)
                                     ? "bg-primary/10 text-primary font-medium"
                                     : "text-gray-600 hover:bg-gray-50 hover:text-primary"
-                                }`}
+                                  }`}
                               >
                                 {subItem.name}
                               </Link>
@@ -332,11 +328,10 @@ export default function Navbar() {
                       <Link
                         to={item.path || "#"}
                         onClick={() => setIsMenuOpen(false)}
-                        className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          isActive(item.path)
+                        className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
                             ? "text-primary bg-primary/10"
                             : "text-gray-700 hover:bg-gray-100"
-                        }`}
+                          }`}
                       >
                         {item.name}
                       </Link>
