@@ -235,7 +235,7 @@ export default function Navbar() {
                         ref={(el) => {
                           dropdownRefs.current[item.name] = el;
                         }}
-                        className="absolute top-full left-0 mt-2 w-48 bg-white shadow-lg rounded-lg overflow-hidden z-50 border border-gray-100 animate-in slide-in-from-top-2 duration-200"
+                        className="absolute top-full left-0 w-48 bg-white shadow-lg rounded-lg overflow-hidden z-50 border border-gray-100 animate-in slide-in-from-top-2 duration-200"
                       >
                         {item.dropdown.map((subItem) => (
                           <Link
