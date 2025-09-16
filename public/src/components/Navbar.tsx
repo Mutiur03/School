@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import axios from "axios";
 
 const navItems = [
   { name: "Home", path: "/" },
@@ -42,10 +43,25 @@ const navItems = [
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [citizenCharterUrl, setCitizenCharterUrl] = useState<string | null>(null);
   const location = useLocation();
   const pathname = location.pathname;
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Fetch Citizen Charter PDF URL
+  useEffect(() => {
+    const fetchCitizenCharterUrl = async () => {
+      try {
+        const response = await axios.get("/api/file-upload/citizen-charter");
+        setCitizenCharterUrl(response.data.file);
+      } catch {
+        console.log("No Citizen Charter PDF found");
+      }
+    };
+
+    fetchCitizenCharterUrl();
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -265,6 +281,18 @@ export default function Navbar() {
                 )}
               </div>
             ))}
+
+            {/* Citizen Charter Link */}
+            {citizenCharterUrl && (
+              <a
+                href={citizenCharterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-primary"
+              >
+                Citizen Charter
+              </a>
+            )}
           </div>
         </div>
 
@@ -283,8 +311,8 @@ export default function Navbar() {
                         <button
                           onClick={() => toggleDropdown(item.name)}
                           className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-all duration-200 ${isActive(item.path) || openDropdown === item.name
-                              ? "text-primary bg-primary/10"
-                              : "text-gray-700 hover:bg-gray-100"
+                            ? "text-primary bg-primary/10"
+                            : "text-gray-700 hover:bg-gray-100"
                             }`}
                           aria-expanded={openDropdown === item.name}
                           type="button"
@@ -300,8 +328,8 @@ export default function Navbar() {
                         {/* Mobile dropdown */}
                         <div
                           className={`overflow-hidden transition-all duration-300 ${openDropdown === item.name
-                              ? "max-h-96 opacity-100 mt-1"
-                              : "max-h-0 opacity-0"
+                            ? "max-h-96 opacity-100 mt-1"
+                            : "max-h-0 opacity-0"
                             }`}
                         >
                           <div className="ml-4 space-y-1 border-l-2 border-primary/20 pl-4">
@@ -314,8 +342,8 @@ export default function Navbar() {
                                   setOpenDropdown(null);
                                 }}
                                 className={`block px-3 py-2 rounded-md text-sm transition-colors duration-200 ${isActive(subItem.path)
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-primary"
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-primary"
                                   }`}
                               >
                                 {subItem.name}
@@ -329,8 +357,8 @@ export default function Navbar() {
                         to={item.path || "#"}
                         onClick={() => setIsMenuOpen(false)}
                         className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                            ? "text-primary bg-primary/10"
-                            : "text-gray-700 hover:bg-gray-100"
+                          ? "text-primary bg-primary/10"
+                          : "text-gray-700 hover:bg-gray-100"
                           }`}
                       >
                         {item.name}
@@ -338,6 +366,19 @@ export default function Navbar() {
                     )}
                   </div>
                 ))}
+
+                {/* Mobile Citizen Charter Link */}
+                {citizenCharterUrl && (
+                  <a
+                    href={citizenCharterUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 hover:bg-gray-100"
+                  >
+                    Citizen Charter
+                  </a>
+                )}
               </div>
             </div>
           </div>

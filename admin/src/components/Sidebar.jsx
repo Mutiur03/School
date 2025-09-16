@@ -162,6 +162,11 @@ const Sidebar = ({
           link: "/classRoutine",
           id: "class-routine",
         },
+        {
+          label: "Citizen Charter",
+          link: "/citizencharter",
+          id: "citizen-charter",
+        },
       ],
     },
     {

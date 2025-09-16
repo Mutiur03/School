@@ -45,13 +45,13 @@ const sliderData = [
             "Providing quality education and shaping the future of our nation since 1940.",
     },
     {
-        image: "/school_2.jpg",
+        image: "/school_1.jpg",
         title: "Excellence in Education",
         description:
             "Committed to academic excellence and holistic development of students.",
     },
     {
-        image: "/school_3.jpg",
+        image: "/school_1.jpg",
         title: "Building Future Leaders",
         description:
             "Nurturing young minds to become responsible citizens and future leaders.",
