@@ -20,6 +20,7 @@ import path from "path";
 import fs from "fs";
 import syllabusRoutes from "./routes/syllabusRoutes.js";
 import classRoutineRouter from "./routes/classRoutineRoutes.js";
+import fileUploadRouter from "./routes/fileUpload.js";
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads");
 
@@ -93,6 +94,7 @@ app.use("/api/gallery", galleryRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/syllabus", syllabusRoutes);
 app.use("/api/class-routine", classRoutineRouter);
+app.use("/api/file-upload",fileUploadRouter)
 // pool
 //   .connect()
 //   .then(async () => {
