@@ -283,16 +283,14 @@ export default function Navbar() {
             ))}
 
             {/* Citizen Charter Link */}
-            {citizenCharterUrl && (
-              <a
-                href={citizenCharterUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-primary"
-              >
-                Citizen Charter
-              </a>
-            )}
+            <a
+              href={citizenCharterUrl ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-primary"
+            >
+              Citizen Charter
+            </a>
           </div>
         </div>
 
