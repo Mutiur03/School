@@ -182,7 +182,11 @@ export const getSubsController = async (req, res) => {
           },
         },
       },
+      orderBy: {
+        id: "asc",
+      },
     });
+
     const formattedSubjects = subjects.map((subject) => ({
       ...subject,
       teacher_name: subject.teacher?.name || null,

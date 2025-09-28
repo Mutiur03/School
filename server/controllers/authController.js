@@ -37,7 +37,6 @@ export const login = async (req, res) => {
         role: "admin",
       },
     });
-    console.log("User found:", user);
     if (!user) {
       console.log(username, password);
       return res
@@ -129,6 +128,7 @@ export const student_login = async (req, res) => {
       maxAge: 3600000,
       partitioned: true,
     });
+
     res.json({ success: true, message: "Login successful" });
   } catch (error) {
     console.error("Login error:", error);
@@ -140,15 +140,20 @@ export const student_login = async (req, res) => {
 
 export const authenticateStudent = async (req, res, next) => {
   const token = req.cookies?.student_token;
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  if (!token) {
+    res.clearCookie("student_token");
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log(decoded);
     req.user = decoded;
     const check = await prisma.students.findUnique({
-      where: { login_id: req.user.login_id },
+      where: { id: req.user.id },
     });
+    
     if (!check) return res.status(401).json({ message: "Unauthorized" });
     next();
   } catch (error) {
