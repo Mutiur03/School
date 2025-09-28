@@ -143,14 +143,16 @@ export const getStudentsController = async (_req, res) => {
 
 export const getStudentController = async (req, res) => {
   try {
-    const token = req.cookies?.token;
+    const token = req.cookies?.student_token;
     if (!token) {
+      res.clearCookie("student_token");
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = decoded.id;
-
+    // console.log(decoded);
+    
     const result = await prisma.students.findUnique({
       where: { id: studentId },
       include: {
@@ -161,12 +163,13 @@ export const getStudentController = async (req, res) => {
         },
       },
     });
-
+    console.log(`Fetched student with ID: ${studentId}`, result);
+    
     if (!result || result.enrollments.length === 0) {
       return res.status(404).json({ error: "Student not found" });
     }
 
-    const responseData = {
+    const responseData = { 
       ...result,
       ...result.enrollments[0],
       enrollment_id: result.enrollments[0].id,

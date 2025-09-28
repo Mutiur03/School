@@ -499,7 +499,7 @@ export const generateMarksheetController = async (req, res) => {
       <html>
       <head>
         <title>Marksheet</title>
-        <script src="https:
+        <script src="https://cdn.tailwindcss.com"></script>
       </head>
       <body class="font-sans m-0 p-5">
         <div class="max-w-4xl mx-auto border border-gray-300 p-5 text-center">
@@ -724,7 +724,7 @@ export const downloadPreviewMarksheet = async (req, res) => {
       <html>
       <head>
         <title>Marksheet Preview</title>
-        <script src="https:
+        <script src="https://cdn.tailwindcss.com"></script>
       </head>
       <body class="p-6">
         <div id="marksheet" class="max-w-4xl mx-auto bg-white rounded-lg p-6 shadow">
@@ -994,7 +994,7 @@ export const downloadAllMarksheetPDF = async (req, res) => {
       <html>
       <head>
         <title>All Marksheet PDF</title>
-        <script src="https:
+        <script src="https://cdn.tailwindcss.com"></script>
         <style>
           .page-break {
             page-break-after: always;
