@@ -1,0 +1,56 @@
+import React from 'react'
+import './NoticeBoard.css'
+import axios from 'axios';
+interface Notice {
+    id?: string;
+    title?: string;
+}
+
+const NoticeBoard = () => {
+    const [notices, setNotices] = React.useState<Notice[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    React.useEffect(() => {
+        setIsLoading(true);
+        axios.get('/api/notices/getNotices?limit=5')
+            .then(response => {
+                setNotices(response.data);
+                setIsLoading(false);
+            })
+            .catch(error => {
+                console.error('Error fetching notices:', error);
+                setIsLoading(false);
+            });
+    }, []);
+    return (
+        <div className="front-notices-area ">
+            <div className="notices-front">
+                <div className="notices-front-board">
+                    <div className="notices-items">
+                        <h2>Notice Board</h2>
+                        {isLoading ? (
+                            <p>Loading notices...</p>
+                        ) : (
+                            <ul className="notices_front_list">
+                                {(notices ?? []).map((notice, index) => (
+                                    <li key={index} className="notice-item text-left">
+                                        <div className="notice-title">
+                                            <h5>
+                                                <i className="fa fa-caret-right" aria-hidden="true"></i>
+                                                <a href="#">{notice.title}</a>
+                                            </h5>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <h4 className="text-right">
+                            <a href="/notices">View All</a>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export default NoticeBoard

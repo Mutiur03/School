@@ -1,0 +1,296 @@
+/* Content right container */
+.content-right {
+    position: relative;
+    width: 100%;
+    padding: 0;
+}
+
+/* Sidebar widget styles - matches the green header design */
+.sidebar-widget {
+    margin-bottom: 10px;
+    padding: 0;
+    width: 100%;
+    background-color: #ffffff;
+    border: 1px solid #f1f1f1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Widget heading - Green background like in the screenshots */
+.sidebar-widget .widget-heading {
+    background: #609513;
+    background: linear-gradient(135deg, #609513 0%, #7ba428 100%);
+    position: relative;
+    padding: 6px 15px;
+    margin: 0;
+    margin-bottom: 0;
+}
+
+.sidebar-widget .widget-heading .widget-title {
+    margin: 0;
+    padding: 0;
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Widget content */
+.textwidget {
+    margin: 15px;
+    padding: 0;
+}
+
+.sidebar-widget p {
+    margin-bottom: 10px;
+}
+
+/* Navigation menu styling */
+.widget_nav_menu .menu {
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-widget ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-widget ul li {
+    position: relative;
+    padding: 8px 15px 8px 25px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s ease-in-out;
+}
+
+.sidebar-widget ul li:last-child {
+    border-bottom: none;
+}
+
+.sidebar-widget ul li::before {
+    color: #609513;
+    font-family: "FontAwesome";
+    content: "▶";
+    padding-left: 0;
+    font-size: 12px;
+    transition: all 0.3s ease-in-out;
+    display: inline-block;
+    margin-left: 0;
+    position: absolute;
+    left: 8px;
+    /* top: 10px; */
+}
+
+.sidebar-widget ul li a {
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    display: block;
+    transition: color 0.3s ease;
+}
+
+.sidebar-widget ul li:hover {
+    background-color: #f8f9fa;
+}
+
+.sidebar-widget ul li:hover a,
+.sidebar-widget ul li:hover:before {
+    color: #609513;
+}
+
+/* Specific image size constraints */
+.widget img.raja-image {
+    max-width: 200px;
+    max-height: 250px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.widget img.headmaster-image {
+    max-width: 180px;
+    max-height: 220px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Image styles - matches the border and shadow from screenshots */
+.widget img.aligncenter {
+    max-width: 100%;
+    height: auto;
+    padding: 10px;
+    background: #f8f8f8;
+    border: 2px solid #e0e0e0;
+    margin: 10px auto;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* More link styling */
+.more-link {
+    color: #609513 !important;
+    font-weight: 600;
+    text-decoration: none;
+    display: block;
+    text-align: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.more-link:hover {
+    background: #609513;
+    color: #fff !important;
+}
+
+/* Calendar styles - matches the pink header design */
+.calendar_wrap {
+    margin: 0;
+    padding: 15px;
+}
+
+.wp-calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    border: 1px solid #ddd;
+    background-color: #fff;
+}
+
+.calendar_wrap caption {
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    background: #E91E63;
+    background: linear-gradient(135deg, #E91E63 0%, #f06292 100%);
+    caption-side: top;
+    padding: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.calendar_wrap thead th {
+    padding: 8px 4px;
+    text-align: center;
+    border: 1px solid #ddd;
+    background-color: #2c3e50;
+    color: #FFF;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.calendar_wrap tbody td {
+    color: #333;
+    padding: 8px 4px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calendar_wrap tbody td:hover {
+    background-color: #f8f9fa;
+    color: #E91E63;
+}
+
+.calendar_wrap td.today {
+    color: #fff !important;
+    background: #E91E63 !important;
+    font-weight: bold;
+}
+
+.wp-calendar-nav {
+    margin-top: 10px;
+    text-align: left;
+}
+
+.wp-calendar-nav a {
+    text-decoration: none;
+    color: #609513;
+    font-weight: 600;
+}
+
+.wp-calendar-nav a:hover {
+    color: #333;
+}
+
+/* Links and transitions */
+a {
+    transition: all 0.3s ease-in-out;
+    color: #333;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #609513;
+    opacity: 0.8;
+}
+
+/* Responsive styles */
+@media (max-width: 767px) {
+    .content-right {
+        padding: 0;
+    }
+
+    .sidebar-widget {
+        margin-bottom: 15px;
+    }
+
+    .sidebar-widget .widget-heading .widget-title {
+        font-size: 14px;
+    }
+
+    .sidebar-widget ul li {
+        padding: 6px 12px 6px 20px;
+    }
+
+    .sidebar-widget ul li a {
+        font-size: 13px;
+    }
+
+    .widget img.raja-image {
+        /* max-width: 180px; */
+        max-height: 180px;
+    }
+
+    .widget img.headmaster-image {
+        /* max-width: 130px; */
+        max-height: 180px;
+    }
+}
+
+/* Additional styling to match the exact design */
+.sidebar-widget:first-child {
+    margin-top: 0;
+}
+
+.sidebar-widget .widget-heading::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Menu container specific styling */
+.menu-important-links-container,
+.menu-quick-links-container,
+.menu-sidebar-menu-container,
+.menu-useful-links-container {
+    background: #fff;
+}
+
+/* Font family for Bengali text */
+body {
+    font-family: 'Kalpurush', Arial, sans-serif;
+}
+
+.sidebar-widget .widget-title {
+    font-family: 'Kalpurush', Arial, sans-serif;
+}

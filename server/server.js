@@ -21,6 +21,7 @@ import fs from "fs";
 import syllabusRoutes from "./routes/syllabusRoutes.js";
 import classRoutineRouter from "./routes/classRoutineRoutes.js";
 import fileUploadRouter from "./routes/fileUpload.js";
+import routerStaff from "./routes/staffRoutes.js";
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads");
 
@@ -84,6 +85,7 @@ app.use("/api/sub", subRouter);
 app.use("/api/marks", marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use("/api/teachers", routerTeacher);
+app.use("/api/staffs", routerStaff);
 app.use("/api/auth", authRouter);
 app.use("/api/level", levelRouter);
 app.use("/api/attendance", attendenceRouter);
@@ -94,7 +96,7 @@ app.use("/api/gallery", galleryRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/syllabus", syllabusRoutes);
 app.use("/api/class-routine", classRoutineRouter);
-app.use("/api/file-upload",fileUploadRouter)
+app.use("/api/file-upload", fileUploadRouter);
 // pool
 //   .connect()
 //   .then(async () => {

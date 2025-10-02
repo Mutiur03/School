@@ -791,7 +791,7 @@ export const updateStudentImageController = async (req, res) => {
 export const changePasswordController = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const token = req.cookies?.token;
+    const token = req.cookies?.student_token;
 
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized" });

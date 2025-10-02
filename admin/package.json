@@ -25,6 +25,7 @@
     "@react-pdf/renderer": "^4.3.0",
     "@tailwindcss/vite": "^4.0.15",
     "axios": "^1.8.4",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",

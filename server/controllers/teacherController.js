@@ -46,12 +46,8 @@ export const addTeacher = async (req, res) => {
         async ({
           name,
           email,
-          subject,
           phone,
           address,
-          dob,
-          blood_group,
-          academic_qualification,
           designation,
         }) => {
           const originalPassword = generatePassword();
@@ -59,13 +55,9 @@ export const addTeacher = async (req, res) => {
           const rawData = {
             name: name?.trim() || null,
             email: email?.trim() || null,
-            subject: subject?.trim() || null,
             phone: "0" + removeNonNumber(String(phone)).slice(-10) || null,
-            academic_qualification: academic_qualification?.trim() || null,
             designation: designation?.trim() || null,
             address: address?.trim() || null,
-            dob: dob ? dob.replace("/", "-") : null,
-            blood_group: blood_group?.trim() || null,
             password: hashedPassword || null,
             originalPassword,
           };
@@ -79,7 +71,6 @@ export const addTeacher = async (req, res) => {
       data: teacherData.map(({ originalPassword, ...data }) => data),
     });
 
-    // Fetch created teachers with their IDs
     const createdTeachers = await prisma.teachers.findMany({
       where: {
         email: {
@@ -88,7 +79,6 @@ export const addTeacher = async (req, res) => {
       },
     });
 
-    // Append to sheet: [id, name, email, phone, subject, originalPassword]
     sheets.spreadsheets.values.append({
       spreadsheetId,
       range: "teachers!A:F",
@@ -132,11 +122,7 @@ export const updateTeacher = async (req, res) => {
     name,
     email,
     phone,
-    subject,
     address,
-    dob,
-    blood_group,
-    academic_qualification,
     designation,
   } = req.body;
   console.log(req.body);
@@ -151,11 +137,7 @@ export const updateTeacher = async (req, res) => {
       name: name || null,
       email: email || null,
       phone: "0" + removeNonNumber(phone).slice(-10) || null,
-      subject: subject?.trim() || null,
       address: address || null,
-      dob: dob ? dob.replace("/", "-") : null,
-      blood_group: blood_group?.trim() || null,
-      academic_qualification: academic_qualification?.trim() || null,
       designation: designation?.trim() || null,
     };
 
@@ -175,10 +157,8 @@ export const updateTeacher = async (req, res) => {
       const rows = sheetData.data.values || [];
       let rowIndex = -1;
 
-      // Use previous email to find the correct row
       for (let i = 0; i < rows.length; i++) {
         if (rows[i][2] === prevTeacher.email) {
-          // column C is email
           rowIndex = i + 1;
           break;
         }
@@ -192,7 +172,7 @@ export const updateTeacher = async (req, res) => {
           resource: {
             values: [
               [
-                id, // update teacher id in column A
+                id, 
                 name?.trim() || "",
                 email?.trim() || "",
                 "0" + removeNonNumber(phone).slice(-10),
@@ -284,8 +264,6 @@ export const UpdateTeacherImage = async (req, res) => {
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    // You may want to get teacher id from session/auth, here we assume it's from req.user or req.body
-    // For demo, let's assume req.user.id is available (set by auth middleware)
     const teacherId = req.user?.id || req.body.id;
     if (!teacherId) {
       return res.status(401).json({ success: false, error: "Unauthorized" });
@@ -294,12 +272,10 @@ export const changePassword = async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing fields" });
     }
     if (newPassword.length < 8) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Password must be at least 8 characters",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 8 characters",
+      });
     }
     const teacher = await prisma.teachers.findUnique({
       where: { id: teacherId },
@@ -321,9 +297,7 @@ export const changePassword = async (req, res) => {
       data: { password: hashedPassword },
     });
 
-    // --- Update password in Google Sheet ---
     try {
-      // Find the row for this teacher by email (column C, index 2)
       const sheetData = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range: "teachers!A:F",
@@ -332,14 +306,14 @@ export const changePassword = async (req, res) => {
       let rowIndex = -1;
       for (let i = 0; i < rows.length; i++) {
         if (rows[i][2] === teacher.email) {
-          rowIndex = i + 1; // 1-based index for Sheets API
+          rowIndex = i + 1; 
           break;
         }
       }
       if (rowIndex > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `teachers!F${rowIndex}:F${rowIndex}`, // Column F is password
+          range: `teachers!F${rowIndex}:F${rowIndex}`, 
           valueInputOption: "USER_ENTERED",
           resource: {
             values: [[newPassword]],
@@ -351,9 +325,7 @@ export const changePassword = async (req, res) => {
         "Error updating password in Google Sheet:",
         sheetError.message
       );
-      // Do not fail the API if sheet update fails
     }
-    // --- End update password in Google Sheet ---
 
     res
       .status(200)
@@ -361,5 +333,48 @@ export const changePassword = async (req, res) => {
   } catch (error) {
     console.error("Error changing password:", error.message);
     res.status(500).json({ success: false, error: "Error changing password" });
+  }
+};
+
+export const head_msg_update = async (req, res) => {
+  
+  try {
+    
+    const { teacherId, message } = req.body;
+    if (!teacherId ) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Nothing to update" });
+    }
+    const updateData = {};
+    if (teacherId) updateData.head_id = parseInt(teacherId);
+    if (message)
+       updateData.head_message = message;
+    else updateData.head_message = null;
+
+    await prisma.head_msg.upsert({
+      where: { id: 1 },
+      create: { id: 1, ...updateData },
+      update: updateData,
+    });
+    console.log(updateData);
+    
+    res.status(200).json({ success: true, message: "Updated successfully" });
+  } catch (error) {
+    console.error("Error updating head info:", error.message);
+    res.status(500).json({ success: false, error: "Error updating head info" });
+  }
+};
+
+export const get_head_msg = async (req, res) => {
+  try {
+    const headMsg = await prisma.head_msg.findUnique({
+      where: { id: 1 },
+      include: { teacher: true },
+    });
+    res.status(200).json(headMsg);
+  } catch (error) {
+    console.error("Error updating head info:", error.message);
+    res.status(500).json({ success: false, error: "Error updating head info" });
   }
 };

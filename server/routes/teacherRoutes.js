@@ -5,13 +5,16 @@ import {
   updateTeacher,
   deleteTeacher,
   UpdateTeacherImage,
-  changePassword, // add this import
+  changePassword,
+  head_msg_update,
+  get_head_msg, // add this import
 } from "../controllers/teacherController.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { teacher_me } from "../middlewares/auth.js";
 import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
+import { authenticateAdmin } from "../controllers/authController.js";
 const routerTeacher = express.Router();
 
 const __dirname = path.resolve();
@@ -36,7 +39,8 @@ routerTeacher.post("/addTeacher", addTeacher);
 routerTeacher.get("/getTeachers", getTeachers);
 routerTeacher.put("/updateTeacher/:id", updateTeacher);
 routerTeacher.delete("/deleteTeacher/:id", deleteTeacher);
-
+routerTeacher.put("/update_head_msg",authenticateAdmin, head_msg_update);
+routerTeacher.get("/get_head_msg", get_head_msg);
 routerTeacher.post(
   "/uploadImage/:id",
   upload.single("image"),
