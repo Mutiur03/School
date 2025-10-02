@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  authenticateUser,
+  authenticateAdmin,
   login,
   student_login,
   authenticateStudent,
@@ -12,7 +12,7 @@ import { teacher_me } from "../middlewares/auth.js";
 const authRouter = express.Router();
 
 authRouter.post("/login", login);
-authRouter.get("/protected", authenticateUser, (req, res) => {
+authRouter.get("/protected", authenticateAdmin, (req, res) => {
   res.json({ message: "You are authenticated!", user: req.user });
 });
 authRouter.get("/logout", (req, res) => {

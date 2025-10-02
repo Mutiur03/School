@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
 
 // Admin authentication middleware
-export const authenticateUser = async (req, res, next) => {
+export const authenticateAdmin = async (req, res, next) => {
   const token = req.cookies?.admin_token;
   console.log(token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });

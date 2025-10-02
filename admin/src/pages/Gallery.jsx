@@ -207,7 +207,13 @@ export default function Gallery() {
       });
       resetForm();
       toast.success("Images uploaded successfully!");
+      toast(
+        "Note: Images may take a few moments to appear while it finishes processing.",
+        { icon: "⏳" }
+      );
       fetchGallery();
+      setTimeout(fetchGallery, 3000);
+      setTimeout(fetchGallery, 8000);
     } catch (err) {
       console.error(err);
       toast.error("Failed to upload images");
@@ -249,8 +255,15 @@ export default function Gallery() {
         },
       });
       toast.success("Image updated successfully!");
+      // Inform user that backend processing may take some time
+      toast(
+        "Note: Changes may take a few moments to appear while the backend finishes processing.",
+        { icon: "⏳" }
+      );
       resetForm();
       fetchGallery();
+      setTimeout(fetchGallery, 3000);
+      setTimeout(fetchGallery, 8000);
     } catch (error) {
       console.error("Error updating image:", error);
       toast.error("Failed to update image");
@@ -333,7 +346,7 @@ export default function Gallery() {
 
   const handleThumbnailChange = async (id) => {
     console.log(id, selectedGroup);
-    if(selectedGroup[0].event_id) {
+    if (selectedGroup[0].event_id) {
       try {
         await axios.put(
           `/api/gallery/setEventThumbnail/${selectedGroup[0].event_id}/${id}`
@@ -343,8 +356,7 @@ export default function Gallery() {
         console.error("Error changing thumbnail:", error);
         toast.error("Failed to change thumbnail");
       }
-    }
-    else{
+    } else {
       try {
         await axios.put(
           `/api/gallery/setCategoryThumbnail/${selectedGroup[0].category_id}/${id}`

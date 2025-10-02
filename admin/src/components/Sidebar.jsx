@@ -86,6 +86,11 @@ const Sidebar = ({
           link: "/administration/assigned-teachers",
           id: "assignments",
         },
+        {
+          label: "Message From Head",
+          link: "/administration/head",
+          id: "head-message",
+        },
       ],
     },
     {

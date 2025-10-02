@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
-import { fixUrl } from "../utils/fixURL.js"; // Add this import
+import { fixUrl } from "../utils/fixURL.js";
 
 export const getGalleryController = async (req, res) => {
   try {
@@ -52,14 +52,22 @@ export const getGalleryController = async (req, res) => {
 
 export const addGalleryController = async (req, res) => {
   const { caption, eventId, category, status } = req.body;
-  const token = req.cookies.token;
-  const user = jwt.verify(token, process.env.JWT_SECRET);
+  const token = req.cookies?.admin_token;
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized: token missing" });
+  }
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
   const uploaderId = user.id;
   const uploaderType = user.role;
 
   try {
     const insertPromises = req.files.map((file) => {
-      const imagePath = fixUrl(file.path); // file.path is set by compressImageToLocation
+      const imagePath = fixUrl(file.path);
       return prisma.gallery.create({
         data: {
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
@@ -372,8 +380,16 @@ export const deleteMultipleGalleryController = async (req, res) => {
 
 export const getApprovedStudentGalleryController = async (req, res) => {
   try {
-    const token = req.cookies.token;   
-    const user = jwt.verify(token, process.env.JWT_SECRET);
+    const token = req.cookies?.student_token;
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized: token missing" });
+    }
+    let user;
+    try {
+      user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
     const studentId = user.id;
     const studentRole = user.role;
     if (studentRole !== "student") {
@@ -430,8 +446,16 @@ export const getApprovedStudentGalleryController = async (req, res) => {
 
 export const getPendingStudentGalleriesController = async (req, res) => {
   try {
-    const token = req.cookies.token;
-    const user = jwt.verify(token, process.env.JWT_SECRET);
+    const token = req.cookies?.student_token;
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized: token missing" });
+    }
+    let user;
+    try {
+      user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
     const studentId = user.id;
     const studentRole = user.role;
     if (studentRole !== "student") {
@@ -495,8 +519,16 @@ export const getPendingStudentGalleriesController = async (req, res) => {
 
 export const getRejectedStudentGalleriesController = async (req, res) => {
   try {
-    const token = req.cookies.token;
-    const user = jwt.verify(token, process.env.JWT_SECRET);
+    const token = req.cookies?.student_token;
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized: token missing" });
+    }
+    let user;
+    try {
+      user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
     const studentId = user.id;
     const studentRole = user.role;
     if (studentRole !== "student") {

@@ -1,10 +1,9 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { Pencil, Trash2, Eye } from "lucide-react";
+import { Pencil,  Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "../components/DeleteConfimationIcon";
-import { format } from "date-fns";
 import Loading from "../components/Loading";
 const TeacherList = () => {
   const [teachers, setTeachers] = useState([]);
@@ -17,19 +16,16 @@ const TeacherList = () => {
   });
   const [formData, setFormData] = useState({
     name: "",
-    subject: "",
     email: "",
     phone: "",
     address: "",
-    dob: "",
-    blood_group: "",
-    academic_qualification: "",
     designation: "",
   });
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isloading, setIsLoading] = useState(false);
   const [image, setImage] = useState(null);
+  const fileInputRef = useRef(null);
   const host = import.meta.env.VITE_BACKEND_URL;
   const fetchTeachers = async () => {
     setIsLoading(true);
@@ -50,13 +46,9 @@ const TeacherList = () => {
   const handleEdit = (teacher) => {
     setFormData({
       name: teacher.name || "",
-      subject: teacher.subject || "",
       email: teacher.email || "",
       phone: teacher.phone || "",
       address: teacher.address || "",
-      dob: teacher.dob || "",
-      blood_group: teacher.blood_group || "",
-      academic_qualification: teacher.academic_qualification || "",
       designation: teacher.designation || "",
     });
     console.log(teacher);
@@ -147,13 +139,9 @@ const TeacherList = () => {
         toast.success(data.message || "Teacher saved successfully.");
         setFormData({
           name: "",
-          subject: "",
           email: "",
           phone: "",
           address: "",
-          dob: "",
-          blood_group: "",
-          academic_qualification: "",
           designation: "",
         });
         setImage(null);
@@ -246,27 +234,10 @@ const TeacherList = () => {
                     required
                   />
                 </div>
+
                 <div>
                   <label className={`block text-sm font-medium mb-1 `}>
-                    Subject:
-                  </label>
-                  <input
-                    type="text"
-                    name="subject"
-                    placeholder="Enter teacher's subject"
-                    value={formData.subject}
-                    onChange={(e) =>
-                      setFormData({ ...formData, subject: e.target.value })
-                    }
-                    required
-                    className={`w-full px-3 py-2 border dark:bg-accent rounded-md focus:outline-none focus:ring-2 `}
-                  />
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4 md:gap-6 grid-cols-1">
-                <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
-                    Address:
+                    Home Town:
                   </label>
                   <input
                     type="text"
@@ -279,39 +250,9 @@ const TeacherList = () => {
                     className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
                   />
                 </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
-                    Date of Birth:
-                  </label>
-                  <input
-                    type="date"
-                    name="dob"
-                    // placeholder="Enter teacher's date of birth"
-                    value={formData.dob}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dob: e.target.value })
-                    }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
-                  />
-                </div>
               </div>
+
               <div className="grid md:grid-cols-2 gap-4 md:gap-6 grid-cols-1">
-                <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
-                    Blood Group:
-                  </label>
-                  <input
-                    type="text"
-                    name="bloodGroup"
-                    placeholder="Enter teacher's blood group"
-                    value={formData.blood_group}
-                    onChange={(e) =>
-                      setFormData({ ...formData, blood_group: e.target.value })
-                    }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
-                  />
-                </div>
                 <div>
                   <label className={`block text-sm font-medium mb-1 `}>
                     Designation:
@@ -328,55 +269,87 @@ const TeacherList = () => {
                     className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
                   />
                 </div>
-              </div>
-              <div>
-                <label className={`block text-sm font-medium mb-1 `}>
-                  Academic Qualification:
-                </label>
-                <textarea
-                  type="text"
-                  name="academicQualification"
-                  value={formData.academic_qualification}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      academic_qualification: e.target.value,
-                    })
-                  }
-                  required
-                  placeholder="Enter academic qualification"
-                  className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 resize-none`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm font-medium mb-1 `}>
-                  Profile Image:
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2`}
-                />
-                {image && (
-                  <label className="block mt-2">
-                    <img
-                      src={image ? URL.createObjectURL(image) : ""}
-                      alt="Uploaded"
-                      className="w-32 h-32 object-cover rounded-md"
-                    />
+                <div>
+                  <label className={`block text-sm font-medium mb-1 `}>
+                    Profile Image:
                   </label>
-                )}
-                {!image && isEditing && (
-                  <label className="block mt-2">
-                    <img
-                      src={`${host}/${popup.teacher.image}`}
-                      alt="Uploaded"
-                      className="w-32 h-32 object-cover rounded-md"
-                    />
-                  </label>
-                )}
+                  {/* hidden native file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  {/* If a new image is selected show preview */}
+                  {image ? (
+                    <div className="block mt-2">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt="Uploaded"
+                        className="w-32 h-32 object-cover rounded-md"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          className="text-sm text-red-600"
+                          onClick={() => {
+                            setImage(null);
+                            if (fileInputRef.current)
+                              fileInputRef.current.value = null;
+                          }}
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm text-blue-600"
+                          onClick={() =>
+                            fileInputRef.current && fileInputRef.current.click()
+                          }
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+                  ) : isEditing && popup.teacher && popup.teacher.image ? (
+                    <div className="block mt-2">
+                      <img
+                        src={`${host}/${popup.teacher.image}`}
+                        alt="Uploaded"
+                        className="w-32 h-32 object-cover rounded-md"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          className="text-sm text-blue-600"
+                          onClick={() =>
+                            fileInputRef.current && fileInputRef.current.click()
+                          }
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* placeholder when no image exists */
+                    <div
+                      onClick={() =>
+                        fileInputRef.current && fileInputRef.current.click()
+                      }
+                      role="button"
+                      tabIndex={0}
+                      onKeyPress={() =>
+                        fileInputRef.current && fileInputRef.current.click()
+                      }
+                      className="cursor-pointer w-32 h-32 flex items-center justify-center rounded-md border border-dashed text-gray-400 mt-2"
+                    >
+                      <span className="text-sm">Click to upload</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div className="flex justify-between md:flex-row flex-col gap-4">
                 <Button
                   type="button"
@@ -413,7 +386,7 @@ const TeacherList = () => {
       )}
       <input
         type="text"
-        placeholder="Search by name, subject, or email..."
+        placeholder="Search by name or email..."
         className="border rounded-lg px-3 text-input py-2 mb-4 w-full"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
@@ -424,7 +397,7 @@ const TeacherList = () => {
           <table className="min-w-full border divide-y divide-gray-200">
             <thead className="bg-popover">
               <tr>
-                {["ID", "Name", "Subject", "Email", "Actions"].map((header) => (
+                {["ID", "Name", "Email", "Actions"].map((header) => (
                   <th key={header} className="  px-4 py-2 text-left">
                     {header}
                   </th>
@@ -437,7 +410,6 @@ const TeacherList = () => {
                   <td colSpan="5" className="py-2">
                     <div className="flex justify-center items-center w-full h-full">
                       <Loading />
-                      
                     </div>
                   </td>
                 </tr>
@@ -446,7 +418,6 @@ const TeacherList = () => {
                   <tr key={teacher.id} className="">
                     <td className=" px-4 py-2">{teacher.id}</td>
                     <td className=" px-4 py-2">{teacher.name}</td>
-                    <td className=" px-4 py-2">{teacher.subject}</td>
                     <td className=" px-4 py-2">{teacher.email}</td>
                     <td className=" py-2 text-center space-x-4">
                       <button
@@ -507,9 +478,6 @@ const TeacherList = () => {
                 <p>
                   <strong>Name:</strong> {popup.teacher.name}
                 </p>
-                <p>
-                  <strong>Subject:</strong> {popup.teacher.subject}
-                </p>
 
                 <p>
                   <strong>Email:</strong> {popup.teacher.email}
@@ -520,22 +488,10 @@ const TeacherList = () => {
                 <p>
                   <strong>Address:</strong> {popup.teacher.address}
                 </p>
-                <p>
-                  <strong>Blood Group:</strong> {popup.teacher.blood_group}
-                </p>
-                <p>
-                  <strong>DOB:</strong>{" "}
-                  {popup.teacher.dob &&
-                    format(new Date(popup.teacher.dob), "dd MMM yyyy")}
-                </p>
+
                 <p>
                   <strong>Designation:</strong> {popup.teacher.designation}
                 </p>
-                <p>
-                  <strong>Academic Qualification:</strong>{" "}
-                  {popup.teacher.academic_qualification}
-                </p>
-
                 <div className="mt-4 text-right">
                   <Button
                     variant="outline"

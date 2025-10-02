@@ -34,6 +34,7 @@ import ExamPDFRoutine from "./pages/ExamPDFRoutine";
 import ClassRoutinePDF from "./pages/ClassRoutinePDF";
 import StaffList from "./pages/StaffList";
 import CitizenCharter from "./pages/CitizenCharter";
+import Head from "./pages/Head";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -110,6 +111,10 @@ function App() {
                             <Route
                               path="/administration/staff-list"
                               element={<StaffList />}
+                            />
+                            <Route
+                              path="/administration/head"
+                              element={<Head />}
                             />
                             <Route
                               path="/classes"

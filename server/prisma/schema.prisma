@@ -104,23 +104,31 @@ model holidays {
 }
 
 model teachers {
-  id                     Int      @id @default(autoincrement())
-  name                   String   @db.VarChar(100)
-  email                  String   @unique @db.VarChar(100)
-  phone                  String   @db.Char(11)
-  subject                String?  @db.VarChar(100)
-  academic_qualification String?
-  designation            String?  @db.VarChar(100)
-  password               String
-  image                  String?
-  address                String?
-  dob                    String?  @db.VarChar(10)
-  blood_group            String?  @db.VarChar(10)
-  available              Boolean  @default(true)
-  created_at             DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  email       String   @unique @db.VarChar(100)
+  phone       String   @db.Char(11)
+  designation String?  @db.VarChar(100)
+  password    String
+  image       String?
+  address     String?
+  available   Boolean  @default(true)
+  created_at  DateTime @default(now())
 
-  levels   levels[]
-  subjects subjects[]
+  levels    levels[]
+  subjects  subjects[]
+  head_msgs head_msg[]
+}
+
+model staffs {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  email       String?  @unique @db.VarChar(100)
+  phone       String   @db.Char(11)
+  designation String?  @db.VarChar(100)
+  image       String?
+  address     String?
+  created_at  DateTime @default(now())
 }
 
 model levels {
@@ -289,12 +297,21 @@ model class_routine_pdf {
   created_at   DateTime @default(now())
 }
 
-
 model CitizenCharter {
-  id          Int      @id @default(autoincrement())
-  file        String
+  id           Int      @id @default(autoincrement())
+  file         String
   download_url String
-  public_id   String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  public_id    String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+model head_msg {
+  id           Int      @id @default(autoincrement())
+  head_id      Int
+  head_message String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  teacher teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
 }

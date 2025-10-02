@@ -1,0 +1,150 @@
+.front-gallerys-area {
+    margin-bottom: 30px;
+    padding: 20px 0;
+}
+
+
+.front-videogallerys-area {
+    margin-bottom: 20px;
+    padding: 20px 0;
+}
+
+
+
+
+
+.feature-video-item {
+    margin-bottom: 20px;
+}
+
+.feature-item-area {
+    position: relative;
+}
+
+.post-item-img {
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.brbanner-video {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.youtube-article {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%;
+
+}
+
+.dt-youtube {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+
+.front-maps-area {
+    margin-bottom: 30px;
+    padding: 20px 0;
+}
+
+
+
+.front-maps-area .section-heading {
+
+    margin-bottom: 20px;
+}
+
+
+
+
+
+.textwidget p {
+    margin-bottom: 0;
+}
+
+.front-maps-area iframe {
+    height: 380px;
+    border-radius: 10px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+
+.gallery-grid-4col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-top: 20px;
+}
+
+.gallery-grid-4col .gallery-item {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+    cursor: pointer;
+    border: 1px solid #ddd;
+}
+
+
+
+.gallery-grid-4col .gallery-item img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    transition: transform 0.3s ease-in-out;
+    display: block;
+}
+
+
+
+
+
+
+@media (max-width: 768px) {
+    .gallery-grid-4col {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gallery-grid-4col .gallery-item img {
+        height: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-grid-4col {
+        grid-template-columns: 1fr;
+    }
+
+    .gallery-grid-4col .gallery-item img {
+        height: 180px;
+    }
+}
+
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -15px;
+    margin-left: -15px;
+}
+
+.col-md-6 {
+    position: relative;
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+@media (min-width: 768px) {
+    .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}

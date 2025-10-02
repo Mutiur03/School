@@ -65,11 +65,21 @@ export const addNoticeController = async (req, res) => {
 };
 
 // Get notices
-export const getNoticesController = async (_, res) => {
+export const getNoticesController = async (req, res) => {
   try {
+    const { limit } = req.query;
+    const take = limit !== undefined ? parseInt(limit, 10) : undefined; 
+
+    if (take !== undefined && (Number.isNaN(take) || take <= 0)) {
+      return res.status(400).json({ error: "Invalid 'limit' query parameter" });
+    }
+
     const notices = await prisma.notices.findMany({
       orderBy: { created_at: "desc" },
+      ...(take !== undefined ? { take } : {}),
     });
+    console.log("Fetched notices:", notices);
+    
     res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
