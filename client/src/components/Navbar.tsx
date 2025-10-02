@@ -97,8 +97,8 @@ function Navbar() {
             text: "Information",
             dropdown: [
                 { id: "menu-item-3350", href: "#", text: "Administration" },
-                { id: "menu-item-3354", href: "#", text: "List of Headmistress" },
-                { id: "menu-item-3356", href: "#", text: "List of Assistant Headmistress" },
+                { id: "menu-item-3354", href: "#", text: "List of Headmaster" },
+                { id: "menu-item-3356", href: "#", text: "List of Assistant Headmaster" },
                 { id: "menu-item-3657", href: "teacher-list", text: "Teacher List" },
                 { id: "menu-item-3357", href: "staff-list", text: "Staff Info" },
                 { id: "menu-item-3353", href: "#", text: "Famous" },
