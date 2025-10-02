@@ -39,15 +39,12 @@ function Navbar() {
             .catch(() => setRoutinePDF(null));
     }, []);
 
-    // Helper: returns true when href points outside current origin (or is a protocol link)
     const isExternalLink = (href?: string | null) => {
         if (!href) return false;
         try {
-            // Resolve relative URLs against current location
             const url = new URL(href, window.location.href);
             return url.origin !== window.location.origin;
         } catch {
-            // If URL constructor fails (malformed), fall back to checking common protocols
             return /^(https?:|mailto:|tel:|\/\/)/i.test(href);
         }
     }
@@ -61,6 +58,14 @@ function Navbar() {
 
     const toggleDropdown = (itemId: string) => {
         setActiveDropdown(activeDropdown === itemId ? null : itemId)
+    }
+
+    const closeNavbarIfMobile = (href?: string | null) => {
+        const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
+        if (typeof window !== 'undefined' && window.innerWidth <= 768 && isRealHref) {
+            setIsNavOpen(false);
+            setActiveDropdown(null);
+        }
     }
 
     const menuItems: MenuItem[] = [
@@ -229,7 +234,6 @@ function Navbar() {
                 <ul id="primary-menu" className="nav navbar-nav primary-menu">
                     {menuItems.map((item) => (
                         <li key={item.id} id={item.id} className={`${item.className} ${activeDropdown === item.id ? 'show' : ''}`}>
-                            {/* Top-level link: use <a> for external links, <Link> for internal */}
                             {isExternalLink(item.href) && !item.dropdown ? (
                                 <a
                                     href={item.href || '#'}
@@ -285,13 +289,13 @@ function Navbar() {
                                             id={subItem.id}
                                             className={subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"}
                                         >
-                                            {/* SubItem: external -> <a>, internal -> <Link> */}
                                             {isExternalLink(subItem.href) ? (
                                                 <a
                                                     href={subItem.href || '#'}
                                                     className="dropdown-item hover:!text-white transition-colors duration-200"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
+                                                    onClick={() => closeNavbarIfMobile(subItem.href)}
                                                 >
                                                     <span className="menu-text hover:!text-white">{subItem.text}</span>
                                                     {subItem.hasChildren && (
@@ -304,6 +308,7 @@ function Navbar() {
                                                 <Link
                                                     to={subItem.href || '#'}
                                                     className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                    onClick={() => closeNavbarIfMobile(subItem.href)}
                                                 >
                                                     <span className="menu-text hover:!text-white">{subItem.text}</span>
                                                     {subItem.hasChildren && (
@@ -322,13 +327,13 @@ function Navbar() {
                                                             id={nestedItem.id}
                                                             className="menu-item menu-item-type-post_type menu-item-object-page nav-item"
                                                         >
-                                                            {/* Nested items: external -> <a>, internal -> <Link> */}
                                                             {isExternalLink(nestedItem.href) ? (
                                                                 <a
                                                                     href={nestedItem.href || '#'}
                                                                     className="dropdown-item hover:!text-white transition-colors duration-200"
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
+                                                                    onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                                                 >
                                                                     <span className="menu-text hover:!text-white">{nestedItem.text}</span>
                                                                 </a>
@@ -336,6 +341,7 @@ function Navbar() {
                                                                 <Link
                                                                     to={nestedItem.href || '#'}
                                                                     className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                                    onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                                                 >
                                                                     <span className="menu-text hover:!text-white">{nestedItem.text}</span>
                                                                 </Link>
