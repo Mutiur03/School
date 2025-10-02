@@ -1,6 +1,7 @@
 import axios from 'axios'
 import './RightSidebar.css'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom';
 
 function RightSidebar() {
     const [currentDate, setCurrentDate] = useState(new Date())
@@ -153,9 +154,9 @@ function RightSidebar() {
                             />)}
                     </p>
                     <p>
-                        <a className="more-link" href="/message-from-head/">
+                        <Link className="more-link" to="/message-from-head/">
                             View Details →
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>
@@ -284,13 +285,13 @@ function RightSidebar() {
                             </a>
                         </li>
                         <li className="menu-item">
-                            <a href="/teacher-list">Teacher List</a>
+                            <Link to="/teacher-list">Teacher List</Link>
                         </li>
                         <li className="menu-item">
-                            <a target="_blank" >Student Log in</a>
+                            <a target="_blank" href="https://student.lbphs.gov.bd/">Student Log in</a>
                         </li>
                         <li className="menu-item">
-                            <a target="_blank" href="https://student.lbphs.gov.bd/">e-Payment</a>
+                            <a target="_blank" >e-Payment</a>
                         </li>
                         <li className="menu-item">
                             <a target="_blank" >e-Library</a>

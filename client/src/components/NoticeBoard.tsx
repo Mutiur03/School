@@ -1,9 +1,11 @@
 import React from 'react'
 import './NoticeBoard.css'
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 interface Notice {
     id?: string;
     title?: string;
+    file?: string;
 }
 
 const NoticeBoard = () => {
@@ -36,7 +38,7 @@ const NoticeBoard = () => {
                                         <div className="notice-title">
                                             <h5>
                                                 <i className="fa fa-caret-right" aria-hidden="true"></i>
-                                                <a href="#">{notice.title}</a>
+                                                <a href={notice.file ?? '#'} target='_blank'>{notice.title}</a>
                                             </h5>
                                         </div>
                                     </li>
@@ -44,7 +46,7 @@ const NoticeBoard = () => {
                             </ul>
                         )}
                         <h4 className="text-right">
-                            <a href="/notices">View All</a>
+                            <Link to="/notices">View All</Link>
                         </h4>
                     </div>
                 </div>
