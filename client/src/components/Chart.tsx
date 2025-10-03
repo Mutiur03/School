@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import './Chart.css' 
+import './Chart.css'
 import axios from 'axios'
 import { Link } from 'react-router-dom';
 
@@ -97,15 +97,15 @@ function Chart() {
                                     <div className="box-text">
                                         <ul>
                                             <li><a href={routinePDF ?? '#'} target={routinePDF ? '_blank' : undefined} rel="noopener noreferrer"
-                                            >ক্লাস সিক্স</a></li>
+                                            >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a href={routinePDF ?? '#'} target={routinePDF ? '_blank' : undefined} rel="noopener noreferrer"
-                                            >ক্লাস সেভেন</a></li>
+                                            >সপ্তম শ্রেণি</a></li>
                                             <li><a href={routinePDF ?? '#'} target={routinePDF ? '_blank' : undefined} rel="noopener noreferrer"
-                                            >ক্লাস এইট</a></li>
+                                            >অষ্টম শ্রেণি</a></li>
                                             <li><a href={routinePDF ?? '#'} target={routinePDF ? '_blank' : undefined} rel="noopener noreferrer"
-                                            >ক্লাস নাইন</a></li>
+                                            >নবম শ্রেণি</a></li>
                                             <li><a href={routinePDF ?? '#'} target={routinePDF ? '_blank' : undefined} rel="noopener noreferrer"
-                                            >ক্লাস টেন</a></li>
+                                            >দশম শ্রেণি</a></li>
 
                                         </ul>
                                     </div>
@@ -171,7 +171,7 @@ function Chart() {
                                                     target={getLatestSyllabusForClass(6) ? '_blank' : undefined}
                                                     rel="noopener noreferrer"
                                                 >
-                                                    ক্লাস সিক্স
+                                                    ষষ্ঠ শ্রেণি
                                                 </a>
                                             </li>
                                             <li>
@@ -180,7 +180,7 @@ function Chart() {
                                                     target={getLatestSyllabusForClass(7) ? '_blank' : undefined}
                                                     rel="noopener noreferrer"
                                                 >
-                                                    ক্লাস সেভেন
+                                                    সপ্তম শ্রেণি
                                                 </a>
                                             </li>
                                             <li>
@@ -189,7 +189,7 @@ function Chart() {
                                                     target={getLatestSyllabusForClass(8) ? '_blank' : undefined}
                                                     rel="noopener noreferrer"
                                                 >
-                                                    ক্লাস এইট
+                                                    অষ্টম শ্রেণি
                                                 </a>
                                             </li>
                                             <li>
@@ -198,7 +198,7 @@ function Chart() {
                                                     target={getLatestSyllabusForClass(9) ? '_blank' : undefined}
                                                     rel="noopener noreferrer"
                                                 >
-                                                    ক্লাস নাইন
+                                                    নবম শ্রেণি
                                                 </a>
                                             </li>
                                             <li>
@@ -207,7 +207,7 @@ function Chart() {
                                                     target={getLatestSyllabusForClass(10) ? '_blank' : undefined}
                                                     rel="noopener noreferrer"
                                                 >
-                                                    ক্লাস টেন
+                                                    দশম শ্রেণি
                                                 </a>
                                             </li>
                                         </ul>
@@ -235,15 +235,15 @@ function Chart() {
                                     <div className="box-text">
                                         <ul>
                                             <li><a
-                                            >ক্লাস সিক্স</a></li>
+                                            >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস সেভেন</a></li>
+                                            >সপ্তম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস এইট</a></li>
+                                            >অষ্টম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস নাইন</a></li>
+                                            >নবম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস টেন</a></li>
+                                            >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -305,15 +305,15 @@ function Chart() {
                                     <div className="box-text">
                                         <ul>
                                             <li><a
-                                            >ক্লাস সিক্স</a></li>
+                                            >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস সেভেন</a></li>
+                                            >সপ্তম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস এইট</a></li>
+                                            >অষ্টম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস নাইন</a></li>
+                                            >নবম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস টেন</a></li>
+                                            >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -339,11 +339,11 @@ function Chart() {
                                     <div className="box-text">
                                         <ul>
                                             <li><a
-                                            >ক্লাস সিক্স</a></li>
-                                            <li><a>ক্লাস সেভেন</a></li>
-                                            <li><a>ক্লাস এইট</a></li>
-                                            <li><a >ক্লাস নাইন</a></li>
-                                            <li><a >ক্লাস টেন</a></li>
+                                            >ষষ্ঠ শ্রেণি</a></li>
+                                            <li><a>সপ্তম শ্রেণি</a></li>
+                                            <li><a>অষ্টম শ্রেণি</a></li>
+                                            <li><a >নবম শ্রেণি</a></li>
+                                            <li><a >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -374,13 +374,13 @@ function Chart() {
                                                     target={citizenCharterUrl ? '_blank' : undefined}
                                                     rel={citizenCharterUrl ? 'noopener noreferrer' : undefined}
                                                 >
-                                                    সেবা প্রদান প্রতিশ্রুতি
+                                                    সিটিজেন্‌স চার্টার
                                                 </a>
                                             </li>
-                                            <li><a>সিটিজেন্‌স চার্টার</a></li>
+                                            {/* <li><a>সিটিজেন্‌স চার্টার</a></li>
                                             <li><a >মাউশি</a></li>
                                             <li><a >শিক্ষা মন্ত্রণালয়</a></li>
-                                            <li><a >বার্ষিক প্রতিবেদন</a></li>
+                                            <li><a >বার্ষিক প্রতিবেদন</a></li> */}
                                         </ul>
                                     </div>
                                 </div>
@@ -423,7 +423,7 @@ function Chart() {
                             </div>
                         </div>
 
-                        <div className="text-left col-md-6">
+                        {/* <div className="text-left col-md-6">
                             <div className="box-item">
                                 <div className="box-title">
                                     <h3>শুদ্ধাচার পরিকল্পনা</h3>
@@ -455,7 +455,7 @@ function Chart() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="text-left col-md-6">
                             <div className="box-item">
@@ -514,22 +514,22 @@ function Chart() {
                                     <div className="box-text">
                                         <ul>
                                             <li><a
-                                            >ক্লাস সিক্স</a></li>
+                                            >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস সেভেন</a></li>
+                                            >সপ্তম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস এইট</a></li>
+                                            >অষ্টম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস নাইন</a></li>
+                                            >নবম শ্রেণি</a></li>
                                             <li><a
-                                            >ক্লাস টেন</a></li>
+                                            >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="text-left col-md-6">
+                        {/* <div className="text-left col-md-6">
                             <div className="box-item">
                                 <div className="box-title">
                                     <h3>ফরম ডাউনলোড</h3>
@@ -565,9 +565,9 @@ function Chart() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
-                        <div className="text-left col-md-6">
+                        {/* <div className="text-left col-md-6">
                             <div className="box-item">
                                 <div className="box-title">
                                     <h3>পাবলিকেশনস</h3>
@@ -591,7 +591,7 @@ function Chart() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="text-left col-md-6">
                             <div className="box-item">
@@ -658,7 +658,7 @@ function Chart() {
                             </div>
                         </div>
 
-                        <div className="text-left col-md-6">
+                        {/* <div className="text-left col-md-6">
                             <div className="box-item">
                                 <div className="box-title">
                                     <h3>অ্যালামনাই কর্নার</h3>
@@ -686,7 +686,7 @@ function Chart() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

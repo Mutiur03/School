@@ -84,10 +84,10 @@ function Navbar() {
             text: "About",
             dropdown: [
                 { id: "menu-item-3342", href: "at-a-glance", text: "At a glance" },
-                { id: "menu-item-3341", href: "#", text: "Aims & Goals" },
+                { id: "menu-item-3341", href: "at-a-glance", text: "Aims & Goals" },
                 { id: "menu-item-3385", href: "gallery", text: "Photo Gallery" },
-                { id: "menu-item-3348", href: "#", text: "Seat Capacity" },
-                { id: "menu-item-3343", href: "#", text: "Hostel Info" }
+                { id: "menu-item-3348", href: "at-a-glance", text: "Seat Capacity" },
+                // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
             ]
         },
         {
@@ -97,36 +97,36 @@ function Navbar() {
             text: "Information",
             dropdown: [
                 { id: "menu-item-3350", href: "#", text: "Administration" },
-                { id: "menu-item-3354", href: "#", text: "List of Headmaster" },
-                { id: "menu-item-3356", href: "#", text: "List of Assistant Headmaster" },
+                // { id: "menu-item-3354", href: "#", text: "List of Headmaster" },
+                // { id: "menu-item-3356", href: "#", text: "List of Assistant Headmaster" },
                 { id: "menu-item-3657", href: "teacher-list", text: "Teacher List" },
                 { id: "menu-item-3357", href: "staff-list", text: "Staff Info" },
-                { id: "menu-item-3353", href: "#", text: "Famous" },
-                { id: "menu-item-3351", href: "#", text: "Ex Students" },
-                { id: "menu-item-3352", href: "#", text: "Ex Teachers" }
+                // { id: "menu-item-3353", href: "#", text: "Famous" },
+                // { id: "menu-item-3351", href: "#", text: "Ex Students" },
+                // { id: "menu-item-3352", href: "#", text: "Ex Teachers" }
             ]
         },
-        {
-            id: "menu-item-3670",
-            className: "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3670 nav-item",
-            href: "#",
-            text: "Departments",
-            dropdown: [
-                { id: "menu-item-3671", href: "#", text: "Department of Bangla" },
-                { id: "menu-item-3708", href: "#", text: "Department of English" },
-                { id: "menu-item-3707", href: "#", text: "Department of Mathematics" },
-                { id: "menu-item-3706", href: "#", text: "Department of Social Science" },
-                { id: "menu-item-3705", href: "#", text: "Department of Religion" },
-                { id: "menu-item-3704", href: "#", text: "Department of Physics" },
-                { id: "menu-item-3703", href: "#", text: "Department of Chemistry" },
-                { id: "menu-item-3702", href: "#", text: "Department of Biology" },
-                { id: "menu-item-3701", href: "#", text: "Department of Business Studies" },
-                { id: "menu-item-3700", href: "#", text: "Department of Geography" },
-                { id: "menu-item-3699", href: "#", text: "Department of Agriculture" },
-                { id: "menu-item-3698", href: "#", text: "Department of Physical Education" },
-                { id: "menu-item-3697", href: "#", text: "Department of Arts and Crafts" }
-            ]
-        },
+        // {
+        //     id: "menu-item-3670",
+        //     className: "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3670 nav-item",
+        //     href: "#",
+        //     text: "Departments",
+        //     dropdown: [
+        //         { id: "menu-item-3671", href: "#", text: "Department of Bangla" },
+        //         { id: "menu-item-3708", href: "#", text: "Department of English" },
+        //         { id: "menu-item-3707", href: "#", text: "Department of Mathematics" },
+        //         { id: "menu-item-3706", href: "#", text: "Department of Social Science" },
+        //         { id: "menu-item-3705", href: "#", text: "Department of Religion" },
+        //         { id: "menu-item-3704", href: "#", text: "Department of Physics" },
+        //         { id: "menu-item-3703", href: "#", text: "Department of Chemistry" },
+        //         { id: "menu-item-3702", href: "#", text: "Department of Biology" },
+        //         { id: "menu-item-3701", href: "#", text: "Department of Business Studies" },
+        //         { id: "menu-item-3700", href: "#", text: "Department of Geography" },
+        //         { id: "menu-item-3699", href: "#", text: "Department of Agriculture" },
+        //         { id: "menu-item-3698", href: "#", text: "Department of Physical Education" },
+        //         { id: "menu-item-3697", href: "#", text: "Department of Arts and Crafts" }
+        //     ]
+        // },
         {
             id: "menu-item-3358",
             className: "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3358 nav-item",
@@ -136,17 +136,17 @@ function Navbar() {
                 {
                     id: "menu-item-3360",
                     href: "#",
-                    text: "Co-Curriculum",
+                    text: "Sports",
                     // hasChildren: true,
                     subDropdown: [
-                        { id: "menu-item-3366", href: "#", text: "Sports" },
+                        { id: "menu-item-3366", href: "#", text: "" },
                         { id: "menu-item-3361", href: "#", text: "Cultural activities" },
-                        { id: "menu-item-3362", href: "#", text: "Debating club" },
-                        { id: "menu-item-3365", href: "#", text: "Magazine" }
                     ]
                 },
-                { id: "menu-item-3359", href: "#", text: "BNCC" },
-                { id: "menu-item-3368", href: "#", text: "Rover Scout" }
+                { id: "menu-item-3368", href: "#", text: "Scout" },
+                { id: "menu-item-3365", href: "#", text: "Red Crescent" },
+                { id: "menu-item-3359", href: "#", text: "Cultural activities" },
+                { id: "menu-item-3362", href: "#", text: "Debating club" },
             ]
         },
         {
@@ -159,12 +159,12 @@ function Navbar() {
                 { id: "menu-item-3376", href: "exam-routine", text: "Exam schedule" },
                 { id: "menu-item-3371", href: `${routinePDF}`, text: "Academic Calender" },
                 { id: "menu-item-3382", href: "#", text: "Vacation Calendar" },
-                { id: "menu-item-3381", href: "#", text: "Students Must Follow" },
-                { id: "menu-item-3372", href: "#", text: "School Time" },
-                { id: "menu-item-3373", href: "#", text: "School Uniform" },
+                // { id: "menu-item-3381", href: "#", text: "Students Must Follow" },
+                // { id: "menu-item-3372", href: "#", text: "School Time" },
+                // { id: "menu-item-3373", href: "#", text: "School Uniform" },
                 { id: "menu-item-3378", href: "#", text: "Library" },
                 { id: "menu-item-3377", href: "#", text: "Laboratory" },
-                { id: "menu-item-3379", href: "#", text: "Physical Exercise" }
+                // { id: "menu-item-3379", href: "#", text: "Physical Exercise" }
             ]
         },
         {
@@ -175,8 +175,8 @@ function Navbar() {
             dropdown: [
                 { id: "menu-item-3543", href: "notices", text: "Official Notices", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item" },
                 { id: "menu-item-3544", href: "events", text: "Events", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item" },
-                { id: "menu-item-3545", href: "#", text: "NOC", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3545 nav-item" },
-                { id: "menu-item-3546", href: "#", text: "Tender", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3546 nav-item" }
+                // { id: "menu-item-3545", href: "#", text: "NOC", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3545 nav-item" },
+                // { id: "menu-item-3546", href: "#", text: "Tender", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3546 nav-item" }
             ]
         },
         {
