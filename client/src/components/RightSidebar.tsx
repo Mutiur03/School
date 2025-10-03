@@ -1,16 +1,23 @@
 import axios from 'axios'
 import './RightSidebar.css'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function RightSidebar() {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [head, setHead] = useState<string>('');
     const [imgLoading, setImgLoading] = useState(true);
+    const [head_msg_show, setHeadMsg] = useState(true)
     const monthNames = [
         'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
         'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
     ]
+    const location = useLocation();
+
+    useEffect(() => {
+        setHeadMsg(location.pathname === '/' || location.pathname === '');
+    }, [location.pathname]
+    )
     const host = import.meta.env.VITE_BACKEND_URL;
     const getCalendarData = (date: Date) => {
         const year = date.getFullYear()
@@ -89,28 +96,29 @@ function RightSidebar() {
     return (
         <div className="content-right">
 
-            <div className="sidebar-widget widget widget_text">
-                <div className="widget-heading">
-                    <h3 className="widget-title">প্রধান শিক্ষকের বাণী</h3>
-                </div>
-                <div className="textwidget">
-                    <p>
-                        {imgLoading ? (
-                            <div
-                                className="aligncenter headmaster-image"
-                                role="status"
-                                aria-live="polite"
-                                style={{
-                                    background: '#f3f4f6',
-                                    width: '100%',
-                                    aspectRatio: '1 / 1',
-                                    display: 'block',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    borderRadius: 8
-                                }}
-                            >
-                                {/* <svg
+            {head_msg_show && (
+                <div className="sidebar-widget widget widget_text">
+                    <div className="widget-heading">
+                        <h3 className="widget-title">প্রধান শিক্ষকের বাণী</h3>
+                    </div>
+                    <div className="textwidget">
+                        <p>
+                            {imgLoading ? (
+                                <div
+                                    className="aligncenter headmaster-image"
+                                    role="status"
+                                    aria-live="polite"
+                                    style={{
+                                        background: '#f3f4f6',
+                                        width: '100%',
+                                        aspectRatio: '1 / 1',
+                                        display: 'block',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        borderRadius: 8
+                                    }}
+                                >
+                                    {/* <svg
                                     width="32"
                                     height="32"
                                     viewBox="0 0 24 24"
@@ -129,37 +137,38 @@ function RightSidebar() {
                                         <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
                                     </path>
                                 </svg> */}
-                            </div>
-                        ) : (
-                            <img
-                                decoding="async"
-                                loading="lazy"
-                                className="aligncenter headmaster-image"
-                                src={head ? host + '/' + head : '/placeholder.svg'}
-                                alt="প্রধান শিক্ষক"
-                                onLoad={() => setImgLoading(false)}
-                                onError={() => {
-                                    if (head) {
-                                        // Fallback to default image; keep loading until it loads
-                                        setHead('');
-                                    } else {
-                                        // Default image also failed; stop loading to avoid infinite state
-                                        setImgLoading(false);
-                                    }
-                                }}
-                                style={{
-                                    opacity: imgLoading ? 0 : 1,
-                                    transition: 'opacity 200ms ease'
-                                }}
-                            />)}
-                    </p>
-                    <p>
-                        <Link className="more-link" to="/message-from-head/">
-                            View Details →
-                        </Link>
-                    </p>
+                                </div>
+                            ) : (
+                                <img
+                                    decoding="async"
+                                    loading="lazy"
+                                    className="aligncenter headmaster-image"
+                                    src={head ? host + '/' + head : '/placeholder.svg'}
+                                    alt="প্রধান শিক্ষক"
+                                    onLoad={() => setImgLoading(false)}
+                                    onError={() => {
+                                        if (head) {
+                                            // Fallback to default image; keep loading until it loads
+                                            setHead('');
+                                        } else {
+                                            // Default image also failed; stop loading to avoid infinite state
+                                            setImgLoading(false);
+                                        }
+                                    }}
+                                    style={{
+                                        opacity: imgLoading ? 0 : 1,
+                                        transition: 'opacity 200ms ease'
+                                    }}
+                                />)}
+                        </p>
+                        <p>
+                            <Link className="more-link" to="/message-from-head/">
+                                View Details →
+                            </Link>
+                        </p>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Important Links Widget */}
             <div className="sidebar-widget widget widget_nav_menu">
@@ -284,9 +293,9 @@ function RightSidebar() {
                                 Teacher Log in
                             </a>
                         </li>
-                        <li className="menu-item">
+                        {/* <li className="menu-item">
                             <Link to="/teacher-list">Teacher List</Link>
-                        </li>
+                        </li> */}
                         <li className="menu-item">
                             <a target="_blank" href="https://student.lbphs.gov.bd/">Student Log in</a>
                         </li>
@@ -450,7 +459,7 @@ function RightSidebar() {
             </div>
 
             {/* একদেশ Widget */}
-            <div className="sidebar-widget widget widget_text">
+            {/* <div className="sidebar-widget widget widget_text">
                 <div className="widget-heading">
                     <h3 className="widget-title">একদেশ</h3>
                 </div>
@@ -467,10 +476,10 @@ function RightSidebar() {
                         </a>
                     </p>
                 </div>
-            </div>
+            </div> */}
 
             {/* ডেঙ্গু প্রতিরোধে করণীয় Widget */}
-            <div className="sidebar-widget widget widget_text">
+            {/* <div className="sidebar-widget widget widget_text">
                 <div className="widget-heading">
                     <h3 className="widget-title">ডেঙ্গু প্রতিরোধে করণীয়</h3>
                 </div>
@@ -487,7 +496,7 @@ function RightSidebar() {
                         </a>
                     </p>
                 </div>
-            </div>
+            </div> */}
         </div>
     )
 }
