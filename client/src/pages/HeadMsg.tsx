@@ -34,7 +34,7 @@ function HeadMsg() {
                     />
                 )}
             </div>
-            <h1 className="text-2xl font-bold mb-4">{head?.teacher.name ?? 'Head of School'}</h1>
+            <h1 className="text-2xl font-bold mb-4">{head?.teacher.name ?? ''}</h1>
             <div className=" text-justify max-w-2xl w-full">
                 <p>{head?.head_message ?? ''}</p>
             </div>

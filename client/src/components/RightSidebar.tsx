@@ -79,19 +79,35 @@ function RightSidebar() {
 
     const calendarData = getCalendarData(currentDate)
     useEffect(() => {
-        axios.get('/api/teachers/get_head_msg').then(response => {
-            console.log(response.data);
-            setHead(response.data.teacher.image || '');
-            setImgLoading(false)
-        }).catch(error => {
-            console.error('Error fetching head message:', error);
-        })
+        let cancelled = false;
+        axios.get('/api/teachers/get_head_msg')
+            .then(response => {
+                if (cancelled) return;
+                const imagePath = response?.data?.teacher?.image || '';
+                if (imagePath) {
+                    setImgLoading(true);
+                    setHead(imagePath);
+                } else {
+                    setHead('');
+                    setImgLoading(false);
+                }
+            })
+            .catch(error => {
+                if (cancelled) return;
+                console.error('Error fetching head message:', error);
+                setHead('');
+                setImgLoading(false);
+            });
+        return () => { cancelled = true; }
     }, [])
 
-    // reset image loading whenever the head image URL changes
-    // useEffect(() => {
-    //     setImgLoading(true);
-    // }, [head])
+    useEffect(() => {
+        if (!head) {
+            setImgLoading(false);
+        } else {
+            setImgLoading(true);
+        }
+    }, [head])
 
     return (
         <div className="content-right">
@@ -103,7 +119,7 @@ function RightSidebar() {
                     </div>
                     <div className="textwidget">
                         <p>
-                            {imgLoading ? (
+                            {!head ? (
                                 <div
                                     className="aligncenter headmaster-image"
                                     role="status"
@@ -117,49 +133,51 @@ function RightSidebar() {
                                         overflow: 'hidden',
                                         borderRadius: 8
                                     }}
-                                >
-                                    {/* <svg
-                                    width="32"
-                                    height="32"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    aria-hidden="true"
-                                    style={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        opacity: 0.6
-                                    }}
-                                >
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
-                                    <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" fill="none">
-                                        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
-                                    </path>
-                                </svg> */}
-                                </div>
+                                />
                             ) : (
-                                <img
-                                    decoding="async"
-                                    loading="lazy"
+                                <div
                                     className="aligncenter headmaster-image"
-                                    src={head ? host + '/' + head : '/placeholder.svg'}
-                                    alt="প্রধান শিক্ষক"
-                                    onLoad={() => setImgLoading(false)}
-                                    onError={() => {
-                                        if (head) {
-                                            // Fallback to default image; keep loading until it loads
-                                            setHead('');
-                                        } else {
-                                            // Default image also failed; stop loading to avoid infinite state
-                                            setImgLoading(false);
-                                        }
-                                    }}
                                     style={{
-                                        opacity: imgLoading ? 0 : 1,
-                                        transition: 'opacity 200ms ease'
+                                        background: '#f3f4f6',
+                                        width: '100%',
+                                        aspectRatio: '1 / 1',
+                                        display: 'block',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        borderRadius: 8
                                     }}
-                                />)}
+                                >
+                                    <img
+                                        decoding="async"
+                                        // loading="lazy"
+                                        src={host + '/' + head}
+                                        alt="প্রধান শিক্ষক"
+                                        onLoad={() => setImgLoading(false)}
+                                        onError={() => {
+                                            setHead('');
+                                            setImgLoading(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            display: 'block',
+                                            opacity: imgLoading ? 0 : 1,
+                                            transition: 'opacity 200ms ease'
+                                        }}
+                                    />
+                                    {/* {imgLoading && (
+                                        <div
+                                            aria-hidden="true"
+                                            style={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                background: '#f3f4f6'
+                                            }}
+                                        />
+                                    )} */}
+                                </div>
+                            )}
                         </p>
                         <p>
                             <Link className="more-link" to="/message-from-head/">

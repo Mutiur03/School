@@ -242,8 +242,7 @@ function Chart() {
                                             >অষ্টম শ্রেণি</a></li>
                                             <li><a
                                             >নবম শ্রেণি</a></li>
-                                            <li><a
-                                            >দশম শ্রেণি</a></li>
+
                                         </ul>
                                     </div>
                                 </div>
@@ -304,15 +303,15 @@ function Chart() {
                                     </div>
                                     <div className="box-text">
                                         <ul>
-                                            <li><a
+                                            <li><a href='https://student.lbphs.gov.bd/' target='_blank' rel="noopener noreferrer"
                                             >ষষ্ঠ শ্রেণি</a></li>
-                                            <li><a
+                                            <li><a href='https://student.lbphs.gov.bd/' target='_blank' rel="noopener noreferrer"
                                             >সপ্তম শ্রেণি</a></li>
-                                            <li><a
+                                            <li><a href='https://student.lbphs.gov.bd/' target='_blank' rel="noopener noreferrer"
                                             >অষ্টম শ্রেণি</a></li>
-                                            <li><a
+                                            <li><a href='https://student.lbphs.gov.bd/' target='_blank' rel="noopener noreferrer"
                                             >নবম শ্রেণি</a></li>
-                                            <li><a
+                                            <li><a href='https://student.lbphs.gov.bd/' target='_blank' rel="noopener noreferrer"
                                             >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
@@ -342,7 +341,7 @@ function Chart() {
                                             >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a>সপ্তম শ্রেণি</a></li>
                                             <li><a>অষ্টম শ্রেণি</a></li>
-                                            <li><a >নবম শ্রেণি</a></li>
+                                            <li><Link to={'/registration/ssc'}>নবম শ্রেণি</Link></li>
                                             <li><a >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>
