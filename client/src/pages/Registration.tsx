@@ -20,7 +20,6 @@ type FormState = {
     birthDate: string
     bloodGroup: string
     birthRegNo: string
-    phone: string
     email: string
     presentAddress: string
     permanentAddress: string
@@ -43,20 +42,28 @@ type FormState = {
     section: string
     roll: string
     religion: string
-    // Guardian fields
     guardianName?: string
-    guardianNid?: string
     guardianPhone?: string
     guardianRelation?: string
     guardianAddress?: string
     guardianAddressSameAsPresent?: boolean
-    // Guardian address fields (structured)
     guardianDivision?: string
     guardianDistrict?: string
     guardianPostOffice?: string
     guardianPostCode?: string
     guardianVillageRoad?: string
     guardianUpazila?: string
+    prevSchoolName: string
+    prevSchoolDivision: string
+    prevSchoolDistrict: string
+    prevSchoolUpazila: string
+    jscPassingYear: string
+    jscBoard: string
+    jscRegNo: string
+    jscRollNo: string
+    groupClassNine: string
+    mainSubject: string
+    fourthSubject: string
 }
 
 const FieldRow: React.FC<{
@@ -110,7 +117,6 @@ function Registration() {
         birthDate: '',
         bloodGroup: '',
         birthRegNo: '',
-        phone: '',
         email: '',
         presentAddress: '',
         permanentAddress: '',
@@ -133,9 +139,7 @@ function Registration() {
         section: '',
         roll: '',
         religion: '',
-        // Guardian fields
         guardianName: '',
-        guardianNid: '',
         guardianPhone: '',
         guardianRelation: '',
         guardianAddress: '',
@@ -146,6 +150,19 @@ function Registration() {
         guardianPostOffice: '',
         guardianPostCode: '',
         guardianVillageRoad: '',
+        // Previous School Info
+        prevSchoolName: '',
+        prevSchoolDivision: '',
+        prevSchoolDistrict: '',
+        prevSchoolUpazila: '',
+        jscPassingYear: '',
+        jscBoard: '',
+        jscRegNo: '',
+        jscRollNo: '',
+        // Class Nine Info
+        groupClassNine: '',
+        mainSubject: '',
+        fourthSubject: '',
     })
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -159,6 +176,8 @@ function Registration() {
     const [permanentUpazillas, setPermanentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [guardianDistricts, setGuardianDistricts] = useState<{ id: string; name: string }[]>([])
     const [guardianUpazillas, setGuardianUpazillas] = useState<{ id: string; name: string }[]>([])
+    const [prevSchoolDistricts, setPrevSchoolDistricts] = useState<{ id: string; name: string }[]>([])
+    const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
 
@@ -271,10 +290,53 @@ function Registration() {
             .catch(() => setPermanentUpazillas([]))
     }, [form.permanentDistrict, permanentDistricts])
 
-    // Helper arrays for dropdowns
+    useEffect(() => {
+        const selectedDivisionName = form.prevSchoolDivision
+        if (!selectedDivisionName) {
+            setPrevSchoolDistricts([])
+            setPrevSchoolUpazilas([])
+            setForm(prev => ({ ...prev, prevSchoolDistrict: '', prevSchoolUpazila: '' }))
+            return
+        }
+        const selectedDivision = divisions.find(d => d.name === selectedDivisionName)
+        if (!selectedDivision) return
+
+        fetch(`https://bdapi.vercel.app/api/v.1/district/${encodeURIComponent(selectedDivision.id)}`)
+            .then(res => res.json())
+            .then(data => {
+                const items = Array.isArray(data) ? data : data?.data ?? data?.districts ?? []
+                setPrevSchoolDistricts(normalizeList(items))
+                setPrevSchoolUpazilas([])
+                setForm(prev => ({ ...prev, prevSchoolDistrict: '', prevSchoolUpazila: '' }))
+            })
+            .catch(() => {
+                setPrevSchoolDistricts([])
+                setPrevSchoolUpazilas([])
+            })
+    }, [form.prevSchoolDivision, divisions])
+
+    useEffect(() => {
+        const selectedDistrictName = form.prevSchoolDistrict
+        if (!selectedDistrictName) {
+            setPrevSchoolUpazilas([])
+            setForm(prev => ({ ...prev, prevSchoolUpazila: '' }))
+            return
+        }
+        const selectedDistrict = prevSchoolDistricts.find(d => d.name === selectedDistrictName)
+        if (!selectedDistrict) return
+
+        fetch(`https://bdapi.vercel.app/api/v.1/upazilla/${encodeURIComponent(selectedDistrict.id)}`)
+            .then(res => res.json())
+            .then(data => {
+                const items = Array.isArray(data) ? data : data?.data ?? data?.upazillas ?? []
+                setPrevSchoolUpazilas(normalizeList(items))
+                setForm(prev => ({ ...prev, prevSchoolUpazila: '' }))
+            })
+            .catch(() => setPrevSchoolUpazilas([]))
+    }, [form.prevSchoolDistrict, prevSchoolDistricts])
+
     const currentYear = new Date().getFullYear()
-    const minYear = currentYear - 15
-    // Allow all years up to minYear (older students allowed)
+    const minYear = currentYear - 10
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
@@ -288,14 +350,12 @@ function Registration() {
         return Array.from({ length: days }, (_, i) => String(i + 1).padStart(2, '0'))
     }
 
-    // Restrict month/day for minYear to only allow dates <= 1st Jan of current year
     let days: string[] = []
     let monthOptions = months
     let disableMonth = false
     let disableDay = false
     if (form.birthYear && years.includes(form.birthYear)) {
         if (form.birthYear === String(minYear)) {
-            // Only allow January
             monthOptions = months.filter(m => m.value === '01')
             disableMonth = false
             if (form.birthMonth === '01') {
@@ -306,7 +366,6 @@ function Registration() {
                 disableDay = true
             }
         } else {
-            // For years less than minYear, allow all months/days
             monthOptions = months
             disableMonth = false
             if (form.birthMonth) {
@@ -341,7 +400,6 @@ function Registration() {
         }
     }, [form.birthRegNo])
 
-    // Guardian address sync
     useEffect(() => {
         if (guardianNotParents && form.guardianAddressSameAsPresent) {
             setForm(prev => ({
@@ -367,7 +425,6 @@ function Registration() {
         form.presentVillageRoad
     ])
 
-    // Guardian division/district/upazila dropdowns
     useEffect(() => {
         if (!guardianNotParents || form.guardianAddressSameAsPresent) {
             setGuardianDistricts([])
@@ -416,14 +473,44 @@ function Registration() {
             .catch(() => setGuardianUpazillas([]))
     }, [guardianNotParents, form.guardianDistrict, guardianDistricts, form.guardianAddressSameAsPresent])
 
+    function isBanglaField(name: string) {
+        return (
+            name === 'studentNameBn' ||
+            name === 'fatherNameBn' ||
+            name === 'motherNameBn'
+        )
+    }
+
+    function filterEnglishInput(value: string) {
+        return value.replace(/[^\x20-\x7E]/g, '')
+    }
+
     function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
         const target = e.target as HTMLInputElement
-        const { name, value, type, checked } = target
-        // Prevent manual change of birthYear
+        const { name, type, checked } = target
+        let value = target.value
+
+        if (!isBanglaField(name)) {
+            value = filterEnglishInput(value)
+        }
+
+        if (
+            name === 'fatherPhone' ||
+            name === 'motherPhone' ||
+            name === 'guardianPhone'
+        ) {
+            value = value.replace(/\D/g, '').slice(0, 11)
+        }
+        if (
+            name === 'presentPostCode' ||
+            name === 'permanentPostCode' ||
+            name === 'guardianPostCode'
+        ) {
+            value = value.replace(/\D/g, '').slice(0, 4)
+        }
         if (name === 'birthYear') return
         setForm(prev => {
             const updated = { ...prev, [name]: type === 'checkbox' ? checked : value }
-            // Reset day if month changes
             if (name === 'birthMonth') {
                 updated.birthDay = ''
             }
@@ -450,7 +537,6 @@ function Registration() {
                     updated.permanentVillageRoad = value
                 }
             }
-            // Guardian address sync
             if (guardianNotParents && name === 'guardianAddressSameAsPresent') {
                 if (checked) {
                     updated.guardianAddress = prev.presentAddress
@@ -496,6 +582,15 @@ function Registration() {
 
     function validate() {
         const e: Record<string, string> = {}
+        if (!form.prevSchoolName.trim()) e.prevSchoolName = 'Previous school name is required'
+        if (!form.prevSchoolDivision.trim()) e.prevSchoolDivision = 'Previous school division is required'
+        if (!form.prevSchoolDistrict.trim()) e.prevSchoolDistrict = 'Previous school district is required'
+        if (!form.prevSchoolUpazila.trim()) e.prevSchoolUpazila = 'Previous school upazila/thana is required'
+        if (!form.jscPassingYear.trim()) e.jscPassingYear = 'JSC passing year is required'
+        if (!/^\d{4}$/.test(form.jscPassingYear)) e.jscPassingYear = 'JSC passing year must be 4 digits'
+        if (!form.jscBoard.trim()) e.jscBoard = 'JSC board is required'
+        if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC registration no is required'
+        if (!/^\d+$/.test(form.jscRegNo)) e.jscRegNo = 'JSC registration no must be numeric'
         if (!form.studentNameEn.trim()) e.studentNameEn = 'Student name (English) is required'
         if (!form.studentNameBn.trim()) e.studentNameBn = 'ছাত্রের নাম (বাংলা) is required'
         if (!form.fatherNameEn.trim()) e.fatherNameEn = 'Father name (English) is required'
@@ -503,19 +598,11 @@ function Registration() {
         if (!form.motherNameEn.trim()) e.motherNameEn = 'Mother name (English) is required'
         if (!form.motherNameBn.trim()) e.motherNameBn = 'মাতার নাম (বাংলা) is required'
         if (!form.birthRegNo.trim()) e.birthRegNo = 'Birth Reg No is required'
-        if (!/^\d{17,17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth Reg No must be 17 digits'
-        // Only allow 15 years completed on 1st Jan of current year or older
+        if (!/^\d{1,17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth Reg No must be up to 17 digits'
         if (!form.birthYear) e.birthYear = 'Birth year is required'
         if (!form.birthMonth) e.birthMonth = 'Birth month is required'
         if (!form.birthDay) e.birthDay = 'Birth day is required'
-        if (
-            !form.birthYear ||
-            !form.birthMonth ||
-            !form.birthDay
-        ) {
-            // already handled above
-        } else {
-            // Check if date is at least 15 years before 1st Jan of current year
+        if (form.birthYear && form.birthMonth && form.birthDay) {
             const dob = new Date(`${form.birthYear}-${form.birthMonth}-${form.birthDay}`)
             const minDate = new Date(`${minYear}-01-01`)
             if (dob > minDate) {
@@ -530,15 +617,14 @@ function Registration() {
             e.fatherPhone = msg
             e.motherPhone = msg
         } else {
-            const phoneRegex = /^[0-9+\- ]{6,20}$/
+            const phoneRegex = /^[0-9]{11}$/
             if (form.fatherPhone.trim() && !phoneRegex.test(form.fatherPhone)) {
-                e.fatherPhone = 'Enter a valid phone number'
+                e.fatherPhone = 'Enter a valid phone number (exactly 11 digits)'
             }
             if (form.motherPhone.trim() && !phoneRegex.test(form.motherPhone)) {
-                e.motherPhone = 'Enter a valid phone number'
+                e.motherPhone = 'Enter a valid phone number (exactly 11 digits)'
             }
         }
-        // Always require present and permanent address fields
         if (!form.presentAddress.trim()) e.presentAddress = 'Present address is required'
         if (!form.permanentAddress.trim()) e.permanentAddress = 'Permanent address is required'
         if (!form.presentDivision.trim()) e.presentDivision = 'Present division is required'
@@ -546,30 +632,29 @@ function Registration() {
         if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila is required'
         if (!form.presentPostOffice.trim()) e.presentPostOffice = 'Present post office is required'
         if (!form.presentPostCode.trim()) e.presentPostCode = 'Present post code is required'
+        else if (!/^\d{4}$/.test(form.presentPostCode)) e.presentPostCode = 'Present post code must be exactly 4 digits'
         if (!form.presentVillageRoad.trim()) e.presentVillageRoad = 'Present village/road is required'
         if (!form.permanentDivision.trim()) e.permanentDivision = 'Permanent division is required'
         if (!form.permanentDistrict.trim()) e.permanentDistrict = 'Permanent district is required'
         if (!form.permanentUpazila.trim()) e.permanentUpazila = 'Permanent upazila is required'
         if (!form.permanentPostOffice.trim()) e.permanentPostOffice = 'Permanent post office is required'
         if (!form.permanentPostCode.trim()) e.permanentPostCode = 'Permanent post code is required'
+        else if (!/^\d{4}$/.test(form.permanentPostCode)) e.permanentPostCode = 'Permanent post code must be exactly 4 digits'
         if (!form.permanentVillageRoad.trim()) e.permanentVillageRoad = 'Permanent village/road is required'
-        // Section, Roll, Religion required
         if (!form.section.trim()) e.section = 'Section is required'
         if (!form.roll.trim()) e.roll = 'Roll is required'
         if (!form.religion.trim()) e.religion = 'Religion is required'
-        // Guardian validation
         if (guardianNotParents) {
             if (!form.guardianName?.trim()) e.guardianName = 'Guardian name is required'
             if (!form.guardianRelation?.trim()) e.guardianRelation = 'Relation with guardian is required'
             if (!form.guardianPhone?.trim()) {
                 e.guardianPhone = 'Guardian phone number is required'
             } else {
-                const phoneRegex = /^[0-9+\- ]{6,20}$/
+                const phoneRegex = /^[0-9]{11}$/
                 if (!phoneRegex.test(form.guardianPhone)) {
-                    e.guardianPhone = 'Enter a valid phone number'
+                    e.guardianPhone = 'Enter a valid phone number (exactly 11 digits)'
                 }
             }
-            // Guardian address fields required
             if (!form.guardianAddressSameAsPresent) {
                 if (!form.guardianAddress?.trim()) e.guardianAddress = 'Guardian address is required'
                 if (!form.guardianDivision?.trim()) e.guardianDivision = 'Guardian division is required'
@@ -577,29 +662,38 @@ function Registration() {
                 if (!form.guardianUpazila?.trim()) e.guardianUpazila = 'Guardian upazila is required'
                 if (!form.guardianPostOffice?.trim()) e.guardianPostOffice = 'Guardian post office is required'
                 if (!form.guardianPostCode?.trim()) e.guardianPostCode = 'Guardian post code is required'
+                else if (!/^\d{4}$/.test(form.guardianPostCode)) e.guardianPostCode = 'Guardian post code must be exactly 4 digits'
                 if (!form.guardianVillageRoad?.trim()) e.guardianVillageRoad = 'Guardian village/road is required'
             }
         }
+        if (!form.groupClassNine) e.groupClassNine = 'Group in class nine is required'
+        if (!form.mainSubject) e.mainSubject = 'Main subject is required'
+        if (!form.fourthSubject) e.fourthSubject = '4th subject is required'
         setErrors(e)
+        if (Object.keys(e).length > 0) {
+            console.log('Validation errors:', e)
+        }
         return Object.keys(e).length === 0
     }
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setSuccess('')
-        if (!validate()) {
-            // Scroll to first error field
+        const valid = validate()
+        if (!valid) {
             setTimeout(() => {
-                const firstError = formRef.current?.querySelector('[aria-invalid="true"]')
-                if (firstError) {
-                    (firstError as HTMLElement).focus({ preventScroll: false })
-                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                const errorFieldNames = Object.keys(errors)
+                if (errorFieldNames.length > 0) {
+                    const firstErrorField = formRef.current?.querySelector(`[name="${errorFieldNames[0]}"]`)
+                    if (firstErrorField) {
+                        (firstErrorField as HTMLElement).focus({ preventScroll: false })
+                        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
                 }
             }, 100)
             return
         }
         setLoading(true)
-        // Combine birth date
         const birthDate = `${form.birthYear}-${form.birthMonth}-${form.birthDay}`
         const payload = {
             ...form,
@@ -613,9 +707,43 @@ function Registration() {
         }, 1200)
     }
 
+    useEffect(() => {
+        if (sameAddress) {
+            setForm(prev => ({
+                ...prev,
+                permanentDistrict: prev.presentDistrict,
+                permanentUpazila: prev.presentUpazila,
+            }))
+        }
+    }, [form.presentDistrict, form.presentUpazila, sameAddress])
+
+    const subjectOptionsByGroup = {
+        Science: {
+            main: [
+                { value: "Higher Mathematics", label: "উচ্চতর গণিত (Higher Mathematics) Code-126" },
+                { value: "Biology", label: "জীববিজ্ঞান (Biology) Code-138" }
+            ],
+            fourth: [
+                { value: "Higher Mathematics", label: "উচ্চতর গণিত (Higher Mathematics) Code-126" },
+                { value: "Biology", label: "জীববিজ্ঞান (Biology) Code-138" },
+                { value: "Agricultural Studies", label: "কৃষিশিক্ষা (Agricultural Studies) Code-134" },
+                { value: "Geography & Environment", label: "ভূগোল ও পরিবেশ (Geography & Environment) Code-110" }
+            ]
+        },
+        Humanities: {
+            main: [
+                { value: "Civics", label: "পৌরনীতি ও নাগরিকতা (Civics) Code-140" }
+            ],
+            fourth: [
+                { value: "Agricultural Studies", label: "কৃষিশিক্ষা (Agricultural Studies) Code-134" },
+                { value: "Economics", label: "অর্থনীতি (Economics) Code-141" },
+            ]
+        },
+    }
+
     return (
         <div className="max-w-full md:max-w-3xl lg:max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6">
-            <div className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-blue-100 mb-4 py-2 px-2 rounded-t shadow-sm flex flex-col items-center">
+            <div className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-blue-100 mb-4 py-2 px-2 rounded-t shadow-sm flex flex-col items-center">
                 <h2 className="text-2xl md:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1">SSC Student Registration (Bangladesh)</h2>
                 <span className="text-sm text-gray-600">Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.</span>
             </div>
@@ -625,25 +753,28 @@ function Registration() {
                 </div>
             )}
             <form ref={formRef} onSubmit={handleSubmit} noValidate>
-                {/* Step 1: Personal Info */}
+                
                 <section className="mb-6">
                     <SectionHeader step={1} title="Personal Information" />
                     <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
-                        {/* --- All fields in column order --- */}
                         <FieldRow label={<span>Section <Tooltip text="Your class section (e.g. A, B, C)" /></span>} required error={errors.section}>
-                            <input
+                            <select
                                 name="section"
                                 value={form.section}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="Section"
                                 aria-invalid={!!errors.section}
-                            />
+                            >
+                                <option value="">Select Section</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                            </select>
                         </FieldRow>
                         <FieldRow label={<span>Roll <Tooltip text="Your roll number as assigned by the school" /></span>} required error={errors.roll}>
                             <input
                                 name="roll"
                                 value={form.roll}
+                                type='number'
                                 onChange={handleChange}
                                 className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 placeholder="Roll"
@@ -651,14 +782,19 @@ function Registration() {
                             />
                         </FieldRow>
                         <FieldRow label={<span>Religion <Tooltip text="Your religion (e.g. Islam, Hinduism, etc.)" /></span>} required error={errors.religion}>
-                            <input
+                            <select
                                 name="religion"
                                 value={form.religion}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="Religion"
                                 aria-invalid={!!errors.religion}
-                            />
+                            >
+                                <option value="">Select Religion</option>
+                                <option value="Islam">Islam</option>
+                                <option value="Hinduism">Hinduism</option>
+                                <option value="Christianity">Christianity</option>
+                                <option value="Buddhism">Buddhism</option>
+                            </select>
                         </FieldRow>
                         <FieldRow label={<span>Student's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
                             <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (English)" aria-invalid={!!errors.studentNameEn} />
@@ -667,7 +803,19 @@ function Registration() {
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলা)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
                         <FieldRow label="Birth Reg No" required error={errors.birthRegNo}>
-                            <input name="birthRegNo" value={form.birthRegNo} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder='20XXXXXXXXXXXXXXX' aria-invalid={!!errors.birthRegNo} />
+                            <input
+                                name="birthRegNo"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{1,17}"
+                                minLength={1}
+                                maxLength={17}
+                                value={form.birthRegNo}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="20XXXXXXXXXXXXXXX"
+                                aria-invalid={!!errors.birthRegNo}
+                            />
                         </FieldRow>
                         <FieldRow label={<span>Father's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (English)" aria-invalid={!!errors.fatherNameEn} />
@@ -676,10 +824,21 @@ function Registration() {
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলা)" aria-invalid={!!errors.fatherNameBn} />
                         </FieldRow>
                         <FieldRow label="Father's NID"  >
-                            <input name="fatherNid" value={form.fatherNid} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="1234567890" />
+                            <input name="fatherNid" value={form.fatherNid} type='number' onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="1234567890" />
                         </FieldRow>
                         <FieldRow label="Father's Phone " error={errors.fatherPhone} >
-                            <input name="fatherPhone" value={form.fatherPhone} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="01XXXXXXXXX" aria-invalid={!!errors.fatherPhone} />
+                            <input
+                                name="fatherPhone"
+                                value={form.fatherPhone}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={11}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="01XXXXXXXXX"
+                                aria-invalid={!!errors.fatherPhone}
+                            />
                         </FieldRow>
                         <FieldRow label={<span>Mother's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (English)" aria-invalid={!!errors.motherNameEn} />
@@ -688,10 +847,21 @@ function Registration() {
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলা)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
                         <FieldRow label="Mother's NID "  >
-                            <input name="motherNid" value={form.motherNid} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="1234567890" />
+                            <input name="motherNid" value={form.motherNid} type='number' onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="1234567890" />
                         </FieldRow>
                         <FieldRow label="Mother's Phone " error={errors.motherPhone} >
-                            <input name="motherPhone" value={form.motherPhone} onChange={handleChange} className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="01XXXXXXXXX" aria-invalid={!!errors.motherPhone} />
+                            <input
+                                name="motherPhone"
+                                value={form.motherPhone}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={11}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="01XXXXXXXXX"
+                                aria-invalid={!!errors.motherPhone}
+                            />
                         </FieldRow>
                         <FieldRow label={<span>Date of Birth <Tooltip text={`Student must be at least 15 years old on 1st January ${currentYear}`} /></span>} required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
@@ -733,7 +903,7 @@ function Registration() {
                         </FieldRow>
                         <FieldRow label="Blood Group ">
                             <select name="bloodGroup" value={form.bloodGroup} onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                                <option value="">Select / নির্বাচন করুন</option>
+                                <option value="">Select Blood Group</option>
                                 <option>A+</option>
                                 <option>A-</option>
                                 <option>B+</option>
@@ -746,22 +916,20 @@ function Registration() {
                         </FieldRow>
 
                         <FieldRow label="Email" error={errors.email}>
-                            <input name="email" value={form.email} onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder='example@gmail.com' />
+                            <input name="email" value={form.email} type='email' onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder='example@gmail.com' />
                         </FieldRow>
                     </div>
                 </section>
-                {/* Step 2: Address */}
                 <section className="mb-6">
-                    <SectionHeader step={2} title="Address / ঠিকানা" />
+                    <SectionHeader step={2} title="Address" />
                     <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
-                        {/* Present Address */}
-                        <h4 className="font-semibold mb-2">Present Address / বর্তমান ঠিকানা</h4>
-                        <FieldRow label="Address" error={errors.presentAddress}>
+                        <h4 className="font-semibold mb-2">Present Address </h4>
+                        <FieldRow label="Address" required error={errors.presentAddress}>
                             <textarea name="presentAddress" value={form.presentAddress} onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" rows={3} />
                         </FieldRow>
-                        <FieldRow label="Division" error={errors.presentDivision}>
+                        <FieldRow label="Division" required error={errors.presentDivision}>
                             <select name="presentDivision" value={form.presentDivision} onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                                <option value="">Select division / বিভাগ নির্বাচন করুন</option>
+                                <option value="">Select division </option>
                                 {divisions.map((d) => (
                                     <option key={d.id} value={d.name}>
                                         {d.name}
@@ -769,7 +937,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="District" error={errors.presentDistrict}>
+                        <FieldRow label="District" required error={errors.presentDistrict}>
                             <select
                                 name="presentDistrict"
                                 value={form.presentDistrict}
@@ -777,7 +945,7 @@ function Registration() {
                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 disabled={!form.presentDivision}
                             >
-                                <option value="">Select district / জেলা নির্বাচন করুন</option>
+                                <option value="">Select district </option>
                                 {presentDistricts.map((d) => (
                                     <option key={d.id} value={d.name}>
                                         {d.name}
@@ -785,7 +953,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila" error={errors.presentUpazila}>
+                        <FieldRow label="Upazila" required error={errors.presentUpazila}>
                             <select
                                 name="presentUpazila"
                                 value={form.presentUpazila}
@@ -793,7 +961,7 @@ function Registration() {
                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 disabled={!form.presentDistrict}
                             >
-                                <option value="">Select upazila / উপজেলা নির্বাচন করুন</option>
+                                <option value="">Select upazila </option>
                                 {presentUpazillas.map((u) => (
                                     <option key={u.id} value={u.name}>
                                         {u.name}
@@ -801,7 +969,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Post Office" error={errors.presentPostOffice}>
+                        <FieldRow label="Post Office" required error={errors.presentPostOffice}>
                             <input
                                 name="presentPostOffice"
                                 value={form.presentPostOffice}
@@ -810,16 +978,21 @@ function Registration() {
                                 placeholder="Post Office Name"
                             />
                         </FieldRow>
-                        <FieldRow label="Post Code" error={errors.presentPostCode}>
+                        <FieldRow label="Post Code" required error={errors.presentPostCode}>
                             <input
                                 name="presentPostCode"
                                 value={form.presentPostCode}
                                 onChange={handleChange}
+                                type='text'
+                                inputMode="numeric"
+                                pattern="\d{4}"
+                                maxLength={4}
                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 placeholder="1234"
+                                aria-invalid={!!errors.presentPostCode}
                             />
                         </FieldRow>
-                        <FieldRow label="Village/Road No" error={errors.presentVillageRoad}>
+                        <FieldRow label="Village/Road No" required error={errors.presentVillageRoad}>
                             <input
                                 name="presentVillageRoad"
                                 value={form.presentVillageRoad}
@@ -828,8 +1001,7 @@ function Registration() {
                                 placeholder="Village/Road No"
                             />
                         </FieldRow>
-                        {/* Permanent Address */}
-                        <h4 className="font-semibold mb-2 mt-6">Permanent Address / স্থায়ী ঠিকানা</h4>
+                        <h4 className="font-semibold mb-2 mt-6">Permanent Address </h4>
                         <FieldRow label="Same as Present">
                             <label className="inline-flex items-center gap-2">
                                 <input
@@ -864,7 +1036,7 @@ function Registration() {
                                         }
                                     }}
                                 />
-                                <span className="text-sm">Same as Present Address / বর্তমান ঠিকানার মতো</span>
+                                <span className="text-sm">Same as Present Address </span>
                             </label>
                         </FieldRow>
                         {!sameAddress && (
@@ -880,7 +1052,7 @@ function Registration() {
                                 </FieldRow>
                                 <FieldRow label="Division" required error={errors.permanentDivision}>
                                     <select name="permanentDivision" value={form.permanentDivision} onChange={handleChange} className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                                        <option value="">Select division / বিভাগ নির্বাচন করুন</option>
+                                        <option value="">Select division </option>
                                         {divisions.map((d) => (
                                             <option key={d.id} value={d.name}>
                                                 {d.name}
@@ -896,7 +1068,7 @@ function Registration() {
                                         className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         disabled={!form.permanentDivision}
                                     >
-                                        <option value="">Select district / জেলা নির্বাচন করুন</option>
+                                        <option value="">Select district</option>
                                         {permanentDistricts.map((d) => (
                                             <option key={d.id} value={d.name}>
                                                 {d.name}
@@ -912,7 +1084,7 @@ function Registration() {
                                         className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         disabled={!form.permanentDistrict}
                                     >
-                                        <option value="">Select upazila / উপজেলা নির্বাচন করুন</option>
+                                        <option value="">Select upazila</option>
                                         {permanentUpazillas.map((u) => (
                                             <option key={u.id} value={u.name}>
                                                 {u.name}
@@ -934,8 +1106,13 @@ function Registration() {
                                         name="permanentPostCode"
                                         value={form.permanentPostCode}
                                         onChange={handleChange}
+                                        type='text'
+                                        inputMode="numeric"
+                                        pattern="\d{4}"
+                                        maxLength={4}
                                         className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         placeholder="1234"
+                                        aria-invalid={!!errors.permanentPostCode}
                                     />
                                 </FieldRow>
                                 <FieldRow label="Village/Road No" required error={errors.permanentVillageRoad}>
@@ -951,7 +1128,6 @@ function Registration() {
                         )}
                     </div>
                 </section>
-                {/* Step 3: Guardian */}
                 <section className="mb-6">
                     <SectionHeader step={3} title="Guardian Information (if not parents)" />
                     <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
@@ -966,7 +1142,6 @@ function Registration() {
                                             setForm(prev => ({
                                                 ...prev,
                                                 guardianName: '',
-                                                guardianNid: '',
                                                 guardianPhone: '',
                                                 guardianRelation: '',
                                                 guardianAddress: '',
@@ -981,7 +1156,6 @@ function Registration() {
                                             setErrors(prev => ({
                                                 ...prev,
                                                 guardianName: '',
-                                                guardianNid: '',
                                                 guardianPhone: '',
                                                 guardianRelation: '',
                                                 guardianAddress: '',
@@ -1010,19 +1184,14 @@ function Registration() {
                                         aria-invalid={!!errors.guardianName}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian NID">
-                                    <input
-                                        name="guardianNid"
-                                        value={form.guardianNid}
-                                        onChange={handleChange}
-                                        className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                                        placeholder="Guardian NID"
-                                    />
-                                </FieldRow>
                                 <FieldRow label="Guardian Phone" required error={errors.guardianPhone}>
                                     <input
                                         name="guardianPhone"
                                         value={form.guardianPhone}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="\d*"
+                                        maxLength={11}
                                         onChange={handleChange}
                                         className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                                         placeholder="Guardian Phone"
@@ -1030,13 +1199,27 @@ function Registration() {
                                     />
                                 </FieldRow>
                                 <FieldRow label="Relation with Guardian" required error={errors.guardianRelation}>
-                                    <input
+                                    <select
                                         name="guardianRelation"
                                         value={form.guardianRelation}
                                         onChange={handleChange}
                                         className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                                        placeholder="Relation with Guardian"
-                                    />
+                                        aria-invalid={!!errors.guardianRelation}
+                                    >
+                                        <option value="">Select Relation / সম্পর্ক নির্বাচন করুন</option>
+                                        <option value="Paternal Uncle">Paternal Uncle (চাচা/কাকা)</option>
+                                        <option value="Paternal Aunt">Paternal Aunt (চাচী/কাকী)</option>
+                                        <option value="Maternal Uncle">Maternal Uncle (মামা)</option>
+                                        <option value="Maternal Aunt">Maternal Aunt (মামী)</option>
+                                        <option value="Paternal Grandfather">Paternal Grandfather (দাদা)</option>
+                                        <option value="Maternal Grandfather">Maternal Grandfather (নানা)</option>
+                                        <option value="Paternal Grandmother">Paternal Grandmother (দাদী)</option>
+                                        <option value="Maternal Grandmother">Paternal Grandmother (দাদী)</option>
+                                        <option value="Cousin">Cousin (চাচাতো/মামাতো ভাই/বোন)</option>
+                                        <option value="Brother">Brother (ভাই)</option>
+                                        <option value="Sister">Sister (বোন)</option>
+                                        <option value="Other">Other (অন্যান্য)</option>
+                                    </select>
                                 </FieldRow>
                                 <FieldRow label="Guardian Address">
                                     <label className="inline-flex items-center gap-2 mb-2">
@@ -1049,7 +1232,6 @@ function Registration() {
                                         <span className="text-sm">Same as Present Address</span>
                                     </label>
                                 </FieldRow>
-                                {/* Guardian address fields, only show if not same as present */}
                                 {!form.guardianAddressSameAsPresent && (
                                     <>
                                         <FieldRow label="Address" required error={errors.guardianAddress}>
@@ -1069,7 +1251,7 @@ function Registration() {
                                                 onChange={handleChange}
                                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                             >
-                                                <option value="">Select division / বিভাগ নির্বাচন করুন</option>
+                                                <option value="">Select division </option>
                                                 {divisions.map((d) => (
                                                     <option key={d.id} value={d.name}>
                                                         {d.name}
@@ -1085,7 +1267,7 @@ function Registration() {
                                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                                 disabled={!form.guardianDivision}
                                             >
-                                                <option value="">Select district / জেলা নির্বাচন করুন</option>
+                                                <option value="">Select district </option>
                                                 {guardianDistricts.map((d) => (
                                                     <option key={d.id} value={d.name}>
                                                         {d.name}
@@ -1101,7 +1283,7 @@ function Registration() {
                                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                                 disabled={!form.guardianDistrict}
                                             >
-                                                <option value="">Select upazila / উপজেলা নির্বাচন করুন</option>
+                                                <option value="">Select upazila </option>
                                                 {guardianUpazillas.map((u) => (
                                                     <option key={u.id} value={u.name}>
                                                         {u.name}
@@ -1123,8 +1305,13 @@ function Registration() {
                                                 name="guardianPostCode"
                                                 value={form.guardianPostCode}
                                                 onChange={handleChange}
+                                                type='text'
+                                                inputMode="numeric"
+                                                pattern="\d{4}"
+                                                maxLength={4}
                                                 className="block w-full border rounded-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                                 placeholder="1234"
+                                                aria-invalid={!!errors.guardianPostCode}
                                             />
                                         </FieldRow>
                                         <FieldRow label="Village/Road No" required error={errors.guardianVillageRoad}>
@@ -1142,7 +1329,6 @@ function Registration() {
                         )}
                     </div>
                 </section>
-                {/* Step 4: Uploads */}
                 <section className="mb-6">
                     <SectionHeader step={4} title="Uploads / আপলোড" />
                     <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
@@ -1165,7 +1351,191 @@ function Registration() {
                         </FieldRow>
                     </div>
                 </section>
-                {/* Buttons */}
+                <section className="mb-6">
+                    <SectionHeader step={0} title="Previous School Information" />
+                    <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
+                        <FieldRow label="Name of Previous School" required error={errors.prevSchoolName}>
+                            <input
+                                name="prevSchoolName"
+                                value={form.prevSchoolName}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="e.g. PGPS"
+                                aria-invalid={!!errors.prevSchoolName}
+                            />
+                        </FieldRow>
+                        <FieldRow label="Division" required error={errors.prevSchoolDivision}>
+                            <select
+                                name="prevSchoolDivision"
+                                value={form.prevSchoolDivision}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.prevSchoolDivision}
+                            >
+                                <option value="">Select division</option>
+                                {divisions.map((d) => (
+                                    <option key={d.id} value={d.name}>{d.name}</option>
+                                ))}
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="District" required error={errors.prevSchoolDistrict}>
+                            <select
+                                name="prevSchoolDistrict"
+                                value={form.prevSchoolDistrict}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                disabled={!form.prevSchoolDivision}
+                                aria-invalid={!!errors.prevSchoolDistrict}
+                            >
+                                <option value="">Select district</option>
+                                {prevSchoolDistricts.map((d) => (
+                                    <option key={d.id} value={d.name}>{d.name}</option>
+                                ))}
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="Upazila/Thana" required error={errors.prevSchoolUpazila}>
+                            <select
+                                name="prevSchoolUpazila"
+                                value={form.prevSchoolUpazila}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                disabled={!form.prevSchoolDistrict}
+                                aria-invalid={!!errors.prevSchoolUpazila}
+                            >
+                                <option value="">Select upazila/thana</option>
+                                {prevSchoolUpazilas.map((u) => (
+                                    <option key={u.id} value={u.name}>{u.name}</option>
+                                ))}
+                            </select>
+                        </FieldRow>
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <div className="flex-1">
+                                <FieldRow label="JSC Passing Year" required error={errors.jscPassingYear}>
+                                    <input
+                                        name="jscPassingYear"
+                                        value={form.jscPassingYear}
+                                        onChange={handleChange}
+                                        className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        placeholder="2024"
+                                        maxLength={4}
+                                        aria-invalid={!!errors.jscPassingYear}
+                                    />
+                                </FieldRow>
+                            </div>
+                            <div className="flex-1">
+                                <FieldRow label="JSC Board" required error={errors.jscBoard}>
+                                    <select
+                                        name="jscBoard"
+                                        value={form.jscBoard}
+                                        onChange={handleChange}
+                                        className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        aria-invalid={!!errors.jscBoard}
+                                    >
+                                        <option value="">Select Board</option>
+                                        <option value="Rajshahi">Rajshahi</option>
+                                        <option value="Dhaka">Dhaka</option>
+                                        <option value="Chittagong">Chittagong</option>
+                                        <option value="Barisal">Barisal</option>
+                                        <option value="Comilla">Comilla</option>
+                                        <option value="Dinajpur">Dinajpur</option>
+                                        <option value="Jessore">Jessore</option>
+                                        <option value="Sylhet">Sylhet</option>
+                                        <option value="Barisal">Barisal</option>
+                                        <option value="Madrasah">Madrasah</option>
+                                        <option value="Technical">Technical</option>
+                                    </select>
+                                </FieldRow>
+                            </div>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <div className="flex-1">
+                                <FieldRow label="JSC Registration No" required error={errors.jscRegNo}>
+                                    <input
+                                        name="jscRegNo"
+                                        value={form.jscRegNo}
+                                        onChange={handleChange}
+                                        className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        placeholder="e.g. 2512842236"
+                                        aria-invalid={!!errors.jscRegNo}
+                                    />
+                                </FieldRow>
+                            </div>
+                            <div className="flex-1">
+                                <FieldRow label="JSC Roll No">
+                                    <input
+                                        name="jscRollNo"
+                                        value={form.jscRollNo}
+                                        onChange={handleChange}
+                                        className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        placeholder="(if any)"
+                                    />
+                                </FieldRow>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section className="mb-6">
+                    <SectionHeader step={5} title="Class Nine Information" />
+                    <div className="border rounded-lg p-4 bg-white shadow-md flex flex-col gap-y-2">
+                        <FieldRow label="Group in Class Nine" required error={errors.groupClassNine}>
+                            <select
+                                name="groupClassNine"
+                                value={form.groupClassNine}
+                                onChange={e => {
+                                    handleChange(e);
+                                    setForm(prev => ({
+                                        ...prev,
+                                        mainSubject: '',
+                                        fourthSubject: ''
+                                    }));
+                                }}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.groupClassNine}
+                            >
+                                <option value="">Select Group</option>
+                                <option value="Science">Science</option>
+                                <option value="Humanities">Humanities</option>
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="Main Subject" required error={errors.mainSubject}>
+                            <select
+                                name="mainSubject"
+                                value={form.mainSubject}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.mainSubject}
+                                disabled={!form.groupClassNine}
+                            >
+                                <option value="">Select Main Subject</option>
+                                {form.groupClassNine &&
+                                    subjectOptionsByGroup[form.groupClassNine as keyof typeof subjectOptionsByGroup]?.main.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))
+                                }
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="4th Subject" required error={errors.fourthSubject}>
+                            <select
+                                name="fourthSubject"
+                                value={form.fourthSubject}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.fourthSubject}
+                                disabled={!form.groupClassNine}
+                            >
+                                <option value="">Select 4th Subject</option>
+                                {form.groupClassNine &&
+                                    subjectOptionsByGroup[form.groupClassNine as keyof typeof subjectOptionsByGroup]?.fourth
+                                        .filter(opt => opt.value !== form.mainSubject)
+                                        .map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))
+                                }
+                            </select>
+                        </FieldRow>
+                    </div>
+                </section>
+
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-6">
                     <button
                         type="submit"
@@ -1193,7 +1563,6 @@ function Registration() {
                                 birthDate: '',
                                 bloodGroup: '',
                                 birthRegNo: '',
-                                phone: '',
                                 email: '',
                                 presentAddress: '',
                                 permanentAddress: '',
@@ -1217,7 +1586,6 @@ function Registration() {
                                 roll: '',
                                 religion: '',
                                 guardianName: '',
-                                guardianNid: '',
                                 guardianPhone: '',
                                 guardianRelation: '',
                                 guardianAddress: '',
@@ -1228,6 +1596,19 @@ function Registration() {
                                 guardianPostOffice: '',
                                 guardianPostCode: '',
                                 guardianVillageRoad: '',
+                                // Previous School Info
+                                prevSchoolName: '',
+                                prevSchoolDivision: '',
+                                prevSchoolDistrict: '',
+                                prevSchoolUpazila: '',
+                                jscPassingYear: '',
+                                jscBoard: '',
+                                jscRegNo: '',
+                                jscRollNo: '',
+                                // Class Nine Info
+                                groupClassNine: '',
+                                mainSubject: '',
+                                fourthSubject: '',
                             }); setPhotoPreview(null); setErrors({}); setSuccess('')
                             setSameAddress(false)
                             setGuardianNotParents(false)
@@ -1236,7 +1617,6 @@ function Registration() {
                     >Reset</button>
                 </div>
             </form>
-            {/* Animation for success/error */}
             <style>{`
                 .animate-fade-in {
                     animation: fadeIn 0.7s;

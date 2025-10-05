@@ -15,7 +15,7 @@ import Event from "./pages/Event";
 import At_a_glance from "./pages/At_a_glance";
 import Gallery from "./pages/Gallery";
 import Images from "./pages/Images";
-// import Registration from "./pages/Registration";
+import Registration from "./pages/Registration";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
@@ -51,7 +51,7 @@ function App() {
                 <Route path="/at-a-glance" element={<At_a_glance/>} />
                 <Route path="/gallery" element={<Gallery/>} />
                 <Route path="/gallery/:type/:id" element={<Images/>} />
-                {/* <Route path="/registration/ssc" element={<Registration/>} /> */}
+                <Route path="/registration/ssc" element={<Registration/>} />
                 <Route
                   path="*"
                   element={<Navigate to="/" />}
