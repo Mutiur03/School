@@ -336,7 +336,7 @@ function Registration() {
     }, [form.prevSchoolDistrict, prevSchoolDistricts])
 
     const currentYear = new Date().getFullYear()
-    const minYear = currentYear - 10
+    const minYear = currentYear - 15
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
