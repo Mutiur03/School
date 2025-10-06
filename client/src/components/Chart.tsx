@@ -322,7 +322,7 @@ function Chart() {
                         <div className="text-left col-md-6">
                             <div className="box-item">
                                 <div className="box-title">
-                                    <h3>ফরম পূরণ সম্পর্কিত</h3>
+                                    <h3>রেজিস্ট্রেশন সম্পর্কিত</h3>
                                 </div>
                                 <div className='flex'>
                                     <div className="box-img">
