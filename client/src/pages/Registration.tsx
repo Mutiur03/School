@@ -744,7 +744,7 @@ function Registration() {
     return (
         <div className="max-w-full md:max-w-3xl lg:max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6">
             <div className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-blue-100 mb-4 py-2 px-2 rounded-t shadow-sm flex flex-col items-center">
-                <h2 className="text-2xl md:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1">SSC Student Registration (Bangladesh)</h2>
+                <h2 className="text-2xl md:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1">SSC Student Registration (Dev Mode)</h2>
                 <span className="text-sm text-gray-600">Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.</span>
             </div>
             {success && (
