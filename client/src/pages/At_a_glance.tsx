@@ -10,10 +10,10 @@ export default function At_a_glance() {
         { label: "E-mail", value: "lbpgovtschool@gmail.com" },
         { label: "Phone", value: "+880 1309-121983" },
         { label: "Code (EIIN)", value: "121983" },
-        { label: "Center Code", value: "—" },
-        { label: "Location", value: "Panchbibi, Joypurhat, Rajshahi Division, Bangladesh" },
+        { label: "Center Code", value: "484" },
+        { label: "Location", value: "Damdama, Panchbibi." },
         { label: "Established", value: "1940" },
-        { label: "Nationalized", value: "1986" },
+        { label: "Nationalized", value: "1987" },
         { label: "Grades", value: "6–10 (SSC)" },
         { label: "Enrollment", value: "~600 boys" },
         { label: "Student-Teacher Ratio", value: "~30:1" },
@@ -21,7 +21,7 @@ export default function At_a_glance() {
         { label: "Board", value: "Rajshahi Education Board" },
         { label: "Campus / Land Area", value: "~548 decimals (campus), 54 rooms" },
         { label: "Playground", value: "160 decimals" },
-        { label: "Headmaster", value: "Md. Ataur Rahman" },
+        { label: "Headmaster", value: "Md Ataur Rahman" },
         { label: "School Colors", value: "White & Navy Blue" },
 
         {
@@ -36,7 +36,7 @@ export default function At_a_glance() {
                     </p>
                     <p className="text-sm leading-relaxed text-gray-600">
                         The school offers education from Class 6 to Class 10 (SSC level) under the Rajshahi Education Board. With a dedicated faculty
-                        led by Headmaster Md. Ataur Rahman, and a student body of around 1,000 boys aged 11–16, the school provides a holistic
+                        led by Headmaster Md. Ataur Rahman, and a student body of around 600 boys aged 11–16, the school provides a holistic
                         environment that fosters academic achievement, character development, and social responsibility.
                     </p>
                 </div>
@@ -49,8 +49,8 @@ export default function At_a_glance() {
                 <ul className="list-disc pl-5 text-sm text-gray-600">
                     <li>Secondary Education (Class 6–10, SSC level)</li>
                     <li>National Curriculum (Bangla medium)</li>
-                    <li>Science, Arts, and Commerce Streams</li>
-                    <li>Special Coaching for Board Exams</li>
+                    <li>Science and Humanities</li>
+                    <li>Special care for board exams</li>
                 </ul>
             ),
         },
@@ -59,10 +59,10 @@ export default function At_a_glance() {
             label: "Student Body",
             value: (
                 <ul className="list-disc pl-5 text-sm text-gray-600">
-                    <li>Enrollment: ~1,000 boys</li>
+                    <li>Enrollment: ~600 boys</li>
                     <li>Age Range: 11–16 years</li>
-                    <li>Student-Teacher Ratio: ~25:1</li>
-                    <li>Active Student Council & Publication "Anushilon"</li>
+                    <li>Student-Teacher Ratio: ~30:1</li>
+                    {/* <li>Active Student Council & Publication "Anushilon"</li> */}
                 </ul>
             ),
         },
@@ -74,7 +74,7 @@ export default function At_a_glance() {
                     <li>Consistently strong SSC results</li>
                     <li>Recognized as a leading school in Joypurhat</li>
                     <li>Notable alumni and community impact</li>
-                    <li>School magazine: "Anushilon"</li>
+                    {/* <li>School magazine: "Anushilon"</li> */}
                 </ul>
             ),
         },
@@ -84,7 +84,7 @@ export default function At_a_glance() {
             value: (
                 <ul className="list-disc pl-5 text-sm text-gray-600">
                     <li>Founded: 1940</li>
-                    <li>Nationalized: 1986</li>
+                    <li>Nationalized: 1987</li>
                     <li>Motto: “Learn it and give all”</li>
                     <li>School Colors: White & Navy Blue</li>
                 </ul>
