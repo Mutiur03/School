@@ -205,8 +205,8 @@ function Registration() {
     const minYear = currentYear - 12
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
 
-    // JSC passing years (last 4 years)
-    const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i))
+    // JSC passing years (last 3 years)
+    const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i -1))
 
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
@@ -334,7 +334,7 @@ function Registration() {
             'roll', 'fatherNid', 'motherNid', 'guardianNid', 'birthRegNo',
             'fatherPhone', 'motherPhone', 'guardianPhone',
             'presentPostCode', 'permanentPostCode', 'guardianPostCode',
-            'jscPassingYear', 'jscRegNo', 'jscRollNo'
+            'jscRegNo', 'jscRollNo'
         ]
 
         if (numericFields.includes(name)) {
@@ -342,7 +342,7 @@ function Registration() {
             value = value.replace(/\D/g, '')
         } else if (isBanglaField(name)) {
             value = filterBanglaInput(value)
-        } else {
+        } else if (name !== 'jscPassingYear') {
             value = filterEnglishInput(value)
         }
 
@@ -359,10 +359,11 @@ function Registration() {
         if (name === 'fatherNid' || name === 'motherNid' || name === 'guardianNid') {
             value = value.slice(0, 17)
         }
-        if (name === 'jscPassingYear') {
-            value = value.slice(0, 4)
+        if (name === 'jscRegNo') {
+            value = value.slice(0, 10)
         }
         if (name === 'birthYear') return
+
         setForm(prev => {
             const updated = { ...prev, [name]: type === 'checkbox' ? checked : value }
             if (name === 'birthMonth') {
@@ -536,9 +537,9 @@ function Registration() {
         const valid = validate()
         if (!valid) {
             setTimeout(() => {
-                const errorFieldNames = Object.keys(errors)
-                if (errorFieldNames.length > 0) {
-                    const firstErrorField = formRef.current?.querySelector(`[name="${errorFieldNames[0]}"]`)
+                const errorFields = Object.keys(errors)
+                if (errorFields.length > 0) {
+                    const firstErrorField = formRef.current?.querySelector(`[name="${errorFields[0]}"]`)
                     if (firstErrorField) {
                         (firstErrorField as HTMLElement).focus({ preventScroll: false })
                         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
