@@ -183,7 +183,12 @@ function Navbar() {
             id: "menu-item-3540",
             className: "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3540 nav-item",
             href: "#",
-            text: "News"
+            text: "Registration",
+            dropdown: [
+                { id: "menu-item-3547", href: "registration/ssc", text: "Class 9" },
+                { id: "menu-item-3548", href: "", text: "Class 8" },
+                { id: "menu-item-3548", href: "", text: "Class 6" }
+            ]
         },
         {
             id: "menu-item-3541",

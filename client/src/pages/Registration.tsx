@@ -44,7 +44,7 @@ type FormState = {
     guardianPhone?: string
     guardianRelation?: string
     guardianNid?: string
-    guardianAddressSameAsPresent?: boolean
+    guardianAddressSameAsPermanent?: boolean
     guardianDistrict?: string
     guardianPostOffice?: string
     guardianPostCode?: string
@@ -136,7 +136,7 @@ function Registration() {
         guardianPhone: '',
         guardianRelation: '',
         guardianNid: '',
-        guardianAddressSameAsPresent: false,
+        guardianAddressSameAsPermanent: false,
         guardianDistrict: '',
         guardianUpazila: '',
         guardianPostOffice: '',
@@ -158,8 +158,6 @@ function Registration() {
     const [success, setSuccess] = useState('')
     const [sameAddress, setSameAddress] = useState(false)
     const [guardianNotFather, setGuardianNotFather] = useState(false)
-    const [fatherNidAvailable, setFatherNidAvailable] = useState(true)
-    const [motherNidAvailable, setMotherNidAvailable] = useState(true)
     const [presentUpazillas, setPresentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [permanentUpazillas, setPermanentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [guardianUpazillas, setGuardianUpazillas] = useState<{ id: string; name: string }[]>([])
@@ -206,6 +204,10 @@ function Registration() {
     const currentYear = new Date().getFullYear()
     const minYear = currentYear - 12
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
+
+    // JSC passing years (last 4 years)
+    const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i))
+
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
         { value: '04', label: 'April' }, { value: '05', label: 'May' }, { value: '06', label: 'June' },
@@ -269,28 +271,28 @@ function Registration() {
     }, [form.birthRegNo])
 
     useEffect(() => {
-        if (guardianNotFather && form.guardianAddressSameAsPresent) {
+        if (guardianNotFather && form.guardianAddressSameAsPermanent) {
             setForm(prev => ({
                 ...prev,
-                guardianDistrict: form.presentDistrict,
-                guardianUpazila: form.presentUpazila,
-                guardianPostOffice: form.presentPostOffice,
-                guardianPostCode: form.presentPostCode,
-                guardianVillageRoad: form.presentVillageRoad,
+                guardianDistrict: form.permanentDistrict,
+                guardianUpazila: form.permanentUpazila,
+                guardianPostOffice: form.permanentPostOffice,
+                guardianPostCode: form.permanentPostCode,
+                guardianVillageRoad: form.permanentVillageRoad,
             }))
         }
     }, [
         guardianNotFather,
-        form.guardianAddressSameAsPresent,
-        form.presentDistrict,
-        form.presentUpazila,
-        form.presentPostOffice,
-        form.presentPostCode,
-        form.presentVillageRoad
+        form.guardianAddressSameAsPermanent,
+        form.permanentDistrict,
+        form.permanentUpazila,
+        form.permanentPostOffice,
+        form.permanentPostCode,
+        form.permanentVillageRoad
     ])
 
     useEffect(() => {
-        if (!guardianNotFather || form.guardianAddressSameAsPresent) {
+        if (!guardianNotFather || form.guardianAddressSameAsPermanent) {
             setGuardianUpazillas([])
             return
         }
@@ -303,7 +305,7 @@ function Registration() {
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setGuardianUpazillas(upazilas)
         setForm(prev => ({ ...prev, guardianUpazila: '' }))
-    }, [guardianNotFather, form.guardianDistrict, form.guardianAddressSameAsPresent])
+    }, [guardianNotFather, form.guardianDistrict, form.guardianAddressSameAsPermanent])
 
     function isBanglaField(name: string) {
         return (
@@ -383,13 +385,13 @@ function Registration() {
                     updated.presentVillageRoad = value
                 }
             }
-            if (guardianNotFather && name === 'guardianAddressSameAsPresent') {
+            if (guardianNotFather && name === 'guardianAddressSameAsPermanent') {
                 if (checked) {
-                    updated.guardianDistrict = prev.presentDistrict
-                    updated.guardianUpazila = prev.presentUpazila
-                    updated.guardianPostOffice = prev.presentPostOffice
-                    updated.guardianPostCode = prev.presentPostCode
-                    updated.guardianVillageRoad = prev.presentVillageRoad
+                    updated.guardianDistrict = prev.permanentDistrict
+                    updated.guardianUpazila = prev.permanentUpazila
+                    updated.guardianPostOffice = prev.permanentPostOffice
+                    updated.guardianPostCode = prev.permanentPostCode
+                    updated.guardianVillageRoad = prev.permanentVillageRoad
                 } else {
                     updated.guardianDistrict = ''
                     updated.guardianUpazila = ''
@@ -428,10 +430,10 @@ function Registration() {
         if (!form.prevSchoolDistrict.trim()) e.prevSchoolDistrict = 'Previous school district is required'
         if (!form.prevSchoolUpazila.trim()) e.prevSchoolUpazila = 'Previous school upazila/thana is required'
         if (!form.jscPassingYear.trim()) e.jscPassingYear = 'JSC passing year is required'
-        if (!/^\d{4}$/.test(form.jscPassingYear)) e.jscPassingYear = 'JSC passing year must be 4 digits'
+        if (!jscPassingYears.includes(form.jscPassingYear)) e.jscPassingYear = 'Please select a valid JSC passing year'
         if (!form.jscBoard.trim()) e.jscBoard = 'JSC board is required'
         if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC registration number is required'
-        if (!/^\d+$/.test(form.jscRegNo)) e.jscRegNo = 'JSC registration number must be numeric'
+        if (!/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC registration number must be exactly 10 digits'
         if (!form.studentNameEn.trim()) e.studentNameEn = 'Student name (English) is required'
         if (!form.studentNameBn.trim()) e.studentNameBn = 'ছাত্রের নাম (বাংলায়) is required'
         if (!form.studentNickNameBn?.trim()) e.studentNickNameBn = 'ডাকনাম (এক শব্দে/বাংলায়) is required'
@@ -440,7 +442,7 @@ function Registration() {
         if (!form.motherNameEn.trim()) e.motherNameEn = 'Mother\'s name (English) is required'
         if (!form.motherNameBn.trim()) e.motherNameBn = 'মাতার নাম (বাংলায়) is required'
         if (!form.birthRegNo.trim()) e.birthRegNo = 'Birth registration number is required'
-        if (!/^\d{1,17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth registration number must be up to 17 digits'
+        if (!/^\d{17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth registration number must be exactly 17 digits'
         if (!form.birthYear) e.birthYear = 'Birth year is required'
         if (!form.birthMonth) e.birthMonth = 'Birth month is required'
         if (!form.birthDay) e.birthDay = 'Birth day is required'
@@ -454,20 +456,29 @@ function Registration() {
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address'
         if (!form.photo) e.photo = 'Student photo is required'
 
-        // Father phone validation - required
+        // Father NID and mobile validation - always required
+        if (!form.fatherNid.trim()) {
+            e.fatherNid = 'Father\'s NID is required'
+        } else if (!/^\d{10,17}$/.test(form.fatherNid)) {
+            e.fatherNid = 'Father\'s NID must be 10 to 17 digits'
+        }
         if (!form.fatherPhone.trim()) {
-            e.fatherPhone = 'Father\'s phone number is required'
+            e.fatherPhone = 'Father\'s mobile number is required'
         } else if (!/^[0-9]{11}$/.test(form.fatherPhone)) {
-            e.fatherPhone = 'Enter a valid phone number (exactly 11 digits)'
+            e.fatherPhone = 'Enter a valid mobile number (exactly 11 digits)'
         }
 
-        // Mother phone validation - required
+        // Mother NID and mobile validation - always required
+        if (!form.motherNid.trim()) {
+            e.motherNid = 'Mother\'s NID is required'
+        } else if (!/^\d{10,17}$/.test(form.motherNid)) {
+            e.motherNid = 'Mother\'s NID must be 10 to 17 digits'
+        }
         if (!form.motherPhone.trim()) {
-            e.motherPhone = 'Mother\'s phone number is required'
+            e.motherPhone = 'Mother\'s mobile number is required'
         } else if (!/^[0-9]{11}$/.test(form.motherPhone)) {
-            e.motherPhone = 'Enter a valid phone number (exactly 11 digits)'
+            e.motherPhone = 'Enter a valid mobile number (exactly 11 digits)'
         }
-
         if (!form.presentDistrict.trim()) e.presentDistrict = 'Present district is required'
         if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila is required'
         if (!form.presentPostOffice.trim()) e.presentPostOffice = 'Present post office is required'
@@ -492,14 +503,14 @@ function Registration() {
                 e.guardianNid = 'Guardian\'s NID must be 10 to 17 digits'
             }
             if (!form.guardianPhone?.trim()) {
-                e.guardianPhone = 'Guardian\'s phone number is required'
+                e.guardianPhone = 'Guardian\'s mobile number is required'
             } else {
                 const phoneRegex = /^[0-9]{11}$/
                 if (!phoneRegex.test(form.guardianPhone)) {
-                    e.guardianPhone = 'Enter a valid phone number (exactly 11 digits)'
+                    e.guardianPhone = 'Enter a valid mobile number (exactly 11 digits)'
                 }
             }
-            if (!form.guardianAddressSameAsPresent) {
+            if (!form.guardianAddressSameAsPermanent) {
                 if (!form.guardianDistrict?.trim()) e.guardianDistrict = 'Guardian\'s district is required'
                 if (!form.guardianUpazila?.trim()) e.guardianUpazila = 'Guardian\'s upazila is required'
                 if (!form.guardianPostOffice?.trim()) e.guardianPostOffice = 'Guardian\'s post office is required'
@@ -511,22 +522,6 @@ function Registration() {
         if (!form.groupClassNine) e.groupClassNine = 'Group in class nine is required'
         if (!form.mainSubject) e.mainSubject = 'Main subject is required'
         if (!form.fourthSubject) e.fourthSubject = '4th subject is required'
-
-        // NID validation - required when availability is checked
-        if (fatherNidAvailable) {
-            if (!form.fatherNid.trim()) {
-                e.fatherNid = 'Father\'s NID is required'
-            } else if (!/^\d{10,17}$/.test(form.fatherNid)) {
-                e.fatherNid = 'Father\'s NID must be 10 to 17 digits'
-            }
-        }
-        if (motherNidAvailable) {
-            if (!form.motherNid.trim()) {
-                e.motherNid = 'Mother\'s NID is required'
-            } else if (!/^\d{10,17}$/.test(form.motherNid)) {
-                e.motherNid = 'Mother\'s NID must be 10 to 17 digits'
-            }
-        }
 
         setErrors(e)
         if (Object.keys(e).length > 0) {
@@ -595,7 +590,6 @@ function Registration() {
             ],
             fourth: [
                 { value: "Agricultural Studies", label: "কৃষিশিক্ষা (Agricultural Studies) Code-134" },
-                { value: "Economics", label: "অর্থনীতি (Economics) Code-141" },
             ]
         },
     }
@@ -603,7 +597,7 @@ function Registration() {
     return (
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">Student's Information for Registration of SSC Exam</h2>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">Student's Information for SSC Exam Registration</h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.</span>
             </div>
             {success && (
@@ -676,8 +670,8 @@ function Registration() {
                                 name="birthRegNo"
                                 type="text"
                                 inputMode="numeric"
-                                pattern="\d{1,17}"
-                                minLength={1}
+                                pattern="\d{17}"
+                                minLength={17}
                                 maxLength={17}
                                 value={form.birthRegNo}
                                 onChange={handleChange}
@@ -692,40 +686,24 @@ function Registration() {
                         <FieldRow label={<span>Father's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (In English)" aria-invalid={!!errors.fatherNameEn} />
                         </FieldRow>
-                        <FieldRow label="Father's NID Available">
-                            <label className="inline-flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={fatherNidAvailable}
-                                    onChange={(e) => {
-                                        setFatherNidAvailable(e.target.checked)
-                                        if (!e.target.checked) {
-                                            setForm(prev => ({ ...prev, fatherNid: '' }))
-                                            setErrors(prev => ({ ...prev, fatherNid: '' }))
-                                        }
-                                    }}
-                                />
-                                <span className="text-sm">Father has NID card</span>
-                            </label>
+
+                        <FieldRow label="Father's NID" required error={errors.fatherNid}>
+                            <input
+                                name="fatherNid"
+                                value={form.fatherNid}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{10,17}"
+                                minLength={10}
+                                maxLength={17}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="1234567890"
+                                aria-invalid={!!errors.fatherNid}
+                            />
                         </FieldRow>
-                        {fatherNidAvailable && (
-                            <FieldRow label="Father's NID" required error={errors.fatherNid}>
-                                <input
-                                    name="fatherNid"
-                                    value={form.fatherNid}
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="\d{10,17}"
-                                    minLength={10}
-                                    maxLength={17}
-                                    onChange={handleChange}
-                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                    placeholder="1234567890"
-                                    aria-invalid={!!errors.fatherNid}
-                                />
-                            </FieldRow>
-                        )}
-                        <FieldRow label="Father's Phone" required error={errors.fatherPhone} >
+
+                        <FieldRow label="Father's Mobile No" required error={errors.fatherPhone} >
                             <input
                                 name="fatherPhone"
                                 value={form.fatherPhone}
@@ -739,48 +717,31 @@ function Registration() {
                                 aria-invalid={!!errors.fatherPhone}
                             />
                         </FieldRow>
+
                         <FieldRow label={<span>মাতার নাম (বাংলায়) <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
                         <FieldRow label={<span>Mother's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (In English)" aria-invalid={!!errors.motherNameEn} />
                         </FieldRow>
-                        <FieldRow label="Mother's NID Available">
-                            <label className="inline-flex items-center gap-2">
-                                <input
-                                    type="checkbox"
 
-                                    checked={motherNidAvailable}
-                                    onChange={(e) => {
-                                        setMotherNidAvailable(e.target.checked)
-                                        if (!e.target.checked) {
-                                            setForm(prev => ({ ...prev, motherNid: '' }))
-                                            setErrors(prev => ({ ...prev, motherNid: '' }))
-                                        }
-                                    }}
-                                />
-                                <span className="text-sm">Mother has NID card</span>
-                            </label>
+                        <FieldRow label="Mother's NID" required error={errors.motherNid}>
+                            <input
+                                name="motherNid"
+                                value={form.motherNid}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{10,17}"
+                                minLength={10}
+                                maxLength={17}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="1234567890"
+                                aria-invalid={!!errors.motherNid}
+                            />
                         </FieldRow>
-                        {motherNidAvailable && (
-                            <FieldRow label="Mother's NID" required error={errors.motherNid}>
-                                <input
-                                    name="motherNid"
-                                    value={form.motherNid}
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="\d{10,17}"
-                                    minLength={10}
 
-                                    maxLength={17}
-                                    onChange={handleChange}
-                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                    placeholder="1234567890"
-                                    aria-invalid={!!errors.motherNid}
-                                />
-                            </FieldRow>
-                        )}
-                        <FieldRow label="Mother's Phone" required error={errors.motherPhone} >
+                        <FieldRow label="Mother's Mobile No" required error={errors.motherPhone} >
                             <input
                                 name="motherPhone"
                                 value={form.motherPhone}
@@ -794,6 +755,7 @@ function Registration() {
                                 aria-invalid={!!errors.motherPhone}
                             />
                         </FieldRow>
+
                         <FieldRow label={<span>Date of Birth <Tooltip text={`Student must be at least 12 years old on 1st January ${currentYear}`} /></span>} required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
                                 <input
@@ -1028,7 +990,7 @@ function Registration() {
                                                 guardianPhone: '',
                                                 guardianRelation: '',
                                                 guardianNid: '',
-                                                guardianAddressSameAsPresent: false,
+                                                guardianAddressSameAsPermanent: false,
                                                 guardianDistrict: '',
                                                 guardianUpazila: '',
                                                 guardianPostOffice: '',
@@ -1051,7 +1013,7 @@ function Registration() {
                                     }}
                                     className="mt-0.5 sm:mt-0"
                                 />
-                                <span className="text-sm leading-relaxed">Check if guardian is not the father (can be mother or others)</span>
+                                <span className="text-sm leading-relaxed">Check if guardian is not father (can be mother or others)</span>
                             </label>
                         </FieldRow>
                         {guardianNotFather && (
@@ -1081,7 +1043,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianNid}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian's Phone" required error={errors.guardianPhone}>
+                                <FieldRow label="Guardian's Mobile No" required error={errors.guardianPhone}>
                                     <input
                                         name="guardianPhone"
                                         value={form.guardianPhone}
@@ -1123,14 +1085,14 @@ function Registration() {
                                     <label className="inline-flex items-center gap-2 mb-2">
                                         <input
                                             type="checkbox"
-                                            name="guardianAddressSameAsPresent"
-                                            checked={form.guardianAddressSameAsPresent}
+                                            name="guardianAddressSameAsPermanent"
+                                            checked={form.guardianAddressSameAsPermanent}
                                             onChange={handleChange}
                                         />
-                                        <span className="text-sm">Same as Present Address</span>
+                                        <span className="text-sm">Same as Permanent Address</span>
                                     </label>
                                 </FieldRow>
-                                {!form.guardianAddressSameAsPresent && (
+                                {!form.guardianAddressSameAsPermanent && (
                                     <div className="space-y-2">
                                         <FieldRow label="District" required error={errors.guardianDistrict}>
                                             <select
@@ -1285,15 +1247,18 @@ function Registration() {
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
                                 <FieldRow label="JSC Passing Year" required error={errors.jscPassingYear}>
-                                    <input
+                                    <select
                                         name="jscPassingYear"
                                         value={form.jscPassingYear}
                                         onChange={handleChange}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                        placeholder="2024"
-                                        maxLength={4}
                                         aria-invalid={!!errors.jscPassingYear}
-                                    />
+                                    >
+                                        <option value="">Select Year</option>
+                                        {jscPassingYears.map(year => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
@@ -1328,8 +1293,12 @@ function Registration() {
                                         name="jscRegNo"
                                         value={form.jscRegNo}
                                         onChange={handleChange}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="\d{10}"
+                                        maxLength={10}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                        placeholder="e.g. 2512842236"
+                                        placeholder="1234567890"
                                         aria-invalid={!!errors.jscRegNo}
                                     />
                                 </FieldRow>
@@ -1462,7 +1431,7 @@ function Registration() {
                                 guardianPhone: '',
                                 guardianRelation: '',
                                 guardianNid: '',
-                                guardianAddressSameAsPresent: false,
+                                guardianAddressSameAsPermanent: false,
                                 guardianDistrict: '',
                                 guardianUpazila: '',
                                 guardianPostOffice: '',
@@ -1481,8 +1450,6 @@ function Registration() {
                             }); setPhotoPreview(null); setErrors({}); setSuccess('')
                             setSameAddress(false)
                             setGuardianNotFather(false)
-                            setFatherNidAvailable(false)
-                            setMotherNidAvailable(false)
                         }}
                         disabled={loading}
                     >Reset</button>
