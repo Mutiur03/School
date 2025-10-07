@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { districts, getUpazilasByDistrict } from '../lib/location'
+import axios from 'axios'
 
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-sm text-gray-900">{children}</p>
@@ -205,8 +206,7 @@ function Registration() {
     const minYear = currentYear - 12
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
 
-    // JSC passing years (last 3 years)
-    const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i -1))
+    const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i - 1))
 
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
@@ -475,11 +475,8 @@ function Registration() {
         } else if (!/^\d{10,17}$/.test(form.motherNid)) {
             e.motherNid = 'Mother\'s NID must be 10 to 17 digits'
         }
-        if (!form.motherPhone.trim()) {
-            e.motherPhone = 'Mother\'s mobile number is required'
-        } else if (!/^[0-9]{11}$/.test(form.motherPhone)) {
-            e.motherPhone = 'Enter a valid mobile number (exactly 11 digits)'
-        }
+        if (!form.motherPhone.trim()) e.motherPhone = 'Mother\'s mobile number is required'
+        else if (!/^[0-9]{11}$/.test(form.motherPhone)) e.motherPhone = 'Enter a valid mobile number (exactly 11 digits)'
         if (!form.presentDistrict.trim()) e.presentDistrict = 'Present district is required'
         if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila is required'
         if (!form.presentPostOffice.trim()) e.presentPostOffice = 'Present post office is required'
@@ -531,7 +528,7 @@ function Registration() {
         return Object.keys(e).length === 0
     }
 
-    function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setSuccess('')
         const valid = validate()
@@ -548,18 +545,198 @@ function Registration() {
             }, 100)
             return
         }
+
         setLoading(true)
-        const birthDate = `${form.birthYear}-${form.birthMonth}-${form.birthDay}`
-        const payload = {
-            ...form,
-            birthDate,
-            photo: form.photo?.name,
-        }
-        console.log('Submitting registration:', payload)
-        setTimeout(() => {
-            setSuccess('Registration submitted successfully (simulated). You can now send this data to your server.')
+
+        try {
+            // Create FormData for file upload
+            const formData = new FormData()
+
+            // Add all form fields to FormData
+            formData.append('section', form.section)
+            formData.append('roll', form.roll)
+            formData.append('religion', form.religion)
+            formData.append('studentNameBn', form.studentNameBn)
+            formData.append('studentNickNameBn', form.studentNickNameBn || '')
+            formData.append('studentNameEn', form.studentNameEn)
+            formData.append('birthRegNo', form.birthRegNo)
+
+            // Parents Information
+            formData.append('fatherNameBn', form.fatherNameBn)
+            formData.append('fatherNameEn', form.fatherNameEn)
+            formData.append('fatherNid', form.fatherNid)
+            formData.append('fatherPhone', form.fatherPhone)
+            formData.append('motherNameBn', form.motherNameBn)
+            formData.append('motherNameEn', form.motherNameEn)
+            formData.append('motherNid', form.motherNid)
+            formData.append('motherPhone', form.motherPhone)
+
+            // Birth Information
+            const birthDate = `${form.birthYear}-${form.birthMonth}-${form.birthDay}`
+            formData.append('birthDate', birthDate)
+            formData.append('birthYear', form.birthYear)
+            formData.append('birthMonth', form.birthMonth)
+            formData.append('birthDay', form.birthDay)
+            formData.append('bloodGroup', form.bloodGroup)
+            formData.append('email', form.email)
+
+            // Address Information
+            formData.append('presentDistrict', form.presentDistrict)
+            formData.append('presentUpazila', form.presentUpazila)
+            formData.append('presentPostOffice', form.presentPostOffice)
+            formData.append('presentPostCode', form.presentPostCode)
+            formData.append('presentVillageRoad', form.presentVillageRoad)
+
+            formData.append('permanentDistrict', form.permanentDistrict)
+            formData.append('permanentUpazila', form.permanentUpazila)
+            formData.append('permanentPostOffice', form.permanentPostOffice)
+            formData.append('permanentPostCode', form.permanentPostCode)
+            formData.append('permanentVillageRoad', form.permanentVillageRoad)
+
+            // Guardian Information
+            if (guardianNotFather) {
+                formData.append('guardianName', form.guardianName || '')
+                formData.append('guardianPhone', form.guardianPhone || '')
+                formData.append('guardianRelation', form.guardianRelation || '')
+                formData.append('guardianNid', form.guardianNid || '')
+                formData.append('guardianAddressSameAsPermanent', form.guardianAddressSameAsPermanent?.toString() || 'false')
+
+                if (!form.guardianAddressSameAsPermanent) {
+                    formData.append('guardianDistrict', form.guardianDistrict || '')
+                    formData.append('guardianUpazila', form.guardianUpazila || '')
+                    formData.append('guardianPostOffice', form.guardianPostOffice || '')
+                    formData.append('guardianPostCode', form.guardianPostCode || '')
+                    formData.append('guardianVillageRoad', form.guardianVillageRoad || '')
+                }
+            }
+
+            // Previous School Information
+            formData.append('prevSchoolName', form.prevSchoolName)
+            formData.append('prevSchoolDistrict', form.prevSchoolDistrict)
+            formData.append('prevSchoolUpazila', form.prevSchoolUpazila)
+
+            // JSC Information
+            formData.append('jscPassingYear', form.jscPassingYear)
+            formData.append('jscBoard', form.jscBoard)
+            formData.append('jscRegNo', form.jscRegNo)
+            formData.append('jscRollNo', form.jscRollNo)
+
+            // Class Nine Information
+            formData.append('groupClassNine', form.groupClassNine)
+            formData.append('mainSubject', form.mainSubject)
+            formData.append('fourthSubject', form.fourthSubject)
+
+            // Add photo file if present
+            if (form.photo) {
+                formData.append('photo', form.photo)
+            }
+
+            // Submit to API using axios
+            const response = await axios.post('/api/student-registration', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            })
+
+            const result = response.data
+
+            if (result.success) {
+                setSuccess(`Registration submitted successfully! Your registration ID is: ${result.data.id}. Status: ${result.data.status}`)
+
+                // Reset form on successful submission
+                setForm({
+                    studentNameEn: '',
+                    studentNameBn: '',
+                    studentNickNameBn: '',
+                    fatherNameEn: '',
+                    fatherNameBn: '',
+                    motherNameEn: '',
+                    motherNameBn: '',
+                    fatherNid: '',
+                    motherNid: '',
+                    fatherPhone: '',
+                    motherPhone: '',
+                    birthDate: '',
+                    bloodGroup: '',
+                    birthRegNo: '',
+                    email: '',
+                    presentDistrict: '',
+                    presentUpazila: '',
+                    presentPostOffice: '',
+                    presentPostCode: '',
+                    presentVillageRoad: '',
+                    permanentDistrict: '',
+                    permanentUpazila: '',
+                    permanentPostOffice: '',
+                    permanentPostCode: '',
+                    permanentVillageRoad: '',
+                    birthYear: '',
+                    birthMonth: '',
+                    birthDay: '',
+                    photo: null,
+                    section: '',
+                    roll: '',
+                    religion: '',
+                    guardianName: '',
+                    guardianPhone: '',
+                    guardianRelation: '',
+                    guardianNid: '',
+                    guardianAddressSameAsPermanent: false,
+                    guardianDistrict: '',
+                    guardianUpazila: '',
+                    guardianPostOffice: '',
+                    guardianPostCode: '',
+                    guardianVillageRoad: '',
+                    prevSchoolName: '',
+                    prevSchoolDistrict: '',
+                    prevSchoolUpazila: '',
+                    jscPassingYear: '',
+                    jscBoard: '',
+                    jscRegNo: '',
+                    jscRollNo: '',
+                    groupClassNine: '',
+                    mainSubject: '',
+                    fourthSubject: '',
+                })
+
+                setPhotoPreview(null)
+                setErrors({})
+                setSameAddress(false)
+                setGuardianNotFather(false)
+
+                // Scroll to top to show success message
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+
+            } else {
+                // Handle validation errors from server
+                if (result.error && typeof result.error === 'object') {
+                    setErrors(result.error)
+                } else {
+                    setErrors({ general: result.message || 'Registration failed. Please try again.' })
+                }
+            }
+
+        } catch (error) {
+            console.error('Registration submission error:', error)
+
+            // Handle axios error response
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data
+                if (errorData.error && typeof errorData.error === 'object') {
+                    setErrors(errorData.error)
+                } else {
+                    setErrors({
+                        general: errorData.message || 'Registration failed. Please try again.'
+                    })
+                }
+            } else {
+                setErrors({
+                    general: 'Network error. Please check your connection and try again.'
+                })
+            }
+        } finally {
             setLoading(false)
-        }, 1200)
+        }
     }
 
     useEffect(() => {
@@ -601,11 +778,19 @@ function Registration() {
                 <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">Student's Information for SSC Exam Registration</h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.</span>
             </div>
+
             {success && (
                 <div className="mb-4 p-3 sm:p-4 bg-green-100 text-green-800 rounded text-sm sm:text-base animate-fade-in shadow">
                     {success}
                 </div>
             )}
+
+            {errors.general && (
+                <div className="mb-4 p-3 sm:p-4 bg-red-100 text-red-800 rounded text-sm sm:text-base animate-fade-in shadow">
+                    {errors.general}
+                </div>
+            )}
+
             <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-6">
 
                 <section className="mb-4 sm:mb-6">

@@ -22,11 +22,15 @@ import syllabusRoutes from "./routes/syllabusRoutes.js";
 import classRoutineRouter from "./routes/classRoutineRoutes.js";
 import fileUploadRouter from "./routes/fileUpload.js";
 import routerStaff from "./routes/staffRoutes.js";
-const __dirname = path.resolve();
+import regSSCRouter from "./routes/regSSCRoutes.js";
+import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
@@ -44,7 +48,8 @@ app.use(
 );
 app.options("*", cors());
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -97,12 +102,40 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/syllabus", syllabusRoutes);
 app.use("/api/class-routine", classRoutineRouter);
 app.use("/api/file-upload", fileUploadRouter);
-// pool
-//   .connect()
-//   .then(async () => {
-// console.log("Connected to PostgreSQL database");
+app.use("/api/reg/ssc", regSSCRouter);
+app.use("/api/student-registration", studentRegistrationRouter);
 
-app.listen(PORT, "0.0.0.0", () => {
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Server is running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 404 handler
+app.use("*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
+// Error handler
+app.use((error, req, res, next) => {
+  console.error("Server error:", error);
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+    error:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Something went wrong",
+  });
+});
+
+app.listen(PORT, () => {
   fs.mkdir(storagePath, { recursive: true }, (err) => {
     if (err) {
       console.error("Error creating uploads directory:", err);
@@ -110,14 +143,6 @@ app.listen(PORT, "0.0.0.0", () => {
       console.log("Uploads directory created successfully");
     }
   });
-  console.log(
-    `Server running on port ${PORT} in ${
-      process.env.NODE_ENV === "production" ? "production" : "development"
-    } mode`
-  );
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
-// })
-// .catch((err) => {
-//   console.error("Error connecting to database:", err);
-//   process.exit(1);
-// });

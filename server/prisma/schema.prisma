@@ -315,3 +315,101 @@ model head_msg {
 
   teacher teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
 }
+
+model ssc_reg {
+  id         Int     @id @default(autoincrement())
+  a_sec_roll String?
+  b_sec_roll String?
+  notice     String?
+  ssc_year   Int?
+}
+
+model student_registration_ssc {
+  id                   String  @id @default(uuid())
+  ssc_batch            String?  @db.VarChar(4)
+  // Personal Information
+  section              String? @db.VarChar(10)
+  roll                 String? @db.VarChar(20)
+  religion             String? @db.VarChar(50)
+  student_name_bn      String? @db.VarChar(100)
+  student_nick_name_bn String? @db.VarChar(50)
+  student_name_en      String? @db.VarChar(100)
+  birth_reg_no         String? @db.VarChar(17)
+
+  // Parents Information
+  father_name_bn String? @db.VarChar(100)
+  father_name_en String? @db.VarChar(100)
+  father_nid     String? @db.VarChar(17)
+  father_phone   String? @db.VarChar(11)
+  mother_name_bn String? @db.VarChar(100)
+  mother_name_en String? @db.VarChar(100)
+  mother_nid     String? @db.VarChar(17)
+  mother_phone   String? @db.VarChar(11)
+
+  // Birth Information
+  birth_date  String? @db.VarChar(10)
+  birth_year  String? @db.VarChar(4)
+  birth_month String? @db.VarChar(2)
+  birth_day   String? @db.VarChar(2)
+  blood_group String? @db.VarChar(10)
+  email       String? @db.VarChar(100)
+
+  // Address Information
+  present_district     String? @db.VarChar(50)
+  present_upazila      String? @db.VarChar(50)
+  present_post_office  String? @db.VarChar(100)
+  present_post_code    String? @db.VarChar(4)
+  present_village_road String? @db.VarChar(200)
+
+  permanent_district     String? @db.VarChar(50)
+  permanent_upazila      String? @db.VarChar(50)
+  permanent_post_office  String? @db.VarChar(100)
+  permanent_post_code    String? @db.VarChar(4)
+  permanent_village_road String? @db.VarChar(200)
+
+  // Guardian Information (optional)
+  guardian_name                      String?  @db.VarChar(100)
+  guardian_phone                     String?  @db.VarChar(11)
+  guardian_relation                  String?  @db.VarChar(50)
+  guardian_nid                       String?  @db.VarChar(17)
+  guardian_address_same_as_permanent Boolean? @default(false)
+  guardian_district                  String?  @db.VarChar(50)
+  guardian_upazila                   String?  @db.VarChar(50)
+  guardian_post_office               String?  @db.VarChar(100)
+  guardian_post_code                 String?  @db.VarChar(4)
+  guardian_village_road              String?  @db.VarChar(200)
+
+  // Previous School Information
+  prev_school_name     String? @db.VarChar(200)
+  prev_school_district String? @db.VarChar(50)
+  prev_school_upazila  String? @db.VarChar(50)
+
+  // JSC Information
+  jsc_passing_year String? @db.VarChar(4)
+  jsc_board        String? @db.VarChar(50)
+  jsc_reg_no       String? @db.VarChar(10)
+  jsc_roll_no      String? @db.VarChar(20)
+
+  // Class Nine Information
+  group_class_nine String? @db.VarChar(50)
+  main_subject     String? @db.VarChar(100)
+  fourth_subject   String? @db.VarChar(100)
+
+  // Photo Information
+  photo_path      String? @db.VarChar(255)
+  photo_public_id String? @db.VarChar(255)
+
+  // Status and Metadata
+  status           String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  submission_date  DateTime? @default(now())
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Indexes for better query performance
+  @@index([birth_reg_no])
+  @@index([father_nid])
+  @@index([mother_nid])
+  @@index([status])
+  @@index([submission_date])
+}

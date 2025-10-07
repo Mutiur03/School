@@ -16,14 +16,17 @@ import At_a_glance from "./pages/At_a_glance";
 import Gallery from "./pages/Gallery";
 import Images from "./pages/Images";
 import Registration from "./pages/Registration";
+import ConfirmationReg from "./pages/ConfirmationReg";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
   const location = useLocation();
 
-  const routesWithoutSidebar = ['/registration/ssc', '/register', '/admin', '/dashboard'];
-  const shouldHideSidebar = routesWithoutSidebar.includes(location.pathname);
+  const routesWithoutSidebar = ['/registration/ssc'];
+  const shouldHideSidebar = routesWithoutSidebar.some(route =>
+    location.pathname === route || location.pathname.startsWith(route + '/')
+  );
 
   return (
     <>
@@ -42,16 +45,17 @@ function App() {
             <div className="rcontent-pat-1">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/notices" element={<Notice/>} />
-                <Route path="/events" element={<Event/>} />
-                <Route path="/message-from-head" element={<HeadMsg/>} />
-                <Route path="/teacher-list" element={<TeacherList/>} />
-                <Route path="/staff-list" element={<StaffList/>} />
-                <Route path="/exam-routine" element={<ExamRoutinePage/>} />
-                <Route path="/at-a-glance" element={<At_a_glance/>} />
-                <Route path="/gallery" element={<Gallery/>} />
-                <Route path="/gallery/:type/:id" element={<Images/>} />
-                <Route path="/registration/ssc" element={<Registration/>} />
+                <Route path="/notices" element={<Notice />} />
+                <Route path="/events" element={<Event />} />
+                <Route path="/message-from-head" element={<HeadMsg />} />
+                <Route path="/teacher-list" element={<TeacherList />} />
+                <Route path="/staff-list" element={<StaffList />} />
+                <Route path="/exam-routine" element={<ExamRoutinePage />} />
+                <Route path="/at-a-glance" element={<At_a_glance />} />
+                <Route path="/gallery" element={<Gallery />} />
+                <Route path="/gallery/:type/:id" element={<Images />} />
+                <Route path="/registration/ssc" element={<Registration />} />
+                <Route path="/registration/ssc/:id" element={<ConfirmationReg />} />
                 <Route
                   path="*"
                   element={<Navigate to="/" />}
