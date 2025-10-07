@@ -35,6 +35,7 @@ import ClassRoutinePDF from "./pages/ClassRoutinePDF";
 import StaffList from "./pages/StaffList";
 import CitizenCharter from "./pages/CitizenCharter";
 import Head from "./pages/Head";
+import RegSSC from "./pages/RegSSC";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -122,7 +123,7 @@ function App() {
                             />
                             <Route
                               path="/citizencharter"
-                              element={<CitizenCharter/>}
+                              element={<CitizenCharter />}
                             />
                             <Route
                               path="/result/generate-result"
@@ -182,6 +183,10 @@ function App() {
                             <Route
                               path="/gallery/rejected"
                               element={<RejectedImages />}
+                            ></Route>
+                            <Route
+                              path="/registration/ssc"
+                              element={<RegSSC />}
                             ></Route>
                             <Route
                               path="*"

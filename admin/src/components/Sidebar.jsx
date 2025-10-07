@@ -122,6 +122,19 @@ const Sidebar = ({
       ],
     },
     {
+      label: "Registration",
+      icon: FaCogs,
+      dropdown: true,
+      id: "registration",
+      items: [
+        {
+          label: "SSC Registration",
+          link: "/registration/ssc",
+          id: "ssc-registration",
+        },
+      ],
+    },
+    {
       label: "Settings",
       icon: FaGear,
       dropdown: true,
