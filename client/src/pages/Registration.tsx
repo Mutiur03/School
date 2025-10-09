@@ -109,7 +109,7 @@ const FieldRow: React.FC<{
     <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
         <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
             <span>{label}{required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}</span>
-            <span className="mx-2 hidden lg:inline">:</span>
+            {/* <span className="mx-2 hidden lg:inline">:</span> */}
         </div>
         <div className="flex-1 w-full min-w-0">
             {children}
@@ -632,6 +632,9 @@ function Registration() {
             'jscRegNo', 'jscRollNo'
         ]
 
+        // English name fields that should be converted to uppercase
+        const englishNameFields = ['studentNameEn', 'fatherNameEn', 'motherNameEn', 'guardianName']
+
         if (numericFields.includes(name)) {
             // Only allow digits for numeric fields
             value = value.replace(/\D/g, '')
@@ -639,6 +642,11 @@ function Registration() {
             value = filterBanglaInput(value)
         } else if (name !== 'jscPassingYear') {
             value = filterEnglishInput(value)
+        }
+
+        // Convert English names to uppercase
+        if (englishNameFields.includes(name)) {
+            value = value.toUpperCase()
         }
 
         // Specific length restrictions for certain numeric fields
@@ -656,6 +664,9 @@ function Registration() {
         }
         if (name === 'jscRegNo') {
             value = value.slice(0, 10)
+        }
+        if (name === 'jscRollNo') {
+            value = value.slice(0, 6)
         }
         if (name === 'birthYear') return
 
@@ -713,8 +724,10 @@ function Registration() {
         const { name, files } = e.target
         if (!files || files.length === 0) return
         const file = files[0]
-        if (!file.type.startsWith('image/')) {
-            setErrors(prev => ({ ...prev, [name]: 'Only image files are allowed' }))
+
+        // Check if file is JPG format only
+        if (!file.type.includes('jpeg') && !file.type.includes('jpg') && file.type !== 'image/jpeg') {
+            setErrors(prev => ({ ...prev, [name]: 'Only JPG format is allowed' }))
             return
         }
         if (file.size > 2 * 1024 * 1024) {
@@ -738,12 +751,18 @@ function Registration() {
         if (!form.jscBoard.trim()) e.jscBoard = 'JSC board is required'
         if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC registration number is required'
         if (!/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC registration number must be exactly 10 digits'
-        if (!form.studentNameEn.trim()) e.studentNameEn = 'Student name (English) is required'
+
+        // JSC Roll validation - if provided, must be exactly 6 digits
+        if (form.jscRollNo.trim() && !/^\d{6}$/.test(form.jscRollNo)) {
+            e.jscRollNo = 'JSC roll number must be exactly 6 digits'
+        }
+
+        if (!form.studentNameEn.trim()) e.studentNameEn = 'Student name (in English) is required'
         if (!form.studentNameBn.trim()) e.studentNameBn = 'ছাত্রের নাম (বাংলায়) is required'
         if (!form.studentNickNameBn?.trim()) e.studentNickNameBn = 'ডাকনাম (এক শব্দে/বাংলায়) is required'
-        if (!form.fatherNameEn.trim()) e.fatherNameEn = 'Father\'s name (English) is required'
+        if (!form.fatherNameEn.trim()) e.fatherNameEn = 'Father\'s name (in English) is required'
         if (!form.fatherNameBn.trim()) e.fatherNameBn = 'পিতার নাম (বাংলায়) is required'
-        if (!form.motherNameEn.trim()) e.motherNameEn = 'Mother\'s name (English) is required'
+        if (!form.motherNameEn.trim()) e.motherNameEn = 'Mother\'s name (in English) is required'
         if (!form.motherNameBn.trim()) e.motherNameBn = 'মাতার নাম (বাংলায়) is required'
         if (!form.birthRegNo.trim()) e.birthRegNo = 'Birth registration number is required'
         if (!/^\d{17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth registration number must be exactly 17 digits'
@@ -1179,9 +1198,9 @@ function Registration() {
             <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-6">
 
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={1} title="Personal Information" />
+                    <SectionHeader step={1} title="Personal Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label={<span>Section <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} required error={errors.section}>
+                        <FieldRow label={<span>Section: <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} required error={errors.section}>
                             <select
                                 name="section"
                                 value={form.section}
@@ -1194,7 +1213,7 @@ function Registration() {
                                 <option value="B">B</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label={<span>Roll <Tooltip text="Your roll number as assigned by the school" /></span>} required error={errors.roll}>
+                        <FieldRow label={<span>Roll: <Tooltip text="Your roll number as assigned by the school" /></span>} required error={errors.roll}>
                             <select
                                 name="roll"
                                 value={form.roll}
@@ -1223,7 +1242,7 @@ function Registration() {
                                 </Instruction>
                             )}
                         </FieldRow>
-                        <FieldRow label={<span>Religion <Tooltip text="Your religion (e.g. Islam, Hinduism, etc.)" /></span>} required error={errors.religion}>
+                        <FieldRow label={<span>Religion: <Tooltip text="Your religion (e.g. Islam, Hinduism, etc.)" /></span>} required error={errors.religion}>
                             <select
                                 name="religion"
                                 value={form.religion}
@@ -1238,10 +1257,10 @@ function Registration() {
                                 <option value="Buddhism">Buddhism</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label={<span>ছাত্রের নাম (বাংলায়) <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn}>
+                        <FieldRow label={<span>ছাত্রের নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn}>
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলায়)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
-                        <FieldRow label={<span>ডাকনাম (এক শব্দে/বাংলায়) <Tooltip text="ছাত্রের ডাকনাম, এক শব্দে লিখুন" /></span>} required error={errors.studentNickNameBn}>
+                        <FieldRow label={<span>ডাকনাম (এক শব্দে/বাংলায়): <Tooltip text="ছাত্রের ডাকনাম, এক শব্দে লিখুন" /></span>} required error={errors.studentNickNameBn}>
                             <input
                                 name="studentNickNameBn"
                                 value={form.studentNickNameBn}
@@ -1251,10 +1270,10 @@ function Registration() {
                                 aria-invalid={!!errors.studentNickNameBn}
                             />
                         </FieldRow>
-                        <FieldRow label={<span>Student's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
-                            <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (In English)" aria-invalid={!!errors.studentNameEn} />
+                        <FieldRow label={<span>Student's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
+                            <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (in English)" aria-invalid={!!errors.studentNameEn} />
                         </FieldRow>
-                        <FieldRow label="Birth Registration No" required error={errors.birthRegNo}>
+                        <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo}>
                             <input
                                 name="birthRegNo"
                                 type="text"
@@ -1269,83 +1288,7 @@ function Registration() {
                                 aria-invalid={!!errors.birthRegNo}
                             />
                         </FieldRow>
-                        <FieldRow label={<span>পিতার নাম (বাংলায়) <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn}>
-                            <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
-                        </FieldRow>
-                        <FieldRow label={<span>Father's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
-                            <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (In English)" aria-invalid={!!errors.fatherNameEn} />
-                        </FieldRow>
-
-                        <FieldRow label="Father's NID" required error={errors.fatherNid}>
-                            <input
-                                name="fatherNid"
-                                value={form.fatherNid}
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d{10,17}"
-                                minLength={10}
-                                maxLength={17}
-                                onChange={handleChange}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="1234567890"
-                                aria-invalid={!!errors.fatherNid}
-                            />
-                        </FieldRow>
-
-                        <FieldRow label="Father's Mobile No" required error={errors.fatherPhone} >
-                            <input
-                                name="fatherPhone"
-                                value={form.fatherPhone}
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d*"
-                                maxLength={11}
-                                onChange={handleChange}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="01XXXXXXXXX"
-                                aria-invalid={!!errors.fatherPhone}
-                            />
-                        </FieldRow>
-
-                        <FieldRow label={<span>মাতার নাম (বাংলায়) <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
-                            <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
-                        </FieldRow>
-                        <FieldRow label={<span>Mother's Name (English) <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
-                            <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (In English)" aria-invalid={!!errors.motherNameEn} />
-                        </FieldRow>
-
-                        <FieldRow label="Mother's NID" required error={errors.motherNid}>
-                            <input
-                                name="motherNid"
-                                value={form.motherNid}
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d{10,17}"
-                                minLength={10}
-                                maxLength={17}
-                                onChange={handleChange}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="1234567890"
-                                aria-invalid={!!errors.motherNid}
-                            />
-                        </FieldRow>
-
-                        <FieldRow label="Mother's Mobile No" required error={errors.motherPhone} >
-                            <input
-                                name="motherPhone"
-                                value={form.motherPhone}
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d*"
-                                maxLength={11}
-                                onChange={handleChange}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="01XXXXXXXXX"
-                                aria-invalid={!!errors.motherPhone}
-                            />
-                        </FieldRow>
-
-                        <FieldRow label={<span>Date of Birth <Tooltip text={`Student must be at least 12 years old on 1st January ${currentYear}`} /></span>} required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
+                        <FieldRow label={<span>Date of Birth: <Tooltip text={`Student must be at least 12 years old on 1st January ${currentYear}`} /></span>} required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
                                 <input
                                     name="birthYear"
@@ -1383,7 +1326,84 @@ function Registration() {
                                 Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
-                        <FieldRow label="Blood Group ">
+                        <FieldRow label={<span>পিতার নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn}>
+                            <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
+                        </FieldRow>
+                        <FieldRow label={<span>Father's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
+                            <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (in English)" aria-invalid={!!errors.fatherNameEn} />
+                        </FieldRow>
+
+                        <FieldRow label="Father's NID:" required error={errors.fatherNid}>
+                            <input
+                                name="fatherNid"
+                                value={form.fatherNid}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{10,17}"
+                                minLength={10}
+                                maxLength={17}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="1234567890"
+                                aria-invalid={!!errors.fatherNid}
+                            />
+                        </FieldRow>
+
+                        <FieldRow label="Father's Mobile No:" required error={errors.fatherPhone} >
+                            <input
+                                name="fatherPhone"
+                                value={form.fatherPhone}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={11}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="01XXXXXXXXX"
+                                aria-invalid={!!errors.fatherPhone}
+                            />
+                        </FieldRow>
+
+                        <FieldRow label={<span>মাতার নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
+                            <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
+                        </FieldRow>
+                        <FieldRow label={<span>Mother's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
+                            <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (in English)" aria-invalid={!!errors.motherNameEn} />
+                        </FieldRow>
+
+                        <FieldRow label="Mother's NID:" required error={errors.motherNid}>
+                            <input
+                                name="motherNid"
+                                value={form.motherNid}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d{10,17}"
+                                minLength={10}
+                                maxLength={17}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="1234567890"
+                                aria-invalid={!!errors.motherNid}
+                            />
+                        </FieldRow>
+
+                        <FieldRow label="Mother's Mobile No:" required error={errors.motherPhone} >
+                            <input
+                                name="motherPhone"
+                                value={form.motherPhone}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={11}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="01XXXXXXXXX"
+                                aria-invalid={!!errors.motherPhone}
+                            />
+                        </FieldRow>
+
+
+                        <FieldRow label="Blood Group:" >
                             <select name="bloodGroup" value={form.bloodGroup} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200">
                                 <option value="">Select Blood Group</option>
                                 <option>A+</option>
@@ -1397,16 +1417,16 @@ function Registration() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Email" error={errors.email}>
+                        <FieldRow label="Email:" error={errors.email}>
                             <input name="email" value={form.email} type='email' onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder='example@gmail.com' />
                         </FieldRow>
                     </div>
                 </section>
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={2} title="Address" />
+                    <SectionHeader step={2} title="Address:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <h4 className="font-semibold mb-2 text-sm sm:text-base">Permanent Address</h4>
-                        <FieldRow label="District" required error={errors.permanentDistrict}>
+                        <h4 className="font-semibold mb-2 text-sm sm:text-base">Permanent Address:</h4>
+                        <FieldRow label="District:" required error={errors.permanentDistrict}>
                             <select name="permanentDistrict" value={form.permanentDistrict} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200">
                                 <option value="">Select district</option>
                                 {districts.map((d) => (
@@ -1416,7 +1436,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila" required error={errors.permanentUpazila}>
+                        <FieldRow label="Upazila:" required error={errors.permanentUpazila}>
                             <select
                                 name="permanentUpazila"
                                 value={form.permanentUpazila}
@@ -1432,7 +1452,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Post Office" required error={errors.permanentPostOffice}>
+                        <FieldRow label="Post Office:" required error={errors.permanentPostOffice}>
                             <input
                                 name="permanentPostOffice"
                                 value={form.permanentPostOffice}
@@ -1441,7 +1461,7 @@ function Registration() {
                                 placeholder="Post Office Name"
                             />
                         </FieldRow>
-                        <FieldRow label="Post Code" required error={errors.permanentPostCode}>
+                        <FieldRow label="Post Code:" required error={errors.permanentPostCode}>
                             <input
                                 name="permanentPostCode"
                                 value={form.permanentPostCode}
@@ -1455,7 +1475,7 @@ function Registration() {
                                 aria-invalid={!!errors.permanentPostCode}
                             />
                         </FieldRow>
-                        <FieldRow label="Village/Road No" required error={errors.permanentVillageRoad}>
+                        <FieldRow label="Village/Road No:" required error={errors.permanentVillageRoad}>
                             <input
                                 name="permanentVillageRoad"
                                 value={form.permanentVillageRoad}
@@ -1464,8 +1484,8 @@ function Registration() {
                                 placeholder="Village/Road No"
                             />
                         </FieldRow>
-                        <h4 className="font-semibold mb-2 mt-4 sm:mt-6 text-sm sm:text-base">Present Address</h4>
-                        <FieldRow label="Same as Permanent">
+                        <h4 className="font-semibold mb-2 mt-4 sm:mt-6 text-sm sm:text-base">Present Address:</h4>
+                        <FieldRow label="Same as Permanent:">
                             <label className="inline-flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -1504,7 +1524,7 @@ function Registration() {
                         </FieldRow>
                         {!sameAddress && (
                             <div className="space-y-2">
-                                <FieldRow label="District" required error={errors.presentDistrict}>
+                                <FieldRow label="District:" required error={errors.presentDistrict}>
                                     <select name="presentDistrict" value={form.presentDistrict} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200">
                                         <option value="">Select district</option>
                                         {districts.map((d) => (
@@ -1514,7 +1534,7 @@ function Registration() {
                                         ))}
                                     </select>
                                 </FieldRow>
-                                <FieldRow label="Upazila" required error={errors.presentUpazila}>
+                                <FieldRow label="Upazila:" required error={errors.presentUpazila}>
                                     <select
                                         name="presentUpazila"
                                         value={form.presentUpazila}
@@ -1530,7 +1550,7 @@ function Registration() {
                                         ))}
                                     </select>
                                 </FieldRow>
-                                <FieldRow label="Post Office" required error={errors.presentPostOffice}>
+                                <FieldRow label="Post Office:" required error={errors.presentPostOffice}>
                                     <input
                                         name="presentPostOffice"
                                         value={form.presentPostOffice}
@@ -1539,7 +1559,7 @@ function Registration() {
                                         placeholder="Post Office Name"
                                     />
                                 </FieldRow>
-                                <FieldRow label="Post Code" required error={errors.presentPostCode}>
+                                <FieldRow label="Post Code:" required error={errors.presentPostCode}>
                                     <input
                                         name="presentPostCode"
                                         value={form.presentPostCode}
@@ -1553,7 +1573,7 @@ function Registration() {
                                         aria-invalid={!!errors.presentPostCode}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Village/Road No" required error={errors.presentVillageRoad}>
+                                <FieldRow label="Village/Road No:" required error={errors.presentVillageRoad}>
                                     <input
                                         name="presentVillageRoad"
                                         value={form.presentVillageRoad}
@@ -1567,9 +1587,9 @@ function Registration() {
                     </div>
                 </section>
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={3} title="Guardian Information (if not father)" />
+                    <SectionHeader step={3} title="Guardian Information (if not father):" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Guardian is not the father">
+                        <FieldRow label="Guardian is not the father:">
                             <label className="inline-flex items-start sm:items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -1613,7 +1633,7 @@ function Registration() {
                         </FieldRow>
                         {guardianNotFather && (
                             <div className="space-y-2">
-                                <FieldRow label="Guardian's Name" required error={errors.guardianName}>
+                                <FieldRow label="Guardian's Name:" required error={errors.guardianName}>
                                     <input
                                         name="guardianName"
                                         value={form.guardianName}
@@ -1623,7 +1643,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianName}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian's NID" required error={errors.guardianNid}>
+                                <FieldRow label="Guardian's NID:" required error={errors.guardianNid}>
                                     <input
                                         name="guardianNid"
                                         value={form.guardianNid}
@@ -1638,7 +1658,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianNid}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian's Mobile No" required error={errors.guardianPhone}>
+                                <FieldRow label="Guardian's Mobile No:" required error={errors.guardianPhone}>
                                     <input
                                         name="guardianPhone"
                                         value={form.guardianPhone}
@@ -1652,7 +1672,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianPhone}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Relationship with Guardian" required error={errors.guardianRelation}>
+                                <FieldRow label="Relationship with Guardian:" required error={errors.guardianRelation}>
                                     <select
                                         name="guardianRelation"
                                         value={form.guardianRelation}
@@ -1676,7 +1696,7 @@ function Registration() {
                                         <option value="Other">Other (অন্যান্য)</option>
                                     </select>
                                 </FieldRow>
-                                <FieldRow label="Guardian's Address">
+                                <FieldRow label="Guardian's Address:">
                                     <label className="inline-flex items-center gap-2 mb-2">
                                         <input
                                             type="checkbox"
@@ -1725,7 +1745,7 @@ function Registration() {
                                 </FieldRow>
                                 {!form.guardianAddressSameAsPermanent && (
                                     <div className="space-y-2">
-                                        <FieldRow label="District" required error={errors.guardianDistrict}>
+                                        <FieldRow label="District:" required error={errors.guardianDistrict}>
                                             <select
                                                 name="guardianDistrict"
                                                 value={form.guardianDistrict}
@@ -1740,7 +1760,7 @@ function Registration() {
                                                 ))}
                                             </select>
                                         </FieldRow>
-                                        <FieldRow label="Upazila" required error={errors.guardianUpazila}>
+                                        <FieldRow label="Upazila:" required error={errors.guardianUpazila}>
                                             <select
                                                 name="guardianUpazila"
                                                 value={form.guardianUpazila}
@@ -1756,7 +1776,7 @@ function Registration() {
                                                 ))}
                                             </select>
                                         </FieldRow>
-                                        <FieldRow label="Post Office" required error={errors.guardianPostOffice}>
+                                        <FieldRow label="Post Office:" required error={errors.guardianPostOffice}>
                                             <input
                                                 name="guardianPostOffice"
                                                 value={form.guardianPostOffice}
@@ -1765,7 +1785,7 @@ function Registration() {
                                                 placeholder="Post Office Name"
                                             />
                                         </FieldRow>
-                                        <FieldRow label="Post Code" required error={errors.guardianPostCode}>
+                                        <FieldRow label="Post Code:" required error={errors.guardianPostCode}>
                                             <input
                                                 name="guardianPostCode"
                                                 value={form.guardianPostCode}
@@ -1779,7 +1799,7 @@ function Registration() {
                                                 aria-invalid={!!errors.guardianPostCode}
                                             />
                                         </FieldRow>
-                                        <FieldRow label="Village/Road No" required error={errors.guardianVillageRoad}>
+                                        <FieldRow label="Village/Road No:" required error={errors.guardianVillageRoad}>
                                             <input
                                                 name="guardianVillageRoad"
                                                 value={form.guardianVillageRoad}
@@ -1798,12 +1818,12 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 sm:gap-3 mb-3">
                         <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 text-white font-bold text-sm sm:text-lg shadow">4</span>
-                        <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Student Photo</h3>
+                        <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Student's Photo:</h3>
                     </div>
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md">
                         <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
                             <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
-                                <span>Photo <Tooltip text="Upload a clear passport-size photo (jpg/png, less than 2MB)" />
+                                <span>Photo: <Tooltip text="Upload a Photo (Wearing School Uniform/ jpg)" />
                                     {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
                                 </span>
                                 <span className="mx-2 hidden lg:inline">:</span>
@@ -1813,14 +1833,14 @@ function Registration() {
                                     <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 transition group-hover:border-blue-400 group-focus-within:border-blue-400 cursor-pointer overflow-hidden mx-auto lg:mx-0">
                                         {!photoPreview
                                             ? <span className="text-xs sm:text-sm text-center text-gray-500 px-2">
-                                                {isEditMode ? 'Click to change photo' : 'Click or drag to upload image'}
+                                                {isEditMode ? 'Upload Photo (Wearing School Uniform/ jpg)' : 'Upload Photo (Wearing School Uniform/ jpg)'}
                                             </span>
                                             : <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover rounded" />}
                                     </div>
                                     <input
                                         type="file"
                                         name="photo"
-                                        accept="image/*"
+                                        accept=".jpg,.jpeg,image/jpeg"
                                         onChange={handleFileChange}
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                         aria-invalid={!!errors.photo}
@@ -1835,9 +1855,9 @@ function Registration() {
                     </div>
                 </section>
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={5} title="Previous School Information" />
+                    <SectionHeader step={5} title="Previous School Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Name of Previous School" required error={errors.prevSchoolName}>
+                        <FieldRow label="Name of Previous School:" required error={errors.prevSchoolName}>
                             <input
                                 name="prevSchoolName"
                                 value={form.prevSchoolName}
@@ -1847,7 +1867,7 @@ function Registration() {
                                 aria-invalid={!!errors.prevSchoolName}
                             />
                         </FieldRow>
-                        <FieldRow label="District" required error={errors.prevSchoolDistrict}>
+                        <FieldRow label="District:" required error={errors.prevSchoolDistrict}>
                             <select
                                 name="prevSchoolDistrict"
                                 value={form.prevSchoolDistrict}
@@ -1861,7 +1881,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila/Thana" required error={errors.prevSchoolUpazila}>
+                        <FieldRow label="Upazila/Thana:" required error={errors.prevSchoolUpazila}>
                             <select
                                 name="prevSchoolUpazila"
                                 value={form.prevSchoolUpazila}
@@ -1880,11 +1900,11 @@ function Registration() {
                 </section>
 
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={6} title="JSC/JDC Information" />
+                    <SectionHeader step={6} title="JSC/JDC Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC Passing Year" required error={errors.jscPassingYear}>
+                                <FieldRow label="JSC Passing Year:" required error={errors.jscPassingYear}>
                                     <select
                                         name="jscPassingYear"
                                         value={form.jscPassingYear}
@@ -1900,7 +1920,7 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC Board" required error={errors.jscBoard}>
+                                <FieldRow label="JSC Board:" required error={errors.jscBoard}>
                                     <select
                                         name="jscBoard"
                                         value={form.jscBoard}
@@ -1926,7 +1946,7 @@ function Registration() {
                         </div>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC Registration Number" required error={errors.jscRegNo}>
+                                <FieldRow label="JSC Registration Number:" required error={errors.jscRegNo}>
                                     <input
                                         name="jscRegNo"
                                         value={form.jscRegNo}
@@ -1942,13 +1962,18 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC Roll Number">
+                                <FieldRow label="JSC Roll Number:" error={errors.jscRollNo}>
                                     <input
                                         name="jscRollNo"
                                         value={form.jscRollNo}
                                         onChange={handleChange}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="\d{6}"
+                                        maxLength={6}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                        placeholder="(if any)"
+                                        placeholder="123456"
+                                        aria-invalid={!!errors.jscRollNo}
                                     />
                                 </FieldRow>
                             </div>
@@ -1957,9 +1982,9 @@ function Registration() {
                 </section>
 
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={7} title="Class Nine Information" />
+                    <SectionHeader step={7} title="Class Nine Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Group in Class Nine" required error={errors.groupClassNine}>
+                        <FieldRow label="Group in Class Nine:" required error={errors.groupClassNine}>
                             <select
                                 name="groupClassNine"
                                 value={form.groupClassNine}
@@ -1982,7 +2007,7 @@ function Registration() {
                                 <option value="Humanities">Humanities</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Main Subject" required error={errors.mainSubject}>
+                        <FieldRow label="Main Subject:" required error={errors.mainSubject}>
                             <select
                                 name="mainSubject"
                                 value={form.mainSubject}
@@ -1999,7 +2024,7 @@ function Registration() {
                                 }
                             </select>
                         </FieldRow>
-                        <FieldRow label="4th Subject" required error={errors.fourthSubject}>
+                        <FieldRow label="4th Subject:" required error={errors.fourthSubject}>
                             <select
                                 name="fourthSubject"
                                 value={form.fourthSubject}
@@ -2018,7 +2043,7 @@ function Registration() {
                                 }
                             </select>
                         </FieldRow>
-                        <FieldRow label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য" required error={errors.nearbyNineStudentInfo}>
+                        <FieldRow label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:" required error={errors.nearbyNineStudentInfo}>
                             <>
                                 <select
                                     name="nearbyNineStudentInfo"

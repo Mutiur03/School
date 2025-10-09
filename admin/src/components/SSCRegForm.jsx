@@ -35,7 +35,9 @@ const SSCRegForm = () => {
     b_sec_roll: "",
     ssc_year: new Date().getFullYear(),
     reg_open: false,
-    instructions: "Please follow the instructions carefully",
+    instruction_for_a: "Please follow the instructions carefully",
+    instruction_for_b: "Please follow the instructions carefully",
+    attachment_instruction: "Please attach all required documents",
   });
   const [noticeFile, setNoticeFile] = useState(null);
   const [currentNotice, setCurrentNotice] = useState(null);
@@ -43,6 +45,7 @@ const SSCRegForm = () => {
   const [formMessage, setFormMessage] = useState("");
   const [isEdit, setIsEdit] = useState(false);
   const [activeTab, setActiveTab] = useState("registrations");
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
 
   // Only fetch when batch changes
@@ -117,8 +120,15 @@ const SSCRegForm = () => {
           b_sec_roll: data.b_sec_roll || "",
           ssc_year: data.ssc_year || new Date().getFullYear(),
           reg_open: data.reg_open || false,
-          instructions:
-            data.instructions || "Please follow the instructions carefully",
+          instruction_for_a:
+            data.instruction_for_a ||
+            "Please follow the instructions carefully",
+          instruction_for_b:
+            data.instruction_for_b ||
+            "Please follow the instructions carefully",
+          attachment_instruction:
+            data.attachment_instruction ||
+            "Please attach all required documents",
         });
         setCurrentNotice(
           data.notice
@@ -296,12 +306,9 @@ const SSCRegForm = () => {
       if (filters.status !== "all") params.append("status", filters.status);
       if (filters.section) params.append("section", filters.section);
 
-      const response = await axios.get(
-        `/api/reg/ssc/form/export?${params}`,
-        {
-          responseType: "blob",
-        }
-      );
+      const response = await axios.get(`/api/reg/ssc/form/export?${params}`, {
+        responseType: "blob",
+      });
 
       // Create download link
       const blob = new Blob([response.data], {
@@ -429,7 +436,12 @@ const SSCRegForm = () => {
       formDataToSend.append("b_sec_roll", formData.b_sec_roll);
       formDataToSend.append("ssc_year", formData.ssc_year);
       formDataToSend.append("reg_open", formData.reg_open);
-      formDataToSend.append("instructions", formData.instructions);
+      formDataToSend.append("instruction_for_a", formData.instruction_for_a);
+      formDataToSend.append("instruction_for_b", formData.instruction_for_b);
+      formDataToSend.append(
+        "attachment_instruction",
+        formData.attachment_instruction
+      );
 
       if (noticeFile) {
         formDataToSend.append("notice", noticeFile);
@@ -635,23 +647,67 @@ const SSCRegForm = () => {
 
               <div>
                 <label
-                  htmlFor="instructions"
+                  htmlFor="instruction_for_a"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Instructions for Students
+                  Instructions for Section A Students
                 </label>
                 <textarea
-                  id="instructions"
-                  name="instructions"
-                  value={formData.instructions}
+                  id="instruction_for_a"
+                  name="instruction_for_a"
+                  value={formData.instruction_for_a}
                   onChange={handleInputChange}
                   rows={4}
-                  placeholder="Enter instructions for students..."
+                  placeholder="Enter instructions for Section A students..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  These instructions will be shown to students during
+                  These instructions will be shown to Section A students during
                   registration
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="instruction_for_b"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Instructions for Section B Students
+                </label>
+                <textarea
+                  id="instruction_for_b"
+                  name="instruction_for_b"
+                  value={formData.instruction_for_b}
+                  onChange={handleInputChange}
+                  rows={4}
+                  placeholder="Enter instructions for Section B students..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  These instructions will be shown to Section B students during
+                  registration
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="attachment_instruction"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Attachment Instructions
+                </label>
+                <textarea
+                  id="attachment_instruction"
+                  name="attachment_instruction"
+                  value={formData.attachment_instruction}
+                  onChange={handleInputChange}
+                  rows={3}
+                  placeholder="Enter instructions for document attachments..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  These instructions will guide students on what documents to
+                  attach
                 </p>
               </div>
 
@@ -728,7 +784,7 @@ const SSCRegForm = () => {
             </form>
 
             {/* Info Box */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            {/* <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h3 className="text-sm font-medium text-blue-900 mb-2">
                 Information
               </h3>
@@ -740,11 +796,11 @@ const SSCRegForm = () => {
                   • Registration status controls whether students can register
                 </li>
                 <li>
-                  • Instructions will be displayed to students during
-                  registration
+                  • Separate instructions can be set for Section A and Section B
+                  students
                 </li>
               </ul>
-            </div>
+            </div> */}
           </div>
         </div>
       )}
@@ -1691,7 +1747,8 @@ const SSCRegForm = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={async () => {
-                        if (!selectedRegistration) return;
+                        if (!selectedRegistration || pdfDownloading) return;
+                        setPdfDownloading(true);
                         try {
                           const response = await axios.get(
                             `/api/reg/ssc/form/${selectedRegistration.id}/pdf`,
@@ -1714,11 +1771,24 @@ const SSCRegForm = () => {
                         } catch (err) {
                           console.error(err);
                           setError("Failed to download PDF");
+                        } finally {
+                          setPdfDownloading(false);
                         }
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      disabled={pdfDownloading}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Download PDF
+                      {pdfDownloading ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Downloading...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} />
+                          Download PDF
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => setShowModal(false)}

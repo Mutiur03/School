@@ -172,7 +172,7 @@ function ConfirmationReg() {
     };
 
     const renderTableRow = (label: string, value: string | number | boolean | null) => (
-        <tr className="border-b last:border-b-0 align-top">
+        <tr className="border-b last:border-b-0 align-top border-gray-100">
             <td className="py-2 px-4 font-medium text-gray-700 bg-gray-50 align-top" style={{ width: '35%', minWidth: '200px' }}>
                 <div className="whitespace-normal break-words">
                     {label}
@@ -186,16 +186,6 @@ function ConfirmationReg() {
                             ? (value ? 'Yes' : 'No')
                             : value.toString()
                     }
-                </div>
-            </td>
-        </tr>
-    );
-
-    const renderSectionHeader = (title: string) => (
-        <tr>
-            <td colSpan={2} className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b">
-                <div className="whitespace-normal break-words">
-                    {title}
                 </div>
             </td>
         </tr>
@@ -249,14 +239,13 @@ function ConfirmationReg() {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
-        });
+        }).replace(/(\w+)\s(\d{4})/, '$1, $2');
     };
 
     const formatMobileNumbers = () => {
         return [
             registration?.father_phone ?? '',
-            registration?.mother_phone ?? '',
-            registration?.guardian_phone ?? ''
+            registration?.mother_phone ?? ''
         ].filter(Boolean).join(', ') || 'No';
     };
 
@@ -264,16 +253,24 @@ function ConfirmationReg() {
         return [
             registration?.jsc_board ? `Board: ${registration?.jsc_board}` : '',
             registration?.jsc_passing_year ? `Passing Year: ${registration?.jsc_passing_year}` : '',
-            registration?.jsc_roll_no ? `Roll No: ${registration?.jsc_roll_no}` : 'Roll No: N/A'
+            registration?.jsc_roll_no ? `Roll No- ${registration?.jsc_roll_no}` : 'Roll No- N/A'
         ].filter(Boolean).join(', ') || null;
     };
 
-    const formatAcademicSubjects = () => {
+    const formatMainAndFourthSubject = () => {
         return [
             registration?.group_class_nine ?? '',
             registration?.main_subject ? `, ${registration?.main_subject}` : '',
             registration?.fourth_subject ? `, 4th: ${registration?.fourth_subject}` : ''
         ].map(s => s.trim()).filter(Boolean).join(' ') || null;
+    };
+
+    const formatPreviousSchool = () => {
+        return [
+            registration?.prev_school_name,
+            registration?.prev_school_upazila,
+            registration?.prev_school_district
+        ].filter(Boolean).join(', ') || null;
     };
 
     // const handleEditRegistration = () => {
@@ -284,18 +281,18 @@ function ConfirmationReg() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-[60vh] bg-gray-50">
-                <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-blue-600"></div>
+            <div className="flex justify-center items-center min-h-[60vh] bg-gray-100">
+                <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-gray-600"></div>
             </div>
         );
     }
 
     if (error || !registration) {
         return (
-            <div className="flex justify-center items-center min-h-[60vh] bg-gray-50">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-8 shadow-lg max-w-md w-full text-center">
-                    <h2 className="text-2xl font-bold text-red-600 mb-2">Error</h2>
-                    <p className="text-red-700">{error || 'Registration not found'}</p>
+            <div className="flex justify-center items-center min-h-[60vh] bg-gray-100">
+                <div className="bg-white border border-gray-300 rounded p-8 shadow max-w-md w-full text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
+                    <p className="text-gray-600">{error || 'Registration not found'}</p>
                 </div>
             </div>
         );
@@ -303,77 +300,77 @@ function ConfirmationReg() {
 
     if (showInstructions) {
         return (
-            <div className="w-full min-h-[100vh] bg-gray-50 py-8 px-4">
+            <div className="min-h-screen bg-gray-100 py-8 px-4">
                 <div className="max-w-4xl mx-auto animate-fade-in">
-                    <div className="bg-green-600 text-white p-8 text-center rounded-t-2xl">
-                        <div className="animate-bounce mb-4">
-                            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
+                    <div className="bg-gray-800 text-white p-8 text-center rounded-t">
+                        <div className="mb-6">
+                            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-white">
+                                <svg className="w-12 h-12 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
                         </div>
-                        <h1 className="text-3xl font-bold mb-2">Registration Confirmed!</h1>
+                        <h1 className="text-4xl font-bold mb-3">Registration Confirmed!</h1>
+                        <p className="text-xl">Your application has been successfully submitted</p>
                     </div>
-                    <div className="bg-white p-6 sm:p-8 space-y-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Next Steps</h2>
-                        <div className="space-y-4">
-                            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm">
-                                <h3 className="font-semibold text-blue-800 mb-1">📋 Step 1: Document Preparation</h3>
-                                <p className="text-blue-700 text-sm">
-                                    Prepare all required documents including JSC certificate, birth certificate,
-                                    recent passport-size photos, and other necessary papers as per school requirements.
+
+                    <div className="bg-white shadow rounded-b overflow-hidden">
+                        <div className="p-8 space-y-8">
+                            <div className="text-center">
+                                <div className="inline-flex items-center justify-center p-3 bg-gray-100 rounded-full mb-4">
+                                    <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">Download Your Registration Form</h2>
+                                <p className="text-gray-600 text-lg mb-6">
+                                    Download the PDF document and follow the instructions for the next steps.
                                 </p>
                             </div>
-                            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-sm">
-                                <h3 className="font-semibold text-green-800 mb-1">🏫 Step 2: Visit School Office</h3>
-                                <p className="text-green-700 text-sm">
-                                    Visit the school office within the next 7 days with all required documents
-                                    to complete the admission process and pay necessary fees.
-                                </p>
+
+                            <div className="flex justify-center">
+                                <button
+                                    onClick={handleDownloadPDF}
+                                    disabled={downloadingPDF}
+                                    className={`px-8 py-4 rounded font-semibold text-lg transition-all duration-300 shadow ${downloadingPDF
+                                        ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                                        : 'bg-gray-700 text-white hover:bg-gray-800'
+                                        }`}
+                                >
+                                    {downloadingPDF ? (
+                                        <div className="flex items-center space-x-3">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-400 border-t-transparent"></div>
+                                            <span>Generating PDF...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center space-x-3">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>Download PDF</span>
+                                        </div>
+                                    )}
+                                </button>
                             </div>
-                            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg shadow-sm">
-                                <h3 className="font-semibold text-orange-800 mb-1">💰 Step 3: Fee Payment</h3>
-                                <p className="text-orange-700 text-sm">
-                                    Complete the admission fee payment as per the fee structure.
-                                    Receipt will be provided for your records.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                            <h3 className="font-semibold text-gray-800 mb-2 text-base">📞 Contact Information</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
-                                <div>
-                                    <p><strong>Phone:</strong> +880 1309-121983</p>
-                                    <p><strong>Email:</strong> lbpgovtschool@gmail.com</p>
+
+                            <div className="grid md:grid-cols-1 gap-6">
+                                <div className="bg-gray-50 border border-gray-200 p-6 rounded">
+                                    <div className="flex items-start space-x-3">
+                                        <div className="flex-shrink-0">
+                                            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-800 text-lg mb-2">Contact Information</h3>
+                                            <div className="space-y-2 text-gray-600">
+                                                <p className="flex items-center space-x-2"><span className="font-medium">Phone:</span> <span>+880 1309-121983</span></p>
+                                                <p className="flex items-center space-x-2"><span className="font-medium">Email:</span> <span>lbpgovtschool@gmail.com</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg shadow-sm">
-                            <h4 className="font-semibold text-yellow-800 mb-1">⚠️ Important Notes:</h4>
-                            <ul className="text-xs text-yellow-700 space-y-1">
-                                <li>• Keep your registration ID safe for future reference</li>
-                                <li>• Bring original documents along with photocopies</li>
-                                <li>• Late submission may result in cancellation of admission</li>
-                                <li>• For any queries, contact the school office</li>
-                            </ul>
-                        </div>
-                        <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-                            <button
-                                onClick={handleDownloadPDF}
-                                disabled={downloadingPDF}
-                                className={`px-5 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shadow flex items-center justify-center ${downloadingPDF
-                                        ? 'bg-gray-400 cursor-not-allowed text-white'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                            >
-                                {downloadingPDF ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                        Generating PDF...
-                                    </>
-                                ) : (
-                                    'Download PDF'
-                                )}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -381,10 +378,11 @@ function ConfirmationReg() {
         );
     }
 
+
     return (
-        <div className="w-full min-h-[100vh] bg-gray-50 py-8 px-4">
+        <div className="w-full min-h-[100vh] bg-gray-100 py-8 px-4">
             <div className={`max-w-4xl mx-auto transition-all duration-1000 ${isConfirmed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
-                <div className="bg-gradient-to-r from-blue-600 to-blue-400 text-white p-6 sm:p-8 rounded-t-2xl">
+                <div className="bg-gray-800 text-white p-6 sm:p-8 rounded-t">
                     <h1 className="text-2xl sm:text-3xl font-bold">Registration Confirmation</h1>
                     <p className="mt-2 text-sm sm:text-base">Please review your information and confirm if everything is correct.</p>
                 </div>
@@ -395,14 +393,14 @@ function ConfirmationReg() {
                         <img
                             src={`${import.meta.env.VITE_BACKEND_URL}/${registration.photo_path}`}
                             alt="Student Photo"
-                            className="w-28 h-28 object-cover border-2 border-gray-300 rounded-lg shadow"
+                            className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                     </div>
                 )}
 
                 <div className="bg-white p-4 sm:p-8 space-y-8">
-                    <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm">
+                    <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1">
                         <span>Section: {registration.section || '-'}</span>
                         <span>Roll No: {registration.roll || '-'}</span>
                         <span>Religion: {registration.religion || '-'}</span>
@@ -411,38 +409,22 @@ function ConfirmationReg() {
 
                     <div className="grid gap-8">
                         {/* Single comprehensive table matching PDF structure */}
-                        <div className="border border-gray-200 bg-white rounded-lg">
+                        <div className="border border-gray-200 bg-white rounded">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm table-fixed" style={{ minWidth: '600px' }}>
                                     <tbody>
-                                        {/* Personal Information Section */}
-                                        {renderSectionHeader("ব্যক্তিগত তথ্য (Personal Information)")}
                                         {renderTableRow("ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.student_name_bn)}
-                                        {renderTableRow("Student's Name (In Capital Letter):", registration.student_name_en)}
-                                        {renderTableRow("Birth Registration No. (In English):", registration.birth_reg_no)}
+                                        {renderTableRow("Student's Name:", registration.student_name_en?.toUpperCase())}
+                                        {renderTableRow("Birth Registration Number:", registration.birth_reg_no)}
                                         {renderTableRow("Date of Birth (According to JSC/JDC):", formatDateLong(registration.birth_date))}
                                         {renderTableRow("Email Address:", registration.email || "No")}
-                                        {renderTableRow("Mobile No (s):", formatMobileNumbers())}
-
-                                        {/* Father's Information Section */}
-                                        {renderSectionHeader("পিতার তথ্য (Father's Information)")}
+                                        {renderTableRow("Mobile Numbers:", formatMobileNumbers())}
                                         {renderTableRow("পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.father_name_bn)}
-                                        {renderTableRow("Father's Name (In Capital Letter):", registration.father_name_en)}
-                                        {renderTableRow("National ID Number (In English):", registration.father_nid)}
-
-                                        {/* Mother's Information Section */}
-                                        {renderSectionHeader("মাতার তথ্য (Mother's Information)")}
+                                        {renderTableRow("Father's Name:", registration.father_name_en?.toUpperCase())}
+                                        {renderTableRow("Father's National ID Number:", registration.father_nid)}
                                         {renderTableRow("মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.mother_name_bn)}
-                                        {renderTableRow("Mother's Name (In Capital Letter):", registration.mother_name_en)}
-                                        {renderTableRow("National ID Number (In English):", registration.mother_nid)}
-
-                                        {/* Guardian's Information Section */}
-                                        {renderSectionHeader("অভিভাবকের তথ্য (Guardian's Information)")}
-                                        {renderTableRow("Guardian's Name:", formatGuardianInfo())}
-                                        {renderTableRow("Guardian's Address:", formatGuardianAddress())}
-
-                                        {/* Address Section */}
-                                        {renderSectionHeader("ঠিকানা (Address)")}
+                                        {renderTableRow("Mother's Name:", registration.mother_name_en?.toUpperCase())}
+                                        {renderTableRow("Mother's National ID Number:", registration.mother_nid)}
                                         {renderTableRow("Permanent Address:", joinAddr(
                                             registration.permanent_village_road,
                                             registration.permanent_post_office,
@@ -457,26 +439,12 @@ function ConfirmationReg() {
                                             registration.present_upazila,
                                             registration.present_district
                                         ))}
-
-                                        {/* Academic Information Section */}
-                                        {renderSectionHeader("শিক্ষাগত তথ্য (Academic Information)")}
-                                        {renderTableRow("Previous School Name & Address:", [
-                                            registration.prev_school_name,
-                                            registration.prev_school_upazila,
-                                            registration.prev_school_district
-                                        ].filter(Boolean).join(', ') || null)}
-                                        {renderTableRow("জেএসসি/জেডিসি'র তথ্য:", formatJSCInfo())}
-                                        {renderTableRow("আবশ্যিক ও ৪র্থ বিষয়:", formatAcademicSubjects())}
+                                        {renderTableRow("Guardian's Name:", formatGuardianInfo())}
+                                        {renderTableRow("Guardian's Address:", formatGuardianAddress())}
+                                        {renderTableRow("Previous School Name & Address:", formatPreviousSchool())}
+                                        {renderTableRow("Information of JSC/JDC:", formatJSCInfo())}
+                                        {renderTableRow("Main and 4th Subject:", formatMainAndFourthSubject())}
                                         {renderTableRow("বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:", registration.nearby_nine_student_info)}
-
-                                        {/* Additional Information (if any missing fields exist) */}
-                                        {(registration.student_nick_name_bn || registration.blood_group) && (
-                                            <>
-                                                {renderSectionHeader("অতিরিক্ত তথ্য (Additional Information)")}
-                                                {registration.student_nick_name_bn && renderTableRow("ডাকনাম:", registration.student_nick_name_bn)}
-                                                {registration.blood_group && renderTableRow("Blood Group:", registration.blood_group)}
-                                            </>
-                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -485,13 +453,13 @@ function ConfirmationReg() {
                 </div>
 
                 {/* Footer */}
-                <div className="bg-white p-6 text-center rounded-b-2xl border-t border-gray-200">
+                <div className="bg-white p-6 text-center rounded-b border-t border-gray-200">
                     <p className="text-gray-600 mb-4 text-sm">
                         Please review all information carefully before confirming your registration.
                     </p>
                     {registration.status !== 'approved' ? (
                         <div className="mb-6">
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 shadow-sm">
+                            <div className="bg-yellow-50 border border-yellow-300 rounded p-4 mb-4">
                                 <p className="text-yellow-800 font-medium mb-1">
                                     ⚠️ Please review all information carefully before confirming
                                 </p>
@@ -506,7 +474,7 @@ function ConfirmationReg() {
                                             window.location.href = `/registration/ssc/${registration.id}`;
                                         }
                                     }}
-                                    className="px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow bg-blue-600 hover:bg-blue-700 hover:shadow-lg text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center"
+                                    className="px-6 py-3 rounded font-medium transition-all duration-200 bg-gray-600 hover:bg-gray-700 text-white text-lg focus:outline-none flex items-center justify-center"
                                 >
                                     <span className="mr-2">✏️</span>
                                     Edit Registration
@@ -514,14 +482,14 @@ function ConfirmationReg() {
                                 <button
                                     onClick={handleConfirmRegistration}
                                     disabled={confirming}
-                                    className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow ${confirming
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
-                                        } text-white text-lg focus:outline-none focus:ring-2 focus:ring-green-400 flex items-center justify-center`}
+                                    className={`px-8 py-3 rounded font-medium transition-all duration-200 ${confirming
+                                        ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                                        : 'bg-green-600 hover:bg-green-700 text-white'
+                                        } text-lg focus:outline-none flex items-center justify-center`}
                                 >
                                     {confirming ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400 mr-3"></div>
                                             Confirming...
                                         </>
                                     ) : (
@@ -535,7 +503,7 @@ function ConfirmationReg() {
                         </div>
                     ) : (
                         <div className="mb-6">
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-sm">
+                            <div className="bg-green-50 border border-green-300 rounded p-4">
                                 <p className="text-green-800 font-medium">
                                     ✅ Your registration has been confirmed
                                 </p>
