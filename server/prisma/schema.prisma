@@ -317,13 +317,15 @@ model head_msg {
 }
 
 model ssc_reg {
-  id           Int      @id @default(autoincrement())
-  reg_open     Boolean? @default(false)
-  a_sec_roll   String?
-  b_sec_roll   String?
-  notice       String?
-  ssc_year     Int?
-  instructions String?  @default("Please follow the instructions carefully")
+  id                     Int      @id @default(autoincrement())
+  reg_open               Boolean? @default(false)
+  a_sec_roll             String?
+  b_sec_roll             String?
+  notice                 String?
+  ssc_year               Int?
+  instruction_for_a      String?  @default("Please follow the instructions carefully")
+  instruction_for_b      String?  @default("Please follow the instructions carefully")
+  attachment_instruction String?  @default("Please attach all required documents")
 }
 
 model student_registration_ssc {
