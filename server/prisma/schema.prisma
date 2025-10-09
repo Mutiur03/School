@@ -317,16 +317,18 @@ model head_msg {
 }
 
 model ssc_reg {
-  id         Int     @id @default(autoincrement())
-  a_sec_roll String?
-  b_sec_roll String?
-  notice     String?
-  ssc_year   Int?
+  id           Int      @id @default(autoincrement())
+  reg_open     Boolean? @default(false)
+  a_sec_roll   String?
+  b_sec_roll   String?
+  notice       String?
+  ssc_year     Int?
+  instructions String?  @default("Please follow the instructions carefully")
 }
 
 model student_registration_ssc {
   id                   String  @id @default(uuid())
-  ssc_batch            String?  @db.VarChar(4)
+  ssc_batch            String? @db.VarChar(4)
   // Personal Information
   section              String? @db.VarChar(10)
   roll                 String? @db.VarChar(20)
@@ -368,16 +370,15 @@ model student_registration_ssc {
   permanent_village_road String? @db.VarChar(200)
 
   // Guardian Information (optional)
-  guardian_name                      String?  @db.VarChar(100)
-  guardian_phone                     String?  @db.VarChar(11)
-  guardian_relation                  String?  @db.VarChar(50)
-  guardian_nid                       String?  @db.VarChar(17)
-  guardian_address_same_as_permanent Boolean? @default(false)
-  guardian_district                  String?  @db.VarChar(50)
-  guardian_upazila                   String?  @db.VarChar(50)
-  guardian_post_office               String?  @db.VarChar(100)
-  guardian_post_code                 String?  @db.VarChar(4)
-  guardian_village_road              String?  @db.VarChar(200)
+  guardian_name         String? @db.VarChar(100)
+  guardian_phone        String? @db.VarChar(11)
+  guardian_relation     String? @db.VarChar(50)
+  guardian_nid          String? @db.VarChar(17)
+  guardian_district     String? @db.VarChar(50)
+  guardian_upazila      String? @db.VarChar(50)
+  guardian_post_office  String? @db.VarChar(100)
+  guardian_post_code    String? @db.VarChar(4)
+  guardian_village_road String? @db.VarChar(200)
 
   // Previous School Information
   prev_school_name     String? @db.VarChar(200)
@@ -396,12 +397,14 @@ model student_registration_ssc {
   fourth_subject   String? @db.VarChar(100)
 
   // Photo Information
-  photo_path      String? @db.VarChar(255)
-  photo_public_id String? @db.VarChar(255)
+  photo_path String? @db.VarChar(255)
+
+  // New field for nearby class nine student info
+  nearby_nine_student_info String? @db.VarChar(200)
 
   // Status and Metadata
-  status           String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
-  submission_date  DateTime? @default(now())
+  status          String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  submission_date DateTime? @default(now())
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

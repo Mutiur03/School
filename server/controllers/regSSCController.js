@@ -43,11 +43,14 @@ export const createOrUpdateSSCReg = async (req, res) => {
     console.log("Request body:", req.body);
     console.log("Request file:", req.file);
 
-    const { a_sec_roll, b_sec_roll, ssc_year } = req.body;
+    const { a_sec_roll, b_sec_roll, ssc_year, reg_open, instructions } =
+      req.body;
     let updateData = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
       ssc_year: ssc_year ? parseInt(ssc_year) : null,
+      reg_open: reg_open === "true" || reg_open === true,
+      instructions: instructions || "Please follow the instructions carefully",
     };
 
     if (req.file) {
@@ -157,8 +160,6 @@ export const getSSCReg = async (req, res) => {
     });
   }
 };
-
-
 
 export const deleteSSCRegNotice = async (req, res) => {
   try {

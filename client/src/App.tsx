@@ -17,13 +17,14 @@ import Gallery from "./pages/Gallery";
 import Images from "./pages/Images";
 import Registration from "./pages/Registration";
 import ConfirmationReg from "./pages/ConfirmationReg";
+import RegSSC from "./pages/RegSSC";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
   const location = useLocation();
 
-  const routesWithoutSidebar = ['/registration/ssc'];
+  const routesWithoutSidebar = ['/registration/ssc', '/reg/ssc'];
   const shouldHideSidebar = routesWithoutSidebar.some(route =>
     location.pathname === route || location.pathname.startsWith(route + '/')
   );
@@ -54,8 +55,10 @@ function App() {
                 <Route path="/at-a-glance" element={<At_a_glance />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/gallery/:type/:id" element={<Images />} />
+                <Route path="/reg/ssc" element={<RegSSC/>} />
                 <Route path="/registration/ssc" element={<Registration />} />
-                <Route path="/registration/ssc/:id" element={<ConfirmationReg />} />
+                <Route path="/registration/ssc/:id" element={<Registration />} />
+                <Route path="/registration/ssc/confirm/:id" element={<ConfirmationReg />} />
                 <Route
                   path="*"
                   element={<Navigate to="/" />}

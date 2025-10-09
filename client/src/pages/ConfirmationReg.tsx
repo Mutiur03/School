@@ -62,6 +62,7 @@ interface RegistrationData {
     submission_date: string;
     created_at: string;
     updated_at: string;
+    nearby_nine_student_info: string;
 }
 
 function ConfirmationReg() {
@@ -72,6 +73,7 @@ function ConfirmationReg() {
     const [confirming, setConfirming] = useState(false);
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
+    const [downloadingPDF, setDownloadingPDF] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -82,7 +84,7 @@ function ConfirmationReg() {
     const fetchRegistrationData = async (registrationId: string) => {
         try {
             setLoading(true);
-            const response = await axios.get(`/api/student-registration/${registrationId}`);
+            const response = await axios.get(`/api/reg/ssc/form/${registrationId}`);
 
             if (response.data.success) {
                 setRegistration(response.data.data);
@@ -115,7 +117,7 @@ function ConfirmationReg() {
         try {
             setConfirming(true);
 
-            const response = await axios.put(`/api/student-registration/${registration.id}/status`, {
+            const response = await axios.put(`/api/reg/ssc/form/${registration.id}/status`, {
                 status: 'approved'
             });
 
@@ -145,36 +147,153 @@ function ConfirmationReg() {
         }
     };
 
-    const renderTableRow = (label: string, value: string | number | boolean | null) => {
-        return (
-            <tr className="border-b">
-                <td className="py-2 px-4 font-medium text-gray-700 bg-gray-50">{label}</td>
-                <td className="py-2 px-4">
+    const handleDownloadPDF = async () => {
+        if (!registration) return;
+        try {
+            setDownloadingPDF(true);
+            const response = await axios.get(
+                `/api/reg/ssc/form/${registration.id}/pdf`,
+                { responseType: 'blob' }
+            );
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SSC_Registration_${registration.student_name_en || registration.roll}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            toast.error('Failed to download PDF');
+        } finally {
+            setDownloadingPDF(false);
+        }
+    };
+
+    const renderTableRow = (label: string, value: string | number | boolean | null) => (
+        <tr className="border-b last:border-b-0 align-top">
+            <td className="py-2 px-4 font-medium text-gray-700 bg-gray-50 align-top" style={{ width: '35%', minWidth: '200px' }}>
+                <div className="whitespace-normal break-words">
+                    {label}
+                </div>
+            </td>
+            <td className="py-2 px-4 align-top" style={{ width: '65%' }}>
+                <div className="whitespace-normal break-words">
                     {value === null || value === undefined || value === ''
                         ? <span className="text-gray-400">Not provided</span>
                         : typeof value === 'boolean'
                             ? (value ? 'Yes' : 'No')
                             : value.toString()
                     }
-                </td>
-            </tr>
-        );
+                </div>
+            </td>
+        </tr>
+    );
+
+    const renderSectionHeader = (title: string) => (
+        <tr>
+            <td colSpan={2} className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b">
+                <div className="whitespace-normal break-words">
+                    {title}
+                </div>
+            </td>
+        </tr>
+    );
+
+    const joinAddr = (village: string, postOffice: string, postCode: string, upazila: string, district: string) => {
+        return [
+            village || '',
+            postOffice ? (postCode ? `${postOffice} (${postCode})` : postOffice) : '',
+            upazila || '',
+            district || ''
+        ].filter(Boolean).map(s => s.toString().trim()).filter(s => s.length > 0).join(', ') || null;
     };
+
+    const formatGuardianInfo = () => {
+        if (!registration?.guardian_name && !registration?.guardian_phone && !registration?.guardian_relation && !registration?.guardian_nid) {
+            return 'Not Applicable';
+        }
+        return [
+            registration?.guardian_name ? `Name: ${registration?.guardian_name}` : '',
+            registration?.guardian_relation ? `Relation: ${registration?.guardian_relation}` : '',
+            registration?.guardian_phone ? `Phone: ${registration?.guardian_phone}` : '',
+            registration?.guardian_nid ? `NID: ${registration?.guardian_nid}` : ''
+        ].filter(Boolean).join(', ') || 'Not Applicable';
+    };
+
+    const formatGuardianAddress = () => {
+        const address = joinAddr(
+            registration?.guardian_village_road ?? '',
+            registration?.guardian_post_office ?? '',
+            registration?.guardian_post_code ?? '',
+            registration?.guardian_upazila ?? '',
+            registration?.guardian_district ?? ''
+        );
+        return address || 'Not Applicable';
+    };
+
+    const formatDateLong = (dateStr: string) => {
+        if (!dateStr) return '';
+        let d: string, m: string, y: string;
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+            [d, m, y] = dateStr.split('/');
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            [y, m, d] = dateStr.split('-');
+        } else {
+            return dateStr;
+        }
+        const dateObj = new Date(`${y}-${m}-${d}`);
+        if (isNaN(dateObj.getTime())) return dateStr;
+        return dateObj.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    };
+
+    const formatMobileNumbers = () => {
+        return [
+            registration?.father_phone ?? '',
+            registration?.mother_phone ?? '',
+            registration?.guardian_phone ?? ''
+        ].filter(Boolean).join(', ') || 'No';
+    };
+
+    const formatJSCInfo = () => {
+        return [
+            registration?.jsc_board ? `Board: ${registration?.jsc_board}` : '',
+            registration?.jsc_passing_year ? `Passing Year: ${registration?.jsc_passing_year}` : '',
+            registration?.jsc_roll_no ? `Roll No: ${registration?.jsc_roll_no}` : 'Roll No: N/A'
+        ].filter(Boolean).join(', ') || null;
+    };
+
+    const formatAcademicSubjects = () => {
+        return [
+            registration?.group_class_nine ?? '',
+            registration?.main_subject ? `, ${registration?.main_subject}` : '',
+            registration?.fourth_subject ? `, 4th: ${registration?.fourth_subject}` : ''
+        ].map(s => s.trim()).filter(Boolean).join(' ') || null;
+    };
+
+    // const handleEditRegistration = () => {
+    //     if (registration?.id) {
+    //         navigate(`/edit-registration/${registration.id}`);
+    //     }
+    // };
 
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto p-6">
-                <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
+            <div className="flex justify-center items-center min-h-[60vh] bg-gray-50">
+                <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-blue-600"></div>
             </div>
         );
     }
 
     if (error || !registration) {
         return (
-            <div className="max-w-6xl mx-auto p-6">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <div className="flex justify-center items-center min-h-[60vh] bg-gray-50">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-8 shadow-lg max-w-md w-full text-center">
                     <h2 className="text-2xl font-bold text-red-600 mb-2">Error</h2>
                     <p className="text-red-700">{error || 'Registration not found'}</p>
                 </div>
@@ -182,99 +301,78 @@ function ConfirmationReg() {
         );
     }
 
-    // Show instructions after confirmation
     if (showInstructions) {
         return (
-            <div className="max-w-4xl mx-auto p-6">
-                <div className="bg-white shadow-lg rounded-lg overflow-hidden animate-fade-in">
-                    {/* Success Header */}
-                    <div className="bg-green-600 text-white p-8 text-center">
+            <div className="w-full min-h-[100vh] bg-gray-50 py-8 px-4">
+                <div className="max-w-4xl mx-auto animate-fade-in">
+                    <div className="bg-green-600 text-white p-8 text-center rounded-t-2xl">
                         <div className="animate-bounce mb-4">
                             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
                         <h1 className="text-3xl font-bold mb-2">Registration Confirmed!</h1>
-                        <p className="text-xl">Your SSC registration has been successfully confirmed.</p>
                     </div>
-
-                    {/* Instructions */}
-                    <div className="p-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Next Steps</h2>
-
-                        <div className="space-y-6">
-                            <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
-                                <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                                    📋 Step 1: Document Preparation
-                                </h3>
-                                <p className="text-blue-700">
+                    <div className="bg-white p-6 sm:p-8 space-y-6">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Next Steps</h2>
+                        <div className="space-y-4">
+                            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm">
+                                <h3 className="font-semibold text-blue-800 mb-1">📋 Step 1: Document Preparation</h3>
+                                <p className="text-blue-700 text-sm">
                                     Prepare all required documents including JSC certificate, birth certificate,
                                     recent passport-size photos, and other necessary papers as per school requirements.
                                 </p>
                             </div>
-
-                            <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-lg">
-                                <h3 className="text-lg font-semibold text-green-800 mb-2">
-                                    🏫 Step 2: Visit School Office
-                                </h3>
-                                <p className="text-green-700">
+                            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-sm">
+                                <h3 className="font-semibold text-green-800 mb-1">🏫 Step 2: Visit School Office</h3>
+                                <p className="text-green-700 text-sm">
                                     Visit the school office within the next 7 days with all required documents
                                     to complete the admission process and pay necessary fees.
                                 </p>
                             </div>
-
-                            <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-r-lg">
-                                <h3 className="text-lg font-semibold text-orange-800 mb-2">
-                                    💰 Step 3: Fee Payment
-                                </h3>
-                                <p className="text-orange-700">
+                            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg shadow-sm">
+                                <h3 className="font-semibold text-orange-800 mb-1">💰 Step 3: Fee Payment</h3>
+                                <p className="text-orange-700 text-sm">
                                     Complete the admission fee payment as per the fee structure.
                                     Receipt will be provided for your records.
                                 </p>
                             </div>
-
-                            
                         </div>
-
-                        {/* Contact Information */}
-                        <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-3">📞 Contact Information</h3>
-                            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
+                        <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-2 text-base">📞 Contact Information</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
                                 <div>
-                                    <p><strong>Office Hours:</strong> 9:00 AM - 4:00 PM</p>
-                                    <p><strong>Phone:</strong> +880-XXXX-XXXXX</p>
-                                </div>
-                                <div>
-                                    <p><strong>Email:</strong> info@school.edu.bd</p>
-                                    <p><strong>Address:</strong> School Address</p>
+                                    <p><strong>Phone:</strong> +880 1309-121983</p>
+                                    <p><strong>Email:</strong> lbpgovtschool@gmail.com</p>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Important Notes */}
-                        <div className="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                            <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Important Notes:</h4>
-                            <ul className="text-sm text-yellow-700 space-y-1">
+                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg shadow-sm">
+                            <h4 className="font-semibold text-yellow-800 mb-1">⚠️ Important Notes:</h4>
+                            <ul className="text-xs text-yellow-700 space-y-1">
                                 <li>• Keep your registration ID safe for future reference</li>
                                 <li>• Bring original documents along with photocopies</li>
                                 <li>• Late submission may result in cancellation of admission</li>
                                 <li>• For any queries, contact the school office</li>
                             </ul>
                         </div>
-
-                        {/* Action Buttons */}
-                        <div className="mt-8 text-center space-x-4">
+                        <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
                             <button
-                                onClick={() => window.print()}
-                                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                                onClick={handleDownloadPDF}
+                                disabled={downloadingPDF}
+                                className={`px-5 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shadow flex items-center justify-center ${downloadingPDF
+                                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
                             >
-                                Print Instructions
-                            </button>
-                            <button
-                                onClick={() => window.location.href = '/'}
-                                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
-                            >
-                                Go to Homepage
+                                {downloadingPDF ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                        Generating PDF...
+                                    </>
+                                ) : (
+                                    'Download PDF'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -284,247 +382,173 @@ function ConfirmationReg() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-6">
-            <div
-                className={`bg-white shadow-lg rounded-lg overflow-hidden transition-all duration-1000 ${isConfirmed ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
-                    }`}
-            >
-                {/* Header */}
-                <div className="bg-blue-600 text-white p-6">
-                    <h1 className="text-3xl font-bold">Registration Confirmation</h1>
-                    <p className="mt-2">Please review your information and confirm if everything is correct.</p>
-                    <div className="mt-4 flex gap-4 flex-wrap">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${registration.status === 'approved' ? 'bg-green-500' :
-                                registration.status === 'rejected' ? 'bg-red-500' :
-                                    'bg-yellow-500'
-                            }`}>
-                            Status: {registration.status.toUpperCase()}
-                        </span>
-                        <span className="px-3 py-1 bg-blue-500 rounded-full text-sm font-medium">
-                            SSC Batch: {registration.ssc_batch}
-                        </span>
-                        
-                    </div>
+        <div className="w-full min-h-[100vh] bg-gray-50 py-8 px-4">
+            <div className={`max-w-4xl mx-auto transition-all duration-1000 ${isConfirmed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
+                <div className="bg-gradient-to-r from-blue-600 to-blue-400 text-white p-6 sm:p-8 rounded-t-2xl">
+                    <h1 className="text-2xl sm:text-3xl font-bold">Registration Confirmation</h1>
+                    <p className="mt-2 text-sm sm:text-base">Please review your information and confirm if everything is correct.</p>
                 </div>
 
-                {/* Student Photo */}
                 {registration.photo_path && (
-                    <div className="p-6 border-b bg-gray-50">
-                        <h3 className="text-lg font-semibold mb-4">Student Photo</h3>
-                        <div className="flex justify-center">
-                            <img
-                                src={`${import.meta.env.VITE_BACKEND_URL}/${registration.photo_path}`}
-                                alt="Student Photo"
-                                className="w-32 h-32 object-cover border-2 border-gray-300 rounded-lg"
-                                onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                }}
-                            />
-                        </div>
+                    <div className="bg-white p-6 border-b border-gray-200 flex flex-col items-center">
+                        <h3 className="text-base font-semibold mb-2 text-gray-700">Student's Photo</h3>
+                        <img
+                            src={`${import.meta.env.VITE_BACKEND_URL}/${registration.photo_path}`}
+                            alt="Student Photo"
+                            className="w-28 h-28 object-cover border-2 border-gray-300 rounded-lg shadow"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
                     </div>
                 )}
 
-                {/* Registration Details Tables */}
-                <div className="p-6 space-y-8">
-
-                    {/* Basic Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Basic Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('Section', registration.section)}
-                                {renderTableRow('Roll Number', registration.roll)}
-                                {renderTableRow('Religion', registration.religion)}
-                                {renderTableRow('Student Name (English)', registration.student_name_en)}
-                                {renderTableRow('Student Name (Bangla)', registration.student_name_bn)}
-                                {renderTableRow('Nick Name (Bangla)', registration.student_nick_name_bn)}
-                                {renderTableRow('Birth Registration No', registration.birth_reg_no)}
-                                {renderTableRow('Email', registration.email)}
-                                {renderTableRow('Blood Group', registration.blood_group)}
-                            </tbody>
-                        </table>
+                <div className="bg-white p-4 sm:p-8 space-y-8">
+                    <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm">
+                        <span>Section: {registration.section || '-'}</span>
+                        <span>Roll No: {registration.roll || '-'}</span>
+                        <span>Religion: {registration.religion || '-'}</span>
+                        <span>JSC/JDC Regi. No: {registration.jsc_reg_no || '-'}</span>
                     </div>
 
-                    {/* Birth Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Birth Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('Birth Date', registration.birth_date)}
-                                {renderTableRow('Birth Year', registration.birth_year)}
-                                {renderTableRow('Birth Month', registration.birth_month)}
-                                {renderTableRow('Birth Day', registration.birth_day)}
-                            </tbody>
-                        </table>
-                    </div>
+                    <div className="grid gap-8">
+                        {/* Single comprehensive table matching PDF structure */}
+                        <div className="border border-gray-200 bg-white rounded-lg">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm table-fixed" style={{ minWidth: '600px' }}>
+                                    <tbody>
+                                        {/* Personal Information Section */}
+                                        {renderSectionHeader("ব্যক্তিগত তথ্য (Personal Information)")}
+                                        {renderTableRow("ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.student_name_bn)}
+                                        {renderTableRow("Student's Name (In Capital Letter):", registration.student_name_en)}
+                                        {renderTableRow("Birth Registration No. (In English):", registration.birth_reg_no)}
+                                        {renderTableRow("Date of Birth (According to JSC/JDC):", formatDateLong(registration.birth_date))}
+                                        {renderTableRow("Email Address:", registration.email || "No")}
+                                        {renderTableRow("Mobile No (s):", formatMobileNumbers())}
 
-                    {/* Parents Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Parents Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow("Father's Name (English)", registration.father_name_en)}
-                                {renderTableRow("Father's Name (Bangla)", registration.father_name_bn)}
-                                {renderTableRow("Father's NID", registration.father_nid)}
-                                {renderTableRow("Father's Phone", registration.father_phone)}
-                                {renderTableRow("Mother's Name (English)", registration.mother_name_en)}
-                                {renderTableRow("Mother's Name (Bangla)", registration.mother_name_bn)}
-                                {renderTableRow("Mother's NID", registration.mother_nid)}
-                                {renderTableRow("Mother's Phone", registration.mother_phone)}
-                            </tbody>
-                        </table>
-                    </div>
+                                        {/* Father's Information Section */}
+                                        {renderSectionHeader("পিতার তথ্য (Father's Information)")}
+                                        {renderTableRow("পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.father_name_bn)}
+                                        {renderTableRow("Father's Name (In Capital Letter):", registration.father_name_en)}
+                                        {renderTableRow("National ID Number (In English):", registration.father_nid)}
 
-                    {/* Present Address */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Present Address</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('District', registration.present_district)}
-                                {renderTableRow('Upazila', registration.present_upazila)}
-                                {renderTableRow('Post Office', registration.present_post_office)}
-                                {renderTableRow('Post Code', registration.present_post_code)}
-                                {renderTableRow('Village/Road', registration.present_village_road)}
-                            </tbody>
-                        </table>
-                    </div>
+                                        {/* Mother's Information Section */}
+                                        {renderSectionHeader("মাতার তথ্য (Mother's Information)")}
+                                        {renderTableRow("মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.mother_name_bn)}
+                                        {renderTableRow("Mother's Name (In Capital Letter):", registration.mother_name_en)}
+                                        {renderTableRow("National ID Number (In English):", registration.mother_nid)}
 
-                    {/* Permanent Address */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Permanent Address</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('District', registration.permanent_district)}
-                                {renderTableRow('Upazila', registration.permanent_upazila)}
-                                {renderTableRow('Post Office', registration.permanent_post_office)}
-                                {renderTableRow('Post Code', registration.permanent_post_code)}
-                                {renderTableRow('Village/Road', registration.permanent_village_road)}
-                            </tbody>
-                        </table>
-                    </div>
+                                        {/* Guardian's Information Section */}
+                                        {renderSectionHeader("অভিভাবকের তথ্য (Guardian's Information)")}
+                                        {renderTableRow("Guardian's Name:", formatGuardianInfo())}
+                                        {renderTableRow("Guardian's Address:", formatGuardianAddress())}
 
-                    {/* Guardian Information */}
-                    {(registration.guardian_name || registration.guardian_phone || registration.guardian_relation || registration.guardian_nid) && (
-                        <div>
-                            <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Guardian Information</h3>
-                            <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                                <tbody>
-                                    {renderTableRow('Guardian Name', registration.guardian_name)}
-                                    {renderTableRow('Guardian Phone', registration.guardian_phone)}
-                                    {renderTableRow('Guardian Relation', registration.guardian_relation)}
-                                    {renderTableRow('Guardian NID', registration.guardian_nid)}
-                                    {renderTableRow('Address Same as Permanent', registration.guardian_address_same_as_permanent)}
-                                    {!registration.guardian_address_same_as_permanent && (
-                                        <>
-                                            {renderTableRow('Guardian District', registration.guardian_district)}
-                                            {renderTableRow('Guardian Upazila', registration.guardian_upazila)}
-                                            {renderTableRow('Guardian Post Office', registration.guardian_post_office)}
-                                            {renderTableRow('Guardian Post Code', registration.guardian_post_code)}
-                                            {renderTableRow('Guardian Village/Road', registration.guardian_village_road)}
-                                        </>
-                                    )}
-                                </tbody>
-                            </table>
+                                        {/* Address Section */}
+                                        {renderSectionHeader("ঠিকানা (Address)")}
+                                        {renderTableRow("Permanent Address:", joinAddr(
+                                            registration.permanent_village_road,
+                                            registration.permanent_post_office,
+                                            registration.permanent_post_code,
+                                            registration.permanent_upazila,
+                                            registration.permanent_district
+                                        ))}
+                                        {renderTableRow("Present Address:", joinAddr(
+                                            registration.present_village_road,
+                                            registration.present_post_office,
+                                            registration.present_post_code,
+                                            registration.present_upazila,
+                                            registration.present_district
+                                        ))}
+
+                                        {/* Academic Information Section */}
+                                        {renderSectionHeader("শিক্ষাগত তথ্য (Academic Information)")}
+                                        {renderTableRow("Previous School Name & Address:", [
+                                            registration.prev_school_name,
+                                            registration.prev_school_upazila,
+                                            registration.prev_school_district
+                                        ].filter(Boolean).join(', ') || null)}
+                                        {renderTableRow("জেএসসি/জেডিসি'র তথ্য:", formatJSCInfo())}
+                                        {renderTableRow("আবশ্যিক ও ৪র্থ বিষয়:", formatAcademicSubjects())}
+                                        {renderTableRow("বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:", registration.nearby_nine_student_info)}
+
+                                        {/* Additional Information (if any missing fields exist) */}
+                                        {(registration.student_nick_name_bn || registration.blood_group) && (
+                                            <>
+                                                {renderSectionHeader("অতিরিক্ত তথ্য (Additional Information)")}
+                                                {registration.student_nick_name_bn && renderTableRow("ডাকনাম:", registration.student_nick_name_bn)}
+                                                {registration.blood_group && renderTableRow("Blood Group:", registration.blood_group)}
+                                            </>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    )}
-
-                    {/* Previous School Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Previous School Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('Previous School Name', registration.prev_school_name)}
-                                {renderTableRow('Previous School District', registration.prev_school_district)}
-                                {renderTableRow('Previous School Upazila', registration.prev_school_upazila)}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* JSC Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">JSC Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('JSC Passing Year', registration.jsc_passing_year)}
-                                {renderTableRow('JSC Board', registration.jsc_board)}
-                                {renderTableRow('JSC Registration No', registration.jsc_reg_no)}
-                                {renderTableRow('JSC Roll No', registration.jsc_roll_no)}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Academic Information */}
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Academic Information</h3>
-                        <table className="w-full border border-gray-300 rounded-lg overflow-hidden">
-                            <tbody>
-                                {renderTableRow('Group (Class Nine)', registration.group_class_nine)}
-                                {renderTableRow('Main Subject', registration.main_subject)}
-                                {renderTableRow('Fourth Subject', registration.fourth_subject)}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 p-6 text-center">
-                    <p className="text-gray-600 mb-4">
+                <div className="bg-white p-6 text-center rounded-b-2xl border-t border-gray-200">
+                    <p className="text-gray-600 mb-4 text-sm">
                         Please review all information carefully before confirming your registration.
                     </p>
-
-                    {/* Confirmation Button - Only show if not approved */}
                     {registration.status !== 'approved' ? (
                         <div className="mb-6">
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                                <p className="text-yellow-800 font-medium mb-2">
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 shadow-sm">
+                                <p className="text-yellow-800 font-medium mb-1">
                                     ⚠️ Please review all information carefully before confirming
                                 </p>
-                                <p className="text-yellow-700 text-sm">
+                                <p className="text-yellow-700 text-xs">
                                     Once confirmed, you cannot modify your registration details.
                                 </p>
                             </div>
-                            <button
-                                onClick={handleConfirmRegistration}
-                                disabled={confirming}
-                                className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 ${confirming
+                            <div className="flex flex-col sm:flex-row justify-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        if (registration?.id) {
+                                            window.location.href = `/registration/ssc/${registration.id}`;
+                                        }
+                                    }}
+                                    className="px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow bg-blue-600 hover:bg-blue-700 hover:shadow-lg text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center"
+                                >
+                                    <span className="mr-2">✏️</span>
+                                    Edit Registration
+                                </button>
+                                <button
+                                    onClick={handleConfirmRegistration}
+                                    disabled={confirming}
+                                    className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow ${confirming
                                         ? 'bg-gray-400 cursor-not-allowed'
                                         : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
-                                    } text-white text-lg`}
-                            >
-                                {confirming ? (
-                                    <div className="flex items-center">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                                        Confirming...
-                                    </div>
-                                ) : (
-                                    'Confirm Registration ✓'
-                                )}
-                            </button>
+                                        } text-white text-lg focus:outline-none focus:ring-2 focus:ring-green-400 flex items-center justify-center`}
+                                >
+                                    {confirming ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                                            Confirming...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="mr-2">✓</span>
+                                            Confirm Registration
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="mb-6">
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-sm">
                                 <p className="text-green-800 font-medium">
                                     ✅ Your registration has been confirmed
                                 </p>
                             </div>
                         </div>
                     )}
-
-                    <button
-                        onClick={() => window.print()}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        Print Registration Details
-                    </button>
                 </div>
             </div>
 
-            {/* Add CSS for animations */}
             <style>{`
                 @keyframes fade-in {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
+                    from { opacity: 0; transform: translateY(20px);}
+                    to { opacity: 1; transform: translateY(0);}
                 }
                 .animate-fade-in {
                     animation: fade-in 0.5s ease-out;

@@ -341,7 +341,7 @@ function Chart() {
                                             >ষষ্ঠ শ্রেণি</a></li>
                                             <li><a>সপ্তম শ্রেণি</a></li>
                                             <li><a>অষ্টম শ্রেণি</a></li>
-                                            <li><Link to={'/registration/ssc'}>নবম শ্রেণি</Link></li>
+                                            <li><Link to={'/reg/ssc'}>নবম শ্রেণি</Link></li>
                                             <li><a >দশম শ্রেণি</a></li>
                                         </ul>
                                     </div>

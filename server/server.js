@@ -103,7 +103,7 @@ app.use("/api/syllabus", syllabusRoutes);
 app.use("/api/class-routine", classRoutineRouter);
 app.use("/api/file-upload", fileUploadRouter);
 app.use("/api/reg/ssc", regSSCRouter);
-app.use("/api/student-registration", studentRegistrationRouter);
+app.use("/api/reg/ssc/form", studentRegistrationRouter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
