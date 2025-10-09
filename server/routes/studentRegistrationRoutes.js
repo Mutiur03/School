@@ -11,9 +11,10 @@ import {
   deleteRegistration,
   exportRegistrations,
   exportImages,
+  downloadRegistrationPDF,
 } from "../controllers/studentRegistrationController.js";
 
-const studentRegistrationRouter = router.Router();
+const studentRegistrationRouter = router.Router(); 
 
 // Simplified multer setup for temporary storage
 const upload = multer({
@@ -56,6 +57,7 @@ studentRegistrationRouter.get("/", getAllRegistrations);
 studentRegistrationRouter.get("/export", exportRegistrations);
 studentRegistrationRouter.get("/export-images", exportImages);
 studentRegistrationRouter.get("/:id", getRegistrationById);
+studentRegistrationRouter.get("/:id/pdf", downloadRegistrationPDF);
 studentRegistrationRouter.put("/:id/status", updateRegistrationStatus);
 studentRegistrationRouter.put(
   "/:id",

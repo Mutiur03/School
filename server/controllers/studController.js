@@ -901,13 +901,14 @@ export const getClassStudentsController = async (_req, res) => {
       });
     }
 
-    const formattedResult = result.flatMap((student) =>
-      student.enrollments.map((enrollment) => ({
-        ...student,
+    const formattedResult = result.flatMap((student) => {
+      const { password, ...studentWithoutPassword } = student;
+      return student.enrollments.map((enrollment) => ({
+        ...studentWithoutPassword,
         ...enrollment,
         enrollment_id: enrollment.id,
-      }))
-    );
+      }));
+    });
 
     console.log(`Formatted ${formattedResult.length} student enrollments`);
 

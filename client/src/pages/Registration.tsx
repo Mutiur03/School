@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useReducer } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { districts, getUpazilasByDistrict } from '../lib/location'
+import { fetchSSCRegData, type SSCRegData } from '../lib/api'
 import axios from 'axios'
 
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -8,6 +10,39 @@ const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const Error: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="text-red-600 text-sm">{children}</div>
 )
+
+type Duplicate = {
+    message: string
+    existingRecord?: {
+        id?: string | number
+    }
+}
+
+const DuplicateWarning: React.FC<{ duplicates: Duplicate[] }> = ({ duplicates }) => (
+    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+                <h3 className="text-yellow-800 font-semibold mb-2">Duplicate Information Detected</h3>
+                <div className="space-y-2">
+                    {duplicates.map((duplicate, index) => (
+                        <div key={index} className="text-yellow-700 text-sm">
+                            <p className="font-medium">{duplicate.message}</p>
+                            {/* {duplicate.existingRecord && (
+                                <p className="text-xs text-yellow-600 mt-1">
+                                    Existing Record ID: {duplicate.existingRecord.id}
+                                </p>
+                            )} */}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+)
+
 type FormState = {
     studentNameEn: string
     studentNameBn: string
@@ -61,6 +96,7 @@ type FormState = {
     groupClassNine: string
     mainSubject: string
     fourthSubject: string
+    nearbyNineStudentInfo: string
 }
 
 const FieldRow: React.FC<{
@@ -99,62 +135,89 @@ const SectionHeader: React.FC<{ step: number, title: string }> = ({ step, title 
     </div>
 )
 
+// --- useReducer setup for form state ---
+type FormAction =
+    | { type: 'SET_FIELD', name: string, value: string | boolean | File | null }
+    | { type: 'SET_FIELDS', fields: Partial<FormState> }
+    | { type: 'RESET', payload?: Partial<FormState> }
+
+const initialFormState: FormState = {
+    studentNameEn: '',
+    studentNameBn: '',
+    studentNickNameBn: '',
+    fatherNameEn: '',
+    fatherNameBn: '',
+    motherNameEn: '',
+    motherNameBn: '',
+    fatherNid: '',
+    motherNid: '',
+    fatherPhone: '',
+    motherPhone: '',
+    birthDate: '',
+    bloodGroup: '',
+    birthRegNo: '',
+    email: '',
+    presentDistrict: '',
+    presentUpazila: '',
+    presentPostOffice: '',
+    presentPostCode: '',
+    presentVillageRoad: '',
+    permanentDistrict: '',
+    permanentUpazila: '',
+    permanentPostOffice: '',
+    permanentPostCode: '',
+    permanentVillageRoad: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
+    photo: null,
+    section: '',
+    roll: '',
+    religion: '',
+    guardianName: '',
+    guardianPhone: '',
+    guardianRelation: '',
+    guardianNid: '',
+    guardianAddressSameAsPermanent: false,
+    guardianDistrict: '',
+    guardianUpazila: '',
+    guardianPostOffice: '',
+    guardianPostCode: '',
+    guardianVillageRoad: '',
+    prevSchoolName: '',
+    prevSchoolDistrict: '',
+    prevSchoolUpazila: '',
+    jscPassingYear: '',
+    jscBoard: '',
+    jscRegNo: '',
+    jscRollNo: '',
+    groupClassNine: '',
+    mainSubject: '',
+    fourthSubject: '',
+    nearbyNineStudentInfo: '',
+}
+
+function formReducer(state: FormState, action: FormAction): FormState {
+    switch (action.type) {
+        case 'SET_FIELD':
+            return { ...state, [action.name]: action.value }
+        case 'SET_FIELDS':
+            return { ...state, ...action.fields }
+        case 'RESET':
+            return { ...initialFormState, ...action.payload }
+        default:
+            return state
+    }
+}
+
 function Registration() {
-    const [form, setForm] = useState<FormState>({
-        studentNameEn: '',
-        studentNameBn: '',
-        studentNickNameBn: '',
-        fatherNameEn: '',
-        fatherNameBn: '',
-        motherNameEn: '',
-        motherNameBn: '',
-        fatherNid: '',
-        motherNid: '',
-        fatherPhone: '',
-        motherPhone: '',
-        birthDate: '',
-        bloodGroup: '',
-        birthRegNo: '',
-        email: '',
-        presentDistrict: '',
-        presentUpazila: '',
-        presentPostOffice: '',
-        presentPostCode: '',
-        presentVillageRoad: '',
-        permanentDistrict: '',
-        permanentUpazila: '',
-        permanentPostOffice: '',
-        permanentPostCode: '',
-        permanentVillageRoad: '',
-        birthYear: '',
-        birthMonth: '',
-        birthDay: '',
-        photo: null,
-        section: '',
-        roll: '',
-        religion: '',
-        guardianName: '',
-        guardianPhone: '',
-        guardianRelation: '',
-        guardianNid: '',
-        guardianAddressSameAsPermanent: false,
-        guardianDistrict: '',
-        guardianUpazila: '',
-        guardianPostOffice: '',
-        guardianPostCode: '',
-        guardianVillageRoad: '',
-        prevSchoolName: '',
-        prevSchoolDistrict: '',
-        prevSchoolUpazila: '',
-        jscPassingYear: '',
-        jscBoard: '',
-        jscRegNo: '',
-        jscRollNo: '',
-        groupClassNine: '',
-        mainSubject: '',
-        fourthSubject: '',
-    })
+    const navigate = useNavigate()
+    const { id } = useParams()
+    const isEditMode = Boolean(id)
+
+    const [form, dispatch] = useReducer(formReducer, initialFormState)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [duplicates, setDuplicates] = useState<Duplicate[]>([])
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [success, setSuccess] = useState('')
     const [sameAddress, setSameAddress] = useState(false)
@@ -164,43 +227,265 @@ function Registration() {
     const [guardianUpazillas, setGuardianUpazillas] = useState<{ id: string; name: string }[]>([])
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(false)
+    const [initialLoading, setInitialLoading] = useState(true) // Always start with loading
+    const [shouldNavigate, setShouldNavigate] = useState(false) // Add navigation state
+    const [sscRegData, setSSCRegData] = useState<SSCRegData | null>(null)
+    const [availableRolls, setAvailableRolls] = useState<string[]>([])
+    const [classNineStudents, setClassNineStudents] = useState<{ name: string, roll: string, section: string }[]>([])
+    const [registrationClosed, setRegistrationClosed] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
+
+    useEffect(() => {
+        const initializeData = async () => {
+            try {
+                setInitialLoading(true)
+
+                const regStatusResponse = await axios.get('/api/reg/ssc')
+                if (regStatusResponse.data.success) {
+                    const { reg_open } = regStatusResponse.data.data
+
+                    if (!reg_open) {
+                        setRegistrationClosed(true)
+                        setShouldNavigate(true)
+                        navigate('/', { replace: true })
+                        return
+                    }
+                } else {
+                    // if (!isEditMode) {
+                    //     setRegistrationClosed(true)
+                    //     setShouldNavigate(true)
+                    navigate('/', { replace: true })
+                    return
+                    // }
+                }
+
+                const current_year = new Date().getFullYear()
+                const nine_list = await axios.get(`/api/students/getStudentsByClass/${current_year}/${9}/`)
+                setClassNineStudents(nine_list.data.data)
+                const data = await fetchSSCRegData()
+                setSSCRegData(data)
+
+                if (isEditMode && id) {
+                    const response = await axios.get(`/api/reg/ssc/form/${id}`)
+
+                    if (response.data.success) {
+                        const data = response.data.data
+                        if (data.status !== 'pending') {
+                            setShouldNavigate(true)
+                            navigate('/registration/ssc/confirm/' + id, { replace: true })
+                            return
+                        }
+
+                        // --- PATCH: Set districts first, then upazila after options loaded ---
+                        // Pre-populate form with existing data
+                        const formData = {
+                            studentNameEn: data.student_name_en || '',
+                            studentNameBn: data.student_name_bn || '',
+                            studentNickNameBn: data.student_nick_name_bn || '',
+                            fatherNameEn: data.father_name_en || '',
+                            fatherNameBn: data.father_name_bn || '',
+                            motherNameEn: data.mother_name_en || '',
+                            motherNameBn: data.mother_name_bn || '',
+                            fatherNid: data.father_nid || '',
+                            motherNid: data.mother_nid || '',
+                            fatherPhone: data.father_phone || '',
+                            motherPhone: data.mother_phone || '',
+                            birthDate: data.birth_date || '',
+                            bloodGroup: data.blood_group || '',
+                            birthRegNo: data.birth_reg_no || '',
+                            email: data.email || '',
+                            presentDistrict: data.present_district || '',
+                            presentUpazila: data.present_upazila || '',
+                            presentPostOffice: data.present_post_office || '',
+                            presentPostCode: data.present_post_code || '',
+                            presentVillageRoad: data.present_village_road || '',
+                            permanentDistrict: data.permanent_district || '',
+                            permanentUpazila: data.permanent_upazila || '',
+                            permanentPostOffice: data.permanent_post_office || '',
+                            permanentPostCode: data.permanent_post_code || '',
+                            permanentVillageRoad: data.permanent_village_road || '',
+                            birthYear: data.birth_year || '',
+                            birthMonth: data.birth_month || '',
+                            birthDay: data.birth_day || '',
+                            photo: null,
+                            section: data.section || '',
+                            roll: data.roll || '',
+                            religion: data.religion || '',
+                            guardianName: data.guardian_name || '',
+                            guardianPhone: data.guardian_phone || '',
+                            guardianRelation: data.guardian_relation || '',
+                            guardianNid: data.guardian_nid || '',
+                            guardianAddressSameAsPermanent: data.guardian_address_same_as_permanent || false,
+                            guardianDistrict: data.guardian_district || '',
+                            guardianUpazila: data.guardian_upazila || '',
+                            guardianPostOffice: data.guardian_post_office || '',
+                            guardianPostCode: data.guardian_post_code || '',
+                            guardianVillageRoad: data.guardian_village_road || '',
+                            prevSchoolName: data.prev_school_name || '',
+                            prevSchoolDistrict: data.prev_school_district || '',
+                            prevSchoolUpazila: data.prev_school_upazila || '',
+                            jscPassingYear: data.jsc_passing_year || '',
+                            jscBoard: data.jsc_board || '',
+                            jscRegNo: data.jsc_reg_no || '',
+                            jscRollNo: data.jsc_roll_no || '',
+                            groupClassNine: data.group_class_nine || '',
+                            mainSubject: data.main_subject || '',
+                            fourthSubject: data.fourth_subject || '',
+                            nearbyNineStudentInfo: data.nearby_nine_student_info || '',
+                        }
+
+                        // Set only district fields first
+                        dispatch({ type: 'SET_FIELDS', fields: formData })
+
+                        // Set upazila fields after upazila options are loaded
+                        setTimeout(() => {
+                            dispatch({
+                                type: 'SET_FIELDS',
+                                fields: {
+                                    presentUpazila: data.present_upazila || '',
+                                    permanentUpazila: data.permanent_upazila || '',
+                                    prevSchoolUpazila: data.prev_school_upazila || '',
+                                    guardianUpazila: data.guardian_upazila || '',
+                                    // Set the rest of the fields
+                                    presentPostOffice: data.present_post_office || '',
+                                    presentPostCode: data.present_post_code || '',
+                                    presentVillageRoad: data.present_village_road || '',
+                                    permanentPostOffice: data.permanent_post_office || '',
+                                    permanentPostCode: data.permanent_post_code || '',
+                                    permanentVillageRoad: data.permanent_village_road || '',
+                                    prevSchoolName: data.prev_school_name || '',
+                                    jscPassingYear: data.jsc_passing_year || '',
+                                    jscBoard: data.jsc_board || '',
+                                    jscRegNo: data.jsc_reg_no || '',
+                                    jscRollNo: data.jsc_roll_no || '',
+                                    groupClassNine: data.group_class_nine || '',
+                                    mainSubject: data.main_subject || '',
+                                    fourthSubject: data.fourth_subject || '',
+                                    nearbyNineStudentInfo: data.nearby_nine_student_info || '',
+                                    // ...other fields as needed...
+                                }
+                            })
+                        }, 0)
+
+                        // Load upazilla options first
+                        if (formData.presentDistrict) {
+                            setPresentUpazillas(getUpazilasByDistrict(formData.presentDistrict))
+                        }
+                        if (formData.permanentDistrict) {
+                            setPermanentUpazillas(getUpazilasByDistrict(formData.permanentDistrict))
+                        }
+                        if (formData.prevSchoolDistrict) {
+                            setPrevSchoolUpazilas(getUpazilasByDistrict(formData.prevSchoolDistrict))
+                        }
+                        if (formData.guardianDistrict) {
+                            setGuardianUpazillas(getUpazilasByDistrict(formData.guardianDistrict))
+                        }
+
+                        if (data.guardian_name) {
+                            setGuardianNotFather(true)
+                        }
+
+                        if (data.present_district === data.permanent_district &&
+                            data.present_upazila === data.permanent_upazila &&
+                            data.present_post_office === data.permanent_post_office) {
+                            setSameAddress(true)
+                        }
+                        if (data.permanent_district === data.guardian_district &&
+                            data.permanent_upazila === data.guardian_upazila &&
+                            data.permanent_post_office === data.guardian_post_office
+                        ) {
+                            dispatch({ type: 'SET_FIELD', name: 'guardianAddressSameAsPermanent', value: true })
+                        }
+                        if (data.photo_path) {
+                            try {
+                                const host = import.meta.env.VITE_BACKEND_URL;
+                                setPhotoPreview(`${host}/${data.photo_path}`)
+                            } catch (photoError) {
+                                console.warn('Could not load existing photo:', photoError)
+                            }
+                        }
+                    } else {
+                        setShouldNavigate(true)
+                        navigate('/registration/ssc', { replace: true })
+                        return
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to initialize data:', error)
+                if (isEditMode) {
+                    setShouldNavigate(true)
+                    navigate('/registration/ssc', { replace: true })
+                    return
+                } else {
+                    // If there's an error and not in edit mode, redirect to homepage
+                    setShouldNavigate(true)
+                    navigate('/', { replace: true })
+                    return
+                }
+            } finally {
+                setInitialLoading(false)
+            }
+        }
+
+        initializeData()
+    }, [isEditMode, id, navigate])
 
     useEffect(() => {
         const selectedDistrictId = form.presentDistrict
         if (!selectedDistrictId) {
             setPresentUpazillas([])
-            setForm(prev => ({ ...prev, presentUpazila: '' }))
+            // Only clear upazila if not in initial loading phase
+            if (!initialLoading) {
+                dispatch({ type: 'SET_FIELD', name: 'presentUpazila', value: '' })
+            }
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPresentUpazillas(upazilas)
-        setForm(prev => ({ ...prev, presentUpazila: '' }))
-    }, [form.presentDistrict])
+
+        // Only clear upazila if not in initial loading phase
+        if (!initialLoading) {
+            dispatch({ type: 'SET_FIELD', name: 'presentUpazila', value: '' })
+        }
+    }, [form.presentDistrict, initialLoading])
 
     useEffect(() => {
         const selectedDistrictId = form.permanentDistrict
         if (!selectedDistrictId) {
             setPermanentUpazillas([])
-            setForm(prev => ({ ...prev, permanentUpazila: '' }))
+            // Only clear upazila if not in initial loading phase
+            if (!initialLoading) {
+                dispatch({ type: 'SET_FIELD', name: 'permanentUpazila', value: '' })
+            }
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPermanentUpazillas(upazilas)
-        setForm(prev => ({ ...prev, permanentUpazila: '' }))
-    }, [form.permanentDistrict])
+
+        // Only clear upazila if not in initial loading phase
+        if (!initialLoading) {
+            dispatch({ type: 'SET_FIELD', name: 'permanentUpazila', value: '' })
+        }
+    }, [form.permanentDistrict, initialLoading])
 
     useEffect(() => {
         const selectedDistrictId = form.prevSchoolDistrict
         if (!selectedDistrictId) {
             setPrevSchoolUpazilas([])
-            setForm(prev => ({ ...prev, prevSchoolUpazila: '' }))
+            // Only clear upazila if not in initial loading phase
+            if (!initialLoading) {
+                dispatch({ type: 'SET_FIELD', name: 'prevSchoolUpazila', value: '' })
+            }
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPrevSchoolUpazilas(upazilas)
-        setForm(prev => ({ ...prev, prevSchoolUpazila: '' }))
-    }, [form.prevSchoolDistrict])
+
+        // Only clear upazila if not in initial loading phase
+        if (!initialLoading) {
+            dispatch({ type: 'SET_FIELD', name: 'prevSchoolUpazila', value: '' })
+        }
+    }, [form.prevSchoolDistrict, initialLoading])
 
     const currentYear = new Date().getFullYear()
     const minYear = currentYear - 12
@@ -256,30 +541,34 @@ function Registration() {
         if (form.birthRegNo && form.birthRegNo.length >= 4) {
             const year = form.birthRegNo.slice(0, 4)
             if (/^\d{4}$/.test(year) && years.includes(year)) {
-                setForm(prev => ({
-                    ...prev,
-                    birthYear: year,
-                    birthMonth: prev.birthMonth,
-                    birthDay: prev.birthDay
-                }))
+                dispatch({
+                    type: 'SET_FIELDS',
+                    fields: {
+                        birthYear: year,
+                        birthMonth: form.birthMonth,
+                        birthDay: form.birthDay
+                    }
+                })
             } else {
-                setForm(prev => ({ ...prev, birthYear: '', birthMonth: '', birthDay: '' }))
+                dispatch({ type: 'SET_FIELDS', fields: { birthYear: '', birthMonth: '', birthDay: '' } })
             }
         } else if (form.birthYear !== '') {
-            setForm(prev => ({ ...prev, birthYear: '', birthMonth: '', birthDay: '' }))
+            dispatch({ type: 'SET_FIELDS', fields: { birthYear: '', birthMonth: '', birthDay: '' } })
         }
     }, [form.birthRegNo])
 
     useEffect(() => {
         if (guardianNotFather && form.guardianAddressSameAsPermanent) {
-            setForm(prev => ({
-                ...prev,
-                guardianDistrict: form.permanentDistrict,
-                guardianUpazila: form.permanentUpazila,
-                guardianPostOffice: form.permanentPostOffice,
-                guardianPostCode: form.permanentPostCode,
-                guardianVillageRoad: form.permanentVillageRoad,
-            }))
+            dispatch({
+                type: 'SET_FIELDS',
+                fields: {
+                    guardianDistrict: form.permanentDistrict,
+                    guardianUpazila: form.permanentUpazila,
+                    guardianPostOffice: form.permanentPostOffice,
+                    guardianPostCode: form.permanentPostCode,
+                    guardianVillageRoad: form.permanentVillageRoad,
+                }
+            })
         }
     }, [
         guardianNotFather,
@@ -299,13 +588,19 @@ function Registration() {
         const selectedDistrictId = form.guardianDistrict
         if (!selectedDistrictId) {
             setGuardianUpazillas([])
-            setForm(prev => ({ ...prev, guardianUpazila: '' }))
+            // Only clear upazila if not in initial loading phase
+            if (!initialLoading) {
+                dispatch({ type: 'SET_FIELD', name: 'guardianUpazila', value: '' })
+            }
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setGuardianUpazillas(upazilas)
-        setForm(prev => ({ ...prev, guardianUpazila: '' }))
-    }, [guardianNotFather, form.guardianDistrict, form.guardianAddressSameAsPermanent])
+        // Only clear upazila if not in initial loading phase
+        if (!initialLoading) {
+            dispatch({ type: 'SET_FIELD', name: 'guardianUpazila', value: '' })
+        }
+    }, [guardianNotFather, form.guardianDistrict, form.guardianAddressSameAsPermanent, initialLoading])
 
     function isBanglaField(name: string) {
         return (
@@ -364,45 +659,53 @@ function Registration() {
         }
         if (name === 'birthYear') return
 
-        setForm(prev => {
-            const updated = { ...prev, [name]: type === 'checkbox' ? checked : value }
-            if (name === 'birthMonth') {
-                updated.birthDay = ''
+        dispatch({ type: 'SET_FIELD', name, value: type === 'checkbox' ? checked : value })
+
+        if (name === 'birthMonth') {
+            dispatch({ type: 'SET_FIELD', name: 'birthDay', value: '' })
+        }
+        if (sameAddress) {
+            if (name === 'permanentDistrict') {
+                dispatch({ type: 'SET_FIELD', name: 'presentDistrict', value })
             }
-            if (sameAddress) {
-                if (name === 'permanentDistrict') {
-                    updated.presentDistrict = value
-                }
-                if (name === 'permanentUpazila') {
-                    updated.presentUpazila = value
-                }
-                if (name === 'permanentPostOffice') {
-                    updated.presentPostOffice = value
-                }
-                if (name === 'permanentPostCode') {
-                    updated.presentPostCode = value
-                }
-                if (name === 'permanentVillageRoad') {
-                    updated.presentVillageRoad = value
-                }
+            if (name === 'permanentUpazila') {
+                dispatch({ type: 'SET_FIELD', name: 'presentUpazila', value })
             }
-            if (guardianNotFather && name === 'guardianAddressSameAsPermanent') {
-                if (checked) {
-                    updated.guardianDistrict = prev.permanentDistrict
-                    updated.guardianUpazila = prev.permanentUpazila
-                    updated.guardianPostOffice = prev.permanentPostOffice
-                    updated.guardianPostCode = prev.permanentPostCode
-                    updated.guardianVillageRoad = prev.permanentVillageRoad
-                } else {
-                    updated.guardianDistrict = ''
-                    updated.guardianUpazila = ''
-                    updated.guardianPostOffice = ''
-                    updated.guardianPostCode = ''
-                    updated.guardianVillageRoad = ''
-                }
+            if (name === 'permanentPostOffice') {
+                dispatch({ type: 'SET_FIELD', name: 'presentPostOffice', value })
             }
-            return updated
-        })
+            if (name === 'permanentPostCode') {
+                dispatch({ type: 'SET_FIELD', name: 'presentPostCode', value })
+            }
+            if (name === 'permanentVillageRoad') {
+                dispatch({ type: 'SET_FIELD', name: 'presentVillageRoad', value })
+            }
+        }
+        if (guardianNotFather && name === 'guardianAddressSameAsPermanent') {
+            if (checked) {
+                dispatch({
+                    type: 'SET_FIELDS',
+                    fields: {
+                        guardianDistrict: form.permanentDistrict,
+                        guardianUpazila: form.permanentUpazila,
+                        guardianPostOffice: form.permanentPostOffice,
+                        guardianPostCode: form.permanentPostCode,
+                        guardianVillageRoad: form.permanentVillageRoad,
+                    }
+                })
+            } else {
+                dispatch({
+                    type: 'SET_FIELDS',
+                    fields: {
+                        guardianDistrict: '',
+                        guardianUpazila: '',
+                        guardianPostOffice: '',
+                        guardianPostCode: '',
+                        guardianVillageRoad: '',
+                    }
+                })
+            }
+        }
         setErrors(prev => ({ ...prev, [name]: '' }))
     }
 
@@ -418,7 +721,7 @@ function Registration() {
             setErrors(prev => ({ ...prev, [name]: 'File must be smaller than 2MB' }))
             return
         }
-        setForm(prev => ({ ...prev, photo: file }))
+        dispatch({ type: 'SET_FIELD', name, value: file })
         const reader = new FileReader()
         reader.onload = () => setPhotoPreview(reader.result as string)
         reader.readAsDataURL(file)
@@ -455,7 +758,11 @@ function Registration() {
             }
         }
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address'
-        if (!form.photo) e.photo = 'Student photo is required'
+
+        // In edit mode, photo is not required if it already exists
+        if (!isEditMode && !form.photo) {
+            e.photo = 'Student photo is required'
+        }
 
         // Father NID and mobile validation - always required
         if (!form.fatherNid.trim()) {
@@ -520,6 +827,7 @@ function Registration() {
         if (!form.groupClassNine) e.groupClassNine = 'Group in class nine is required'
         if (!form.mainSubject) e.mainSubject = 'Main subject is required'
         if (!form.fourthSubject) e.fourthSubject = '4th subject is required'
+        if (!form.nearbyNineStudentInfo.trim()) e.nearbyNineStudentInfo = 'This field is required'
 
         setErrors(e)
         if (Object.keys(e).length > 0) {
@@ -531,6 +839,8 @@ function Registration() {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setSuccess('')
+        setDuplicates([]) // Clear previous duplicate warnings
+
         const valid = validate()
         if (!valid) {
             setTimeout(() => {
@@ -549,10 +859,8 @@ function Registration() {
         setLoading(true)
 
         try {
-            // Create FormData for file upload
             const formData = new FormData()
 
-            // Add all form fields to FormData
             formData.append('section', form.section)
             formData.append('roll', form.roll)
             formData.append('religion', form.religion)
@@ -561,7 +869,6 @@ function Registration() {
             formData.append('studentNameEn', form.studentNameEn)
             formData.append('birthRegNo', form.birthRegNo)
 
-            // Parents Information
             formData.append('fatherNameBn', form.fatherNameBn)
             formData.append('fatherNameEn', form.fatherNameEn)
             formData.append('fatherNid', form.fatherNid)
@@ -571,8 +878,7 @@ function Registration() {
             formData.append('motherNid', form.motherNid)
             formData.append('motherPhone', form.motherPhone)
 
-            // Birth Information
-            const birthDate = `${form.birthYear}-${form.birthMonth}-${form.birthDay}`
+            const birthDate = `${form.birthDay}/${form.birthMonth}/${form.birthYear}`
             formData.append('birthDate', birthDate)
             formData.append('birthYear', form.birthYear)
             formData.append('birthMonth', form.birthMonth)
@@ -580,7 +886,6 @@ function Registration() {
             formData.append('bloodGroup', form.bloodGroup)
             formData.append('email', form.email)
 
-            // Address Information
             formData.append('presentDistrict', form.presentDistrict)
             formData.append('presentUpazila', form.presentUpazila)
             formData.append('presentPostOffice', form.presentPostOffice)
@@ -601,132 +906,111 @@ function Registration() {
                 formData.append('guardianNid', form.guardianNid || '')
                 formData.append('guardianAddressSameAsPermanent', form.guardianAddressSameAsPermanent?.toString() || 'false')
 
-                if (!form.guardianAddressSameAsPermanent) {
-                    formData.append('guardianDistrict', form.guardianDistrict || '')
-                    formData.append('guardianUpazila', form.guardianUpazila || '')
-                    formData.append('guardianPostOffice', form.guardianPostOffice || '')
-                    formData.append('guardianPostCode', form.guardianPostCode || '')
-                    formData.append('guardianVillageRoad', form.guardianVillageRoad || '')
-                }
+                // if (!form.guardianAddressSameAsPermanent) {
+                formData.append('guardianDistrict', form.guardianDistrict || '')
+                formData.append('guardianUpazila', form.guardianUpazila || '')
+                formData.append('guardianPostOffice', form.guardianPostOffice || '')
+                formData.append('guardianPostCode', form.guardianPostCode || '')
+                formData.append('guardianVillageRoad', form.guardianVillageRoad || '')
+                // }
             }
 
-            // Previous School Information
             formData.append('prevSchoolName', form.prevSchoolName)
             formData.append('prevSchoolDistrict', form.prevSchoolDistrict)
             formData.append('prevSchoolUpazila', form.prevSchoolUpazila)
 
-            // JSC Information
             formData.append('jscPassingYear', form.jscPassingYear)
             formData.append('jscBoard', form.jscBoard)
             formData.append('jscRegNo', form.jscRegNo)
             formData.append('jscRollNo', form.jscRollNo)
 
-            // Class Nine Information
             formData.append('groupClassNine', form.groupClassNine)
             formData.append('mainSubject', form.mainSubject)
             formData.append('fourthSubject', form.fourthSubject)
+            formData.append('nearbyNineStudentInfo', form.nearbyNineStudentInfo)
 
-            // Add photo file if present
             if (form.photo) {
                 formData.append('photo', form.photo)
             }
+            console.log('Submitting form data:', Object.fromEntries(formData.entries()));
 
-            // Submit to API using axios
-            const response = await axios.post('/api/student-registration', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            })
+            // Determine API endpoint and method
+            let response
+            if (isEditMode) {
+                // Update existing registration
+                response = await axios.put(`/api/reg/ssc/form/${id}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                })
+            } else {
+                // Create new registration
+                response = await axios.post('/api/reg/ssc/form', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                })
+            }
 
             const result = response.data
 
             if (result.success) {
-                setSuccess(`Registration submitted successfully! Your registration ID is: ${result.data.id}. Status: ${result.data.status}`)
+                const successMessage = isEditMode
+                    ? `Registration updated successfully! Registration ID: ${id}`
+                    : `Registration submitted successfully! Your registration ID is: ${result.data.id}. Status: ${result.data.status}`
 
-                // Reset form on successful submission
-                setForm({
-                    studentNameEn: '',
-                    studentNameBn: '',
-                    studentNickNameBn: '',
-                    fatherNameEn: '',
-                    fatherNameBn: '',
-                    motherNameEn: '',
-                    motherNameBn: '',
-                    fatherNid: '',
-                    motherNid: '',
-                    fatherPhone: '',
-                    motherPhone: '',
-                    birthDate: '',
-                    bloodGroup: '',
-                    birthRegNo: '',
-                    email: '',
-                    presentDistrict: '',
-                    presentUpazila: '',
-                    presentPostOffice: '',
-                    presentPostCode: '',
-                    presentVillageRoad: '',
-                    permanentDistrict: '',
-                    permanentUpazila: '',
-                    permanentPostOffice: '',
-                    permanentPostCode: '',
-                    permanentVillageRoad: '',
-                    birthYear: '',
-                    birthMonth: '',
-                    birthDay: '',
-                    photo: null,
-                    section: '',
-                    roll: '',
-                    religion: '',
-                    guardianName: '',
-                    guardianPhone: '',
-                    guardianRelation: '',
-                    guardianNid: '',
-                    guardianAddressSameAsPermanent: false,
-                    guardianDistrict: '',
-                    guardianUpazila: '',
-                    guardianPostOffice: '',
-                    guardianPostCode: '',
-                    guardianVillageRoad: '',
-                    prevSchoolName: '',
-                    prevSchoolDistrict: '',
-                    prevSchoolUpazila: '',
-                    jscPassingYear: '',
-                    jscBoard: '',
-                    jscRegNo: '',
-                    jscRollNo: '',
-                    groupClassNine: '',
-                    mainSubject: '',
-                    fourthSubject: '',
-                })
+                setSuccess(successMessage)
 
-                setPhotoPreview(null)
-                setErrors({})
-                setSameAddress(false)
-                setGuardianNotFather(false)
+                if (!isEditMode) {
+                    dispatch({ type: 'RESET' })
+                    setPhotoPreview(null)
+                    setErrors({})
+                    setSameAddress(false)
+                    setGuardianNotFather(false)
+                    navigate(`/registration/ssc/confirm/${result.data.id}`)
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                    navigate(`/registration/ssc/confirm/${result.data.id}`)
 
-                // Scroll to top to show success message
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-
+                }
             } else {
-                // Handle validation errors from server
+                if (result.duplicates && result.duplicates.length > 0) {
+                    setDuplicates(result.duplicates)
+                }
+
                 if (result.error && typeof result.error === 'object') {
                     setErrors(result.error)
                 } else {
-                    setErrors({ general: result.message || 'Registration failed. Please try again.' })
+                    const errorMessage = isEditMode
+                        ? 'Update failed. Please try again.'
+                        : 'Registration failed. Please try again.'
+                    setErrors({ general: result.message || errorMessage })
+                }
+
+                if (result.duplicates && result.duplicates.length > 0) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
                 }
             }
 
         } catch (error) {
             console.error('Registration submission error:', error)
 
-            // Handle axios error response
             if (axios.isAxiosError(error) && error.response) {
                 const errorData = error.response.data
+
+                if (errorData.duplicates && errorData.duplicates.length > 0) {
+                    setDuplicates(errorData.duplicates)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+
                 if (errorData.error && typeof errorData.error === 'object') {
                     setErrors(errorData.error)
                 } else {
+                    const errorMessage = isEditMode
+                        ? 'Update failed. Please try again.'
+                        : 'Registration failed. Please try again.'
                     setErrors({
-                        general: errorData.message || 'Registration failed. Please try again.'
+                        general: errorData.message || errorMessage
                     })
                 }
             } else {
@@ -741,11 +1025,12 @@ function Registration() {
 
     useEffect(() => {
         if (sameAddress) {
-            setForm(prev => ({
-                ...prev,
-                presentDistrict: prev.permanentDistrict,
-                presentUpazila: prev.permanentUpazila,
-            }))
+            dispatch({
+                type: 'SET_FIELDS', fields: {
+                    presentDistrict: form.permanentDistrict,
+                    presentUpazila: form.permanentUpazila,
+                }
+            })
         }
     }, [form.permanentDistrict, form.permanentUpazila, sameAddress])
 
@@ -772,17 +1057,117 @@ function Registration() {
         },
     }
 
+    useEffect(() => {
+        const fetchData = async () => {
+            const data = await fetchSSCRegData()
+            setSSCRegData(data)
+        }
+        fetchData()
+    }, [])
+
+    useEffect(() => {
+        if (!sscRegData || !form.section) {
+            setAvailableRolls([])
+            return
+        }
+
+        let rollString = ''
+        if (form.section === 'A' && sscRegData.a_sec_roll) {
+            rollString = sscRegData.a_sec_roll
+        } else if (form.section === 'B' && sscRegData.b_sec_roll) {
+            rollString = sscRegData.b_sec_roll
+        }
+
+        if (rollString) {
+            // Parse roll string (e.g., "1,2,3,5-10,15" -> ["1","2","3","5","6","7","8","9","10","15"])
+            const rolls = parseRollString(rollString)
+            setAvailableRolls(rolls)
+        } else {
+            setAvailableRolls([])
+        }
+
+        // Reset roll if current roll is not in available rolls
+        if (form.roll && rollString) {
+            const rolls = parseRollString(rollString)
+            if (!rolls.includes(form.roll)) {
+                dispatch({ type: 'SET_FIELD', name: 'roll', value: '' })
+            }
+        }
+    }, [sscRegData, form.section, form.roll])
+
+    const parseRollString = (rollString: string): string[] => {
+        const rolls: string[] = []
+        const parts = rollString.split(',')
+
+        for (const part of parts) {
+            const trimmedPart = part.trim()
+            if (trimmedPart.includes('-')) {
+                const [start, end] = trimmedPart.split('-').map(num => parseInt(num.trim()))
+                if (!isNaN(start) && !isNaN(end) && start <= end) {
+                    for (let i = start; i <= end; i++) {
+                        rolls.push(i.toString())
+                    }
+                }
+            } else {
+                const num = parseInt(trimmedPart)
+                if (!isNaN(num)) {
+                    rolls.push(num.toString())
+                }
+            }
+        }
+        return [...new Set(rolls)].sort((a, b) => parseInt(a) - parseInt(b))
+    }
+
+    // Show loading spinner while initializing or if should navigate
+    if (initialLoading || shouldNavigate) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center gap-4 p-8">
+                    <div className="relative">
+                        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    </div>
+                    <div className="text-center">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-1">
+                            {registrationClosed
+                                ? 'Registration Closed'
+                                : shouldNavigate
+                                    ? 'Redirecting...'
+                                    : isEditMode
+                                        ? 'Loading Registration Data...'
+                                        : 'Initializing Registration Form...'
+                            }
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {registrationClosed
+                                ? 'SSC Registration is currently closed. Redirecting to homepage...'
+                                : 'Please wait while we prepare everything for you'
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">Student's Information for SSC Exam Registration</h2>
-                <span className="text-xs sm:text-sm text-gray-600 text-center px-2">Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.</span>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
+                    {isEditMode ? 'Edit Registration' : "Student's Information for SSC Exam Registration"}
+                </h2>
+                <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
+                    Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.
+                </span>
             </div>
 
             {success && (
                 <div className="mb-4 p-3 sm:p-4 bg-green-100 text-green-800 rounded text-sm sm:text-base animate-fade-in shadow">
                     {success}
                 </div>
+            )}
+
+            {duplicates.length > 0 && (
+                <DuplicateWarning duplicates={duplicates} />
             )}
 
             {errors.general && (
@@ -796,7 +1181,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={1} title="Personal Information" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label={<span>Section <Tooltip text="Your class section (e.g. A, B, C)" /></span>} required error={errors.section}>
+                        <FieldRow label={<span>Section <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} required error={errors.section}>
                             <select
                                 name="section"
                                 value={form.section}
@@ -810,15 +1195,33 @@ function Registration() {
                             </select>
                         </FieldRow>
                         <FieldRow label={<span>Roll <Tooltip text="Your roll number as assigned by the school" /></span>} required error={errors.roll}>
-                            <input
+                            <select
                                 name="roll"
                                 value={form.roll}
-                                type='number'
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="Roll"
                                 aria-invalid={!!errors.roll}
-                            />
+                                disabled={!form.section || availableRolls.length === 0}
+                            >
+                                <option value="">
+                                    {!form.section
+                                        ? "Select Roll (Select Section First)"
+                                        : availableRolls.length === 0
+                                            ? "No rolls available for this section"
+                                            : "Select Roll"
+                                    }
+                                </option>
+                                {availableRolls.map(roll => (
+                                    <option key={roll} value={roll}>
+                                        {roll}
+                                    </option>
+                                ))}
+                            </select>
+                            {form.section && availableRolls.length === 0 && (
+                                <Instruction>
+                                    No rolls have been configured for section {form.section}. Please contact the administrator.
+                                </Instruction>
+                            )}
                         </FieldRow>
                         <FieldRow label={<span>Religion <Tooltip text="Your religion (e.g. Islam, Hinduism, etc.)" /></span>} required error={errors.religion}>
                             <select
@@ -977,7 +1380,7 @@ function Registration() {
                                 </select>
                             </div>
                             <Instruction>
-                                Student must be at least 12 years old on 1st January {currentYear}
+                                Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
                         <FieldRow label="Blood Group ">
@@ -1071,24 +1474,28 @@ function Registration() {
                                         const checked = ev.target.checked
                                         setSameAddress(checked)
                                         if (checked) {
-                                            setForm(prev => ({
-                                                ...prev,
-                                                presentDistrict: prev.permanentDistrict,
-                                                presentUpazila: prev.permanentUpazila,
-                                                presentPostOffice: prev.permanentPostOffice,
-                                                presentPostCode: prev.permanentPostCode,
-                                                presentVillageRoad: prev.permanentVillageRoad,
-                                            }))
+                                            dispatch({
+                                                type: 'SET_FIELDS',
+                                                fields: {
+                                                    presentDistrict: form.permanentDistrict,
+                                                    presentUpazila: form.permanentUpazila,
+                                                    presentPostOffice: form.permanentPostOffice,
+                                                    presentPostCode: form.permanentPostCode,
+                                                    presentVillageRoad: form.permanentVillageRoad,
+                                                }
+                                            })
                                             setErrors(prev => ({ ...prev, presentDistrict: '', presentUpazila: '', presentPostOffice: '', presentPostCode: '', presentVillageRoad: '' }))
                                         } else {
-                                            setForm(prev => ({
-                                                ...prev,
-                                                presentDistrict: '',
-                                                presentUpazila: '',
-                                                presentPostOffice: '',
-                                                presentPostCode: '',
-                                                presentVillageRoad: '',
-                                            }))
+                                            dispatch({
+                                                type: 'SET_FIELDS',
+                                                fields: {
+                                                    presentDistrict: '',
+                                                    presentUpazila: '',
+                                                    presentPostOffice: '',
+                                                    presentPostCode: '',
+                                                    presentVillageRoad: '',
+                                                }
+                                            })
                                         }
                                     }}
                                 />
@@ -1170,19 +1577,21 @@ function Registration() {
                                     onChange={e => {
                                         setGuardianNotFather(e.target.checked)
                                         if (!e.target.checked) {
-                                            setForm(prev => ({
-                                                ...prev,
-                                                guardianName: '',
-                                                guardianPhone: '',
-                                                guardianRelation: '',
-                                                guardianNid: '',
-                                                guardianAddressSameAsPermanent: false,
-                                                guardianDistrict: '',
-                                                guardianUpazila: '',
-                                                guardianPostOffice: '',
-                                                guardianPostCode: '',
-                                                guardianVillageRoad: '',
-                                            }))
+                                            dispatch({
+                                                type: 'SET_FIELDS',
+                                                fields: {
+                                                    guardianName: '',
+                                                    guardianPhone: '',
+                                                    guardianRelation: '',
+                                                    guardianNid: '',
+                                                    guardianAddressSameAsPermanent: false,
+                                                    guardianDistrict: '',
+                                                    guardianUpazila: '',
+                                                    guardianPostOffice: '',
+                                                    guardianPostCode: '',
+                                                    guardianVillageRoad: '',
+                                                }
+                                            })
                                             setErrors(prev => ({
                                                 ...prev,
                                                 guardianName: '',
@@ -1273,7 +1682,43 @@ function Registration() {
                                             type="checkbox"
                                             name="guardianAddressSameAsPermanent"
                                             checked={form.guardianAddressSameAsPermanent}
-                                            onChange={handleChange}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked
+                                                if (checked) {
+                                                    dispatch({
+                                                        type: 'SET_FIELDS',
+                                                        fields: {
+                                                            guardianAddressSameAsPermanent: checked,
+                                                            guardianDistrict: form.permanentDistrict,
+                                                            guardianUpazila: form.permanentUpazila,
+                                                            guardianPostOffice: form.permanentPostOffice,
+                                                            guardianPostCode: form.permanentPostCode,
+                                                            guardianVillageRoad: form.permanentVillageRoad,
+                                                        }
+                                                    })
+                                                    // Clear guardian address validation errors
+                                                    setErrors(prev => ({
+                                                        ...prev,
+                                                        guardianDistrict: '',
+                                                        guardianUpazila: '',
+                                                        guardianPostOffice: '',
+                                                        guardianPostCode: '',
+                                                        guardianVillageRoad: '',
+                                                    }))
+                                                } else {
+                                                    dispatch({
+                                                        type: 'SET_FIELDS',
+                                                        fields: {
+                                                            guardianAddressSameAsPermanent: checked,
+                                                            guardianDistrict: '',
+                                                            guardianUpazila: '',
+                                                            guardianPostOffice: '',
+                                                            guardianPostCode: '',
+                                                            guardianVillageRoad: '',
+                                                        }
+                                                    })
+                                                }
+                                            }}
                                         />
                                         <span className="text-sm">Same as Permanent Address</span>
                                     </label>
@@ -1358,14 +1803,18 @@ function Registration() {
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md">
                         <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
                             <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
-                                <span>Photo <Tooltip text="Upload a clear passport-size photo (jpg/png, less than 2MB)" /><span className="text-red-600 ml-1" aria-hidden="true">*</span></span>
+                                <span>Photo <Tooltip text="Upload a clear passport-size photo (jpg/png, less than 2MB)" />
+                                    {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
+                                </span>
                                 <span className="mx-2 hidden lg:inline">:</span>
                             </div>
                             <div className="flex-1 w-full min-w-0">
                                 <div className="relative group">
                                     <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 transition group-hover:border-blue-400 group-focus-within:border-blue-400 cursor-pointer overflow-hidden mx-auto lg:mx-0">
                                         {!photoPreview
-                                            ? <span className="text-xs sm:text-sm text-center text-gray-500 px-2">Click or drag to upload image</span>
+                                            ? <span className="text-xs sm:text-sm text-center text-gray-500 px-2">
+                                                {isEditMode ? 'Click to change photo' : 'Click or drag to upload image'}
+                                            </span>
                                             : <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover rounded" />}
                                     </div>
                                     <input
@@ -1377,6 +1826,9 @@ function Registration() {
                                         aria-invalid={!!errors.photo}
                                     />
                                 </div>
+                                {isEditMode && !form.photo && photoPreview && (
+                                    <Instruction>Current photo will be kept if no new photo is uploaded</Instruction>
+                                )}
                                 {errors.photo && <Error>{errors.photo}</Error>}
                             </div>
                         </div>
@@ -1514,11 +1966,13 @@ function Registration() {
 
                                 onChange={e => {
                                     handleChange(e);
-                                    setForm(prev => ({
-                                        ...prev,
-                                        mainSubject: '',
-                                        fourthSubject: ''
-                                    }));
+                                    dispatch({
+                                        type: 'SET_FIELDS',
+                                        fields: {
+                                            mainSubject: '',
+                                            fourthSubject: ''
+                                        }
+                                    });
                                 }}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 aria-invalid={!!errors.groupClassNine}
@@ -1564,6 +2018,35 @@ function Registration() {
                                 }
                             </select>
                         </FieldRow>
+                        <FieldRow label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য" required error={errors.nearbyNineStudentInfo}>
+                            <>
+                                <select
+                                    name="nearbyNineStudentInfo"
+                                    value={form.nearbyNineStudentInfo}
+                                    onChange={handleChange}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    aria-invalid={!!errors.nearbyNineStudentInfo}
+                                >
+                                    <option value="">Select Option</option>
+                                    {classNineStudents
+                                        .slice()
+                                        .sort((a, b) => {
+                                            // Sort by section (A, B, C, ...) then by roll (number)
+                                            if (a.section < b.section) return -1;
+                                            if (a.section > b.section) return 1;
+                                            return Number(a.roll) - Number(b.roll);
+                                        })
+                                        .map(opt => (
+                                            <option
+                                                key={`${opt.name}-${opt.section}/${opt.roll}`}
+                                                value={`${opt.name}-${opt.section}/${opt.roll}`}
+                                            >
+                                                {`${opt.name}-${opt.section}/${opt.roll}`}
+                                            </option>
+                                        ))}
+                                </select>
+                            </>
+                        </FieldRow>
                     </div>
                 </section>
 
@@ -1574,73 +2057,36 @@ function Registration() {
                         disabled={loading}
                     >
                         {loading && <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>}
-                        {loading ? 'Submitting...' : 'Submit Registration'}
+                        {loading
+                            ? (isEditMode ? 'Updating...' : 'Submitting...')
+                            : (isEditMode ? 'Update Registration' : 'Submit Registration')
+                        }
                     </button>
-                    <button
-                        type="button"
-                        className="px-6 py-3 border border-gray-300 rounded shadow bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition text-sm sm:text-base"
-                        onClick={() => {
-                            setForm({
-                                studentNameEn: '',
-                                studentNameBn: '',
-                                studentNickNameBn: '',
-                                fatherNameEn: '',
-                                fatherNameBn: '',
-                                motherNameEn: '',
-                                motherNameBn: '',
-                                fatherNid: '',
-                                motherNid: '',
-                                fatherPhone: '',
-                                motherPhone: '',
-                                birthDate: '',
-                                bloodGroup: '',
-                                birthRegNo: '',
-                                email: '',
-                                presentDistrict: '',
-                                presentUpazila: '',
-                                presentPostOffice: '',
-                                presentPostCode: '',
-                                presentVillageRoad: '',
-                                permanentDistrict: '',
-                                permanentUpazila: '',
-                                permanentPostOffice: '',
-                                permanentPostCode: '',
-                                permanentVillageRoad: '',
-                                birthYear: '',
-                                birthMonth: '',
-                                birthDay: '',
-                                photo: null,
-                                section: '',
-                                roll: '',
-                                religion: '',
-                                guardianName: '',
-                                guardianPhone: '',
-                                guardianRelation: '',
-                                guardianNid: '',
-                                guardianAddressSameAsPermanent: false,
-                                guardianDistrict: '',
-                                guardianUpazila: '',
-                                guardianPostOffice: '',
-                                guardianPostCode: '',
-                                guardianVillageRoad: '',
-                                prevSchoolName: '',
-                                prevSchoolDistrict: '',
-                                prevSchoolUpazila: '',
-                                jscPassingYear: '',
-                                jscBoard: '',
-                                jscRegNo: '',
-                                jscRollNo: '',
-                                groupClassNine: '',
-                                mainSubject: '',
-                                fourthSubject: '',
-                            }); setPhotoPreview(null); setErrors({}); setSuccess('')
-                            setSameAddress(false)
-                            setGuardianNotFather(false)
-                        }}
-                        disabled={loading}
-                    >Reset</button>
+
+                    {!isEditMode && (
+                        <button
+                            type="button"
+                            className="px-6 py-3 border border-gray-300 rounded shadow bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition text-sm sm:text-base"
+                            onClick={() => {
+                                dispatch({ type: 'RESET' }); setPhotoPreview(null); setErrors({}); setSuccess('')
+                                setSameAddress(false)
+                                setGuardianNotFather(false)
+                            }}
+                            disabled={loading}
+                        >Reset</button>
+                    )}
+
+                    {isEditMode && (
+                        <button
+                            type="button"
+                            className="px-6 py-3 border border-gray-300 rounded shadow bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition text-sm sm:text-base"
+                            onClick={() => navigate(-1)}
+                            disabled={loading}
+                        >Cancel</button>
+                    )}
                 </div>
             </form>
+
             <style>{`
                 .animate-fade-in {
                     animation: fadeIn 0.7s;
