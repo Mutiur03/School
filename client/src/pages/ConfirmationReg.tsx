@@ -80,7 +80,7 @@ function ConfirmationReg() {
             fetchRegistrationData(id);
         }
     }, [id]);
-
+    const host = import.meta.env.VITE_BACKEND_URL;
     const fetchRegistrationData = async (registrationId: string) => {
         try {
             setLoading(true);
@@ -391,7 +391,7 @@ function ConfirmationReg() {
                     <div className="bg-white p-6 border-b border-gray-200 flex flex-col items-center">
                         <h3 className="text-base font-semibold mb-2 text-gray-700">Student's Photo</h3>
                         <img
-                            src={`${import.meta.env.VITE_BACKEND_URL}/${registration.photo_path}`}
+                            src={`${host}/${registration.photo_path}`}
                             alt="Student Photo"
                             className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
