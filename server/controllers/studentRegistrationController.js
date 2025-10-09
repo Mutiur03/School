@@ -1535,9 +1535,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     `;
 
     const browser = await puppeteer.launch({
-      headless: "new", // modern headless mode
-      executablePath:
-        "/root/.cache/puppeteer/chrome/linux-134.0.6998.165/chrome-linux64/chrome",
+      headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
