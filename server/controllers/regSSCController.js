@@ -43,14 +43,26 @@ export const createOrUpdateSSCReg = async (req, res) => {
     console.log("Request body:", req.body);
     console.log("Request file:", req.file);
 
-    const { a_sec_roll, b_sec_roll, ssc_year, reg_open, instructions } =
-      req.body;
+    const {
+      a_sec_roll,
+      b_sec_roll,
+      ssc_year,
+      reg_open,
+      instruction_for_a,
+      instruction_for_b,
+      attachment_instruction,
+    } = req.body;
     let updateData = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
       ssc_year: ssc_year ? parseInt(ssc_year) : null,
       reg_open: reg_open === "true" || reg_open === true,
-      instructions: instructions || "Please follow the instructions carefully",
+      instruction_for_a:
+        instruction_for_a || "Please follow the instructions carefully",
+      instruction_for_b:
+        instruction_for_b || "Please follow the instructions carefully",
+      attachment_instruction:
+        attachment_instruction || "Please attach all required documents",
     };
 
     if (req.file) {

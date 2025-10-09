@@ -958,7 +958,32 @@ export const downloadRegistrationPDF = async (req, res) => {
       });
     }
 
-    // Check if school logo exists
+    // Fetch SSC registration settings for instructions
+    let sscRegSettings = null;
+    try {
+      sscRegSettings = await prisma.ssc_reg.findFirst();
+    } catch (error) {
+      console.warn("Failed to fetch SSC registration settings:", error);
+    }
+
+    // Get section-specific instructions
+    const getInstructionsForSection = (section) => {
+      if (!sscRegSettings) return null;
+
+      const sectionLower = section?.toLowerCase();
+      if (sectionLower === "a" && sscRegSettings.instruction_for_a) {
+        return sscRegSettings.instruction_for_a;
+      }
+      if (sectionLower === "b" && sscRegSettings.instruction_for_b) {
+        return sscRegSettings.instruction_for_b;
+      }
+      return null;
+    };
+
+    const sectionInstructions = getInstructionsForSection(registration.section);
+    const attachmentInstructions =
+      sscRegSettings?.attachment_instruction || null;
+
     const logoPath = path.join("public", "icon.jpg");
     const logoExists = fs.existsSync(logoPath);
 
@@ -980,8 +1005,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     }
 
-    // Helper for Bengali numbers
-    const bnNum = (n) => String(n).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
     function formatDateLong(dateStr) {
       if (!dateStr) return "";
       let d, m, y;
@@ -994,11 +1017,13 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
       const dateObj = new Date(`${y}-${m}-${d}`);
       if (isNaN(dateObj)) return dateStr;
-      return dateObj.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
+      return dateObj
+        .toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+        .replace(/(\w+)\s(\d{4})/, "$1, $2");
     }
     function wrapBnEn(text) {
       if (!text) return "";
@@ -1029,204 +1054,157 @@ export const downloadRegistrationPDF = async (req, res) => {
         .filter(Boolean)
         .join(", ");
 
-    const sectionDefs = [
-      {
-        title: "ব্যক্তিগত তথ্য (Personal Information)",
-        rows: [
+    const studentDetails = [
+      [
+        "ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
+        wrapBnEn(registration.student_name_bn || ""),
+      ],
+      [
+        "Student's Name:",
+        wrapBnEn(registration.student_name_en.toUpperCase() || ""),
+      ],
+      ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
+      [
+        "Date of Birth (According to JSC/JDC):",
+        wrapBnEn(formatDateLong(registration.birth_date) || ""),
+      ],
+      ["Email Address:", wrapBnEn(registration.email || "No")],
+      [
+        "Mobile Numbers:",
+        wrapBnEn(
           [
-            "ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
-            wrapBnEn(registration.student_name_bn || ""),
-          ],
+            `${registration.father_phone}` || "",
+            `${registration.mother_phone}` || "",
+          ]
+            .filter(Boolean)
+            .join(", ") || "No"
+        ),
+      ],
+      [
+        "পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
+        wrapBnEn(registration.father_name_bn || ""),
+      ],
+      [
+        "Father's Name:",
+        wrapBnEn(registration.father_name_en.toUpperCase() || ""),
+      ],
+      ["Father's National ID Number:", wrapBnEn(registration.father_nid || "")],
+      [
+        "মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
+        wrapBnEn(registration.mother_name_bn || ""),
+      ],
+      [
+        "Mother's Name:",
+        wrapBnEn(registration.mother_name_en.toUpperCase() || ""),
+      ],
+      ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || "")],
+      [
+        "Guardian's Name:",
+        wrapBnEn(
           [
-            "Student's Name:",
-            wrapBnEn(registration.student_name_en.toUpperCase() || ""),
-          ],
+            registration.guardian_name
+              ? `Name: ${registration.guardian_name}`
+              : "Not Applicable",
+            registration.guardian_relation
+              ? `Relation: ${registration.guardian_relation}`
+              : "",
+            registration.guardian_phone
+              ? `Phone: ${registration.guardian_phone}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(", ")
+        ),
+      ],
+      [
+        "Guardian's Address:",
+        wrapBnEn(
+          joinAddr(
+            registration.guardian_village_road,
+            registration.guardian_post_office,
+            registration.guardian_post_code,
+            registration.guardian_upazila,
+            registration.guardian_district
+          ) || "Not Applicable"
+        ),
+      ],
+      [
+        "Permanent Address:",
+        wrapBnEn(
+          joinAddr(
+            registration.permanent_village_road,
+            registration.permanent_post_office,
+            registration.permanent_post_code,
+            registration.permanent_upazila,
+            registration.permanent_district
+          )
+        ),
+      ],
+      [
+        "Present Address:",
+        wrapBnEn(
+          joinAddr(
+            registration.present_village_road,
+            registration.present_post_office,
+            registration.present_post_code,
+            registration.present_upazila,
+            registration.present_district
+          )
+        ),
+      ],
+      [
+        "Previous School Name & Address:",
+        wrapBnEn(
           [
-            "Birth Registration Number:",
-            wrapBnEn(registration.birth_reg_no || ""),
-          ],
+            registration.prev_school_name,
+            registration.prev_school_upazila,
+            registration.prev_school_district,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        ),
+      ],
+      [
+        "Information of JSC/JDC:",
+        wrapBnEn(
           [
-            "Date of Birth (According to JSC/JDC):",
-            wrapBnEn(formatDateLong(registration.birth_date) || ""),
-          ],
-          ["Email Address:", wrapBnEn(registration.email || "No")],
+            registration.jsc_board ? `Board: ${registration.jsc_board}` : "",
+            registration.jsc_passing_year
+              ? `Passing Year: ${registration.jsc_passing_year}`
+              : "",
+            registration.jsc_roll_no
+              ? `Roll No- ${registration.jsc_roll_no}`
+              : "Roll No- N/A",
+          ]
+            .filter(Boolean)
+            .join(", ")
+        ),
+      ],
+      [
+        "Main and 4th Subject:",
+        wrapBnEn(
           [
-            "Mobile Numbers:",
-            wrapBnEn(
-              [
-                `${registration.father_phone}` || "",
-                `${registration.mother_phone}` || "",
-              ]
-                .filter(Boolean)
-                .join(", ") || "No"
-            ),
-          ],
-        ],
-      },
-      {
-        title: "পিতার তথ্য (Father's Information)",
-        rows: [
-          [
-            "পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
-            wrapBnEn(registration.father_name_bn || ""),
-          ],
-          [
-            "Father's Name:",
-            wrapBnEn(registration.father_name_en.toUpperCase() || ""),
-          ],
-          ["National ID Number:", wrapBnEn(registration.father_nid || "")],
-        ],
-      },
-      {
-        title: "মাতার তথ্য (Mother's Information)",
-        rows: [
-          [
-            "মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):",
-            wrapBnEn(registration.mother_name_bn || ""),
-          ],
-          [
-            "Mother's Name:",
-            wrapBnEn(registration.mother_name_en.toUpperCase() || ""),
-          ],
-          ["National ID Number:", wrapBnEn(registration.mother_nid || "")],
-        ],
-      },
-      {
-        title: "অভিভাবকের তথ্য (Guardian's Information)",
-        rows: [
-          [
-            "Guardian’s Name:",
-            wrapBnEn(
-              [
-                registration.guardian_name
-                  ? `Name: ${registration.guardian_name}`
-                  : "Not Applicable",
-                registration.guardian_relation
-                  ? `Relation: ${registration.guardian_relation}`
-                  : "",
-                registration.guardian_phone
-                  ? `Phone: ${registration.guardian_phone}`
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(", ")
-            ),
-          ],
-
-          [
-            "Guardian’s Address:",
-            wrapBnEn(
-              joinAddr(
-                registration.guardian_village_road,
-                registration.guardian_post_office,
-                registration.guardian_post_code,
-                registration.guardian_upazila,
-                registration.guardian_district
-              ) || "Not Applicable"
-            ),
-          ],
-        ],
-      },
-      {
-        title: "ঠিকানা (Address)",
-        rows: [
-          [
-            "Permanent Address:",
-            wrapBnEn(
-              joinAddr(
-                registration.permanent_village_road,
-                registration.permanent_post_office,
-                registration.permanent_post_code,
-                registration.permanent_upazila,
-                registration.permanent_district
-              )
-            ),
-          ],
-          [
-            "Present Address:",
-            wrapBnEn(
-              joinAddr(
-                registration.present_village_road,
-                registration.present_post_office,
-                registration.present_post_code,
-                registration.present_upazila,
-                registration.present_district
-              )
-            ),
-          ],
-        ],
-      },
-      {
-        title: "শিক্ষাগত তথ্য (Academic Information)",
-        rows: [
-          [
-            "Previous School Name & Address:",
-            wrapBnEn(
-              [
-                registration.prev_school_name,
-                registration.prev_school_upazila,
-                registration.prev_school_district,
-              ]
-                .filter(Boolean)
-                .join(", ")
-            ),
-          ],
-          [
-            "Information of JSC/JDC:",
-            wrapBnEn(
-              [
-                registration.jsc_board
-                  ? `Board: ${registration.jsc_board}`
-                  : "",
-                registration.jsc_passing_year
-                  ? `Passing Year: ${registration.jsc_passing_year}`
-                  : "",
-                registration.jsc_roll_no
-                  ? `Roll No- ${registration.jsc_roll_no}`
-                  : "Roll No- N/A",
-              ]
-                .filter(Boolean)
-                .join(", ")
-            ),
-          ],
-          [
-            "Main and 4th Subject:",
-            wrapBnEn(
-              [
-                registration.group_class_nine || "",
-                registration.main_subject
-                  ? `, ${registration.main_subject}`
-                  : "",
-                registration.fourth_subject
-                  ? `, 4th: ${registration.fourth_subject}`
-                  : "",
-              ]
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .join(" ")
-            ),
-          ],
-          [
-            "বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
-            wrapBnEn(registration.nearby_nine_student_info || ""),
-          ],
-        ],
-      },
+            registration.group_class_nine || "",
+            registration.main_subject ? `, ${registration.main_subject}` : "",
+            registration.fourth_subject
+              ? `, 4th: ${registration.fourth_subject}`
+              : "",
+          ]
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(" ")
+        ),
+      ],
+      [
+        "বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
+        wrapBnEn(registration.nearby_nine_student_info || ""),
+      ],
     ];
 
-    // Render table rows with section headers, no row numbers
+    // Render table rows without section headers
     let tableRows = "";
-    sectionDefs.forEach((section, sIdx) => {
-      // tableRows += `
-      //   <tr>
-      //     <td colspan="2" style="background:#e0e7ef;font-weight:bold;font-size:1.05rem;border:1px solid #bbb;">
-      //       ${wrapBnEn(section.title)}
-      //     </td>
-      //   </tr>
-      // `;
-      section.rows.forEach(([label, value], idx) => {
-        tableRows += row(label, value, idx);
-      });
+    studentDetails.forEach(([label, value], idx) => {
+      tableRows += row(label, value, idx);
     });
 
     const schoolName = "Panchbibi Lal Bihari Pilot Govt. High School";
@@ -1238,244 +1216,322 @@ export const downloadRegistrationPDF = async (req, res) => {
     const religion = registration.religion || "";
     const jscReg = registration.jsc_reg_no || "";
 
+    // Get current date and time
+    const currentDateTime = new Date().toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>SSC Registration Info</title>
-        <style>
-          @font-face {
-            font-family: 'SolaimanLipi';
-            src: url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff') format('woff');
-            font-weight: normal;
-            font-style: normal;
+     <!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SSC Registration Info</title>
+  <style>
+    @page {
+      size: legal;
+      margin: 24px;
+    }
+    @font-face {
+      font-family: 'SolaimanLipi';
+      src: url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      page-break-inside: avoid;
+      page-break-after: avoid;
+    }
+    .page-container {
+      position: relative;
+      min-height: 100vh;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
+      background: #fff;
+      page-break-inside: avoid;
+      page-break-after: avoid;
+    }
+    .content-area {
+      box-sizing: border-box;
+      padding: 0 0 140px 0;
+      min-height: 0;
+      height: calc(100vh - 140px);
+      overflow: hidden;
+    }
+    .bn, .bn * {
+      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
+    }
+    .en, .en * {
+      font-family: 'Times New Roman', Times, serif !important;
+      letter-spacing: 0.02em;
+    }
+    .header { 
+      position: relative;
+      text-align: center; 
+      margin-bottom: 12px;
+      padding: 12px 0 8px 0;
+    }
+    .monogram {
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 80px;
+      height: 80px;
+      ${
+        !logoBase64
+          ? `
+        background: #f0f0f0;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: #666;
+        text-align: center;
+        line-height: 1.2;
+      `
+          : ""
+      }
+    }
+    .monogram img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+    .header .school { 
+      font-size: 1.6rem; 
+      font-weight: bold; 
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .header .addr { 
+      font-size: 1.4rem; 
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .header .web { 
+      font-size: 1.1rem; 
+    }
+    .title-row { 
+      background: #e3f0fa; 
+      font-size: 1.25rem; 
+      font-weight: bold; 
+      text-align: center; 
+      border: 1px solid #bbb; 
+      padding: 8px 0; 
+      margin-top: 8px;
+    }
+    .section-row { 
+      background: #f1f5f9; 
+      font-size: 1.1rem; 
+      font-weight: 500; 
+      text-align: center; 
+      border: 1px solid #bbb; 
+      padding: 6px 0; 
+    }
+    .instructions-section {
+      border: 1px solid #000;
+      border-radius: 4px;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      text-align: justify;
+    }
+    .instructions-title {
+      font-weight: bold;
+      color: #8b5a00;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+    .instructions-content {
+      white-space: pre-line;
+      text-align: justify;
+    }
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin-top: 0.5rem; 
+      font-size: 0.98rem; 
+      page-break-inside: avoid;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    th, td { 
+      border: 1px solid #bbb; 
+      padding: 4px 8px; 
+    }
+    th { 
+      background: #f3f6fa; 
+    }
+    .footer .note .b {
+      font-weight: 400;
+      margin-bottom: 4px;
+    }
+    .footer .note .bn {
+      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
+      font-size: 1.1rem;
+      white-space: pre-wrap;
+    }
+    .footer .note .en {
+      font-family: 'Times New Roman', Times, serif !important;
+      font-size: 1.1rem;
+    }
+    .document-list {
+      margin-top: 8px;
+      padding-left: 0;
+      font-size: 1.1rem;
+    }
+    .document-list .bn {
+      display: block;
+      font-size: 1.1rem;
+      line-height: 1.3;
+      white-space: pre; /* Force exact space preservation */
+    }
+    .signature-row {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 8px;
+      padding-bottom: 18px;
+      background: white;
+      height: 110px;
+      box-sizing: border-box;
+    }
+    .signature-cell {
+      flex: 1 1 0;
+      text-align: center;
+      vertical-align: bottom;
+      min-width: 120px;
+      max-width: 180px;
+      padding: 0 4px;
+    }
+    .signature-line {
+      border-top: 1px dotted #222;
+      margin-bottom: 2px;
+      width: 95%;
+      height: 12px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .signature-label {
+      font-size: 0.93rem;
+      font-weight: 500;
+      margin-top: 1px;
+      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
+      white-space: nowrap;
+    }
+    .bottom-info {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -4px;
+      width: 100%;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+      background: white;
+      padding: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <div class="content-area">
+      <div class="header">
+        <div class="monogram">
+          ${
+            logoBase64
+              ? `<img src="${logoBase64}" alt="School Logo" />`
+              : "School<br>Logo"
           }
-          body, html {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          .page-container {
-            position: relative;
-            min-height: 100vh;
-            height: 100vh;
-            width: 100vw;
-            box-sizing: border-box;
-            font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
-            background: #fff;
-          }
-          .content-area {
-            box-sizing: border-box;
-            padding: 0 0 110px 0;
-            /* 110px is the height reserved for the signature row */
-            min-height: 0;
-            height: calc(100vh - 110px);
-            overflow: hidden;
-          }
-          .bn, .bn * {
-            font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
-          }
-          .en, .en * {
-            font-family: 'Times New Roman', Times, serif !important;
-            letter-spacing: 0.02em;
-          }
-          .header { 
-            position: relative;
-            text-align: center; 
-            margin-bottom: 16px;
-            padding: 12px 0;
-          }
-          .monogram {
-            position: absolute;
-            left: 0;
-            top: 8px;
-            width: 80px;
-            height: 80px;
+        </div>
+        <div class="school en">${schoolName}</div>
+        <div class="addr en">${schoolAddr}</div>
+        <div class="web en">${schoolWeb}</div>
+      </div>
+      <div class="title-row en">
+        Student's Information for SSC Exam Registration ${sscBatch}
+      </div>
+      <div class="section-row en">
+        Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span>, JSC/JDC Regi. No: <span class="en">${jscReg}</span>
+      </div>
+      <table>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      <br />
+      ${
+        sectionInstructions
+          ? `
+      <div class="instructions-section">
+        <div class="instructions-content">${wrapBnEn(sectionInstructions)}</div>
+      </div>
+      `
+          : ""
+      }
+      <div class="footer">
+        <div class="note">
+          <div class="document-list">
+            <span class="bn"><b>প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
             ${
-              !logoBase64
-                ? `
-              background: #f0f0f0;
-              border: 2px solid #ccc;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 0.9rem;
-              color: #666;
-              text-align: center;
-              line-height: 1.2;
-            `
+              attachmentInstructions
+                ? attachmentInstructions
+                    .split(/\r?\n|\r/)
+                    .map((line) => {
+                      // Avoid trimming to preserve spaces
+                      if (line) {
+                        return `<span class="bn">${line}</span>`;
+                      }
+                      return "";
+                    })
+                    .filter(Boolean)
+                    .join("")
                 : ""
             }
-          }
-          .monogram img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 50%;
-          }
-          .header .school { 
-            font-size: 1.6rem; 
-            font-weight: bold; 
-            margin-bottom: 6px;
-            line-height: 1.3;
-          }
-          .header .addr { 
-            font-size: 1.2rem; 
-            margin-bottom: 4px;
-          }
-          .header .web { 
-            font-size: 1.1rem; 
-            // color: #2563eb; 
-          }
-          .title-row { 
-            background: #e3f0fa; 
-            font-size: 1.25rem; 
-            font-weight: bold; 
-            text-align: center; 
-            border: 1px solid #bbb; 
-            padding: 8px 0; 
-            margin-top: 8px;
-          }
-          .section-row { 
-            background: #f1f5f9; 
-            font-size: 1.1rem; 
-            font-weight: 500; 
-            text-align: center; 
-            border: 1px solid #bbb; 
-            padding: 6px 0; 
-          }
-          table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; font-size: 0.98rem; }
-          th, td { border: 1px solid #bbb; padding: 4px 8px; }
-          th { background: #f3f6fa; }
-          .footer { margin-top: 1.2rem; font-size: 0.97rem; }
-          .footer .note { 
-            font-size: 0.9rem; 
-            color: #444; 
-            margin-top: 0.5rem; 
-            line-height: 1.6;
-          }
-          .footer .note b {
-            font-weight: bold;
-            color: #333;
-          }
-          .footer .note .bn {
-            font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
-            font-size: 0.95rem;
-            line-height: 1.8;
-          }
-          .footer .note .en {
-            font-family: 'Times New Roman', Times, serif !important;
-            font-size: 0.9rem;
-            line-height: 1.6;
-          }
-          .document-list {
-            margin-top: 8px;
-            padding-left: 0;
-          }
-          .document-list br {
-            line-height: 1.8;
-          }
-          .signature-row {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 8px;
-            padding-bottom: 18px;
-            background: white;
-            height: 110px;
-            box-sizing: border-box;
-          }
-          .signature-cell {
-            flex: 1 1 0;
-            text-align: center;
-            vertical-align: bottom;
-            min-width: 120px;
-            max-width: 180px;
-            padding: 0 4px;
-          }
-          .signature-line {
-            border-top: 1px dotted #222;
-            margin-bottom: 2px;
-            width: 95%;
-            height: 12px;
-            margin-left: auto;
-            margin-right: auto;
-          }
-          .signature-label {
-            font-size: 0.93rem;
-            font-weight: 500;
-            margin-top: 1px;
-            font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
-            white-space: nowrap;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="page-container">
-          <div class="content-area">
-            <div class="header">
-              <div class="monogram">
-                ${
-                  logoBase64
-                    ? `<img src="${logoBase64}" alt="School Logo" />`
-                    : "School<br>Logo"
-                }
-              </div>
-              <div class="school en">${schoolName}</div>
-              <div class="addr en">${schoolAddr}</div>
-              <div class="web en">${schoolWeb}</div>
-            </div>
-            <div class="title-row en">
-              Student's Information for SSC Exam Registration ${sscBatch}
-            </div>
-            <div class="section-row en">
-              Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span>, JSC/JDC Regi. No: <span class="en">${jscReg}</span>
-            </div>
-            <table>
-              <tbody>
-                ${tableRows}
-              </tbody>
-            </table>
-            <div class="footer">
-              <div class="note">
-                <span class="en"><b>Note:</b> Please check all information carefully. For any correction, contact the school office before final submission.</span>
-                <br><br>
-                <div class="document-list">
-                  <span class="bn"><b>প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
-                  <br>
-                  <span class="bn">১। জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ডের ফটোকপি (১ কপি) (যদি থাকে)।</span><br>
-                  <span class="bn">২। ডিজিটাল জন্মনিবন্ধন কার্ডের ফটোকপি (১ কপি)।</span><br>
-                  <span class="bn">৩। মাতাপিতা/পিতা/মাতা/মাতাপিতার অবর্তমানে বৈধ অভিভাবকের জাতীয় পরিচয়পত্রের ফটোকপি (১কপি)।</span><br>
-                  <span class="bn">৪। ৯ম শ্রেণির অর্ধবার্ষিক পরীক্ষা ২০২৫-এর এ্যাকাডেমিক ট্রান্সক্রিপ্ট (পাঠোন্নতির বিবরণী)-এর ফটোকপি (১ কপি)।</span><br>
-                  <span class="bn">৫। বিদ্যালয়ের ইউনিফর্ম পরিহিত পাসপোর্ট সাইজের রঙিন ছবি (১ কপি)।</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="signature-row bn">
-            <div class="signature-cell">
-              <div class="signature-line"></div>
-              <div class="signature-label bn">ছাত্রের স্বাক্ষর</div>
-            </div>
-            <div class="signature-cell">
-              <div class="signature-line"></div>
-              <div class="signature-label bn">পিতা/মাতা/বৈধ অভিভাবকের স্বাক্ষর</div>
-            </div>
-            <div class="signature-cell">
-              <div class="signature-line"></div>
-              <div class="signature-label bn">দায়িত্বপ্রাপ্ত শিক্ষকের স্বাক্ষর ও তারিখ</div>
-            </div>
           </div>
         </div>
-      </body>
-      </html>
+      </div>
+    </div>
+    <div class="signature-row bn">
+      <div class="signature-cell">
+        <div class="signature-line"></div>
+        <div class="signature-label bn">ছাত্রের স্বাক্ষর</div>
+      </div>
+      <div class="signature-cell">
+        <div class="signature-line"></div>
+        <div class="signature-label bn">পিতা/মাতা/বৈধ অভিভাবকের স্বাক্ষর</div>
+      </div>
+      <div class="signature-cell">
+        <div class="signature-line"></div>
+        <div class="signature-label bn">দায়িত্বপ্রাপ্ত শিক্ষকের স্বাক্ষর ও তারিখ</div>
+      </div>
+    </div>
+    <div class="bottom-info en">
+      Emergency Contact: 01309-121983 | Generated: ${currentDateTime}
+    </div>
+  </div>
+</body>
+</html>
     `;
 
     // Puppeteer PDF generation
@@ -1484,11 +1540,12 @@ export const downloadRegistrationPDF = async (req, res) => {
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
-    // await new Promise((r) => setTimeout(r, 400));
     const pdfBuffer = await page.pdf({
-      format: "legal", // upgrade to legal size
+      format: "legal",
       printBackground: true,
       margin: { top: 24, bottom: 24, left: 24, right: 24 },
+      preferCSSPageSize: true,
+      pageRanges: "1",
     });
     await browser.close();
     console.log("PDF generated for registration ID:", id);
