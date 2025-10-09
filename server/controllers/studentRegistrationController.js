@@ -1534,15 +1534,17 @@ export const downloadRegistrationPDF = async (req, res) => {
 </html>
     `;
 
-   const browser = await puppeteer.launch({
-     headless: "new", // Use modern headless mode
-     args: [
-       "--no-sandbox",
-       "--disable-setuid-sandbox",
-       "--disable-dev-shm-usage",
-     ], // Optimize for containers
-     // Let Puppeteer use the default Chrome binary
-   });
+    const browser = await puppeteer.launch({
+      headless: "new", // modern headless mode
+      executablePath:
+        "/root/.cache/puppeteer/chrome/linux-134.0.6998.165/chrome-linux64/chrome",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
+    });
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     const pdfBuffer = await page.pdf({
