@@ -1541,10 +1541,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
       ],
-      executablePath:
-        process.env.NODE_ENV === "production"
-          ? "/usr/bin/chromium-browser"
-          : undefined,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
     });
 
     const page = await browser.newPage();
