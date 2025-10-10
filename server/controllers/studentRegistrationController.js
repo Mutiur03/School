@@ -1319,6 +1319,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       padding: 0;
       page-break-inside: avoid;
       page-break-after: avoid;
+      font-size: 1rem;
     }
     .page-container {
       position: relative;
@@ -1334,6 +1335,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       background: #fff;
       page-break-inside: avoid;
       page-break-after: avoid;
+      font-size: 1rem;
     }
     .content-area {
       box-sizing: border-box;
@@ -1341,6 +1343,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       min-height: 0;
       height: calc(100vh - 140px);
       overflow: hidden;
+      font-size: 1rem;
     }
     
     /* Enhanced Bangla font rendering with better fallbacks */
@@ -1357,6 +1360,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       -moz-osx-font-smoothing: grayscale;
       -webkit-text-stroke: 0.01em transparent;
       font-variant-ligatures: common-ligatures contextual;
+      font-size: 1rem;
     }
     .en, .en * {
       font-family: ${
@@ -1365,12 +1369,14 @@ export const downloadRegistrationPDF = async (req, res) => {
           : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
+      font-size: 1rem;
     }
     
     /* Ensure proper Unicode rendering */
     * {
       unicode-bidi: bidi-override;
       direction: ltr;
+      font-size: 1rem;
     }
     
     /* Special handling for Bengali punctuation */
@@ -1380,6 +1386,7 @@ export const downloadRegistrationPDF = async (req, res) => {
           ? "'SolaimanLipi', 'Noto Sans Bengali'"
           : "'Noto Sans Bengali'"
       }, sans-serif !important;
+      font-size: 1rem;
     }
     
     .header { 
@@ -1387,6 +1394,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       text-align: center; 
       margin-bottom: 12px;
       padding: 12px 0 8px 0;
+      font-size: 1rem;
     }
     .monogram {
       position: absolute;
@@ -1403,7 +1411,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.9rem;
+        font-size: 1rem;
         color: #666;
         text-align: center;
         line-height: 1.2;
@@ -1418,22 +1426,22 @@ export const downloadRegistrationPDF = async (req, res) => {
       border-radius: 50%;
     }
     .header .school { 
-      font-size: 1.6rem; 
+      font-size: 1rem; 
       font-weight: bold; 
       margin-bottom: 6px;
       line-height: 1.3;
     }
     .header .addr { 
-      font-size: 1.4rem; 
+      font-size: 1rem; 
       margin-bottom: 4px;
       font-weight: 500;
     }
     .header .web { 
-      font-size: 1.1rem; 
+      font-size: 1rem; 
     }
     .title-row { 
       background: #e3f0fa; 
-      font-size: 1.25rem; 
+      font-size: 1rem; 
       font-weight: bold; 
       text-align: center; 
       border: 1px solid #bbb; 
@@ -1442,7 +1450,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     .section-row { 
       background: #f1f5f9; 
-      font-size: 1.1rem; 
+      font-size: 1rem; 
       font-weight: 500; 
       text-align: center; 
       border: 1px solid #bbb; 
@@ -1453,8 +1461,8 @@ export const downloadRegistrationPDF = async (req, res) => {
       border-radius: 4px;
       padding: 12px;
       margin: 8px 0;
-      font-size: 0.95rem;
-      line-height: 1.5;
+      font-size: 1rem;
+      line-height: 1;
       text-align: justify;
     }
     .instructions-title {
@@ -1462,16 +1470,19 @@ export const downloadRegistrationPDF = async (req, res) => {
       color: #8b5a00;
       margin-bottom: 8px;
       font-size: 1rem;
+      line-height: 1;
     }
     .instructions-content {
       white-space: pre-line;
       text-align: justify;
+      line-height: 1;
+      font-size: 1rem;
     }
     table { 
       border-collapse: collapse; 
       width: 100%; 
       margin-top: 0.5rem; 
-      font-size: 0.98rem; 
+      font-size: 1rem; 
       page-break-inside: avoid;
     }
     tr {
@@ -1479,7 +1490,8 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     th, td { 
       border: 1px solid #bbb; 
-      padding: 4px 8px; 
+      padding: 4px 8px;
+      font-size: 1rem;
     }
     th { 
       background: #f3f6fa; 
@@ -1487,6 +1499,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     .footer .note .b {
       font-weight: 400;
       margin-bottom: 4px;
+      font-size: 1rem;
     }
     .footer .note .bn {
       font-family: ${
@@ -1494,24 +1507,24 @@ export const downloadRegistrationPDF = async (req, res) => {
           ? "'SolaimanLipi', 'Noto Sans Bengali'"
           : "'Noto Sans Bengali'"
       }, sans-serif !important;
-      font-size: 1.1rem;
+      font-size: 1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
       font-family: ${
         timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
       }, serif !important;
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     .document-list {
       margin-top: 8px;
       padding-left: 0;
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     .document-list .bn {
       display: block;
-      font-size: 1.1rem;
-      line-height: 1.3;
+      font-size: 1rem;
+      line-height: 1;
       white-space: pre;
       font-family: ${
         solaimanLipiBase64
@@ -1533,6 +1546,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       background: white;
       height: 110px;
       box-sizing: border-box;
+      font-size: 1rem;
     }
     .signature-cell {
       flex: 1 1 0;
@@ -1541,6 +1555,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       min-width: 120px;
       max-width: 180px;
       padding: 0 4px;
+      font-size: 1rem;
     }
     .signature-line {
       border-top: 1px dotted #222;
@@ -1551,7 +1566,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin-right: auto;
     }
     .signature-label {
-      font-size: 0.93rem;
+      font-size: 1rem;
       font-weight: 500;
       margin-top: 1px;
       font-family: ${
@@ -1568,7 +1583,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       bottom: -4px;
       width: 100%;
       text-align: center;
-      font-size: 0.9rem;
+      font-size: 1rem;
       color: #555;
       background: white;
       padding: 4px 0;
