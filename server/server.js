@@ -143,6 +143,6 @@ app.listen(PORT, () => {
       console.log("Uploads directory created successfully");
     }
   });
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV === 'production'? 'production' : 'dev'} mode`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
