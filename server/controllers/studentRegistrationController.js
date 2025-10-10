@@ -174,6 +174,8 @@ export const createRegistration = async (req, res) => {
       section: formData.section || null,
       roll: formData.roll || null,
       religion: formData.religion || null,
+      upobritti: formData.upobritti || null, // Fixed field name
+      sorkari_brirti: formData.sorkari_brirti || null,
       student_name_bn: formData.studentNameBn || null,
       student_nick_name_bn: formData.studentNickNameBn || null,
       student_name_en: formData.studentNameEn || null,
@@ -402,6 +404,8 @@ export const updateRegistration = async (req, res) => {
       section: formData.section || null,
       roll: formData.roll || null,
       religion: formData.religion || null,
+      upobritti: formData.upobritti || null, 
+      sorkari_brirti: formData.sorkari_brirti || null,
       student_name_bn: formData.studentNameBn || null,
       student_nick_name_bn: formData.studentNickNameBn || null,
       student_name_en: formData.studentNameEn || null,
@@ -593,6 +597,8 @@ export const exportRegistrations = async (req, res) => {
       Section: reg.section || "",
       Roll: reg.roll || "",
       Religion: reg.religion || "",
+      "উপবৃত্তি (Upobritti)": reg.upobritti || "", // Fixed field name
+      "সরকারি বৃত্তি (Sorkari Brirti)": reg.sorkari_brirti || "",
       "Birth Registration No": reg.birth_reg_no || "",
       "Birth Date": convertDateFormat(reg.birth_date) || "",
       "Birth Year": reg.birth_year || null,
@@ -637,6 +643,7 @@ export const exportRegistrations = async (req, res) => {
       "Group (Class Nine)": reg.group_class_nine || "",
       "Main Subject": reg.main_subject || "",
       "Fourth Subject": reg.fourth_subject || "",
+      "Nearby Nine Student Info": reg.nearby_nine_student_info || "",
       "SSC Batch": reg.ssc_batch || "",
       Status: reg.status || "",
       "Submission Date": reg.submission_date
@@ -663,6 +670,8 @@ export const exportRegistrations = async (req, res) => {
       { wch: 8 }, // Section
       { wch: 8 }, // Roll
       { wch: 12 }, // Religion
+      { wch: 12 }, // উপবৃত্তি
+      { wch: 15 }, // সরকারি বৃত্তি
       { wch: 20 }, // Birth Registration No
       { wch: 12 }, // Birth Date
       { wch: 8 }, // Birth Year
@@ -707,6 +716,7 @@ export const exportRegistrations = async (req, res) => {
       { wch: 15 }, // Group (Class Nine)
       { wch: 15 }, // Main Subject
       { wch: 15 }, // Fourth Subject
+      { wch: 30 }, // Nearby Nine Student Info
       { wch: 8 }, // SSC Batch
       { wch: 10 }, // Status
       { wch: 12 }, // Submission Date

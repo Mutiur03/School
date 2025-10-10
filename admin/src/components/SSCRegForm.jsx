@@ -57,48 +57,39 @@ const SSCRegForm = () => {
   const fetchAllRegistrations = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/reg/ssc");
 
-      if (res.data.success) {
-        const sscYear = res.data.data.ssc_year;
+      // First get SSC settings to determine the correct batch year
+      const sscSettingsRes = await axios.get("/api/reg/ssc");
+      let targetBatch = new Date().getFullYear().toString();
 
-        // Update filters with the actual SSC year from settings
-        setFilters((prev) => ({
-          ...prev,
-          sscBatch: sscYear.toString(),
-        }));
+      if (sscSettingsRes.data.success) {
+        targetBatch = sscSettingsRes.data.data.ssc_year.toString();
+      }
 
-        const response = await axios.get(
-          `/api/reg/ssc/form?sscBatch=${encodeURIComponent(
-            sscYear.toString()
-          )}&limit=1000`
-        );
-        if (response.data.success) {
-          setAllRegistrations(response.data.data);
-          console.log(response.data.data);
-        }
+      // Update filters with the determined batch
+      setFilters((prev) => ({
+        ...prev,
+        sscBatch: targetBatch,
+      }));
+
+      // Fetch registrations for the determined batch
+      const response = await axios.get(
+        `/api/reg/ssc/form?sscBatch=${encodeURIComponent(
+          targetBatch
+        )}&limit=1000`
+      );
+
+      if (response.data.success) {
+        setAllRegistrations(response.data.data);
       } else {
-        // If no SSC registration exists, use current year as fallback
-        const currentYear = new Date().getFullYear().toString();
-        setFilters((prev) => ({
-          ...prev,
-          sscBatch: currentYear,
-        }));
-
-        const response = await axios.get(
-          `/api/reg/ssc/form?sscBatch=${encodeURIComponent(
-            currentYear
-          )}&limit=1000`
-        );
-        if (response.data.success) {
-          setAllRegistrations(response.data.data);
-        }
+        setAllRegistrations([]);
       }
     } catch (err) {
+      console.error("Failed to fetch registrations:", err);
       setError("Failed to fetch registrations");
-      console.error(err);
+      setAllRegistrations([]);
 
-      // Fallback to current year if API fails
+      // Fallback to current year
       const currentYear = new Date().getFullYear().toString();
       setFilters((prev) => ({
         ...prev,
@@ -131,25 +122,28 @@ const SSCRegForm = () => {
             "Please attach all required documents",
         });
         setCurrentNotice(
-          data.notice
-            ? {
-                url: data.notice,
-                download_url: data.notice,
-              }
-            : null
+          data.notice ? { url: data.notice, download_url: data.notice } : null
         );
         setIsEdit(true);
-
-        // Update filters with the SSC year from the fetched data
-        setFilters((prev) => ({
-          ...prev,
-          sscBatch: data.ssc_year.toString(),
-        }));
+      } else {
+        // Reset to default if no settings found
+        setFormData({
+          a_sec_roll: "",
+          b_sec_roll: "",
+          ssc_year: new Date().getFullYear(),
+          reg_open: false,
+          instruction_for_a: "Please follow the instructions carefully",
+          instruction_for_b: "Please follow the instructions carefully",
+          attachment_instruction: "Please attach all required documents",
+        });
+        setIsEdit(false);
       }
     } catch (error) {
+      console.error("Error fetching SSC registration data:", error);
       if (error.response?.status !== 404) {
         setFormMessage("Error fetching SSC registration data");
       }
+      setIsEdit(false);
     } finally {
       setFormLoading(false);
     }
@@ -843,7 +837,7 @@ const SSCRegForm = () => {
                 <select
                   value={filters.status}
                   onChange={(e) =>
-                    setFilters({ ...filters, status: e.target.value })
+                    setFilters((prev) => ({ ...prev, status: e.target.value }))
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
@@ -861,7 +855,7 @@ const SSCRegForm = () => {
                 <select
                   value={filters.section}
                   onChange={(e) =>
-                    setFilters({ ...filters, section: e.target.value })
+                    setFilters((prev) => ({ ...prev, section: e.target.value }))
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
@@ -873,27 +867,36 @@ const SSCRegForm = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Batch
+                  SSC Batch
                 </label>
                 <select
                   value={filters.sscBatch}
-                  onChange={(e) =>
-                    setFilters({ ...filters, sscBatch: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const newBatch = e.target.value;
+                    setFilters((prev) => ({ ...prev, sscBatch: newBatch }));
+                    // Refetch data when batch changes
+                    if (newBatch !== filters.sscBatch) {
+                      fetchAllRegistrations();
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {filters.sscBatch && (
-                    <option value={filters.sscBatch}>{filters.sscBatch}</option>
-                  )}
-                  <option value={new Date().getFullYear().toString()}>
-                    {new Date().getFullYear()}
-                  </option>
-                  <option value={(new Date().getFullYear() - 1).toString()}>
-                    {new Date().getFullYear() - 1}
-                  </option>
-                  <option value={(new Date().getFullYear() + 1).toString()}>
-                    {new Date().getFullYear() + 1}
-                  </option>
+                  {Array.from(
+                    new Set([
+                      filters.sscBatch,
+                      new Date().getFullYear().toString(),
+                      (new Date().getFullYear() - 1).toString(),
+                      (new Date().getFullYear() + 1).toString(),
+                    ])
+                  )
+                    .filter(Boolean)
+                    .sort()
+                    .reverse()
+                    .map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -911,7 +914,10 @@ const SSCRegForm = () => {
                     placeholder="Search by name, roll, birth reg..."
                     value={filters.search}
                     onChange={(e) =>
-                      setFilters({ ...filters, search: e.target.value })
+                      setFilters((prev) => ({
+                        ...prev,
+                        search: e.target.value,
+                      }))
                     }
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
