@@ -1557,6 +1557,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
       ],
+      executablePath: "/usr/bin/chromium-browser",
     });
 
     const page = await browser.newPage();
