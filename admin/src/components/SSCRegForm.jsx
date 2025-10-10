@@ -1618,6 +1618,44 @@ const SSCRegForm = () => {
                           </tr>
                           <tr className="border-b bg-gray-50">
                             <td className="py-2 px-4 font-medium text-gray-700 bg-gray-100">
+                              Scholarship Information:
+                            </td>
+                            <td className="py-2 px-4">
+                              {(() => {
+                                const stipend = selectedRegistration.upobritti
+                                  ? `উপবৃত্তি: ${
+                                      selectedRegistration.upobritti === "Yes"
+                                        ? "হ্যাঁ"
+                                        : "না"
+                                    }`
+                                  : "";
+                                const govScholarship = selectedRegistration.sorkari_brirti
+                                  ? `সরকারি বৃত্তি: ${
+                                      selectedRegistration.sorkari_brirti === "No"
+                                        ? "না"
+                                        : selectedRegistration.sorkari_brirti ===
+                                          "Talentpool"
+                                        ? "মেধাবৃত্তি"
+                                        : selectedRegistration.sorkari_brirti ===
+                                          "General"
+                                        ? "সাধারণ বৃত্তি"
+                                        : selectedRegistration.sorkari_brirti
+                                    }`
+                                  : "";
+
+                                const result = [stipend, govScholarship]
+                                  .filter(Boolean)
+                                  .join(", ");
+                                return result || (
+                                  <span className="text-gray-400">
+                                    Not specified
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 px-4 font-medium text-gray-700 bg-gray-50">
                               বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের
                               তথ্য:
                             </td>
