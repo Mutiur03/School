@@ -335,6 +335,8 @@ model student_registration_ssc {
   section              String? @db.VarChar(10)
   roll                 String? @db.VarChar(20)
   religion             String? @db.VarChar(50)
+  upobritti            String? @db.VarChar(10) // উপবৃত্তি (Yes/No)
+  sorkari_brirti       String? @db.VarChar(20) // সরকারি বৃত্তি (Talentpool/General/No)
   student_name_bn      String? @db.VarChar(100)
   student_nick_name_bn String? @db.VarChar(50)
   student_name_en      String? @db.VarChar(100)

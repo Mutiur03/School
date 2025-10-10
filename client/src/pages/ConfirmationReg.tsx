@@ -57,6 +57,8 @@ interface RegistrationData {
     group_class_nine: string;
     main_subject: string;
     fourth_subject: string;
+    upobritti?: string;
+    sorkari_brirti?: string;
     photo_path: string;
     status: string;
     submission_date: string;
@@ -257,6 +259,15 @@ function ConfirmationReg() {
         ].filter(Boolean).join(', ') || null;
     };
 
+    const formatScholarshipInfo = () => {
+        
+        const stipend = registration?.upobritti ? `উপবৃত্তি: ${registration.upobritti === 'Yes' ? 'হ্যাঁ' : 'না'}` : '';
+        const govScholarship = registration?.sorkari_brirti ?
+            `সরকারি বৃত্তি: ${registration.sorkari_brirti === 'No' ? 'না' : registration.sorkari_brirti === 'Talentpool' ? 'মেধাবৃত্তি' : registration.sorkari_brirti === 'General' ? 'সাধারণ বৃত্তি' : registration.sorkari_brirti}` : '';
+
+        return [stipend, govScholarship].filter(Boolean).join(', ') || 'Not specified';
+    };
+
     const formatMainAndFourthSubject = () => {
         return [
             registration?.group_class_nine ?? '',
@@ -444,6 +455,7 @@ function ConfirmationReg() {
                                         {renderTableRow("Previous School Name & Address:", formatPreviousSchool())}
                                         {renderTableRow("Information of JSC/JDC:", formatJSCInfo())}
                                         {renderTableRow("Main and 4th Subject:", formatMainAndFourthSubject())}
+                                        {renderTableRow("Scholarship Information:", formatScholarshipInfo())}
                                         {renderTableRow("বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:", registration.nearby_nine_student_info)}
                                     </tbody>
                                 </table>

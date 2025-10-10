@@ -76,6 +76,8 @@ type FormState = {
     section: string
     roll: string
     religion: string
+    upobritti: string  // Fixed field name
+    sorkari_brirti: string
     guardianName?: string
     guardianPhone?: string
     guardianRelation?: string
@@ -187,6 +189,8 @@ const initialFormState: FormState = {
     section: '',
     roll: '',
     religion: '',
+    upobritti: '',  // Fixed field name
+    sorkari_brirti: '',
     guardianName: '',
     guardianPhone: '',
     guardianRelation: '',
@@ -319,6 +323,8 @@ function Registration() {
                             section: data.section || '',
                             roll: data.roll || '',
                             religion: data.religion || '',
+                            upobritti: data.upobritti || '',  // Fixed field name
+                            sorkari_brirti: data.sorkari_brirti || '',
                             guardianName: data.guardian_name || '',
                             guardianPhone: data.guardian_phone || '',
                             guardianRelation: data.guardian_relation || '',
@@ -814,6 +820,8 @@ function Registration() {
         if (!form.section.trim()) e.section = 'Section is required'
         if (!form.roll.trim()) e.roll = 'Roll number is required'
         if (!form.religion.trim()) e.religion = 'Religion is required'
+        if (!form.upobritti.trim()) e.upobritti = 'উপবৃত্তি is required'  // Changed from upobrirti to upobritti
+        if (!form.sorkari_brirti.trim()) e.sorkari_brirti = 'সরকারি বৃত্তি is required'
         if (guardianNotFather) {
             if (!form.guardianName?.trim()) e.guardianName = 'Guardian\'s name is required'
             if (!form.guardianRelation?.trim()) e.guardianRelation = 'Relationship with guardian is required'
@@ -879,6 +887,8 @@ function Registration() {
             formData.append('section', form.section)
             formData.append('roll', form.roll)
             formData.append('religion', form.religion)
+            formData.append('upobritti', form.upobritti)  // Changed from 'upobrirti' to 'upobritti'
+            formData.append('sorkari_brirti', form.sorkari_brirti)
             formData.append('studentNameBn', form.studentNameBn)
             formData.append('studentNickNameBn', form.studentNickNameBn || '')
             formData.append('studentNameEn', form.studentNameEn)
@@ -1253,7 +1263,8 @@ function Registration() {
                                 <option value="Buddhism">Buddhism</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in Bengali">
+
+                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.studentNameBn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in Bengali">
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলায়)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
                         <FieldRow label="ডাকনাম (এক শব্দে/বাংলায়):" required error={errors.studentNickNameBn} tooltip="Enter your nickname in Bengali, use only one word">
@@ -1266,7 +1277,7 @@ function Registration() {
                                 aria-invalid={!!errors.studentNickNameBn}
                             />
                         </FieldRow>
-                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.studentNameEn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in English capital letters">
                             <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (in English)" aria-invalid={!!errors.studentNameEn} />
                         </FieldRow>
                         <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo} tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number">
@@ -1322,10 +1333,10 @@ function Registration() {
                                 Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
-                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in Bengali">
+                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.fatherNameBn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in Bengali">
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.fatherNameEn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in English capital letters">
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (in English)" aria-invalid={!!errors.fatherNameEn} />
                         </FieldRow>
 
@@ -1360,10 +1371,10 @@ function Registration() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in Bengali">
+                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.motherNameBn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in Bengali">
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.motherNameEn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in English capital letters">
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (in English)" aria-invalid={!!errors.motherNameEn} />
                         </FieldRow>
 
@@ -2113,6 +2124,33 @@ function Registration() {
                                         ))}
                                 </select>
                             </>
+                        </FieldRow>
+                        <FieldRow label="উপবৃত্তি:" required error={errors.upobritti} tooltip="Select whether you receive any stipend/scholarship">
+                            <select
+                                name="upobritti"  // Changed from "upobrirti" to match form state
+                                value={form.upobritti}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.upobritti}
+                            >
+                                <option value="">Select Option</option>
+                                <option value="Yes">Yes (হ্যাঁ)</option>
+                                <option value="No">No (না)</option>
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="সরকারি বৃত্তি:" required error={errors.sorkari_brirti} tooltip="Select whether you receive any government scholarship">
+                            <select
+                                name="sorkari_brirti"
+                                value={form.sorkari_brirti}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.sorkari_brirti}
+                            >
+                                <option value="">Select Option</option>
+                                <option value="Talentpool">Talentpool (মেধাবৃত্তি)</option>
+                                <option value="General">General (সাধারণ বৃত্তি)</option>
+                                <option value="No">No (না)</option>
+                            </select>
                         </FieldRow>
                     </div>
                 </section>
