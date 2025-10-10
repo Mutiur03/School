@@ -1183,7 +1183,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={1} title="Personal Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label={<span>Section: <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} error={errors.section}>
+                        <FieldRow label="Section:" required error={errors.section}>
                             <select
                                 name="section"
                                 value={form.section}
@@ -1196,7 +1196,7 @@ function Registration() {
                                 <option value="B">B</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label={<span>Roll: <Tooltip text="Your roll number as assigned by the school" /></span>} required error={errors.roll}>
+                        <FieldRow label="Roll:" required error={errors.roll}>
                             <select
                                 name="roll"
                                 value={form.roll}
@@ -1225,7 +1225,7 @@ function Registration() {
                                 </Instruction>
                             )}
                         </FieldRow>
-                        <FieldRow label={<span>Religion: <Tooltip text="Your religion (e.g. Islam, Hinduism, etc.)" /></span>} required error={errors.religion}>
+                        <FieldRow label="Religion:" required error={errors.religion}>
                             <select
                                 name="religion"
                                 value={form.religion}
@@ -1240,10 +1240,10 @@ function Registration() {
                                 <option value="Buddhism">Buddhism</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label={<span>ছাত্রের নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn}>
+                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn}>
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলায়)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
-                        <FieldRow label={<span>ডাকনাম (এক শব্দে/বাংলায়): <Tooltip text="ছাত্রের ডাকনাম, এক শব্দে লিখুন" /></span>} required error={errors.studentNickNameBn}>
+                        <FieldRow label="ডাকনাম (এক শব্দে/বাংলায়):" required error={errors.studentNickNameBn}>
                             <input
                                 name="studentNickNameBn"
                                 value={form.studentNickNameBn}
@@ -1253,7 +1253,7 @@ function Registration() {
                                 aria-invalid={!!errors.studentNickNameBn}
                             />
                         </FieldRow>
-                        <FieldRow label={<span>Student's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
+                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
                             <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (in English)" aria-invalid={!!errors.studentNameEn} />
                         </FieldRow>
                         <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo}>
@@ -1271,7 +1271,7 @@ function Registration() {
                                 aria-invalid={!!errors.birthRegNo}
                             />
                         </FieldRow>
-                        <FieldRow label={<span>Date of Birth: <Tooltip text={`Student must be at least 12 years old on 1st January ${currentYear}`} /></span>} required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
+                        <FieldRow label="Date of Birth:" required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
                                 <input
                                     name="birthYear"
@@ -1309,10 +1309,10 @@ function Registration() {
                                 Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
-                        <FieldRow label={<span>পিতার নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn}>
+                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn}>
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
                         </FieldRow>
-                        <FieldRow label={<span>Father's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
+                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (in English)" aria-invalid={!!errors.fatherNameEn} />
                         </FieldRow>
 
@@ -1347,10 +1347,10 @@ function Registration() {
                             />
                         </FieldRow>
 
-                        <FieldRow label={<span>মাতার নাম (বাংলায়): <Tooltip text="জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী" /></span>} required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
+                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
-                        <FieldRow label={<span>Mother's Name (in English): <Tooltip text="According to JSC/JDC Registration" /></span>} required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
+                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (in English)" aria-invalid={!!errors.motherNameEn} />
                         </FieldRow>
 
@@ -1807,7 +1807,7 @@ function Registration() {
                         <FieldRow
                             label={
                                 <span>
-                                    Photo (Wearing School Uniform): <Tooltip text="Upload a Photo (Wearing School Uniform/ jpg)" />
+                                    Photo (Wearing School Uniform):
                                     {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
                                 </span>
                             }
