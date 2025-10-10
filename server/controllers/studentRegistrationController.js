@@ -1534,36 +1534,78 @@ export const downloadRegistrationPDF = async (req, res) => {
 </html>
     `;
 
+    // Create PDFs directory if it doesn't exist
+    const pdfDir = path.join("exports", "pdfs");
+    if (!fs.existsSync(pdfDir)) {
+      fs.mkdirSync(pdfDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const studentName = (
+      registration.student_name_en ||
+      registration.roll ||
+      "unknown"
+    ).replace(/[^a-zA-Z0-9]/g, "_"); // Replace special characters
+    const pdfFilename = `SSC_Registration_${studentName}_${timestamp}.pdf`;
+    const pdfPath = path.join(pdfDir, pdfFilename);
+
     const browser = await puppeteer.launch({
-      // headless: "new",
-      // args: [
-      //   "--no-sandbox",
-      //   "--disable-setuid-sandbox",
-      //   "--disable-dev-shm-usage",
-      // ],
-      enableExtensions: true,
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
     });
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({
+
+    // Save PDF to local file
+    await page.pdf({
+      path: pdfPath,
       format: "legal",
       printBackground: true,
       margin: { top: 24, bottom: 24, left: 24, right: 24 },
       preferCSSPageSize: true,
       pageRanges: "1",
     });
-    await browser.close();
-    console.log("PDF generated for registration ID:", id);
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="SSC_Registration_${
+    await browser.close();
+    console.log("PDF saved to:", pdfPath);
+
+    // Send the saved file as download
+    res.download(
+      pdfPath,
+      `SSC_Registration_${
         registration.student_name_en || registration.roll
-      }.pdf"`
+      }.pdf`,
+      (error) => {
+        if (error) {
+          console.error("Download error:", error);
+          res.status(500).json({
+            success: false,
+            message: "Failed to download PDF",
+            error: error.message,
+          });
+        } else {
+          console.log("PDF sent successfully for registration ID:", id);
+        }
+
+        // // Clean up the temporary PDF file after download (or error)
+        // setTimeout(() => {
+        //   if (fs.existsSync(pdfPath)) {
+        //     try {
+        //       fs.unlinkSync(pdfPath);
+        //       console.log("Temporary PDF file cleaned up:", pdfPath);
+        //     } catch (cleanupError) {
+        //       console.warn("Failed to clean up PDF file:", cleanupError);
+        //     }
+        //   }
+        // }, 5000); // Delete after 5 seconds
+      }
     );
-    res.end(pdfBuffer);
   } catch (error) {
     console.error("PDF generation error:", error);
     res.status(500).json({
