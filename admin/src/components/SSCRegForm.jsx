@@ -242,20 +242,10 @@ const SSCRegForm = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const formData = new FormData();
-      Object.keys(editFormData).forEach((key) => {
-        if (editFormData[key] !== null && editFormData[key] !== undefined) {
-          formData.append(key, editFormData[key]);
-        }
-      });
-
       const response = await axios.put(
-        `/api/reg/ssc/form/${editFormData.id}`,
-        formData,
+        `/api/reg/ssc/form/${editFormData.id}/status`,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          status: editFormData.status,
         }
       );
 
@@ -263,14 +253,16 @@ const SSCRegForm = () => {
         // Update local state instead of refetching
         setAllRegistrations((prev) =>
           prev.map((reg) =>
-            reg.id === editFormData.id ? { ...reg, ...response.data.data } : reg
+            reg.id === editFormData.id
+              ? { ...reg, status: editFormData.status }
+              : reg
           )
         );
         setShowEditModal(false);
         setEditFormData({});
       }
     } catch (err) {
-      setError("Failed to update registration");
+      setError("Failed to update registration status");
       console.error(err);
     }
   };
@@ -1805,10 +1797,10 @@ const SSCRegForm = () => {
           {/* Edit Modal */}
           {showEditModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+              <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-gray-900">
-                    Edit Registration
+                    Update Registration Status
                   </h3>
                   <button
                     onClick={() => setShowEditModal(false)}
@@ -1830,82 +1822,37 @@ const SSCRegForm = () => {
                   </button>
                 </div>
 
-                <form
-                  onSubmit={handleEditSubmit}
-                  className="max-h-96 overflow-y-auto"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student Name (English)
-                      </label>
-                      <input
-                        type="text"
-                        value={editFormData.student_name_en || ""}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            student_name_en: e.target.value,
-                          })
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student Name (Bangla)
-                      </label>
-                      <input
-                        type="text"
-                        value={editFormData.student_name_bn || ""}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            student_name_bn: e.target.value,
-                          })
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Section
-                      </label>
-                      <select
-                        value={editFormData.section || ""}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            section: e.target.value,
-                          })
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Section</option>
-                        <option value="A">Section A</option>
-                        <option value="B">Section B</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Roll
-                      </label>
-                      <input
-                        type="text"
-                        value={editFormData.roll || ""}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            roll: e.target.value,
-                          })
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 mb-3">
+                    <strong>Student:</strong>{" "}
+                    {editFormData.student_name_en || "N/A"}
+                    <br />
+                    <strong>Section:</strong> {editFormData.section || "N/A"} |{" "}
+                    <strong>Roll:</strong> {editFormData.roll || "N/A"}
                   </div>
-                </form>
 
-                <div className="flex justify-end space-x-2 mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Registration Status
+                  </label>
+                  <select
+                    value={editFormData.status || "pending"}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        status: e.target.value,
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Only status can be modified for existing registrations
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-2">
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
@@ -1917,7 +1864,7 @@ const SSCRegForm = () => {
                     onClick={handleEditSubmit}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    Save Changes
+                    Update Status
                   </button>
                 </div>
               </div>
