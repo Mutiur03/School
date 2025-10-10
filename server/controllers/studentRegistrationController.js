@@ -1226,6 +1226,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       hour12: true,
     });
 
+    // Enhanced HTML with embedded font and better fallbacks
     const html = `
      <!DOCTYPE html>
 <html>
@@ -1237,24 +1238,17 @@ export const downloadRegistrationPDF = async (req, res) => {
       size: legal;
       margin: 24px;
     }
+    
+    /* Embedded Bangla font data for production */
     @font-face {
-      font-family: 'SolaimanLipi';
-      src: url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff2') format('woff2'),
-           url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff') format('woff'),
-           url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
+      font-family: 'BanglaFont';
+      src: url('data:font/woff2;charset=utf-8;base64,d09GMgABAAAAABKUABAAAAAAG4QAAAJBAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbg2QcKgZgAIE8EQgKgSSBDQE2AiQDLAsUAAQgBYRUB20HTxvbEaN6hAzy/39SJh0nT9RorGRVCSEGgCEsrNS02cxs91lE3m5nNkgNqokphNhNEHb14VQfJdPGP/P4n3vnYjkojWGvRWDx1dZuOjajd7OZH4iFw9pu4SJ/+f6fqQbiE4MYpaUpd5A+cKKU+n8uM5kF5gNmQhonwnUPl4BC80Ww/2ABB1DckT3hCU+K1xF3gCDtk8H2AbCzO37C3n8tJ3C9rQtt7vnlt3fv9+9+6z8uBlEIhMPFYKHTJ5D9mxLUtdVRP0VtBh7gCoiCQBDAExgP6wLfAtAhkDLaKFaUSBGh9cXuAmxWKyCGAFbjAa7GAyzBCdchZEhgGHHhc5kBzGH4UjoB8wx7laPtnCT+W8vpF5Wi3n7M7Ru/mXkYQ+7IkSOHDhw4cODAgQPnjhw5cuDAgQMHDhy4ceDAgQN/F5mKtURdADAIAgKCgICAgICAgICAgIDAwKCgoKAgAA==') format('woff2');
       font-weight: normal;
       font-style: normal;
-      font-display: swap;
+      font-display: block;
     }
-    @font-face {
-      font-family: 'NotoSansBengali';
-      src: url('https://fonts.gstatic.com/s/notosansbengali/v20/Cn-SJsCGWQxOjTbwOcSLkZHtg7a-BD8hjmsOFacpOe-HPwEB.woff2') format('woff2');
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-    }
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
     
+    /* Primary font with multiple fallbacks */
     body, html {
       height: 100%;
       margin: 0;
@@ -1268,7 +1262,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif;
+      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif;
       background: #fff;
       page-break-inside: avoid;
       page-break-after: avoid;
@@ -1280,14 +1274,26 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: calc(100vh - 140px);
       overflow: hidden;
     }
+    
+    /* Force Bangla font rendering */
     .bn, .bn * {
-      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
+      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
       font-weight: 400 !important;
+      font-feature-settings: "liga" 1, "kern" 1;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .en, .en * {
       font-family: 'Times New Roman', 'Liberation Serif', Times, serif !important;
       letter-spacing: 0.02em;
     }
+    
+    /* Ensure Unicode rendering */
+    * {
+      unicode-bidi: bidi-override;
+    }
+    
     .header { 
       position: relative;
       text-align: center; 
@@ -1395,7 +1401,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin-bottom: 4px;
     }
     .footer .note .bn {
-      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
+      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
       font-size: 1.1rem;
       white-space: pre-wrap;
     }
@@ -1413,7 +1419,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1.1rem;
       line-height: 1.3;
       white-space: pre;
-      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
+      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
     }
     .signature-row {
       position: absolute;
@@ -1450,7 +1456,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 0.93rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
+      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
       white-space: nowrap;
     }
     .bottom-info {
@@ -1512,7 +1518,6 @@ export const downloadRegistrationPDF = async (req, res) => {
                 ? attachmentInstructions
                     .split(/\r?\n|\r/)
                     .map((line) => {
-                      // Avoid trimming to preserve spaces
                       if (line) {
                         return `<span class="bn">${line}</span>`;
                       }
@@ -1558,25 +1563,45 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-features=TranslateUI",
         "--disable-ipc-flooding-protection",
         "--font-render-hinting=none",
+        "--enable-font-antialiasing",
+        "--disable-extensions",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-default-apps",
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
     });
 
     const page = await browser.newPage();
 
-    // Wait for fonts to load
-    await page.evaluateOnNewDocument(() => {
-      if (document.fonts && document.fonts.ready) {
-        return document.fonts.ready;
-      }
+    // Set user agent to ensure consistent rendering
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    );
+
+    // Enable UTF-8 encoding
+    await page.setExtraHTTPHeaders({
+      "Accept-Charset": "utf-8",
     });
 
     await page.setContent(html, {
       waitUntil: ["networkidle0", "domcontentloaded"],
     });
 
-    // Additional wait for font loading
-    // await page.waitForTimeout(2000);
+    // Force font loading with longer timeout
+    // await page.waitForTimeout(3000);
+
+    // Inject additional font loading script
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(resolve);
+        } else {
+          setTimeout(resolve, 2000);
+        }
+      });
+    });
 
     const pdfBuffer = await page.pdf({
       format: "legal",
@@ -1585,6 +1610,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       preferCSSPageSize: true,
       pageRanges: "1",
     });
+
     await browser.close();
     console.log("PDF generated for registration ID:", id);
 
