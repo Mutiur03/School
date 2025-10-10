@@ -484,11 +484,23 @@ export const updateRegistrationStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ["pending", "approved", "rejected"];
+    const validStatuses = ["pending", "approved"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid status. Must be one of: pending, approved, rejected",
+        message: "Invalid status. Must be one of: pending, approved",
+      });
+    }
+
+    const existingRegistration =
+      await prisma.student_registration_ssc.findUnique({
+        where: { id },
+      });
+
+    if (!existingRegistration) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found",
       });
     }
 
@@ -1050,15 +1062,15 @@ export const downloadRegistrationPDF = async (req, res) => {
     function normalizeUnicode(text) {
       if (!text) return "";
       // Normalize Unicode to NFC form
-      return text.normalize('NFC');
+      return text.normalize("NFC");
     }
 
     function wrapBnEn(text) {
       if (!text) return "";
-      
+
       // Normalize Unicode first
       text = normalizeUnicode(text);
-      
+
       return text.replace(
         /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (match, bn, nonBn) => {
@@ -1609,7 +1621,9 @@ export const downloadRegistrationPDF = async (req, res) => {
                     .split(/\r?\n|\r/)
                     .map((line) => {
                       if (line) {
-                        return `<span class="bn">${normalizeUnicode(line)}</span>`;
+                        return `<span class="bn">${normalizeUnicode(
+                          line
+                        )}</span>`;
                       }
                       return "";
                     })
@@ -1692,11 +1706,11 @@ export const downloadRegistrationPDF = async (req, res) => {
         null,
         false
       );
-      
+
       let node;
-      while (node = walker.nextNode()) {
+      while ((node = walker.nextNode())) {
         if (node.nodeValue) {
-          node.nodeValue = node.nodeValue.normalize('NFC');
+          node.nodeValue = node.nodeValue.normalize("NFC");
         }
       }
 
