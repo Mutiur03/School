@@ -1239,10 +1239,22 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     @font-face {
       font-family: 'SolaimanLipi';
-      src: url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff') format('woff');
+      src: url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff2') format('woff2'),
+           url('https://cdn.jsdelivr.net/gh/solaimanhossain/solaimanlipi-webfont@master/SolaimanLipi.woff') format('woff'),
+           url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
       font-weight: normal;
       font-style: normal;
+      font-display: swap;
     }
+    @font-face {
+      font-family: 'NotoSansBengali';
+      src: url('https://fonts.gstatic.com/s/notosansbengali/v20/Cn-SJsCGWQxOjTbwOcSLkZHtg7a-BD8hjmsOFacpOe-HPwEB.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
+    
     body, html {
       height: 100%;
       margin: 0;
@@ -1256,7 +1268,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
+      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif;
       background: #fff;
       page-break-inside: avoid;
       page-break-after: avoid;
@@ -1269,10 +1281,11 @@ export const downloadRegistrationPDF = async (req, res) => {
       overflow: hidden;
     }
     .bn, .bn * {
-      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
+      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
+      font-weight: 400 !important;
     }
     .en, .en * {
-      font-family: 'Times New Roman', Times, serif !important;
+      font-family: 'Times New Roman', 'Liberation Serif', Times, serif !important;
       letter-spacing: 0.02em;
     }
     .header { 
@@ -1382,12 +1395,12 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin-bottom: 4px;
     }
     .footer .note .bn {
-      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif !important;
+      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
       font-size: 1.1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
-      font-family: 'Times New Roman', Times, serif !important;
+      font-family: 'Times New Roman', 'Liberation Serif', Times, serif !important;
       font-size: 1.1rem;
     }
     .document-list {
@@ -1399,7 +1412,8 @@ export const downloadRegistrationPDF = async (req, res) => {
       display: block;
       font-size: 1.1rem;
       line-height: 1.3;
-      white-space: pre; /* Force exact space preservation */
+      white-space: pre;
+      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
     }
     .signature-row {
       position: absolute;
@@ -1436,7 +1450,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 0.93rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: 'SolaimanLipi', 'Noto Sans Bengali', 'Bangla', sans-serif;
+      font-family: 'SolaimanLipi', 'NotoSansBengali', 'Noto Sans Bengali', 'Kalpurush', 'Bangla', 'Arial Unicode MS', sans-serif !important;
       white-space: nowrap;
     }
     .bottom-info {
@@ -1540,12 +1554,30 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-font-subpixel-positioning",
+        "--disable-features=TranslateUI",
+        "--disable-ipc-flooding-protection",
+        "--font-render-hinting=none",
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    // Wait for fonts to load
+    await page.evaluateOnNewDocument(() => {
+      if (document.fonts && document.fonts.ready) {
+        return document.fonts.ready;
+      }
+    });
+
+    await page.setContent(html, {
+      waitUntil: ["networkidle0", "domcontentloaded"],
+    });
+
+    // Additional wait for font loading
+    // await page.waitForTimeout(2000);
+
     const pdfBuffer = await page.pdf({
       format: "legal",
       printBackground: true,
