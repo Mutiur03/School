@@ -119,14 +119,14 @@ const FieldRow: React.FC<{
     </div>
 )
 
-const Tooltip: React.FC<{ text: string }> = ({ text }) => (
-    <span className="ml-1 cursor-pointer group relative inline-block align-middle">
-        <svg className="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" /><text x="10" y="15" textAnchor="middle" fontSize="12" fill="#fff">?</text></svg>
-        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-20 transition-opacity duration-200">
-            {text}
-        </span>
-    </span>
-)
+// const Tooltip: React.FC<{ text: string }> = ({ text }) => (
+//     <span className="ml-1 cursor-pointer group relative inline-block align-middle">
+//         <svg className="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" /><text x="10" y="15" textAnchor="middle" fontSize="12" fill="#fff">?</text></svg>
+//         <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-20 transition-opacity duration-200">
+//             {text}
+//         </span>
+//     </span>
+// )
 
 const SectionHeader: React.FC<{ step: number, title: string }> = ({ step, title }) => (
     <div className="flex items-center gap-2 sm:gap-3 mb-3">
@@ -234,7 +234,7 @@ function Registration() {
     const [classNineStudents, setClassNineStudents] = useState<{ name: string, roll: string, section: string }[]>([])
     const [registrationClosed, setRegistrationClosed] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
-
+    const [ssc_batch, set_ssc_batch] = useState('');
     useEffect(() => {
         const initializeData = async () => {
             try {
@@ -243,7 +243,7 @@ function Registration() {
                 const regStatusResponse = await axios.get('/api/reg/ssc')
                 if (regStatusResponse.data.success) {
                     const { reg_open } = regStatusResponse.data.data
-
+                    set_ssc_batch(regStatusResponse.data.data.ssc_year || '');
                     if (!reg_open) {
                         setRegistrationClosed(true)
                         setShouldNavigate(true)
@@ -272,7 +272,7 @@ function Registration() {
                             return
                         }
 
-                        // Pre-populate form with existing data (without upazilas first)
+                        // Pre-populate form with existing data (without upazila first)
                         const formData = {
                             studentNameEn: data.student_name_en || '',
                             studentNameBn: data.student_name_bn || '',
@@ -729,15 +729,15 @@ function Registration() {
         if (!form.prevSchoolName.trim()) e.prevSchoolName = 'Previous school name is required'
         if (!form.prevSchoolDistrict.trim()) e.prevSchoolDistrict = 'Previous school district is required'
         if (!form.prevSchoolUpazila.trim()) e.prevSchoolUpazila = 'Previous school upazila/thana is required'
-        if (!form.jscPassingYear.trim()) e.jscPassingYear = 'JSC passing year is required'
-        if (!jscPassingYears.includes(form.jscPassingYear)) e.jscPassingYear = 'Please select a valid JSC passing year'
-        if (!form.jscBoard.trim()) e.jscBoard = 'JSC board is required'
-        if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC registration number is required'
-        if (!/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC registration number must be exactly 10 digits'
+        if (!form.jscPassingYear.trim()) e.jscPassingYear = 'JSC/JDC passing year is required'
+        if (!jscPassingYears.includes(form.jscPassingYear)) e.jscPassingYear = 'Please select a valid JSC/JDC passing year'
+        if (!form.jscBoard.trim()) e.jscBoard = 'JSC/JDC board is required'
+        if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC/JDC registration number is required'
+        if (!/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC/JDC registration number must be exactly 10 digits'
 
-        // JSC Roll validation - if provided, must be exactly 6 digits
+        // JSC/JDC Roll validation - if provided, must be exactly 6 digits
         if (form.jscRollNo.trim() && !/^\d{6}$/.test(form.jscRollNo)) {
-            e.jscRollNo = 'JSC roll number must be exactly 6 digits'
+            e.jscRollNo = 'JSC/JDC roll number must be exactly 6 digits'
         }
 
         if (!form.studentNameEn.trim()) e.studentNameEn = 'Student name (in English) is required'
@@ -787,17 +787,17 @@ function Registration() {
         if (!form.motherPhone.trim()) e.motherPhone = 'Mother\'s mobile number is required'
         else if (!/^[0-9]{11}$/.test(form.motherPhone)) e.motherPhone = 'Enter a valid mobile number (exactly 11 digits)'
         if (!form.presentDistrict.trim()) e.presentDistrict = 'Present district is required'
-        if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila is required'
+        if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila/thana is required'
         if (!form.presentPostOffice.trim()) e.presentPostOffice = 'Present post office is required'
         if (!form.presentPostCode.trim()) e.presentPostCode = 'Present post code is required'
         else if (!/^\d{4}$/.test(form.presentPostCode)) e.presentPostCode = 'Present post code must be exactly 4 digits'
-        if (!form.presentVillageRoad.trim()) e.presentVillageRoad = 'Present village/road is required'
+        if (!form.presentVillageRoad.trim()) e.presentVillageRoad = 'Present village/road/house is required'
         if (!form.permanentDistrict.trim()) e.permanentDistrict = 'Permanent district is required'
-        if (!form.permanentUpazila.trim()) e.permanentUpazila = 'Permanent upazila is required'
+        if (!form.permanentUpazila.trim()) e.permanentUpazila = 'Permanent upazila/thana is required'
         if (!form.permanentPostOffice.trim()) e.permanentPostOffice = 'Permanent post office is required'
         if (!form.permanentPostCode.trim()) e.permanentPostCode = 'Permanent post code is required'
         else if (!/^\d{4}$/.test(form.permanentPostCode)) e.permanentPostCode = 'Permanent post code must be exactly 4 digits'
-        if (!form.permanentVillageRoad.trim()) e.permanentVillageRoad = 'Permanent village/road is required'
+        if (!form.permanentVillageRoad.trim()) e.permanentVillageRoad = 'Permanent village/road/house is required'
         if (!form.section.trim()) e.section = 'Section is required'
         if (!form.roll.trim()) e.roll = 'Roll number is required'
         if (!form.religion.trim()) e.religion = 'Religion is required'
@@ -819,11 +819,11 @@ function Registration() {
             }
             if (!form.guardianAddressSameAsPermanent) {
                 if (!form.guardianDistrict?.trim()) e.guardianDistrict = 'Guardian\'s district is required'
-                if (!form.guardianUpazila?.trim()) e.guardianUpazila = 'Guardian\'s upazila is required'
+                if (!form.guardianUpazila?.trim()) e.guardianUpazila = 'Guardian\'s upazila/thana is required'
                 if (!form.guardianPostOffice?.trim()) e.guardianPostOffice = 'Guardian\'s post office is required'
                 if (!form.guardianPostCode?.trim()) e.guardianPostCode = 'Guardian\'s post code is required'
                 else if (!/^\d{4}$/.test(form.guardianPostCode)) e.guardianPostCode = 'Guardian\'s post code must be exactly 4 digits'
-                if (!form.guardianVillageRoad?.trim()) e.guardianVillageRoad = 'Guardian\'s village/road is required'
+                if (!form.guardianVillageRoad?.trim()) e.guardianVillageRoad = 'Guardian\'s village/road/house is required'
             }
         }
         if (!form.groupClassNine) e.groupClassNine = 'Group in class nine is required'
@@ -1155,7 +1155,7 @@ function Registration() {
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
                 <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
-                    {isEditMode ? 'Edit Registration' : "Student's Information for SSC Exam Registration"}
+                    {isEditMode ? 'Edit Registration' : `Student's Information for SSC Exam Registration ${ssc_batch}`}
                 </h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
                     Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.
@@ -1183,7 +1183,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={1} title="Personal Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label={<span>Section: <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} required error={errors.section}>
+                        <FieldRow label={<span>Section: <Tooltip text="Your class section (e.g. A, B, C,)" /></span>} error={errors.section}>
                             <select
                                 name="section"
                                 value={form.section}
@@ -1419,7 +1419,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila:" required error={errors.permanentUpazila}>
+                        <FieldRow label="Upazila/Thana:" required error={errors.permanentUpazila}>
                             <select
                                 name="permanentUpazila"
                                 value={form.permanentUpazila}
@@ -1427,7 +1427,7 @@ function Registration() {
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 disabled={!form.permanentDistrict}
                             >
-                                <option value="">Select upazila</option>
+                                <option value="">Select upazila/thana</option>
                                 {permanentUpazillas.map((u) => (
                                     <option key={u.id} value={u.id}>
                                         {u.name}
@@ -1458,13 +1458,13 @@ function Registration() {
                                 aria-invalid={!!errors.permanentPostCode}
                             />
                         </FieldRow>
-                        <FieldRow label="Village/Road No:" required error={errors.permanentVillageRoad}>
+                        <FieldRow label="Village/Road/House No:" required error={errors.permanentVillageRoad}>
                             <input
                                 name="permanentVillageRoad"
                                 value={form.permanentVillageRoad}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                placeholder="Village/Road No"
+                                placeholder="Village/Road/House No"
                             />
                         </FieldRow>
                         <h4 className="font-semibold mb-2 mt-4 sm:mt-6 text-sm sm:text-base">Present Address:</h4>
@@ -1517,7 +1517,7 @@ function Registration() {
                                         ))}
                                     </select>
                                 </FieldRow>
-                                <FieldRow label="Upazila:" required error={errors.presentUpazila}>
+                                <FieldRow label="Upazila/Thana:" required error={errors.presentUpazila}>
                                     <select
                                         name="presentUpazila"
                                         value={form.presentUpazila}
@@ -1525,7 +1525,7 @@ function Registration() {
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         disabled={!form.presentDistrict}
                                     >
-                                        <option value="">Select upazila</option>
+                                        <option value="">Select upazila/thana</option>
                                         {presentUpazillas.map((u) => (
                                             <option key={u.id} value={u.id}>
                                                 {u.name}
@@ -1556,13 +1556,13 @@ function Registration() {
                                         aria-invalid={!!errors.presentPostCode}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Village/Road No:" required error={errors.presentVillageRoad}>
+                                <FieldRow label="Village/Road/House No:" required error={errors.presentVillageRoad}>
                                     <input
                                         name="presentVillageRoad"
                                         value={form.presentVillageRoad}
                                         onChange={handleChange}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        placeholder="Village/Road No"
+                                        placeholder="Village/Road/House No"
                                     />
                                 </FieldRow>
                             </div>
@@ -1743,7 +1743,7 @@ function Registration() {
                                                 ))}
                                             </select>
                                         </FieldRow>
-                                        <FieldRow label="Upazila:" required error={errors.guardianUpazila}>
+                                        <FieldRow label="Upazila/Thana:" required error={errors.guardianUpazila}>
                                             <select
                                                 name="guardianUpazila"
                                                 value={form.guardianUpazila}
@@ -1751,7 +1751,7 @@ function Registration() {
                                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                                 disabled={!form.guardianDistrict}
                                             >
-                                                <option value="">Select upazila</option>
+                                                <option value="">Select upazila/thana</option>
                                                 {guardianUpazillas.map((u) => (
                                                     <option key={u.id} value={u.id}>
                                                         {u.name}
@@ -1782,13 +1782,13 @@ function Registration() {
                                                 aria-invalid={!!errors.guardianPostCode}
                                             />
                                         </FieldRow>
-                                        <FieldRow label="Village/Road No:" required error={errors.guardianVillageRoad}>
+                                        <FieldRow label="Village/Road/House No:" required error={errors.guardianVillageRoad}>
                                             <input
                                                 name="guardianVillageRoad"
                                                 value={form.guardianVillageRoad}
                                                 onChange={handleChange}
                                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                                placeholder="Village/Road No"
+                                                placeholder="Village/Road/House No"
                                             />
                                         </FieldRow>
                                     </div>
@@ -1804,37 +1804,82 @@ function Registration() {
                         <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Student's Photo:</h3>
                     </div>
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md">
-                        <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
-                            <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
-                                <span>Photo: <Tooltip text="Upload a Photo (Wearing School Uniform/ jpg)" />
+                        <FieldRow
+                            label={
+                                <span>
+                                    Photo (Wearing School Uniform): <Tooltip text="Upload a Photo (Wearing School Uniform/ jpg)" />
                                     {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
                                 </span>
-                                <span className="mx-2 hidden lg:inline">:</span>
-                            </div>
-                            <div className="flex-1 w-full min-w-0">
-                                <div className="relative group">
-                                    <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 transition group-hover:border-blue-400 group-focus-within:border-blue-400 cursor-pointer overflow-hidden mx-auto lg:mx-0">
-                                        {!photoPreview
-                                            ? <span className="text-xs sm:text-sm text-center text-gray-500 px-2">
-                                                {isEditMode ? 'Upload Photo (Wearing School Uniform/ jpg)' : 'Upload Photo (Wearing School Uniform/ jpg)'}
-                                            </span>
-                                            : <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover rounded" />}
+                            }
+                        >
+                            <div >
+                                <div className="flex flex-col lg:flex-row items-start gap-4">
+                                    <div className="flex-shrink-0">
+                                        <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
+                                            {photoPreview ? (
+                                                <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-center px-2">
+                                                    <svg className="mx-auto mb-1 w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7-5 7 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                    <div className="text-xs sm:text-sm text-gray-500">
+                                                        {isEditMode ? 'Current photo' : 'No photo uploaded'}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Invisible file input placed only over the preview box for easy click */}
+                                            <input
+                                                id="photo-input"
+                                                type="file"
+                                                name="photo"
+                                                accept=".jpg,.jpeg,image/jpeg"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                aria-invalid={!!errors.photo}
+                                            />
+                                        </div>
                                     </div>
-                                    <input
-                                        type="file"
-                                        name="photo"
-                                        accept=".jpg,.jpeg,image/jpeg"
-                                        onChange={handleFileChange}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        aria-invalid={!!errors.photo}
-                                    />
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                            <label htmlFor="photo-input" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base">
+                                                {photoPreview ? 'Change Photo' : 'Choose Photo'}
+                                            </label>
+
+                                            {(photoPreview || form.photo) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // clear form photo and preview
+                                                        dispatch({ type: 'SET_FIELD', name: 'photo', value: null })
+                                                        setPhotoPreview(null)
+                                                        // clear native input value if present
+                                                        const input = document.getElementById('photo-input') as HTMLInputElement | null
+                                                        if (input) input.value = ''
+                                                        setErrors(prev => ({ ...prev, photo: '' }))
+                                                    }}
+                                                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded bg-white text-sm sm:text-base hover:bg-gray-50"
+                                                >
+                                                    Remove Photo
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <Instruction>
+                                            JPG only. Max file size 2MB. Click the box or "Choose Photo" to upload.
+                                        </Instruction>
+
+                                        {errors.photo && <Error>{errors.photo}</Error>}
+                                        {isEditMode && !form.photo && photoPreview && (
+                                            <Instruction>Existing photo will be kept if you don't upload a new one.</Instruction>
+                                        )}
+                                    </div>
                                 </div>
-                                {isEditMode && !form.photo && photoPreview && (
-                                    <Instruction>Current photo will be kept if no new photo is uploaded</Instruction>
-                                )}
-                                {errors.photo && <Error>{errors.photo}</Error>}
                             </div>
-                        </div>
+                        </FieldRow>
                     </div>
                 </section>
                 <section className="mb-4 sm:mb-6">
@@ -1887,7 +1932,7 @@ function Registration() {
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC Passing Year:" required error={errors.jscPassingYear}>
+                                <FieldRow label="JSC/JDC Passing Year:" required error={errors.jscPassingYear}>
                                     <select
                                         name="jscPassingYear"
                                         value={form.jscPassingYear}
@@ -1903,7 +1948,7 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC Board:" required error={errors.jscBoard}>
+                                <FieldRow label="JSC/JDC Board:" required error={errors.jscBoard}>
                                     <select
                                         name="jscBoard"
                                         value={form.jscBoard}
@@ -1929,7 +1974,7 @@ function Registration() {
                         </div>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC Registration Number:" required error={errors.jscRegNo}>
+                                <FieldRow label="JSC/JDC Registration Number:" required error={errors.jscRegNo}>
                                     <input
                                         name="jscRegNo"
                                         value={form.jscRegNo}
@@ -1945,7 +1990,7 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC Roll Number:" error={errors.jscRollNo}>
+                                <FieldRow label="JSC/JDC Roll Number:" error={errors.jscRollNo}>
                                     <input
                                         name="jscRollNo"
                                         value={form.jscRollNo}
