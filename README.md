@@ -208,6 +208,8 @@ The app will be running at: `http://localhost:5173` (or the port shown in your t
 The backend will be running at: `http://localhost:3001`
 
 ---
+sudo apt-get install chromium-browser
+https://stackoverflow.com/questions/59979188/error-failed-to-launch-the-browser-process-puppeteer
 
 ## 🚀 Live Demo 
 
