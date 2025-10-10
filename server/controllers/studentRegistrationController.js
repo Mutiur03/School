@@ -942,6 +942,19 @@ export const exportImages = async (req, res) => {
   }
 };
 
+const loadFontAsBase64 = (fontPath) => {
+  try {
+    if (fs.existsSync(fontPath)) {
+      const fontBuffer = fs.readFileSync(fontPath);
+      return fontBuffer.toString("base64");
+    }
+    return null;
+  } catch (error) {
+    console.warn(`Failed to load font: ${fontPath}`, error);
+    return null;
+  }
+};
+
 export const downloadRegistrationPDF = async (req, res) => {
   try {
     console.log("Generating PDF for registration ID:", req.params.id);
@@ -1004,6 +1017,13 @@ export const downloadRegistrationPDF = async (req, res) => {
         console.warn("Failed to load logo:", logoError);
       }
     }
+
+    // Load font files as base64
+    const solaimanLipiPath = path.join("public", "fonts", "SolaimanLipi.woff2");
+    const timesNewRomanPath = path.join("public", "fonts", "times.ttf");
+
+    const solaimanLipiBase64 = loadFontAsBase64(solaimanLipiPath);
+    const timesNewRomanBase64 = loadFontAsBase64(timesNewRomanPath);
 
     function formatDateLong(dateStr) {
       if (!dateStr) return "";
@@ -1239,16 +1259,32 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin: 24px;
     }
     
-    /* Embedded Bangla font data for production */
+    ${
+      solaimanLipiBase64
+        ? `
     @font-face {
-      font-family: 'BanglaFont';
-      src: url('data:font/woff2;charset=utf-8;base64,d09GMgABAAAAABKUABAAAAAAG4QAAAJBAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbg2QcKgZgAIE8EQgKgSSBDQE2AiQDLAsUAAQgBYRUB20HTxvbEaN6hAzy/39SJh0nT9RorGRVCSEGgCEsrNS02cxs91lE3m5nNkgNqokphNhNEHb14VQfJdPGP/P4n3vnYjkojWGvRWDx1dZuOjajd7OZH4iFw9pu4SJ/+f6fqQbiE4MYpaUpd5A+cKKU+n8uM5kF5gNmQhonwnUPl4BC80Ww/2ABB1DckT3hCU+K1xF3gCDtk8H2AbCzO37C3n8tJ3C9rQtt7vnlt3fv9+9+6z8uBlEIhMPFYKHTJ5D9mxLUtdVRP0VtBh7gCoiCQBDAExgP6wLfAtAhkDLaKFaUSBGh9cXuAmxWKyCGAFbjAa7GAyzBCdchZEhgGHHhc5kBzGH4UjoB8wx7laPtnCT+W8vpF5Wi3n7M7Ru/mXkYQ+7IkSOHDhw4cODAgQPnjhw5cuDAgQMHDhy4ceDAgQN/F5mKtURdADAIAgKCgICAgICAgICAgIDAwKCgoKAgAA==') format('woff2');
+      font-family: 'SolaimanLipi';
+      src: url('data:font/truetype;charset=utf-8;base64,${solaimanLipiBase64}') format('truetype');
       font-weight: normal;
       font-style: normal;
       font-display: block;
+    }`
+        : ""
     }
     
-    /* Primary font with multiple fallbacks */
+    ${
+      timesNewRomanBase64
+        ? `
+    @font-face {
+      font-family: 'TimesNewRoman';
+      src: url('data:font/truetype;charset=utf-8;base64,${timesNewRomanBase64}') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }`
+        : ""
+    }
+    
     body, html {
       height: 100%;
       margin: 0;
@@ -1262,7 +1298,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif;
+      font-family: ${solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"};
       background: #fff;
       page-break-inside: avoid;
       page-break-after: avoid;
@@ -1277,7 +1313,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Force Bangla font rendering */
     .bn, .bn * {
-      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
+      font-family: ${
+        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
+      } !important;
       font-weight: 400 !important;
       font-feature-settings: "liga" 1, "kern" 1;
       text-rendering: optimizeLegibility;
@@ -1285,7 +1323,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       -moz-osx-font-smoothing: grayscale;
     }
     .en, .en * {
-      font-family: 'Times New Roman', 'Liberation Serif', Times, serif !important;
+      font-family: ${
+        timesNewRomanBase64 ? "'TimesNewRoman'" : "serif"
+      } !important;
       letter-spacing: 0.02em;
     }
     
@@ -1401,12 +1441,16 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin-bottom: 4px;
     }
     .footer .note .bn {
-      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
+      font-family: ${
+        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
+      } !important;
       font-size: 1.1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
-      font-family: 'Times New Roman', 'Liberation Serif', Times, serif !important;
+      font-family: ${
+        timesNewRomanBase64 ? "'TimesNewRoman'" : "serif"
+      } !important;
       font-size: 1.1rem;
     }
     .document-list {
@@ -1419,7 +1463,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1.1rem;
       line-height: 1.3;
       white-space: pre;
-      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
+      font-family: ${
+        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
+      } !important;
     }
     .signature-row {
       position: absolute;
@@ -1456,7 +1502,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 0.93rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: 'BanglaFont', 'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', 'Bangla MN', 'Bangla Sangam MN', sans-serif !important;
+      font-family: ${
+        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
+      } !important;
       white-space: nowrap;
     }
     .bottom-info {
