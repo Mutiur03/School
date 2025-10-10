@@ -251,12 +251,8 @@ function Registration() {
                         return
                     }
                 } else {
-                    // if (!isEditMode) {
-                    //     setRegistrationClosed(true)
-                    //     setShouldNavigate(true)
                     navigate('/', { replace: true })
                     return
-                    // }
                 }
 
                 const current_year = new Date().getFullYear()
@@ -276,8 +272,7 @@ function Registration() {
                             return
                         }
 
-                        // --- PATCH: Set districts first, then upazila after options loaded ---
-                        // Pre-populate form with existing data
+                        // Pre-populate form with existing data (without upazilas first)
                         const formData = {
                             studentNameEn: data.student_name_en || '',
                             studentNameBn: data.student_name_bn || '',
@@ -295,12 +290,12 @@ function Registration() {
                             birthRegNo: data.birth_reg_no || '',
                             email: data.email || '',
                             presentDistrict: data.present_district || '',
-                            presentUpazila: data.present_upazila || '',
+                            presentUpazila: '', // Set empty initially
                             presentPostOffice: data.present_post_office || '',
                             presentPostCode: data.present_post_code || '',
                             presentVillageRoad: data.present_village_road || '',
                             permanentDistrict: data.permanent_district || '',
-                            permanentUpazila: data.permanent_upazila || '',
+                            permanentUpazila: '', // Set empty initially
                             permanentPostOffice: data.permanent_post_office || '',
                             permanentPostCode: data.permanent_post_code || '',
                             permanentVillageRoad: data.permanent_village_road || '',
@@ -317,13 +312,13 @@ function Registration() {
                             guardianNid: data.guardian_nid || '',
                             guardianAddressSameAsPermanent: data.guardian_address_same_as_permanent || false,
                             guardianDistrict: data.guardian_district || '',
-                            guardianUpazila: data.guardian_upazila || '',
+                            guardianUpazila: '', // Set empty initially
                             guardianPostOffice: data.guardian_post_office || '',
                             guardianPostCode: data.guardian_post_code || '',
                             guardianVillageRoad: data.guardian_village_road || '',
                             prevSchoolName: data.prev_school_name || '',
                             prevSchoolDistrict: data.prev_school_district || '',
-                            prevSchoolUpazila: data.prev_school_upazila || '',
+                            prevSchoolUpazila: '', // Set empty initially
                             jscPassingYear: data.jsc_passing_year || '',
                             jscBoard: data.jsc_board || '',
                             jscRegNo: data.jsc_reg_no || '',
@@ -334,52 +329,41 @@ function Registration() {
                             nearbyNineStudentInfo: data.nearby_nine_student_info || '',
                         }
 
-                        // Set only district fields first
                         dispatch({ type: 'SET_FIELDS', fields: formData })
 
-                        // Set upazila fields after upazila options are loaded
+                        // Set upazila options based on districts and then set upazila values
                         setTimeout(() => {
-                            dispatch({
-                                type: 'SET_FIELDS',
-                                fields: {
-                                    presentUpazila: data.present_upazila || '',
-                                    permanentUpazila: data.permanent_upazila || '',
-                                    prevSchoolUpazila: data.prev_school_upazila || '',
-                                    guardianUpazila: data.guardian_upazila || '',
-                                    // Set the rest of the fields
-                                    presentPostOffice: data.present_post_office || '',
-                                    presentPostCode: data.present_post_code || '',
-                                    presentVillageRoad: data.present_village_road || '',
-                                    permanentPostOffice: data.permanent_post_office || '',
-                                    permanentPostCode: data.permanent_post_code || '',
-                                    permanentVillageRoad: data.permanent_village_road || '',
-                                    prevSchoolName: data.prev_school_name || '',
-                                    jscPassingYear: data.jsc_passing_year || '',
-                                    jscBoard: data.jsc_board || '',
-                                    jscRegNo: data.jsc_reg_no || '',
-                                    jscRollNo: data.jsc_roll_no || '',
-                                    groupClassNine: data.group_class_nine || '',
-                                    mainSubject: data.main_subject || '',
-                                    fourthSubject: data.fourth_subject || '',
-                                    nearbyNineStudentInfo: data.nearby_nine_student_info || '',
-                                    // ...other fields as needed...
-                                }
-                            })
-                        }, 0)
+                            // Load upazila options first
+                            if (data.present_district) {
+                                const presentUpazilas = getUpazilasByDistrict(data.present_district)
+                                setPresentUpazillas(presentUpazilas)
+                            }
+                            if (data.permanent_district) {
+                                const permanentUpazilas = getUpazilasByDistrict(data.permanent_district)
+                                setPermanentUpazillas(permanentUpazilas)
+                            }
+                            if (data.prev_school_district) {
+                                const prevSchoolUpazilas = getUpazilasByDistrict(data.prev_school_district)
+                                setPrevSchoolUpazilas(prevSchoolUpazilas)
+                            }
+                            if (data.guardian_district) {
+                                const guardianUpazilas = getUpazilasByDistrict(data.guardian_district)
+                                setGuardianUpazillas(guardianUpazilas)
+                            }
 
-                        // Load upazilla options first
-                        if (formData.presentDistrict) {
-                            setPresentUpazillas(getUpazilasByDistrict(formData.presentDistrict))
-                        }
-                        if (formData.permanentDistrict) {
-                            setPermanentUpazillas(getUpazilasByDistrict(formData.permanentDistrict))
-                        }
-                        if (formData.prevSchoolDistrict) {
-                            setPrevSchoolUpazilas(getUpazilasByDistrict(formData.prevSchoolDistrict))
-                        }
-                        if (formData.guardianDistrict) {
-                            setGuardianUpazillas(getUpazilasByDistrict(formData.guardianDistrict))
-                        }
+                            // Then set upazila values after options are loaded
+                            setTimeout(() => {
+                                dispatch({
+                                    type: 'SET_FIELDS',
+                                    fields: {
+                                        presentUpazila: data.present_upazila || '',
+                                        permanentUpazila: data.permanent_upazila || '',
+                                        prevSchoolUpazila: data.prev_school_upazila || '',
+                                        guardianUpazila: data.guardian_upazila || '',
+                                    }
+                                })
+                            }, 100) // Small delay to ensure options are rendered
+                        }, 50) // Small delay to ensure districts are processed
 
                         if (data.guardian_name) {
                             setGuardianNotFather(true)
@@ -417,7 +401,6 @@ function Registration() {
                     navigate('/registration/ssc', { replace: true })
                     return
                 } else {
-                    // If there's an error and not in edit mode, redirect to homepage
                     setShouldNavigate(true)
                     navigate('/', { replace: true })
                     return
