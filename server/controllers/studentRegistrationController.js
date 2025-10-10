@@ -1264,7 +1264,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         ? `
     @font-face {
       font-family: 'SolaimanLipi';
-      src: url('data:font/truetype;charset=utf-8;base64,${solaimanLipiBase64}') format('truetype');
+      src: url('data:font/truetype;charset=utf-8;base64,${solaimanLipiBase64}') format('woff2');
       font-weight: normal;
       font-style: normal;
       font-display: block;
