@@ -104,11 +104,24 @@ const FieldRow: React.FC<{
     required?: boolean
     instruction?: React.ReactNode
     error?: string | undefined
+    tooltip?: string
     children: React.ReactNode
-}> = ({ label, required, instruction, error, children }) => (
+}> = ({ label, required, instruction, error, tooltip, children }) => (
     <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
         <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
-            <span>{label}{required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}</span>
+            <span className="flex items-center gap-1">
+                <span>{label}{required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}</span>
+                {tooltip && (
+                    <span className="cursor-pointer group relative inline-block align-middle">
+                        <div className="w-4 h-4 bg-blue-500 border border-blue-400 text-white rounded-full flex items-center justify-center  text-xs font-bold hover:bg-blue-700 transition-colors">
+                            ?
+                        </div>
+                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs px-2 py-1 rounded bg-gray-800 text-white text-sm opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-20 transition-opacity duration-200">
+                            {tooltip}
+                        </span>
+                    </span>
+                )}
+            </span>
             {/* <span className="mx-2 hidden lg:inline">:</span> */}
         </div>
         <div className="flex-1 w-full min-w-0">
@@ -1183,7 +1196,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={1} title="Personal Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Section:" required error={errors.section}>
+                        <FieldRow label="Section:" required error={errors.section} tooltip="Choose the section you want to be assigned to for SSC">
                             <select
                                 name="section"
                                 value={form.section}
@@ -1196,7 +1209,7 @@ function Registration() {
                                 <option value="B">B</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Roll:" required error={errors.roll}>
+                        <FieldRow label="Roll:" required error={errors.roll} tooltip="Select your roll number from the available rolls for your chosen section">
                             <select
                                 name="roll"
                                 value={form.roll}
@@ -1225,7 +1238,7 @@ function Registration() {
                                 </Instruction>
                             )}
                         </FieldRow>
-                        <FieldRow label="Religion:" required error={errors.religion}>
+                        <FieldRow label="Religion:" required error={errors.religion} tooltip="Select your religion as it will appear on your SSC certificate">
                             <select
                                 name="religion"
                                 value={form.religion}
@@ -1240,10 +1253,10 @@ function Registration() {
                                 <option value="Buddhism">Buddhism</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn}>
+                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.studentNameBn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in Bengali">
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলায়)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
-                        <FieldRow label="ডাকনাম (এক শব্দে/বাংলায়):" required error={errors.studentNickNameBn}>
+                        <FieldRow label="ডাকনাম (এক শব্দে/বাংলায়):" required error={errors.studentNickNameBn} tooltip="Enter your nickname in Bengali, use only one word">
                             <input
                                 name="studentNickNameBn"
                                 value={form.studentNickNameBn}
@@ -1253,10 +1266,10 @@ function Registration() {
                                 aria-invalid={!!errors.studentNickNameBn}
                             />
                         </FieldRow>
-                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn}>
+                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.studentNameEn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in English capital letters">
                             <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (in English)" aria-invalid={!!errors.studentNameEn} />
                         </FieldRow>
-                        <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo}>
+                        <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo} tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number">
                             <input
                                 name="birthRegNo"
                                 type="text"
@@ -1271,7 +1284,7 @@ function Registration() {
                                 aria-invalid={!!errors.birthRegNo}
                             />
                         </FieldRow>
-                        <FieldRow label="Date of Birth:" required error={errors.birthYear || errors.birthMonth || errors.birthDay}>
+                        <FieldRow label="Date of Birth:" required error={errors.birthYear || errors.birthMonth || errors.birthDay} tooltip="Birth year is auto-filled from birth registration number. Select month and day manually">
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
                                 <input
                                     name="birthYear"
@@ -1309,14 +1322,14 @@ function Registration() {
                                 Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
-                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn}>
+                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.fatherNameBn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in Bengali">
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn}>
+                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.fatherNameEn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in English capital letters">
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (in English)" aria-invalid={!!errors.fatherNameEn} />
                         </FieldRow>
 
-                        <FieldRow label="Father's NID:" required error={errors.fatherNid}>
+                        <FieldRow label="Father's NID:" required error={errors.fatherNid} tooltip="Enter father's National ID number (10-17 digits)">
                             <input
                                 name="fatherNid"
                                 value={form.fatherNid}
@@ -1332,7 +1345,7 @@ function Registration() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Father's Mobile No:" required error={errors.fatherPhone} >
+                        <FieldRow label="Father's Mobile No:" required error={errors.fatherPhone} tooltip="Enter father's mobile number in 11-digit format (e.g., 01XXXXXXXXX)">
                             <input
                                 name="fatherPhone"
                                 value={form.fatherPhone}
@@ -1347,14 +1360,14 @@ function Registration() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn}>
+                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন অনুযায়ী)" error={errors.motherNameBn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in Bengali">
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn}>
+                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration)" error={errors.motherNameEn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in English capital letters">
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (in English)" aria-invalid={!!errors.motherNameEn} />
                         </FieldRow>
 
-                        <FieldRow label="Mother's NID:" required error={errors.motherNid}>
+                        <FieldRow label="Mother's NID:" required error={errors.motherNid} tooltip="Enter mother's National ID number (10-17 digits)">
                             <input
                                 name="motherNid"
                                 value={form.motherNid}
@@ -1370,7 +1383,7 @@ function Registration() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Mother's Mobile No:" required error={errors.motherPhone} >
+                        <FieldRow label="Mother's Mobile No:" required error={errors.motherPhone} tooltip="Enter mother's mobile number in 11-digit format (e.g., 01XXXXXXXXX)">
                             <input
                                 name="motherPhone"
                                 value={form.motherPhone}
@@ -1386,7 +1399,7 @@ function Registration() {
                         </FieldRow>
 
 
-                        <FieldRow label="Blood Group:" >
+                        <FieldRow label="Blood Group:" tooltip="Select your blood group if known. This is optional but helpful for medical emergencies">
                             <select name="bloodGroup" value={form.bloodGroup} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200">
                                 <option value="">Select Blood Group</option>
                                 <option>A+</option>
@@ -1400,7 +1413,7 @@ function Registration() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Email:" error={errors.email}>
+                        <FieldRow label="Email:" error={errors.email} tooltip="Enter a valid email address for communication. This is optional but recommended">
                             <input name="email" value={form.email} type='email' onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder='example@gmail.com' />
                         </FieldRow>
                     </div>
@@ -1409,7 +1422,7 @@ function Registration() {
                     <SectionHeader step={2} title="Address:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <h4 className="font-semibold mb-2 text-sm sm:text-base">Permanent Address:</h4>
-                        <FieldRow label="District:" required error={errors.permanentDistrict}>
+                        <FieldRow label="District:" required error={errors.permanentDistrict} tooltip="Select the district of your permanent address">
                             <select name="permanentDistrict" value={form.permanentDistrict} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200">
                                 <option value="">Select district</option>
                                 {districts.map((d) => (
@@ -1419,7 +1432,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila/Thana:" required error={errors.permanentUpazila}>
+                        <FieldRow label="Upazila/Thana:" required error={errors.permanentUpazila} tooltip="Select the upazila/thana of your permanent address. First select district to see options">
                             <select
                                 name="permanentUpazila"
                                 value={form.permanentUpazila}
@@ -1435,7 +1448,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Post Office:" required error={errors.permanentPostOffice}>
+                        <FieldRow label="Post Office:" required error={errors.permanentPostOffice} tooltip="Enter the name of your nearest post office">
                             <input
                                 name="permanentPostOffice"
                                 value={form.permanentPostOffice}
@@ -1444,7 +1457,7 @@ function Registration() {
                                 placeholder="Post Office Name"
                             />
                         </FieldRow>
-                        <FieldRow label="Post Code:" required error={errors.permanentPostCode}>
+                        <FieldRow label="Post Code:" required error={errors.permanentPostCode} tooltip="Enter the 4-digit postal code of your area">
                             <input
                                 name="permanentPostCode"
                                 value={form.permanentPostCode}
@@ -1458,7 +1471,7 @@ function Registration() {
                                 aria-invalid={!!errors.permanentPostCode}
                             />
                         </FieldRow>
-                        <FieldRow label="Village/Road/House No:" required error={errors.permanentVillageRoad}>
+                        <FieldRow label="Village/Road/House No:" required error={errors.permanentVillageRoad} tooltip="Enter your village name, road name, and house number">
                             <input
                                 name="permanentVillageRoad"
                                 value={form.permanentVillageRoad}
@@ -1468,7 +1481,7 @@ function Registration() {
                             />
                         </FieldRow>
                         <h4 className="font-semibold mb-2 mt-4 sm:mt-6 text-sm sm:text-base">Present Address:</h4>
-                        <FieldRow label="Same as Permanent:">
+                        <FieldRow label="Same as Permanent:" tooltip="Check this box if your present address is the same as permanent address">
                             <label className="inline-flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -1572,7 +1585,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={3} title="Guardian Information (if not father):" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Guardian is not the father:">
+                        <FieldRow label="Guardian is not the father:" tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
                             <label className="inline-flex items-start sm:items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -1616,7 +1629,7 @@ function Registration() {
                         </FieldRow>
                         {guardianNotFather && (
                             <div className="space-y-2">
-                                <FieldRow label="Guardian's Name:" required error={errors.guardianName}>
+                                <FieldRow label="Guardian's Name:" required error={errors.guardianName} tooltip="Enter the full name of your guardian in English capital letters">
                                     <input
                                         name="guardianName"
                                         value={form.guardianName}
@@ -1626,7 +1639,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianName}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian's NID:" required error={errors.guardianNid}>
+                                <FieldRow label="Guardian's NID:" required error={errors.guardianNid} tooltip="Enter guardian's National ID number (10-17 digits)">
                                     <input
                                         name="guardianNid"
                                         value={form.guardianNid}
@@ -1641,7 +1654,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianNid}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Guardian's Mobile No:" required error={errors.guardianPhone}>
+                                <FieldRow label="Guardian's Mobile No:" required error={errors.guardianPhone} tooltip="Enter guardian's mobile number in 11-digit format">
                                     <input
                                         name="guardianPhone"
                                         value={form.guardianPhone}
@@ -1655,7 +1668,7 @@ function Registration() {
                                         aria-invalid={!!errors.guardianPhone}
                                     />
                                 </FieldRow>
-                                <FieldRow label="Relationship with Guardian:" required error={errors.guardianRelation}>
+                                <FieldRow label="Relationship with Guardian:" required error={errors.guardianRelation} tooltip="Select your relationship with the guardian from the dropdown">
                                     <select
                                         name="guardianRelation"
                                         value={form.guardianRelation}
@@ -1679,7 +1692,7 @@ function Registration() {
                                         <option value="Other">Other (অন্যান্য)</option>
                                     </select>
                                 </FieldRow>
-                                <FieldRow label="Guardian's Address:">
+                                <FieldRow label="Guardian's Address:" tooltip="Check if guardian's address is same as permanent address, otherwise fill separately">
                                     <label className="inline-flex items-center gap-2 mb-2">
                                         <input
                                             type="checkbox"
@@ -1728,7 +1741,7 @@ function Registration() {
                                 </FieldRow>
                                 {!form.guardianAddressSameAsPermanent && (
                                     <div className="space-y-2">
-                                        <FieldRow label="District:" required error={errors.guardianDistrict}>
+                                        <FieldRow label="District:" required error={errors.guardianDistrict} tooltip="Select the district where your guardian lives">
                                             <select
                                                 name="guardianDistrict"
                                                 value={form.guardianDistrict}
@@ -1743,7 +1756,7 @@ function Registration() {
                                                 ))}
                                             </select>
                                         </FieldRow>
-                                        <FieldRow label="Upazila/Thana:" required error={errors.guardianUpazila}>
+                                        <FieldRow label="Upazila/Thana:" required error={errors.guardianUpazila} tooltip="Select the upazila/thana where your guardian lives">
                                             <select
                                                 name="guardianUpazila"
                                                 value={form.guardianUpazila}
@@ -1759,7 +1772,7 @@ function Registration() {
                                                 ))}
                                             </select>
                                         </FieldRow>
-                                        <FieldRow label="Post Office:" required error={errors.guardianPostOffice}>
+                                        <FieldRow label="Post Office:" required error={errors.guardianPostOffice} tooltip="Enter the name of your guardian's nearest post office">
                                             <input
                                                 name="guardianPostOffice"
                                                 value={form.guardianPostOffice}
@@ -1768,7 +1781,7 @@ function Registration() {
                                                 placeholder="Post Office Name"
                                             />
                                         </FieldRow>
-                                        <FieldRow label="Post Code:" required error={errors.guardianPostCode}>
+                                        <FieldRow label="Post Code:" required error={errors.guardianPostCode} tooltip="Enter the 4-digit postal code of your guardian's area">
                                             <input
                                                 name="guardianPostCode"
                                                 value={form.guardianPostCode}
@@ -1782,7 +1795,7 @@ function Registration() {
                                                 aria-invalid={!!errors.guardianPostCode}
                                             />
                                         </FieldRow>
-                                        <FieldRow label="Village/Road/House No:" required error={errors.guardianVillageRoad}>
+                                        <FieldRow label="Village/Road/House No:" required error={errors.guardianVillageRoad} tooltip="Enter your guardian's village name, road name, and house number">
                                             <input
                                                 name="guardianVillageRoad"
                                                 value={form.guardianVillageRoad}
@@ -1811,6 +1824,7 @@ function Registration() {
                                     {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
                                 </span>
                             }
+                            tooltip="Upload a recent photo wearing school uniform. File must be JPG format and less than 2MB"
                         >
                             <div >
                                 <div className="flex flex-col lg:flex-row items-start gap-4">
@@ -1885,7 +1899,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={5} title="Previous School Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Name of Previous School:" required error={errors.prevSchoolName}>
+                        <FieldRow label="Name of Previous School:" required error={errors.prevSchoolName} tooltip="Enter the full name of the school you attended for JSC/JDC">
                             <input
                                 name="prevSchoolName"
                                 value={form.prevSchoolName}
@@ -1895,7 +1909,7 @@ function Registration() {
                                 aria-invalid={!!errors.prevSchoolName}
                             />
                         </FieldRow>
-                        <FieldRow label="District:" required error={errors.prevSchoolDistrict}>
+                        <FieldRow label="District:" required error={errors.prevSchoolDistrict} tooltip="Select the district where your previous school is located">
                             <select
                                 name="prevSchoolDistrict"
                                 value={form.prevSchoolDistrict}
@@ -1909,7 +1923,7 @@ function Registration() {
                                 ))}
                             </select>
                         </FieldRow>
-                        <FieldRow label="Upazila/Thana:" required error={errors.prevSchoolUpazila}>
+                        <FieldRow label="Upazila/Thana:" required error={errors.prevSchoolUpazila} tooltip="Select the upazila/thana where your previous school is located">
                             <select
                                 name="prevSchoolUpazila"
                                 value={form.prevSchoolUpazila}
@@ -1932,7 +1946,7 @@ function Registration() {
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC/JDC Passing Year:" required error={errors.jscPassingYear}>
+                                <FieldRow label="JSC/JDC Passing Year:" required error={errors.jscPassingYear} tooltip="Select the year when you passed JSC/JDC examination">
                                     <select
                                         name="jscPassingYear"
                                         value={form.jscPassingYear}
@@ -1948,7 +1962,7 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC/JDC Board:" required error={errors.jscBoard}>
+                                <FieldRow label="JSC/JDC Board:" required error={errors.jscBoard} tooltip="Select the education board from which you passed JSC/JDC">
                                     <select
                                         name="jscBoard"
                                         value={form.jscBoard}
@@ -1974,7 +1988,7 @@ function Registration() {
                         </div>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC/JDC Registration Number:" required error={errors.jscRegNo}>
+                                <FieldRow label="JSC/JDC Registration Number:" required error={errors.jscRegNo} tooltip="Enter your JSC/JDC registration number (exactly 10 digits)">
                                     <input
                                         name="jscRegNo"
                                         value={form.jscRegNo}
@@ -1990,7 +2004,7 @@ function Registration() {
                                 </FieldRow>
                             </div>
                             <div className="flex-1">
-                                <FieldRow label="JSC/JDC Roll Number:" error={errors.jscRollNo}>
+                                <FieldRow label="JSC/JDC Roll Number:" error={errors.jscRollNo} tooltip="Enter your JSC/JDC roll number if available (6 digits). This field is optional">
                                     <input
                                         name="jscRollNo"
                                         value={form.jscRollNo}
@@ -2012,7 +2026,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={7} title="Class Nine Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Group in Class Nine:" required error={errors.groupClassNine}>
+                        <FieldRow label="Group in Class Nine:" required error={errors.groupClassNine} tooltip="Select the group you studied in class nine (Science or Humanities)">
                             <select
                                 name="groupClassNine"
                                 value={form.groupClassNine}
@@ -2035,7 +2049,7 @@ function Registration() {
                                 <option value="Humanities">Humanities</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Main Subject:" required error={errors.mainSubject}>
+                        <FieldRow label="Main Subject:" required error={errors.mainSubject} tooltip="Select your main subject based on your class nine group. Options will appear after selecting group">
                             <select
                                 name="mainSubject"
                                 value={form.mainSubject}
@@ -2052,7 +2066,7 @@ function Registration() {
                                 }
                             </select>
                         </FieldRow>
-                        <FieldRow label="4th Subject:" required error={errors.fourthSubject}>
+                        <FieldRow label="4th Subject:" required error={errors.fourthSubject} tooltip="Select your 4th subject. Options will appear based on your group and exclude your main subject">
                             <select
                                 name="fourthSubject"
                                 value={form.fourthSubject}
@@ -2071,7 +2085,7 @@ function Registration() {
                                 }
                             </select>
                         </FieldRow>
-                        <FieldRow label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:" required error={errors.nearbyNineStudentInfo}>
+                        <FieldRow label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:" required error={errors.nearbyNineStudentInfo} tooltip="Select a current class nine student from your neighborhood area for reference">
                             <>
                                 <select
                                     name="nearbyNineStudentInfo"
