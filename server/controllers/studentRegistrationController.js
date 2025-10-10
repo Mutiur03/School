@@ -1535,12 +1535,12 @@ export const downloadRegistrationPDF = async (req, res) => {
     `;
 
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-      ],
+      // headless: "new",
+      // args: [
+      //   "--no-sandbox",
+      //   "--disable-setuid-sandbox",
+      //   "--disable-dev-shm-usage",
+      // ],
       enableExtensions: true,
     });
 
