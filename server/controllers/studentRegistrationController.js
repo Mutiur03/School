@@ -1541,6 +1541,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
       ],
+      enableExtensions: true,
     });
 
     const page = await browser.newPage();
