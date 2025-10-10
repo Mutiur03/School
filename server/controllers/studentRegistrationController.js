@@ -1045,10 +1045,22 @@ export const downloadRegistrationPDF = async (req, res) => {
         })
         .replace(/(\w+)\s(\d{4})/, "$1, $2");
     }
+
+    // Normalize Unicode text and handle Bengali punctuation
+    function normalizeUnicode(text) {
+      if (!text) return "";
+      // Normalize Unicode to NFC form
+      return text.normalize('NFC');
+    }
+
     function wrapBnEn(text) {
       if (!text) return "";
+      
+      // Normalize Unicode first
+      text = normalizeUnicode(text);
+      
       return text.replace(
-        /([\u0980-\u09FF]+)|([^\u0980-\u09FF]+)/g,
+        /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (match, bn, nonBn) => {
           if (bn) return `<span class="bn">${bn}</span>`;
           if (nonBn) return `<span class="en">${nonBn}</span>`;
@@ -1056,6 +1068,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         }
       );
     }
+
     // Remove number column from row
     const row = (label, value, rowIndex = 0) => `
       <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
@@ -1246,12 +1259,13 @@ export const downloadRegistrationPDF = async (req, res) => {
       hour12: true,
     });
 
-    // Enhanced HTML with embedded font and better fallbacks
+    // Enhanced HTML with better Unicode and font support
     const html = `
      <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <title>SSC Registration Info</title>
   <style>
     @page {
@@ -1268,6 +1282,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-weight: normal;
       font-style: normal;
       font-display: block;
+      unicode-range: U+0980-U+09FF, U+0964-U+096F;
     }`
         : ""
     }
@@ -1281,6 +1296,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-weight: normal;
       font-style: normal;
       font-display: block;
+      unicode-range: U+0020-U+007F, U+00A0-U+00FF;
     }`
         : ""
     }
@@ -1298,7 +1314,11 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: ${solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"};
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      }, sans-serif;
       background: #fff;
       page-break-inside: avoid;
       page-break-after: avoid;
@@ -1311,27 +1331,43 @@ export const downloadRegistrationPDF = async (req, res) => {
       overflow: hidden;
     }
     
-    /* Force Bangla font rendering */
+    /* Enhanced Bangla font rendering with better fallbacks */
     .bn, .bn * {
       font-family: ${
-        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
-      } !important;
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      }, sans-serif !important;
       font-weight: 400 !important;
-      font-feature-settings: "liga" 1, "kern" 1;
+      font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      -webkit-text-stroke: 0.01em transparent;
+      font-variant-ligatures: common-ligatures contextual;
     }
     .en, .en * {
       font-family: ${
-        timesNewRomanBase64 ? "'TimesNewRoman'" : "serif"
-      } !important;
+        timesNewRomanBase64
+          ? "'TimesNewRoman', 'Times New Roman'"
+          : "'Times New Roman'"
+      }, serif !important;
       letter-spacing: 0.02em;
     }
     
-    /* Ensure Unicode rendering */
+    /* Ensure proper Unicode rendering */
     * {
       unicode-bidi: bidi-override;
+      direction: ltr;
+    }
+    
+    /* Special handling for Bengali punctuation */
+    .bn::before, .bn::after {
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
+      }, sans-serif !important;
     }
     
     .header { 
@@ -1442,15 +1478,17 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     .footer .note .bn {
       font-family: ${
-        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
-      } !important;
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
+      }, sans-serif !important;
       font-size: 1.1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
       font-family: ${
-        timesNewRomanBase64 ? "'TimesNewRoman'" : "serif"
-      } !important;
+        timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
+      }, serif !important;
       font-size: 1.1rem;
     }
     .document-list {
@@ -1464,8 +1502,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       line-height: 1.3;
       white-space: pre;
       font-family: ${
-        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
-      } !important;
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
+      }, sans-serif !important;
     }
     .signature-row {
       position: absolute;
@@ -1503,8 +1543,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-weight: 500;
       margin-top: 1px;
       font-family: ${
-        solaimanLipiBase64 ? "'SolaimanLipi'" : "sans-serif"
-      } !important;
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
+      }, sans-serif !important;
       white-space: nowrap;
     }
     .bottom-info {
@@ -1567,7 +1609,7 @@ export const downloadRegistrationPDF = async (req, res) => {
                     .split(/\r?\n|\r/)
                     .map((line) => {
                       if (line) {
-                        return `<span class="bn">${line}</span>`;
+                        return `<span class="bn">${normalizeUnicode(line)}</span>`;
                       }
                       return "";
                     })
@@ -1610,41 +1652,60 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-font-subpixel-positioning",
         "--disable-features=TranslateUI",
         "--disable-ipc-flooding-protection",
-        "--font-render-hinting=none",
+        "--font-render-hinting=medium",
         "--enable-font-antialiasing",
         "--disable-extensions",
         "--disable-gpu",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-default-apps",
+        "--force-device-scale-factor=1",
+        "--disable-lcd-text",
+        "--lang=bn-BD",
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
     });
 
     const page = await browser.newPage();
 
-    // Set user agent to ensure consistent rendering
+    // Set user agent and locale for Bengali
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
 
-    // Enable UTF-8 encoding
+    // Enable UTF-8 encoding and Bengali locale
     await page.setExtraHTTPHeaders({
       "Accept-Charset": "utf-8",
+      "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
     });
 
     await page.setContent(html, {
       waitUntil: ["networkidle0", "domcontentloaded"],
     });
 
-    // Force font loading with longer timeout
-    // await page.waitForTimeout(3000);
-
-    // Inject additional font loading script
+    // Force font loading and Unicode normalization
     await page.evaluate(() => {
+      // Normalize all text content
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+      
+      let node;
+      while (node = walker.nextNode()) {
+        if (node.nodeValue) {
+          node.nodeValue = node.nodeValue.normalize('NFC');
+        }
+      }
+
       return new Promise((resolve) => {
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(resolve);
+          document.fonts.ready.then(() => {
+            // Additional wait for proper Bengali rendering
+            setTimeout(resolve, 1000);
+          });
         } else {
           setTimeout(resolve, 2000);
         }
