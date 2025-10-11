@@ -2191,8 +2191,8 @@ function Registration() {
                     )}
                 </div>
             </form>
-
-            <style>{`
+                    
+            <style>{`   
                 .animate-fade-in {
                     animation: fadeIn 0.7s;
                 }
