@@ -185,9 +185,9 @@ function Navbar() {
             href: "#",
             text: "Registration",
             dropdown: [
-                { id: "menu-item-3547", href: "reg/ssc", text: "Class 9" },
-                { id: "menu-item-3548", href: "", text: "Class 8" },
-                { id: "menu-item-3549", href: "", text: "Class 6" }
+                { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
+                { id: "menu-item-3548", href: "", text: "Class Eight" },
+                { id: "menu-item-3549", href: "", text: "Class Six" }
             ]
         },
         {
