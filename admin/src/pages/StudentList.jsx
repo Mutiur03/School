@@ -7,12 +7,7 @@ import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "../components/Loading";
 import DeleteConfirmationIcon from "../components/DeleteConfimationIcon";
-function convertToISO(dateStr) {
-  const [day, month, year] = dateStr.split("/");
-  console.log("Converted date:", `${year}-${month}-${day}`);
 
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-}
 function StudentList() {
   const [students, setStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -270,7 +265,12 @@ function StudentList() {
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      console.log(sheet);
+
+      const rawData = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false, // Ensures dates are parsed as strings
+      });
       console.log("Raw Data from Excel:", rawData);
 
       const requiredFields = [
@@ -310,6 +310,12 @@ function StudentList() {
         headers.forEach((header, index) => {
           student[header] = row[index];
         });
+
+        if (student.dob && !isNaN(student.dob)) {
+          const excelDate = new Date((student.dob - 25569) * 86400 * 1000); 
+          student.dob = excelDate.toISOString().split("T")[0];
+        }
+
         return {
           name: student.name?.trim() || null,
           father_name: student.father_name?.trim() || null,
@@ -323,7 +329,7 @@ function StudentList() {
           has_stipend:
             student.has_stipend?.toString().toLowerCase() === "yes" || false,
           address: student.address?.trim() || null,
-          dob: student.dob ? convertToISO(student.dob.toString()) : null,
+          dob: student.dob || null,
           class: parseInt(student.class, 10) || null,
           roll: parseInt(student.roll, 10) || null,
           section: student.section?.toString().trim() || null,
@@ -1029,14 +1035,16 @@ function StudentList() {
           </div>
         </div>
       )}
-      
+
       {/* Excel Format Info Popup */}
       {showFormatInfo && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
           <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Excel File Format Requirements</h2>
+                <h2 className="text-xl font-bold">
+                  Excel File Format Requirements
+                </h2>
                 <button
                   onClick={() => setShowFormatInfo(false)}
                   className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -1044,60 +1052,80 @@ function StudentList() {
                   ×
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Your Excel file must contain the following columns with exact names (case-insensitive):
+                  Your Excel file must contain the following columns with exact
+                  names (case-insensitive):
                 </p>
-                
+
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="font-medium">Required Columns:</div>
                     <div></div>
-                    
+
                     <div>• name</div>
                     <div>• father_name</div>
-                    
+
                     <div>• mother_name</div>
                     <div>• phone</div>
-                    
+
                     <div>• parent_phone</div>
                     <div>• blood_group</div>
-                    
+
                     <div>• has_stipend</div>
                     <div>• address</div>
-                    
+
                     <div>• dob</div>
                     <div>• class</div>
-                    
+
                     <div>• roll</div>
                     <div>• section</div>
-                    
+
                     <div>• department</div>
                     <div></div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <h3 className="font-medium">Important Notes:</h3>
                   <ul className="text-sm space-y-1 list-disc list-inside text-gray-600 dark:text-gray-300">
-                    <li><strong>Date Format:</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)</li>
-                    <li><strong>Phone Numbers:</strong> Enter without country code (10 digits)</li>
-                    <li><strong>has_stipend:</strong> Use "Yes" or "No"</li>
-                    <li><strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Arts)</li>
-                    <li><strong>File Format:</strong> Only .xlsx or .xls files are accepted</li>
+                    <li>
+                      <strong>Date Format:</strong> Use DD/MM/YYYY format for
+                      date of birth (e.g., 15/08/2005)
+                    </li>
+                    <li>
+                      <strong>Phone Numbers:</strong> Enter without country code
+                      (10 digits)
+                    </li>
+                    <li>
+                      <strong>has_stipend:</strong> Use "Yes" or "No"
+                    </li>
+                    <li>
+                      <strong>department:</strong> Required only for classes 9
+                      and 10 (Science/Commerce/Arts)
+                    </li>
+                    <li>
+                      <strong>File Format:</strong> Only .xlsx or .xls files are
+                      accepted
+                    </li>
                     <li>First row should contain column headers</li>
-                    <li>All required fields must be present, even if some cells are empty</li>
+                    <li>
+                      All required fields must be present, even if some cells
+                      are empty
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Tip:</strong> Make sure your Excel file has all the required column headers in the first row exactly as listed above.
+                    <strong>Tip:</strong> Make sure your Excel file has all the
+                    required column headers in the first row exactly as listed
+                    above.
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowFormatInfo(false)}
