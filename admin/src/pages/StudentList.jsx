@@ -323,7 +323,7 @@ function StudentList() {
           has_stipend:
             student.has_stipend?.toString().toLowerCase() === "yes" || false,
           address: student.address?.trim() || null,
-          dob: student.dob ? convertToISO(student.dob) : null,
+          dob: student.dob ? convertToISO(student.dob.toString()) : null,
           class: parseInt(student.class, 10) || null,
           roll: parseInt(student.roll, 10) || null,
           section: student.section?.toString().trim() || null,
