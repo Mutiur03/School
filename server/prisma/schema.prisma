@@ -335,8 +335,8 @@ model student_registration_ssc {
   section              String? @db.VarChar(10)
   roll                 String? @db.VarChar(20)
   religion             String? @db.VarChar(50)
-  upobritti            String? @db.VarChar(10) 
-  sorkari_brirti       String? @db.VarChar(20) 
+  upobritti            String? @db.VarChar(10)
+  sorkari_brirti       String? @db.VarChar(20)
   student_name_bn      String? @db.VarChar(100)
   student_nick_name_bn String? @db.VarChar(50)
   student_name_en      String? @db.VarChar(100)
@@ -410,8 +410,10 @@ model student_registration_ssc {
   status          String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
   submission_date DateTime? @default(now())
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  section_in_class_8 String?  @db.VarChar(10) // Section in Class 8
+  roll_in_class_8    String?  @db.VarChar(20) // Roll in Class 8
 
   // Indexes for better query performance
   @@index([birth_reg_no])
