@@ -225,6 +225,8 @@ export const createRegistration = async (req, res) => {
       fourth_subject: formData.fourthSubject || null,
       photo_path: photoPath,
       nearby_nine_student_info: formData.nearbyNineStudentInfo || null,
+      section_in_class_8: formData.sectionInClass8 || null,
+      roll_in_class_8: formData.rollInClass8 || null,
     };
 
     const registration = await prisma.student_registration_ssc.create({
@@ -404,7 +406,7 @@ export const updateRegistration = async (req, res) => {
       section: formData.section || null,
       roll: formData.roll || null,
       religion: formData.religion || null,
-      upobritti: formData.upobritti || null, 
+      upobritti: formData.upobritti || null,
       sorkari_brirti: formData.sorkari_brirti || null,
       student_name_bn: formData.studentNameBn || null,
       student_nick_name_bn: formData.studentNickNameBn || null,
@@ -455,6 +457,8 @@ export const updateRegistration = async (req, res) => {
       fourth_subject: formData.fourthSubject || null,
       photo_path: photoPath,
       nearby_nine_student_info: formData.nearbyNineStudentInfo || null,
+      section_in_class_8: formData.sectionInClass8 || null,
+      roll_in_class_8: formData.rollInClass8 || null,
     };
 
     const updatedRegistration = await prisma.student_registration_ssc.update({

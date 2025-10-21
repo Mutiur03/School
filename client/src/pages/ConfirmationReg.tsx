@@ -65,6 +65,8 @@ interface RegistrationData {
     created_at: string;
     updated_at: string;
     nearby_nine_student_info: string;
+    section_in_class_8: string;
+    roll_in_class_8: string;
 }
 
 function ConfirmationReg() {
@@ -260,7 +262,7 @@ function ConfirmationReg() {
     };
 
     const formatScholarshipInfo = () => {
-        
+
         const stipend = registration?.upobritti ? `উপবৃত্তি: ${registration.upobritti === 'Yes' ? 'হ্যাঁ' : 'না'}` : '';
         const govScholarship = registration?.sorkari_brirti ?
             `সরকারি বৃত্তি: ${registration.sorkari_brirti === 'No' ? 'না' : registration.sorkari_brirti === 'Talentpool' ? 'মেধাবৃত্তি' : registration.sorkari_brirti === 'General' ? 'সাধারণ বৃত্তি' : registration.sorkari_brirti}` : '';
@@ -422,7 +424,7 @@ function ConfirmationReg() {
                         {/* Single comprehensive table matching PDF structure */}
                         <div className="border border-gray-200 bg-white rounded">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm table-fixed" style={{ minWidth: '600px' }}>
+                                <table className="w-full text-sm table-auto md:table-fixed" style={{ minWidth: '600px' }}>
                                     <tbody>
                                         {renderTableRow("ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):", registration.student_name_bn)}
                                         {renderTableRow("Student's Name:", registration.student_name_en?.toUpperCase())}
@@ -457,6 +459,8 @@ function ConfirmationReg() {
                                         {renderTableRow("Main and 4th Subject:", formatMainAndFourthSubject())}
                                         {renderTableRow("Scholarship Information:", formatScholarshipInfo())}
                                         {renderTableRow("বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:", registration.nearby_nine_student_info)}
+                                        {renderTableRow("ছাত্রের ডাকনাম (বাংলায়):", registration.student_nick_name_bn)}
+                                        {renderTableRow("৮ম শ্রেণির তথ্য:", `Section: ${registration.section_in_class_8}, Roll:${registration.roll_in_class_8}`)}
                                     </tbody>
                                 </table>
                             </div>

@@ -99,6 +99,8 @@ type FormState = {
     mainSubject: string
     fourthSubject: string
     nearbyNineStudentInfo: string
+    sectionInClass8: string // New field for section in class 8
+    rollInClass8: string    // New field for roll in class 8
 }
 
 const FieldRow: React.FC<{
@@ -115,7 +117,7 @@ const FieldRow: React.FC<{
                 <span>{label}{required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}</span>
                 {tooltip && (
                     <span className="cursor-pointer group relative inline-block align-middle">
-                        <div className="w-4 h-4 bg-blue-500 border border-blue-400 text-white rounded-full flex items-center justify-center  text-xs font-bold hover:bg-blue-700 transition-colors">
+                        <div className="w-4 h-4 bg-blue-500 border border-blue-400 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-blue-700 transition-colors">
                             ?
                         </div>
                         <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs px-2 py-1 rounded bg-gray-800 text-white text-sm opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-20 transition-opacity duration-200">
@@ -124,7 +126,6 @@ const FieldRow: React.FC<{
                     </span>
                 )}
             </span>
-            {/* <span className="mx-2 hidden lg:inline">:</span> */}
         </div>
         <div className="flex-1 w-full min-w-0">
             {children}
@@ -212,6 +213,8 @@ const initialFormState: FormState = {
     mainSubject: '',
     fourthSubject: '',
     nearbyNineStudentInfo: '',
+    sectionInClass8: '', // New field for section in class 8
+    rollInClass8: '',    // New field for roll in class 8
 }
 
 function formReducer(state: FormState, action: FormAction): FormState {
@@ -252,6 +255,8 @@ function Registration() {
     const [registrationClosed, setRegistrationClosed] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
     const [ssc_batch, set_ssc_batch] = useState('');
+    const [prevSchoolOption, setPrevSchoolOption] = useState('Panchbibi Lal Bihari Pilot Government High School'); // Add state to manage dropdown selection
+
     useEffect(() => {
         const initializeData = async () => {
             try {
@@ -288,7 +293,13 @@ function Registration() {
                             navigate('/registration/ssc/confirm/' + id, { replace: true })
                             return
                         }
-
+                        if (data.prev_school_name === "Panchbibi Lal Bihari Pilot Government High School") {
+                            setPrevSchoolOption("Panchbibi Lal Bihari Pilot Government High School");
+                            dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: "Panchbibi Lal Bihari Pilot Government High School" });
+                        } else {
+                            setPrevSchoolOption("Others");
+                            dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: data.prev_school_name || '' });
+                        }
                         // Pre-populate form with existing data (without upazila first)
                         const formData = {
                             studentNameEn: data.student_name_en || '',
@@ -335,7 +346,7 @@ function Registration() {
                             guardianPostOffice: data.guardian_post_office || '',
                             guardianPostCode: data.guardian_post_code || '',
                             guardianVillageRoad: data.guardian_village_road || '',
-                            prevSchoolName: data.prev_school_name || '',
+
                             prevSchoolDistrict: data.prev_school_district || '',
                             prevSchoolUpazila: '', // Set empty initially
                             jscPassingYear: data.jsc_passing_year || '',
@@ -346,6 +357,8 @@ function Registration() {
                             mainSubject: data.main_subject || '',
                             fourthSubject: data.fourth_subject || '',
                             nearbyNineStudentInfo: data.nearby_nine_student_info || '',
+                            sectionInClass8: data.section_in_class_8 || '', // New field for section in class 8
+                            rollInClass8: data.roll_in_class_8 || '',    // New field for roll in class 8
                         }
 
                         dispatch({ type: 'SET_FIELDS', fields: formData })
@@ -622,9 +635,9 @@ function Registration() {
     }
 
     function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-        const target = e.target as HTMLInputElement
-        const { name, type, checked } = target
-        let value = target.value
+        const target = e.target as HTMLInputElement;
+        const { name, type, checked } = target;
+        let value = target.value;
 
         // Numeric fields that should only accept numbers
         const numericFields = [
@@ -632,45 +645,55 @@ function Registration() {
             'fatherPhone', 'motherPhone', 'guardianPhone',
             'presentPostCode', 'permanentPostCode', 'guardianPostCode',
             'jscRegNo', 'jscRollNo'
-        ]
+        ];
 
         // English name fields that should be converted to uppercase
-        const englishNameFields = ['studentNameEn', 'fatherNameEn', 'motherNameEn', 'guardianName']
+        const englishNameFields = ['studentNameEn', 'fatherNameEn', 'motherNameEn', 'guardianName'];
 
         if (numericFields.includes(name)) {
             // Only allow digits for numeric fields
-            value = value.replace(/\D/g, '')
+            value = value.replace(/\D/g, '');
         } else if (isBanglaField(name)) {
-            value = filterBanglaInput(value)
+            value = filterBanglaInput(value);
         } else if (name !== 'jscPassingYear') {
-            value = filterEnglishInput(value)
+            value = filterEnglishInput(value);
         }
 
         // Convert English names to uppercase
         if (englishNameFields.includes(name)) {
-            value = value.toUpperCase()
+            value = value.toUpperCase();
         }
 
         // Specific length restrictions for certain numeric fields
         if (name === 'fatherPhone' || name === 'motherPhone' || name === 'guardianPhone') {
-            value = value.slice(0, 11)
+            value = value.slice(0, 11);
         }
         if (name === 'presentPostCode' || name === 'permanentPostCode' || name === 'guardianPostCode') {
-            value = value.slice(0, 4)
+            value = value.slice(0, 4);
         }
         if (name === 'birthRegNo') {
-            value = value.slice(0, 17)
+            value = value.slice(0, 17);
         }
         if (name === 'fatherNid' || name === 'motherNid' || name === 'guardianNid') {
-            value = value.slice(0, 17)
+            value = value.slice(0, 17);
         }
         if (name === 'jscRegNo') {
-            value = value.slice(0, 10)
+            value = value.slice(0, 10);
         }
         if (name === 'jscRollNo') {
-            value = value.slice(0, 6)
+            value = value.slice(0, 6);
         }
-        if (name === 'birthYear') return
+        if (name === 'birthYear') return;
+
+        // Handle previous school name condition
+        if (name === 'prevSchoolOption') {
+            if (value === 'Others') {
+                dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: '' });
+            } else {
+                dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: value });
+            }
+            setPrevSchoolOption(value);
+        }
 
         dispatch({ type: 'SET_FIELD', name, value: type === 'checkbox' ? checked : value })
 
@@ -705,7 +728,7 @@ function Registration() {
                         guardianPostCode: form.permanentPostCode,
                         guardianVillageRoad: form.permanentVillageRoad,
                     }
-                })
+                });
             } else {
                 dispatch({
                     type: 'SET_FIELDS',
@@ -716,7 +739,7 @@ function Registration() {
                         guardianPostCode: '',
                         guardianVillageRoad: '',
                     }
-                })
+                });
             }
         }
         setErrors(prev => ({ ...prev, [name]: '' }))
@@ -745,14 +768,16 @@ function Registration() {
 
     function validate() {
         const e: Record<string, string> = {}
+        if (prevSchoolOption === 'LBP') {
+            form.prevSchoolName = prevSchoolOption;
+        }
         if (!form.prevSchoolName.trim()) e.prevSchoolName = 'Previous school name is required'
         if (!form.prevSchoolDistrict.trim()) e.prevSchoolDistrict = 'Previous school district is required'
         if (!form.prevSchoolUpazila.trim()) e.prevSchoolUpazila = 'Previous school upazila/thana is required'
         if (!form.jscPassingYear.trim()) e.jscPassingYear = 'JSC/JDC passing year is required'
         if (!jscPassingYears.includes(form.jscPassingYear)) e.jscPassingYear = 'Please select a valid JSC/JDC passing year'
         if (!form.jscBoard.trim()) e.jscBoard = 'JSC/JDC board is required'
-        if (!form.jscRegNo.trim()) e.jscRegNo = 'JSC/JDC registration number is required'
-        if (!/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC/JDC registration number must be exactly 10 digits'
+        if (form.jscRegNo.trim() && !/^\d{10}$/.test(form.jscRegNo)) e.jscRegNo = 'JSC/JDC registration number must be exactly 10 digits'
 
         // JSC/JDC Roll validation - if provided, must be exactly 6 digits
         if (form.jscRollNo.trim() && !/^\d{6}$/.test(form.jscRollNo)) {
@@ -847,10 +872,13 @@ function Registration() {
                 if (!form.guardianVillageRoad?.trim()) e.guardianVillageRoad = 'Guardian\'s village/road/house is required'
             }
         }
+
         if (!form.groupClassNine) e.groupClassNine = 'Group in class nine is required'
         if (!form.mainSubject) e.mainSubject = 'Main subject is required'
         if (!form.fourthSubject) e.fourthSubject = '4th subject is required'
         if (!form.nearbyNineStudentInfo.trim()) e.nearbyNineStudentInfo = 'This field is required'
+        if (!form.sectionInClass8.trim()) e.sectionInClass8 = 'Section in Class 8 is required'
+        if (!form.rollInClass8.trim()) e.rollInClass8 = 'Roll in Class 8 is required'
 
         setErrors(e)
         if (Object.keys(e).length > 0) {
@@ -953,6 +981,8 @@ function Registration() {
             formData.append('mainSubject', form.mainSubject)
             formData.append('fourthSubject', form.fourthSubject)
             formData.append('nearbyNineStudentInfo', form.nearbyNineStudentInfo)
+            formData.append('sectionInClass8', form.sectionInClass8)
+            formData.append('rollInClass8', form.rollInClass8)
 
             if (form.photo) {
                 formData.append('photo', form.photo)
@@ -1173,7 +1203,6 @@ function Registration() {
             </div>
         )
     }
-
     return (
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
@@ -1910,15 +1939,26 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={5} title="Previous School Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Name of Previous School:" required error={errors.prevSchoolName} tooltip="Enter the full name of the school you attended for JSC/JDC">
-                            <input
-                                name="prevSchoolName"
-                                value={form.prevSchoolName}
+                        <FieldRow label="Name of Previous School (Class 8):" required error={errors.prevSchoolName} tooltip="Select your previous school or choose 'Others' to type the name">
+                            <select
+                                name="prevSchoolOption"
+                                value={prevSchoolOption}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                placeholder="e.g. PGPS"
-                                aria-invalid={!!errors.prevSchoolName}
-                            />
+                            >
+                                <option value="Panchbibi Lal Bihari Pilot Government High School">Panchbibi Lal Bihari Pilot Government High School</option>
+                                <option value="Others">Others</option>
+                            </select>
+                            {prevSchoolOption === 'Others' && (
+                                <input
+                                    name="prevSchoolName"
+                                    value={form.prevSchoolName}
+                                    onChange={handleChange}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300 mt-2"
+                                    placeholder="Enter the name of your previous school"
+                                    aria-invalid={!!errors.prevSchoolName}
+                                />
+                            )}
                         </FieldRow>
                         <FieldRow label="District:" required error={errors.prevSchoolDistrict} tooltip="Select the district where your previous school is located">
                             <select
@@ -1955,6 +1995,34 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={6} title="JSC/JDC Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
+                        <FieldRow label="Section in Class 8:" required error={errors.sectionInClass8} tooltip="Select the section you were in during class 8">
+                            <select
+                                name="sectionInClass8"
+                                value={form.sectionInClass8}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-invalid={!!errors.sectionInClass8}
+                            >
+                                <option value="">Select Section</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="No Section">No Section</option>
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="Roll in Class 8:" required error={errors.rollInClass8} tooltip="Enter your roll number in class 8">
+                            <input
+                                name="rollInClass8"
+                                value={form.rollInClass8}
+                                onChange={handleChange}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={6}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                placeholder="Enter Roll Number"
+                                aria-invalid={!!errors.rollInClass8}
+                            />
+                        </FieldRow>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
                                 <FieldRow label="JSC/JDC Passing Year:" required error={errors.jscPassingYear} tooltip="Select the year when you passed JSC/JDC examination">
@@ -1999,7 +2067,7 @@ function Registration() {
                         </div>
                         <div className="flex flex-col md:flex-row gap-2">
                             <div className="flex-1">
-                                <FieldRow label="JSC/JDC Registration Number:" required error={errors.jscRegNo} tooltip="Enter your JSC/JDC registration number (exactly 10 digits)">
+                                <FieldRow label="JSC/JDC Registration Number:" error={errors.jscRegNo} tooltip="Enter your JSC/JDC registration number (exactly 10 digits)">
                                     <input
                                         name="jscRegNo"
                                         value={form.jscRegNo}
@@ -2127,9 +2195,9 @@ function Registration() {
                                 </select>
                             </>
                         </FieldRow>
-                        <FieldRow label="উপবৃত্তি:" required error={errors.upobritti} tooltip="Select whether you receive any stipend/scholarship">
+                        <FieldRow label="উপবৃত্তি পায় কিনা:" required error={errors.upobritti} tooltip="Select whether you receive any stipend.">
                             <select
-                                name="upobritti"  // Changed from "upobrirti" to match form state
+                                name="upobritti"
                                 value={form.upobritti}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -2140,7 +2208,7 @@ function Registration() {
                                 <option value="No">No (না)</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="সরকারি বৃত্তি:" required error={errors.sorkari_brirti} tooltip="Select whether you receive any government scholarship">
+                        <FieldRow label="সরকারি বৃত্তি পায় কিনা:" required error={errors.sorkari_brirti} tooltip="Select whether you receive any government scholarship">
                             <select
                                 name="sorkari_brirti"
                                 value={form.sorkari_brirti}
