@@ -2109,7 +2109,9 @@ function Registration() {
                                     {classNineStudents
                                         .slice()
                                         .sort((a, b) => {
-                                            // Sort by section (A, B, C, ...) then by roll (number)
+                                            // Sort by name (dictionary order), then by section, then by roll
+                                            if (a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+                                            if (a.name.toLowerCase() > b.name.toLowerCase()) return 1;
                                             if (a.section < b.section) return -1;
                                             if (a.section > b.section) return 1;
                                             return Number(a.roll) - Number(b.roll);
@@ -2191,7 +2193,7 @@ function Registration() {
                     )}
                 </div>
             </form>
-                    
+
             <style>{`   
                 .animate-fade-in {
                     animation: fadeIn 0.7s;
