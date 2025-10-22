@@ -877,8 +877,8 @@ function Registration() {
         if (!form.mainSubject) e.mainSubject = 'Main subject is required'
         if (!form.fourthSubject) e.fourthSubject = '4th subject is required'
         if (!form.nearbyNineStudentInfo.trim()) e.nearbyNineStudentInfo = 'This field is required'
-        if (!form.sectionInClass8.trim()) e.sectionInClass8 = 'Section in Class 8 is required'
-        if (!form.rollInClass8.trim()) e.rollInClass8 = 'Roll in Class 8 is required'
+        if (!form.sectionInClass8.trim()) e.sectionInClass8 = 'Section in Class Eight is required'
+        if (!form.rollInClass8.trim()) e.rollInClass8 = 'Roll in Class Eight is required'
 
         setErrors(e)
         if (Object.keys(e).length > 0) {
@@ -1207,7 +1207,7 @@ function Registration() {
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
                 <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
-                    {isEditMode ? 'Edit Registration' : `Student's Information for SSC Exam Registration ${ssc_batch}`}
+                    {isEditMode ? 'Edit Registration' : `Student's Information for Registration of SSC Exam ${ssc_batch}`}
                 </h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
                     Please fill all required fields. Fields marked <span className="text-red-600">*</span> are mandatory.
@@ -1995,7 +1995,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={6} title="JSC/JDC Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Section in Class 8:" required error={errors.sectionInClass8} tooltip="Select the section you were in during class 8">
+                        <FieldRow label="Section in Class Eight:" required error={errors.sectionInClass8} tooltip="Select the section you were in during class 8">
                             <select
                                 name="sectionInClass8"
                                 value={form.sectionInClass8}
@@ -2009,7 +2009,7 @@ function Registration() {
                                 <option value="No Section">No Section</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Roll in Class 8:" required error={errors.rollInClass8} tooltip="Enter your roll number in class 8">
+                        <FieldRow label="Roll in Class Eight:" required error={errors.rollInClass8} tooltip="Enter your roll number in class 8">
                             <input
                                 name="rollInClass8"
                                 value={form.rollInClass8}
