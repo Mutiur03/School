@@ -1288,7 +1288,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     const jscReg = registration.jsc_reg_no || "";
 
     // Get current date and time
-    const currentDateTime = new Date().toLocaleString("en-GB", {
+    const currentDateTime = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" })
+    ).toLocaleString("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
