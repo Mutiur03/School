@@ -420,11 +420,47 @@ function Registration() {
                                 console.warn('Could not load existing photo:', photoError)
                             }
                         }
+                        setTimeout(() => {
+                            dispatch({
+                                type: 'SET_FIELD',
+                                name: 'prevSchoolDistrict',
+                                value: "Joypurhat"
+                            })
+                            const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat")
+                            setPrevSchoolUpazilas(prevSchoolUpazilas)
+
+                            setTimeout(() => {
+                                dispatch({
+                                    type: 'SET_FIELD',
+                                    name: 'prevSchoolUpazila',
+                                    value: "Panchbibi"
+                                })
+                            }, 100)
+                        }, 50)
                     } else {
                         setShouldNavigate(true)
                         navigate('/registration/ssc', { replace: true })
                         return
                     }
+                }
+                else {
+                    setTimeout(() => {
+                        dispatch({
+                            type: 'SET_FIELD',
+                            name: 'prevSchoolDistrict',
+                            value: "Joypurhat"
+                        })
+                        const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat")
+                        setPrevSchoolUpazilas(prevSchoolUpazilas)
+
+                        setTimeout(() => {
+                            dispatch({
+                                type: 'SET_FIELD',
+                                name: 'prevSchoolUpazila',
+                                value: "Panchbibi"
+                            })
+                        }, 100)
+                    }, 50)
                 }
             } catch (error) {
                 console.error('Failed to initialize data:', error)
@@ -477,7 +513,6 @@ function Registration() {
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPermanentUpazillas(upazilas)
 
-        // Only clear upazila if not in initial loading phase
         if (!initialLoading) {
             dispatch({ type: 'SET_FIELD', name: 'permanentUpazila', value: '' })
         }
@@ -685,12 +720,40 @@ function Registration() {
         }
         if (name === 'birthYear') return;
 
-        // Handle previous school name condition
+        if (name == "prevSchoolDistrict") {
+            if (value != "Joypurhat") {
+                setPrevSchoolOption('Others');
+                dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: '' });
+            }
+        }
+        if (name == "prevSchoolUpazila") {
+            if (form.prevSchoolDistrict != "Panchbibi") {
+                setPrevSchoolOption('Others');
+                dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: '' });
+            }
+        }
         if (name === 'prevSchoolOption') {
             if (value === 'Others') {
                 dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: '' });
             } else {
                 dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: value });
+                setTimeout(() => {
+                    dispatch({
+                        type: 'SET_FIELD',
+                        name: 'prevSchoolDistrict',
+                        value: "Joypurhat"
+                    })
+                    const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat")
+                    setPrevSchoolUpazilas(prevSchoolUpazilas)
+
+                    setTimeout(() => {
+                        dispatch({
+                            type: 'SET_FIELD',
+                            name: 'prevSchoolUpazila',
+                            value: "Panchbibi"
+                        })
+                    }, 100)
+                }, 50)
             }
             setPrevSchoolOption(value);
         }
