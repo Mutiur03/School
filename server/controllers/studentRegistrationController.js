@@ -650,6 +650,8 @@ export const exportRegistrations = async (req, res) => {
       "Nearby Nine Student Info": reg.nearby_nine_student_info || "",
       "SSC Batch": reg.ssc_batch || "",
       Status: reg.status || "",
+      "Class Eight Section": reg.section_in_class_8 || "",
+      "Class Eight Roll": reg.roll_in_class_8 || "",
       "Submission Date": reg.submission_date
         ? new Date(reg.submission_date).toLocaleDateString()
         : "",
@@ -726,6 +728,8 @@ export const exportRegistrations = async (req, res) => {
       { wch: 12 }, // Submission Date
       { wch: 12 }, // Created At
       { wch: 12 }, // Updated At
+      { wch: 15 }, // Class Eight Section
+      { wch: 15 }, // Class Eight Roll
     ];
 
     worksheet["!cols"] = columnWidths;
@@ -1258,6 +1262,14 @@ export const downloadRegistrationPDF = async (req, res) => {
         "বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
         wrapBnEn(registration.nearby_nine_student_info || ""),
       ],
+      [
+        "Class Eight Information:",
+        wrapBnEn(
+          `Section: ${registration.section_in_class_8 || "N/A"}, Roll: ${
+            registration.roll_in_class_8 || "N/A"
+          }`
+        ),
+      ],
     ];
 
     // Render table rows without section headers
@@ -1620,7 +1632,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         <div class="web en">${schoolWeb}</div>
       </div>
       <div class="title-row en">
-        Student's Information for SSC Exam Registration ${sscBatch}
+        Student's Information for Registration of SSC Exam ${sscBatch}
       </div>
       <div class="section-row en">
         Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span>, JSC/JDC Regi. No: <span class="en">${jscReg}</span>
@@ -1643,7 +1655,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       <div class="footer">
         <div class="note">
           <div class="document-list">
-            <span class="bn"><b>প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
+            <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
             ${
               attachmentInstructions
                 ? attachmentInstructions
@@ -1664,18 +1676,18 @@ export const downloadRegistrationPDF = async (req, res) => {
         </div>
       </div>
     </div>
-    <div class="signature-row bn">
-      <div class="signature-cell">
+    <div class="signature-row bn" style="gap: 8px; padding-bottom: 12px;">
+      <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;">
         <div class="signature-line"></div>
-        <div class="signature-label bn">ছাত্রের স্বাক্ষর</div>
+        <div class="signature-label bn" style="font-size: 0.9rem;">ছাত্রের স্বাক্ষর</div>
       </div>
-      <div class="signature-cell">
+      <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;">
         <div class="signature-line"></div>
-        <div class="signature-label bn">পিতা/মাতা/বৈধ অভিভাবকের স্বাক্ষর</div>
+        <div class="signature-label bn" style="font-size: 0.9rem;">পিতা/মাতা/বৈধ অভিভাবকের স্বাক্ষর</div>
       </div>
-      <div class="signature-cell">
+      <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;">
         <div class="signature-line"></div>
-        <div class="signature-label bn">দায়িত্বপ্রাপ্ত শিক্ষকের স্বাক্ষর ও তারিখ</div>
+        <div class="signature-label bn" style="font-size: 0.9rem;">দায়িত্বপ্রাপ্ত শিক্ষকের স্বাক্ষর, তারিখ ও সিল</div>
       </div>
     </div>
     <div class="bottom-info en">
