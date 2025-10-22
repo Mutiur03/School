@@ -768,7 +768,7 @@ function Registration() {
 
     function validate() {
         const e: Record<string, string> = {}
-        if (prevSchoolOption === 'LBP') {
+        if (prevSchoolOption === 'Panchbibi Lal Bihari Pilot Government High School') {
             form.prevSchoolName = prevSchoolOption;
         }
         if (!form.prevSchoolName.trim()) e.prevSchoolName = 'Previous school name is required'
@@ -1946,7 +1946,7 @@ function Registration() {
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             >
-                                <option value="Panchbibi Lal Bihari Pilot Government High School">Panchbibi Lal Bihari Pilot Government High School</option>
+                                <option value="Panchbibi Lal Bihari Pilot Government High School">Panchbibi Lal Bihari Pilot Govt. High School</option>
                                 <option value="Others">Others</option>
                             </select>
                             {prevSchoolOption === 'Others' && (
@@ -1995,7 +1995,7 @@ function Registration() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={6} title="JSC/JDC Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Section in Class Eight:" required error={errors.sectionInClass8} tooltip="Select the section you were in during class 8">
+                        <FieldRow label="Section in Class Eight:" required error={errors.sectionInClass8} tooltip="Select the section you were in during class Eight">
                             <select
                                 name="sectionInClass8"
                                 value={form.sectionInClass8}
@@ -2009,7 +2009,7 @@ function Registration() {
                                 <option value="No Section">No Section</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Roll in Class Eight:" required error={errors.rollInClass8} tooltip="Enter your roll number in class 8">
+                        <FieldRow label="Roll in Class Eight:" required error={errors.rollInClass8} tooltip="Enter your roll number in class Eight">
                             <input
                                 name="rollInClass8"
                                 value={form.rollInClass8}
