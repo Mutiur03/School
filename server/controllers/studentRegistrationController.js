@@ -1102,7 +1102,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     // Remove number column from row
     const row = (label, value, rowIndex = 0) => `
       <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
-        <td style="border:1px solid #bbb;padding:4px 8px;width:260px;background:${
+        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${
           rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
         };font-weight:500;">${wrapBnEn(label)}</td>
         <td style="border:1px solid #bbb;padding:4px 8px;background:${
@@ -1564,7 +1564,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 10px;
+      bottom: 40px;
       width: 100%;
       display: flex;
       justify-content: space-between;
