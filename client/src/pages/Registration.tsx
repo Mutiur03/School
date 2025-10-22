@@ -2080,7 +2080,7 @@ function Registration() {
                                 type="text"
                                 inputMode="numeric"
                                 pattern="\d*"
-                                maxLength={6}
+                                maxLength={2}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 placeholder="Enter Roll Number"
                                 aria-invalid={!!errors.rollInClass8}
