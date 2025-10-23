@@ -40,7 +40,7 @@
     "puppeteer": "^24.4.0",
     "react-hook-form": "^7.55.0",
     "react-pdf": "^10.0.1",
-    "sharp": "^0.34.3",
+    "sharp": "^0.34.4",
     "validator": "^13.12.0",
     "xlsx": "^0.18.5"
   },
