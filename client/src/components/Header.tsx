@@ -5,9 +5,9 @@ function Header() {
 
     const bannerImages = [
         '/banner1.jpg',
-        '/banner2.jpg',
+        '/banner2.jpeg',
         '/banner3.jpg',
-        '/banner4.jpg'
+        '/banner4.jpeg'
     ];
 
     useEffect(() => {
