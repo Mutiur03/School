@@ -1082,6 +1082,28 @@ export const downloadRegistrationPDF = async (req, res) => {
       // Normalize Unicode to NFC form
       return text.normalize("NFC");
     }
+    function handleList(text) {
+      if (!text) return "";
+
+      // Normalize Unicode to NFC form
+      let normalizedText = text.normalize("NFC");
+      console.log(normalizedText);
+      
+      // Regex explanation:
+      // - [\u0980-\u09FF\u0964-\u096F]+ matches continuous Bengali characters
+      // - [^\u0980-\u09FF\u0964-\u096F]+ matches continuous non-Bengali characters (including punctuation & spaces)
+      normalizedText= normalizedText.replace(
+        /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
+        (_, bn, nonBn) => {
+          if (bn) return `<span >${bn}</span>`;
+          if (nonBn) return `<span class="en">${nonBn}</span>`;
+          return _;
+        }
+      );
+      console.log(normalizedText);
+
+      return normalizedText
+    }
 
     function wrapBnEn(text) {
       if (!text) return "";
@@ -1664,9 +1686,7 @@ export const downloadRegistrationPDF = async (req, res) => {
                     .split(/\r?\n|\r/)
                     .map((line) => {
                       if (line) {
-                        return `<span class="bn">${normalizeUnicode(
-                          line
-                        )}</span>`;
+                        return `<span class="bn">${handleList(line)}</span>`;
                       }
                       return "";
                     })
@@ -1720,7 +1740,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         "--disable-lcd-text",
         "--lang=bn-BD",
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
 
     const page = await browser.newPage();

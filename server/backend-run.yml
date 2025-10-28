@@ -1,0 +1,37 @@
+services:
+  postgres_school:
+    image: postgres:17
+    container_name: postgres_school
+    restart: always     
+    ports:
+      - "5432:5432"  
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - school_network
+    env_file:
+      - .env.prod
+
+  school_backend:
+    build: .  
+    image: school_backend
+    container_name: school_backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres_school
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - school_network
+    env_file:
+      - .env.prod
+
+volumes:
+  db_data:
+
+
+networks:
+  school_network:
+    driver: bridge
