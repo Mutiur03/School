@@ -274,13 +274,18 @@ function AddExam() {
                   className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select Exam</option>
-                  {["Half Yearly", "Annual", "Pre Selection", "Selection"].map(
-                    (exam) => (
-                      <option key={exam} value={`${exam} Exam`}>
-                        {exam} Exam
-                      </option>
-                    )
-                  )}
+                  {[
+                    "Half Yearly",
+                    "Annual",
+                    "Pre Selection",
+                    "Selection",
+                    "Annual/Test",
+                    "Test",
+                  ].map((exam) => (
+                    <option key={exam} value={`${exam} Exam`}>
+                      {exam} Exam
+                    </option>
+                  ))}
                 </select>
               </div>
 
