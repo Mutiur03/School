@@ -1,6 +1,6 @@
 #docker network create school_network
 
-docker compose  -f backend-run.yml down
+#docker compose  -f backend-run.yml down
 docker system df
 docker compose  -f backend-run.yml up -d --build
 docker exec school_backend npm run build

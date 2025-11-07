@@ -1,37 +1,50 @@
-# FROM node:22 AS builder
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install 
-# COPY . .
-# # Generate Prisma client at build time so the runtime has the generated client
-# RUN npx prisma generate
+# ---------------- BASE IMAGE ----------------
+FROM node:22-bookworm-slim
 
+# Set working directory
+WORKDIR /app
 
-FROM node:22
+# Install minimal dependencies for Playwright Chromium
 RUN apt-get update && apt-get install -y \
     chromium \
-    # ca-certificates \
-    # fonts-liberation \
-    # libnss3 \
-    # libxss1 \
-    # libasound2 \
-    # libatk-bridge2.0-0 \
-    # libgtk-3-0 \
-    # libx11-xcb1 \
-    # libxcomposite1 \
-    # libxdamage1 \
-    # libxrandr2 \
-    # libgbm1 \
-    && apt-get clean && apt-get autoremove -y \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    fonts-liberation \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    wget \
+    curl \
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /app
-# COPY --from=builder /app/package*.json ./
+# Install pnpm globally for smaller node_modules
+RUN npm install -g pnpm
+
+# Copy package files for caching
+COPY package*.json ./
+
+# Install production dependencies only
+RUN pnpm install --prod --ignore-scripts
+
+# Copy the rest of the app
 COPY . .
-RUN npm install --omit=dev --ignore-scripts
-RUN npx prisma generate
-# COPY --from=builder /app ./
-EXPOSE 3001
-CMD ["node", "server.js"]
 
+# Generate Prisma client
+RUN npx prisma generate
+
+# Optional: remove unnecessary Prisma engines to save space (~50MB)
+RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
+    && rm -rf node_modules/.prisma/client/libschema_engine-*
+
+# Expose port
+EXPOSE 3001
+
+# Start server
+CMD ["node", "server.js"]

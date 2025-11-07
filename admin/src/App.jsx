@@ -24,18 +24,17 @@ import {
   ShowMarkSheet,
   GenerateResult,
   ViewMarks,
-  AddExam,
   Settings,
   AlumniList,
 } from "./pages";
 import Syllabus from "./pages/Syllabus";
-import ClassRoutine from "./pages/ClassRoutine";
 import ExamPDFRoutine from "./pages/ExamPDFRoutine";
 import ClassRoutinePDF from "./pages/ClassRoutinePDF";
 import StaffList from "./pages/StaffList";
 import CitizenCharter from "./pages/CitizenCharter";
 import Head from "./pages/Head";
 import RegSSC from "./pages/RegSSC";
+import AddExam from "./pages/AddExam";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768

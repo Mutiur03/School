@@ -1087,7 +1087,6 @@ export const downloadRegistrationPDF = async (req, res) => {
 
       // Normalize Unicode to NFC form
       let normalizedText = text.normalize("NFC");
-      console.log(normalizedText);
       
       // Regex explanation:
       // - [\u0980-\u09FF\u0964-\u096F]+ matches continuous Bengali characters
@@ -1100,7 +1099,6 @@ export const downloadRegistrationPDF = async (req, res) => {
           return _;
         }
       );
-      console.log(normalizedText);
 
       return normalizedText
     }
