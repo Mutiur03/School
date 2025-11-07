@@ -277,7 +277,7 @@ function AddExam() {
                   {[
                     "Half Yearly",
                     "Annual",
-                    "Pre Selection",
+                    "Pre Test",
                     "Selection",
                     "Annual/Test",
                     "Test",

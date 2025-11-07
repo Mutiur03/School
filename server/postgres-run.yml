@@ -1,0 +1,25 @@
+services:
+  postgres_school:
+    image: postgres:17
+    container_name: postgres_school
+    restart: unless-stopped     
+    ports:
+      - "5432:5432"  
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - school_network
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: mutiur
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: school
+
+volumes:
+  db_data:
+
+
+networks:
+  school_network:
+    driver: bridge
