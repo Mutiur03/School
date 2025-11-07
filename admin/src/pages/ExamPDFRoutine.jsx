@@ -262,7 +262,6 @@ function ExamPDFRoutine() {
                     "Half Yearly",
                     "Annual",
                     "Pre Test",
-                    "Selection",
                     "Annual/Test",
                     "Test",
                   ].map((exam) => (
