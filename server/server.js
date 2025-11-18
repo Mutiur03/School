@@ -25,6 +25,7 @@ import routerStaff from "./routes/staffRoutes.js";
 import regSSCRouter from "./routes/regSSCRoutes.js";
 import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
 import { fileURLToPath } from "url";
+import admmissionRoutes from "./routes/admissionRoutes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
@@ -104,7 +105,7 @@ app.use("/api/class-routine", classRoutineRouter);
 app.use("/api/file-upload", fileUploadRouter);
 app.use("/api/reg/ssc", regSSCRouter);
 app.use("/api/reg/ssc/form", studentRegistrationRouter);
-
+app.use("/api/admission", admmissionRoutes);
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({

@@ -35,6 +35,7 @@ import CitizenCharter from "./pages/CitizenCharter";
 import Head from "./pages/Head";
 import RegSSC from "./pages/RegSSC";
 import AddExam from "./pages/AddExam";
+import Admission from "./pages/Admission";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -162,6 +163,11 @@ function App() {
                               path="/holiday"
                               element={<Holidays />}
                             ></Route>
+                            <Route
+                              path="/admission"
+                              element={<Admission />}
+                            ></Route>
+
                             <Route
                               path="/syllabus"
                               element={<Syllabus />}

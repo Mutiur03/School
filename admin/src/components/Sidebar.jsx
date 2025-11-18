@@ -135,6 +135,13 @@ const Sidebar = ({
       ],
     },
     {
+      label: "Admission",
+      icon: Megaphone,
+      dropdown: false,
+      link: "/admission",
+      id: "admission",
+    },
+    {
       label: "Settings",
       icon: FaGear,
       dropdown: true,

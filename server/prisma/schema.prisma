@@ -244,6 +244,14 @@ model notices {
   created_at   DateTime @default(now())
 }
 
+model admission {
+  id           Int      @id @default(autoincrement())
+  preview_url  String
+  download_url String?
+  public_id    String?
+  created_at   DateTime @default(now())
+}
+
 model syllabus {
   id           Int      @id @default(autoincrement())
   class        Int

@@ -37,7 +37,6 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-// SSC registration settings routes
 regSSCRouter.post("/", upload.single("notice"), createOrUpdateSSCReg);
 regSSCRouter.get("/", getSSCReg);
 regSSCRouter.delete("/", deleteSSCRegNotice);

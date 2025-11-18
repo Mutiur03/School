@@ -199,7 +199,7 @@ function Navbar() {
         {
             id: "menu-item-3386",
             className: "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item",
-            href: "#",
+            href: "admission",
             text: "Admission"
         },
         {
