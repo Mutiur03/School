@@ -29,7 +29,7 @@ const SSCRegForm = () => {
     status: "all",
     search: "",
     section: "",
-    sscBatch: "", // Remove default year, will be set from API
+    sscBatch: "", 
   });
   const [formData, setFormData] = useState({
     a_sec_roll: "",
