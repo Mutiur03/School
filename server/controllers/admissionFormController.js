@@ -131,9 +131,7 @@ export const createForm = async (req, res) => {
       prev_school_passing_year: body.prevSchoolPassingYear || null,
 
       father_profession: body.father_profession || null,
-      father_profession_other: body.father_profession_other || null,
       mother_profession: body.mother_profession || null,
-      mother_profession_other: body.mother_profession_other || null,
       parent_income: body.parent_income || null,
 
       admission_class: body.admissionClass || null,
@@ -334,11 +332,7 @@ export const updateForm = async (req, res) => {
         body.prevSchoolPassingYear || existing.prev_school_passing_year,
 
       father_profession: body.father_profession || existing.father_profession,
-      father_profession_other:
-        body.father_profession_other || existing.father_profession_other,
       mother_profession: body.mother_profession || existing.mother_profession,
-      mother_profession_other:
-        body.mother_profession_other || existing.mother_profession_other,
       parent_income: body.parent_income || existing.parent_income,
 
       admission_class: body.admissionClass || existing.admission_class,

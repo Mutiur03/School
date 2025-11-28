@@ -336,7 +336,7 @@ function AdmissionForm() {
                         const data = response.data.data
                         if (data.status !== 'pending') {
                             setShouldNavigate(true)
-                            navigate('/admission/ssc/confirm/' + id, { replace: true })
+                            navigate('/admission/form/confirm/' + id, { replace: true })
                             return
                         }
                         dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: data.prev_school_name || '' });
@@ -461,7 +461,7 @@ function AdmissionForm() {
                         }
                     } else {
                         setShouldNavigate(true)
-                        navigate('/admission/ssc', { replace: true })
+                        navigate('/admission/form', { replace: true })
                         return
                     }
                 }
@@ -469,7 +469,7 @@ function AdmissionForm() {
                 console.error('Failed to initialize data:', error)
                 if (isEditMode) {
                     setShouldNavigate(true)
-                    navigate('/admission/ssc', { replace: true })
+                    navigate('/admission/form', { replace: true })
                     return
                 } else {
                     setShouldNavigate(true)
