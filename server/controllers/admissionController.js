@@ -4,7 +4,6 @@ import { prisma } from "../config/prisma.js";
 
 export async function uploadPDFToCloudinary(file) {
   try {
-
     if (!fs.existsSync(file.path)) {
       throw new Error(`File not found: ${file.path}`);
     }
@@ -22,7 +21,6 @@ export async function uploadPDFToCloudinary(file) {
       console.error("Error deleting local file:", unlinkError);
     }
 
-
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
       previewUrl: result.secure_url,
@@ -37,7 +35,6 @@ export async function uploadPDFToCloudinary(file) {
 
 export const creatOrUpdateAdmission = async (req, res) => {
   try {
-
     const body = req.body || {};
     const parseBoolean = (v) => {
       if (v === undefined || v === null) return undefined;
@@ -62,11 +59,17 @@ export const creatOrUpdateAdmission = async (req, res) => {
       updateData.class_list = String(body.class_list);
     if (body.list_type !== undefined)
       updateData.list_type = String(body.list_type);
-    if (body.user_id !== undefined) updateData.user_id = String(body.user_id);
+    if (body.user_id_class6 !== undefined)
+      updateData.user_id_class6 = String(body.user_id_class6);
+    if (body.user_id_class7 !== undefined)
+      updateData.user_id_class7 = String(body.user_id_class7);
+    if (body.user_id_class8 !== undefined)
+      updateData.user_id_class8 = String(body.user_id_class8);
+    if (body.user_id_class9 !== undefined)
+      updateData.user_id_class9 = String(body.user_id_class9);
     if (body.serial_no !== undefined)
       updateData.serial_no = String(body.serial_no);
 
-    // If a file was uploaded, upload to Cloudinary and set URLs
     if (req.file) {
       if (!fs.existsSync(req.file.path)) {
         throw new Error(`Uploaded file not found: ${req.file.path}`);
@@ -78,7 +81,6 @@ export const creatOrUpdateAdmission = async (req, res) => {
       updateData.public_id = public_id;
     }
 
-    // Use upsert to create or update the single admission row (id = 1)
     const notice = await prisma.admission.upsert({
       where: { id: 1 },
       update: updateData,
@@ -93,7 +95,10 @@ export const creatOrUpdateAdmission = async (req, res) => {
         attachment_instruction: updateData.attachment_instruction ?? null,
         class_list: updateData.class_list ?? null,
         list_type: updateData.list_type ?? null,
-        user_id: updateData.user_id ?? null,
+        user_id_class6: updateData.user_id_class6 ?? null,
+        user_id_class7: updateData.user_id_class7 ?? null,
+        user_id_class8: updateData.user_id_class8 ?? null,
+        user_id_class9: updateData.user_id_class9 ?? null,
         serial_no: updateData.serial_no ?? null,
       },
     });
@@ -144,7 +149,7 @@ export const getAdmission = async (req, res) => {
 
 export const deleteAdmission = async (req, res) => {
   try {
-    const existing = await prisma.admission.findFirst();    
+    const existing = await prisma.admission.findFirst();
     if (!existing) {
       return res
         .status(404)
@@ -172,12 +177,10 @@ export const deleteAdmission = async (req, res) => {
       .json({ success: true, message: "Notice removed", data: updated });
   } catch (error) {
     console.error("Error removing notice:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to remove notice",
-        error: error.message,
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove notice",
+      error: error.message,
+    });
   }
 };

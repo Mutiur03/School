@@ -3,6 +3,33 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { districts, getUpazilasByDistrict } from '../lib/location'
 import axios from 'axios'
 
+function parseCsvString(v: unknown): string[] {
+    if (v === undefined || v === null) return []
+    const normalized = String(v).replace(/[–—−]/g, '-')
+    return normalized
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+}
+
+type AdmissionSettings = {
+    user_id_class6?: string | null
+    user_id_class7?: string | null
+    user_id_class8?: string | null
+    user_id_class9?: string | null
+    [key: string]: unknown
+}
+
+function getUserIdListFromSettings(settings: AdmissionSettings | null | undefined, admissionClass?: string | null) {
+    if (!settings) return []
+    const cls = String(admissionClass || '').trim().toLowerCase()
+    if (cls === '6' || cls.includes('6') || cls.includes('six')) return parseCsvString(settings.user_id_class6)
+    if (cls === '7' || cls.includes('7') || cls.includes('seven')) return parseCsvString(settings.user_id_class7)
+    if (cls === '8' || cls.includes('8') || cls.includes('eight')) return parseCsvString(settings.user_id_class8)
+    if (cls === '9' || cls.includes('9') || cls.includes('nine')) return parseCsvString(settings.user_id_class9)
+    return []
+}
+
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-sm text-gray-900">{children}</p>
 )
@@ -68,8 +95,6 @@ type FormState = {
     birthDay: string
     photo?: File | null
     religion: string
-    upobritti: string  // Fixed field name
-    sorkari_brirti: string
     guardianName?: string
     guardianPhone?: string
     guardianRelation?: string
@@ -83,24 +108,19 @@ type FormState = {
     prevSchoolName: string
     prevSchoolDistrict: string
     prevSchoolUpazila: string
-    jscPassingYear: string
-    jscBoard: string
-    jscRegNo: string
-    jscRollNo: string
-    groupClassNine: string
-    mainSubject: string
-    fourthSubject: string
-    nearbyNineStudentInfo: string
-    sectionInClass8: string // New field for section in class 8
-    rollInClass8: string    // New field for roll in class 8
+    sectionInprevSchool: string
+    rollInprevSchool: string
     prevSchoolPassingYear: string
-    parent_profession?: string
-    parent_income?: string
-    // Admission settings selections from server
+    father_profession: string
+    father_profession_other?: string
+    mother_profession: string
+    mother_profession_other?: string
+    parent_income: string
     admissionClass?: string
     listType?: string
     admissionUserId?: string
     serialNo?: string
+    qouta?: string
 }
 
 const FieldRow: React.FC<{
@@ -179,8 +199,6 @@ const initialFormState: FormState = {
     birthDay: '',
     photo: null,
     religion: '',
-    upobritti: '',  // Fixed field name
-    sorkari_brirti: '',
     guardianName: '',
     guardianPhone: '',
     guardianRelation: '',
@@ -194,24 +212,19 @@ const initialFormState: FormState = {
     prevSchoolName: '',
     prevSchoolDistrict: '',
     prevSchoolUpazila: '',
-    jscPassingYear: '',
-    jscBoard: '',
-    jscRegNo: '',
-    jscRollNo: '',
-    groupClassNine: '',
-    mainSubject: '',
-    fourthSubject: '',
-    nearbyNineStudentInfo: '',
-    sectionInClass8: '', // New field for section in class 8
-    rollInClass8: '',    // New field for roll in class 8
+    sectionInprevSchool: '',
+    rollInprevSchool: '',
     prevSchoolPassingYear: '',
-    parent_profession: '',
+    father_profession: '',
+    father_profession_other: '',
+    mother_profession: '',
+    mother_profession_other: '',
     parent_income: '',
-    // Admission settings selections from server
     admissionClass: '',
     listType: '',
     admissionUserId: '',
     serialNo: '',
+    qouta: '',
 }
 
 function formReducer(state: FormState, action: FormAction): FormState {
@@ -245,13 +258,14 @@ function AdmissionForm() {
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(false)
     const [initialLoading, setInitialLoading] = useState(true)
-    const [shouldNavigate, setShouldNavigate] = useState(false) // Add navigation state
+    const [shouldNavigate, setShouldNavigate] = useState(false)
     const [admissionClosed, setAdmissionClosed] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
     const [admission_year, set_admission_year] = useState('');
-    // previous-school option selector removed; we now always use `form.prevSchoolName` input
+
     const [classListOptions, setClassListOptions] = useState<string[]>([])
     const [listTypeOptions, setListTypeOptions] = useState<string[]>([])
+    const [admissionSettings, setAdmissionSettings] = useState<AdmissionSettings | null>(null)
     const [userIdOptions, setUserIdOptions] = useState<string[]>([])
     const [serialNoOptions, setSerialNoOptions] = useState<string[]>([])
 
@@ -264,21 +278,9 @@ function AdmissionForm() {
                 if (admissionStatusResponse.data) {
                     const { admission_open } = admissionStatusResponse.data
                     set_admission_year(admissionStatusResponse.data.admission_year || '');
-                    // Parse comma separated admission settings into option arrays
-                    const parseCsv = (v: unknown): string[] => {
-                        if (v === undefined || v === null) return []
-                        // Normalize different dash characters to a simple hyphen
-                        const normalized = String(v).replace(/[–—−]/g, '-')
-                        return normalized
-                            .split(',')
-                            .map((s) => s.trim())
-                            .filter(Boolean)
-                    }
+                    setAdmissionSettings(admissionStatusResponse.data)
 
-                    // Expand serial tokens like "1-100" into individual numbers
                     const expandSerialList = (tokens: string[]): string[] => {
-                        // Preserve the original token order. Expand ranges in-place and
-                        // de-duplicate while keeping first-seen order.
                         const seen = new Set<string>()
                         const result: string[] = []
 
@@ -307,10 +309,10 @@ function AdmissionForm() {
                         return result
                     }
 
-                    const clsList = parseCsv(admissionStatusResponse.data.class_list)
-                    const lTypeList = parseCsv(admissionStatusResponse.data.list_type)
-                    const uidList = parseCsv(admissionStatusResponse.data.user_id)
-                    const serialRaw = parseCsv(admissionStatusResponse.data.serial_no)
+                    const clsList = parseCsvString(admissionStatusResponse.data.class_list)
+                    const lTypeList = parseCsvString(admissionStatusResponse.data.list_type)
+                    const uidList = getUserIdListFromSettings(admissionStatusResponse.data)
+                    const serialRaw = parseCsvString(admissionStatusResponse.data.serial_no)
                     const serialList = expandSerialList(serialRaw);
                     console.debug('admission.serial_raw=', serialRaw)
                     console.debug('admission.serial_expanded=', serialList)
@@ -328,10 +330,8 @@ function AdmissionForm() {
                     navigate('/', { replace: true })
                     return
                 }
-
                 if (isEditMode && id) {
-                    const response = await axios.get(`/api/admission/ssc/form/${id}`)
-
+                    const response = await axios.get(`/api/admission/form/${id}`)
                     if (response.data.success) {
                         const data = response.data.data
                         if (data.status !== 'pending') {
@@ -339,9 +339,12 @@ function AdmissionForm() {
                             navigate('/admission/ssc/confirm/' + id, { replace: true })
                             return
                         }
-                        // Populate previous school name directly from the response (no option selector)
                         dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: data.prev_school_name || '' });
-                        // Pre-populate form with existing data (without upazila first)
+                        const fatherOptions = ['Government Employee', 'Non-Government Employee', 'Private Job', 'Other']
+                        const motherOptions = ['Housewife', 'Government Employee', 'Non-Government Employee', 'Private Job', 'Other']
+                        const resolvedFather = resolveProfessionOnLoad(data.father_profession, data.father_profession_other, fatherOptions)
+                        const resolvedMother = resolveProfessionOnLoad(data.mother_profession, data.mother_profession_other, motherOptions)
+
                         const formData = {
                             studentNameEn: data.student_name_en || '',
                             studentNameBn: data.student_name_bn || '',
@@ -355,16 +358,21 @@ function AdmissionForm() {
                             fatherPhone: data.father_phone || '',
                             motherPhone: data.mother_phone || '',
                             birthDate: data.birth_date || '',
-                            bloodGroup: data.blood_group || '',
                             birthRegNo: data.birth_reg_no || '',
+                            bloodGroup: data.blood_group || '',
                             email: data.email || '',
+                            admissionClass: data.admission_class || data.admissionClass || '',
+                            listType: data.list_type || data.listType || '',
+                            admissionUserId: data.admission_user_id || data.admissionUserId || '',
+                            serialNo: data.serial_no || data.serialNo || '',
+                            qouta: data.qouta || '',
                             presentDistrict: data.present_district || '',
-                            presentUpazila: '', // Set empty initially
+                            presentUpazila: '',
                             presentPostOffice: data.present_post_office || '',
                             presentPostCode: data.present_post_code || '',
                             presentVillageRoad: data.present_village_road || '',
                             permanentDistrict: data.permanent_district || '',
-                            permanentUpazila: '', // Set empty initially
+                            permanentUpazila: '',
                             permanentPostOffice: data.permanent_post_office || '',
                             permanentPostCode: data.permanent_post_code || '',
                             permanentVillageRoad: data.permanent_village_road || '',
@@ -372,42 +380,32 @@ function AdmissionForm() {
                             birthMonth: data.birth_month || '',
                             birthDay: data.birth_day || '',
                             photo: null,
-                            section: data.section || '',
-                            roll: data.roll || '',
                             religion: data.religion || '',
-                            upobritti: data.upobritti || '',  // Fixed field name
-                            sorkari_brirti: data.sorkari_brirti || '',
                             guardianName: data.guardian_name || '',
                             guardianPhone: data.guardian_phone || '',
                             guardianRelation: data.guardian_relation || '',
                             guardianNid: data.guardian_nid || '',
                             guardianAddressSameAsPermanent: data.guardian_address_same_as_permanent || false,
                             guardianDistrict: data.guardian_district || '',
-                            guardianUpazila: '', // Set empty initially
+                            guardianUpazila: '',
                             guardianPostOffice: data.guardian_post_office || '',
                             guardianPostCode: data.guardian_post_code || '',
                             guardianVillageRoad: data.guardian_village_road || '',
-
                             prevSchoolDistrict: data.prev_school_district || '',
-                            prevSchoolUpazila: '', // Set empty initially
-                            jscPassingYear: data.jsc_passing_year || '',
-                            jscBoard: data.jsc_board || '',
-                            jscRegNo: data.jsc_reg_no || '',
-                            jscRollNo: data.jsc_roll_no || '',
-                            groupClassNine: data.group_class_nine || '',
-                            mainSubject: data.main_subject || '',
-                            fourthSubject: data.fourth_subject || '',
-                            nearbyNineStudentInfo: data.nearby_nine_student_info || '',
-                            sectionInClass8: data.section_in_class_8 || '', // New field for section in class 8
-                            rollInClass8: data.roll_in_class_8 || '',    // New field for roll in class 8
+                            prevSchoolUpazila: '',
+                            sectionInprevSchool: data.section_in_prev_school || '',
+                            rollInprevSchool: data.roll_in_prev_school || '',
                             prevSchoolPassingYear: data.prev_school_passing_year || '',
+                            father_profession: resolvedFather.selectValue,
+                            father_profession_other: resolvedFather.otherValue,
+                            mother_profession: resolvedMother.selectValue,
+                            mother_profession_other: resolvedMother.otherValue,
+                            parent_income: data.parent_income || '',
                         }
 
                         dispatch({ type: 'SET_FIELDS', fields: formData })
 
-                        // Set upazila options based on districts and then set upazila values
                         setTimeout(() => {
-                            // Load upazila options first
                             if (data.present_district) {
                                 const presentUpazilas = getUpazilasByDistrict(data.present_district)
                                 setPresentUpazillas(presentUpazilas)
@@ -425,7 +423,6 @@ function AdmissionForm() {
                                 setGuardianUpazillas(guardianUpazilas)
                             }
 
-                            // Then set upazila values after options are loaded
                             setTimeout(() => {
                                 dispatch({
                                     type: 'SET_FIELDS',
@@ -436,8 +433,8 @@ function AdmissionForm() {
                                         guardianUpazila: data.guardian_upazila || '',
                                     }
                                 })
-                            }, 100) // Small delay to ensure options are rendered
-                        }, 50) // Small delay to ensure districts are processed
+                            }, 100)
+                        }, 50)
 
                         if (data.guardian_name) {
                             setGuardianNotFather(true)
@@ -462,15 +459,11 @@ function AdmissionForm() {
                                 console.warn('Could not load existing photo:', photoError)
                             }
                         }
-                        // No default previous school district/upazila set automatically.
                     } else {
                         setShouldNavigate(true)
                         navigate('/admission/ssc', { replace: true })
                         return
                     }
-                }
-                else {
-                    // No default previous school district/upazila set on new form.
                 }
             } catch (error) {
                 console.error('Failed to initialize data:', error)
@@ -492,10 +485,29 @@ function AdmissionForm() {
     }, [isEditMode, id, navigate])
 
     useEffect(() => {
+        if (!admissionSettings) return
+        const list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
+        setUserIdOptions(list)
+        if (form.admissionUserId && list.length > 0 && !list.includes(form.admissionUserId)) {
+            dispatch({ type: 'SET_FIELD', name: 'admissionUserId', value: '' })
+        }
+    }, [admissionSettings, form.admissionClass, form.admissionUserId])
+
+    useEffect(() => {
+        if (!isEditMode) {
+            dispatch({ type: 'RESET' })
+            setPhotoPreview(null)
+            setSameAddress(false)
+            setGuardianNotFather(false)
+            setErrors({})
+            setDuplicates([])
+        }
+    }, [isEditMode, id])
+
+    useEffect(() => {
         const selectedDistrictId = form.presentDistrict
         if (!selectedDistrictId) {
             setPresentUpazillas([])
-            // Only clear upazila if not in initial loading phase
             if (!initialLoading) {
                 dispatch({ type: 'SET_FIELD', name: 'presentUpazila', value: '' })
             }
@@ -503,8 +515,6 @@ function AdmissionForm() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPresentUpazillas(upazilas)
-
-        // Only clear upazila if not in initial loading phase
         if (!initialLoading) {
             dispatch({ type: 'SET_FIELD', name: 'presentUpazila', value: '' })
         }
@@ -514,7 +524,6 @@ function AdmissionForm() {
         const selectedDistrictId = form.permanentDistrict
         if (!selectedDistrictId) {
             setPermanentUpazillas([])
-            // Only clear upazila if not in initial loading phase
             if (!initialLoading) {
                 dispatch({ type: 'SET_FIELD', name: 'permanentUpazila', value: '' })
             }
@@ -532,7 +541,6 @@ function AdmissionForm() {
         const selectedDistrictId = form.prevSchoolDistrict
         if (!selectedDistrictId) {
             setPrevSchoolUpazilas([])
-            // Only clear upazila if not in initial loading phase
             if (!initialLoading) {
                 dispatch({ type: 'SET_FIELD', name: 'prevSchoolUpazila', value: '' })
             }
@@ -540,8 +548,6 @@ function AdmissionForm() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPrevSchoolUpazilas(upazilas)
-
-        // Only clear upazila if not in initial loading phase
         if (!initialLoading) {
             dispatch({ type: 'SET_FIELD', name: 'prevSchoolUpazila', value: '' })
         }
@@ -550,10 +556,6 @@ function AdmissionForm() {
     const currentYear = new Date().getFullYear()
     const minYear = currentYear - 12
     const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
-
-    // JSC/JDC section is commented out; keep this commented in case it's needed later
-    // const jscPassingYears = Array.from({ length: 3 }, (_, i) => String(currentYear - i - 1))
-
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
         { value: '04', label: 'April' }, { value: '05', label: 'May' }, { value: '06', label: 'June' },
@@ -616,9 +618,9 @@ function AdmissionForm() {
         } else if (form.birthYear !== '') {
             dispatch({ type: 'SET_FIELDS', fields: { birthYear: '', birthMonth: '', birthDay: '' } })
         }
-    }, [form.birthRegNo, form.birthDay, form.birthMonth, form.birthYear, years])
+    }, [form.birthRegNo])
 
-    useEffect(() => {
+    useEffect(() => { 
         if (guardianNotFather && form.guardianAddressSameAsPermanent) {
             dispatch({
                 type: 'SET_FIELDS',
@@ -649,7 +651,6 @@ function AdmissionForm() {
         const selectedDistrictId = form.guardianDistrict
         if (!selectedDistrictId) {
             setGuardianUpazillas([])
-            // Only clear upazila if not in initial loading phase
             if (!initialLoading) {
                 dispatch({ type: 'SET_FIELD', name: 'guardianUpazila', value: '' })
             }
@@ -657,7 +658,6 @@ function AdmissionForm() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setGuardianUpazillas(upazilas)
-        // Only clear upazila if not in initial loading phase
         if (!initialLoading) {
             dispatch({ type: 'SET_FIELD', name: 'guardianUpazila', value: '' })
         }
@@ -672,6 +672,59 @@ function AdmissionForm() {
         )
     }
 
+    const classGuidance: Record<string, Record<string, { instruction?: string; tooltip?: string }>> = {
+        sixx: {
+            studentNameBn: { instruction: '(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in Bengali' },
+            studentNameEn: { instruction: '(According to Primary/Birth Registration Card)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in English capital letters' },
+            fatherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter father's name as shown in SSC certificate/National IC Card in Bengali" },
+            fatherNameEn: { instruction: '(According to SSC certificate/National IC Card)', tooltip: "Enter father's name as shown in SSC certificate/National IC Card in English capital letters" },
+            motherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter mother's name as shown in SSC certificate/National IC Card in Bengali" },
+            motherNameEn: { instruction: '(According to SSC certificate/National IC Card)', tooltip: "Enter mother's name as shown in SSC certificate/National IC Card in English capital letters" },
+        },
+        seven: {
+            studentNameBn: { instruction: '(ষষ্ঠ শ্রেণির প্রিন্ট‌আউট অনুযায়ী)', tooltip: 'Enter your name as it appears in your Class Six Printout in Bengali' },
+            studentNameEn: { instruction: '(According to Class Six Printout)', tooltip: 'Enter your name as it appears in your Class Six Printout in English capital letters' },
+            fatherNameBn: { instruction: '(ষষ্ঠ শ্রেণির প্রিন্ট‌আউট অনুযায়ী)', tooltip: "Enter father's name as it appears in Class Six Printout in Bengali" },
+            fatherNameEn: { instruction: '(According to Class Six Printout)', tooltip: "Enter father's name as it appears in Class Six Printout in English capital letters" },
+            motherNameBn: { instruction: '(ষষ্ঠ শ্রেণির প্রিন্ট‌আউট অনুযায়ী)', tooltip: "Enter mother's name as it appears in Class Six Printout in Bengali" },
+            motherNameEn: { instruction: '(According to Class Six Printout)', tooltip: "Enter mother's name as it appears in Class Six Printout in English capital letters" },
+        },
+        eight: {
+            studentNameBn: { instruction: '(ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: 'Enter your name as it appears in your Class Six Registration Card in Bengali' },
+            studentNameEn: { instruction: '(According to Class Six Registration Card)', tooltip: 'Enter your name as it appears in your Class Six Registration Card in English capital letters' },
+            fatherNameBn: { instruction: '(ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: "Enter father's name as it appears in Class Six Registration Card in Bengali" },
+            fatherNameEn: { instruction: '(According to Class Six Registration Card)', tooltip: "Enter father's name as it appears in Class Six Registration Card in English capital letters" },
+            motherNameBn: { instruction: '(ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: "Enter mother's name as it appears in Class Six Registration Card in Bengali" },
+            motherNameEn: { instruction: '(According to Class Six Registration Card)', tooltip: "Enter mother's name as it appears in Class Six Registration Card in English capital letters" },
+        },
+        nine: {
+            studentNameBn: { instruction: '(অষ্টম শ্রেণির প্রিন্ট আউট/ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: 'Enter your name exactly as it appears in your JSC Printout/Class Six Registration Card in Bengali' },
+            studentNameEn: { instruction: '(According to JSC Printout/Class Six Registration Card)', tooltip: 'Enter your name exactly as it appears in your JSC Printout/Class Six Registration Card in English capital letters' },
+            fatherNameBn: { instruction: '(অষ্টম শ্রেণির প্রিন্ট আউট/ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: "Enter father's name exactly as it appears in JSC Printout/Class Six Registration Card in Bengali" },
+            fatherNameEn: { instruction: '(According to JSC Printout/Class Six Registration Card)', tooltip: "Enter father's name exactly as it appears in JSC Printout/Class Six Registration Card in English capital letters" },
+            motherNameBn: { instruction: '(অষ্টম শ্রেণির প্রিন্ট আউট/ষষ্ঠ শ্রেণির রেজিস্ট্রেশন কার্ড অনুযায়ী)', tooltip: "Enter mother's name exactly as it appears in JSC Printout/Class Six Registration Card in Bengali" },
+            motherNameEn: { instruction: '(According to JSC Printout/Class Six Registration Card)', tooltip: "Enter mother's name exactly as it appears in JSC Printout/Class Six Registration Card in English capital letters" },
+        }
+    }
+
+    function normalizeClassKey(c?: string | null) {
+        if (!c) return ''
+        const s = String(c).trim().toLowerCase()
+        if (s === '6' || s.includes('6') || s.includes('six')) return 'sixx'
+        if (s === '7' || s.includes('7') || s.includes('seven')) return 'seven'
+        if (s === '8' || s.includes('8') || s.includes('eight')) return 'eight'
+        if (s === '9' || s.includes('9') || s.includes('nine')) return 'nine'
+        return ''
+    }
+
+    function getGuidance(fieldKey: string) {
+        const clsKey = normalizeClassKey(form.admissionClass)
+        if (!clsKey) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
+        const data = classGuidance[clsKey]
+        if (!data) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
+        return data[fieldKey] || { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
+    }
+
     function filterEnglishInput(value: string) {
         return value.replace(/[^\x20-\x7E]/g, '')
     }
@@ -680,37 +733,55 @@ function AdmissionForm() {
         return value.replace(/[^\u0980-\u09FF.()\s]/g, '')
     }
 
+    function isOtherProfession(val?: string | null) {
+        return String(val || '').trim().toLowerCase() === 'other'
+    }
+
+    function resolveProfessionOnLoad(value?: string | null, otherField?: string | null, allowedOptions: string[] = []) {
+        const raw = String(value || '').trim()
+        const otherRaw = String(otherField || '').trim()
+
+        // If server provided an explicit other field, prefer it
+        if (otherRaw) {
+            return { selectValue: 'Other', otherValue: otherRaw }
+        }
+
+        if (!raw) return { selectValue: '', otherValue: '' }
+
+        // If raw matches one of the allowed options (case-insensitive), use it
+        const matched = allowedOptions.find(o => String(o).trim().toLowerCase() === raw.toLowerCase())
+        if (matched) return { selectValue: matched, otherValue: '' }
+
+        // Unknown non-empty value -> treat as Other and keep the raw value in the other field
+        return { selectValue: 'Other', otherValue: raw }
+    }
+
     function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
         const target = e.target as HTMLInputElement;
         const { name, type, checked } = target;
         let value = target.value;
 
-        // Numeric fields that should only accept numbers
         const numericFields = [
-            'roll', 'fatherNid', 'motherNid', 'guardianNid', 'birthRegNo',
+            'rollInprevSchool', 'fatherNid', 'motherNid', 'guardianNid', 'birthRegNo',
             'fatherPhone', 'motherPhone', 'guardianPhone',
-            'presentPostCode', 'permanentPostCode', 'guardianPostCode',
-            'jscRegNo', 'jscRollNo'
+            'presentPostCode', 'permanentPostCode', 'guardianPostCode'
         ];
 
-        // English name fields that should be converted to uppercase
         const englishNameFields = ['studentNameEn', 'fatherNameEn', 'motherNameEn', 'guardianName'];
 
         if (numericFields.includes(name)) {
-            // Only allow digits for numeric fields
             value = value.replace(/\D/g, '');
         } else if (isBanglaField(name)) {
             value = filterBanglaInput(value);
-        } else if (name !== 'jscPassingYear') {
+        } else {
             value = filterEnglishInput(value);
         }
 
-        // Convert English names to uppercase
         if (englishNameFields.includes(name)) {
             value = value.toUpperCase();
         }
 
-        // Specific length restrictions for certain numeric fields
+
         if (name === 'fatherPhone' || name === 'motherPhone' || name === 'guardianPhone') {
             value = value.slice(0, 11);
         }
@@ -723,15 +794,7 @@ function AdmissionForm() {
         if (name === 'fatherNid' || name === 'motherNid' || name === 'guardianNid') {
             value = value.slice(0, 17);
         }
-        if (name === 'jscRegNo') {
-            value = value.slice(0, 10);
-        }
-        if (name === 'jscRollNo') {
-            value = value.slice(0, 6);
-        }
         if (name === 'birthYear') return;
-
-        // Previous-school option selector removed. We populate prevSchoolName directly via the form field.
 
         dispatch({ type: 'SET_FIELD', name, value: type === 'checkbox' ? checked : value })
 
@@ -815,8 +878,8 @@ function AdmissionForm() {
         if (!form.fatherNameBn.trim()) e.fatherNameBn = 'পিতার নাম (বাংলায়) is required'
         if (!form.motherNameEn.trim()) e.motherNameEn = 'Mother\'s name (in English) is required'
         if (!form.motherNameBn.trim()) e.motherNameBn = 'মাতার নাম (বাংলায়) is required'
-        if (!form.birthRegNo.trim()) e.birthRegNo = 'Birth registration number is required'
         if (!/^\d{17}$/.test(form.birthRegNo)) e.birthRegNo = 'Birth registration number must be exactly 17 digits'
+        if (!form.birthRegNo.trim()) e.birthRegNo = 'Birth registration number is required'
         if (!form.birthYear) e.birthYear = 'Birth year is required'
         if (!form.birthMonth) e.birthMonth = 'Birth month is required'
         if (!form.birthDay) e.birthDay = 'Birth day is required'
@@ -827,6 +890,11 @@ function AdmissionForm() {
                 e.birthYear = `Student must be at least 12 years old on 1st January ${currentYear}`
             }
         }
+        if (!form.admissionClass) e.admissionClass = 'Please select class for admission'
+        if (!form.listType) e.listType = 'Please select list type'
+        if (!form.admissionUserId) e.admissionUserId = 'User ID is required'
+        if (!form.serialNo) e.serialNo = 'Serial number is required'
+        if (!form.qouta) e.qouta = 'Quota selection is required'
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address'
 
         if (!isEditMode && !form.photo) {
@@ -864,8 +932,7 @@ function AdmissionForm() {
         else if (!/^\d{4}$/.test(form.permanentPostCode)) e.permanentPostCode = 'Permanent post code must be exactly 4 digits'
         if (!form.permanentVillageRoad.trim()) e.permanentVillageRoad = 'Permanent village/road/house is required'
         if (!form.religion.trim()) e.religion = 'Religion is required'
-        if (!form.upobritti.trim()) e.upobritti = 'উপবৃত্তি is required'  // Changed from upobrirti to upobritti
-        if (!form.sorkari_brirti.trim()) e.sorkari_brirti = 'সরকারি বৃত্তি is required'
+
         if (guardianNotFather) {
             if (!form.guardianName?.trim()) e.guardianName = 'Guardian\'s name is required'
             if (!form.guardianRelation?.trim()) e.guardianRelation = 'Relationship with guardian is required'
@@ -891,30 +958,57 @@ function AdmissionForm() {
                 if (!form.guardianVillageRoad?.trim()) e.guardianVillageRoad = 'Guardian\'s village/road/house is required'
             }
         }
-        if (!form.sectionInClass8.trim()) e.sectionInClass8 = 'Section in Class Eight is required'
-        if (!form.rollInClass8.trim()) e.rollInClass8 = 'Roll in Class Eight is required'
-        if (!form.prevSchoolPassingYear.trim()) e.prevSchoolPassingYear = 'Passing year (Class Eight) is required'
+        if (!form.sectionInprevSchool.trim()) e.sectionInprevSchool = 'Section in previous school is required'
+        if (!form.rollInprevSchool.trim()) e.rollInprevSchool = 'Roll in previous school is required'
+        if (!form.prevSchoolPassingYear.trim()) e.prevSchoolPassingYear = 'Passing year is required'
 
+        if (!form.father_profession.trim()) {
+            e.father_profession = 'Father\'s profession is required'
+        } else if (isOtherProfession(form.father_profession) && !form.father_profession_other?.trim()) {
+            e.father_profession_other = 'Please specify father\'s profession'
+        }
+
+        if (!form.mother_profession.trim()) {
+            e.mother_profession = 'Mother\'s profession is required'
+        } else if (isOtherProfession(form.mother_profession) && !form.mother_profession_other?.trim()) {
+            e.mother_profession_other = 'Please specify mother\'s profession'
+        }
+        if (!form.parent_income.trim()) e.parent_income = 'Parent\'s income is required'
         setErrors(e)
         if (Object.keys(e).length > 0) {
             console.log('Validation errors:', e)
         }
-        return Object.keys(e).length === 0
+        return { valid: Object.keys(e).length === 0, errors: e }
     }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setSuccess('')
-        setDuplicates([]) // Clear previous duplicate warnings
+        setDuplicates([])
 
-        const valid = validate()
+        const { valid, errors: validationErrors } = validate()
         if (!valid) {
             setTimeout(() => {
-                const errorFields = Object.keys(errors)
+                const errorFields = Object.keys(validationErrors)
                 if (errorFields.length > 0) {
-                    const firstErrorField = formRef.current?.querySelector(`[name="${errorFields[0]}"]`)
+                    let firstErrorField: Element | null = null
+                    if (formRef.current) {
+                        const allFields = Array.from(formRef.current.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input[name], select[name], textarea[name]'))
+                        for (const f of allFields) {
+                            const n = f.getAttribute('name')
+                            if (n && validationErrors[n]) {
+                                firstErrorField = f
+                                break
+                            }
+                        }
+                    }
+
+                    if (!firstErrorField) {
+                        firstErrorField = formRef.current?.querySelector(`[name="${errorFields[0]}"]`) || null
+                    }
+
                     if (firstErrorField) {
-                        (firstErrorField as HTMLElement).focus({ preventScroll: false })
+                        ; (firstErrorField as HTMLElement).focus({ preventScroll: false })
                         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     }
                 }
@@ -928,8 +1022,7 @@ function AdmissionForm() {
             const formData = new FormData()
 
             formData.append('religion', form.religion)
-            formData.append('upobritti', form.upobritti)  // Changed from 'upobrirti' to 'upobritti'
-            formData.append('sorkari_brirti', form.sorkari_brirti)
+
             formData.append('studentNameBn', form.studentNameBn)
             formData.append('studentNickNameBn', form.studentNickNameBn || '')
             formData.append('studentNameEn', form.studentNameEn)
@@ -964,7 +1057,7 @@ function AdmissionForm() {
             formData.append('permanentPostCode', form.permanentPostCode)
             formData.append('permanentVillageRoad', form.permanentVillageRoad)
 
-            // Guardian Information
+
             if (guardianNotFather) {
                 formData.append('guardianName', form.guardianName || '')
                 formData.append('guardianPhone', form.guardianPhone || '')
@@ -972,48 +1065,48 @@ function AdmissionForm() {
                 formData.append('guardianNid', form.guardianNid || '')
                 formData.append('guardianAddressSameAsPermanent', form.guardianAddressSameAsPermanent?.toString() || 'false')
 
-                // if (!form.guardianAddressSameAsPermanent) {
                 formData.append('guardianDistrict', form.guardianDistrict || '')
                 formData.append('guardianUpazila', form.guardianUpazila || '')
                 formData.append('guardianPostOffice', form.guardianPostOffice || '')
                 formData.append('guardianPostCode', form.guardianPostCode || '')
                 formData.append('guardianVillageRoad', form.guardianVillageRoad || '')
-                // }
             }
 
             formData.append('prevSchoolName', form.prevSchoolName)
             formData.append('prevSchoolDistrict', form.prevSchoolDistrict)
             formData.append('prevSchoolUpazila', form.prevSchoolUpazila)
             formData.append('prevSchoolPassingYear', form.prevSchoolPassingYear || '')
-            formData.append('sectionInClass8', form.sectionInClass8 || '')
-            formData.append('rollInClass8', form.rollInClass8 || '')
 
-            formData.append('parent_profession', form.parent_profession || '')
+            formData.append('sectionInprevSchool', form.sectionInprevSchool || '')
+            formData.append('rollInprevSchool', form.rollInprevSchool || '')
+
+            const fatherProfessionVal = isOtherProfession(form.father_profession) ? (form.father_profession_other || '') : (form.father_profession || '')
+            const motherProfessionVal = isOtherProfession(form.mother_profession) ? (form.mother_profession_other || '') : (form.mother_profession || '')
+            formData.append('father_profession', fatherProfessionVal)
+            formData.append('mother_profession', motherProfessionVal)
             formData.append('parent_income', form.parent_income || '')
+            formData.append('qouta', form.qouta || '')
 
 
             if (form.photo) {
                 formData.append('photo', form.photo)
             }
-            // Append admission settings selections (if provided)
             if (form.admissionClass) formData.append('admissionClass', form.admissionClass)
             if (form.listType) formData.append('listType', form.listType)
             if (form.admissionUserId) formData.append('admissionUserId', form.admissionUserId)
             if (form.serialNo) formData.append('serialNo', form.serialNo)
             console.log('Submitting form data:', Object.fromEntries(formData.entries()));
 
-            // Determine API endpoint and method
+
             let response
             if (isEditMode) {
-                // Update existing admission
-                response = await axios.put(`/api/admission/ssc/form/${id}`, formData, {
+                response = await axios.put(`/api/admission/form/${id}`, formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
                 })
             } else {
-                // Create new admission
-                response = await axios.post('/api/admission/ssc/form', formData, {
+                response = await axios.post('/api/admission/form', formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
@@ -1021,12 +1114,13 @@ function AdmissionForm() {
             }
 
             const result = response.data
-
+           
             if (result.success) {
                 const successMessage = isEditMode
                     ? `Admission updated successfully! Admission ID: ${id}`
                     : `Admission submitted successfully! Your admission ID is: ${result.data.id}. Status: ${result.data.status}`
-
+                console.log("asdifsdf");
+                
                 setSuccess(successMessage)
 
                 if (!isEditMode) {
@@ -1035,10 +1129,10 @@ function AdmissionForm() {
                     setErrors({})
                     setSameAddress(false)
                     setGuardianNotFather(false)
-                    navigate(`/admission/ssc/confirm/${result.data.id}`)
+                    navigate(`/admission//form/confirm/${result.data.id}`)
                 } else {
                     window.scrollTo({ top: 0, behavior: 'smooth' })
-                    navigate(`/admission/ssc/confirm/${result.data.id}`)
+                    navigate(`/admission/form/confirm/${result.data.id}`)
 
                 }
             } else {
@@ -1102,16 +1196,7 @@ function AdmissionForm() {
         }
     }, [form.permanentDistrict, form.permanentUpazila, sameAddress])
 
-    // Subject options for Class Nine were removed as Class Nine information
-    // (group/main/fourth subjects) is no longer collected in this form.
 
-    // removed separate sscRegData fetch effect since section/roll handling was removed
-
-    // Section/roll based available rolls removed
-
-    // parseRollString removed (not needed)
-
-    // Show loading spinner while initializing
     if (initialLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1184,7 +1269,6 @@ function AdmissionForm() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={1} title="Personal Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        {/* Section and Roll fields removed */}
                         <FieldRow label="Admit to Class:" required error={errors.admissionClass} tooltip="Select the class from the admission settings">
                             <select
                                 name="admissionClass"
@@ -1199,7 +1283,7 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="List Type:" error={errors.listType} tooltip="Select list type from settings">
+                        <FieldRow label="List Type:" required error={errors.listType} tooltip="Select list type from settings">
                             <select
                                 name="listType"
                                 value={form.listType}
@@ -1213,11 +1297,12 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="User ID:" error={errors.admissionUserId} tooltip="Select user id from settings">
+                        <FieldRow label="User ID:" required error={errors.admissionUserId} tooltip="Select user id from settings">
                             <select
                                 name="admissionUserId"
                                 value={form.admissionUserId}
                                 onChange={handleChange}
+                                disabled={!form.admissionClass }
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             >
                                 <option value="">Select User ID</option>
@@ -1227,7 +1312,7 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Serial No:" error={errors.serialNo} tooltip="Select serial number from settings">
+                        <FieldRow label="Serial No:" required error={errors.serialNo} tooltip="Select serial number from settings">
                             <select
                                 name="serialNo"
                                 value={form.serialNo}
@@ -1240,8 +1325,26 @@ function AdmissionForm() {
                                 ))}
                             </select>
                         </FieldRow>
-
-                        <FieldRow label="Religion:" required error={errors.religion} tooltip="Select your religion as it will appear on your SSC certificate">
+                        <FieldRow label="Qouta:" required error={errors.qouta} tooltip="Enter applicable quota (if any)">
+                            <select
+                                name="qouta"
+                                value={form.qouta}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                            >
+                                <option value="">Select Qouta</option>
+                                <option value="(GEN)">সাধারণ (GEN)</option>
+                                <option value="(DIS) ">বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS) </option>
+                                <option value="(FF)">মুক্তিযোদ্ধার সন্তান (FF)</option>
+                                <option value="(GOV)">সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)</option>
+                                <option value="(ME)">শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)</option>
+                                <option value="(SIB)">সহোদর ভাই (SIB)</option>
+                                <option value="(TWN)">যমজ (TWN)</option>
+                                <option value="(Mutual Transfer)">পারস্পরিক বদলি (Mutual Transfer)</option>
+                                <option value="(Govt. Transfer)">সরকারি বদলি (Govt. Transfer)</option>
+                            </select>
+                        </FieldRow>
+                        <FieldRow label="Religion:" required error={errors.religion} tooltip="Select your religion as it will appear on your SSC JSC Printout/Class Six Registration Card">
                             <select
                                 name="religion"
                                 value={form.religion}
@@ -1257,7 +1360,7 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.studentNameBn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in Bengali">
+                        <FieldRow label="ছাত্রের নাম (বাংলায়):" required instruction={getGuidance('studentNameBn').instruction || '(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)'} error={errors.studentNameBn} tooltip={getGuidance('studentNameBn').tooltip || 'Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali'}>
                             <input name="studentNameBn" value={form.studentNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="ছাত্রের নাম (বাংলায়)" aria-invalid={!!errors.studentNameBn} />
                         </FieldRow>
                         <FieldRow label="ডাকনাম (এক শব্দে/বাংলায়):" required error={errors.studentNickNameBn} tooltip="Enter your nickname in Bengali, use only one word">
@@ -1270,7 +1373,7 @@ function AdmissionForm() {
                                 aria-invalid={!!errors.studentNickNameBn}
                             />
                         </FieldRow>
-                        <FieldRow label="Student's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.studentNameEn} tooltip="Enter your name exactly as it appears in your JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Student's Name (in English):" required instruction={getGuidance('studentNameEn').instruction || '(According to Primary/Birth Registration Card)'} error={errors.studentNameEn} tooltip={getGuidance('studentNameEn').tooltip || "Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters"}>
                             <input name="studentNameEn" value={form.studentNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Student Name (in English)" aria-invalid={!!errors.studentNameEn} />
                         </FieldRow>
                         <FieldRow label="Birth Registration Number:" required error={errors.birthRegNo} tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number">
@@ -1326,10 +1429,10 @@ function AdmissionForm() {
                                 Student must be at least 12 years old on 1st January {currentYear}.
                             </Instruction>
                         </FieldRow>
-                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.fatherNameBn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in Bengali">
+                        <FieldRow label="পিতার নাম (বাংলায়):" required instruction={getGuidance('fatherNameBn').instruction || '(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)'} error={errors.fatherNameBn} tooltip={getGuidance('fatherNameBn').tooltip || "Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali"}>
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Father's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.fatherNameEn} tooltip="Enter father's name exactly as it appears in JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Father's Name (in English):" required instruction={getGuidance('fatherNameEn').instruction || '(According to Primary/Birth Registration Card)'} error={errors.fatherNameEn} tooltip={getGuidance('fatherNameEn').tooltip || "Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters"}>
                             <input name="fatherNameEn" value={form.fatherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Father's Name (in English)" aria-invalid={!!errors.fatherNameEn} />
                         </FieldRow>
 
@@ -1366,10 +1469,10 @@ function AdmissionForm() {
 
 
 
-                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction="(জেএসসি/জেডিসি রেজিস্ট্রেশন কার্ড অনুযায়ী)" error={errors.motherNameBn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in Bengali">
+                        <FieldRow label="মাতার নাম (বাংলায়):" required instruction={getGuidance('motherNameBn').instruction || '(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)'} error={errors.motherNameBn} tooltip={getGuidance('motherNameBn').tooltip || "Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali"}>
                             <input name="motherNameBn" value={form.motherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="মাতার নাম (বাংলায়)" aria-invalid={!!errors.motherNameBn} />
                         </FieldRow>
-                        <FieldRow label="Mother's Name (in English):" required instruction="(According to JSC/JDC Registration Card)" error={errors.motherNameEn} tooltip="Enter mother's name exactly as it appears in JSC/JDC certificate in English capital letters">
+                        <FieldRow label="Mother's Name (in English):" required instruction={getGuidance('motherNameEn').instruction || '(According to Primary/Birth Registration Card)'} error={errors.motherNameEn} tooltip={getGuidance('motherNameEn').tooltip || "Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters"}>
                             <input name="motherNameEn" value={form.motherNameEn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Mother's Name (in English)" aria-invalid={!!errors.motherNameEn} />
                         </FieldRow>
 
@@ -1722,7 +1825,6 @@ function AdmissionForm() {
                                                             guardianVillageRoad: form.permanentVillageRoad,
                                                         }
                                                     })
-                                                    // Clear guardian address validation errors
                                                     setErrors(prev => ({
                                                         ...prev,
                                                         guardianDistrict: '',
@@ -1830,11 +1932,11 @@ function AdmissionForm() {
                         <FieldRow
                             label={
                                 <span>
-                                    Photo (Wearing School Uniform):
+                                    Photo:
                                     {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
                                 </span>
                             }
-                            tooltip="Upload a recent photo wearing school uniform. File must be JPG format and less than 2MB"
+                            tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
                         >
                             <div >
                                 <div className="flex flex-col lg:flex-row items-start gap-4">
@@ -1876,10 +1978,8 @@ function AdmissionForm() {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        // clear form photo and preview
                                                         dispatch({ type: 'SET_FIELD', name: 'photo', value: null })
                                                         setPhotoPreview(null)
-                                                        // clear native input value if present
                                                         const input = document.getElementById('photo-input') as HTMLInputElement | null
                                                         if (input) input.value = ''
                                                         setErrors(prev => ({ ...prev, photo: '' }))
@@ -1919,7 +2019,7 @@ function AdmissionForm() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Passing Year :" required error={errors.prevSchoolPassingYear} tooltip="Select the year you passed Class 8">
+                        <FieldRow label="Passing Year :" required error={errors.prevSchoolPassingYear} tooltip="Select the year you passed from your previous school">
                             <select
                                 name="prevSchoolPassingYear"
                                 value={form.prevSchoolPassingYear}
@@ -1933,29 +2033,29 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Section :" required error={errors.sectionInClass8} tooltip="Select which section you were in during Class 8">
+                        <FieldRow label="Section :" required error={errors.sectionInprevSchool} tooltip="Select which section you were in during previous school">
                             <select
-                                name="sectionInClass8"
-                                value={form.sectionInClass8}
+                                name="sectionInprevSchool"
+                                value={form.sectionInprevSchool}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                aria-invalid={!!errors.sectionInClass8}
+                                aria-invalid={!!errors.sectionInprevSchool}
                             >
                                 <option value="">Select Section</option>
                                 {["No section", 'A', 'B', 'C', 'D', 'E', 'F'].map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Roll :" required error={errors.rollInClass8} tooltip="Enter your roll number in Class 8">
+                        <FieldRow label="Roll :" required error={errors.rollInprevSchool} tooltip="Enter your roll number in previous school">
                             <input
-                                name="rollInClass8"
-                                value={form.rollInClass8}
+                                name="rollInprevSchool"
+                                value={form.rollInprevSchool}
                                 onChange={handleChange}
                                 inputMode="numeric"
                                 maxLength={6}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 placeholder="Roll number"
-                                aria-invalid={!!errors.rollInClass8}
+                                aria-invalid={!!errors.rollInprevSchool}
                             />
                         </FieldRow>
                         <FieldRow label="District:" required error={errors.prevSchoolDistrict} tooltip="Select the district where your previous school is located">
@@ -1992,17 +2092,68 @@ function AdmissionForm() {
                 <section className="mb-4 sm:mb-6">
                     <SectionHeader step={6} title="Additional Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
-                        <FieldRow label="Parent's Profession:" required tooltip="Enter parent's profession (optional)">
-                            <input
-                                name="parent_profession"
-                                value={form.parent_profession}
-                                onChange={handleChange}
-                                placeholder='e.g. Businessman'
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-                            />
+                        <FieldRow label="Father's Profession:" required error={errors.father_profession} tooltip="Select father's profession">
+                            <div>
+                                <select
+                                    name="father_profession"
+                                    value={form.father_profession}
+                                    onChange={handleChange}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                                >
+                                    <option value="">Select Profession</option>
+                                    <option value="Government Employee">Government Employee</option>
+                                    <option value="Non-Government Employee">Non-Government Employee</option>
+                                    <option value="Private Job">Private Job</option>
+                                    <option value="Other">Other</option>
+                                </select>
+
+                                {isOtherProfession(form.father_profession) && (
+                                    <div className="mt-2">
+                                        <input
+                                            name="father_profession_other"
+                                            value={form.father_profession_other}
+                                            onChange={handleChange}
+                                            placeholder="Please specify father's profession"
+                                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                                            aria-invalid={!!errors.father_profession_other}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </FieldRow>
 
-                        <FieldRow label="Parent's Annual Income Range:" required tooltip="Select guardian's annual income range (optional)">
+                        <FieldRow label="Mother's Profession:" required error={errors.mother_profession || errors.mother_profession_other} tooltip="Select mother's profession">
+                            <div>
+                                <select
+                                    name="mother_profession"
+                                    value={form.mother_profession}
+                                    onChange={handleChange}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                                >
+                                    <option value="">Select Profession</option>
+                                    <option value="Housewife">Housewife</option>
+                                    <option value="Government Employee">Government Employee</option>
+                                    <option value="Non-Government Employee">Non-Government Employee</option>
+                                    <option value="Private Job">Private Job</option>
+                                    <option value="Other">Other</option>
+                                </select>
+
+                                {isOtherProfession(form.mother_profession) && (
+                                    <div className="mt-2">
+                                        <input
+                                            name="mother_profession_other"
+                                            value={form.mother_profession_other}
+                                            onChange={handleChange}
+                                            placeholder="Please specify mother's profession"
+                                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                                            aria-invalid={!!errors.mother_profession_other}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </FieldRow>
+
+                        <FieldRow label="Parent's Annual Income Range:" required tooltip="Select guardian's annual income range" error={errors.parent_income}>
                             <select
                                 name="parent_income"
                                 value={form.parent_income}
@@ -2017,6 +2168,8 @@ function AdmissionForm() {
                                 <option value="above_500000">Above 500,000</option>
                             </select>
                         </FieldRow>
+
+
                     </div>
                 </section>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-6 sm:mt-8">

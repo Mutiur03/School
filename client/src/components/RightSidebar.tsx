@@ -118,7 +118,7 @@ function RightSidebar() {
                         <h3 className="widget-title">প্রধান শিক্ষকের বাণী</h3>
                     </div>
                     <div className="textwidget">
-                        <p>
+                        <div className="headmaster-wrapper">
                             {!head ? (
                                 <div
                                     className="aligncenter headmaster-image"
@@ -178,7 +178,7 @@ function RightSidebar() {
                                     )} */}
                                 </div>
                             )}
-                        </p>
+                        </div>
                         <p>
                             <Link className="more-link" to="/message-from-head/">
                                 View Details →

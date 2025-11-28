@@ -10,7 +10,11 @@ function AdmissionSettings() {
     attachment_instruction: "Please attach all required documents",
     class_list: "",
     list_type: "",
-    user_id: "",
+    // new separate user id lists per class
+    user_id_class6: "",
+    user_id_class7: "",
+    user_id_class8: "",
+    user_id_class9: "",
     serial_no: "",
   });
 
@@ -47,7 +51,14 @@ function AdmissionSettings() {
             data.attachment_instruction ?? prev.attachment_instruction,
           class_list: data.class_list ?? data.classList ?? prev.class_list,
           list_type: data.list_type ?? data.listType ?? prev.list_type,
-          user_id: data.user_id ?? data.userId ?? prev.user_id,
+          user_id_class6:
+            data.user_id_class6 ?? data.userIdClass6 ?? prev.user_id_class6,
+          user_id_class7:
+            data.user_id_class7 ?? data.userIdClass7 ?? prev.user_id_class7,
+          user_id_class8:
+            data.user_id_class8 ?? data.userIdClass8 ?? prev.user_id_class8,
+          user_id_class9:
+            data.user_id_class9 ?? data.userIdClass9 ?? prev.user_id_class9,
           serial_no: data.serial_no ?? data.serialNo ?? prev.serial_no,
         }));
         if (data.preview_url) {
@@ -106,6 +117,31 @@ function AdmissionSettings() {
       }
 
       if (
+        formData.user_id_class6 !== undefined &&
+        formData.user_id_class6 !== null
+      ) {
+        payload.append("user_id_class6", String(formData.user_id_class6));
+      }
+      if (
+        formData.user_id_class7 !== undefined &&
+        formData.user_id_class7 !== null
+      ) {
+        payload.append("user_id_class7", String(formData.user_id_class7));
+      }
+      if (
+        formData.user_id_class8 !== undefined &&
+        formData.user_id_class8 !== null
+      ) {
+        payload.append("user_id_class8", String(formData.user_id_class8));
+      }
+      if (
+        formData.user_id_class9 !== undefined &&
+        formData.user_id_class9 !== null
+      ) {
+        payload.append("user_id_class9", String(formData.user_id_class9));
+      }
+
+      if (
         formData.attachment_instruction !== undefined &&
         formData.attachment_instruction !== null
       ) {
@@ -114,16 +150,13 @@ function AdmissionSettings() {
           String(formData.attachment_instruction)
         );
       }
-      // additional string fields
       if (formData.class_list !== undefined && formData.class_list !== null) {
         payload.append("class_list", String(formData.class_list));
       }
       if (formData.list_type !== undefined && formData.list_type !== null) {
         payload.append("list_type", String(formData.list_type));
       }
-      if (formData.user_id !== undefined && formData.user_id !== null) {
-        payload.append("user_id", String(formData.user_id));
-      }
+      // additional string fields
       if (formData.serial_no !== undefined && formData.serial_no !== null) {
         payload.append("serial_no", String(formData.serial_no));
       }
@@ -340,6 +373,78 @@ function AdmissionSettings() {
 
             <div>
               <label
+                htmlFor="user_id_class6"
+                className="block text-sm font-medium mb-2"
+              >
+                User IDs for Class 6
+              </label>
+              <input
+                type="text"
+                id="user_id_class6"
+                name="user_id_class6"
+                value={formData.user_id_class6}
+                onChange={handleInputChange}
+                placeholder="Comma separated user ids for class 6"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="user_id_class7"
+                className="block text-sm font-medium mb-2"
+              >
+                User IDs for Class 7
+              </label>
+              <input
+                type="text"
+                id="user_id_class7"
+                name="user_id_class7"
+                value={formData.user_id_class7}
+                onChange={handleInputChange}
+                placeholder="Comma separated user ids for class 7"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="user_id_class8"
+                className="block text-sm font-medium mb-2"
+              >
+                User IDs for Class 8
+              </label>
+              <input
+                type="text"
+                id="user_id_class8"
+                name="user_id_class8"
+                value={formData.user_id_class8}
+                onChange={handleInputChange}
+                placeholder="Comma separated user ids for class 8"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="user_id_class9"
+                className="block text-sm font-medium mb-2"
+              >
+                User IDs for Class 9
+              </label>
+              <input
+                type="text"
+                id="user_id_class9"
+                name="user_id_class9"
+                value={formData.user_id_class9}
+                onChange={handleInputChange}
+                placeholder="Comma separated user ids for class 9"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label
                 htmlFor="list_type"
                 className="block text-sm font-medium mb-2"
               >
@@ -356,23 +461,7 @@ function AdmissionSettings() {
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="user_id"
-                className="block text-sm font-medium mb-2"
-              >
-                User ID
-              </label>
-              <input
-                type="text"
-                id="user_id"
-                name="user_id"
-                value={formData.user_id}
-                onChange={handleInputChange}
-                placeholder="e.g. KSJDFGSKJ, SDJJFSDGF, SKDLFG"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
+            {/* legacy plain user_id removed - use per-class fields instead */}
 
             <div>
               <label

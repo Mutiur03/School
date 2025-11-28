@@ -245,19 +245,22 @@ model notices {
 }
 
 model admission {
-  id                      Int      @id @default(autoincrement())
-  preview_url             String?
-  download_url            String?
-  public_id               String?
-  admission_year          Int?
-  admission_open          Boolean? @default(false)
-  instruction             String?
-  attachment_instruction  String?
-  class_list              String?
-  list_type               String?
-  user_id                 String?
-  serial_no               String?
-  created_at              DateTime @default(now())
+  id                     Int      @id @default(autoincrement())
+  preview_url            String?
+  download_url           String?
+  public_id              String?
+  admission_year         Int?
+  admission_open         Boolean? @default(false)
+  instruction            String?
+  attachment_instruction String?
+  class_list             String?
+  list_type              String?
+  user_id_class6         String?
+  user_id_class7         String?
+  user_id_class8         String?
+  user_id_class9         String?
+  serial_no              String?
+  created_at             DateTime @default(now())
 }
 
 model syllabus {
@@ -437,4 +440,89 @@ model student_registration_ssc {
   @@index([mother_nid])
   @@index([status])
   @@index([submission_date])
+}
+
+// New model to store generic admission form submissions
+model admission_form {
+  id                   String  @id @default(uuid())
+  // Personal Information
+  student_name_bn      String? @db.VarChar(100)
+  student_nick_name_bn String? @db.VarChar(50)
+  student_name_en      String? @db.VarChar(100)
+  birth_reg_no         String? @db.VarChar(17)
+
+  father_name_bn String? @db.VarChar(100)
+  father_name_en String? @db.VarChar(100)
+  father_nid     String? @db.VarChar(17)
+  father_phone   String? @db.Char(11)
+
+  mother_name_bn String? @db.VarChar(100)
+  mother_name_en String? @db.VarChar(100)
+  mother_nid     String? @db.VarChar(17)
+  mother_phone   String? @db.Char(11)
+
+  birth_date  String? @db.VarChar(10)
+  birth_year  String? @db.VarChar(4)
+  birth_month String? @db.VarChar(2)
+  birth_day   String? @db.VarChar(2)
+  blood_group String? @db.VarChar(10)
+  email       String? @db.VarChar(100)
+  religion    String? @db.VarChar(50)
+
+  // Address
+  present_district     String? @db.VarChar(50)
+  present_upazila      String? @db.VarChar(50)
+  present_post_office  String? @db.VarChar(100)
+  present_post_code    String? @db.VarChar(4)
+  present_village_road String? @db.VarChar(200)
+
+  permanent_district     String? @db.VarChar(50)
+  permanent_upazila      String? @db.VarChar(50)
+  permanent_post_office  String? @db.VarChar(100)
+  permanent_post_code    String? @db.VarChar(4)
+  permanent_village_road String? @db.VarChar(200)
+
+  // Guardian
+  guardian_name         String? @db.VarChar(100)
+  guardian_phone        String? @db.Char(11)
+  guardian_relation     String? @db.VarChar(50)
+  guardian_nid          String? @db.VarChar(17)
+  guardian_district     String? @db.VarChar(50)
+  guardian_upazila      String? @db.VarChar(50)
+  guardian_post_office  String? @db.VarChar(100)
+  guardian_post_code    String? @db.VarChar(4)
+  guardian_village_road String? @db.VarChar(200)
+
+  // Previous school
+  prev_school_name         String? @db.VarChar(200)
+  prev_school_district     String? @db.VarChar(50)
+  prev_school_upazila      String? @db.VarChar(50)
+  section_in_prev_school   String? @db.VarChar(10)
+  roll_in_prev_school      String? @db.VarChar(20)
+  prev_school_passing_year String? @db.VarChar(4)
+
+  father_profession String? @db.VarChar(100)
+  mother_profession String? @db.VarChar(100)
+  parent_income     String? @db.VarChar(100)
+
+  // Admission meta
+  admission_class   String? @db.VarChar(50)
+  list_type         String? @db.VarChar(50)
+  admission_user_id String? @db.VarChar(50)
+  serial_no         String? @db.VarChar(50)
+  qouta             String? @db.VarChar(50)
+
+  // Photo
+  photo_path String? @db.VarChar(255)
+
+  status          String?   @default("pending") @db.VarChar(20)
+  submission_date DateTime? @default(now())
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([birth_reg_no])
+  @@index([father_nid])
+  @@index([mother_nid])
+  @@index([status])
 }

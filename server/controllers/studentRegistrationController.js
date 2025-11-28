@@ -1030,7 +1030,6 @@ export const downloadRegistrationPDF = async (req, res) => {
     const logoPath = path.join("public", "icon.jpg");
     const logoExists = fs.existsSync(logoPath);
 
-    // Convert logo to base64 if it exists
     let logoBase64 = "";
     if (logoExists) {
       try {

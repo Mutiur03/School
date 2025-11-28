@@ -245,7 +245,7 @@ export const upazilas: Upazila[] = [
     districtId: "Cumilla",
   },
   { id: "Daudkandi", name: "Daudkandi", districtId: "Cumilla" },
-  { id: "DebiABar", name: "DebiABar", districtId: "Cumilla" },
+  { id: "Debidwar", name: "Debidwar", districtId: "Cumilla" },
   { id: "Homna", name: "Homna", districtId: "Cumilla" },
   { id: "Laksham", name: "Laksham", districtId: "Cumilla" },
   { id: "Manoharganj", name: "Manoharganj", districtId: "Cumilla" },

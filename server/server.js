@@ -26,6 +26,7 @@ import regSSCRouter from "./routes/regSSCRoutes.js";
 import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
 import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
+import addFormRouter from "./routes/admissionFormRoutes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
@@ -106,7 +107,8 @@ app.use("/api/file-upload", fileUploadRouter);
 app.use("/api/reg/ssc", regSSCRouter);
 app.use("/api/reg/ssc/form", studentRegistrationRouter);
 app.use("/api/admission", admmissionRoutes);
-// Health check endpoint
+app.use("/api/admission/form", addFormRouter);
+
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -144,6 +146,10 @@ app.listen(PORT, () => {
       console.log("Uploads directory created successfully");
     }
   });
-  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV === 'production'? 'production' : 'dev'} mode`);
+  console.log(
+    `Server running on port ${PORT} in ${
+      process.env.NODE_ENV === "production" ? "production" : "dev"
+    } mode`
+  );
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
