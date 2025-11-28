@@ -20,6 +20,7 @@ import ConfirmationReg from "./pages/ConfirmationReg";
 import RegSSC from "./pages/RegSSC";
 import Admission from "./pages/admission";
 import AdmissionForm from "./pages/AdmissionForm";
+import ConfirmationAdmission from "./pages/ConfirmationAdmission";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
@@ -63,6 +64,10 @@ function App() {
                 <Route path="/registration/ssc/confirm/:id" element={<ConfirmationReg />} />
                 <Route path="/admission/notice" element={<Admission />} />
                 <Route path="/admission/form" element={<AdmissionForm />} />
+                <Route path="/admission/form/:id" element={<AdmissionForm />} />
+                <Route path="/admission/form/confirm/:id" element={<ConfirmationAdmission />} />
+
+
                 <Route
                   path="*"
                   element={<Navigate to="/" />}
