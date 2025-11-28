@@ -216,6 +216,37 @@ header#masthead {
     background-color: rgba(192, 57, 43, 0.90);
 }
 
+/* Ensure nested dropdowns inside a colored top-level li inherit the same background */
+#TF-Navbar>ul>li.nav_orange .dropdown-menu,
+#TF-Navbar>ul>li.nav_orange .dropdown-menu .dropdown-menu {
+    background-color: rgba(255, 102, 0, 0.90);
+}
+
+#TF-Navbar>ul>li.nav_red .dropdown-menu,
+#TF-Navbar>ul>li.nav_red .dropdown-menu .dropdown-menu {
+    background-color: rgba(196, 10, 42, 0.90);
+}
+
+#TF-Navbar>ul>li.nav_purple .dropdown-menu,
+#TF-Navbar>ul>li.nav_purple .dropdown-menu .dropdown-menu {
+    background-color: rgba(132, 21, 77, 0.90);
+}
+
+#TF-Navbar>ul>li.nav_green .dropdown-menu,
+#TF-Navbar>ul>li.nav_green .dropdown-menu .dropdown-menu {
+    background-color: rgba(9, 131, 70, 0.90);
+}
+
+#TF-Navbar>ul>li.nav_navyblue .dropdown-menu,
+#TF-Navbar>ul>li.nav_navyblue .dropdown-menu .dropdown-menu {
+    background-color: rgba(24, 44, 97, 0.90);
+}
+
+#TF-Navbar>ul>li.nav_darkred .dropdown-menu,
+#TF-Navbar>ul>li.nav_darkred .dropdown-menu .dropdown-menu {
+    background-color: rgba(192, 57, 43, 0.90);
+}
+
 
 .dropdown-menu {
     display: none;
@@ -280,6 +311,18 @@ header#masthead {
 @media (min-width: 768px) {
     #TF-Navbar>ul>li:hover>.dropdown-menu {
         display: block;
+    }
+
+    /* Show nested dropdowns when their parent li has the 'show' class or on hover
+       Position them to the right of the parent dropdown for desktop */
+    #TF-Navbar .dropdown-menu li.show>.dropdown-menu,
+    #TF-Navbar .dropdown-menu li:hover>.dropdown-menu {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 100%;
+        min-width: 210px;
+        z-index: 45;
     }
 
     .mobile-nav {
@@ -505,6 +548,37 @@ header#masthead {
         background-color: #c0392b;
     }
 
+    /* Mobile: ensure nested dropdowns inside a colored top-level li also inherit color */
+    #TF-Navbar>ul>li.nav_orange .dropdown-menu,
+    #TF-Navbar>ul>li.nav_orange .dropdown-menu .dropdown-menu {
+        background-color: #FF6600;
+    }
+
+    #TF-Navbar>ul>li.nav_red .dropdown-menu,
+    #TF-Navbar>ul>li.nav_red .dropdown-menu .dropdown-menu {
+        background-color: #C40A2A;
+    }
+
+    #TF-Navbar>ul>li.nav_purple .dropdown-menu,
+    #TF-Navbar>ul>li.nav_purple .dropdown-menu .dropdown-menu {
+        background-color: #84154D;
+    }
+
+    #TF-Navbar>ul>li.nav_green .dropdown-menu,
+    #TF-Navbar>ul>li.nav_green .dropdown-menu .dropdown-menu {
+        background-color: #098346;
+    }
+
+    #TF-Navbar>ul>li.nav_navyblue .dropdown-menu,
+    #TF-Navbar>ul>li.nav_navyblue .dropdown-menu .dropdown-menu {
+        background-color: #182C61;
+    }
+
+    #TF-Navbar>ul>li.nav_darkred .dropdown-menu,
+    #TF-Navbar>ul>li.nav_darkred .dropdown-menu .dropdown-menu {
+        background-color: #c0392b;
+    }
+
     #TF-Navbar>ul>li.nav_home>.dropdown-menu {
         background-color: #000;
     }
@@ -523,6 +597,11 @@ header#masthead {
     }
 
     #TF-Navbar>ul>li.show>.dropdown-menu {
+        display: block;
+    }
+
+    /* Mobile: show nested submenus when their parent li has .show */
+    #TF-Navbar .dropdown-menu li.show>.dropdown-menu {
         display: block;
     }
 

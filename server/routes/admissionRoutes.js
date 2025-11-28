@@ -2,13 +2,12 @@ import { Router } from "express";
 import {
   creatOrUpdateAdmission,
   getAdmission,
+  deleteAdmission,
 } from "../controllers/admissionController.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
 
-// import all controllers
-// import SessionController from './app/controllers/SessionController';
 
 const admmissionRoutes = new Router();
 
@@ -42,10 +41,13 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-// Upload notice: use POST with multer handling the file field named 'notice'
 admmissionRoutes.post("/", upload.single("notice"), creatOrUpdateAdmission);
+// allow update via PUT (frontend uses PUT when editing)
+admmissionRoutes.put("/", upload.single("notice"), creatOrUpdateAdmission);
 
-// Retrieve current admission notice: GET
+// delete notice (frontend calls DELETE /api/admission)
+admmissionRoutes.delete("/", deleteAdmission);
+
 admmissionRoutes.get("/", getAdmission);
 // admmissionRoutes.put("/", SessionController.store);
 // admmissionRoutes.delete('/', SessionController.store);

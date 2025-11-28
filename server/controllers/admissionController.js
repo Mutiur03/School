@@ -4,7 +4,6 @@ import { prisma } from "../config/prisma.js";
 
 export async function uploadPDFToCloudinary(file) {
   try {
-    console.log("Uploading file to Cloudinary:", file.path);
 
     if (!fs.existsSync(file.path)) {
       throw new Error(`File not found: ${file.path}`);
@@ -23,7 +22,7 @@ export async function uploadPDFToCloudinary(file) {
       console.error("Error deleting local file:", unlinkError);
     }
 
-    console.log("Cloudinary upload result:", result);
+
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
       previewUrl: result.secure_url,
@@ -38,44 +37,70 @@ export async function uploadPDFToCloudinary(file) {
 
 export const creatOrUpdateAdmission = async (req, res) => {
   try {
-    console.log("Request body:", req.body);
-    console.log("Request file:", req.file);
 
-    if (!req.file) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No file uploaded" });
+    const body = req.body || {};
+    const parseBoolean = (v) => {
+      if (v === undefined || v === null) return undefined;
+      if (typeof v === "boolean") return v;
+      const s = String(v).toLowerCase();
+      return s === "1" || s === "true" || s === "yes";
+    };
+
+    const updateData = {};
+    if (body.admission_year !== undefined && body.admission_year !== "") {
+      const n = Number(body.admission_year);
+      if (!Number.isNaN(n)) updateData.admission_year = n;
+    }
+    const ao = parseBoolean(body.admission_open);
+    if (ao !== undefined) updateData.admission_open = ao;
+
+    if (body.instruction !== undefined)
+      updateData.instruction = String(body.instruction);
+    if (body.attachment_instruction !== undefined)
+      updateData.attachment_instruction = String(body.attachment_instruction);
+    if (body.class_list !== undefined)
+      updateData.class_list = String(body.class_list);
+    if (body.list_type !== undefined)
+      updateData.list_type = String(body.list_type);
+    if (body.user_id !== undefined) updateData.user_id = String(body.user_id);
+    if (body.serial_no !== undefined)
+      updateData.serial_no = String(body.serial_no);
+
+    // If a file was uploaded, upload to Cloudinary and set URLs
+    if (req.file) {
+      if (!fs.existsSync(req.file.path)) {
+        throw new Error(`Uploaded file not found: ${req.file.path}`);
+      }
+      const { previewUrl, downloadUrl, public_id } =
+        await uploadPDFToCloudinary(req.file);
+      updateData.preview_url = previewUrl;
+      updateData.download_url = downloadUrl;
+      updateData.public_id = public_id;
     }
 
-    if (!fs.existsSync(req.file.path)) {
-      throw new Error(`Uploaded file not found: ${req.file.path}`);
-    }
-
-    const { previewUrl, downloadUrl, public_id } = await uploadPDFToCloudinary(
-      req.file
-    );
-
+    // Use upsert to create or update the single admission row (id = 1)
     const notice = await prisma.admission.upsert({
       where: { id: 1 },
-      update: {
-        preview_url: previewUrl,
-        download_url: downloadUrl,
-        public_id: public_id,
-      },
+      update: updateData,
       create: {
         id: 1,
-        preview_url: previewUrl,
-        download_url: downloadUrl,
-        public_id: public_id,
+        preview_url: updateData.preview_url ?? null,
+        download_url: updateData.download_url ?? null,
+        public_id: updateData.public_id ?? null,
+        admission_year: updateData.admission_year ?? null,
+        admission_open: updateData.admission_open ?? false,
+        instruction: updateData.instruction ?? null,
+        attachment_instruction: updateData.attachment_instruction ?? null,
+        class_list: updateData.class_list ?? null,
+        list_type: updateData.list_type ?? null,
+        user_id: updateData.user_id ?? null,
+        serial_no: updateData.serial_no ?? null,
       },
     });
 
-    console.log("Notice uploaded and saved:", notice);
-    return res.status(200).json({
-      success: true,
-      message: "Notice uploaded and saved",
-      data: notice,
-    });
+    return res
+      .status(200)
+      .json({ success: true, message: "Settings saved", data: notice });
   } catch (error) {
     console.error("Controller error:", error);
 
@@ -114,5 +139,45 @@ export const getAdmission = async (req, res) => {
       message: "Error fetching admission notice",
       error: error.message,
     });
+  }
+};
+
+export const deleteAdmission = async (req, res) => {
+  try {
+    const existing = await prisma.admission.findFirst();    
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Admission not found" });
+    }
+
+    if (existing.public_id) {
+      try {
+        await cloudinary.uploader.destroy(existing.public_id, {
+          resource_type: "raw",
+        });
+      } catch (err) {
+        console.error("Failed to delete remote file:", err.message || err);
+        // continue even if deletion fails
+      }
+    }
+
+    const updated = await prisma.admission.update({
+      where: { id: existing.id },
+      data: { preview_url: null, download_url: null, public_id: null },
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Notice removed", data: updated });
+  } catch (error) {
+    console.error("Error removing notice:", error);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to remove notice",
+        error: error.message,
+      });
   }
 };

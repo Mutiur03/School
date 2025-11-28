@@ -32,6 +32,7 @@ interface MenuItem {
 function Navbar() {
     const [isNavOpen, setIsNavOpen] = useState(false)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+    const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null)
     const [routinePDF, setRoutinePDF] = useState<string | null>(null);
     useEffect(() => {
         axios.get("/api/class-routine/pdf")
@@ -51,13 +52,19 @@ function Navbar() {
 
     const toggleNav = () => {
         setIsNavOpen(!isNavOpen)
-        if (!isNavOpen) {
+        if (isNavOpen) {
             setActiveDropdown(null)
+            setActiveSubDropdown(null)
         }
     }
 
     const toggleDropdown = (itemId: string) => {
         setActiveDropdown(activeDropdown === itemId ? null : itemId)
+        setActiveSubDropdown(null)
+    }
+
+    const toggleSubDropdown = (subItemId: string) => {
+        setActiveSubDropdown(activeSubDropdown === subItemId ? null : subItemId)
     }
 
     const closeNavbarIfMobile = (href?: string | null) => {
@@ -65,6 +72,7 @@ function Navbar() {
         if (typeof window !== 'undefined' && window.innerWidth <= 768 && isRealHref) {
             setIsNavOpen(false);
             setActiveDropdown(null);
+            setActiveSubDropdown(null);
         }
     }
 
@@ -199,8 +207,25 @@ function Navbar() {
         {
             id: "menu-item-3386",
             className: "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item",
-            href: "admission",
-            text: "Admission"
+            // href: "admission",
+            // text: "Admission"
+            href: "#",
+            text: "Admission",
+            dropdown: [
+                { id: "menu-item-3387", href: "admission/notice", text: "Admission Notice" },
+                { id: "menu-item-3388", href: "admission/form", text: "Admission Form" },
+                {
+                    id: "menu-item-3389",
+                    href: "#",
+                    text: "Admission Result",
+                    subDropdown: [
+                        { id: "menu-item-3393", href: "admission/result/class-6", text: "Class 6" },
+                        { id: "menu-item-3394", href: "admission/result/class-7", text: "Class 7" },
+                        { id: "menu-item-3395", href: "admission/result/class-8", text: "Class 8" },
+                        { id: "menu-item-3396", href: "admission/result/class-9", text: "Class 9" }
+                    ]
+                }
+            ]
         },
         {
             id: "menu-item-3384",
@@ -292,9 +317,45 @@ function Navbar() {
                                         <li
                                             key={subItem.id}
                                             id={subItem.id}
-                                            className={subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"}
+                                            className={`${subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"} ${activeSubDropdown === subItem.id ? 'show' : ''}`}
+                                            aria-expanded={activeSubDropdown === subItem.id}
                                         >
-                                            {isExternalLink(subItem.href) ? (
+                                            {subItem.subDropdown ? (
+                                                // If this subItem has its own nested dropdown, use the trigger to toggle it
+                                                isExternalLink(subItem.href) ? (
+                                                    <a
+                                                        href={subItem.href || '#'}
+                                                        className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            toggleSubDropdown(subItem.id)
+                                                        }}
+                                                        aria-expanded={activeSubDropdown === subItem.id}
+                                                        aria-controls={`${subItem.id}-submenu`}
+                                                    >
+                                                        <span className="menu-text hover:!text-white">{subItem.text}</span>
+                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                            <ChevronDown size={14} />
+                                                        </span>
+                                                    </a>
+                                                ) : (
+                                                    <Link
+                                                        to={subItem.href || '#'}
+                                                        className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            toggleSubDropdown(subItem.id)
+                                                        }}
+                                                        aria-expanded={activeSubDropdown === subItem.id}
+                                                        aria-controls={`${subItem.id}-submenu`}
+                                                    >
+                                                        <span className="menu-text hover:!text-white">{subItem.text}</span>
+                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                            <ChevronDown size={14} />
+                                                        </span>
+                                                    </Link>
+                                                )
+                                            ) : isExternalLink(subItem.href) ? (
                                                 <a
                                                     href={subItem.href || '#'}
                                                     className="dropdown-item hover:!text-white transition-colors duration-200"
@@ -325,7 +386,7 @@ function Navbar() {
                                             )}
 
                                             {subItem.subDropdown && (
-                                                <ul className="dropdown-menu" role="menu">
+                                                <ul id={`${subItem.id}-submenu`} className={`dropdown-menu ${activeSubDropdown === subItem.id ? 'show' : ''}`} role="menu">
                                                     {subItem.subDropdown.map((nestedItem) => (
                                                         <li
                                                             key={nestedItem.id}

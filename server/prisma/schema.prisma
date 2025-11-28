@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 model admin {
@@ -245,11 +245,19 @@ model notices {
 }
 
 model admission {
-  id           Int      @id @default(autoincrement())
-  preview_url  String
-  download_url String?
-  public_id    String?
-  created_at   DateTime @default(now())
+  id                      Int      @id @default(autoincrement())
+  preview_url             String?
+  download_url            String?
+  public_id               String?
+  admission_year          Int?
+  admission_open          Boolean? @default(false)
+  instruction             String?
+  attachment_instruction  String?
+  class_list              String?
+  list_type               String?
+  user_id                 String?
+  serial_no               String?
+  created_at              DateTime @default(now())
 }
 
 model syllabus {
