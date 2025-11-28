@@ -36,6 +36,7 @@ import Head from "./pages/Head";
 import RegSSC from "./pages/RegSSC";
 import AddExam from "./pages/AddExam";
 import Admission from "./pages/Admission";
+import AdmissionSettings from "./pages/AdmissionSettings";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -164,8 +165,12 @@ function App() {
                               element={<Holidays />}
                             ></Route>
                             <Route
-                              path="/admission"
+                              path="/admission/form"
                               element={<Admission />}
+                            ></Route>
+                            <Route
+                              path="/admission/settings"
+                              element={<AdmissionSettings />}
                             ></Route>
 
                             <Route

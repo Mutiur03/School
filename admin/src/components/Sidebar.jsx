@@ -137,9 +137,20 @@ const Sidebar = ({
     {
       label: "Admission",
       icon: Megaphone,
-      dropdown: false,
-      link: "/admission",
+      dropdown: true,
       id: "admission",
+      items: [
+        {
+          label: "Form",
+          link: "/admission/form",
+          id: "admission-form",
+        },
+        {
+          label: "Settings",
+          link: "/admission/settings",
+          id: "admission-settings",
+        },
+      ],
     },
     {
       label: "Settings",
