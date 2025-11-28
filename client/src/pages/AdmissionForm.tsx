@@ -620,7 +620,7 @@ function AdmissionForm() {
         }
     }, [form.birthRegNo])
 
-    useEffect(() => { 
+    useEffect(() => {
         if (guardianNotFather && form.guardianAddressSameAsPermanent) {
             dispatch({
                 type: 'SET_FIELDS',
@@ -1095,7 +1095,6 @@ function AdmissionForm() {
             if (form.listType) formData.append('listType', form.listType)
             if (form.admissionUserId) formData.append('admissionUserId', form.admissionUserId)
             if (form.serialNo) formData.append('serialNo', form.serialNo)
-            console.log('Submitting form data:', Object.fromEntries(formData.entries()));
 
 
             let response
@@ -1114,13 +1113,13 @@ function AdmissionForm() {
             }
 
             const result = response.data
-           
+            console.log(result);
+
             if (result.success) {
                 const successMessage = isEditMode
                     ? `Admission updated successfully! Admission ID: ${id}`
                     : `Admission submitted successfully! Your admission ID is: ${result.data.id}. Status: ${result.data.status}`
-                console.log("asdifsdf");
-                
+
                 setSuccess(successMessage)
 
                 if (!isEditMode) {
@@ -1129,7 +1128,7 @@ function AdmissionForm() {
                     setErrors({})
                     setSameAddress(false)
                     setGuardianNotFather(false)
-                    navigate(`/admission//form/confirm/${result.data.id}`)
+                    navigate(`/admission/form/confirm/${result.data.id}`)
                 } else {
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                     navigate(`/admission/form/confirm/${result.data.id}`)
@@ -1228,7 +1227,7 @@ function AdmissionForm() {
                         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
                     </svg>
                     <h3 className="text-xl font-semibold text-gray-800 mb-2">Admissions are currently closed</h3>
-                    <p className="text-sm text-gray-600 mb-4">SSC admission is not open at the moment. Please check back later or contact the school administration for updates.</p>
+                    <p className="text-sm text-gray-600 mb-4">Admission is not open at the moment. Please check back later or contact the school administration for updates.</p>
                     <div className="flex justify-center gap-3">
                         <button onClick={() => navigate('/')} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Go to Homepage</button>
                         <button onClick={() => window.location.reload()} className="px-4 py-2 border rounded">Refresh</button>
@@ -1302,7 +1301,7 @@ function AdmissionForm() {
                                 name="admissionUserId"
                                 value={form.admissionUserId}
                                 onChange={handleChange}
-                                disabled={!form.admissionClass }
+                                disabled={!form.admissionClass}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             >
                                 <option value="">Select User ID</option>
@@ -1344,7 +1343,7 @@ function AdmissionForm() {
                                 <option value="(Govt. Transfer)">সরকারি বদলি (Govt. Transfer)</option>
                             </select>
                         </FieldRow>
-                        <FieldRow label="Religion:" required error={errors.religion} tooltip="Select your religion as it will appear on your SSC JSC Printout/Class Six Registration Card">
+                        <FieldRow label="Religion:" required error={errors.religion} tooltip="Select your religion">
                             <select
                                 name="religion"
                                 value={form.religion}
