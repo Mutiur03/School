@@ -698,7 +698,6 @@ export const generateAdmissionPDF = async (req, res) => {
     const schoolAddr = "Panchbibi, Joypurhat";
     const schoolWeb = "www.lbphs.gov.bd";
     const admission_year = admission.admission_year || "";
-    const religion = admission.religion || "";
 
     // prepare display strings for title: use list_type, admission_class and admission_year
     const admission_class_raw = admission.admission_class || "";
@@ -759,7 +758,7 @@ export const generateAdmissionPDF = async (req, res) => {
 
     const slNoRaw = admission.serial_no || "";
     const admissionUserIdRaw = admission.admission_user_id || "";
-    const quotaRaw = formatQuota(admission.qouta) || "";
+    const quotaRaw = wrapBnEn(formatQuota(admission.qouta) )|| "";
 
     const slNoDisplay = String(slNoRaw).trim();
     const admissionUserIdDisplay = String(admissionUserIdRaw).trim();
