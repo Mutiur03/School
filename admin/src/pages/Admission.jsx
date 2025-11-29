@@ -166,6 +166,36 @@ function Admission() {
     })();
   }
 
+  function handleExportImages() {
+    (async () => {
+      try {
+        const params = {
+          status: filters.status,
+          search: filters.search,
+          admission_year: filters.admission_year,
+          class: filters.class,
+        };
+        const response = await axios.get(`/api/admission/form/images-export`, {
+          responseType: "blob",
+          params,
+        });
+        const blob = new Blob([response.data], { type: "application/zip" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const yearPart = params.admission_year ? params.admission_year : "all";
+        a.download = `admission_images_${yearPart}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to export images");
+      }
+    })();
+  }
+
   function handleViewDetails(id) {
     const admission = items.find((x) => x.id === id);
     setSelectedAdmission(admission || null);
@@ -493,6 +523,33 @@ function Admission() {
                   />
                 </svg>
                 Excel
+              </button>
+              <button
+                onClick={handleExportImages}
+                disabled={loading}
+                title="Export student images as ZIP"
+                className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800/10 dark:text-gray-200 dark:border-gray-700"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M7 10l5-5 5 5"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Images
               </button>
             </div>
           </div>
