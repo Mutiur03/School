@@ -8,6 +8,7 @@ function AdmissionSettings() {
     admission_open: false,
     instruction: "Please follow the instructions carefully",
     attachment_instruction: "Please attach all required documents",
+    ingikar: "",
     class_list: "",
     list_type: "",
     user_id_class6: "",
@@ -48,6 +49,7 @@ function AdmissionSettings() {
             prev.instruction,
           attachment_instruction:
             data.attachment_instruction ?? prev.attachment_instruction,
+          ingikar: data.ingikar ?? prev.ingikar,
           class_list: data.class_list ?? data.classList ?? prev.class_list,
           list_type: data.list_type ?? data.listType ?? prev.list_type,
           user_id_class6:
@@ -148,6 +150,9 @@ function AdmissionSettings() {
           "attachment_instruction",
           String(formData.attachment_instruction)
         );
+      }
+      if (formData.ingikar !== undefined && formData.ingikar !== null) {
+        payload.append("ingikar", String(formData.ingikar));
       }
       if (formData.class_list !== undefined && formData.class_list !== null) {
         payload.append("class_list", String(formData.class_list));
@@ -349,6 +354,23 @@ function AdmissionSettings() {
                 onChange={handleInputChange}
                 placeholder="E.g. Upload scanned copy of birth certificate, previous transcripts and a passport-sized photo."
                 rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="ingikar"
+                className="block text-sm font-medium mb-2"
+              >
+                অঙ্গীকারনামা
+              </label>
+              <textarea
+                id="ingikar"
+                name="ingikar"
+                value={formData.ingikar}
+                onChange={handleInputChange}
+                placeholder="Enter the অঙ্গীকারনামা text that will appear on generated admission PDFs."
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>

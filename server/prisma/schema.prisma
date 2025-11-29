@@ -260,6 +260,7 @@ model admission {
   user_id_class8         String?
   user_id_class9         String?
   serial_no              String?
+  ingikar                String?
   created_at             DateTime @default(now())
 }
 
