@@ -10,7 +10,6 @@ function AdmissionSettings() {
     attachment_instruction: "Please attach all required documents",
     class_list: "",
     list_type: "",
-    // new separate user id lists per class
     user_id_class6: "",
     user_id_class7: "",
     user_id_class8: "",

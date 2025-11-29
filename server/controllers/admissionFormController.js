@@ -88,28 +88,28 @@ const checkDuplicates = async (data, excludeId = null) => {
       });
   }
 
-  if (data.serial_no) {
-    const existing = await prisma.admission_form.findFirst({
-      where: {
-        serial_no: data.serial_no,
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-      select: { id: true, student_name_en: true },
-    });
-    if (existing)
-      duplicates.push({
-        field: "serialNo",
-        message: "Serial number already exists",
-        existingRecord: existing,
-      });
-  }
+  // if (data.serial_no) {
+  //   const existing = await prisma.admission_form.findFirst({
+  //     where: {
+  //       serial_no: data.serial_no,
+  //       ...(excludeId ? { id: { not: excludeId } } : {}),
+  //     },
+  //     select: { id: true, student_name_en: true },
+  //   });
+  //   if (existing)
+  //     duplicates.push({
+  //       field: "serialNo",
+  //       message: "Serial number already exists",
+  //       existingRecord: existing,
+  //     });
+  // }
   return duplicates;
 };
 
 export const createForm = async (req, res) => {
   try {
     const body = req.body || {};
-
+    const settings = await prisma.admission.findFirst();
     const payload = {
       student_name_bn: body.studentNameBn || null,
       student_nick_name_bn: body.studentNickNameBn || null,
@@ -168,6 +168,7 @@ export const createForm = async (req, res) => {
       parent_income: body.parent_income || null,
 
       admission_class: body.admissionClass || null,
+      admission_year: settings.admission_year || null,
       list_type: body.listType || null,
       admission_user_id: body.admissionUserId || null,
       serial_no: body.serialNo || null,
@@ -188,7 +189,12 @@ export const createForm = async (req, res) => {
         }, {}),
       });
     }
-    const settings = await prisma.admission.findFirst();
+    if (
+      (!payload.admission_year || payload.admission_year === null) &&
+      settings &&
+      settings.admission_year
+    )
+      payload.admission_year = settings.admission_year;
     let photoPath = null;
     if (req.file) {
       try {
@@ -298,6 +304,7 @@ export const updateForm = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Form not found" });
+    const settings = await prisma.admission.findFirst();
 
     const body = req.body || {};
     const payload = {
@@ -320,7 +327,6 @@ export const updateForm = async (req, res) => {
       birth_day: body.birthDay || existing.birth_day,
       blood_group: body.bloodGroup || existing.blood_group,
       email: body.email || existing.email,
-      // preserve or update religion
       religion: body.religion || existing.religion,
 
       present_district: body.presentDistrict || existing.present_district,
@@ -369,12 +375,12 @@ export const updateForm = async (req, res) => {
       parent_income: body.parent_income || existing.parent_income,
 
       admission_class: body.admissionClass || existing.admission_class,
+      admission_year: body.admissionYear || existing.admission_year,
       list_type: body.listType || existing.list_type,
       admission_user_id: body.admissionUserId || existing.admission_user_id,
       serial_no: body.serialNo || existing.serial_no,
       qouta: body.qouta || existing.qouta,
     };
-    // check duplicates (exclude current record)
     const duplicates = await checkDuplicates(payload, id);
     if (duplicates.length > 0) {
       if (req.file && fs.existsSync(req.file.path))
@@ -389,10 +395,6 @@ export const updateForm = async (req, res) => {
         }, {}),
       });
     }
-
-    // handle photo
-
-    const settings = await prisma.admission.findFirst();
 
     let photoPath = existing.photo_path;
     if (req.file) {
