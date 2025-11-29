@@ -793,7 +793,17 @@ export const generateAdmissionPDF = async (req, res) => {
     studentDetails.forEach(([label, value], idx) => {
       tableRows += row(label, value, idx);
     });
+    const defaultOngikar = `১. বিদ্যালয় কর্তৃক নির্ধারিত পোষাক (ইউনিফর্ম) পরে উপস্থিত থাকতে হবে।
+                  ২. বিদ্যালয়ে নিয়মিত উপস্থিত থাকতে হবে এবং শ্রেণি কার্যক্রমে সক্রিয় অংশগ্রহণ করতে হবে।
+                  ৩. মাথার চুল, হাত-পায়ের পরিচ্ছন্নতা সংক্রান্ত নিয়ম মেনে চলবে এবং নির্ধারিত নিয়ম অনুযায়ী হবে।
+                  ৪. বিদ্যালয়ের স্থাপত্য ও সকল নিয়মাবলী যথাযথভাবে মেনে চলতে হবে এবং বিদ্যালয়ের পরিবেশ সুপরিচ্ছন্ন রাখা হবে।
+                  ৫. বিদ্যালয়ের শিষ্টাচার ও আচরণবিধি মেনে চলতে হবে; লজ্জাজনক বা অশোভন আচরণ করলে প্রয়োজনীয় শাস্তিমূলক ব্যবস্থা নেওয়া হবে।
+                  ৬. উপরোক্ত শর্তাবলী বা বিদ্যালয়ের নিয়ম লঙ্ঘন করলে ভর্তি বাতিলসহ কর্তৃপক্ষ অনুযায়ী সিদ্ধান্ত নেওয়া হবে।`;
 
+    const ongikar =
+      admissionSettings && admissionSettings.ingikar
+        ? String(admissionSettings.ingikar)
+        : defaultOngikar;
     const schoolName = "Panchbibi Lal Bihari Pilot Govt. High School";
     const schoolAddr = "Panchbibi, Joypurhat";
     const schoolWeb = "www.lbphs.gov.bd";
@@ -1114,6 +1124,21 @@ export const generateAdmissionPDF = async (req, res) => {
           : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
+    /* stronger selector and !important to override .bn rules and ensure PDF renderers honor size/weight */
+    .document-list .bn.document-list-title,
+    .document-list-title.bn,
+    .document-list-title {
+      font-weight: 600 !important;
+      font-size: 1.12rem !important;
+      display: block !important;
+      margin-bottom: 6px !important;
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      }, sans-serif !important;
+      line-height: 1 !important;
+    }
     .signature-row {
       position: absolute;
       left: 0;
@@ -1214,7 +1239,7 @@ export const generateAdmissionPDF = async (req, res) => {
       <div class="footer">
         <div class="note">
           <div class="document-list">
-            <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
+            <span class="bn document-list-title">* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</span>
             ${
               attachmentInstructions
                 ? attachmentInstructions
@@ -1230,24 +1255,27 @@ export const generateAdmissionPDF = async (req, res) => {
                 : ""
             }
           </div>
+          <p style="color: red;">
+          * পূর্ববর্তী বিদ্যালয়ের মূল ছাড়পত্র ভর্তির সময় দিতে না পারলে পরীক্ষার ফল প্রকাশের পর অবশ্যই জমা দিতে হবে। অন্যথায় ভর্তি বাতিল হবে।
+          </br>
+          ** ভর্তির সময় উল্লিখিত সকল কাগজপত্রের মূলকপি অবশ্যই ভর্তি কমিটিকে দেখাতে হবে।
+          </p>
           <div style="margin-top:8px;">
-            <!-- Bold, centered, larger section title (Bengali) -->
             <div class="bn" style="font-weight:700 !important; font-size:1.25rem; text-align:center; margin:0 0 10px 0; display:block;">অঙ্গীকারনামা</div>
-            <div class="instructions-section" style="padding:8px;">
-              <div class="instructions-content bn" style="white-space:pre-line;">
-                  ১. বিদ্যালয় কর্তৃক নির্ধারিত পোষাক (ইউনিফর্ম) পরে উপস্থিত থাকতে হবে।
-                  ২. বিদ্যালয়ে নিয়মিত উপস্থিত থাকতে হবে এবং শ্রেণি কার্যক্রমে সক্রিয় অংশগ্রহণ করতে হবে।
-                  ৩. মাথার চুল, হাত-পায়ের পরিচ্ছন্নতা সংক্রান্ত নিয়ম মেনে চলবে এবং নির্ধারিত নিয়ম অনুযায়ী হবে।
-                  ৪. বিদ্যালয়ের স্থাপত্য ও সকল নিয়মাবলী যথাযথভাবে মেনে চলতে হবে এবং বিদ্যালয়ের পরিবেশ সুপরিচ্ছন্ন রাখা হবে।
-                  ৫. বিদ্যালয়ের শিষ্টাচার ও আচরণবিধি মেনে চলতে হবে; লজ্জাজনক বা অশোভন আচরণ করলে প্রয়োজনীয় শাস্তিমূলক ব্যবস্থা নেওয়া হবে।
-                  ৬. উপরোক্ত শর্তাবলী বা বিদ্যালয়ের নিয়ম লঙ্ঘন করলে ভর্তি বাতিলসহ কর্তৃপক্ষ অনুযায়ী সিদ্ধান্ত নেওয়া হবে।
+            ${
+              ongikar
+                ? `
+              <div class="instructions-section">
+                <div class="instructions-content">${wrapBnEn(ongikar)}</div>
               </div>
-            </div>
+              `
+                : ""
+            }
           </div>
         </div>
       </div>
     </div>
-    <div class="signature-row bn" style="gap: 8px; padding-bottom: 12px;">
+    <div class="signature-row bn" style="gap: 8px; padding-bottom: 0px;">
       <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;">
         <div class="signature-line"></div>
         <div class="signature-label bn" style="font-size: 0.9rem;">ছাত্রের স্বাক্ষর</div>

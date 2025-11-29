@@ -55,6 +55,7 @@ export const creatOrUpdateAdmission = async (req, res) => {
       updateData.instruction = String(body.instruction);
     if (body.attachment_instruction !== undefined)
       updateData.attachment_instruction = String(body.attachment_instruction);
+    if (body.ingikar !== undefined) updateData.ingikar = String(body.ingikar);
     if (body.class_list !== undefined)
       updateData.class_list = String(body.class_list);
     if (body.list_type !== undefined)
@@ -93,6 +94,7 @@ export const creatOrUpdateAdmission = async (req, res) => {
         admission_open: updateData.admission_open ?? false,
         instruction: updateData.instruction ?? null,
         attachment_instruction: updateData.attachment_instruction ?? null,
+        ingikar: updateData.ingikar ?? null,
         class_list: updateData.class_list ?? null,
         list_type: updateData.list_type ?? null,
         user_id_class6: updateData.user_id_class6 ?? null,
