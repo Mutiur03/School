@@ -758,7 +758,7 @@ export const generateAdmissionPDF = async (req, res) => {
 
     const slNoRaw = admission.serial_no || "";
     const admissionUserIdRaw = admission.admission_user_id || "";
-    const quotaRaw = wrapBnEn(formatQuota(admission.qouta) )|| "";
+    const quotaRaw = wrapBnEn(formatQuota(admission.qouta)) || "";
 
     const slNoDisplay = String(slNoRaw).trim();
     const admissionUserIdDisplay = String(admissionUserIdRaw).trim();
@@ -1114,8 +1114,8 @@ export const generateAdmissionPDF = async (req, res) => {
       <div class="title-row en">
         ${titleLabel}
       </div>
-      <div class="section-row en">
-        SL No: <span class="en">${slNoDisplay}</span>, User ID: <span class="en">${admissionUserIdDisplay}</span>, Quota: <span class="en">${quotaDisplay}</span>, Religion: <span class="en">${religionDisplay}</span>
+      <div class="section-row">
+        SL No: <span class="en">${slNoDisplay}</span>, User ID: <span class="en">${admissionUserIdDisplay}</span>, Quota: ${quotaDisplay}, Religion: <span class="en">${religionDisplay}</span>
       </div>
       <table>
         <tbody>
