@@ -1,12 +1,10 @@
 import { prisma } from "../config/prisma.js";
 import fs from "fs";
 import path from "path";
-import sanitizeHtml from "sanitize-html";
 import puppeteer from "puppeteer";
 import archiver from "archiver";
 import XLSX from "xlsx";
 
-// Normalize/format quota strings for display in PDFs/Excels
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
@@ -33,42 +31,37 @@ const formatQuota = (q) => {
 
   return normalized;
 };
-
+const checkDuplicates = async (data, excludeId = null) => {
+  const duplicates = [];
+  try {
+    if (!data || !data.serial_no) return duplicates;
+    const existing = await prisma.admission_form.findFirst({
+      where: {
+        serial_no: data.serial_no,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true, student_name_en: true },
+    });
+    if (existing) {
+      duplicates.push({
+        field: "serialNo",
+        message: "Serial number already exists",
+        existingRecord: existing,
+      });
+    }
+  } catch (err) {
+    console.warn(
+      "checkDuplicates error:",
+      err && err.message ? err.message : err
+    );
+  }
+  return duplicates;
+};
 const saveAdmissionPhoto = async (file, year, listType, serialNo, name) => {
   if (!file) return null;
   if (!fs.existsSync(file.path)) {
     throw new Error(`File not found: ${file.path}`);
   }
-
-  // Basic duplicate check used by create/update flows. Returns an array of
-  // duplicate descriptors (empty if none). Keep this lightweight — it simply
-  // checks whether another admission_form exists with the same serial_no.
-  const checkDuplicates = async (data, excludeId = null) => {
-    const duplicates = [];
-    try {
-      if (!data || !data.serial_no) return duplicates;
-      const existing = await prisma.admission_form.findFirst({
-        where: {
-          serial_no: data.serial_no,
-          ...(excludeId ? { id: { not: excludeId } } : {}),
-        },
-        select: { id: true, student_name_en: true },
-      });
-      if (existing) {
-        duplicates.push({
-          field: "serialNo",
-          message: "Serial number already exists",
-          existingRecord: existing,
-        });
-      }
-    } catch (err) {
-      console.warn(
-        "checkDuplicates error:",
-        err && err.message ? err.message : err
-      );
-    }
-    return duplicates;
-  };
 
   const safeYear = year || new Date().getFullYear();
 
