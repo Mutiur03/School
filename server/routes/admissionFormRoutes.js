@@ -10,17 +10,16 @@ import {
   deleteForm,
   approveForm,
   generateAdmissionPDF,
-  generateAdmissionExcel,
   exportAllAdmissionsExcel,
+  exportAdmissionImagesZip,
   pendingForm,
 } from "../controllers/admissionFormController.js";
 
 const addFormRouter = router.Router();
 
-// Multer setup (temporary upload dir)
 const upload = multer({
   dest: "uploads/temp/",
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
@@ -53,6 +52,8 @@ addFormRouter.post("/", upload.single("photo"), handleMulterError, createForm);
 addFormRouter.get("/", getForms);
 addFormRouter.get("/excel", exportAllAdmissionsExcel);
 addFormRouter.get("/download", exportAllAdmissionsExcel);
+// Export images as ZIP, optionally filtered by admission_year (query param)
+addFormRouter.get("/images-export", exportAdmissionImagesZip);
 addFormRouter.get("/:id", getFormById);
 addFormRouter.put(
   "/:id",
@@ -63,7 +64,6 @@ addFormRouter.put(
 addFormRouter.put("/:id/pending", pendingForm);
 addFormRouter.put("/:id/approve", approveForm);
 addFormRouter.get("/:id/pdf", generateAdmissionPDF);
-addFormRouter.get("/:id/excel", generateAdmissionExcel);
 addFormRouter.delete("/:id", deleteForm);
 
 export default addFormRouter;

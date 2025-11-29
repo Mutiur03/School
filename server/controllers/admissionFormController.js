@@ -1,7 +1,9 @@
 import { prisma } from "../config/prisma.js";
 import fs from "fs";
 import path from "path";
+import sanitizeHtml from "sanitize-html";
 import puppeteer from "puppeteer";
+import archiver from "archiver";
 import XLSX from "xlsx";
 
 // Normalize/format quota strings for display in PDFs/Excels
@@ -32,80 +34,101 @@ const formatQuota = (q) => {
   return normalized;
 };
 
-const saveAdmissionPhoto = async (file, year) => {
+const saveAdmissionPhoto = async (file, year, listType, serialNo, name) => {
   if (!file) return null;
   if (!fs.existsSync(file.path)) {
     throw new Error(`File not found: ${file.path}`);
   }
 
+  // Basic duplicate check used by create/update flows. Returns an array of
+  // duplicate descriptors (empty if none). Keep this lightweight — it simply
+  // checks whether another admission_form exists with the same serial_no.
+  const checkDuplicates = async (data, excludeId = null) => {
+    const duplicates = [];
+    try {
+      if (!data || !data.serial_no) return duplicates;
+      const existing = await prisma.admission_form.findFirst({
+        where: {
+          serial_no: data.serial_no,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true, student_name_en: true },
+      });
+      if (existing) {
+        duplicates.push({
+          field: "serialNo",
+          message: "Serial number already exists",
+          existingRecord: existing,
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "checkDuplicates error:",
+        err && err.message ? err.message : err
+      );
+    }
+    return duplicates;
+  };
+
+  const safeYear = year || new Date().getFullYear();
+
+  const safeListType = String(listType || "unknown")
+    .trim()
+    .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
+    .replace(/\s+/g, "_")
+    .toLowerCase();
+
+  const safeSerial = serialNo
+    ? String(serialNo)
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]+/g, "_")
+    : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+  const safeName = name
+    ? String(name)
+        .trim()
+        .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
+        .replace(/\s+/g, "_")
+    : null;
+
   const uploadDir = path.join(
     "uploads",
     "admission",
-    `${year || new Date().getFullYear()}`
+    String(safeYear),
+    safeListType
   );
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   const ext = path.extname(file.originalname) || ".jpg";
-  const filename = `photo-${Date.now()}-${Math.round(
-    Math.random() * 1e9
-  )}${ext}`;
-  const finalPath = path.join(uploadDir, filename);
-
-  fs.renameSync(file.path, finalPath);
-  return finalPath;
-};
-
-const checkDuplicates = async (data, excludeId = null) => {
-  const duplicates = [];
-  if (data.birth_reg_no) {
-    const existing = await prisma.admission_form.findFirst({
-      where: {
-        birth_reg_no: data.birth_reg_no,
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-      select: { id: true, student_name_en: true },
-    });
-    if (existing)
-      duplicates.push({
-        field: "birthRegNo",
-        message: "Birth registration number already exists",
-        existingRecord: existing,
-      });
-  }
-  if (data.admission_user_id) {
-    const existing = await prisma.admission_form.findFirst({
-      where: {
-        admission_user_id: data.admission_user_id,
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-      select: { id: true, student_name_en: true },
-    });
-    if (existing)
-      duplicates.push({
-        field: "admissionUserId",
-        message: "Admission user id already exists",
-        existingRecord: existing,
-      });
+  const baseName = safeName
+    ? `${safeListType}-${safeSerial}-${safeName}`
+    : `${safeListType}-${safeSerial}`;
+  let filename = `${baseName}${ext}`;
+  let finalPath = path.join(uploadDir, filename);
+  let counter = 1;
+  while (fs.existsSync(finalPath)) {
+    filename = `${baseName}(${counter})${ext}`;
+    finalPath = path.join(uploadDir, filename);
+    counter++;
   }
 
-  // if (data.serial_no) {
-  //   const existing = await prisma.admission_form.findFirst({
-  //     where: {
-  //       serial_no: data.serial_no,
-  //       ...(excludeId ? { id: { not: excludeId } } : {}),
-  //     },
-  //     select: { id: true, student_name_en: true },
-  //   });
-  //   if (existing)
-  //     duplicates.push({
-  //       field: "serialNo",
-  //       message: "Serial number already exists",
-  //       existingRecord: existing,
-  //     });
-  // }
-  return duplicates;
+  try {
+    fs.renameSync(file.path, finalPath);
+    return finalPath;
+  } catch (err) {
+    try {
+      fs.copyFileSync(file.path, finalPath);
+      fs.unlinkSync(file.path);
+      return finalPath;
+    } catch (err2) {
+      throw new Error(
+        `Failed to save uploaded file: ${
+          err2 && err2.message ? err2.message : err2
+        }`
+      );
+    }
+  }
 };
-
 export const createForm = async (req, res) => {
   try {
     const body = req.body || {};
@@ -198,7 +221,13 @@ export const createForm = async (req, res) => {
     let photoPath = null;
     if (req.file) {
       try {
-        photoPath = await saveAdmissionPhoto(req.file, settings.admission_year);
+        photoPath = await saveAdmissionPhoto(
+          req.file,
+          settings.admission_year,
+          payload.list_type,
+          payload.serial_no,
+          payload.student_name_en || payload.student_name_bn
+        );
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
           fs.unlinkSync(req.file.path);
@@ -401,7 +430,13 @@ export const updateForm = async (req, res) => {
       try {
         if (existing.photo_path && fs.existsSync(existing.photo_path))
           fs.unlinkSync(existing.photo_path);
-        photoPath = await saveAdmissionPhoto(req.file, settings.admission_year);
+        photoPath = await saveAdmissionPhoto(
+          req.file,
+          settings.admission_year,
+          payload.list_type,
+          payload.serial_no,
+          payload.student_name_en || payload.student_name_bn
+        );
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
           fs.unlinkSync(req.file.path);
@@ -522,7 +557,7 @@ export const generateAdmissionPDF = async (req, res) => {
 
     const admissionSettings = await prisma.admission.findFirst();
 
-    const sectionInstructions = admissionSettings?.section_instructions || null;
+    const sectionInstructions = admissionSettings?.instruction || null;
     const attachmentInstructions =
       admissionSettings?.attachment_instruction || null;
 
@@ -1071,7 +1106,8 @@ export const generateAdmissionPDF = async (req, res) => {
       display: block;
       font-size: 1rem;
       line-height: 1;
-      white-space: pre;
+      white-space: pre-line;
+      margin-bottom: 6px;
       font-family: ${
         solaimanLipiBase64
           ? "'SolaimanLipi', 'Noto Sans Bengali'"
@@ -1194,6 +1230,20 @@ export const generateAdmissionPDF = async (req, res) => {
                 : ""
             }
           </div>
+          <div style="margin-top:8px;">
+            <!-- Bold, centered, larger section title (Bengali) -->
+            <div class="bn" style="font-weight:700 !important; font-size:1.25rem; text-align:center; margin:0 0 10px 0; display:block;">অঙ্গীকারনামা</div>
+            <div class="instructions-section" style="padding:8px;">
+              <div class="instructions-content bn" style="white-space:pre-line;">
+                  ১. বিদ্যালয় কর্তৃক নির্ধারিত পোষাক (ইউনিফর্ম) পরে উপস্থিত থাকতে হবে।
+                  ২. বিদ্যালয়ে নিয়মিত উপস্থিত থাকতে হবে এবং শ্রেণি কার্যক্রমে সক্রিয় অংশগ্রহণ করতে হবে।
+                  ৩. মাথার চুল, হাত-পায়ের পরিচ্ছন্নতা সংক্রান্ত নিয়ম মেনে চলবে এবং নির্ধারিত নিয়ম অনুযায়ী হবে।
+                  ৪. বিদ্যালয়ের স্থাপত্য ও সকল নিয়মাবলী যথাযথভাবে মেনে চলতে হবে এবং বিদ্যালয়ের পরিবেশ সুপরিচ্ছন্ন রাখা হবে।
+                  ৫. বিদ্যালয়ের শিষ্টাচার ও আচরণবিধি মেনে চলতে হবে; লজ্জাজনক বা অশোভন আচরণ করলে প্রয়োজনীয় শাস্তিমূলক ব্যবস্থা নেওয়া হবে।
+                  ৬. উপরোক্ত শর্তাবলী বা বিদ্যালয়ের নিয়ম লঙ্ঘন করলে ভর্তি বাতিলসহ কর্তৃপক্ষ অনুযায়ী সিদ্ধান্ত নেওয়া হবে।
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1279,7 +1329,6 @@ export const generateAdmissionPDF = async (req, res) => {
       return new Promise((resolve) => {
         if (document.fonts && document.fonts.ready) {
           document.fonts.ready.then(() => {
-            // Additional wait for proper Bengali rendering
             setTimeout(resolve, 1000);
           });
         } else {
@@ -1313,116 +1362,6 @@ export const generateAdmissionPDF = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to generate PDF",
-      error: error.message,
-    });
-  }
-};
-
-export const generateAdmissionExcel = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const admission = await prisma.admission_form.findUnique({ where: { id } });
-    if (!admission) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Admission not found" });
-    }
-
-    const rows = [
-      ["Field", "Value"],
-      ["Student Name (BN)", admission.student_name_bn || ""],
-      ["Student Name (EN)", admission.student_name_en || ""],
-      ["Birth Registration Number", admission.birth_reg_no || ""],
-      ["Date of Birth", admission.birth_date || ""],
-      ["Email", admission.email || ""],
-      ["Father Name (BN)", admission.father_name_bn || ""],
-      ["Father Name (EN)", admission.father_name_en || ""],
-      ["Father NID", admission.father_nid || ""],
-      ["Father Phone", admission.father_phone || ""],
-      ["Mother Name (BN)", admission.mother_name_bn || ""],
-      ["Mother Name (EN)", admission.mother_name_en || ""],
-      ["Mother NID", admission.mother_nid || ""],
-      ["Mother Phone", admission.mother_phone || ""],
-      [
-        "Present Address",
-        [
-          admission.present_village_road,
-          admission.present_post_office,
-          admission.present_post_code,
-          admission.present_upazila,
-          admission.present_district,
-        ]
-          .filter(Boolean)
-          .join(", ") || "",
-      ],
-      [
-        "Permanent Address",
-        [
-          admission.permanent_village_road,
-          admission.permanent_post_office,
-          admission.permanent_post_code,
-          admission.permanent_upazila,
-          admission.permanent_district,
-        ]
-          .filter(Boolean)
-          .join(", ") || "",
-      ],
-      ["Guardian Name", admission.guardian_name || ""],
-      ["Guardian Phone", admission.guardian_phone || ""],
-      ["Guardian Relation", admission.guardian_relation || ""],
-      ["Previous School", admission.prev_school_name || ""],
-      ["Previous School District", admission.prev_school_district || ""],
-      ["Previous School Upazila", admission.prev_school_upazila || ""],
-      ["Previous School Section", admission.section_in_prev_school || ""],
-      ["Previous School Roll", admission.roll_in_prev_school || ""],
-      [
-        "Previous School Passing Year",
-        admission.prev_school_passing_year || "",
-      ],
-      ["Admission Class", admission.admission_class || ""],
-      ["List Type", admission.list_type || ""],
-      ["Admission User ID", admission.admission_user_id || ""],
-      ["Serial No", admission.serial_no || ""],
-      ["Quota", formatQuota(admission.qouta) || ""],
-      ["Status", admission.status || ""],
-      ["Submission Date", admission.submission_date || ""],
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    // Auto-width columns (lightweight): compute max length per column
-    const colWidths = [];
-    rows.forEach((r) => {
-      r.forEach((cell, idx) => {
-        const l = cell ? String(cell).length : 0;
-        colWidths[idx] = Math.max(colWidths[idx] || 10, l + 2);
-      });
-    });
-    ws["!cols"] = colWidths.map((w) => ({ wch: w }));
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Admission");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-
-    const filenameNamePart = admission.student_name_en
-      ? String(admission.student_name_en).replace(/[^a-zA-Z0-9-_\. ]/g, "_")
-      : id;
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="Admission_${filenameNamePart}.xlsx"`
-    );
-
-    return res.status(200).send(buffer);
-  } catch (error) {
-    console.error("Excel generation error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate Excel",
       error: error.message,
     });
   }
@@ -1574,5 +1513,88 @@ export const exportAllAdmissionsExcel = async (req, res) => {
       message: "Failed to export Excel",
       error: error.message,
     });
+  }
+};
+
+export const exportAdmissionImagesZip = async (req, res) => {
+  try {
+    const { admission_year } = req.query;
+    let yearNum = null;
+    if (
+      typeof admission_year !== "undefined" &&
+      admission_year !== null &&
+      String(admission_year).trim() !== ""
+    ) {
+      yearNum = Number(admission_year);
+      if (isNaN(yearNum)) yearNum = null;
+    }
+
+    const uploadsBase = path.join(process.cwd(), "uploads", "admission");
+    if (!fs.existsSync(uploadsBase)) {
+      return res.status(404).json({
+        success: false,
+        message: "No admission uploads directory found",
+      });
+    }
+
+    const fileName =
+      yearNum !== null
+        ? `admission_images_${String(yearNum)}.zip`
+        : `admission_images_all_years.zip`;
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (err) => {
+      console.error("Archiver error:", err);
+      if (!res.headersSent)
+        res.status(500).json({
+          success: false,
+          message: "Failed to create archive",
+          error: err.message,
+        });
+    });
+    archive.pipe(res);
+
+    if (yearNum !== null) {
+      const targetDir = path.join(uploadsBase, String(yearNum));
+      if (!fs.existsSync(targetDir)) {
+        return res.status(404).json({
+          success: false,
+          message: `No uploads found for year ${yearNum}`,
+        });
+      }
+      archive.directory(targetDir, String(yearNum));
+    } else {
+      const entries = fs.readdirSync(uploadsBase, { withFileTypes: true });
+      const dirs = entries.filter((d) => d.isDirectory());
+      const files = entries.filter((d) => d.isFile());
+
+      if (dirs.length === 0 && files.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "No admission uploads found" });
+      }
+
+      for (const d of dirs) {
+        const dirPath = path.join(uploadsBase, d.name);
+        archive.directory(dirPath, d.name);
+      }
+      for (const f of files) {
+        const filePath = path.join(uploadsBase, f.name);
+        archive.file(filePath, { name: f.name });
+      }
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    console.error("exportAdmissionImagesZip error:", error);
+    if (!res.headersSent)
+      res.status(500).json({
+        success: false,
+        message: "Failed to export images",
+        error: error.message,
+      });
   }
 };

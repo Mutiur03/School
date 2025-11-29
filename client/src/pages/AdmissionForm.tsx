@@ -554,8 +554,9 @@ function AdmissionForm() {
     }, [form.prevSchoolDistrict, initialLoading])
 
     const currentYear = new Date().getFullYear()
-    const minYear = currentYear - 12
-    const years = Array.from({ length: 40 }, (_, i) => String(minYear - i))
+    // Allow a broad range of birth years instead of enforcing a minimum-age cutoff
+    const earliestYear = 1900
+    const years = Array.from({ length: currentYear - earliestYear + 1 }, (_, i) => String(currentYear - i))
     const months = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' }, { value: '03', label: 'March' },
         { value: '04', label: 'April' }, { value: '05', label: 'May' }, { value: '06', label: 'June' },
@@ -572,27 +573,17 @@ function AdmissionForm() {
     let monthOptions = months
     let disableMonth = false
     let disableDay = false
+
+    // If a valid birth year is present (from the allowed years array), enable month/day selection
     if (form.birthYear && years.includes(form.birthYear)) {
-        if (form.birthYear === String(minYear)) {
-            monthOptions = months.filter(m => m.value === '01')
-            disableMonth = false
-            if (form.birthMonth === '01') {
-                days = ['01']
-                disableDay = false
-            } else {
-                days = []
-                disableDay = true
-            }
+        monthOptions = months
+        disableMonth = false
+        if (form.birthMonth) {
+            days = getDaysInMonth(form.birthYear, form.birthMonth)
+            disableDay = false
         } else {
-            monthOptions = months
-            disableMonth = false
-            if (form.birthMonth) {
-                days = getDaysInMonth(form.birthYear, form.birthMonth)
-                disableDay = false
-            } else {
-                days = []
-                disableDay = true
-            }
+            days = []
+            disableDay = true
         }
     } else {
         days = []
@@ -603,7 +594,8 @@ function AdmissionForm() {
     useEffect(() => {
         if (form.birthRegNo && form.birthRegNo.length >= 4) {
             const year = form.birthRegNo.slice(0, 4)
-            if (/^\d{4}$/.test(year) && years.includes(year)) {
+            const yearNum = Number(year)
+            if (/^\d{4}$/.test(year) && yearNum >= earliestYear && yearNum <= currentYear) {
                 dispatch({
                     type: 'SET_FIELDS',
                     fields: {
@@ -618,7 +610,7 @@ function AdmissionForm() {
         } else if (form.birthYear !== '') {
             dispatch({ type: 'SET_FIELDS', fields: { birthYear: '', birthMonth: '', birthDay: '' } })
         }
-    }, [form.birthRegNo])
+    }, [form.birthRegNo, form.birthMonth, form.birthDay, form.birthYear, currentYear, earliestYear])
 
     useEffect(() => {
         if (guardianNotFather && form.guardianAddressSameAsPermanent) {
@@ -676,10 +668,10 @@ function AdmissionForm() {
         sixx: {
             studentNameBn: { instruction: '(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in Bengali' },
             studentNameEn: { instruction: '(According to Primary/Birth Registration Card)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in English capital letters' },
-            fatherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter father's name as shown in SSC certificate/National IC Card in Bengali" },
-            fatherNameEn: { instruction: '(According to SSC certificate/National IC Card)', tooltip: "Enter father's name as shown in SSC certificate/National IC Card in English capital letters" },
-            motherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter mother's name as shown in SSC certificate/National IC Card in Bengali" },
-            motherNameEn: { instruction: '(According to SSC certificate/National IC Card)', tooltip: "Enter mother's name as shown in SSC certificate/National IC Card in English capital letters" },
+            fatherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter father's name as shown in SSC certificate/National ID Card in Bengali" },
+            fatherNameEn: { instruction: '(According to SSC certificate/National ID Card)', tooltip: "Enter father's name as shown in SSC certificate/National ID Card in English capital letters" },
+            motherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter mother's name as shown in SSC certificate/National ID Card in Bengali" },
+            motherNameEn: { instruction: '(According to SSC certificate/National ID Card)', tooltip: "Enter mother's name as shown in SSC certificate/National ID Card in English capital letters" },
         },
         seven: {
             studentNameBn: { instruction: '(ষষ্ঠ শ্রেণির প্রিন্ট‌আউট অনুযায়ী)', tooltip: 'Enter your name as it appears in your Class Six Printout in Bengali' },
@@ -883,13 +875,7 @@ function AdmissionForm() {
         if (!form.birthYear) e.birthYear = 'Birth year is required'
         if (!form.birthMonth) e.birthMonth = 'Birth month is required'
         if (!form.birthDay) e.birthDay = 'Birth day is required'
-        if (form.birthYear && form.birthMonth && form.birthDay) {
-            const dob = new Date(`${form.birthYear}-${form.birthMonth}-${form.birthDay}`)
-            const minDate = new Date(`${minYear}-01-01`)
-            if (dob > minDate) {
-                e.birthYear = `Student must be at least 12 years old on 1st January ${currentYear}`
-            }
-        }
+        // Age cutoff removed: no minimum-age validation enforced here anymore.
         if (!form.admissionClass) e.admissionClass = 'Please select class for admission'
         if (!form.listType) e.listType = 'Please select list type'
         if (!form.admissionUserId) e.admissionUserId = 'User ID is required'
@@ -1295,7 +1281,19 @@ function AdmissionForm() {
                                 ))}
                             </select>
                         </FieldRow>
-
+                        <FieldRow label="Serial No:" required error={errors.serialNo} tooltip="Select serial number from settings">
+                            <select
+                                name="serialNo"
+                                value={form.serialNo}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            >
+                                <option value="">Select Serial No</option>
+                                {serialNoOptions.map((s) => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </select>
+                        </FieldRow>
                         <FieldRow label="User ID:" required error={errors.admissionUserId} tooltip="Select user id from settings">
                             <select
                                 name="admissionUserId"
@@ -1311,19 +1309,7 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
 
-                        <FieldRow label="Serial No:" required error={errors.serialNo} tooltip="Select serial number from settings">
-                            <select
-                                name="serialNo"
-                                value={form.serialNo}
-                                onChange={handleChange}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            >
-                                <option value="">Select Serial No</option>
-                                {serialNoOptions.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
-                            </select>
-                        </FieldRow>
+
                         <FieldRow label="Qouta:" required error={errors.qouta} tooltip="Enter applicable quota (if any)">
                             <select
                                 name="qouta"
@@ -1424,9 +1410,9 @@ function AdmissionForm() {
                                     {days.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
-                            <Instruction>
+                            {/* <Instruction>
                                 Student must be at least 12 years old on 1st January {currentYear}.
-                            </Instruction>
+                            </Instruction> */}
                         </FieldRow>
                         <FieldRow label="পিতার নাম (বাংলায়):" required instruction={getGuidance('fatherNameBn').instruction || '(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)'} error={errors.fatherNameBn} tooltip={getGuidance('fatherNameBn').tooltip || "Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali"}>
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
@@ -1922,90 +1908,16 @@ function AdmissionForm() {
                     </div>
                 </section>
 
-                <section className="mb-4 sm:mb-6">
+                {/* <section className="mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 sm:gap-3 mb-3">
                         <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 text-white font-bold text-sm sm:text-lg shadow">4</span>
                         <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Student's Photo:</h3>
                     </div>
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md">
-                        <FieldRow
-                            label={
-                                <span>
-                                    Photo:
-                                    {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
-                                </span>
-                            }
-                            tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
-                        >
-                            <div >
-                                <div className="flex flex-col lg:flex-row items-start gap-4">
-                                    <div className="shrink-0">
-                                        <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
-                                            {photoPreview ? (
-                                                <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="text-center px-2">
-                                                    <svg className="mx-auto mb-1 w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7-5 7 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    </svg>
-                                                    <div className="text-xs sm:text-sm text-gray-500">
-                                                        {isEditMode ? 'Current photo' : 'No photo uploaded'}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <input
-                                                id="photo-input"
-                                                type="file"
-                                                name="photo"
-                                                accept=".jpg,.jpeg,image/jpeg"
-                                                onChange={handleFileChange}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                aria-invalid={!!errors.photo}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                            <label htmlFor="photo-input" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base">
-                                                {photoPreview ? 'Change Photo' : 'Choose Photo'}
-                                            </label>
-
-                                            {(photoPreview || form.photo) && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        dispatch({ type: 'SET_FIELD', name: 'photo', value: null })
-                                                        setPhotoPreview(null)
-                                                        const input = document.getElementById('photo-input') as HTMLInputElement | null
-                                                        if (input) input.value = ''
-                                                        setErrors(prev => ({ ...prev, photo: '' }))
-                                                    }}
-                                                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded bg-white text-sm sm:text-base hover:bg-gray-50"
-                                                >
-                                                    Remove Photo
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <Instruction>
-                                            JPG only. Max file size 2MB. Click the box or "Choose Photo" to upload.
-                                        </Instruction>
-
-                                        {errors.photo && <Error>{errors.photo}</Error>}
-                                        {isEditMode && !form.photo && photoPreview && (
-                                            <Instruction>Existing photo will be kept if you don't upload a new one.</Instruction>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </FieldRow>
                     </div>
-                </section>
+                </section> */}
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={5} title="Previous School Information:" />
+                    <SectionHeader step={4} title="Previous School Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <FieldRow label="Name of Previous School :" required error={errors.prevSchoolName} tooltip="Enter the full name of your previous school">
                             <input
@@ -2089,7 +2001,7 @@ function AdmissionForm() {
                     </div>
                 </section>
                 <section className="mb-4 sm:mb-6">
-                    <SectionHeader step={6} title="Additional Information:" />
+                    <SectionHeader step={5} title="Additional Information:" />
                     <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md flex flex-col gap-y-2">
                         <FieldRow label="Father's Profession:" required error={errors.father_profession} tooltip="Select father's profession">
                             <div>
@@ -2171,6 +2083,89 @@ function AdmissionForm() {
 
                     </div>
                 </section>
+                <section className="mb-4 sm:mb-6">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3">
+                        <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 text-white font-bold text-sm sm:text-lg shadow">6</span>
+                        <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Student's Photo:</h3>
+                    </div>
+                    <div className="border rounded-lg p-3 sm:p-4 lg:p-6 bg-white shadow-md">
+                        <FieldRow
+                            label={
+                                <span>
+                                    Photo:
+                                    {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
+                                </span>
+                            }
+                            tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
+                        >
+                            <div >
+                                <div className="flex flex-col lg:flex-row items-start gap-4">
+                                    <div className="shrink-0">
+                                        <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
+                                            {photoPreview ? (
+                                                <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-center px-2">
+                                                    <svg className="mx-auto mb-1 w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7-5 7 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                    <div className="text-xs sm:text-sm text-gray-500">
+                                                        {isEditMode ? 'Current photo' : 'No photo uploaded'}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <input
+                                                id="photo-input"
+                                                type="file"
+                                                name="photo"
+                                                accept=".jpg,.jpeg,image/jpeg"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                aria-invalid={!!errors.photo}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                            <label htmlFor="photo-input" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base">
+                                                {photoPreview ? 'Change Photo' : 'Choose Photo'}
+                                            </label>
+
+                                            {(photoPreview || form.photo) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        dispatch({ type: 'SET_FIELD', name: 'photo', value: null })
+                                                        setPhotoPreview(null)
+                                                        const input = document.getElementById('photo-input') as HTMLInputElement | null
+                                                        if (input) input.value = ''
+                                                        setErrors(prev => ({ ...prev, photo: '' }))
+                                                    }}
+                                                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded bg-white text-sm sm:text-base hover:bg-gray-50"
+                                                >
+                                                    Remove Photo
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <Instruction>
+                                            JPG only. Max file size 2MB. Click the box or "Choose Photo" to upload.
+                                        </Instruction>
+
+                                        {errors.photo && <Error>{errors.photo}</Error>}
+                                        {isEditMode && !form.photo && photoPreview && (
+                                            <Instruction>Existing photo will be kept if you don't upload a new one.</Instruction>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </FieldRow>
+                    </div>
+                </section>
+
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-6 sm:mt-8">
                     <button
                         type="submit"
