@@ -10,6 +10,9 @@ import {
   deleteForm,
   approveForm,
   generateAdmissionPDF,
+  generateAdmissionExcel,
+  exportAllAdmissionsExcel,
+  pendingForm,
 } from "../controllers/admissionFormController.js";
 
 const addFormRouter = router.Router();
@@ -33,12 +36,10 @@ const handleMulterError = (err, req, res, next) => {
     err instanceof multer.MulterError &&
     err.code === "LIMIT_FILE_SIZE"
   ) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "File size too large. Maximum size is 2MB.",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "File size too large. Maximum size is 2MB.",
+    });
   }
   if (err && err.message === "Only image files are allowed") {
     return res
@@ -50,6 +51,8 @@ const handleMulterError = (err, req, res, next) => {
 
 addFormRouter.post("/", upload.single("photo"), handleMulterError, createForm);
 addFormRouter.get("/", getForms);
+addFormRouter.get("/excel", exportAllAdmissionsExcel);
+addFormRouter.get("/download", exportAllAdmissionsExcel);
 addFormRouter.get("/:id", getFormById);
 addFormRouter.put(
   "/:id",
@@ -57,10 +60,10 @@ addFormRouter.put(
   handleMulterError,
   updateForm
 );
-addFormRouter.put(
-  "/:id/approve", approveForm
-);
+addFormRouter.put("/:id/pending", pendingForm);
+addFormRouter.put("/:id/approve", approveForm);
 addFormRouter.get("/:id/pdf", generateAdmissionPDF);
+addFormRouter.get("/:id/excel", generateAdmissionExcel);
 addFormRouter.delete("/:id", deleteForm);
 
 export default addFormRouter;
