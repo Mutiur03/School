@@ -1115,7 +1115,10 @@ export const generateAdmissionPDF = async (req, res) => {
         ${titleLabel}
       </div>
       <div class="section-row">
-        SL No: <span class="en">${slNoDisplay}</span>, User ID: <span class="en">${admissionUserIdDisplay}</span>, Quota: ${quotaDisplay}, Religion: <span class="en">${religionDisplay}</span>
+        <span class="en">SL No:</span> <span class="en">${slNoDisplay}</span>,
+        <span class="en"> User ID:</span> <span class="en">${admissionUserIdDisplay}</span>,
+        <span class="en"> Quota:</span> ${quotaDisplay},
+        <span class="en"> Religion:</span> ${wrapBnEn(religionDisplay)}
       </div>
       <table>
         <tbody>
