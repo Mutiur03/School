@@ -2,14 +2,47 @@ import { prisma } from "../config/prisma.js";
 import fs from "fs";
 import path from "path";
 import puppeteer from "puppeteer";
+import XLSX from "xlsx";
 
-const saveAdmissionPhoto = async (file) => {
+// Normalize/format quota strings for display in PDFs/Excels
+const formatQuota = (q) => {
+  if (!q) return null;
+  const key = String(q).trim();
+  const map = {
+    "(GEN)": "সাধারণ (GEN)",
+    "(DIS)": "বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)",
+    "(FF)": "মুক্তিযোদ্ধার সন্তান (FF)",
+    "(GOV)": "সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)",
+    "(ME)": "শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)",
+    "(SIB)": "সহোদর ভাই (SIB)",
+    "(TWN)": "যমজ (TWN)",
+    "(Mutual Transfer)": "পারস্পরিক বদলি (Mutual Transfer)",
+    "(Govt. Transfer)": "সরকারি বদলি (Govt. Transfer)",
+  };
+
+  if (map[key]) return map[key];
+
+  const normalized = key.replace(/\s+/g, " ").trim();
+  if (map[normalized]) return map[normalized];
+
+  const noParens = normalized.replace(/[()]/g, "").trim();
+  const withParens = `(${noParens})`;
+  if (map[withParens]) return map[withParens];
+
+  return normalized;
+};
+
+const saveAdmissionPhoto = async (file, year) => {
   if (!file) return null;
   if (!fs.existsSync(file.path)) {
     throw new Error(`File not found: ${file.path}`);
   }
 
-  const uploadDir = path.join("uploads", "admission-photos");
+  const uploadDir = path.join(
+    "uploads",
+    "admission",
+    `${year || new Date().getFullYear()}`
+  );
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   const ext = path.extname(file.originalname) || ".jpg";
@@ -155,11 +188,11 @@ export const createForm = async (req, res) => {
         }, {}),
       });
     }
-
+    const settings = await prisma.admission.findFirst();
     let photoPath = null;
     if (req.file) {
       try {
-        photoPath = await saveAdmissionPhoto(req.file);
+        photoPath = await saveAdmissionPhoto(req.file, settings.admission_year);
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
           fs.unlinkSync(req.file.path);
@@ -358,12 +391,15 @@ export const updateForm = async (req, res) => {
     }
 
     // handle photo
+
+    const settings = await prisma.admission.findFirst();
+
     let photoPath = existing.photo_path;
     if (req.file) {
       try {
         if (existing.photo_path && fs.existsSync(existing.photo_path))
           fs.unlinkSync(existing.photo_path);
-        photoPath = await saveAdmissionPhoto(req.file);
+        photoPath = await saveAdmissionPhoto(req.file, settings.admission_year);
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
           fs.unlinkSync(req.file.path);
@@ -436,6 +472,33 @@ export const approveForm = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to approve form",
+      error: error.message,
+    });
+  }
+};
+
+export const pendingForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.admission_form.findUnique({ where: { id } });
+    if (!existing)
+      return res
+        .status(404)
+        .json({ success: false, message: "Form not found" });
+    const updated = await prisma.admission_form.update({
+      where: { id },
+      data: { status: "pending" },
+    });
+    res.status(200).json({
+      success: true,
+      message: "Form marked as pending",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("pendingForm error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to mark form as pending",
       error: error.message,
     });
   }
@@ -729,32 +792,7 @@ export const generateAdmissionPDF = async (req, res) => {
     }${admission_class_display ? ` in Class ${admission_class_display}` : ""}${
       admission_year ? ` ${admission_year}` : ""
     }`;
-    const formatQuota = (q) => {
-      if (!q) return null;
-      const key = String(q).trim();
-      const map = {
-        "(GEN)": "সাধারণ (GEN)",
-        "(DIS)": "বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)",
-        "(FF)": "মুক্তিযোদ্ধার সন্তান (FF)",
-        "(GOV)": "সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)",
-        "(ME)": "শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)",
-        "(SIB)": "সহোদর ভাই (SIB)",
-        "(TWN)": "যমজ (TWN)",
-        "(Mutual Transfer)": "পারস্পরিক বদলি (Mutual Transfer)",
-        "(Govt. Transfer)": "সরকারি বদলি (Govt. Transfer)",
-      };
-
-      if (map[key]) return map[key];
-
-      const normalized = key.replace(/\s+/g, " ").trim();
-      if (map[normalized]) return map[normalized];
-
-      const noParens = normalized.replace(/[()]/g, "").trim();
-      const withParens = `(${noParens})`;
-      if (map[withParens]) return map[withParens];
-
-      return normalized;
-    };
+    // formatQuota is defined at module scope for reuse across PDF/Excel generators
 
     const slNoRaw = admission.serial_no || "";
     const admissionUserIdRaw = admission.admission_user_id || "";
@@ -1273,6 +1311,265 @@ export const generateAdmissionPDF = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to generate PDF",
+      error: error.message,
+    });
+  }
+};
+
+export const generateAdmissionExcel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const admission = await prisma.admission_form.findUnique({ where: { id } });
+    if (!admission) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Admission not found" });
+    }
+
+    const rows = [
+      ["Field", "Value"],
+      ["Student Name (BN)", admission.student_name_bn || ""],
+      ["Student Name (EN)", admission.student_name_en || ""],
+      ["Birth Registration Number", admission.birth_reg_no || ""],
+      ["Date of Birth", admission.birth_date || ""],
+      ["Email", admission.email || ""],
+      ["Father Name (BN)", admission.father_name_bn || ""],
+      ["Father Name (EN)", admission.father_name_en || ""],
+      ["Father NID", admission.father_nid || ""],
+      ["Father Phone", admission.father_phone || ""],
+      ["Mother Name (BN)", admission.mother_name_bn || ""],
+      ["Mother Name (EN)", admission.mother_name_en || ""],
+      ["Mother NID", admission.mother_nid || ""],
+      ["Mother Phone", admission.mother_phone || ""],
+      [
+        "Present Address",
+        [
+          admission.present_village_road,
+          admission.present_post_office,
+          admission.present_post_code,
+          admission.present_upazila,
+          admission.present_district,
+        ]
+          .filter(Boolean)
+          .join(", ") || "",
+      ],
+      [
+        "Permanent Address",
+        [
+          admission.permanent_village_road,
+          admission.permanent_post_office,
+          admission.permanent_post_code,
+          admission.permanent_upazila,
+          admission.permanent_district,
+        ]
+          .filter(Boolean)
+          .join(", ") || "",
+      ],
+      ["Guardian Name", admission.guardian_name || ""],
+      ["Guardian Phone", admission.guardian_phone || ""],
+      ["Guardian Relation", admission.guardian_relation || ""],
+      ["Previous School", admission.prev_school_name || ""],
+      ["Previous School District", admission.prev_school_district || ""],
+      ["Previous School Upazila", admission.prev_school_upazila || ""],
+      ["Previous School Section", admission.section_in_prev_school || ""],
+      ["Previous School Roll", admission.roll_in_prev_school || ""],
+      [
+        "Previous School Passing Year",
+        admission.prev_school_passing_year || "",
+      ],
+      ["Admission Class", admission.admission_class || ""],
+      ["List Type", admission.list_type || ""],
+      ["Admission User ID", admission.admission_user_id || ""],
+      ["Serial No", admission.serial_no || ""],
+      ["Quota", formatQuota(admission.qouta) || ""],
+      ["Status", admission.status || ""],
+      ["Submission Date", admission.submission_date || ""],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Auto-width columns (lightweight): compute max length per column
+    const colWidths = [];
+    rows.forEach((r) => {
+      r.forEach((cell, idx) => {
+        const l = cell ? String(cell).length : 0;
+        colWidths[idx] = Math.max(colWidths[idx] || 10, l + 2);
+      });
+    });
+    ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Admission");
+
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+
+    const filenameNamePart = admission.student_name_en
+      ? String(admission.student_name_en).replace(/[^a-zA-Z0-9-_\. ]/g, "_")
+      : id;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Admission_${filenameNamePart}.xlsx"`
+    );
+
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Excel generation error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate Excel",
+      error: error.message,
+    });
+  }
+};
+
+export const exportAllAdmissionsExcel = async (req, res) => {
+  try {
+    const { status, search, admission_year, class: admissionClass } = req.query;
+    const where = {};
+    if (status && status !== "all") where.status = status;
+    if (admission_year) {
+      const yearNum = Number(admission_year);
+      if (!isNaN(yearNum)) {
+        const gte = new Date(Date.UTC(yearNum, 0, 1));
+        const lt = new Date(Date.UTC(yearNum + 1, 0, 1));
+        where.created_at = { gte, lt };
+      }
+    }
+    if (admissionClass) where.admission_class = admissionClass;
+    if (search) {
+      where.OR = [
+        { student_name_en: { contains: String(search), mode: "insensitive" } },
+        { student_name_bn: { contains: String(search), mode: "insensitive" } },
+        { birth_reg_no: { contains: String(search), mode: "insensitive" } },
+      ];
+    }
+
+    const items = await prisma.admission_form.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+    });
+
+    // Export every column from the admission_form table as separate Excel columns.
+    // Prefer using returned item keys (keeps DB order returned by Prisma). If no items,
+    // fall back to a schema-aware column list to keep headers predictable.
+    let columns = [];
+    if (items && items.length > 0) {
+      // collect union of keys in first record (Prisma returns all model fields)
+      columns = Object.keys(items[0]);
+    } else {
+      columns = [
+        "id",
+        "student_name_bn",
+        "student_nick_name_bn",
+        "student_name_en",
+        "birth_reg_no",
+        "father_name_bn",
+        "father_name_en",
+        "father_nid",
+        "father_phone",
+        "mother_name_bn",
+        "mother_name_en",
+        "mother_nid",
+        "mother_phone",
+        "birth_date",
+        "birth_year",
+        "birth_month",
+        "birth_day",
+        "blood_group",
+        "email",
+        "religion",
+        "present_district",
+        "present_upazila",
+        "present_post_office",
+        "present_post_code",
+        "present_village_road",
+        "permanent_district",
+        "permanent_upazila",
+        "permanent_post_office",
+        "permanent_post_code",
+        "permanent_village_road",
+        "guardian_name",
+        "guardian_phone",
+        "guardian_relation",
+        "guardian_nid",
+        "guardian_district",
+        "guardian_upazila",
+        "guardian_post_office",
+        "guardian_post_code",
+        "guardian_village_road",
+        "prev_school_name",
+        "prev_school_district",
+        "prev_school_upazila",
+        "section_in_prev_school",
+        "roll_in_prev_school",
+        "prev_school_passing_year",
+        "father_profession",
+        "mother_profession",
+        "parent_income",
+        "admission_class",
+        "list_type",
+        "admission_user_id",
+        "serial_no",
+        "qouta",
+        "photo_path",
+        "status",
+        "submission_date",
+        "created_at",
+        "updated_at",
+      ];
+    }
+
+    const rows = [columns];
+    items.forEach((a) => {
+      const row = columns.map((col) => {
+        let val = a[col];
+        // Apply quota formatter when exporting qouta column
+        if (col === "qouta") {
+          val = formatQuota(val);
+        }
+        // normalize dates to ISO strings for Excel
+        if (val instanceof Date) return val.toISOString();
+        if (val === null || typeof val === "undefined") return "";
+        return String(val);
+      });
+      rows.push(row);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // compute column widths
+    const colWidths = [];
+    rows.forEach((r) => {
+      r.forEach((cell, idx) => {
+        const l = cell ? String(cell).length : 0;
+        colWidths[idx] = Math.max(colWidths[idx] || 10, l + 2);
+      });
+    });
+    ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Admissions");
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="admissions_export_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx"`
+    );
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Bulk Excel generation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export Excel",
       error: error.message,
     });
   }

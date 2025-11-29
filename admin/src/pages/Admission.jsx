@@ -9,16 +9,15 @@ function Admission() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-
-  // New states for enhanced UI
+  const [year, setYear] = useState("");
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
   const [filters, setFilters] = useState({
     status: "all",
-    section: "",
-    sscBatch: "",
+    class: "",
+    admission_year: "",
     search: "",
   });
-  const host= import.meta.env.VITE_BACKEND_URL;
+  const host = import.meta.env.VITE_BACKEND_URL;
   const [showModal, setShowModal] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -26,7 +25,6 @@ function Admission() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTargetAdmission, setDeleteTargetAdmission] = useState(null);
   const [pdfDownloading, setPdfDownloading] = useState(false);
-
   useEffect(() => {
     const controller = new AbortController();
     async function fetchPage() {
@@ -38,13 +36,13 @@ function Admission() {
         q.set("limit", limit);
         if (status && status !== "all") q.set("status", status);
         if (search) q.set("search", search);
-
+        const res = await axios.get(`/api/admission/`);
+        setFilters((prev) => ({ ...(prev || {}), ...(res.data || {}) }));
+        setYear((res.data && res.data.admission_year) || "");
         const resp = await axios.get(`/api/admission/form/`);
         const json = resp.data;
         const data = json.data || [];
         setItems(data);
-
-        // compute simple stats from returned data (falls back to pagination/total if available)
         const total =
           json.pagination && json.pagination.total
             ? json.pagination.total
@@ -61,7 +59,6 @@ function Admission() {
     fetchPage();
     return () => controller.abort();
   }, [page, limit, search, status]);
-  // helper: format date
   function formatDate(d) {
     if (!d) return "-";
     try {
@@ -70,8 +67,6 @@ function Admission() {
       return d;
     }
   }
-
-  // derived admissions with local filters
   const filteredAdmissions = items.filter((r) => {
     if (!r) return false;
     if (
@@ -80,19 +75,30 @@ function Admission() {
       r.status !== filters.status
     )
       return false;
-    if (filters.section && r.section !== filters.section) return false;
-    if (
-      filters.sscBatch &&
-      r.ssc_batch &&
-      String(r.ssc_batch) !== String(filters.sscBatch)
-    )
-      return false;
+    if (filters.class) {
+      const cls = r.admission_class || r.section || r.class;
+      if (cls !== filters.class) return false;
+    }
+    if (filters.admission_year) {
+      // Records may store the target year under different keys.
+      // Try admission_year, prev_school_passing_year, or infer from dates.
+      let ay = r.admission_year || r.prev_school_passing_year || r.year || null;
+      if (!ay) {
+        const dateStr = r.submission_date || r.created_at || null;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) ay = d.getFullYear();
+        }
+      }
+      if (!ay || String(ay) !== String(filters.admission_year)) return false;
+    }
     if (filters.search) {
       const s = filters.search.toLowerCase();
       const hay = [
         r.student_name_en,
         r.student_name_bn,
         r.serial_no,
+        r.admission_user_id,
         r.roll,
         r.birth_reg_no,
       ]
@@ -124,40 +130,40 @@ function Admission() {
   }
 
   function handleExport() {
-    try {
-      const rows = filteredAdmissions.map((r) => ({
-        id: r.id,
-        name_en: r.student_name_en,
-        name_bn: r.student_name_bn,
-        class: r.admission_class || r.section,
-        roll: r.roll || r.serial_no,
-        status: r.status,
-      }));
-      const header = Object.keys(rows[0] || {}).join(",");
-      const csv = [header]
-        .concat(
-          rows.map((row) =>
-            Object.values(row)
-              .map((v) => `"${String(v || "").replace(/"/g, '""')}"`)
-              .join(",")
-          )
-        )
-        .join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `admissions_export_${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to export CSV");
-    }
+    (async () => {
+      try {
+        // setLoading(true);
+        const params = {
+          status: filters.status,
+          search: filters.search,
+          admission_year: filters.admission_year,
+          class: filters.class,
+        };
+        const response = await axios.get(`/api/admission/form/excel`, {
+          responseType: "blob",
+          params,
+        });
+        const blob = new Blob([response.data], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `admissions_export_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to export Excel");
+      }
+      // finally {
+      //   setLoading(false);
+      // }
+    })();
   }
 
   function handleViewDetails(id) {
@@ -174,8 +180,11 @@ function Admission() {
             id: admission.id,
             status: admission.status,
             student_name_en: admission.student_name_en,
-            section: admission.section,
-            roll: admission.roll,
+            class: admission.admission_class || admission.section,
+            admission_user_id:
+              admission.admission_user_id ||
+              admission.roll ||
+              admission.serial_no,
           }
         : {}
     );
@@ -186,9 +195,9 @@ function Admission() {
     if (!editFormData || !editFormData.id) return;
     try {
       setLoading(true);
-      await axios.patch(`/api/admission/form/${editFormData.id}`, {
-        status: editFormData.status,
-      });
+      if (editFormData.status === "pending")
+        await axios.put(`/api/admission/form/${editFormData.id}/pending`);
+      else await axios.put(`/api/admission/form/${editFormData.id}/approve`);
       setItems((prev) =>
         prev.map((it) =>
           it.id === editFormData.id
@@ -232,7 +241,7 @@ function Admission() {
         <div className="flex flex-wrap items-center gap-3">
           <input
             className="px-3 py-2 rounded-md border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 min-w-[220px]"
-            placeholder="Search by name, birth reg no or serial..."
+            placeholder="Search by name, birth admission no or serial..."
             value={filters.search}
             onChange={(e) => {
               const v = e.target.value;
@@ -311,8 +320,6 @@ function Admission() {
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((prev) => ({ ...prev, status: v }));
-                setStatus(v);
-                setPage(1);
               }}
               className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
@@ -323,45 +330,86 @@ function Admission() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Section</label>
+            <label className="block text-sm font-medium mb-1">Class</label>
             <select
-              value={filters.section}
+              value={filters.class}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, section: e.target.value }))
+                setFilters((prev) => ({ ...prev, class: e.target.value }))
               }
               className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Sections</option>
-              <option value="A">Section A</option>
-              <option value="B">Section B</option>
+              <option value="">All Classes</option>
+              {(() => {
+                const raw = filters.class_list || "";
+                let list = [];
+
+                if (Array.isArray(raw)) {
+                  list = raw;
+                } else if (typeof raw === "string" && raw.trim()) {
+                  const rows = raw
+                    .split(/\r?\n/)
+                    .map((r) => r.trim())
+                    .filter(Boolean);
+
+                  if (rows.length === 1) {
+                    list = rows[0]
+                      .split(/[,;]+/)
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                  } else {
+                    list = rows
+                      .map((r) => {
+                        const cols = r
+                          .split(/[,;]+/)
+                          .map((c) => c.trim())
+                          .filter(Boolean);
+                        return cols.length ? cols[0] : null;
+                      })
+                      .filter(Boolean);
+                  }
+                }
+                list = Array.from(new Set(list)).sort();
+
+                return list.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ));
+              })()}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">SSC Batch</label>
+            <label className="block text-sm font-medium mb-1">
+              Admission Year
+            </label>
             <select
-              value={filters.sscBatch}
+              value={filters.admission_year}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, sscBatch: e.target.value }))
+                setFilters((prev) => ({
+                  ...prev,
+                  admission_year: e.target.value,
+                }))
               }
               className="w-full px-3 py-2 border dark:bg-accent  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              {Array.from(
-                new Set([
-                  filters.sscBatch,
-                  new Date().getFullYear().toString(),
-                  (new Date().getFullYear() - 1).toString(),
-                  (new Date().getFullYear() + 1).toString(),
-                ])
-              )
-                .filter(Boolean)
-                .sort()
-                .reverse()
-                .map((year) => (
-                  <option key={year} value={year}>
-                    {year}
+              <option value="">All Years</option>
+              {(() => {
+                let currentYear = null;
+                if (filters && year) {
+                  const parsed = Number(year);
+                  currentYear = !isNaN(parsed) ? parsed : null;
+                }
+                if (!currentYear) currentYear = new Date().getFullYear();
+
+                const years = [];
+                for (let i = 0; i <= 5; i++) years.push(currentYear - i);
+                return years.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
                   </option>
-                ))}
+                ));
+              })()}
             </select>
           </div>
 
@@ -383,12 +431,11 @@ function Admission() {
               </svg>
               <input
                 type="text"
-                placeholder="Search by name, roll, birth reg..."
+                placeholder="Search by name, roll, birth admission..."
                 value={filters.search}
                 onChange={(e) => {
                   const v = e.target.value;
                   setFilters((prev) => ({ ...prev, search: v }));
-                  setSearch(v);
                 }}
                 className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-gray-300 rounded-lg focus:ring-2  focus:ring-blue-500 focus:border-blue-500"
               />
@@ -459,10 +506,10 @@ function Admission() {
                   Student
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
-                  Section
+                  Class
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
-                  Roll
+                  Admission User ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
                   Status
@@ -520,12 +567,16 @@ function Admission() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                        Section {admission.section}
+                        Class{" "}
+                        {admission.admission_class || admission.section || "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
-                        {admission.roll}
+                        {admission.admission_user_id ||
+                          admission.roll ||
+                          admission.serial_no ||
+                          "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -601,8 +652,18 @@ function Admission() {
                 </div>
               )}
               <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
-                <span>Section: {selectedAdmission.section || "-"}</span>
-                <span>Roll No: {selectedAdmission.roll || "-"}</span>
+                <span>
+                  Class:{" "}
+                  {selectedAdmission.admission_class ||
+                    selectedAdmission.section ||
+                    "-"}
+                </span>
+                <span>
+                  Admission User ID:{" "}
+                  {selectedAdmission.admission_user_id ||
+                    selectedAdmission.roll ||
+                    "-"}
+                </span>
                 <span>Religion: {selectedAdmission.religion || "-"}</span>
                 <span className="ml-auto">
                   Status: {getStatusBadge(selectedAdmission.status)}
@@ -622,7 +683,7 @@ function Admission() {
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 px-4 font-medium  bg-gray-50">
-                          ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):
+                          ছাত্রের নাম :
                         </td>
                         <td className="py-2 px-4">
                           {selectedAdmission.student_name_bn || (
@@ -642,7 +703,7 @@ function Admission() {
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 px-4 font-medium  bg-gray-50">
-                          Birth Registration No. (In English):
+                          Birth Admission No. (In English):
                         </td>
                         <td className="py-2 px-4">
                           {selectedAdmission.birth_reg_no || (
@@ -652,7 +713,7 @@ function Admission() {
                       </tr>
                       <tr className="border-b bg-gray-50">
                         <td className="py-2 px-4 font-medium  bg-gray-100">
-                          Date of Birth (According to JSC/JDC):
+                          Date of Birth :
                         </td>
                         <td className="py-2 px-4">
                           {selectedAdmission.birth_date ? (
@@ -809,8 +870,9 @@ function Admission() {
                 <strong>Student:</strong>{" "}
                 {editFormData.student_name_en || "N/A"}
                 <br />
-                <strong>Section:</strong> {editFormData.section || "N/A"} |{" "}
-                <strong>Roll:</strong> {editFormData.roll || "N/A"}
+                <strong>Class:</strong> {editFormData.class || "N/A"} |{" "}
+                <strong>Admission User ID:</strong>{" "}
+                {editFormData.admission_user_id || "N/A"}
               </div>
               <label className="block text-sm font-medium  mb-2">
                 Admission Status
