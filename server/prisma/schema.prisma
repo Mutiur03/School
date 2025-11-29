@@ -493,7 +493,6 @@ model admission_form {
   guardian_post_code    String? @db.VarChar(4)
   guardian_village_road String? @db.VarChar(200)
 
-  // Previous school
   prev_school_name         String? @db.VarChar(200)
   prev_school_district     String? @db.VarChar(50)
   prev_school_upazila      String? @db.VarChar(50)
@@ -505,8 +504,8 @@ model admission_form {
   mother_profession String? @db.VarChar(100)
   parent_income     String? @db.VarChar(100)
 
-  // Admission meta
   admission_class   String? @db.VarChar(50)
+  admission_year    Int?
   list_type         String? @db.VarChar(50)
   admission_user_id String? @db.VarChar(50)
   serial_no         String? @db.VarChar(50)
