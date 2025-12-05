@@ -1,0 +1,10 @@
+/*
+  Warnings:
+
+  - You are about to drop the column `list_type` on the `admission` table. All the data in the column will be lost.
+  - You are about to drop the column `serial_no` on the `admission` table. All the data in the column will be lost.
+
+*/
+-- AlterTable
+ALTER TABLE "admission" DROP COLUMN "list_type",
+DROP COLUMN "serial_no";

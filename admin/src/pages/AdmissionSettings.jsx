@@ -15,12 +15,18 @@ function AdmissionSettings() {
     attachment_instruction_class9: "",
     ingikar: "",
     class_list: "",
-    list_type: "",
+    list_type_class6: "",
+    list_type_class7: "",
+    list_type_class8: "",
+    list_type_class9: "",
     user_id_class6: "",
     user_id_class7: "",
     user_id_class8: "",
     user_id_class9: "",
-    serial_no: "",
+    serial_no_class6: "",
+    serial_no_class7: "",
+    serial_no_class8: "",
+    serial_no_class9: "",
   });
 
   const [noticeFile, setNoticeFile] = useState(null);
@@ -47,8 +53,7 @@ function AdmissionSettings() {
             typeof data.admission_open === "boolean"
               ? data.admission_open
               : prev.admission_open,
-          instruction:
-            data.instruction ,
+          instruction: data.instruction,
           attachment_instruction_class6:
             data.attachment_instruction_class6 ??
             data.attachmentInstructionClass6 ??
@@ -67,7 +72,22 @@ function AdmissionSettings() {
             "",
           ingikar: data.ingikar ?? prev.ingikar,
           class_list: data.class_list ?? data.classList ?? prev.class_list,
-          list_type: data.list_type ?? data.listType ?? prev.list_type,
+          list_type_class6:
+            data.list_type_class6 ??
+            data.listTypeClass6 ??
+            prev.list_type_class6,
+          list_type_class7:
+            data.list_type_class7 ??
+            data.listTypeClass7 ??
+            prev.list_type_class7,
+          list_type_class8:
+            data.list_type_class8 ??
+            data.listTypeClass8 ??
+            prev.list_type_class8,
+          list_type_class9:
+            data.list_type_class9 ??
+            data.listTypeClass9 ??
+            prev.list_type_class9,
           user_id_class6:
             data.user_id_class6 ?? data.userIdClass6 ?? prev.user_id_class6,
           user_id_class7:
@@ -76,7 +96,22 @@ function AdmissionSettings() {
             data.user_id_class8 ?? data.userIdClass8 ?? prev.user_id_class8,
           user_id_class9:
             data.user_id_class9 ?? data.userIdClass9 ?? prev.user_id_class9,
-          serial_no: data.serial_no ?? data.serialNo ?? prev.serial_no,
+          serial_no_class6:
+            data.serial_no_class6 ??
+            data.serialNoClass6 ??
+            prev.serial_no_class6,
+          serial_no_class7:
+            data.serial_no_class7 ??
+            data.serialNoClass7 ??
+            prev.serial_no_class7,
+          serial_no_class8:
+            data.serial_no_class8 ??
+            data.serialNoClass8 ??
+            prev.serial_no_class8,
+          serial_no_class9:
+            data.serial_no_class9 ??
+            data.serialNoClass9 ??
+            prev.serial_no_class9,
         }));
         if (data.preview_url) {
           setCurrentNotice({
@@ -200,12 +235,20 @@ function AdmissionSettings() {
       if (formData.class_list !== undefined && formData.class_list !== null) {
         payload.append("class_list", String(formData.class_list));
       }
-      if (formData.list_type !== undefined && formData.list_type !== null) {
-        payload.append("list_type", String(formData.list_type));
-      }
-      if (formData.serial_no !== undefined && formData.serial_no !== null) {
-        payload.append("serial_no", String(formData.serial_no));
-      }
+
+      // Append per-class list type and serial no for classes 6-9
+      [6, 7, 8, 9].forEach((c) => {
+        const ltKey = `list_type_class${c}`;
+        const snKey = `serial_no_class${c}`;
+        const ltVal = formData[ltKey];
+        const snVal = formData[snKey];
+        if (ltVal !== undefined && ltVal !== null) {
+          payload.append(ltKey, String(ltVal));
+        }
+        if (snVal !== undefined && snVal !== null) {
+          payload.append(snKey, String(snVal));
+        }
+      });
       if (currentNotice && currentNotice.public_id) {
         payload.append("public_id", String(currentNotice.public_id));
       }
@@ -266,7 +309,7 @@ function AdmissionSettings() {
     const numericPattern = /^-?\d+(?:\.\d+)?$/;
     let newValue;
     if (name === "admission_year") {
-      newValue  = value.replace(/\D/g, '')
+      newValue = value.replace(/\D/g, "");
     } else if (name === "instruction") {
       const trimmed = String(value).trim();
       newValue =
@@ -520,6 +563,42 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 6"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label
+                    htmlFor="list_type_class6"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    List Type (Class 6)
+                  </label>
+                  <input
+                    type="text"
+                    id="list_type_class6"
+                    name="list_type_class6"
+                    value={formData.list_type_class6}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Merit-1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="serial_no_class6"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    Serial No. (Class 6)
+                  </label>
+                  <input
+                    type="text"
+                    id="serial_no_class6"
+                    name="serial_no_class6"
+                    value={formData.serial_no_class6}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 1-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -538,6 +617,42 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 7"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label
+                    htmlFor="list_type_class7"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    List Type (Class 7)
+                  </label>
+                  <input
+                    type="text"
+                    id="list_type_class7"
+                    name="list_type_class7"
+                    value={formData.list_type_class7}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Merit-1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="serial_no_class7"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    Serial No. (Class 7)
+                  </label>
+                  <input
+                    type="text"
+                    id="serial_no_class7"
+                    name="serial_no_class7"
+                    value={formData.serial_no_class7}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 1-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -556,6 +671,42 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 8"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label
+                    htmlFor="list_type_class8"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    List Type (Class 8)
+                  </label>
+                  <input
+                    type="text"
+                    id="list_type_class8"
+                    name="list_type_class8"
+                    value={formData.list_type_class8}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Merit-1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="serial_no_class8"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    Serial No. (Class 8)
+                  </label>
+                  <input
+                    type="text"
+                    id="serial_no_class8"
+                    name="serial_no_class8"
+                    value={formData.serial_no_class8}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 1-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -574,45 +725,45 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 9"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label
+                    htmlFor="list_type_class9"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    List Type (Class 9)
+                  </label>
+                  <input
+                    type="text"
+                    id="list_type_class9"
+                    name="list_type_class9"
+                    value={formData.list_type_class9}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Merit-1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="serial_no_class9"
+                    className="block text-xs font-medium mb-1"
+                  >
+                    Serial No. (Class 9)
+                  </label>
+                  <input
+                    type="text"
+                    id="serial_no_class9"
+                    name="serial_no_class9"
+                    value={formData.serial_no_class9}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 1-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="list_type"
-                className="block text-sm font-medium mb-2"
-              >
-                List Type
-              </label>
-              <input
-                type="text"
-                id="list_type"
-                name="list_type"
-                value={formData.list_type}
-                onChange={handleInputChange}
-                placeholder="e.g. Merit-1, final, waiting-list"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
-
-            {/* legacy plain user_id removed - use per-class fields instead */}
-
-            <div>
-              <label
-                htmlFor="serial_no"
-                className="block text-sm font-medium mb-2"
-              >
-                Serial No.
-              </label>
-              <input
-                type="text"
-                id="serial_no"
-                name="serial_no"
-                value={formData.serial_no}
-                onChange={handleInputChange}
-                placeholder="e.g. 1-100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
+            {/* per-class list type and serial numbers are provided next to each class's user ids */}
           </div>
 
           <div>
