@@ -10,6 +10,7 @@ type ConfirmationAdmission_Props = {
     student_nick_name_bn?: string | null;
     student_name_en?: string | null;
     birth_reg_no?: string | null;
+    registration_no?: string | null;
 
     father_name_bn?: string | null;
     father_name_en?: string | null;
@@ -477,7 +478,8 @@ function ConfirmationAdmission() {
                                     <tbody>
                                         {renderOptionalRow("ছাত্রের নাম:", admission.student_name_bn)}
                                         {renderOptionalRow("Student's Name:", admission.student_name_en ? admission.student_name_en.toUpperCase() : undefined)}
-                                        {renderOptionalRow("Birth admission Number:", admission.birth_reg_no)}
+                                        {renderOptionalRow("Birth Registration Number:", admission.birth_reg_no)}
+                                        {renderOptionalRow("Registration Number:", admission.registration_no)}
                                         {renderOptionalRow("Date of Birth:", formatDateLong(admission.birth_date))}
                                         {renderOptionalRow("Email Address:", admission.email)}
                                         {renderOptionalRow("Mobile Numbers:", formatMobileNumbers())}
