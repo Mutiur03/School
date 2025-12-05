@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { RefreshCw, FileText, Loader2, Settings } from "lucide-react";
+import toast from "react-hot-toast";
 
 function AdmissionSettings() {
   const [formData, setFormData] = useState({
@@ -8,6 +9,10 @@ function AdmissionSettings() {
     admission_open: false,
     instruction: "Please follow the instructions carefully",
     attachment_instruction: "Please attach all required documents",
+    attachment_instruction_class6: "",
+    attachment_instruction_class7: "",
+    attachment_instruction_class8: "",
+    attachment_instruction_class9: "",
     ingikar: "",
     class_list: "",
     list_type: "",
@@ -43,12 +48,23 @@ function AdmissionSettings() {
               ? data.admission_open
               : prev.admission_open,
           instruction:
-            data.instruction ??
-            data.instruction_for_a ??
-            data.instruction_for_b ??
-            prev.instruction,
-          attachment_instruction:
-            data.attachment_instruction ?? prev.attachment_instruction,
+            data.instruction ,
+          attachment_instruction_class6:
+            data.attachment_instruction_class6 ??
+            data.attachmentInstructionClass6 ??
+            "",
+          attachment_instruction_class7:
+            data.attachment_instruction_class7 ??
+            data.attachmentInstructionClass7 ??
+            "",
+          attachment_instruction_class8:
+            data.attachment_instruction_class8 ??
+            data.attachmentInstructionClass8 ??
+            "",
+          attachment_instruction_class9:
+            data.attachment_instruction_class9 ??
+            data.attachmentInstructionClass9 ??
+            "",
           ingikar: data.ingikar ?? prev.ingikar,
           class_list: data.class_list ?? data.classList ?? prev.class_list,
           list_type: data.list_type ?? data.listType ?? prev.list_type,
@@ -143,12 +159,39 @@ function AdmissionSettings() {
       }
 
       if (
-        formData.attachment_instruction !== undefined &&
-        formData.attachment_instruction !== null
+        formData.attachment_instruction_class6 !== undefined &&
+        formData.attachment_instruction_class6 !== null
       ) {
         payload.append(
-          "attachment_instruction",
-          String(formData.attachment_instruction)
+          "attachment_instruction_class6",
+          String(formData.attachment_instruction_class6)
+        );
+      }
+      if (
+        formData.attachment_instruction_class7 !== undefined &&
+        formData.attachment_instruction_class7 !== null
+      ) {
+        payload.append(
+          "attachment_instruction_class7",
+          String(formData.attachment_instruction_class7)
+        );
+      }
+      if (
+        formData.attachment_instruction_class8 !== undefined &&
+        formData.attachment_instruction_class8 !== null
+      ) {
+        payload.append(
+          "attachment_instruction_class8",
+          String(formData.attachment_instruction_class8)
+        );
+      }
+      if (
+        formData.attachment_instruction_class9 !== undefined &&
+        formData.attachment_instruction_class9 !== null
+      ) {
+        payload.append(
+          "attachment_instruction_class9",
+          String(formData.attachment_instruction_class9)
         );
       }
       if (formData.ingikar !== undefined && formData.ingikar !== null) {
@@ -160,7 +203,6 @@ function AdmissionSettings() {
       if (formData.list_type !== undefined && formData.list_type !== null) {
         payload.append("list_type", String(formData.list_type));
       }
-      // additional string fields
       if (formData.serial_no !== undefined && formData.serial_no !== null) {
         payload.append("serial_no", String(formData.serial_no));
       }
@@ -179,14 +221,17 @@ function AdmissionSettings() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res?.data?.success) {
+        toast.success(isEdit ? "Settings updated" : "Settings created");
         setFormMessage("Settings saved successfully");
         setNoticeFile(null);
       } else {
+        toast.error("Failed to save settings");
         setFormMessage("Error: Failed to save settings");
         console.error("Save failed:", res?.data);
       }
     } catch (error) {
       console.error(error);
+      toast.error("An unexpected error occurred");
       setFormMessage("Error: An unexpected error occurred");
     } finally {
       fetchAdmissionSettings();
@@ -221,7 +266,7 @@ function AdmissionSettings() {
     const numericPattern = /^-?\d+(?:\.\d+)?$/;
     let newValue;
     if (name === "admission_year") {
-      newValue = value === "" ? "" : Number(value);
+      newValue  = value.replace(/\D/g, '')
     } else if (name === "instruction") {
       const trimmed = String(value).trim();
       newValue =
@@ -312,7 +357,11 @@ function AdmissionSettings() {
                 Admission Year
               </label>
               <input
-                // type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
+                maxLength={4}
+                minLength={4}
                 id="admission_year"
                 name="admission_year"
                 value={formData.admission_year}
@@ -341,35 +390,98 @@ function AdmissionSettings() {
             </div>
 
             <div>
-              <label
-                htmlFor="attachment_instruction"
-                className="block text-sm font-medium mb-2"
-              >
-                Attachment Instructions
-              </label>
-              <textarea
-                id="attachment_instruction"
-                name="attachment_instruction"
-                value={formData.attachment_instruction}
-                onChange={handleInputChange}
-                placeholder="E.g. Upload scanned copy of birth certificate, previous transcripts and a passport-sized photo."
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
+              <div className="mt-3">
+                <h3 className="text-sm font-medium mb-2">
+                  Attachment instructions per class (6 - 9)
+                </h3>
+                <div className="gap-3">
+                  <div>
+                    <label
+                      htmlFor="attachment_instruction_class6"
+                      className="block text-xs font-medium mb-1"
+                    >
+                      Class 6
+                    </label>
+                    <textarea
+                      id="attachment_instruction_class6"
+                      name="attachment_instruction_class6"
+                      value={formData.attachment_instruction_class6}
+                      onChange={handleInputChange}
+                      placeholder="Attachment instructions for Class 6"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="attachment_instruction_class7"
+                      className="block text-xs font-medium mb-1"
+                    >
+                      Class 7
+                    </label>
+                    <textarea
+                      id="attachment_instruction_class7"
+                      name="attachment_instruction_class7"
+                      value={formData.attachment_instruction_class7}
+                      onChange={handleInputChange}
+                      placeholder="Attachment instructions for Class 7"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="attachment_instruction_class8"
+                      className="block text-xs font-medium mb-1"
+                    >
+                      Class 8
+                    </label>
+                    <textarea
+                      id="attachment_instruction_class8"
+                      name="attachment_instruction_class8"
+                      value={formData.attachment_instruction_class8}
+                      onChange={handleInputChange}
+                      placeholder="Attachment instructions for Class 8"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="attachment_instruction_class9"
+                      className="block text-xs font-medium mb-1"
+                    >
+                      Class 9
+                    </label>
+                    <textarea
+                      id="attachment_instruction_class9"
+                      name="attachment_instruction_class9"
+                      value={formData.attachment_instruction_class9}
+                      onChange={handleInputChange}
+                      placeholder="Attachment instructions for Class 9"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
             <div>
               <label
                 htmlFor="ingikar"
                 className="block text-sm font-medium mb-2"
               >
-                অঙ্গীকারনামা
+                ছাত্রের অঙ্গীকারনামা
               </label>
               <textarea
                 id="ingikar"
                 name="ingikar"
                 value={formData.ingikar}
                 onChange={handleInputChange}
-                placeholder="Enter the অঙ্গীকারনামা text that will appear on generated admission PDFs."
+                placeholder="Enter the ছাত্রের অঙ্গীকারনামা text that will appear on generated admission PDFs."
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />

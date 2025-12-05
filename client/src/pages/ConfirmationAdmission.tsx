@@ -73,7 +73,7 @@ type ConfirmationAdmission_Props = {
     admission_user_id?: string | null;
     serial_no?: string | null;
     qouta?: string | null;
-
+    whatsapp_number?: string | null;
     // Photo
     photo_path?: string | null;
 
@@ -174,7 +174,7 @@ function ConfirmationAdmission() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Admission_${admission.student_name_en}.pdf`;
+            a.download = `${admission.student_name_en}.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -509,6 +509,7 @@ function ConfirmationAdmission() {
                                         {renderOptionalRow("Previous School Acadmic Info:", formatPreviousSchoolMeta())}
                                         {renderOptionalRow("Father's Mobile Number:", admission.father_phone)}
                                         {renderOptionalRow("Mother's Mobile Number:", admission.mother_phone)}
+                                        {renderOptionalRow("Whatsapp Number:", admission.whatsapp_number)}
                                         {renderOptionalRow("Blood Group:", admission.blood_group)}
                                         {renderOptionalRow("Father's Profession:", admission.father_profession)}
                                         {renderOptionalRow("Mother's Profession:", admission.mother_profession)}

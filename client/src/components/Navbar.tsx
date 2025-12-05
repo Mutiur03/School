@@ -188,23 +188,6 @@ function Navbar() {
             ]
         },
         {
-            id: "menu-item-3540",
-            className: "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3540 nav-item",
-            href: "#",
-            text: "Registration",
-            dropdown: [
-                { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
-                { id: "menu-item-3548", href: "", text: "Class Eight" },
-                { id: "menu-item-3549", href: "", text: "Class Six" }
-            ]
-        },
-        {
-            id: "menu-item-3541",
-            className: "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
-            href: "https://student.lbphs.gov.bd/",
-            text: "Results"
-        },
-        {
             id: "menu-item-3386",
             className: "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item",
             // href: "admission",
@@ -227,6 +210,24 @@ function Navbar() {
                 }
             ]
         },
+        {
+            id: "menu-item-3540",
+            className: "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3540 nav-item",
+            href: "#",
+            text: "Registration",
+            dropdown: [
+                { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
+                { id: "menu-item-3548", href: "", text: "Class Eight" },
+                { id: "menu-item-3549", href: "", text: "Class Six" }
+            ]
+        },
+        {
+            id: "menu-item-3541",
+            className: "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
+            href: "https://student.lbphs.gov.bd/",
+            text: "Results"
+        },
+        
         {
             id: "menu-item-3384",
             className: "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item",

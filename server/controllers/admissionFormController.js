@@ -190,6 +190,7 @@ export const createForm = async (req, res) => {
       admission_user_id: body.admissionUserId || null,
       serial_no: body.serialNo || null,
       qouta: body.qouta || null,
+      whatsapp_number: body.whatsappNumber || body.whatsapp_number || null,
     };
 
     const duplicates = await checkDuplicates(payload);
@@ -329,82 +330,70 @@ export const updateForm = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Form not found" });
     const settings = await prisma.admission.findFirst();
-
     const body = req.body || {};
+    console.log(body);
+
     const payload = {
-      student_name_bn: body.studentNameBn || existing.student_name_bn,
-      student_nick_name_bn:
-        body.studentNickNameBn || existing.student_nick_name_bn,
-      student_name_en: body.studentNameEn || existing.student_name_en,
-      birth_reg_no: body.birthRegNo || existing.birth_reg_no,
-      registration_no: body.registration_no || existing.registration_no,
-      father_name_bn: body.fatherNameBn || existing.father_name_bn,
-      father_name_en: body.fatherNameEn || existing.father_name_en,
-      father_nid: body.fatherFid || existing.father_nid,
-      father_phone: body.fatherPhone || existing.father_phone,
-      mother_name_bn: body.motherNameBn || existing.mother_name_bn,
-      mother_name_en: body.motherNameEn || existing.mother_name_en,
-      mother_nid: body.motherNid || existing.mother_nid,
-      mother_phone: body.motherPhone || existing.mother_phone,
-      birth_date: body.birthDate || existing.birth_date,
-      birth_year: body.birthYear || existing.birth_year,
-      birth_month: body.birthMonth || existing.birth_month,
-      birth_day: body.birthDay || existing.birth_day,
-      blood_group: body.bloodGroup || existing.blood_group,
-      email: body.email || existing.email,
-      religion: body.religion || existing.religion,
+      student_name_bn: body.studentNameBn || null,
+      student_nick_name_bn: body.studentNickNameBn || null,
+      student_name_en: body.studentNameEn || null,
+      birth_reg_no: body.birthRegNo || null,
+      registration_no: body.registration_no || null,
+      father_name_bn: body.fatherNameBn || null,
+      father_name_en: body.fatherNameEn || null,
+      father_nid: body.fatherFid || null,
+      father_phone: body.fatherPhone || null,
+      mother_name_bn: body.motherNameBn || null,
+      mother_name_en: body.motherNameEn || null,
+      mother_nid: body.motherNid || null,
+      mother_phone: body.motherPhone || null,
+      birth_date: body.birthDate || null,
+      birth_year: body.birthYear || null,
+      birth_month: body.birthMonth || null,
+      birth_day: body.birthDay || null,
+      blood_group: body.bloodGroup || null,
+      email: body.email || null,
+      religion: body.religion || null,
+      present_district: body.presentDistrict || null,
+      present_upazila: body.presentUpazila || null,
+      present_post_office: body.presentPostOffice || null,
+      present_post_code: body.presentPostCode || null,
+      present_village_road: body.presentVillageRoad || null,
 
-      present_district: body.presentDistrict || existing.present_district,
-      present_upazila: body.presentUpazila || existing.present_upazila,
-      present_post_office:
-        body.presentPostOffice || existing.present_post_office,
-      present_post_code: body.presentPostCode || existing.present_post_code,
-      present_village_road:
-        body.presentVillageRoad || existing.present_village_road,
+      permanent_district: body.permanentDistrict || null,
+      permanent_upazila: body.permanentUpazila || null,
+      permanent_post_office: body.permanentPostOffice || null,
+      permanent_post_code: body.permanentPostCode || null,
+      permanent_village_road: body.permanentVillageRoad || null,
 
-      permanent_district: body.permanentDistrict || existing.permanent_district,
-      permanent_upazila: body.permanentUpazila || existing.permanent_upazila,
-      permanent_post_office:
-        body.permanentPostOffice || existing.permanent_post_office,
-      permanent_post_code:
-        body.permanentPostCode || existing.permanent_post_code,
-      permanent_village_road:
-        body.permanentVillageRoad || existing.permanent_village_road,
+      guardian_name: body.guardianName || null,
+      guardian_phone: body.guardianPhone || null,
+      guardian_relation: body.guardianRelation || null,
+      guardian_nid: body.guardianNid || null,
+      guardian_district: body.guardianDistrict || null,
+      guardian_upazila: body.guardianUpazila || null,
+      guardian_post_office: body.guardianPostOffice || null,
+      guardian_post_code: body.guardianPostCode || null,
+      guardian_village_road: body.guardianVillageRoad || null,
 
-      guardian_name: body.guardianName || existing.guardian_name,
-      guardian_phone: body.guardianPhone || existing.guardian_phone,
-      guardian_relation: body.guardianRelation || existing.guardian_relation,
-      guardian_nid: body.guardianNid || existing.guardian_nid,
-      guardian_district: body.guardianDistrict || existing.guardian_district,
-      guardian_upazila: body.guardianUpazila || existing.guardian_upazila,
-      guardian_post_office:
-        body.guardianPostOffice || existing.guardian_post_office,
-      guardian_post_code: body.guardianPostCode || existing.guardian_post_code,
-      guardian_village_road:
-        body.guardianVillageRoad || existing.guardian_village_road,
+      prev_school_name: body.prevSchoolName || null,
+      prev_school_district: body.prevSchoolDistrict || null,
+      prev_school_upazila: body.prevSchoolUpazila || null,
+      section_in_prev_school: body.sectionInprevSchool || null,
+      roll_in_prev_school: body.rollInprevSchool || null,
+      prev_school_passing_year: body.prevSchoolPassingYear || null,
 
-      prev_school_name: body.prevSchoolName || existing.prev_school_name,
-      prev_school_district:
-        body.prevSchoolDistrict || existing.prev_school_district,
-      prev_school_upazila:
-        body.prevSchoolUpazila || existing.prev_school_upazila,
-      section_in_prev_school:
-        body.sectionInprevSchool || existing.section_in_prev_school,
-      roll_in_prev_school:
-        body.rollInprevSchool || existing.roll_in_prev_school,
-      prev_school_passing_year:
-        body.prevSchoolPassingYear || existing.prev_school_passing_year,
+      father_profession: body.father_profession || null,
+      mother_profession: body.mother_profession || null,
+      parent_income: body.parent_income || null,
 
-      father_profession: body.father_profession || existing.father_profession,
-      mother_profession: body.mother_profession || existing.mother_profession,
-      parent_income: body.parent_income || existing.parent_income,
-
-      admission_class: body.admissionClass || existing.admission_class,
-      admission_year: body.admissionYear || existing.admission_year,
-      list_type: body.listType || existing.list_type,
-      admission_user_id: body.admissionUserId || existing.admission_user_id,
-      serial_no: body.serialNo || existing.serial_no,
-      qouta: body.qouta || existing.qouta,
+      admission_class: body.admissionClass || null,
+      admission_year: settings.admission_year,
+      list_type: body.listType || null,
+      admission_user_id: body.admissionUserId || null,
+      serial_no: body.serialNo || null,
+      qouta: body.qouta || null,
+      whatsapp_number: body.whatsappNumber || body.whatsapp_number || null,
     };
     const duplicates = await checkDuplicates(payload, id);
     if (duplicates.length > 0) {
@@ -552,10 +541,22 @@ export const generateAdmissionPDF = async (req, res) => {
     }
 
     const admissionSettings = await prisma.admission.findFirst();
-
+    function normalizeClassKey(c) {
+      if (!c) return "";
+      const s = String(c).trim().toLowerCase();
+      if (s === "6" || s.includes("6") || s.includes("six")) return "6";
+      if (s === "7" || s.includes("7") || s.includes("seven")) return "7";
+      if (s === "8" || s.includes("8") || s.includes("eight")) return "8";
+      if (s === "9" || s.includes("9") || s.includes("nine")) return "9";
+      return "";
+    }
+    const classNumMatch = String(admission.admission_class || "");
+    const classNum = normalizeClassKey(classNumMatch);
     const sectionInstructions = admissionSettings?.instruction || null;
     const attachmentInstructions =
-      admissionSettings?.attachment_instruction || null;
+      (classNum &&
+        admissionSettings?.[`attachment_instruction_class${classNum}`]) ||
+      "-";
 
     const logoPath = path.join("public", "icon.jpg");
     const logoExists = fs.existsSync(logoPath);
@@ -691,6 +692,7 @@ export const generateAdmissionPDF = async (req, res) => {
           .filter(Boolean)
           .join(", ") || null,
       ],
+      // ["Whatsapp Number:", admission.whatsapp_number || null],
       ["পিতার নাম:", admission.father_name_bn || null],
       [
         "Father's Name:",
@@ -1107,36 +1109,49 @@ export const generateAdmissionPDF = async (req, res) => {
       font-size: 1rem;
     }
     .document-list {
-      margin-top: 8px;
+      margin-top: 6px;
       padding-left: 0;
-      font-size: 1rem;
+      font-size: 0.98rem;
     }
     .document-list .bn {
       display: block;
-      font-size: 1rem;
-      line-height: 1;
+      font-size: 0.98rem;
+      line-height: 1.02;
       white-space: pre-line;
-      margin-bottom: 6px;
+      margin-bottom: 3px;
       font-family: ${
         solaimanLipiBase64
           ? "'SolaimanLipi', 'Noto Sans Bengali'"
           : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
-    /* stronger selector and !important to override .bn rules and ensure PDF renderers honor size/weight */
     .document-list .bn.document-list-title,
     .document-list-title.bn,
     .document-list-title {
       font-weight: 600 !important;
-      font-size: 1.12rem !important;
+      font-size: 1.06rem !important;
       display: block !important;
-      margin-bottom: 6px !important;
+      margin-bottom: 4px !important;
       font-family: ${
         solaimanLipiBase64
           ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
           : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
-      line-height: 1 !important;
+      line-height: 1.02 !important;
+    }
+    .footer .note p {
+      margin: 4px 0;
+      line-height: 1.05;
+      font-size: 0.95rem;
+    }
+    .instructions-section {
+      border: 1px solid #000;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 6px 0;
+      font-size: 0.98rem;
+      line-height: 1.05;
+      text-align: justify;
     }
     .signature-row {
       position: absolute;
@@ -1259,13 +1274,13 @@ export const generateAdmissionPDF = async (req, res) => {
                 : ""
             }
           </div>
-          <p style="color: red;">
+          <p style="font-size:1.05rem; margin-top:8px;">
           * পূর্ববর্তী বিদ্যালয়ের মূল ছাড়পত্র ভর্তির সময় দিতে না পারলে পরীক্ষার ফল প্রকাশের পর অবশ্যই জমা দিতে হবে। অন্যথায় ভর্তি বাতিল হবে।
           </br>
           ** ভর্তির সময় উল্লিখিত সকল কাগজপত্রের মূলকপি অবশ্যই ভর্তি কমিটিকে দেখাতে হবে।
           </p>
           <div style="margin-top:8px;">
-            <div class="bn" style="font-weight:700 !important; font-size:1.25rem; text-align:center; margin:0 0 10px 0; display:block;">অঙ্গীকারনামা</div>
+            <div class="bn" style="font-weight:700 !important; font-size:1.25rem; text-align:center; margin:0 0 10px 0; display:block;">ছাত্রের অঙ্গীকারনামা</div>
             ${
               ongikar
                 ? `
@@ -1489,6 +1504,7 @@ export const exportAllAdmissionsExcel = async (req, res) => {
         "admission_user_id",
         "serial_no",
         "qouta",
+        "whatsapp_number",
         "photo_path",
         "status",
         "submission_date",

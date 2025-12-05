@@ -245,23 +245,26 @@ model notices {
 }
 
 model admission {
-  id                     Int      @id @default(autoincrement())
-  preview_url            String?
-  download_url           String?
-  public_id              String?
-  admission_year         Int?
-  admission_open         Boolean? @default(false)
-  instruction            String?
-  attachment_instruction String?
-  class_list             String?
-  list_type              String?
-  user_id_class6         String?
-  user_id_class7         String?
-  user_id_class8         String?
-  user_id_class9         String?
-  serial_no              String?
-  ingikar                String?
-  created_at             DateTime @default(now())
+  id                            Int      @id @default(autoincrement())
+  preview_url                   String?
+  download_url                  String?
+  public_id                     String?
+  admission_year                Int?
+  admission_open                Boolean? @default(false)
+  instruction                   String?
+  attachment_instruction_class6 String?
+  attachment_instruction_class7 String?
+  attachment_instruction_class8 String?
+  attachment_instruction_class9 String?
+  class_list                    String?
+  list_type                     String?
+  user_id_class6                String?
+  user_id_class7                String?
+  user_id_class8                String?
+  user_id_class9                String?
+  serial_no                     String?
+  ingikar                       String?
+  created_at                    DateTime @default(now())
 }
 
 model syllabus {
@@ -513,6 +516,7 @@ model admission_form {
 
   // Photo
   photo_path String? @db.VarChar(255)
+  whatsapp_number String? @db.Char(11)
 
   status          String?   @default("pending") @db.VarChar(20)
   submission_date DateTime? @default(now())
