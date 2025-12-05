@@ -246,3 +246,19 @@ body {
     order: 2;
   }
 }
+
+.notice-title {
+  position: relative;
+  padding-left: 22px;
+}
+
+.notice-title::before {
+  content: "▶";
+  display: inline-block;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #609513;
+}

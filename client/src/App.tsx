@@ -21,6 +21,7 @@ import RegSSC from "./pages/RegSSC";
 import Admission from "./pages/admission";
 import AdmissionForm from "./pages/AdmissionForm";
 import ConfirmationAdmission from "./pages/ConfirmationAdmission";
+import TopBanner from "./components/TopBanner";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
@@ -42,8 +43,9 @@ function App() {
       <div className="container">
         <Header />
         <Navbar />
+        <hr className="border-t border-gray-300" />
+        <TopBanner />
         <div className="min-h-screen text-black">
-          <hr className="border-t border-gray-300" />
           <br />
           <div className={shouldHideSidebar ? "main-content-full" : "main-content"}>
             <div className="rcontent-pat-1">
@@ -58,7 +60,7 @@ function App() {
                 <Route path="/at-a-glance" element={<At_a_glance />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/gallery/:type/:id" element={<Images />} />
-                <Route path="/reg/ssc" element={<RegSSC/>} />
+                <Route path="/reg/ssc" element={<RegSSC />} />
                 <Route path="/registration/ssc" element={<Registration />} />
                 <Route path="/registration/ssc/:id" element={<Registration />} />
                 <Route path="/registration/ssc/confirm/:id" element={<ConfirmationReg />} />

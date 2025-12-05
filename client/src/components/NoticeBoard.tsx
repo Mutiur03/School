@@ -37,8 +37,7 @@ const NoticeBoard = () => {
                                     <li key={index} className="notice-item text-left">
                                         <div className="notice-title">
                                             <h5>
-                                                <i className="fa fa-caret-right" aria-hidden="true"></i>
-                                                <a href={notice.file ?? '#'} target='_blank'>{notice.title}</a>
+                                                <a href={notice.file ?? '#'} target='_blank' rel="noreferrer">{notice.title}</a>
                                             </h5>
                                         </div>
                                     </li>
