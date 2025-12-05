@@ -121,6 +121,7 @@ type FormState = {
     admissionUserId?: string
     serialNo?: string
     qouta?: string
+    registrationNo?: string
 }
 
 const FieldRow: React.FC<{
@@ -225,6 +226,7 @@ const initialFormState: FormState = {
     admissionUserId: '',
     serialNo: '',
     qouta: '',
+    registrationNo: '',
 }
 
 function formReducer(state: FormState, action: FormAction): FormState {
@@ -393,6 +395,7 @@ function AdmissionForm() {
                             guardianVillageRoad: data.guardian_village_road || '',
                             prevSchoolDistrict: data.prev_school_district || '',
                             prevSchoolUpazila: '',
+                            registrationNo: data.registration_no || '',
                             sectionInprevSchool: data.section_in_prev_school || '',
                             rollInprevSchool: data.roll_in_prev_school || '',
                             prevSchoolPassingYear: data.prev_school_passing_year || '',
@@ -709,6 +712,11 @@ function AdmissionForm() {
         return ''
     }
 
+    function isClassEightOrNine(c?: string | null) {
+        const k = normalizeClassKey(c)
+        return k === 'eight' || k === 'nine'
+    }
+
     function getGuidance(fieldKey: string) {
         const clsKey = normalizeClassKey(form.admissionClass)
         if (!clsKey) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
@@ -883,6 +891,13 @@ function AdmissionForm() {
         if (!form.qouta) e.qouta = 'Quota selection is required'
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address'
 
+        // Require registration number for class 8 and 9 students
+        if (isClassEightOrNine(form.admissionClass) && !String(form.registrationNo || '').trim()) {
+            e.registrationNo = 'Registration number is required for class 8 and 9 students'
+        }
+        if (isClassEightOrNine(form.admissionClass) && String(form.registrationNo || '').trim() && !/^\d{10}$/.test(form.registrationNo || '')) {
+            e.registrationNo = 'Registration number mmust be exactly 10 digits'
+        }
         if (!isEditMode && !form.photo) {
             e.photo = 'Student photo is required'
         }
@@ -1013,7 +1028,9 @@ function AdmissionForm() {
             formData.append('studentNickNameBn', form.studentNickNameBn || '')
             formData.append('studentNameEn', form.studentNameEn)
             formData.append('birthRegNo', form.birthRegNo)
-
+            if (form.registrationNo) {
+                formData.append('registration_no', form.registrationNo)
+            }
             formData.append('fatherNameBn', form.fatherNameBn)
             formData.append('fatherNameEn', form.fatherNameEn)
             formData.append('fatherNid', form.fatherNid)
@@ -1376,6 +1393,7 @@ function AdmissionForm() {
                                 aria-invalid={!!errors.birthRegNo}
                             />
                         </FieldRow>
+
                         <FieldRow label="Date of Birth:" required error={errors.birthYear || errors.birthMonth || errors.birthDay} tooltip="Birth year is auto-filled from birth registration number. Select month and day manually">
                             <div className="flex flex-col sm:flex-row gap-2 w-full">
                                 <input
@@ -1929,7 +1947,28 @@ function AdmissionForm() {
                                 aria-invalid={!!errors.prevSchoolName}
                             />
                         </FieldRow>
+                        {isClassEightOrNine(form.admissionClass) && (
+                            <FieldRow label="Registration Number:" required error={errors.registrationNo} tooltip="Enter your Registration Number from the registration card (required for Class 8 & 9)">
+                                <input
+                                    name="registrationNo"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="\\d{10}"
+                                    minLength={10}
+                                    maxLength={10}
+                                    value={form.registrationNo}
+                                    onChange={(e) => {
+                                        const cleaned = (e.target.value || '').replace(/\D/g, '').slice(0, 10)
+                                        e.target.value = cleaned
+                                        handleChange(e)
 
+                                    }}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    placeholder="10-digit Registration Number"
+                                    aria-invalid={!!errors.registrationNo}
+                                />
+                            </FieldRow>
+                        )}
                         <FieldRow label="Passing Year :" required error={errors.prevSchoolPassingYear} tooltip="Select the year you passed from your previous school">
                             <select
                                 name="prevSchoolPassingYear"

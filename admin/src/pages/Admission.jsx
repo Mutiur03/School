@@ -80,8 +80,6 @@ function Admission() {
       if (cls !== filters.class) return false;
     }
     if (filters.admission_year) {
-      // Records may store the target year under different keys.
-      // Try admission_year, prev_school_passing_year, or infer from dates.
       let ay = r.admission_year || r.prev_school_passing_year || r.year || null;
       if (!ay) {
         const dateStr = r.submission_date || r.created_at || null;
@@ -109,7 +107,49 @@ function Admission() {
     }
     return true;
   });
+  const formatQuota = (q) => {
+    if (!q) return null;
+    const key = String(q).trim();
+    const map = {
+      "(GEN)": "সাধারণ (GEN)",
+      "(DIS)": "বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)",
+      "(FF)": "মুক্তিযোদ্ধার সন্তান (FF)",
+      "(GOV)": "সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)",
+      "(ME)": "শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)",
+      "(SIB)": "সহোদর ভাই (SIB)",
+      "(TWN)": "যমজ (TWN)",
+      "(Mutual Transfer)": "পারস্পরিক বদলি (Mutual Transfer)",
+      "(Govt. Transfer)": "সরকারি বদলি (Govt. Transfer)",
+    };
 
+    if (map[key]) return map[key];
+
+    const normalized = key.replace(/\s+/g, " ").trim();
+    if (map[normalized]) return map[normalized];
+
+    const noParens = normalized.replace(/[()]/g, "").trim();
+    const withParens = `(${noParens})`;
+    if (map[withParens]) return map[withParens];
+
+    return normalized;
+  };
+
+  const formatParentIncome = (p) => {
+    if (!p) return null;
+    const key = String(p).trim();
+    const map = {
+      below_50000: "0 - 50,000",
+      "50000_100000": "50,000 - 100,000",
+      "100001_200000": "100,001 - 200,000",
+      "200001_500000": "200,001 - 500,000",
+      above_500000: "Above 500,000",
+    };
+    if (map[key]) return map[key];
+    const fallback = key
+      .replace(/_/g, " ")
+      .replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+    return fallback;
+  };
   function getStatusBadge(st) {
     return (
       <span
@@ -132,7 +172,6 @@ function Admission() {
   function handleExport() {
     (async () => {
       try {
-        // setLoading(true);
         const params = {
           status: filters.status,
           search: filters.search,
@@ -160,9 +199,6 @@ function Admission() {
         console.error(err);
         setError("Failed to export Excel");
       }
-      // finally {
-      //   setLoading(false);
-      // }
     })();
   }
 
@@ -709,19 +745,15 @@ function Admission() {
                 </div>
               )}
               <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
-                <span>
-                  Class:{" "}
-                  {selectedAdmission.admission_class ||
-                    selectedAdmission.section ||
-                    "-"}
-                </span>
+                <span>Class: {selectedAdmission.admission_class || "-"}</span>
                 <span>
                   Admission User ID:{" "}
-                  {selectedAdmission.admission_user_id ||
-                    selectedAdmission.roll ||
-                    "-"}
+                  {selectedAdmission.admission_user_id || "-"}
                 </span>
-                <span>Religion: {selectedAdmission.religion || "-"}</span>
+                <span>Serial No: {selectedAdmission.serial_no || "-"}</span>
+                <span>
+                  Qouta Year: {formatQuota(selectedAdmission.qouta) || "-"}
+                </span>
                 <span className="ml-auto">
                   Status: {getStatusBadge(selectedAdmission.status)}
                 </span>
@@ -735,7 +767,66 @@ function Admission() {
                           colSpan="2"
                           className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
                         >
-                          বক্তিগত তথ্য (Personal Information)
+                          ভর্তি তথ্য (Admission Information)
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Admission Class:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.admission_class || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          List Type:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.list_type || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Admission User ID:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.admission_user_id || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Serial No:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.serial_no || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Qouta:
+                        </td>
+                        <td className="py-2 px-4">
+                          {formatQuota(selectedAdmission.qouta) || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td
+                          colSpan="2"
+                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                        >
+                          ব্যক্তিগত তথ্য (Personal Information)
                         </td>
                       </tr>
                       <tr className="border-b">
@@ -760,10 +851,30 @@ function Admission() {
                       </tr>
                       <tr className="border-b">
                         <td className="py-2 px-4 font-medium  bg-gray-50">
-                          Birth Admission No. (In English):
+                          Student Nickname (BN):
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.student_nick_name_bn || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Birth Registration No.:
                         </td>
                         <td className="py-2 px-4">
                           {selectedAdmission.birth_reg_no || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Registration Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.registration_no || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
@@ -804,38 +915,342 @@ function Admission() {
                           )}
                         </td>
                       </tr>
+
                       <tr className="border-b bg-gray-50">
                         <td className="py-2 px-4 font-medium  bg-gray-100">
-                          Mobile No (s):
+                          Blood Group:
                         </td>
                         <td className="py-2 px-4">
-                          {[
-                            selectedAdmission.father_phone,
-                            selectedAdmission.mother_phone,
-                            selectedAdmission.guardian_phone,
-                          ].filter(Boolean).length > 0
-                            ? [
-                                selectedAdmission.father_phone,
-                                selectedAdmission.mother_phone,
-                                selectedAdmission.guardian_phone,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")
-                            : "No"}
+                          {selectedAdmission.blood_group || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
                         </td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 font-medium  bg-gray-50">
-                          SSC Batch:
+                          Email Address:
                         </td>
                         <td className="py-2 px-4">
-                          {selectedAdmission.ssc_batch || (
-                            <span className="text-gray-400">Not set</span>
+                          {selectedAdmission.email || (
+                            <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr className="border-b bg-gray-50">
                         <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Religion:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.religion || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td
+                          colSpan="2"
+                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                        >
+                          অবস্থান (Address)
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Present Address:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [
+                              selectedAdmission.present_village_road,
+                              selectedAdmission.present_post_office
+                                ? selectedAdmission.present_post_code
+                                  ? `${selectedAdmission.present_post_office} (${selectedAdmission.present_post_code})`
+                                  : selectedAdmission.present_post_office
+                                : "",
+                              selectedAdmission.present_upazila,
+                              selectedAdmission.present_district,
+                            ]
+                              .filter(Boolean)
+                              .map((s) => String(s).trim())
+                              .filter(Boolean);
+                            return parts.length > 0 ? (
+                              parts.join(", ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Permanent Address:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [
+                              selectedAdmission.permanent_village_road,
+                              selectedAdmission.permanent_post_office
+                                ? selectedAdmission.permanent_post_code
+                                  ? `${selectedAdmission.permanent_post_office} (${selectedAdmission.permanent_post_code})`
+                                  : selectedAdmission.permanent_post_office
+                                : "",
+                              selectedAdmission.permanent_upazila,
+                              selectedAdmission.permanent_district,
+                            ]
+                              .filter(Boolean)
+                              .map((s) => String(s).trim())
+                              .filter(Boolean);
+                            return parts.length > 0 ? (
+                              parts.join(", ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td
+                          colSpan="2"
+                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                        >
+                          অভিভাবক / পূর্বের স্কুল (Guardian / Previous School)
+                        </td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Guardian Info:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [
+                              selectedAdmission.guardian_name
+                                ? `Name: ${selectedAdmission.guardian_name}`
+                                : "",
+                              selectedAdmission.guardian_relation
+                                ? `Relation: ${selectedAdmission.guardian_relation}`
+                                : "",
+                              selectedAdmission.guardian_phone
+                                ? `Phone: ${selectedAdmission.guardian_phone}`
+                                : "",
+                              selectedAdmission.guardian_nid
+                                ? `NID: ${selectedAdmission.guardian_nid}`
+                                : "",
+                            ].filter(Boolean);
+                            return parts.length > 0 ? (
+                              parts.join(", ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Guardian Address:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [
+                              selectedAdmission.guardian_village_road,
+                              selectedAdmission.guardian_post_office
+                                ? selectedAdmission.guardian_post_code
+                                  ? `${selectedAdmission.guardian_post_office} (${selectedAdmission.guardian_post_code})`
+                                  : selectedAdmission.guardian_post_office
+                                : "",
+                              selectedAdmission.guardian_upazila,
+                              selectedAdmission.guardian_district,
+                            ]
+                              .filter(Boolean)
+                              .map((s) => String(s).trim())
+                              .filter(Boolean);
+                            return parts.length > 0 ? (
+                              parts.join(", ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Previous School Name & Address:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [
+                              selectedAdmission.prev_school_name,
+                              selectedAdmission.prev_school_upazila,
+                              selectedAdmission.prev_school_district,
+                            ]
+                              .filter(Boolean)
+                              .map((s) => String(s).trim());
+                            return parts.length > 0 ? (
+                              parts.join(", ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Previous School Academic Info:
+                        </td>
+                        <td className="py-2 px-4">
+                          {(() => {
+                            const parts = [];
+                            if (selectedAdmission.section_in_prev_school)
+                              parts.push(
+                                `Section: ${selectedAdmission.section_in_prev_school}`
+                              );
+                            if (selectedAdmission.roll_in_prev_school)
+                              parts.push(
+                                `Roll: ${selectedAdmission.roll_in_prev_school}`
+                              );
+                            if (selectedAdmission.prev_school_passing_year)
+                              parts.push(
+                                `Year: ${selectedAdmission.prev_school_passing_year}`
+                              );
+                            return parts.length > 0 ? (
+                              parts.join(" / ")
+                            ) : (
+                              <span className="text-gray-400">
+                                Not provided
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Father's Name (BN):
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.father_name_bn || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Father's Name (EN):
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.father_name_en || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Father's National ID Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.father_nid || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Father's Mobile Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.father_phone || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Mother's Name (BN):
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.mother_name_bn || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Mother's Name (EN):
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.mother_name_en || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Mother's National ID Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.mother_nid || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Mother's Mobile Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.mother_phone || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Father's Profession:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.father_profession || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="border-b bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                          Mother's Profession:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.mother_profession || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Parent's Annual Income:
+                        </td>
+                        <td className="py-2 px-4">
+                          {formatParentIncome(
+                            selectedAdmission.parent_income
+                          ) || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
                           Submission Date:
                         </td>
                         <td className="py-2 px-4">
