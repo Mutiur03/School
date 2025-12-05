@@ -131,6 +131,7 @@ export const createForm = async (req, res) => {
       student_nick_name_bn: body.studentNickNameBn || null,
       student_name_en: body.studentNameEn || null,
       birth_reg_no: body.birthRegNo || null,
+      registration_no: body.registration_no || null,
 
       father_name_bn: body.fatherNameBn || null,
       father_name_en: body.fatherNameEn || null,
@@ -267,6 +268,7 @@ export const getForms = async (req, res) => {
         { student_name_en: { contains: String(search), mode: "insensitive" } },
         { student_name_bn: { contains: String(search), mode: "insensitive" } },
         { birth_reg_no: { contains: String(search), mode: "insensitive" } },
+        { registration_no: { contains: String(search), mode: "insensitive" } },
       ];
     }
 
@@ -335,6 +337,7 @@ export const updateForm = async (req, res) => {
         body.studentNickNameBn || existing.student_nick_name_bn,
       student_name_en: body.studentNameEn || existing.student_name_en,
       birth_reg_no: body.birthRegNo || existing.birth_reg_no,
+      registration_no: body.registration_no || existing.registration_no,
       father_name_bn: body.fatherNameBn || existing.father_name_bn,
       father_name_en: body.fatherNameEn || existing.father_name_en,
       father_nid: body.fatherFid || existing.father_nid,
@@ -676,6 +679,7 @@ export const generateAdmissionPDF = async (req, res) => {
           : null,
       ],
       ["Birth Registration Number:", admission.birth_reg_no || null],
+      ["Registration Number:", admission.registration_no || null],
       [
         "Date of Birth:",
         admission.birth_date ? formatDateLong(admission.birth_date) : null,
@@ -835,10 +839,12 @@ export const generateAdmissionPDF = async (req, res) => {
     // formatQuota is defined at module scope for reuse across PDF/Excel generators
 
     const slNoRaw = admission.serial_no || "";
+    const registrationRaw = admission.registration_no || "";
     const admissionUserIdRaw = admission.admission_user_id || "";
     const quotaRaw = wrapBnEn(formatQuota(admission.qouta)) || "";
 
     const slNoDisplay = String(slNoRaw).trim();
+    const registrationDisplay = String(registrationRaw).trim();
     const admissionUserIdDisplay = String(admissionUserIdRaw).trim();
     const quotaDisplay = String(quotaRaw)
       .trim()
@@ -1204,13 +1210,18 @@ export const generateAdmissionPDF = async (req, res) => {
         <div class="school en">${schoolName}</div>
         <div class="addr en">${schoolAddr}</div>
         <div class="web en">${schoolWeb}</div>
-      </div>
+      </div> 
       <div class="title-row en">
         ${titleLabel}
       </div>
-      <div class="section-row">
-        <span class="en">SL No:</span> <span class="en">${slNoDisplay}</span>,
-        <span class="en"> User ID:</span> <span class="en">${admissionUserIdDisplay}</span>,
+      <div class="section-row"> 
+  <span class="en">SL No:</span> <span class="en">${slNoDisplay}</span>,
+  ${
+    registrationDisplay
+      ? `<span class="en"> Reg No:</span> <span class="en">${registrationDisplay}</span>,`
+      : ""
+  }
+  <span class="en"> User ID:</span> <span class="en">${admissionUserIdDisplay}</span>,
         <span class="en"> Quota:</span> ${quotaDisplay},
         <span class="en"> Religion:</span> ${wrapBnEn(religionDisplay)}
       </div>
@@ -1429,6 +1440,7 @@ export const exportAllAdmissionsExcel = async (req, res) => {
         "student_nick_name_bn",
         "student_name_en",
         "birth_reg_no",
+        "registration_no",
         "father_name_bn",
         "father_name_en",
         "father_nid",
