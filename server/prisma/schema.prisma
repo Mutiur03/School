@@ -435,7 +435,6 @@ model student_registration_ssc {
   section_in_class_8 String?  @db.VarChar(10) // Section in Class 8
   roll_in_class_8    String?  @db.VarChar(20) // Roll in Class 8
 
-  // Indexes for better query performance
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
@@ -443,7 +442,6 @@ model student_registration_ssc {
   @@index([submission_date])
 }
 
-// New model to store generic admission form submissions
 model admission_form {
   id                   String  @id @default(uuid())
   // Personal Information
@@ -451,6 +449,7 @@ model admission_form {
   student_nick_name_bn String? @db.VarChar(50)
   student_name_en      String? @db.VarChar(100)
   birth_reg_no         String? @db.VarChar(17)
+  registration_no      String? @db.VarChar(50)
 
   father_name_bn String? @db.VarChar(100)
   father_name_en String? @db.VarChar(100)
