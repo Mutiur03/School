@@ -12,6 +12,35 @@ function parseCsvString(v: unknown): string[] {
         .filter(Boolean)
 }
 
+function expandSerialList(tokens: string[]): string[] {
+    const seen = new Set<string>()
+    const result: string[] = []
+    for (const t of tokens) {
+        const m = String(t).match(/^\s*(\d+)\s*-\s*(\d+)\s*$/)
+        if (m) {
+            let a = Number(m[1])
+            let b = Number(m[2])
+            if (Number.isNaN(a) || Number.isNaN(b)) continue
+            if (a > b) [a, b] = [b, a]
+            for (let i = a; i <= b; i++) {
+                const s = String(i)
+                if (!seen.has(s)) {
+                    seen.add(s)
+                    result.push(s)
+                }
+            }
+        } else {
+            const s = String(t).trim()
+            if (!s) continue
+            if (!seen.has(s)) {
+                seen.add(s)
+                result.push(s)
+            }
+        }
+    }
+    return result
+}
+
 type AdmissionSettings = {
     user_id_class6?: string | null
     user_id_class7?: string | null
@@ -267,6 +296,10 @@ function AdmissionForm() {
     const formRef = useRef<HTMLFormElement>(null)
     const [admission_year, set_admission_year] = useState('');
 
+    // Keep a ref of the current admissionUserId so the "options update" effect
+    // can read it without forcing that effect to run on every keystroke.
+    const admissionUserIdRef = useRef<string | undefined>(initialFormState.admissionUserId)
+
     const [classListOptions, setClassListOptions] = useState<string[]>([])
     const [listTypeOptions, setListTypeOptions] = useState<string[]>([])
     const [admissionSettings, setAdmissionSettings] = useState<AdmissionSettings | null>(null)
@@ -489,15 +522,63 @@ function AdmissionForm() {
 
         initializeData()
     }, [isEditMode, id, navigate])
-
     useEffect(() => {
         if (!admissionSettings) return
         const list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         setUserIdOptions(list)
-        if (form.admissionUserId && list.length > 0 && !list.includes(form.admissionUserId)) {
+        const current = admissionUserIdRef.current
+        if (current && list.length > 0 && !list.includes(current)) {
             dispatch({ type: 'SET_FIELD', name: 'admissionUserId', value: '' })
         }
-    }, [admissionSettings, form.admissionClass, form.admissionUserId])
+
+        // determine per-class list type and serial no (fall back to global fields)
+        const cls = String(form.admissionClass || '').trim().toLowerCase()
+        const getSetting = (k: string) => (admissionSettings as Record<string, unknown>)[k]
+        let listTypeTokens: string[] = []
+        let serialRawTokens: string[] = []
+
+        if (cls === '6' || cls.includes('6') || cls.includes('six')) {
+            listTypeTokens = parseCsvString(getSetting('list_type_class6') ?? getSetting('listTypeClass6') ?? getSetting('list_type') ?? getSetting('listType'))
+            serialRawTokens = parseCsvString(getSetting('serial_no_class6') ?? getSetting('serialNoClass6') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+        } else if (cls === '7' || cls.includes('7') || cls.includes('seven')) {
+            listTypeTokens = parseCsvString(getSetting('list_type_class7') ?? getSetting('listTypeClass7') ?? getSetting('list_type') ?? getSetting('listType'))
+            serialRawTokens = parseCsvString(getSetting('serial_no_class7') ?? getSetting('serialNoClass7') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+        } else if (cls === '8' || cls.includes('8') || cls.includes('eight')) {
+            listTypeTokens = parseCsvString(getSetting('list_type_class8') ?? getSetting('listTypeClass8') ?? getSetting('list_type') ?? getSetting('listType'))
+            serialRawTokens = parseCsvString(getSetting('serial_no_class8') ?? getSetting('serialNoClass8') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+        } else if (cls === '9' || cls.includes('9') || cls.includes('nine')) {
+            listTypeTokens = parseCsvString(getSetting('list_type_class9') ?? getSetting('listTypeClass9') ?? getSetting('list_type') ?? getSetting('listType'))
+            serialRawTokens = parseCsvString(getSetting('serial_no_class9') ?? getSetting('serialNoClass9') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+        } else {
+            // fallback to global
+            listTypeTokens = parseCsvString(getSetting('list_type') ?? getSetting('listType'))
+            serialRawTokens = parseCsvString(getSetting('serial_no') ?? getSetting('serialNo'))
+        }
+
+        // set list type options
+        if (listTypeTokens.length) {
+            setListTypeOptions(listTypeTokens)
+        } else {
+            setListTypeOptions([])
+        }
+
+        // expand and set serial options
+        const serialList = expandSerialList(serialRawTokens)
+        if (serialList.length) setSerialNoOptions(serialList)
+        else setSerialNoOptions([])
+
+        // clear current selections if they are no longer valid for the selected class
+        if (form.listType && listTypeTokens.length > 0 && !listTypeTokens.includes(String(form.listType))) {
+            dispatch({ type: 'SET_FIELD', name: 'listType', value: '' })
+        }
+        if (form.serialNo && serialList.length > 0 && !serialList.includes(String(form.serialNo))) {
+            dispatch({ type: 'SET_FIELD', name: 'serialNo', value: '' })
+        }
+    }, [admissionSettings, form.admissionClass, form.listType, form.serialNo])
+
+    useEffect(() => {
+        admissionUserIdRef.current = form.admissionUserId
+    }, [form.admissionUserId])
 
     useEffect(() => {
         if (!isEditMode) {
@@ -1317,18 +1398,21 @@ function AdmissionForm() {
                             </select>
                         </FieldRow>
                         <FieldRow label="User ID:" required error={errors.admissionUserId} tooltip="Select user id from settings">
-                            <select
+                            <input
+                                list="admission-userid-list"
                                 name="admissionUserId"
                                 value={form.admissionUserId}
                                 onChange={handleChange}
                                 disabled={!form.admissionClass}
+                                placeholder={form.admissionClass ? 'Type or select User ID' : 'Select class first'}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            >
-                                <option value="">Select User ID</option>
+                                autoComplete="off"
+                            />
+                            <datalist id="admission-userid-list">
                                 {userIdOptions.map((u) => (
-                                    <option key={u} value={u}>{u}</option>
+                                    <option key={u} value={u} />
                                 ))}
-                            </select>
+                            </datalist>
                         </FieldRow>
 
 

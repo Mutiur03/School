@@ -1,6 +1,7 @@
 import axios from 'axios'
 import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Notice {
     id?: string
@@ -19,10 +20,10 @@ const TopBanner: React.FC = () => {
         setIsLoading(true)
 
         axios
-            .get('/api/notices/getNotices?limit=5', { signal: controller.signal })
+            .get('/api/notices/getNotices?limit=5')
             .then((response) => {
                 if (!mounted.current) return
-                const data = Array.isArray(response.data) ? response.data : []
+                const data = response.data || []
                 setNotices(data)
                 setIndex(0)
             })
@@ -59,20 +60,49 @@ const TopBanner: React.FC = () => {
     return (
         <div className="w-full mt-2 bg-gray-50 border-t border-b border-gray-100" aria-hidden={false}>
             <div className="max-w-6xl mx-auto px-4 py-1 flex items-center justify-between gap-3">
-                <a
-                    className="m-0 text-gray-900 text-sm leading-6 truncate flex-1 transition-opacity duration-200"
+                <motion.a
+                    className="m-0 text-gray-900 text-sm leading-6 truncate flex-1"
                     title={notice?.title || ''}
                     href={notice?.file || '#'}
-                    target='_blank'
+                    target="_blank"
                 >
-                    {isLoading ? (
-                        <span className="text-gray-500">নোটিশ লোড হচ্ছে...</span>
-                    ) : notice ? (
-                        <span className="notice-title">{notice.title}</span>
-                    ) : (
-                        <span className="text-gray-500">কোনো নোটিশ নেই</span>
-                    )}
-                </a>
+                    <AnimatePresence mode="wait">
+                        {isLoading ? (
+                            <motion.span
+                                key="loading"
+                                className="text-gray-500"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.28 }}
+                            >
+                                নোটিশ লোড হচ্ছে...
+                            </motion.span>
+                        ) : notice ? (
+                            <motion.span
+                                key={notice.id ?? index}
+                                className="notice-title"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.15 }}
+                            >
+                                {notice.title}
+                            </motion.span>
+                        ) : (
+                            <motion.span
+                                key="empty"
+                                className="text-gray-500"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.28 }}
+                            >
+                                কোনো নোটিশ নেই
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </motion.a>
 
                 <div className="shrink-0">
                     <Link

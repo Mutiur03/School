@@ -257,12 +257,18 @@ model admission {
   attachment_instruction_class8 String?
   attachment_instruction_class9 String?
   class_list                    String?
-  list_type                     String?
+  list_type_class6              String?
+  list_type_class7              String?
+  list_type_class8              String?
+  list_type_class9              String?
   user_id_class6                String?
   user_id_class7                String?
   user_id_class8                String?
   user_id_class9                String?
-  serial_no                     String?
+  serial_no_class6              String?
+  serial_no_class7              String?
+  serial_no_class8              String?
+  serial_no_class9              String?
   ingikar                       String?
   created_at                    DateTime @default(now())
 }
@@ -515,7 +521,7 @@ model admission_form {
   qouta             String? @db.VarChar(50)
 
   // Photo
-  photo_path String? @db.VarChar(255)
+  photo_path      String? @db.VarChar(255)
   whatsapp_number String? @db.Char(11)
 
   status          String?   @default("pending") @db.VarChar(20)
