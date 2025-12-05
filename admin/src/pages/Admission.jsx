@@ -10,7 +10,6 @@ function Admission() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [year, setYear] = useState("");
-  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
   const [filters, setFilters] = useState({
     status: "all",
     class: "",
@@ -43,13 +42,6 @@ function Admission() {
         const json = resp.data;
         const data = json.data || [];
         setItems(data);
-        const total =
-          json.pagination && json.pagination.total
-            ? json.pagination.total
-            : data.length;
-        const pending = data.filter((d) => d.status === "pending").length;
-        const approved = data.filter((d) => d.status === "approved").length;
-        setStats({ total, pending, approved });
       } catch (err) {
         if (err.name !== "AbortError") setError(err.message || "Failed");
       } finally {
@@ -107,6 +99,32 @@ function Admission() {
     }
     return true;
   });
+  const yearStats = (() => {
+    const year =
+      filters.admission_year && String(filters.admission_year).trim();
+    const arr = items.filter((r) => {
+      if (!year) return true;
+      let ay = r.admission_year || r.prev_school_passing_year || r.year || null;
+      if (!ay) {
+        const dateStr = r.submission_date || r.created_at || null;
+        if (dateStr) {
+          try {
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) ay = d.getFullYear();
+          } catch {
+            // ignore
+          }
+        }
+      }
+      return ay != null && String(ay) === String(year);
+    });
+
+    return {
+      total: arr.length,
+      pending: arr.filter((d) => d && d.status === "pending").length,
+      approved: arr.filter((d) => d && d.status === "approved").length,
+    };
+  })();
   const formatQuota = (q) => {
     if (!q) return null;
     const key = String(q).trim();
@@ -341,19 +359,19 @@ function Admission() {
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Total</div>
           <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {stats.total || 0}
+            {yearStats.total || 0}
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Pending</div>
           <div className="text-2xl font-semibold text-amber-600">
-            {stats.pending || 0}
+            {yearStats.pending || 0}
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Approved</div>
           <div className="text-2xl font-semibold text-emerald-600">
-            {stats.approved || 0}
+            {yearStats.approved || 0}
           </div>
         </div>
       </div>
@@ -712,7 +730,13 @@ function Admission() {
 
       {/* View Modal */}
       {showModal && selectedAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            // only close when clicking the backdrop (overlay), not when clicking inside the modal
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+        >
           <div className="bg-white text-black rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-300 bg-linear-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
               <div>
@@ -1248,7 +1272,16 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-
+                      <tr>
+                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                          Whatsapp Number:
+                        </td>
+                        <td className="py-2 px-4">
+                          {selectedAdmission.whatsapp_number || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
+                        </td>
+                      </tr>
                       <tr>
                         <td className="py-2 px-4 font-medium  bg-gray-50">
                           Submission Date:
@@ -1286,10 +1319,7 @@ function Admission() {
                       const url = window.URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `Admission_${
-                        selectedAdmission.student_name_en ||
-                        selectedAdmission.roll
-                      }.pdf`;
+                      a.download = `${selectedAdmission.student_name_en}.pdf`;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
@@ -1324,7 +1354,12 @@ function Admission() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEditModal(false);
+          }}
+        >
           <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">
@@ -1384,7 +1419,12 @@ function Admission() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deleteTargetAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowDeleteModal(false);
+          }}
+        >
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3 text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
@@ -1412,8 +1452,8 @@ function Admission() {
                   action cannot be undone.
                 </p>
               </div>
-              <div className="items-center px-4 py-3">
-                <div className="flex space-x-2">
+              <div className="px-4 py-3">
+                <div className="flex justify-between">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     className="px-4 py-2 bg-gray-300 text-base font-medium rounded-md shadow-sm hover:bg-gray-400"

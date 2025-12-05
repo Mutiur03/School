@@ -122,6 +122,7 @@ type FormState = {
     serialNo?: string
     qouta?: string
     registrationNo?: string
+    whatsappNumber?: string
 }
 
 const FieldRow: React.FC<{
@@ -227,6 +228,7 @@ const initialFormState: FormState = {
     serialNo: '',
     qouta: '',
     registrationNo: '',
+    whatsappNumber: '',
 }
 
 function formReducer(state: FormState, action: FormAction): FormState {
@@ -404,6 +406,7 @@ function AdmissionForm() {
                             mother_profession: resolvedMother.selectValue,
                             mother_profession_other: resolvedMother.otherValue,
                             parent_income: data.parent_income || '',
+                            whatsappNumber: data.whatsapp_number || data.whatsappNumber || '',
                         }
 
                         dispatch({ type: 'SET_FIELDS', fields: formData })
@@ -763,7 +766,7 @@ function AdmissionForm() {
 
         const numericFields = [
             'rollInprevSchool', 'fatherNid', 'motherNid', 'guardianNid', 'birthRegNo',
-            'fatherPhone', 'motherPhone', 'guardianPhone',
+            'fatherPhone', 'motherPhone', 'guardianPhone', 'whatsappNumber',
             'presentPostCode', 'permanentPostCode', 'guardianPostCode'
         ];
 
@@ -782,7 +785,7 @@ function AdmissionForm() {
         }
 
 
-        if (name === 'fatherPhone' || name === 'motherPhone' || name === 'guardianPhone') {
+        if (name === 'fatherPhone' || name === 'motherPhone' || name === 'guardianPhone' || name === 'whatsappNumber') {
             value = value.slice(0, 11);
         }
         if (name === 'presentPostCode' || name === 'permanentPostCode' || name === 'guardianPostCode') {
@@ -920,6 +923,7 @@ function AdmissionForm() {
         }
         if (!form.motherPhone.trim()) e.motherPhone = 'Mother\'s mobile number is required'
         else if (!/^[0-9]{11}$/.test(form.motherPhone)) e.motherPhone = 'Enter a valid mobile number (exactly 11 digits)'
+        if (form.whatsappNumber && !/^[0-9]{11}$/.test(form.whatsappNumber)) e.whatsappNumber = 'Enter a valid mobile number (exactly 11 digits)'
         if (!form.presentDistrict.trim()) e.presentDistrict = 'Present district is required'
         if (!form.presentUpazila.trim()) e.presentUpazila = 'Present upazila/thana is required'
         if (!form.presentPostOffice.trim()) e.presentPostOffice = 'Present post office is required'
@@ -1048,6 +1052,8 @@ function AdmissionForm() {
             formData.append('bloodGroup', form.bloodGroup)
             formData.append('email', form.email)
 
+            if (form.whatsappNumber) formData.append('whatsappNumber', form.whatsappNumber)
+
             formData.append('presentDistrict', form.presentDistrict)
             formData.append('presentUpazila', form.presentUpazila)
             formData.append('presentPostOffice', form.presentPostOffice)
@@ -1089,7 +1095,6 @@ function AdmissionForm() {
             formData.append('mother_profession', motherProfessionVal)
             formData.append('parent_income', form.parent_income || '')
             formData.append('qouta', form.qouta || '')
-
 
             if (form.photo) {
                 formData.append('photo', form.photo)
@@ -1463,6 +1468,7 @@ function AdmissionForm() {
                                 inputMode="numeric"
                                 pattern="\d*"
                                 maxLength={11}
+                                minLength={11}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 placeholder="01XXXXXXXXX"
@@ -1503,6 +1509,7 @@ function AdmissionForm() {
                                 inputMode="numeric"
                                 pattern="\d*"
                                 maxLength={11}
+                                minLength={11}
                                 onChange={handleChange}
                                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                                 placeholder="01XXXXXXXXX"
@@ -1529,6 +1536,20 @@ function AdmissionForm() {
 
                         <FieldRow label="Email:" error={errors.email} tooltip="Enter a valid email address for communication. This is optional but recommended">
                             <input name="email" value={form.email} type='email' onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder='example@gmail.com' />
+                        </FieldRow>
+                        <FieldRow label="Whatsapp Number:" error={errors.whatsappNumber} tooltip="Optional — enter WhatsApp mobile number in 11-digit format (e.g., 01XXXXXXXXX)">
+                            <input
+                                name="whatsappNumber"
+                                value={form.whatsappNumber}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={11}
+                                onChange={handleChange}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="01XXXXXXXXX"
+                                aria-invalid={!!errors.whatsappNumber}
+                            />
                         </FieldRow>
                     </div>
                 </section>

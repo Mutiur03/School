@@ -36,25 +36,27 @@ export async function uploadPDFToCloudinary(file) {
 export const creatOrUpdateAdmission = async (req, res) => {
   try {
     const body = req.body || {};
-    const parseBoolean = (v) => {
-      if (v === undefined || v === null) return undefined;
-      if (typeof v === "boolean") return v;
-      const s = String(v).toLowerCase();
-      return s === "1" || s === "true" || s === "yes";
-    };
-
-    const updateData = {};
-    if (body.admission_year !== undefined && body.admission_year !== "") {
-      const n = Number(body.admission_year);
-      if (!Number.isNaN(n)) updateData.admission_year = n;
-    }
-    const ao = parseBoolean(body.admission_open);
-    if (ao !== undefined) updateData.admission_open = ao;
-
+    const updateData = {};  
+    updateData.admission_year = Number(body.admission_year);
+    updateData.admission_open = Boolean(body.admission_open==="1"? true : false);
     if (body.instruction !== undefined)
-      updateData.instruction = String(body.instruction);
-    if (body.attachment_instruction !== undefined)
-      updateData.attachment_instruction = String(body.attachment_instruction);
+      updateData.instruction = String(body.instruction)
+    if (body.attachment_instruction_class6 !== undefined)
+      updateData.attachment_instruction_class6 = String(
+        body.attachment_instruction_class6
+      );
+    if (body.attachment_instruction_class7 !== undefined)
+      updateData.attachment_instruction_class7 = String(
+        body.attachment_instruction_class7
+      );
+    if (body.attachment_instruction_class8 !== undefined)
+      updateData.attachment_instruction_class8 = String(
+        body.attachment_instruction_class8
+      );
+    if (body.attachment_instruction_class9 !== undefined)
+      updateData.attachment_instruction_class9 = String(
+        body.attachment_instruction_class9
+      );
     if (body.ingikar !== undefined) updateData.ingikar = String(body.ingikar);
     if (body.class_list !== undefined)
       updateData.class_list = String(body.class_list);
@@ -93,7 +95,14 @@ export const creatOrUpdateAdmission = async (req, res) => {
         admission_year: updateData.admission_year ?? null,
         admission_open: updateData.admission_open ?? false,
         instruction: updateData.instruction ?? null,
-        attachment_instruction: updateData.attachment_instruction ?? null,
+        attachment_instruction_class6:
+          updateData.attachment_instruction_class6 ?? null,
+        attachment_instruction_class7:
+          updateData.attachment_instruction_class7 ?? null,
+        attachment_instruction_class8:
+          updateData.attachment_instruction_class8 ?? null,
+        attachment_instruction_class9:
+          updateData.attachment_instruction_class9 ?? null,
         ingikar: updateData.ingikar ?? null,
         class_list: updateData.class_list ?? null,
         list_type: updateData.list_type ?? null,
