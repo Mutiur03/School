@@ -1,11 +1,12 @@
 import axios from 'axios';
-import  { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type NoticeItem = {
     id: number;
     title: string;
     created_at: string; // ISO date string
     download_url: string;
+    file?: string;
 };
 
 function formatDate(iso: string) {
@@ -143,7 +144,12 @@ function Notice() {
                                 {visible.map((n, idx) => (
                                     <tr key={n.id} className="hover:bg-gray-50 divide-x divide-gray-300">
                                         <td className="px-4 py-3 text-sm text-gray-700">{startIndex + idx + 1}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">{n.title}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-900"><a
+                                            className="m-0 text-gray-900 text-sm leading-6 truncate flex-1 transition-opacity duration-200"
+                                            title={n?.title || ''}
+                                            href={n?.file || '#'}
+                                            target='_blank'
+                                        >{n.title}</a></td>
                                         <td className="px-4 py-3 text-sm text-gray-700">{formatDate(n.created_at)}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center">
