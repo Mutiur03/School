@@ -1663,165 +1663,83 @@ export const downloadPDF = async (req, res) => {
   try {
     let status = await redis.get(statusKey);
     console.log(status);
-    if (status && status === "done") {
-      const b64 = await redis.get(pdfKey);
-      if (!b64) {
-        console.error("PDF key missing for", id);
-        return res.status(500).json({
-          success: false,
-          message: "PDF not available",
-        });
-      }
-      const pdfBuffer = Buffer.from(b64, "base64");
-      const pdfMarker = Buffer.from("%PDF");
-      const headHex =
-        pdfBuffer && pdfBuffer.slice(0, 16)
-          ? pdfBuffer.slice(0, 16).toString("hex")
-          : "";
-      if (
-        !pdfBuffer ||
-        pdfBuffer.length < 4 ||
-        pdfBuffer.indexOf(pdfMarker) === -1
-      ) {
-        console.error(
-          "Invalid PDF data for",
-          id,
-          "len:",
-          pdfBuffer ? pdfBuffer.length : 0,
-          "head:",
-          headHex
-        );
-        return res.status(500).json({
-          success: false,
-          message: "Invalid PDF data",
-        });
-      }
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="Admission_${id}.pdf"`
-      );
-      return res.end(pdfBuffer);
-    } else if (status && status === "generating") {
-      await waitForPDF(id);
-      const b64 = await redis.get(pdfKey);
-      if (!b64) {
-        console.error("PDF key missing after generation for", id);
-        return res
-          .status(500)
-          .json({ success: false, message: "PDF not available" });
-      }
-      const pdfBuffer = Buffer.from(b64, "base64");
-      const headHex2 =
-        pdfBuffer && pdfBuffer.slice(0, 16)
-          ? pdfBuffer.slice(0, 16).toString("hex")
-          : "";
-      if (
-        !pdfBuffer ||
-        pdfBuffer.length < 4 ||
-        pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
-      ) {
-        console.error(
-          "Invalid PDF data after generation for",
-          id,
-          "len:",
-          pdfBuffer ? pdfBuffer.length : 0,
-          "head:",
-          headHex2
-        );
-        return res
-          .status(500)
-          .json({ success: false, message: "Invalid PDF data" });
-      }
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="Admission_${id}.pdf"`
-      );
-      return res.end(pdfBuffer);
-    } else {
-      console.log("generating");
-      await redis.set(statusKey, "generating");
-      try {
+    if (status !== "done") {
+      if (status !== "generating") {
+        await redis.set(statusKey, "generating");
         await pdfQueue.add({ admissionId: id });
-      } catch (queueErr) {
-        console.error(
-          "Failed to add PDF job to queue:",
-          queueErr && queueErr.message ? queueErr.message : queueErr
-        );
-        await redis.set(statusKey, "failed");
-        throw queueErr;
       }
-      await waitForPDF(id);
-      const b64 = await redis.get(pdfKey);
-      if (!b64) {
-        console.error("PDF key missing after worker run for", id);
-        return res
-          .status(500)
-          .json({ success: false, message: "PDF not available" });
-      }
-      const pdfBuffer = Buffer.from(b64, "base64");
-      const headHex3 =
-        pdfBuffer && pdfBuffer.slice(0, 16)
-          ? pdfBuffer.slice(0, 16).toString("hex")
-          : "";
-      if (
-        !pdfBuffer ||
-        pdfBuffer.length < 4 ||
-        pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
-      ) {
-        console.error(
-          "Invalid PDF data after worker run for",
-          id,
-          "len:",
-          pdfBuffer ? pdfBuffer.length : 0,
-          "head:",
-          headHex3
-        );
-        return res
-          .status(500)
-          .json({ success: false, message: "Invalid PDF data" });
-      }
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="Admission_${id}.pdf"`
-      );
-      return res.end(pdfBuffer);
+      await waitForJobCompletion(id);
     }
+    const b64 = await redis.get(pdfKey);
+    if (!b64) {
+      return res
+        .status(500)
+        .json({ success: false, message: "PDF not available" });
+    }
+
+    const pdfBuffer = Buffer.from(b64, "base64");
+    if (
+      !pdfBuffer ||
+      pdfBuffer.length < 4 ||
+      pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
+    ) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Invalid PDF data" });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Admission_${id}.pdf"`
+    );
+    return res.end(pdfBuffer);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
-function waitForPDF(admissionId, timeout = 30000) {
-  const statusKey = `pdf:${admissionId}:status`;
+function waitForJobCompletion(admissionId, timeout = 90000) {
   return new Promise((resolve, reject) => {
-    const interval = 500;
+    const checkInterval = 1000;
     let elapsed = 0;
-
-    const check = async () => {
-      elapsed += interval;
-      const status = await redis.get(statusKey);
-      if (status === "done") return resolve(true);
-      if (status === "failed") {
-        // try to fetch a short error message saved by the worker
-        try {
-          const errorKey = `pdf:${admissionId}:error`;
-          const msg = await redis.get(errorKey);
-          return reject(
-            new Error(
-              msg ? `PDF generation failed: ${msg}` : "PDF generation failed"
-            )
-          );
-        } catch (e) {
-          return reject(new Error("PDF generation failed"));
-        }
+    const interval = setInterval(async () => {
+      elapsed += checkInterval;
+      const status = await redis.get(`pdf:${admissionId}:status`);
+      if (status === "done") {
+        clearInterval(interval);
+        return resolve();
       }
-      if (elapsed >= timeout)
+      if (status === "failed") {
+        const errorKey = `pdf:${admissionId}:error`;
+        const msg = await redis.get(errorKey);
+        clearInterval(interval);
+        return reject(new Error(msg || "PDF generation failed"));
+      }
+      if (elapsed >= timeout) {
+        clearInterval(interval);
         return reject(new Error("PDF generation timeout"));
-      setTimeout(check, interval);
+      }
+    }, checkInterval);
+
+    const onCompleted = (job) => {
+      if (job.data.admissionId === admissionId) {
+        pdfQueue.off("completed", onCompleted);
+        pdfQueue.off("failed", onFailed);
+        clearInterval(interval);
+        resolve();
+      }
     };
-    check();
+    const onFailed = (job, err) => {
+      if (job.data.admissionId === admissionId) {
+        pdfQueue.off("completed", onCompleted);
+        pdfQueue.off("failed", onFailed);
+        clearInterval(interval);
+        reject(err);
+      }
+    };
+
+    pdfQueue.on("completed", onCompleted);
+    pdfQueue.on("failed", onFailed);
   });
 }
