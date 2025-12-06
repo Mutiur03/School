@@ -1,7 +1,7 @@
 import Bull from "bull";
 import { prisma } from "../config/prisma.js";
 import { generateAdmissionPDF } from "../controllers/admissionFormController.js";
-import { redis } from "../config/redis..js";
+import { redis } from "../config/redis.js";
 import { TTL } from "../server.js";
 
 const pdfQueue = new Bull("pdfQueue", {
@@ -70,7 +70,22 @@ pdfQueue.process(async (job) => {
       err && err.message ? err.message : err
     );
     try {
-      await redis.set(statusKey, "failed");
+
+      await redis.set(statusKey, "failed", "EX", TTL);
+      const errorKey = `${pdfKey}:error`;
+      try {
+        await redis.set(
+          errorKey,
+          String(err && err.message ? err.message : err),
+          "EX",
+          TTL
+        );
+      } catch (e) {
+        console.error(
+          "Failed to save PDF error message to Redis:",
+          e && e.message ? e.message : e
+        );
+      }
     } catch (e) {
       console.error(
         "Failed to set Redis status to failed:",
