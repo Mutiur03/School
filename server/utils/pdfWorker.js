@@ -15,20 +15,17 @@ pdfQueue.process(async (job) => {
   console.log(`Processing PDF job for admissionId=${admissionId}`);
   try {
     await redis.set(statusKey, "generating", "EX", TTL);
-    const JOB_TIMEOUT = Number(process.env.PDF_JOB_TIMEOUT_MS) || 30000;
+    const JOB_TIMEOUT = 30000;
     const admission = await prisma.admission_form.findUnique({
       where: { id: admissionId },
     });
     if (!admission) throw new Error("Admission not found");
-    const pdfBuffer = await Promise.race([
-      generateAdmissionPDF(admission),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("PDF generation worker timeout")),
-          JOB_TIMEOUT
-        )
-      ),
-    ]);
+    console.log("generateAdmissionPDF started for admissionId:", admission.id);
+    const pdfBuffer = await generateAdmissionPDF(admission);
+    console.log(
+      "generateAdmissionPDF finished, length:",
+      pdfBuffer ? pdfBuffer.length : "null"
+    );
     let buf;
     const originalType = Array.isArray(pdfBuffer) ? "array" : typeof pdfBuffer;
     const ctorName =
