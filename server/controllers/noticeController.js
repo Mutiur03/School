@@ -39,7 +39,6 @@ export async function deletePDFFromCloudinary(publicId) {
   }
 }
 
-// Add notice
 export const addNoticeController = async (req, res) => {
   try {
     const { title, created_at } = req.body;
@@ -64,7 +63,6 @@ export const addNoticeController = async (req, res) => {
   }
 };
 
-// Get notices
 export const getNoticesController = async (req, res) => {
   try {
     const { limit } = req.query;
@@ -77,9 +75,7 @@ export const getNoticesController = async (req, res) => {
     const notices = await prisma.notices.findMany({
       orderBy: { created_at: "desc" },
       ...(take !== undefined ? { take } : {}),
-    });
-    console.log("Fetched notices:", notices);
-    
+    });    
     res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
@@ -87,7 +83,6 @@ export const getNoticesController = async (req, res) => {
   }
 };
 
-// Delete notice
 export const deleteNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -114,7 +109,6 @@ export const deleteNoticeController = async (req, res) => {
   }
 };
 
-// Update notice
 export const updateNoticeController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -138,7 +132,6 @@ export const updateNoticeController = async (req, res) => {
       const { previewUrl, downloadUrl, public_id } =
         await uploadPDFToCloudinary(file);
 
-      // Delete previous PDF from Cloudinary
       if (existingNotice.public_id) {
         await deletePDFFromCloudinary(existingNotice.public_id);
       }

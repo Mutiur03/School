@@ -50,7 +50,6 @@ pdfQueue.process(async (job) => {
         `pdfWorker: unexpected pdfBuffer type for ${admissionId}: type=${originalType}, ctor=${ctorName}. Falling back to string conversion.`
       );
     }
-
     await redis.set(pdfKey, buf.toString("base64"), "EX", TTL);
     const headHex =
       buf && buf.slice(0, 16) ? buf.slice(0, 16).toString("hex") : "";
