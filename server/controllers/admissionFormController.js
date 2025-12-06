@@ -1433,20 +1433,6 @@ export const generateAdmissionPDF = async (admission) => {
           admission.id,
           pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr
         );
-        try {
-          await redis.set(statusKey, "failed");
-          await redis.set(
-            errorKey,
-            `pdf render error: ${
-              pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr
-            }`
-          );
-        } catch (rErr) {
-          console.error(
-            "Failed to write pdf error to Redis:",
-            rErr && rErr.message ? rErr.message : rErr
-          );
-        }
         throw pdfErr;
       }
       console.log(pdfBuffer);
