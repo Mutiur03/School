@@ -1438,31 +1438,84 @@ export const generateAdmissionPDF = async (admission) => {
             buf = Buffer.from(pdfBuffer);
           }
         } else if (pdfBuffer && typeof pdfBuffer === "object") {
-          // Try to handle objects like { data: Uint8Array } or { buffer: ... }
-          if (pdfBuffer.data) {
-            const d = pdfBuffer.data;
-            if (Buffer.isBuffer(d)) buf = d;
-            else if (ArrayBuffer.isView(d))
-              buf = Buffer.from(
-                d.buffer
-                  ? new Uint8Array(
-                      d.buffer,
-                      d.byteOffset || 0,
-                      d.byteLength || d.length
-                    )
-                  : d
-              );
-            else if (d instanceof ArrayBuffer)
-              buf = Buffer.from(new Uint8Array(d));
-            else if (Array.isArray(d)) buf = Buffer.from(d);
-          }
-          if (
-            !buf &&
-            pdfBuffer.buffer &&
-            ArrayBuffer.isView(pdfBuffer.buffer)
-          ) {
-            const d = pdfBuffer.buffer;
-            buf = Buffer.from(new Uint8Array(d));
+          // Handle various object shapes that can represent binary data:
+          // - { type: 'Buffer', data: [...] }
+          // - { data: Uint8Array } or { data: { data: [...] } }
+          // - { buffer: ArrayBuffer | TypedArray }
+          // - toJSON() result of a Buffer
+          try {
+            // Buffer.toJSON() style
+            if (pdfBuffer.type === "Buffer" && Array.isArray(pdfBuffer.data)) {
+              buf = Buffer.from(pdfBuffer.data);
+            }
+
+            // Direct .data which may be TypedArray, ArrayBuffer, or plain array
+            if (!buf && pdfBuffer.data) {
+              const d = pdfBuffer.data;
+              if (Buffer.isBuffer(d)) buf = d;
+              else if (ArrayBuffer.isView(d)) {
+                buf = Buffer.from(
+                  d.buffer
+                    ? new Uint8Array(
+                        d.buffer,
+                        d.byteOffset || 0,
+                        d.byteLength || d.length
+                      )
+                    : d
+                );
+              } else if (d instanceof ArrayBuffer)
+                buf = Buffer.from(new Uint8Array(d));
+              else if (Array.isArray(d)) buf = Buffer.from(d);
+              else if (
+                typeof d === "object" &&
+                d !== null &&
+                Array.isArray(d.data)
+              ) {
+                // nested { data: { data: [...] } }
+                buf = Buffer.from(d.data);
+              }
+            }
+
+            // .buffer property (could be ArrayBuffer or TypedArray.buffer)
+            if (!buf && pdfBuffer.buffer) {
+              const b = pdfBuffer.buffer;
+              if (Buffer.isBuffer(b)) buf = b;
+              else if (ArrayBuffer.isView(b))
+                buf = Buffer.from(new Uint8Array(b.buffer || b));
+              else if (b instanceof ArrayBuffer)
+                buf = Buffer.from(new Uint8Array(b));
+            }
+
+            // toJSON() result might be nested elsewhere
+            if (!buf && typeof pdfBuffer.toJSON === "function") {
+              try {
+                const json = pdfBuffer.toJSON();
+                if (json && Array.isArray(json.data))
+                  buf = Buffer.from(json.data);
+              } catch (e) {
+                // ignore
+              }
+            }
+
+            // As a last resort, gather numeric values from enumerable properties
+            if (!buf) {
+              const nums = [];
+              for (const val of Object.values(pdfBuffer)) {
+                if (typeof val === "number") nums.push(val);
+                else if (
+                  Array.isArray(val) &&
+                  val.every((x) => typeof x === "number")
+                ) {
+                  nums.push(...val);
+                }
+              }
+              if (nums.length >= 4) buf = Buffer.from(nums);
+            }
+          } catch (inner) {
+            console.warn(
+              "generateAdmissionPDF: object->Buffer conversion failed:",
+              inner && inner.message ? inner.message : inner
+            );
           }
         }
       } catch (convErr) {
