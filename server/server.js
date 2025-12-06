@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
 import studRouter from "./routes/studRoutes.js";
 import examRouter from "./routes/examRoutes.js";
@@ -27,19 +28,18 @@ import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
 import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
+import "./utils/pdfWorker.js";
+import { check } from "./config/redis..js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : null;
-
 const allowedOrigins = envAllowedOrigins;
-
 app.use(
   cors({
     origin: allowedOrigins,
@@ -49,43 +49,13 @@ app.use(
   })
 );
 app.options("*", cors());
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-// app.use("/uploads/notice", express.static(path.join(__dirname, "uploads/notice")));
-// app.use(
-//   "/pdf/notice",
-//   express.static(path.join(__dirname, "uploads", "notice"), {
-//     setHeaders: (res, filePath) => {
-//       if (filePath.endsWith(".pdf")) {
-//         res.setHeader("Content-Type", "application/pdf");
-//         res.setHeader("Content-Disposition", "inline"); // Ensures inline viewing
-//       }
-//     },
-//   })
-// );
-
-// app.get("/preview/:fileName", async (req, res) => {
-//   const { fileName } = req.params;
-//   const cloudinaryUrl = `https://res.cloudinary.com/dgplti59u/raw/upload/notices/${fileName}`;
-
-//   const fileResponse = await axios.get(cloudinaryUrl, {
-//     responseType: "stream",
-//   });
-
-//   res.setHeader("Content-Type", "application/pdf");
-//   res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
-
-//   fileResponse.data.pipe(res);
-// });
-
 app.get("/", (req, res) => {
   res.send("Ballo World");
 });
-
 app.use("/api/students", studRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/sub", subRouter);
@@ -108,7 +78,6 @@ app.use("/api/reg/ssc", regSSCRouter);
 app.use("/api/reg/ssc/form", studentRegistrationRouter);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
-
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -116,17 +85,13 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-// 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
   });
 });
-
-// Error handler
-app.use((error, req, res, next) => {
+app.use((error, res) => {
   console.error("Server error:", error);
   res.status(500).json({
     success: false,
@@ -151,5 +116,6 @@ app.listen(PORT, () => {
       process.env.NODE_ENV === "production" ? "production" : "dev"
     } mode`
   );
+  check();
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });

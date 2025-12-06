@@ -1,7 +1,5 @@
 import router from "express";
 import multer from "multer";
-import fs from "fs";
-import path from "path";
 import {
   createForm,
   getForms,
@@ -9,10 +7,10 @@ import {
   updateForm,
   deleteForm,
   approveForm,
-  generateAdmissionPDF,
   exportAllAdmissionsExcel,
   exportAdmissionImagesZip,
   pendingForm,
+  downloadPDF,
 } from "../controllers/admissionFormController.js";
 
 const addFormRouter = router.Router();
@@ -52,7 +50,6 @@ addFormRouter.post("/", upload.single("photo"), handleMulterError, createForm);
 addFormRouter.get("/", getForms);
 addFormRouter.get("/excel", exportAllAdmissionsExcel);
 addFormRouter.get("/download", exportAllAdmissionsExcel);
-// Export images as ZIP, optionally filtered by admission_year (query param)
 addFormRouter.get("/images-export", exportAdmissionImagesZip);
 addFormRouter.get("/:id", getFormById);
 addFormRouter.put(
@@ -63,7 +60,7 @@ addFormRouter.put(
 );
 addFormRouter.put("/:id/pending", pendingForm);
 addFormRouter.put("/:id/approve", approveForm);
-addFormRouter.get("/:id/pdf", generateAdmissionPDF);
+addFormRouter.get("/:id/pdf", downloadPDF); 
 addFormRouter.delete("/:id", deleteForm);
 
 export default addFormRouter;
