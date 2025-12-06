@@ -641,7 +641,6 @@ function AdmissionForm() {
     }, [form.prevSchoolDistrict, initialLoading])
 
     const currentYear = new Date().getFullYear()
-    // Allow a broad range of birth years instead of enforcing a minimum-age cutoff
     const earliestYear = 1900
     const years = Array.from({ length: currentYear - earliestYear + 1 }, (_, i) => String(currentYear - i))
     const months = [
@@ -755,10 +754,10 @@ function AdmissionForm() {
         sixx: {
             studentNameBn: { instruction: '(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in Bengali' },
             studentNameEn: { instruction: '(According to Primary/Birth Registration Card)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in English capital letters' },
-            fatherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter father's name as shown in SSC certificate/National ID Card in Bengali" },
-            fatherNameEn: { instruction: '(According to SSC certificate/National ID Card)', tooltip: "Enter father's name as shown in SSC certificate/National ID Card in English capital letters" },
-            motherNameBn: { instruction: '(এস‌এসসি সনদ / জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter mother's name as shown in SSC certificate/National ID Card in Bengali" },
-            motherNameEn: { instruction: '(According to SSC certificate/National ID Card)', tooltip: "Enter mother's name as shown in SSC certificate/National ID Card in English capital letters" },
+            fatherNameBn: { instruction: '(এস‌এসসি সনদ/জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter father's name as shown in SSC Certificate/National ID Card in Bengali" },
+            fatherNameEn: { instruction: '(According to SSC Certificate/National ID Card)', tooltip: "Enter father's name as shown in SSC Certificate/National ID Card in English capital letters" },
+            motherNameBn: { instruction: '(এস‌এসসি সনদ/জাতীয় পরিচয়পত্র (NID) অনুযায়ী)', tooltip: "Enter mother's name as shown in SSC Certificate/National ID Card in Bengali" },
+            motherNameEn: { instruction: '(According to SSC Certificate/National ID Card)', tooltip: "Enter mother's name as shown in SSC Certificate/National ID Card in English capital letters" },
         },
         seven: {
             studentNameBn: { instruction: '(ষষ্ঠ শ্রেণির প্রিন্ট‌আউট অনুযায়ী)', tooltip: 'Enter your name as it appears in your Class Six Printout in Bengali' },
@@ -832,11 +831,8 @@ function AdmissionForm() {
 
         if (!raw) return { selectValue: '', otherValue: '' }
 
-        // If raw matches one of the allowed options (case-insensitive), use it
         const matched = allowedOptions.find(o => String(o).trim().toLowerCase() === raw.toLowerCase())
         if (matched) return { selectValue: matched, otherValue: '' }
-
-        // Unknown non-empty value -> treat as Other and keep the raw value in the other field
         return { selectValue: 'Other', otherValue: raw }
     }
 
