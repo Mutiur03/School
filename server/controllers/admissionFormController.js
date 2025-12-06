@@ -4,6 +4,8 @@ import path from "path";
 import puppeteer from "puppeteer";
 import archiver from "archiver";
 import XLSX from "xlsx";
+import { redis } from "../config/redis..js";
+import Bull from "bull";
 
 const formatQuota = (q) => {
   if (!q) return null;
@@ -237,7 +239,23 @@ export const createForm = async (req, res) => {
     const dataToCreate = { ...payload, photo_path: photoPath };
 
     const rec = await prisma.admission_form.create({ data: dataToCreate });
-
+    {
+      const { id } = rec;
+      const statusKey = `pdf:${id}:status`;
+      await redis.set(statusKey, "generating");
+      try {
+        const localQueue = new Bull("pdfQueue", {
+          redis: { host: "127.0.0.1", port: 6379 },
+        });
+        await localQueue.add({ admissionId: id });
+      } catch (queueErr) {
+        console.error(
+          "Failed to add PDF job to queue:",
+          queueErr && queueErr.message ? queueErr.message : queueErr
+        );
+        await redis.set(statusKey, "failed");
+      }
+    }
     res.status(201).json({
       success: true,
       message: "Admission form submitted",
@@ -331,17 +349,15 @@ export const updateForm = async (req, res) => {
         .json({ success: false, message: "Form not found" });
     const settings = await prisma.admission.findFirst();
     const body = req.body || {};
-    console.log(body);
-
     const payload = {
       student_name_bn: body.studentNameBn || null,
       student_nick_name_bn: body.studentNickNameBn || null,
       student_name_en: body.studentNameEn || null,
       birth_reg_no: body.birthRegNo || null,
       registration_no: body.registration_no || null,
-      father_name_bn: body.fatherNameBn || null,
+      father_name_bn: body.fatherNameBn || null, 
       father_name_en: body.fatherNameEn || null,
-      father_nid: body.fatherFid || null,
+      father_nid: body.fatherNid || null,
       father_phone: body.fatherPhone || null,
       mother_name_bn: body.motherNameBn || null,
       mother_name_en: body.motherNameEn || null,
@@ -437,6 +453,23 @@ export const updateForm = async (req, res) => {
       where: { id },
       data: { ...payload, photo_path: photoPath },
     });
+    {
+      const statusKey = `pdf:${id}:status`;
+      await redis.set(statusKey, "generating");
+      try {
+        const localQueue = new Bull("pdfQueue", {
+          redis: { host: "127.0.0.1", port: 6379 },
+        });
+        await localQueue.add({ admissionId: id });
+      } catch (queueErr) {
+        console.error(
+          "Failed to add PDF job to queue:",
+          queueErr && queueErr.message ? queueErr.message : queueErr
+        );
+        await redis.set(statusKey, "failed");
+        // throw queueErr;
+      }
+    }
     res
       .status(200)
       .json({ success: true, message: "Form updated", data: updated });
@@ -526,19 +559,9 @@ export const pendingForm = async (req, res) => {
   }
 };
 
-export const generateAdmissionPDF = async (req, res) => {
+export const generateAdmissionPDF = async (admission) => {
   try {
-    console.log("Generating PDF for Admission ID:", req.params.id);
-
-    const { id } = req.params;
-    const admission = await prisma.admission_form.findUnique({ where: { id } });
-
-    if (!admission) {
-      return res.status(404).json({
-        success: false,
-        message: "Admission not found",
-      });
-    }
+    console.log(`Generating pdf for ${admission.id}`);
 
     const admissionSettings = await prisma.admission.findFirst();
     function normalizeClassKey(c) {
@@ -931,14 +954,13 @@ export const generateAdmissionPDF = async (req, res) => {
     }
     .content-area {
       box-sizing: border-box;
-      padding: 0 0 140px 0;
+      padding: 0 0 100px 0;
       min-height: 0;
-      height: calc(100vh - 140px);
+      height: calc(100vh - 100px);
       overflow: hidden;
       font-size: 1rem;
     }
     
-    /* Enhanced Bangla font rendering with better fallbacks */
     .bn, .bn * {
       font-family: ${
         solaimanLipiBase64
@@ -952,7 +974,7 @@ export const generateAdmissionPDF = async (req, res) => {
       -moz-osx-font-smoothing: grayscale;
       -webkit-text-stroke: 0.01em transparent;
       font-variant-ligatures: common-ligatures contextual;
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
     .en, .en * {
       font-family: ${
@@ -961,17 +983,15 @@ export const generateAdmissionPDF = async (req, res) => {
           : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
-      font-size: 1rem;
+      font-size: .95rem;
     }
     
-    /* Ensure proper Unicode rendering */
     * {
       unicode-bidi: bidi-override;
       direction: ltr;
       font-size: 1rem;
     }
     
-    /* Special handling for Bengali punctuation */
     .bn::before, .bn::after {
       font-family: ${
         solaimanLipiBase64
@@ -1053,7 +1073,7 @@ export const generateAdmissionPDF = async (req, res) => {
       border-radius: 4px;
       padding: 12px;
       margin: 8px 0;
-      font-size: 1rem;
+      font-size: 0.9rem;
       line-height: 1;
       text-align: justify;
     }
@@ -1067,8 +1087,8 @@ export const generateAdmissionPDF = async (req, res) => {
     .instructions-content {
       white-space: pre-line;
       text-align: justify;
-      line-height: 1;
-      font-size: 1rem;
+      line-height: 0.9;
+      font-size: 0.9rem;
     }
     table { 
       border-collapse: collapse; 
@@ -1129,15 +1149,14 @@ export const generateAdmissionPDF = async (req, res) => {
     .document-list-title.bn,
     .document-list-title {
       font-weight: 600 !important;
-      font-size: 1.06rem !important;
+      font-size: 0.9rem !important;
       display: block !important;
-      margin-bottom: 4px !important;
+      margin-bottom: 1px !important;
       font-family: ${
         solaimanLipiBase64
           ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
           : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
-      line-height: 1.02 !important;
     }
     .footer .note p {
       margin: 4px 0;
@@ -1149,23 +1168,20 @@ export const generateAdmissionPDF = async (req, res) => {
       border-radius: 4px;
       padding: 10px;
       margin: 6px 0;
-      font-size: 0.98rem;
-      line-height: 1.05;
+      font-size: 0.9rem;
       text-align: justify;
     }
     .signature-row {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 40px;
+      bottom: 20px;
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      gap: 8px;
-      padding-bottom: 18px;
+      padding-bottom: 8px;
       background: white;
-      height: 110px;
       box-sizing: border-box;
       font-size: 1rem;
     }
@@ -1180,16 +1196,16 @@ export const generateAdmissionPDF = async (req, res) => {
     }
     .signature-line {
       border-top: 1px dotted #222;
-      margin-bottom: 2px;
+      margin-bottom: 0px;
       width: 95%;
-      height: 12px;
+      height: 6px;
       margin-left: auto;
       margin-right: auto;
     }
     .signature-label {
       font-size: 1rem;
       font-weight: 500;
-      margin-top: 1px;
+      margin-top: 0px;
       font-family: ${
         solaimanLipiBase64
           ? "'SolaimanLipi', 'Noto Sans Bengali'"
@@ -1204,7 +1220,7 @@ export const generateAdmissionPDF = async (req, res) => {
       bottom: -4px;
       width: 100%;
       text-align: center;
-      font-size: 1rem;
+      font-size: 0.75rem;
       color: #555;
       background: white;
       padding: 4px 0;
@@ -1245,7 +1261,6 @@ export const generateAdmissionPDF = async (req, res) => {
           ${tableRows}
         </tbody>
       </table>
-      <br />
       ${
         sectionInstructions
           ? `
@@ -1274,13 +1289,13 @@ export const generateAdmissionPDF = async (req, res) => {
                 : ""
             }
           </div>
-          <p style="font-size:1.05rem; margin-top:8px;">
+          <p style="font-size:1rem; margin-top:8px;">
           * পূর্ববর্তী বিদ্যালয়ের মূল ছাড়পত্র ভর্তির সময় দিতে না পারলে পরীক্ষার ফল প্রকাশের পর অবশ্যই জমা দিতে হবে। অন্যথায় ভর্তি বাতিল হবে।
           </br>
           ** ভর্তির সময় উল্লিখিত সকল কাগজপত্রের মূলকপি অবশ্যই ভর্তি কমিটিকে দেখাতে হবে।
           </p>
           <div style="margin-top:8px;">
-            <div class="bn" style="font-weight:700 !important; font-size:1.25rem; text-align:center; margin:0 0 10px 0; display:block;">ছাত্রের অঙ্গীকারনামা</div>
+            <div class="bn" style="font-weight:700 !important; font-size:1.05rem; text-align:center; display:block;">ছাত্রের অঙ্গীকারনামা</div>
             ${
               ongikar
                 ? `
@@ -1393,24 +1408,26 @@ export const generateAdmissionPDF = async (req, res) => {
     });
 
     await browser.close();
-    console.log("PDF generated for admission ID:", id);
-
-    res.setHeader("Content-Type", "application/pdf");
-    const filenameNamePart = admission.student_name_en
-      ? String(admission.student_name_en).replace(/[^a-zA-Z0-9-_\. ]/g, "_")
-      : admission.roll || id;
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="Admission_${filenameNamePart}.pdf"`
-    );
-    res.end(pdfBuffer);
+    console.log("PDF generated for admission ID:", admission.id);
+    return pdfBuffer;
+    // res.setHeader("Content-Type", "application/pdf");
+    // const filenameNamePart = admission.student_name_en
+    //   ? String(admission.student_name_en).replace(/[^a-zA-Z0-9-_\. ]/g, "_")
+    //   : admission.roll || admission.id;
+    // res.setHeader(
+    //   "Content-Disposition",
+    //   `attachment; filename="Admission_${filenameNamePart}.pdf"`
+    // );
+    // res.end(pdfBuffer);
   } catch (error) {
     console.error("PDF generation error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate PDF",
-      error: error.message,
-    });
+    // Re-throw so callers (workers / request handlers) can detect failure
+    throw error;
+    // res.status(500).json({
+    //   success: false,
+    //   message: "Failed to generate PDF",
+    //   error: error.message,
+    // });
   }
 };
 
@@ -1440,13 +1457,8 @@ export const exportAllAdmissionsExcel = async (req, res) => {
       where,
       orderBy: { created_at: "desc" },
     });
-
-    // Export every column from the admission_form table as separate Excel columns.
-    // Prefer using returned item keys (keeps DB order returned by Prisma). If no items,
-    // fall back to a schema-aware column list to keep headers predictable.
     let columns = [];
     if (items && items.length > 0) {
-      // collect union of keys in first record (Prisma returns all model fields)
       columns = Object.keys(items[0]);
     } else {
       columns = [
@@ -1647,3 +1659,176 @@ export const exportAdmissionImagesZip = async (req, res) => {
       });
   }
 };
+
+export const downloadPDF = async (req, res) => {
+  const { id } = req.params;
+  // const admission = await prisma.admission_form.findUnique({
+  //   where: { id: id },
+  // });
+  // if (!admission) {
+  //   return res.status(404).json({ error: "Admission not found" });
+  // }
+  // const pdfBuffer = await generateAdmissionPDF(admission);
+  // res.setHeader("Content-Type", "application/pdf");
+  // res.end(pdfBuffer);
+  const statusKey = `pdf:${id}:status`;
+  const pdfKey = `pdf:${id}`;
+  try {
+    let status = await redis.get(statusKey);
+    console.log(status);
+    if (status && status === "done") {
+      const b64 = await redis.get(pdfKey);
+      if (!b64) {
+        console.error("PDF key missing for", id);
+        return res.status(500).json({
+          success: false,
+          message: "PDF not available",
+        });
+      }
+      const pdfBuffer = Buffer.from(b64, "base64");
+      // sanity-check: valid PDF must contain '%PDF' near the start
+      const pdfMarker = Buffer.from("%PDF");
+      const headHex =
+        pdfBuffer && pdfBuffer.slice(0, 16)
+          ? pdfBuffer.slice(0, 16).toString("hex")
+          : "";
+      if (
+        !pdfBuffer ||
+        pdfBuffer.length < 4 ||
+        pdfBuffer.indexOf(pdfMarker) === -1
+      ) {
+        console.error(
+          "Invalid PDF data for",
+          id,
+          "len:",
+          pdfBuffer ? pdfBuffer.length : 0,
+          "head:",
+          headHex
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Invalid PDF data",
+        });
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="Admission_${id}.pdf"`
+      );
+      return res.end(pdfBuffer);
+    } else if (status && status === "generating") {
+      await waitForPDF(id);
+      const b64 = await redis.get(pdfKey);
+      if (!b64) {
+        console.error("PDF key missing after generation for", id);
+        return res
+          .status(500)
+          .json({ success: false, message: "PDF not available" });
+      }
+      const pdfBuffer = Buffer.from(b64, "base64");
+      const headHex2 =
+        pdfBuffer && pdfBuffer.slice(0, 16)
+          ? pdfBuffer.slice(0, 16).toString("hex")
+          : "";
+      if (
+        !pdfBuffer ||
+        pdfBuffer.length < 4 ||
+        pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
+      ) {
+        console.error(
+          "Invalid PDF data after generation for",
+          id,
+          "len:",
+          pdfBuffer ? pdfBuffer.length : 0,
+          "head:",
+          headHex2
+        );
+        return res
+          .status(500)
+          .json({ success: false, message: "Invalid PDF data" });
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="Admission_${id}.pdf"`
+      );
+      return res.end(pdfBuffer);
+    } else {
+      console.log("generating");
+      await redis.set(statusKey, "generating");
+      try {
+        const localQueue = new Bull("pdfQueue", {
+          redis: { host: "127.0.0.1", port: 6379 },
+        });
+        await localQueue.add({ admissionId: id });
+      } catch (queueErr) {
+        console.error(
+          "Failed to add PDF job to queue:",
+          queueErr && queueErr.message ? queueErr.message : queueErr
+        );
+        await redis.set(statusKey, "failed");
+        throw queueErr;
+      }
+      await waitForPDF(id);
+      const b64 = await redis.get(pdfKey);
+      if (!b64) {
+        console.error("PDF key missing after worker run for", id);
+        return res
+          .status(500)
+          .json({ success: false, message: "PDF not available" });
+      }
+      const pdfBuffer = Buffer.from(b64, "base64");
+      const headHex3 =
+        pdfBuffer && pdfBuffer.slice(0, 16)
+          ? pdfBuffer.slice(0, 16).toString("hex")
+          : "";
+      if (
+        !pdfBuffer ||
+        pdfBuffer.length < 4 ||
+        pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
+      ) {
+        console.error(
+          "Invalid PDF data after worker run for",
+          id,
+          "len:",
+          pdfBuffer ? pdfBuffer.length : 0,
+          "head:",
+          headHex3
+        );
+        return res
+          .status(500)
+          .json({ success: false, message: "Invalid PDF data" });
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="Admission_${id}.pdf"`
+      );
+      return res.end(pdfBuffer);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+function waitForPDF(admissionId, timeout = 30000) {
+  const statusKey = `pdf:${admissionId}:status`;
+  return new Promise((resolve, reject) => {
+    const interval = 500;
+    let elapsed = 0;
+
+    const check = async () => {
+      elapsed += interval;
+      const status = await redis.get(statusKey);
+
+      if (status === "done") return resolve(true);
+      if (status === "failed")
+        return reject(new Error("PDF generation failed"));
+      if (elapsed >= timeout)
+        return reject(new Error("PDF generation timeout"));
+
+      setTimeout(check, interval);
+    };
+    check();
+  });
+}
