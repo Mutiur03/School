@@ -3,9 +3,9 @@ import { prisma } from "../config/prisma.js";
 import { generateAdmissionPDF } from "../controllers/admissionFormController.js";
 import { redis } from "../config/redis.js";
 import { TTL } from "../server.js";
-
+const host = process.env.REDIS_HOST || "127.0.0.1";
 const pdfQueue = new Bull("pdfQueue", {
-  redis: { host: "127.0.0.1", port: 6379 },
+  redis: { host: host, port: 6379 },
 });
 console.log("PDF worker started, waiting for jobs...");
 pdfQueue.process(async (job) => {
