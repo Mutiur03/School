@@ -60,7 +60,6 @@ pdfQueue.process(async (job) => {
     console.log(
       `Saved PDF for ${admissionId}: originalType=${originalType}, ctor=${ctorName}, bytes=${buf.length}, head=${headHex}`
     );
-    // set status to done and give it an expiry to avoid stale keys
     await redis.set(statusKey, "done", "EX", TTL);
     console.log(`PDF job done for admissionId=${admissionId}`);
     return true;
