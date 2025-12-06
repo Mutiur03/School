@@ -1407,15 +1407,85 @@ export const generateAdmissionPDF = async (admission) => {
         pageRanges: "1",
       });
 
-      // Validate pdfBuffer
-      if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length < 4) {
+      // Coerce a variety of possible return types into a Buffer
+      let buf;
+      try {
+        if (Buffer.isBuffer(pdfBuffer)) {
+          buf = pdfBuffer;
+        } else if (
+          typeof ArrayBuffer !== "undefined" &&
+          ArrayBuffer.isView(pdfBuffer)
+        ) {
+          // TypedArray (Uint8Array, etc.)
+          buf = Buffer.from(
+            pdfBuffer.buffer
+              ? new Uint8Array(
+                  pdfBuffer.buffer,
+                  pdfBuffer.byteOffset || 0,
+                  pdfBuffer.byteLength || pdfBuffer.length
+                )
+              : pdfBuffer
+          );
+        } else if (pdfBuffer instanceof ArrayBuffer) {
+          buf = Buffer.from(new Uint8Array(pdfBuffer));
+        } else if (Array.isArray(pdfBuffer)) {
+          buf = Buffer.from(pdfBuffer);
+        } else if (typeof pdfBuffer === "string") {
+          // sometimes a base64 string may be returned
+          try {
+            buf = Buffer.from(pdfBuffer, "base64");
+          } catch (e) {
+            buf = Buffer.from(pdfBuffer);
+          }
+        } else if (pdfBuffer && typeof pdfBuffer === "object") {
+          // Try to handle objects like { data: Uint8Array } or { buffer: ... }
+          if (pdfBuffer.data) {
+            const d = pdfBuffer.data;
+            if (Buffer.isBuffer(d)) buf = d;
+            else if (ArrayBuffer.isView(d))
+              buf = Buffer.from(
+                d.buffer
+                  ? new Uint8Array(
+                      d.buffer,
+                      d.byteOffset || 0,
+                      d.byteLength || d.length
+                    )
+                  : d
+              );
+            else if (d instanceof ArrayBuffer)
+              buf = Buffer.from(new Uint8Array(d));
+            else if (Array.isArray(d)) buf = Buffer.from(d);
+          }
+          if (
+            !buf &&
+            pdfBuffer.buffer &&
+            ArrayBuffer.isView(pdfBuffer.buffer)
+          ) {
+            const d = pdfBuffer.buffer;
+            buf = Buffer.from(new Uint8Array(d));
+          }
+        }
+      } catch (convErr) {
+        console.warn(
+          "generateAdmissionPDF: conversion to Buffer failed:",
+          convErr && convErr.message ? convErr.message : convErr
+        );
+      }
+
+      // Final validation
+      if (!buf || !Buffer.isBuffer(buf) || buf.length < 4) {
         throw new Error(
           `generateAdmissionPDF: invalid pdf buffer returned (type=${typeof pdfBuffer})`
         );
       }
 
-      console.log("PDF generated for admission ID:", admission.id);
-      return pdfBuffer;
+      console.log(
+        "PDF generated for admission ID:",
+        admission.id,
+        "bytes=",
+        buf.length
+      );
+      return buf;
     } finally {
       if (browser) {
         try {
