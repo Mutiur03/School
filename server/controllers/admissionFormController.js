@@ -1440,11 +1440,7 @@ export const exportAllAdmissionsExcel = async (req, res) => {
     if (status && status !== "all") where.status = status;
     if (admission_year) {
       const yearNum = Number(admission_year);
-      if (!isNaN(yearNum)) {
-        const gte = new Date(Date.UTC(yearNum, 0, 1));
-        const lt = new Date(Date.UTC(yearNum + 1, 0, 1));
-        where.created_at = { gte, lt };
-      }
+      where.admission_year = yearNum;
     }
     if (admissionClass) where.admission_class = admissionClass;
     if (search) {
