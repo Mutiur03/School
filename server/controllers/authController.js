@@ -2,17 +2,13 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
 
-// Admin authentication middleware
 export const authenticateAdmin = async (req, res, next) => {
   const token = req.cookies?.admin_token;
-  console.log(token);
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
-    console.log(req.user);
-    console.log(req.user.id);
     if (!req.user.id) return res.status(401).json({ message: "Unauthorized" });
     if (req.user.role !== "admin")
       return res.status(401).json({ message: "Unauthorized" });
@@ -38,7 +34,6 @@ export const login = async (req, res) => {
       },
     });
     if (!user) {
-      console.log(username, password);
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
@@ -51,7 +46,6 @@ export const login = async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    console.log("logging in");
     const token = jwt.sign(
       { id: user.id, role: user.role, username: user.username },
       process.env.JWT_SECRET
@@ -71,10 +65,7 @@ export const login = async (req, res) => {
 };
 
 export const student_login = async (req, res) => {
-  console.log("Received login data:", req.body);
   const { login_id, password } = req.body;
-  console.log("Received login data:", login_id, password);
-
   if (!login_id || !password) {
     return res
       .status(400)
@@ -95,14 +86,11 @@ export const student_login = async (req, res) => {
       return res.status(401).json({ message: "Invalid login id" });
     }
 
-    console.log("Student found:", student.login_id);
-
     if (!student.password) {
       console.error("No password found for student:", student.login_id);
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    console.log("Comparing passwords...");
     const hashedPassword = student.password;
     const isValidPassword = await bcrypt.compare(password, hashedPassword);
 
@@ -119,7 +107,6 @@ export const student_login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    console.log(process.env.NODE_ENV === "production");
     res.cookie("student_token", token, {
       httpOnly: true,
       secure: true,
@@ -148,7 +135,6 @@ export const authenticateStudent = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(decoded);
     req.user = decoded;
     const check = await prisma.students.findUnique({
       where: { id: req.user.id },
@@ -162,8 +148,6 @@ export const authenticateStudent = async (req, res, next) => {
 };
 
 export const teacher_login = async (req, res) => {
-  console.log("Received login data:", req.body);
-
   const { email, password } = req.body;
 
   try {
@@ -190,7 +174,6 @@ export const teacher_login = async (req, res) => {
       { id: user.id, role: "teacher", email: user.email },
       process.env.JWT_SECRET
     );
-    console.log("Teacher logging in:", user.email);
     const cookieDomain =
       process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
 
@@ -202,7 +185,6 @@ export const teacher_login = async (req, res) => {
       maxAge: 3600000,
       domain: cookieDomain,
     });
-    console.log(process.env.NODE_ENV === "production");
 
     res.json({ success: true, message: "Login successful" });
   } catch (err) {
