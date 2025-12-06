@@ -1351,8 +1351,34 @@ export const generateAdmissionPDF = async (admission) => {
 
     let browser = null;
     const page = null;
+    // keys to record worker-side status/errors when called directly or from worker
+    const statusKey = `pdf:${admission.id}:status`;
+    const errorKey = `pdf:${admission.id}:error`;
     try {
-      browser = await puppeteer.launch(launchOptions);
+      try {
+        browser = await puppeteer.launch(launchOptions);
+      } catch (launchErr) {
+        console.error(
+          "Puppeteer launch failed for admissionId:",
+          admission.id,
+          launchErr && launchErr.stack ? launchErr.stack : launchErr
+        );
+        try {
+          await redis.set(statusKey, "failed");
+          await redis.set(
+            errorKey,
+            `launch error: ${
+              launchErr && launchErr.stack ? launchErr.stack : launchErr
+            }`
+          );
+        } catch (rErr) {
+          console.error(
+            "Failed to write launch error to Redis:",
+            rErr && rErr.message ? rErr.message : rErr
+          );
+        }
+        throw launchErr;
+      }
       const page = await browser.newPage();
 
       await page.setUserAgent(
@@ -1392,15 +1418,39 @@ export const generateAdmissionPDF = async (admission) => {
         });
       });
 
-      const pdfBuffer = await page.pdf({
-        format: "legal",
-        printBackground: true,
-        margin: { top: 24, bottom: 24, left: 24, right: 24 },
-        preferCSSPageSize: true,
-        pageRanges: "1",
-      });
+      let pdfBuffer;
+      try {
+        pdfBuffer = await page.pdf({
+          format: "legal",
+          printBackground: true,
+          margin: { top: 24, bottom: 24, left: 24, right: 24 },
+          preferCSSPageSize: true,
+          pageRanges: "1",
+        });
+      } catch (pdfErr) {
+        console.error(
+          "page.pdf failed for admissionId:",
+          admission.id,
+          pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr
+        );
+        try {
+          await redis.set(statusKey, "failed");
+          await redis.set(
+            errorKey,
+            `pdf render error: ${
+              pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr
+            }`
+          );
+        } catch (rErr) {
+          console.error(
+            "Failed to write pdf error to Redis:",
+            rErr && rErr.message ? rErr.message : rErr
+          );
+        }
+        throw pdfErr;
+      }
       console.log(pdfBuffer);
-      
+
       // let buf;
       // try {
       //   if (Buffer.isBuffer(pdfBuffer)) {
