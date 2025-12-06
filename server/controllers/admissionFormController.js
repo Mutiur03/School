@@ -1325,7 +1325,8 @@ export const generateAdmissionPDF = async (admission) => {
 </html>
     `;
 
-    const browser = await puppeteer.launch({
+    // Launch puppeteer; if PUPPETEER_EXECUTABLE_PATH is provided use it, otherwise let puppeteer manage the executable
+    const launchOptions = {
       headless: "new",
       args: [
         "--no-sandbox",
@@ -1345,65 +1346,88 @@ export const generateAdmissionPDF = async (admission) => {
         "--disable-lcd-text",
         "--lang=bn-BD",
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-    });
+    };
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
 
-    const page = await browser.newPage();
+    let browser = null;
+    const page = null;
+    try {
+      browser = await puppeteer.launch(launchOptions);
+      const page = await browser.newPage();
 
-    // Set user agent and locale for Bengali
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    );
-
-    // Enable UTF-8 encoding and Bengali locale
-    await page.setExtraHTTPHeaders({
-      "Accept-Charset": "utf-8",
-      "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
-    });
-
-    await page.setContent(html, {
-      waitUntil: ["networkidle0", "domcontentloaded"],
-    });
-
-    // Force font loading and Unicode normalization
-    await page.evaluate(() => {
-      // Normalize all text content
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
+      await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
       );
 
-      let node;
-      while ((node = walker.nextNode())) {
-        if (node.nodeValue) {
-          node.nodeValue = node.nodeValue.normalize("NFC");
+      // Enable UTF-8 encoding and Bengali locale
+      await page.setExtraHTTPHeaders({
+        "Accept-Charset": "utf-8",
+        "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
+      });
+
+      await page.setContent(html, {
+        waitUntil: ["networkidle0", "domcontentloaded"],
+      });
+
+      // Force font loading and Unicode normalization
+      await page.evaluate(() => {
+        // Normalize all text content
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_TEXT,
+          null,
+          false
+        );
+
+        let node;
+        while ((node = walker.nextNode())) {
+          if (node.nodeValue) {
+            node.nodeValue = node.nodeValue.normalize("NFC");
+          }
         }
+
+        return new Promise((resolve) => {
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+              setTimeout(resolve, 1000);
+            });
+          } else {
+            setTimeout(resolve, 2000);
+          }
+        });
+      });
+
+      const pdfBuffer = await page.pdf({
+        format: "legal",
+        printBackground: true,
+        margin: { top: 24, bottom: 24, left: 24, right: 24 },
+        preferCSSPageSize: true,
+        pageRanges: "1",
+      });
+
+      // Validate pdfBuffer
+      if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length < 4) {
+        throw new Error(
+          `generateAdmissionPDF: invalid pdf buffer returned (type=${typeof pdfBuffer})`
+        );
       }
 
-      return new Promise((resolve) => {
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(() => {
-            setTimeout(resolve, 1000);
-          });
-        } else {
-          setTimeout(resolve, 2000);
+      console.log("PDF generated for admission ID:", admission.id);
+      return pdfBuffer;
+    } finally {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeErr) {
+          console.warn(
+            "Failed to close browser after PDF generation:",
+            closeErr && closeErr.message ? closeErr.message : closeErr
+          );
         }
-      });
-    });
-
-    const pdfBuffer = await page.pdf({
-      format: "legal",
-      printBackground: true,
-      margin: { top: 24, bottom: 24, left: 24, right: 24 },
-      preferCSSPageSize: true,
-      pageRanges: "1",
-    });
-
-    await browser.close();
-    console.log("PDF generated for admission ID:", admission.id);
-    return pdfBuffer;
+      }
+    }
     // res.setHeader("Content-Type", "application/pdf");
     // const filenameNamePart = admission.student_name_en
     //   ? String(admission.student_name_en).replace(/[^a-zA-Z0-9-_\. ]/g, "_")

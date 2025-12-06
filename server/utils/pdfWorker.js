@@ -15,7 +15,6 @@ pdfQueue.process(async (job) => {
   console.log(`Processing PDF job for admissionId=${admissionId}`);
   try {
     await redis.set(statusKey, "generating", "EX", TTL);
-    const JOB_TIMEOUT = 30000;
     const admission = await prisma.admission_form.findUnique({
       where: { id: admissionId },
     });
@@ -63,16 +62,21 @@ pdfQueue.process(async (job) => {
     console.error(
       "PDF generation failed for",
       admissionId,
-      err && err.message ? err.message : err
+      err && err.stack ? err.stack : err && err.message ? err.message : err
     );
     try {
-
       await redis.set(statusKey, "failed", "EX", TTL);
       const errorKey = `${pdfKey}:error`;
       try {
         await redis.set(
           errorKey,
-          String(err && err.message ? err.message : err),
+          String(
+            err && err.stack
+              ? err.stack
+              : err && err.message
+              ? err.message
+              : err
+          ),
           "EX",
           TTL
         );

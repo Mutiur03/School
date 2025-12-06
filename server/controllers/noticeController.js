@@ -3,7 +3,6 @@ import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
 export async function uploadPDFToCloudinary(file) {
   try {
-    console.log(process.env.CLOUDINARY_SECRET_KEY);
 
     const result = await cloudinary.uploader.upload(file.path, {
       folder: "notices",
@@ -15,7 +14,6 @@ export async function uploadPDFToCloudinary(file) {
     fs.unlink(file.path, (err) => {
       if (err) console.error("Error deleting local file:", err);
     });
-    console.log(result);
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
       previewUrl: result.secure_url,
@@ -24,7 +22,6 @@ export async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.log("Error uploading to Cloudinary:", error);
-
     console.error("Cloudinary upload failed:", error.message);
     throw new Error("Cloudinary upload failed");
   }
@@ -33,7 +30,6 @@ export async function uploadPDFToCloudinary(file) {
 export async function deletePDFFromCloudinary(publicId) {
   try {
     await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
-    console.log(`File with public ID "${publicId}" deleted successfully.`);
   } catch (err) {
     console.error("Error deleting file:", err.message);
   }
