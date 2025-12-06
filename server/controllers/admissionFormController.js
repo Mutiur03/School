@@ -6,6 +6,7 @@ import archiver from "archiver";
 import XLSX from "xlsx";
 import { redis } from "../config/redis..js";
 import Bull from "bull";
+import { pdfQueue } from "../utils/pdfWorker.js";
 
 const formatQuota = (q) => {
   if (!q) return null;
@@ -244,10 +245,8 @@ export const createForm = async (req, res) => {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
       try {
-        const localQueue = new Bull("pdfQueue", {
-          redis: { host: "127.0.0.1", port: 6379 },
-        });
-        await localQueue.add({ admissionId: id });
+        
+        await pdfQueue.add({ admissionId: id });
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
@@ -457,10 +456,7 @@ export const updateForm = async (req, res) => {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
       try {
-        const localQueue = new Bull("pdfQueue", {
-          redis: { host: "127.0.0.1", port: 6379 },
-        });
-        await localQueue.add({ admissionId: id });
+        await pdfQueue.add({ admissionId: id });
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
@@ -1433,9 +1429,7 @@ export const generateAdmissionPDF = async (admission) => {
 
 export const exportAllAdmissionsExcel = async (req, res) => {
   try {
-    const { status, search, admission_year, class: admissionClass } = req.query;
-    console.log(req.query);
-    
+    const { status, search, admission_year, class: admissionClass } = req.query;   
     const where = {};
     if (status && status !== "all") where.status = status;
     if (admission_year) {
@@ -1454,9 +1448,7 @@ export const exportAllAdmissionsExcel = async (req, res) => {
     const items = await prisma.admission_form.findMany({
       where,
       orderBy: { created_at: "desc" },
-    });
-    console.log(items);
-    
+    });    
     let columns = [];
     if (items && items.length > 0) {
       columns = Object.keys(items[0]);
@@ -1754,10 +1746,7 @@ export const downloadPDF = async (req, res) => {
       console.log("generating");
       await redis.set(statusKey, "generating");
       try {
-        const localQueue = new Bull("pdfQueue", {
-          redis: { host: "127.0.0.1", port: 6379 },
-        });
-        await localQueue.add({ admissionId: id });
+        await pdfQueue.add({ admissionId: id });
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
@@ -1817,13 +1806,11 @@ function waitForPDF(admissionId, timeout = 30000) {
     const check = async () => {
       elapsed += interval;
       const status = await redis.get(statusKey);
-
       if (status === "done") return resolve(true);
       if (status === "failed")
         return reject(new Error("PDF generation failed"));
       if (elapsed >= timeout)
         return reject(new Error("PDF generation timeout"));
-
       setTimeout(check, interval);
     };
     check();
