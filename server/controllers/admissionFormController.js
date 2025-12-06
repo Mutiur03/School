@@ -355,7 +355,7 @@ export const updateForm = async (req, res) => {
       student_name_en: body.studentNameEn || null,
       birth_reg_no: body.birthRegNo || null,
       registration_no: body.registration_no || null,
-      father_name_bn: body.fatherNameBn || null, 
+      father_name_bn: body.fatherNameBn || null,
       father_name_en: body.fatherNameEn || null,
       father_nid: body.fatherNid || null,
       father_phone: body.fatherPhone || null,
@@ -1434,6 +1434,8 @@ export const generateAdmissionPDF = async (admission) => {
 export const exportAllAdmissionsExcel = async (req, res) => {
   try {
     const { status, search, admission_year, class: admissionClass } = req.query;
+    console.log(req.query);
+    
     const where = {};
     if (status && status !== "all") where.status = status;
     if (admission_year) {
@@ -1457,6 +1459,8 @@ export const exportAllAdmissionsExcel = async (req, res) => {
       where,
       orderBy: { created_at: "desc" },
     });
+    console.log(items);
+    
     let columns = [];
     if (items && items.length > 0) {
       columns = Object.keys(items[0]);
@@ -1529,11 +1533,9 @@ export const exportAllAdmissionsExcel = async (req, res) => {
     items.forEach((a) => {
       const row = columns.map((col) => {
         let val = a[col];
-        // Apply quota formatter when exporting qouta column
         if (col === "qouta") {
           val = formatQuota(val);
         }
-        // normalize dates to ISO strings for Excel
         if (val instanceof Date) return val.toISOString();
         if (val === null || typeof val === "undefined") return "";
         return String(val);
@@ -1542,7 +1544,6 @@ export const exportAllAdmissionsExcel = async (req, res) => {
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    // compute column widths
     const colWidths = [];
     rows.forEach((r) => {
       r.forEach((cell, idx) => {

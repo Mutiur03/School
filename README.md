@@ -37,37 +37,44 @@ This system enables schools to manage all core operations digitally — from enr
 ## 🧩 Core Features
 
 ### 👨‍🎓 Student Management
+
 - Add, update, and manage student profiles
 - Track academic details and attendance history
 - Store and view student images
 
 ### 👩‍🏫 Teacher Management
+
 - Manage faculty profiles and subject assignments
 - Control access to subject-specific student data
 - View attendance and marks based on permissions
 
 ### 📘 Subject & Exam Management
+
 - Create, assign, and import subjects in bulk
 - Schedule exams per class and section
 - Input, edit, and calculate marks, GPA, and grades
 
 ### 📊 Marksheet & Reports
+
 - Auto-generate PDF marksheets using Puppeteer
 - Provide downloadable and printable report cards
 - Maintain academic performance records per term
 
 ### 📅 Attendance & Promotion
+
 - Record daily or subject-wise attendance
 - Filter by class/date and analyze trends
 - Promote students based on performance
 
 ### 📢 Notice Board
+
 - Post notices with titles and PDF attachments
 - Attach PDFs securely using Cloudinary
 - Preview/download files via live links
 - Simple and clean notice management
 
 ### 🖼️ Gallery & Event Management
+
 - Create public or internal events with media
 - Students can upload event images (admin-reviewed)
 - Approve and publish student-submitted content
@@ -86,6 +93,7 @@ This system enables schools to manage all core operations digitally — from enr
 ## 💻 Tech Stack
 
 ### Frontend:
+
 - React + Vite (admin, students)
 - Next.js (teachers)
 - Tailwind CSS
@@ -94,11 +102,13 @@ This system enables schools to manage all core operations digitally — from enr
 - Framer Motion (UI Animations)
 
 ### Backend:
+
 - Node.js + Express
 - Prisma ORM
 - PostgreSQL
 
 ### Additional Integrations:
+
 - Puppeteer (PDF Generation)
 - XLSX (Bulk Excel Import)
 - Multer (File Upload)
@@ -119,7 +129,7 @@ This system enables schools to manage all core operations digitally — from enr
 
 To run this project locally, follow the steps below:
 
-###  Clone the Repository
+### Clone the Repository
 
 ```bash
 git clone https://github.com/Mutiur03/School.git
@@ -128,13 +138,14 @@ cd School
 
 ---
 
-### 🔷 Frontend Setup 
+### 🔷 Frontend Setup
 
 **Apps:** `admin/`, `students/`, `teachers/`
 
 Each frontend app is independent. Example for `admin`:
 
 1. Navigate to the app folder:
+
    ```bash
    cd admin
    # or cd students
@@ -142,11 +153,13 @@ Each frontend app is independent. Example for `admin`:
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Create a `.env` file:
+
    ```env
    VITE_BACKEND_URL=http://localhost:3001
    ```
@@ -165,16 +178,19 @@ The app will be running at: `http://localhost:5173` (or the port shown in your t
 **Tech Stack:** Node.js, Express.js, Prisma, PostgreSQL
 
 1. Navigate to the backend folder:
+
    ```bash
    cd server
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Create a `.env` file:
+
    ```env
     PORT=3001
     DATABASE_URL=...
@@ -191,11 +207,13 @@ The app will be running at: `http://localhost:5173` (or the port shown in your t
    ```
 
 4. Generate Prisma client:
+
    ```bash
    npx prisma generate
    ```
 
 5. Run migrations:
+
    ```bash
    npx prisma migrate dev
    ```
@@ -207,11 +225,19 @@ The app will be running at: `http://localhost:5173` (or the port shown in your t
 
 The backend will be running at: `http://localhost:3001`
 
+```
+sudo apt update
+sudo apt install redis-server -y
+sudo systemctl enable redis
+sudo systemctl start redis
+```
+
 ---
+
 sudo apt-get install chromium-browser
 https://stackoverflow.com/questions/59979188/error-failed-to-launch-the-browser-process-puppeteer
 
-## 🚀 Live Demo 
+## 🚀 Live Demo
 
 🔗 **Live Site:** [Live](https://www.mutiurrahman.com/projects/school-management-system)  
 🎥 **Detailed Video:** [YouTube](https://www.youtube.com/watch?v=EIk6t_aUbpY)
@@ -224,4 +250,3 @@ Looking to collaborate or hire for full-stack projects?
 📬 Reach out via [LinkedIn](https://www.linkedin.com/in/mutiur-rahman-mr/) or [Fiverr](https://www.fiverr.com/mutiur_rahman03)
 
 ---
-
