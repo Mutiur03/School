@@ -1324,8 +1324,6 @@ export const generateAdmissionPDF = async (admission) => {
 </body>
 </html>
     `;
-
-    // Launch puppeteer; if PUPPETEER_EXECUTABLE_PATH is provided use it, otherwise let puppeteer manage the executable
     const launchOptions = {
       headless: "new",
       args: [
@@ -1360,8 +1358,6 @@ export const generateAdmissionPDF = async (admission) => {
       await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
       );
-
-      // Enable UTF-8 encoding and Bengali locale
       await page.setExtraHTTPHeaders({
         "Accept-Charset": "utf-8",
         "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
@@ -1370,10 +1366,7 @@ export const generateAdmissionPDF = async (admission) => {
       await page.setContent(html, {
         waitUntil: ["networkidle0", "domcontentloaded"],
       });
-
-      // Force font loading and Unicode normalization
       await page.evaluate(() => {
-        // Normalize all text content
         const walker = document.createTreeWalker(
           document.body,
           NodeFilter.SHOW_TEXT,
@@ -1406,139 +1399,136 @@ export const generateAdmissionPDF = async (admission) => {
         preferCSSPageSize: true,
         pageRanges: "1",
       });
+      console.log(pdfBuffer);
+      
+      // let buf;
+      // try {
+      //   if (Buffer.isBuffer(pdfBuffer)) {
+      //     buf = pdfBuffer;
+      //   } else if (
+      //     typeof ArrayBuffer !== "undefined" &&
+      //     ArrayBuffer.isView(pdfBuffer)
+      //   ) {
+      //     buf = Buffer.from(
+      //       pdfBuffer.buffer
+      //         ? new Uint8Array(
+      //             pdfBuffer.buffer,
+      //             pdfBuffer.byteOffset || 0,
+      //             pdfBuffer.byteLength || pdfBuffer.length
+      //           )
+      //         : pdfBuffer
+      //     );
+      //   } else if (pdfBuffer instanceof ArrayBuffer) {
+      //     buf = Buffer.from(new Uint8Array(pdfBuffer));
+      //   } else if (Array.isArray(pdfBuffer)) {
+      //     buf = Buffer.from(pdfBuffer);
+      //   } else if (typeof pdfBuffer === "string") {
+      //     try {
+      //       buf = Buffer.from(pdfBuffer, "base64");
+      //     } catch (e) {
+      //       buf = Buffer.from(pdfBuffer);
+      //     }
+      //   } else if (pdfBuffer && typeof pdfBuffer === "object") {
+      //     // Handle various object shapes that can represent binary data:
+      //     // - { type: 'Buffer', data: [...] }
+      //     // - { data: Uint8Array } or { data: { data: [...] } }
+      //     // - { buffer: ArrayBuffer | TypedArray }
+      //     // - toJSON() result of a Buffer
+      //     try {
+      //       // Buffer.toJSON() style
+      //       if (pdfBuffer.type === "Buffer" && Array.isArray(pdfBuffer.data)) {
+      //         buf = Buffer.from(pdfBuffer.data);
+      //       }
 
-      // Coerce a variety of possible return types into a Buffer
-      let buf;
-      try {
-        if (Buffer.isBuffer(pdfBuffer)) {
-          buf = pdfBuffer;
-        } else if (
-          typeof ArrayBuffer !== "undefined" &&
-          ArrayBuffer.isView(pdfBuffer)
-        ) {
-          // TypedArray (Uint8Array, etc.)
-          buf = Buffer.from(
-            pdfBuffer.buffer
-              ? new Uint8Array(
-                  pdfBuffer.buffer,
-                  pdfBuffer.byteOffset || 0,
-                  pdfBuffer.byteLength || pdfBuffer.length
-                )
-              : pdfBuffer
-          );
-        } else if (pdfBuffer instanceof ArrayBuffer) {
-          buf = Buffer.from(new Uint8Array(pdfBuffer));
-        } else if (Array.isArray(pdfBuffer)) {
-          buf = Buffer.from(pdfBuffer);
-        } else if (typeof pdfBuffer === "string") {
-          // sometimes a base64 string may be returned
-          try {
-            buf = Buffer.from(pdfBuffer, "base64");
-          } catch (e) {
-            buf = Buffer.from(pdfBuffer);
-          }
-        } else if (pdfBuffer && typeof pdfBuffer === "object") {
-          // Handle various object shapes that can represent binary data:
-          // - { type: 'Buffer', data: [...] }
-          // - { data: Uint8Array } or { data: { data: [...] } }
-          // - { buffer: ArrayBuffer | TypedArray }
-          // - toJSON() result of a Buffer
-          try {
-            // Buffer.toJSON() style
-            if (pdfBuffer.type === "Buffer" && Array.isArray(pdfBuffer.data)) {
-              buf = Buffer.from(pdfBuffer.data);
-            }
+      //       // Direct .data which may be TypedArray, ArrayBuffer, or plain array
+      //       if (!buf && pdfBuffer.data) {
+      //         const d = pdfBuffer.data;
+      //         if (Buffer.isBuffer(d)) buf = d;
+      //         else if (ArrayBuffer.isView(d)) {
+      //           buf = Buffer.from(
+      //             d.buffer
+      //               ? new Uint8Array(
+      //                   d.buffer,
+      //                   d.byteOffset || 0,
+      //                   d.byteLength || d.length
+      //                 )
+      //               : d
+      //           );
+      //         } else if (d instanceof ArrayBuffer)
+      //           buf = Buffer.from(new Uint8Array(d));
+      //         else if (Array.isArray(d)) buf = Buffer.from(d);
+      //         else if (
+      //           typeof d === "object" &&
+      //           d !== null &&
+      //           Array.isArray(d.data)
+      //         ) {
+      //           // nested { data: { data: [...] } }
+      //           buf = Buffer.from(d.data);
+      //         }
+      //       }
 
-            // Direct .data which may be TypedArray, ArrayBuffer, or plain array
-            if (!buf && pdfBuffer.data) {
-              const d = pdfBuffer.data;
-              if (Buffer.isBuffer(d)) buf = d;
-              else if (ArrayBuffer.isView(d)) {
-                buf = Buffer.from(
-                  d.buffer
-                    ? new Uint8Array(
-                        d.buffer,
-                        d.byteOffset || 0,
-                        d.byteLength || d.length
-                      )
-                    : d
-                );
-              } else if (d instanceof ArrayBuffer)
-                buf = Buffer.from(new Uint8Array(d));
-              else if (Array.isArray(d)) buf = Buffer.from(d);
-              else if (
-                typeof d === "object" &&
-                d !== null &&
-                Array.isArray(d.data)
-              ) {
-                // nested { data: { data: [...] } }
-                buf = Buffer.from(d.data);
-              }
-            }
+      //       // .buffer property (could be ArrayBuffer or TypedArray.buffer)
+      //       if (!buf && pdfBuffer.buffer) {
+      //         const b = pdfBuffer.buffer;
+      //         if (Buffer.isBuffer(b)) buf = b;
+      //         else if (ArrayBuffer.isView(b))
+      //           buf = Buffer.from(new Uint8Array(b.buffer || b));
+      //         else if (b instanceof ArrayBuffer)
+      //           buf = Buffer.from(new Uint8Array(b));
+      //       }
 
-            // .buffer property (could be ArrayBuffer or TypedArray.buffer)
-            if (!buf && pdfBuffer.buffer) {
-              const b = pdfBuffer.buffer;
-              if (Buffer.isBuffer(b)) buf = b;
-              else if (ArrayBuffer.isView(b))
-                buf = Buffer.from(new Uint8Array(b.buffer || b));
-              else if (b instanceof ArrayBuffer)
-                buf = Buffer.from(new Uint8Array(b));
-            }
+      //       // toJSON() result might be nested elsewhere
+      //       if (!buf && typeof pdfBuffer.toJSON === "function") {
+      //         try {
+      //           const json = pdfBuffer.toJSON();
+      //           if (json && Array.isArray(json.data))
+      //             buf = Buffer.from(json.data);
+      //         } catch (e) {
+      //           // ignore
+      //         }
+      //       }
 
-            // toJSON() result might be nested elsewhere
-            if (!buf && typeof pdfBuffer.toJSON === "function") {
-              try {
-                const json = pdfBuffer.toJSON();
-                if (json && Array.isArray(json.data))
-                  buf = Buffer.from(json.data);
-              } catch (e) {
-                // ignore
-              }
-            }
+      //       // As a last resort, gather numeric values from enumerable properties
+      //       if (!buf) {
+      //         const nums = [];
+      //         for (const val of Object.values(pdfBuffer)) {
+      //           if (typeof val === "number") nums.push(val);
+      //           else if (
+      //             Array.isArray(val) &&
+      //             val.every((x) => typeof x === "number")
+      //           ) {
+      //             nums.push(...val);
+      //           }
+      //         }
+      //         if (nums.length >= 4) buf = Buffer.from(nums);
+      //       }
+      //     } catch (inner) {
+      //       console.warn(
+      //         "generateAdmissionPDF: object->Buffer conversion failed:",
+      //         inner && inner.message ? inner.message : inner
+      //       );
+      //     }
+      //   }
+      // } catch (convErr) {
+      //   console.warn(
+      //     "generateAdmissionPDF: conversion to Buffer failed:",
+      //     convErr && convErr.message ? convErr.message : convErr
+      //   );
+      // }
 
-            // As a last resort, gather numeric values from enumerable properties
-            if (!buf) {
-              const nums = [];
-              for (const val of Object.values(pdfBuffer)) {
-                if (typeof val === "number") nums.push(val);
-                else if (
-                  Array.isArray(val) &&
-                  val.every((x) => typeof x === "number")
-                ) {
-                  nums.push(...val);
-                }
-              }
-              if (nums.length >= 4) buf = Buffer.from(nums);
-            }
-          } catch (inner) {
-            console.warn(
-              "generateAdmissionPDF: object->Buffer conversion failed:",
-              inner && inner.message ? inner.message : inner
-            );
-          }
-        }
-      } catch (convErr) {
-        console.warn(
-          "generateAdmissionPDF: conversion to Buffer failed:",
-          convErr && convErr.message ? convErr.message : convErr
-        );
-      }
-
-      // Final validation
-      if (!buf || !Buffer.isBuffer(buf) || buf.length < 4) {
-        throw new Error(
-          `generateAdmissionPDF: invalid pdf buffer returned (type=${typeof pdfBuffer})`
-        );
-      }
+      // if (!buf || !Buffer.isBuffer(buf) || buf.length < 4) {
+      //   throw new Error(
+      //     `generateAdmissionPDF: invalid pdf buffer returned (type=${typeof pdfBuffer})`
+      //   );
+      // }
 
       console.log(
         "PDF generated for admission ID:",
         admission.id,
         "bytes=",
-        buf.length
+        pdfBuffer.length
       );
-      return buf;
+      return pdfBuffer;
     } finally {
       if (browser) {
         try {
