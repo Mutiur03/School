@@ -245,7 +245,6 @@ export const createForm = async (req, res) => {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
       try {
-        
         await pdfQueue.add({ admissionId: id });
       } catch (queueErr) {
         console.error(
@@ -1429,7 +1428,7 @@ export const generateAdmissionPDF = async (admission) => {
 
 export const exportAllAdmissionsExcel = async (req, res) => {
   try {
-    const { status, search, admission_year, class: admissionClass } = req.query;   
+    const { status, search, admission_year, class: admissionClass } = req.query;
     const where = {};
     if (status && status !== "all") where.status = status;
     if (admission_year) {
@@ -1448,7 +1447,7 @@ export const exportAllAdmissionsExcel = async (req, res) => {
     const items = await prisma.admission_form.findMany({
       where,
       orderBy: { created_at: "desc" },
-    });    
+    });
     let columns = [];
     if (items && items.length > 0) {
       columns = Object.keys(items[0]);
@@ -1675,7 +1674,6 @@ export const downloadPDF = async (req, res) => {
         });
       }
       const pdfBuffer = Buffer.from(b64, "base64");
-      // sanity-check: valid PDF must contain '%PDF' near the start
       const pdfMarker = Buffer.from("%PDF");
       const headHex =
         pdfBuffer && pdfBuffer.slice(0, 16)
@@ -1807,8 +1805,20 @@ function waitForPDF(admissionId, timeout = 30000) {
       elapsed += interval;
       const status = await redis.get(statusKey);
       if (status === "done") return resolve(true);
-      if (status === "failed")
-        return reject(new Error("PDF generation failed"));
+      if (status === "failed") {
+        // try to fetch a short error message saved by the worker
+        try {
+          const errorKey = `pdf:${admissionId}:error`;
+          const msg = await redis.get(errorKey);
+          return reject(
+            new Error(
+              msg ? `PDF generation failed: ${msg}` : "PDF generation failed"
+            )
+          );
+        } catch (e) {
+          return reject(new Error("PDF generation failed"));
+        }
+      }
       if (elapsed >= timeout)
         return reject(new Error("PDF generation timeout"));
       setTimeout(check, interval);
