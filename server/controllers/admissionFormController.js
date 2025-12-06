@@ -4,8 +4,7 @@ import path from "path";
 import puppeteer from "puppeteer";
 import archiver from "archiver";
 import XLSX from "xlsx";
-import { redis } from "../config/redis..js";
-import Bull from "bull";
+import { redis } from "../config/redis.js";
 import { pdfQueue } from "../utils/pdfWorker.js";
 
 const formatQuota = (q) => {
