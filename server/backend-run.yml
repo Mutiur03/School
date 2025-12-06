@@ -5,7 +5,7 @@ services:
     container_name: school_backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT}:${PORT}"
     volumes:
       - ./uploads:/app/uploads
     networks:

@@ -1821,55 +1821,55 @@ export const exportAdmissionImagesZip = async (req, res) => {
 
 export const downloadPDF = async (req, res) => {
   const { id } = req.params;
-  const admission = await prisma.admission_form.findUnique({
-    where: { id: id },
-  });
-  if (!admission) {
-    return res.status(404).json({ error: "Admission not found" });
-  }
-  const pdfBuffer = await generateAdmissionPDF(admission);
-  res.setHeader("Content-Type", "application/pdf");
-  res.end(pdfBuffer);
-  // const statusKey = `pdf:${id}:status`;
-  // const pdfKey = `pdf:${id}`;
-  // try {
-  //   let status = await redis.get(statusKey);
-  //   console.log(status);
-  //   if (status !== "done") {
-  //     if (status !== "generating") {
-  //       await redis.set(statusKey, "generating");
-  //       await pdfQueue.add({ admissionId: id });
-  //     }
-  //     await waitForJobCompletion(id);
-  //   }
-  //   const b64 = await redis.get(pdfKey);
-  //   if (!b64) {
-  //     return res
-  //       .status(500)
-  //       .json({ success: false, message: "PDF not available" });
-  //   }
-
-  //   const pdfBuffer = Buffer.from(b64, "base64");
-  //   if (
-  //     !pdfBuffer ||
-  //     pdfBuffer.length < 4 ||
-  //     pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
-  //   ) {
-  //     return res
-  //       .status(500)
-  //       .json({ success: false, message: "Invalid PDF data" });
-  //   }
-
-  //   res.setHeader("Content-Type", "application/pdf");
-  //   res.setHeader(
-  //     "Content-Disposition",
-  //     `attachment; filename="Admission_${id}.pdf"`
-  //   );
-  //   return res.end(pdfBuffer);
-  // } catch (err) {
-  //   console.error(err);
-  //   return res.status(500).json({ success: false, message: err.message });
+  // const admission = await prisma.admission_form.findUnique({
+  //   where: { id: id },
+  // });
+  // if (!admission) {
+  //   return res.status(404).json({ error: "Admission not found" });
   // }
+  // const pdfBuffer = await generateAdmissionPDF(admission);
+  // res.setHeader("Content-Type", "application/pdf");
+  // res.end(pdfBuffer);
+  const statusKey = `pdf:${id}:status`;
+  const pdfKey = `pdf:${id}`;
+  try {
+    let status = await redis.get(statusKey);
+    console.log(status);
+    if (status !== "done") {
+      if (status !== "generating") {
+        await redis.set(statusKey, "generating");
+        await pdfQueue.add({ admissionId: id });
+      }
+      await waitForJobCompletion(id);
+    }
+    const b64 = await redis.get(pdfKey);
+    if (!b64) {
+      return res
+        .status(500)
+        .json({ success: false, message: "PDF not available" });
+    }
+
+    const pdfBuffer = Buffer.from(b64, "base64");
+    if (
+      !pdfBuffer ||
+      pdfBuffer.length < 4 ||
+      pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
+    ) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Invalid PDF data" });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Admission_${id}.pdf"`
+    );
+    return res.end(pdfBuffer);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 };
 function waitForJobCompletion(admissionId, timeout = 90000) {
   return new Promise((resolve, reject) => {
