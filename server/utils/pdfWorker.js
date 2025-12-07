@@ -68,7 +68,6 @@ pdfQueue.process(1, async (job) => {
     );
     return true;
   } catch (err) {
-    lastError = err;
     const msg =
       err && err.stack ? err.stack : err && err.message ? err.message : err;
     // try {
@@ -88,7 +87,6 @@ pdfQueue.process(1, async (job) => {
     //     e && e.message ? e.message : e
     //   );
     // }
-    throw lastError;
   }
 });
 pdfQueue.on("failed", (job, err) => {
