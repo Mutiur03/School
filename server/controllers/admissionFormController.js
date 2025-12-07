@@ -249,8 +249,6 @@ export const createForm = async (req, res) => {
             jobId: `pdf:${id}`,
             removeOnComplete: true,
             removeOnFail: true,
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
           }
         );
       } catch (queueErr) {
@@ -468,8 +466,6 @@ export const updateForm = async (req, res) => {
             jobId: `pdf:${id}`,
             removeOnComplete: true,
             removeOnFail: true,
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
           }
         );
       } catch (queueErr) {
@@ -1867,32 +1863,22 @@ export const downloadPDF = async (req, res) => {
             jobId: `pdf:${id}`,
             removeOnComplete: true,
             removeOnFail: true,
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
           }
         );
       }
       await job.finished();
     } else {
       console.log(`New Job created  for ${id}`);
-      await redis.set(statusKey, "generating");
       job = await pdfQueue.add(
         { admissionId: id },
         {
           jobId: `pdf:${id}`,
           removeOnComplete: true,
           removeOnFail: true,
-          attempts: 3,
-          backoff: { type: "exponential", delay: 1000 },
         }
       );
-      console.log(job);
-      pdfQueue.on("completed", (job) => console.log("Completed:", job.id));
-      pdfQueue.on("failed", (job, err) =>
-        console.error("Failed:", job.id, err.message)
-      );
-      pdfQueue.on("stalled", (job) => console.warn("Stalled:", job.id));
-      pdfQueue.on("error", (err) => console.error("Queue error:", err));
+      console.log(`New Job created  for ${id}`);
+      console.log(job.data);
       await job.finished();
     }
     const b64 = await redis.get(pdfKey);
