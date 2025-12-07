@@ -111,3 +111,8 @@ pdfQueue.process(1,async (job) => {
     }
   }
 });
+pdfQueue.on("failed", (job, err) => {
+  console.error("Job failed:", err);
+});
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);
