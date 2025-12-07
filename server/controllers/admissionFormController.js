@@ -1834,112 +1834,68 @@ export const exportAdmissionImagesZip = async (req, res) => {
 
 export const downloadPDF = async (req, res) => {
   const { id } = req.params;
-  // const admission = await prisma.admission_form.findUnique({
-  //   where: { id: id },
-  // });
-  // if (!admission) {
-  //   return res.status(404).json({ error: "Admission not found" });
-  // }
-  // const pdfBuffer = await generateAdmissionPDF(admission);
-  // res.setHeader("Content-Type", "application/pdf");
-  // res.end(pdfBuffer);
-  const statusKey = `pdf:${id}:status`;
-  const pdfKey = `pdf:${id}`;
-
-  try {
-    const status = await redis.get(statusKey);
-    console.log(status);
-    let job;
-    if (status === "done") {
-      console.log(`PDF ${id} already done`);
-    } else if (status === "generating") {
-      console.log(`PDF ${id} is generating, waiting...`);
-      job = await pdfQueue.getJob(`pdf:${id}`);
-      if (!job) {
-        await redis.set(statusKey, "generating");
-        job = await pdfQueue.add(
-          { admissionId: id },
-          {
-            jobId: `pdf:${id}`,
-            removeOnComplete: true,
-            removeOnFail: true,
-          }
-        );
-      }
-      await job.finished();
-    } else {
-      console.log(`New Job created  for ${id}`);
-      job = await pdfQueue.add(
-        { admissionId: id },
-        {
-          jobId: `pdf:${id}`,
-          removeOnComplete: true,
-          removeOnFail: true,
-        }
-      );
-      console.log(`New Job created  for ${id}`);
-      console.log(job.data);
-      await job.finished();
-    }
-    const b64 = await redis.get(pdfKey);
-    if (!b64) throw new Error("PDF not available");
-    const pdfBuffer = Buffer.from(b64, "base64");
-    if (pdfBuffer.length < 4 || pdfBuffer.indexOf(Buffer.from("%PDF")) === -1) {
-      throw new Error("Invalid PDF data");
-    }
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="Admission_${id}.pdf"`
-    );
-    return res.end(pdfBuffer);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: err.message });
+  const admission = await prisma.admission_form.findUnique({
+    where: { id: id },
+  });
+  if (!admission) {
+    return res.status(404).json({ error: "Admission not found" });
   }
+  const pdfBuffer = await generateAdmissionPDF(admission);
+  res.setHeader("Content-Type", "application/pdf");
+  res.end(pdfBuffer);
+  // const statusKey = `pdf:${id}:status`;
+  // const pdfKey = `pdf:${id}`;
+
+  // try {
+  //   const status = await redis.get(statusKey);
+  //   console.log(status);
+  //   let job;
+  //   if (status === "done") {
+  //     console.log(`PDF ${id} already done`);
+  //   } else if (status === "generating") {
+  //     console.log(`PDF ${id} is generating, waiting...`);
+  //     job = await pdfQueue.getJob(`pdf:${id}`);
+  //     if (!job) {
+  //       await redis.set(statusKey, "generating");
+  //       job = await pdfQueue.add(
+  //         { admissionId: id },
+  //         {
+  //           jobId: `pdf:${id}`,
+  //           removeOnComplete: true,
+  //           removeOnFail: true,
+  //         }
+  //       );
+  //     }
+  //     await job.finished();
+  //   } else {
+  //     console.log(`New Job created  for ${id}`);
+  //     job = await pdfQueue.add(
+  //       { admissionId: id },
+  //       {
+  //         jobId: `pdf:${id}`,
+  //         removeOnComplete: true,
+  //         removeOnFail: true,
+  //       }
+  //     );
+  //     console.log(`New Job created  for ${id}`);
+  //     console.log(job.data);
+  //     await job.finished();
+  //   }
+  //   const b64 = await redis.get(pdfKey);
+  //   if (!b64) throw new Error("PDF not available");
+  //   const pdfBuffer = Buffer.from(b64, "base64");
+  //   if (pdfBuffer.length < 4 || pdfBuffer.indexOf(Buffer.from("%PDF")) === -1) {
+  //     throw new Error("Invalid PDF data");
+  //   }
+
+  //   res.setHeader("Content-Type", "application/pdf");
+  //   res.setHeader(
+  //     "Content-Disposition",
+  //     `attachment; filename="Admission_${id}.pdf"`
+  //   );
+  //   return res.end(pdfBuffer);
+  // } catch (err) {
+  //   console.error(err);
+  //   return res.status(500).json({ success: false, message: err.message });
+  // }
 };
-// function waitForJobCompletion(admissionId, timeout = 90000) {
-//   return new Promise((resolve, reject) => {
-//     const checkInterval = 1000;
-//     let elapsed = 0;
-//     const interval = setInterval(async () => {
-//       elapsed += checkInterval;
-//       const status = await redis.get(`pdf:${admissionId}:status`);
-//       if (status === "done") {
-//         clearInterval(interval);
-//         return resolve();
-//       }
-//       if (status === "failed") {
-//         const errorKey = `pdf:${admissionId}:error`;
-//         const msg = await redis.get(errorKey);
-//         clearInterval(interval);
-//         return reject(new Error(msg || "PDF generation failed"));
-//       }
-//       if (elapsed >= timeout) {
-//         clearInterval(interval);
-//         return reject(new Error("PDF generation timeout"));
-//       }
-//     }, checkInterval);
-
-//     const onCompleted = (job) => {
-//       if (job.data.admissionId === admissionId) {
-//         pdfQueue.off("completed", onCompleted);
-//         pdfQueue.off("failed", onFailed);
-//         clearInterval(interval);
-//         resolve();
-//       }
-//     };
-//     const onFailed = (job, err) => {
-//       if (job.data.admissionId === admissionId) {
-//         pdfQueue.off("completed", onCompleted);
-//         pdfQueue.off("failed", onFailed);
-//         clearInterval(interval);
-//         reject(err);
-//       }
-//     };
-
-//     pdfQueue.on("completed", onCompleted);
-//     pdfQueue.on("failed", onFailed);
-//   });
-// }
