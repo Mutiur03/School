@@ -12,7 +12,6 @@ services:
       - school_network
     env_file:
       - .env.prod
-    shm_size: '1g'
 
 
 networks:
