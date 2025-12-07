@@ -1874,6 +1874,7 @@ export const downloadPDF = async (req, res) => {
       }
       await job.finished();
     } else {
+      console.log(`New Job created`);
       await redis.set(statusKey, "generating");
       job = await pdfQueue.add(
         { admissionId: id },
@@ -1887,9 +1888,8 @@ export const downloadPDF = async (req, res) => {
       );
       await job.finished();
     }
-    const b64 = await redis.get(pdfKey);
+    const b64 = await redis.get(pdfKey);    
     if (!b64) throw new Error("PDF not available");
-
     const pdfBuffer = Buffer.from(b64, "base64");
     if (pdfBuffer.length < 4 || pdfBuffer.indexOf(Buffer.from("%PDF")) === -1) {
       throw new Error("Invalid PDF data");
