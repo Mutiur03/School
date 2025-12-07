@@ -1886,9 +1886,16 @@ export const downloadPDF = async (req, res) => {
           backoff: { type: "exponential", delay: 1000 },
         }
       );
+      console.log(job);
+      pdfQueue.on("completed", (job) => console.log("Completed:", job.id));
+      pdfQueue.on("failed", (job, err) =>
+        console.error("Failed:", job.id, err.message)
+      );
+      pdfQueue.on("stalled", (job) => console.warn("Stalled:", job.id));
+      pdfQueue.on("error", (err) => console.error("Queue error:", err));
       await job.finished();
     }
-    const b64 = await redis.get(pdfKey);    
+    const b64 = await redis.get(pdfKey);
     if (!b64) throw new Error("PDF not available");
     const pdfBuffer = Buffer.from(b64, "base64");
     if (pdfBuffer.length < 4 || pdfBuffer.indexOf(Buffer.from("%PDF")) === -1) {
