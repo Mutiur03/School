@@ -76,7 +76,13 @@ pdfQueue.process(1, async (job) => {
     );
   }
 });
-pdfQueue.on("failed", (job, err) => {
+pdfQueue.on("failed", async (job, err) => {
+  console.log(job.data);
+  const admission = await prisma.admission_form.findUnique({
+    where: { id: job.data.admissionId },
+  });
+  console.log(`Fetched admission for ID ${job.data.admissionId}`);
+  console.log(admission);
   console.error("Job failed:", err);
 });
 process.on("unhandledRejection", console.error);
