@@ -5,6 +5,7 @@ const TTL = process.env.PDF_CACHE_TTL || "300";
 import { pdfQueue } from "./pdfQueue.js";
 console.log("PDF worker started, waiting for jobs...");
 pdfQueue.process(1, async (job) => {
+  console.log("Job Data", job.data);
   const { admissionId } = job.data;
   const statusKey = `pdf:${admissionId}:status`;
   const pdfKey = `pdf:${admissionId}`;
@@ -15,7 +16,9 @@ pdfQueue.process(1, async (job) => {
     const admission = await prisma.admission_form.findUnique({
       where: { id: admissionId },
     });
-    console.log(`Fetched admission for ID ${admissionId} ${admission}`);
+    console.log(`Fetched admission for ID ${admissionId} `);
+    console.log(admission);
+
     if (!admission) throw new Error("Admission not found");
 
     console.log(
