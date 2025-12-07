@@ -11,10 +11,12 @@ pdfQueue.process(1, async (job) => {
   console.log(`Processing PDF job for admissionId=${admissionId}`);
   try {
     await redis.set(statusKey, "generating", "EX", TTL);
-
+    console.log(id);
     const admission = await prisma.admission_form.findUnique({
       where: { id: admissionId },
     });
+    console.log(admission);
+    
     if (!admission) throw new Error("Admission not found");
 
     console.log(
