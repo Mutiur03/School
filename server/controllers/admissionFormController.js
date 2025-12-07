@@ -5,8 +5,7 @@ import puppeteer from "puppeteer";
 import archiver from "archiver";
 import XLSX from "xlsx";
 import { redis } from "../config/redis.js";
-import { pdfQueue } from "../utils/pdfWorker.js";
-
+import { pdfQueue } from "../utils/pdfQueue.js";
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
