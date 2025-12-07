@@ -4,7 +4,7 @@ import { redis } from "../config/redis.js";
 const TTL = process.env.PDF_CACHE_TTL || "300";
 import { pdfQueue } from "./pdfQueue.js";
 console.log("PDF worker started, waiting for jobs...");
-pdfQueue.process(async (job) => {
+pdfQueue.process(1,async (job) => {
   const { admissionId } = job.data;
   const statusKey = `pdf:${admissionId}:status`;
   const pdfKey = `pdf:${admissionId}`;
