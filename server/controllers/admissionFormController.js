@@ -1324,7 +1324,7 @@ export const generateAdmissionPDF = async (admission) => {
 </html>
     `;
     const launchOptions = {
-      headless: "new",
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
