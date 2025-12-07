@@ -1874,7 +1874,7 @@ export const downloadPDF = async (req, res) => {
       }
       await job.finished();
     } else {
-      console.log(`New Job created`);
+      console.log(`New Job created  for ${id}`);
       await redis.set(statusKey, "generating");
       job = await pdfQueue.add(
         { admissionId: id },
