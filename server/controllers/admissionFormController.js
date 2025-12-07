@@ -243,7 +243,11 @@ export const createForm = async (req, res) => {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
       try {
-        await pdfQueue.add({ admissionId: id });
+        await pdfQueue.add(
+          { admissionId: id },
+          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
+          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+        );
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
@@ -453,7 +457,11 @@ export const updateForm = async (req, res) => {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
       try {
-        await pdfQueue.add({ admissionId: id });
+        await pdfQueue.add(
+          { admissionId: id },
+          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
+          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+        );
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
@@ -1831,32 +1839,40 @@ export const downloadPDF = async (req, res) => {
   // res.end(pdfBuffer);
   const statusKey = `pdf:${id}:status`;
   const pdfKey = `pdf:${id}`;
+
   try {
-    let status = await redis.get(statusKey);
+    const status = await redis.get(statusKey);
     console.log(status);
-    if (status !== "done") {
-      if (status !== "generating") {
+    let job;
+    if (status === "done") {
+      console.log(`PDF ${id} already done`);
+    } else if (status === "generating") {
+      console.log(`PDF ${id} is generating, waiting...`);
+      job = await pdfQueue.getJob(`pdf:${id}`);
+      if (!job) {
         await redis.set(statusKey, "generating");
-        await pdfQueue.add({ admissionId: id });
+        job = await pdfQueue.add(
+          { admissionId: id },
+          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
+          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+        );
       }
-      await waitForJobCompletion(id);
+      await job.finished();
+    } else {
+      await redis.set(statusKey, "generating");
+      job = await pdfQueue.add(
+        { admissionId: id },
+        { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
+        { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+      );
+      await job.finished();
     }
     const b64 = await redis.get(pdfKey);
-    if (!b64) {
-      return res
-        .status(500)
-        .json({ success: false, message: "PDF not available" });
-    }
+    if (!b64) throw new Error("PDF not available");
 
     const pdfBuffer = Buffer.from(b64, "base64");
-    if (
-      !pdfBuffer ||
-      pdfBuffer.length < 4 ||
-      pdfBuffer.indexOf(Buffer.from("%PDF")) === -1
-    ) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Invalid PDF data" });
+    if (pdfBuffer.length < 4 || pdfBuffer.indexOf(Buffer.from("%PDF")) === -1) {
+      throw new Error("Invalid PDF data");
     }
 
     res.setHeader("Content-Type", "application/pdf");
@@ -1870,47 +1886,47 @@ export const downloadPDF = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-function waitForJobCompletion(admissionId, timeout = 90000) {
-  return new Promise((resolve, reject) => {
-    const checkInterval = 1000;
-    let elapsed = 0;
-    const interval = setInterval(async () => {
-      elapsed += checkInterval;
-      const status = await redis.get(`pdf:${admissionId}:status`);
-      if (status === "done") {
-        clearInterval(interval);
-        return resolve();
-      }
-      if (status === "failed") {
-        const errorKey = `pdf:${admissionId}:error`;
-        const msg = await redis.get(errorKey);
-        clearInterval(interval);
-        return reject(new Error(msg || "PDF generation failed"));
-      }
-      if (elapsed >= timeout) {
-        clearInterval(interval);
-        return reject(new Error("PDF generation timeout"));
-      }
-    }, checkInterval);
+// function waitForJobCompletion(admissionId, timeout = 90000) {
+//   return new Promise((resolve, reject) => {
+//     const checkInterval = 1000;
+//     let elapsed = 0;
+//     const interval = setInterval(async () => {
+//       elapsed += checkInterval;
+//       const status = await redis.get(`pdf:${admissionId}:status`);
+//       if (status === "done") {
+//         clearInterval(interval);
+//         return resolve();
+//       }
+//       if (status === "failed") {
+//         const errorKey = `pdf:${admissionId}:error`;
+//         const msg = await redis.get(errorKey);
+//         clearInterval(interval);
+//         return reject(new Error(msg || "PDF generation failed"));
+//       }
+//       if (elapsed >= timeout) {
+//         clearInterval(interval);
+//         return reject(new Error("PDF generation timeout"));
+//       }
+//     }, checkInterval);
 
-    const onCompleted = (job) => {
-      if (job.data.admissionId === admissionId) {
-        pdfQueue.off("completed", onCompleted);
-        pdfQueue.off("failed", onFailed);
-        clearInterval(interval);
-        resolve();
-      }
-    };
-    const onFailed = (job, err) => {
-      if (job.data.admissionId === admissionId) {
-        pdfQueue.off("completed", onCompleted);
-        pdfQueue.off("failed", onFailed);
-        clearInterval(interval);
-        reject(err);
-      }
-    };
+//     const onCompleted = (job) => {
+//       if (job.data.admissionId === admissionId) {
+//         pdfQueue.off("completed", onCompleted);
+//         pdfQueue.off("failed", onFailed);
+//         clearInterval(interval);
+//         resolve();
+//       }
+//     };
+//     const onFailed = (job, err) => {
+//       if (job.data.admissionId === admissionId) {
+//         pdfQueue.off("completed", onCompleted);
+//         pdfQueue.off("failed", onFailed);
+//         clearInterval(interval);
+//         reject(err);
+//       }
+//     };
 
-    pdfQueue.on("completed", onCompleted);
-    pdfQueue.on("failed", onFailed);
-  });
-}
+//     pdfQueue.on("completed", onCompleted);
+//     pdfQueue.on("failed", onFailed);
+//   });
+// }
