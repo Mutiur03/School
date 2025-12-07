@@ -58,7 +58,14 @@ const checkDuplicates = async (data, excludeId = null) => {
   }
   return duplicates;
 };
-const saveAdmissionPhoto = async (file, year, listType, serialNo, name) => {
+const saveAdmissionPhoto = async (
+  file,
+  year,
+  listType,
+  serialNo,
+  name,
+  admissionClass
+) => {
   if (!file) return null;
   if (!fs.existsSync(file.path)) {
     throw new Error(`File not found: ${file.path}`);
@@ -71,13 +78,18 @@ const saveAdmissionPhoto = async (file, year, listType, serialNo, name) => {
     .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
     .replace(/\s+/g, "_")
     .toLowerCase();
-
+ 
   const safeSerial = serialNo
     ? String(serialNo)
         .trim()
         .replace(/[^a-zA-Z0-9-_]+/g, "_")
     : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-
+  const admissionClassSafe = admissionClass
+    ? String(admissionClass)
+        .trim()
+        .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
+        .replace(/\s+/g, "_")
+    : null;
   const safeName = name
     ? String(name)
         .trim()
@@ -89,6 +101,7 @@ const saveAdmissionPhoto = async (file, year, listType, serialNo, name) => {
     "uploads",
     "admission",
     String(safeYear),
+    admissionClassSafe || "unknown_class",
     safeListType
   );
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -222,7 +235,8 @@ export const createForm = async (req, res) => {
           settings.admission_year,
           payload.list_type,
           payload.serial_no,
-          payload.student_name_en || payload.student_name_bn
+          payload.student_name_en || payload.student_name_bn,
+          payload.admission_class
         );
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
@@ -439,7 +453,8 @@ export const updateForm = async (req, res) => {
           settings.admission_year,
           payload.list_type,
           payload.serial_no,
-          payload.student_name_en || payload.student_name_bn
+          payload.student_name_en || payload.student_name_bn,
+          payload.admission_class
         );
       } catch (err) {
         if (req.file && fs.existsSync(req.file.path))
