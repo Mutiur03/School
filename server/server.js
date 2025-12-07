@@ -28,7 +28,6 @@ import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
 import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
-import "./utils/pdfWorker.js";
 import { check } from "./config/redis.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

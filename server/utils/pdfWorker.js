@@ -1,20 +1,16 @@
-import Bull from "bull";
 import { prisma } from "../config/prisma.js";
 import { generateAdmissionPDF } from "../controllers/admissionFormController.js";
 import { redis } from "../config/redis.js";
-import { TTL } from "../server.js";
-const host = process.env.REDIS_HOST || "127.0.0.1";
-const pdfQueue = new Bull("pdfQueue", {
-  redis: { host: host, port: 6379 },
-});
+const TTL = process.env.PDF_CACHE_TTL || "300";
+import { pdfQueue } from "./pdfQueue.js";
 console.log("PDF worker started, waiting for jobs...");
 pdfQueue.process(async (job) => {
   const { admissionId } = job.data;
   const statusKey = `pdf:${admissionId}:status`;
   const pdfKey = `pdf:${admissionId}`;
   console.log(`Processing PDF job for admissionId=${admissionId}`);
-  const MAX_RETRIES = 2; 
-  const RETRY_DELAY_MS = 1000; 
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 1000;
 
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -115,5 +111,3 @@ pdfQueue.process(async (job) => {
     }
   }
 });
-
-export { pdfQueue };
