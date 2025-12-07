@@ -11,12 +11,11 @@ pdfQueue.process(1, async (job) => {
   console.log(`Processing PDF job for admissionId=${admissionId}`);
   try {
     await redis.set(statusKey, "generating", "EX", TTL);
-    console.log(id);
+    console.log(admissionId);
     const admission = await prisma.admission_form.findUnique({
       where: { id: admissionId },
     });
     console.log(admission);
-    
     if (!admission) throw new Error("Admission not found");
 
     console.log(
@@ -63,30 +62,15 @@ pdfQueue.process(1, async (job) => {
     );
 
     await redis.set(statusKey, "done", "EX", TTL);
-    console.log(
-      `PDF job done for admissionId=${admissionId})`
-    );
+    console.log(`PDF job done for admissionId=${admissionId})`);
     return true;
   } catch (err) {
     const msg =
       err && err.stack ? err.stack : err && err.message ? err.message : err;
-    // try {
-    //   await redis.set(statusKey, "failed", "EX", TTL);
-    //   const errorKey = `${pdfKey}:error`;
-    //   try {
-    //     await redis.set(errorKey, String(msg), "EX", TTL);
-    //   } catch (e) {
-    //     console.error(
-    //       "Failed to save PDF error message to Redis:",
-    //       e && e.message ? e.message : e
-    //     );
-    //   }
-    // } catch (e) {
-    //   console.error(
-    //     "Failed to set Redis status to failed:",
-    //     e && e.message ? e.message : e
-    //   );
-    // }
+    console.error(
+      "Failed to save PDF error message to Redis:",
+      err && err.message ? err.message : err
+    );
   }
 });
 pdfQueue.on("failed", (job, err) => {
