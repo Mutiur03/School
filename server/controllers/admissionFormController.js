@@ -245,8 +245,13 @@ export const createForm = async (req, res) => {
       try {
         await pdfQueue.add(
           { admissionId: id },
-          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
-          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+          {
+            jobId: `pdf:${id}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+            attempts: 3,
+            backoff: { type: "exponential", delay: 1000 },
+          }
         );
       } catch (queueErr) {
         console.error(
@@ -459,8 +464,13 @@ export const updateForm = async (req, res) => {
       try {
         await pdfQueue.add(
           { admissionId: id },
-          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
-          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+          {
+            jobId: `pdf:${id}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+            attempts: 3,
+            backoff: { type: "exponential", delay: 1000 },
+          }
         );
       } catch (queueErr) {
         console.error(
@@ -1853,8 +1863,13 @@ export const downloadPDF = async (req, res) => {
         await redis.set(statusKey, "generating");
         job = await pdfQueue.add(
           { admissionId: id },
-          { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
-          { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+          {
+            jobId: `pdf:${id}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+            attempts: 3,
+            backoff: { type: "exponential", delay: 1000 },
+          }
         );
       }
       await job.finished();
@@ -1862,8 +1877,13 @@ export const downloadPDF = async (req, res) => {
       await redis.set(statusKey, "generating");
       job = await pdfQueue.add(
         { admissionId: id },
-        { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
-        { jobId: `pdf:${id}`, removeOnComplete: true, removeOnFail: true }
+        {
+          jobId: `pdf:${id}`,
+          removeOnComplete: true,
+          removeOnFail: true,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1000 },
+        }
       );
       await job.finished();
     }
