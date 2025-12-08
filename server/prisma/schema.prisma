@@ -535,3 +535,20 @@ model admission_form {
   @@index([mother_nid])
   @@index([status])
 }
+
+model admission_result {
+  id                       Int      @id @default(autoincrement())
+  class_name               String   @db.VarChar(10)
+  admission_year           Int
+  merit_list               String?
+  merit_list_public_id     String?
+  waiting_list_1           String?
+  waiting_list_1_public_id String?
+  waiting_list_2           String?
+  waiting_list_2_public_id String?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  @@index([class_name])
+  @@index([admission_year])
+}

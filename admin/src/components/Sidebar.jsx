@@ -150,6 +150,11 @@ const Sidebar = ({
           link: "/admission/settings",
           id: "admission-settings",
         },
+        {
+          label: "Result",
+          link: "/admission/result",
+          id: "admission-result",
+        }
       ],
     },
     {

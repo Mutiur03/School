@@ -199,13 +199,15 @@ function Navbar() {
                 { id: "menu-item-3388", href: "admission/form", text: "Admission Form" },
                 {
                     id: "menu-item-3389",
-                    href: "#",
+                    href: "admission/results",
                     text: "Admission Result",
+                    hasChildren: true,
                     subDropdown: [
-                        { id: "menu-item-3393", href: "admission/result/class-6", text: "Class 6" },
-                        { id: "menu-item-3394", href: "admission/result/class-7", text: "Class 7" },
-                        { id: "menu-item-3395", href: "admission/result/class-8", text: "Class 8" },
-                        { id: "menu-item-3396", href: "admission/result/class-9", text: "Class 9" }
+                        { id: "menu-item-3392", href: "admission/results", text: "All Results" },
+                        { id: "menu-item-3393", href: "admission/result/6", text: "Class 6" },
+                        { id: "menu-item-3394", href: "admission/result/7", text: "Class 7" },
+                        { id: "menu-item-3395", href: "admission/result/8", text: "Class 8" },
+                        { id: "menu-item-3396", href: "admission/result/9", text: "Class 9" }
                     ]
                 }
             ]
@@ -227,7 +229,7 @@ function Navbar() {
             href: "https://student.lbphs.gov.bd/",
             text: "Results"
         },
-        
+
         {
             id: "menu-item-3384",
             className: "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item",
