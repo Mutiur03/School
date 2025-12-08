@@ -531,48 +531,54 @@ function AdmissionForm() {
             dispatch({ type: 'SET_FIELD', name: 'admissionUserId', value: '' })
         }
 
-        // determine per-class list type and serial no (fall back to global fields)
         const cls = String(form.admissionClass || '').trim().toLowerCase()
         const getSetting = (k: string) => (admissionSettings as Record<string, unknown>)[k]
         let listTypeTokens: string[] = []
         let serialRawTokens: string[] = []
-
+        let user_id_list: string[] = []
         if (cls === '6' || cls.includes('6') || cls.includes('six')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class6') ?? getSetting('listTypeClass6') ?? getSetting('list_type') ?? getSetting('listType'))
             serialRawTokens = parseCsvString(getSetting('serial_no_class6') ?? getSetting('serialNoClass6') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         } else if (cls === '7' || cls.includes('7') || cls.includes('seven')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class7') ?? getSetting('listTypeClass7') ?? getSetting('list_type') ?? getSetting('listType'))
             serialRawTokens = parseCsvString(getSetting('serial_no_class7') ?? getSetting('serialNoClass7') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         } else if (cls === '8' || cls.includes('8') || cls.includes('eight')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class8') ?? getSetting('listTypeClass8') ?? getSetting('list_type') ?? getSetting('listType'))
             serialRawTokens = parseCsvString(getSetting('serial_no_class8') ?? getSetting('serialNoClass8') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         } else if (cls === '9' || cls.includes('9') || cls.includes('nine')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class9') ?? getSetting('listTypeClass9') ?? getSetting('list_type') ?? getSetting('listType'))
             serialRawTokens = parseCsvString(getSetting('serial_no_class9') ?? getSetting('serialNoClass9') ?? getSetting('serial_no') ?? getSetting('serialNo'))
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         } else {
-            // fallback to global
             listTypeTokens = parseCsvString(getSetting('list_type') ?? getSetting('listType'))
             serialRawTokens = parseCsvString(getSetting('serial_no') ?? getSetting('serialNo'))
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admissionClass)
         }
 
-        // set list type options
         if (listTypeTokens.length) {
             setListTypeOptions(listTypeTokens)
         } else {
             setListTypeOptions([])
         }
-
-        // expand and set serial options
+        if (user_id_list.length) {
+            setUserIdOptions(user_id_list)
+        } else {
+            setUserIdOptions([])
+        }
         const serialList = expandSerialList(serialRawTokens)
         if (serialList.length) setSerialNoOptions(serialList)
         else setSerialNoOptions([])
-
-        // clear current selections if they are no longer valid for the selected class
         if (form.listType && listTypeTokens.length > 0 && !listTypeTokens.includes(String(form.listType))) {
             dispatch({ type: 'SET_FIELD', name: 'listType', value: '' })
         }
         if (form.serialNo && serialList.length > 0 && !serialList.includes(String(form.serialNo))) {
             dispatch({ type: 'SET_FIELD', name: 'serialNo', value: '' })
+        }
+        if (form.admissionUserId && user_id_list.length > 0 && !user_id_list.includes(String(form.admissionUserId))) {
+            dispatch({ type: 'SET_FIELD', name: 'admissionUserId', value: '' })
         }
     }, [admissionSettings, form.admissionClass, form.listType, form.serialNo])
 
@@ -966,7 +972,11 @@ function AdmissionForm() {
         // Age cutoff removed: no minimum-age validation enforced here anymore.
         if (!form.admissionClass) e.admissionClass = 'Please select class for admission'
         if (!form.listType) e.listType = 'Please select list type'
-        if (!form.admissionUserId) e.admissionUserId = 'User ID is required'
+        if (!form.admissionUserId) {
+            e.admissionUserId = 'User ID is required'
+        } else if (userIdOptions.length > 0 && !userIdOptions.includes(form.admissionUserId)) {
+            e.admissionUserId = 'Please select a valid User ID from the list'
+        }
         if (!form.serialNo) e.serialNo = 'Serial number is required'
         if (!form.qouta) e.qouta = 'Quota selection is required'
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address'
@@ -1198,8 +1208,6 @@ function AdmissionForm() {
             }
 
             const result = response.data
-            console.log(result);
-
             if (result.success) {
                 const successMessage = isEditMode
                     ? `Admission updated successfully! Admission ID: ${id}`
