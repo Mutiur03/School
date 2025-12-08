@@ -28,6 +28,7 @@ import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
 import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
+import admissionResultRouter from "./routes/admissionResultRoutes.js";
 import { check } from "./config/redis.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +78,7 @@ app.use("/api/reg/ssc", regSSCRouter);
 app.use("/api/reg/ssc/form", studentRegistrationRouter);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
+app.use("/api/admission-result", admissionResultRouter);
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,

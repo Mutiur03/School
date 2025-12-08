@@ -21,6 +21,8 @@ import RegSSC from "./pages/RegSSC";
 import Admission from "./pages/admission";
 import AdmissionForm from "./pages/AdmissionForm";
 import ConfirmationAdmission from "./pages/ConfirmationAdmission";
+import AdmissionResult from "./pages/AdmissionResult";
+import AdmissionResultList from "./pages/AdmissionResultList";
 import TopBanner from "./components/TopBanner";
 
 function App() {
@@ -68,6 +70,8 @@ function App() {
                 <Route path="/admission/form" element={<AdmissionForm />} />
                 <Route path="/admission/form/:id" element={<AdmissionForm />} />
                 <Route path="/admission/form/confirm/:id" element={<ConfirmationAdmission />} />
+                <Route path="/admission/results" element={<AdmissionResultList />} />
+                <Route path="/admission/result/:classNumber" element={<AdmissionResult />} />
 
 
                 <Route

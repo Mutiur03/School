@@ -37,6 +37,7 @@ import RegSSC from "./pages/RegSSC";
 import AddExam from "./pages/AddExam";
 import Admission from "./pages/Admission";
 import AdmissionSettings from "./pages/AdmissionSettings";
+import AdmissionResult from "./pages/AdmissionResult";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -172,7 +173,10 @@ function App() {
                               path="/admission/settings"
                               element={<AdmissionSettings />}
                             ></Route>
-
+                            <Route
+                              path="/admission/result"
+                              element={<AdmissionResult />}
+                            ></Route>
                             <Route
                               path="/syllabus"
                               element={<Syllabus />}
