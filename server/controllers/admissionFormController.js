@@ -34,21 +34,68 @@ const formatQuota = (q) => {
 };
 const checkDuplicates = async (data, excludeId = null) => {
   const duplicates = [];
+  // try {
+  //   if (data && data.serial_no) {
+  //     const existing = await prisma.admission_form.findFirst({
+  //       where: {
+  //         serial_no: data.serial_no,
+  //         ...(excludeId ? { id: { not: excludeId } } : {}),
+  //       },
+  //       select: { id: true, student_name_en: true },
+  //     });
+  //     if (existing) {
+  //       duplicates.push({
+  //         field: "serialNo",
+  //         message: "A form with this Serial number already exists",
+  //         existingRecord: existing,
+  //       });
+  //     }
+  //   }
+  // } catch (err) {
+  //   console.warn(
+  //     "checkDuplicates error:",
+  //     err && err.message ? err.message : err
+  //   );
+  // }
   try {
-    if (!data || !data.serial_no) return duplicates;
-    const existing = await prisma.admission_form.findFirst({
-      where: {
-        serial_no: data.serial_no,
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-      select: { id: true, student_name_en: true },
-    });
-    if (existing) {
-      duplicates.push({
-        field: "serialNo",
-        message: "Serial number already exists",
-        existingRecord: existing,
+    if (data && data.admission_user_id) {
+      const existing = await prisma.admission_form.findFirst({
+        where: {
+          admission_user_id: data.admission_user_id,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true, student_name_en: true },
       });
+      if (existing) {
+        duplicates.push({
+          field: "admissionUserId",
+          message: "A form with this User ID already exists",
+          existingRecord: existing,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn(
+      "checkDuplicates error:",
+      err && err.message ? err.message : err
+    );
+  }
+  try {
+    if (data && data.birth_reg_no) {
+      const existing = await prisma.admission_form.findFirst({
+        where: {
+          birth_reg_no: data.birth_reg_no,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true, student_name_en: true },
+      });
+      if (existing) {
+        duplicates.push({
+          field: "birthRegNo",
+          message: "A form with this Birth Registration number already exists",
+          existingRecord: existing,
+        });
+      }
     }
   } catch (err) {
     console.warn(
@@ -78,7 +125,7 @@ const saveAdmissionPhoto = async (
     .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
     .replace(/\s+/g, "_")
     .toLowerCase();
- 
+
   const safeSerial = serialNo
     ? String(serialNo)
         .trim()
