@@ -354,9 +354,7 @@ export const get_head_msg = async (req, res) => {
     const headMsg = await prisma.head_msg.findUnique({
       where: { id: 1 },
       include: {
-        teacher: {
-          select: { id, name, image },
-        },
+        teacher: { select: { id: true, name: true, image: true } },
       },
     });
     res.status(200).json(headMsg);
