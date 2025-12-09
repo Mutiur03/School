@@ -98,10 +98,9 @@ function RegSSC() {
 
                     {regData?.notice ? (
                         <div className="mb-6">
-                            {/* <h3 className="text-lg font-semibold mb-4">Registration Notice:</h3> */}
                             <div className="border rounded-lg overflow-hidden">
                                 <iframe
-                                    src={regData.notice}
+                                    src={`${regData.notice}#navpanes=0&scrollbar=0`}
                                     className="w-full h-150"
                                     title="SSC Registration Notice"
                                 />
