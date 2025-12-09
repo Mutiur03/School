@@ -42,29 +42,21 @@ export const addTeacher = async (req, res) => {
     console.log(teachers);
 
     const teacherData = await Promise.all(
-      teachers.map(
-        async ({
-          name,
-          email,
-          phone,
-          address,
-          designation,
-        }) => {
-          const originalPassword = generatePassword();
-          const hashedPassword = await bcrypt.hash(originalPassword, 10);
-          const rawData = {
-            name: name?.trim() || null,
-            email: email?.trim() || null,
-            phone: "0" + removeNonNumber(String(phone)).slice(-10) || null,
-            designation: designation?.trim() || null,
-            address: address?.trim() || null,
-            password: hashedPassword || null,
-            originalPassword,
-          };
+      teachers.map(async ({ name, email, phone, address, designation }) => {
+        const originalPassword = generatePassword();
+        const hashedPassword = await bcrypt.hash(originalPassword, 10);
+        const rawData = {
+          name: name?.trim() || null,
+          email: email?.trim() || null,
+          phone: "0" + removeNonNumber(String(phone)).slice(-10) || null,
+          designation: designation?.trim() || null,
+          address: address?.trim() || null,
+          password: hashedPassword || null,
+          originalPassword,
+        };
 
-          return validateFieldLengths(rawData);
-        }
-      )
+        return validateFieldLengths(rawData);
+      })
     );
 
     const result = await prisma.teachers.createMany({
@@ -118,13 +110,7 @@ export const getTeachers = async (_, res) => {
 
 export const updateTeacher = async (req, res) => {
   const { id } = req.params;
-  const {
-    name,
-    email,
-    phone,
-    address,
-    designation,
-  } = req.body;
+  const { name, email, phone, address, designation } = req.body;
   console.log(req.body);
 
   try {
@@ -172,7 +158,7 @@ export const updateTeacher = async (req, res) => {
           resource: {
             values: [
               [
-                id, 
+                id,
                 name?.trim() || "",
                 email?.trim() || "",
                 "0" + removeNonNumber(phone).slice(-10),
@@ -306,14 +292,14 @@ export const changePassword = async (req, res) => {
       let rowIndex = -1;
       for (let i = 0; i < rows.length; i++) {
         if (rows[i][2] === teacher.email) {
-          rowIndex = i + 1; 
+          rowIndex = i + 1;
           break;
         }
       }
       if (rowIndex > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `teachers!F${rowIndex}:F${rowIndex}`, 
+          range: `teachers!F${rowIndex}:F${rowIndex}`,
           valueInputOption: "USER_ENTERED",
           resource: {
             values: [[newPassword]],
@@ -337,19 +323,16 @@ export const changePassword = async (req, res) => {
 };
 
 export const head_msg_update = async (req, res) => {
-  
   try {
-    
     const { teacherId, message } = req.body;
-    if (!teacherId ) {
+    if (!teacherId) {
       return res
         .status(400)
         .json({ success: false, error: "Nothing to update" });
     }
     const updateData = {};
     if (teacherId) updateData.head_id = parseInt(teacherId);
-    if (message)
-       updateData.head_message = message;
+    if (message) updateData.head_message = message;
     else updateData.head_message = null;
 
     await prisma.head_msg.upsert({
@@ -358,7 +341,7 @@ export const head_msg_update = async (req, res) => {
       update: updateData,
     });
     console.log(updateData);
-    
+
     res.status(200).json({ success: true, message: "Updated successfully" });
   } catch (error) {
     console.error("Error updating head info:", error.message);
@@ -370,7 +353,11 @@ export const get_head_msg = async (req, res) => {
   try {
     const headMsg = await prisma.head_msg.findUnique({
       where: { id: 1 },
-      include: { teacher: true },
+      include: {
+        teacher: {
+          select: { id, name, image },
+        },
+      },
     });
     res.status(200).json(headMsg);
   } catch (error) {
