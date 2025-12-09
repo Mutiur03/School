@@ -82,8 +82,8 @@ function Admission() {
                         <div className="mb-6">
                             <div className="border rounded-lg overflow-hidden">
                                 <iframe
-                                    src={admissionData.preview_url}
-                                    className="w-full h-150"
+                                    src={`${admissionData.preview_url}#navpanes=0&scrollbar=0`}
+                                    className="w-full h-250"
                                     title="Admission Notice"
                                 />
                             </div>
