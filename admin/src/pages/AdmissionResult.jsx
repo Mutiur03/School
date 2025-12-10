@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import backend from "@/lib/backend";
 
 function AdmissionResult() {
   const [results, setResults] = useState([]);
@@ -28,7 +29,6 @@ function AdmissionResult() {
   const meritListRef = React.useRef();
   const waitingList1Ref = React.useRef();
   const waitingList2Ref = React.useRef();
-
   const classes = ["6", "7", "8", "9"];
   const listTypes = [
     { key: "merit_list", label: "Merit List", color: "green" },
@@ -81,21 +81,30 @@ function AdmissionResult() {
         setFormData((prev) => ({ ...prev, [fieldName]: null }));
         return;
       }
-      // if (file.size > 10 * 1024 * 1024) {
-      //   toast.error("File size must be less than 10MB");
-      //   e.target.value = "";
-      //   setFormData((prev) => ({ ...prev, [fieldName]: null }));
-      //   return;
-      // }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        e.target.value = "";
+        setFormData((prev) => ({ ...prev, [fieldName]: null }));
+        return;
+      }
       setFormData((prev) => ({ ...prev, [fieldName]: file }));
     } else {
       setFormData((prev) => ({ ...prev, [fieldName]: null }));
     }
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const hasAnyFile =
+      !!formData.merit_list ||
+      !!formData.waiting_list_1 ||
+      !!formData.waiting_list_2;
+
+    if (!hasAnyFile) {
+      toast.error("Please upload at least one PDF file");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const submitData = new FormData();
@@ -684,7 +693,7 @@ function AdmissionResult() {
                           </div>
                           {result[listType.key] && (
                             <a
-                              href={result[listType.key]}
+                              href={backend + result[listType.key]}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 text-primary hover:underline text-sm mt-2"
