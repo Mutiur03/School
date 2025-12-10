@@ -10,7 +10,7 @@ services:
     networks:
       - school_network
     env_file:
-      - .env
+      - .env.prod
 
 
 volumes:
