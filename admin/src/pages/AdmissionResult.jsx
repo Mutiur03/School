@@ -81,17 +81,18 @@ function AdmissionResult() {
         setFormData((prev) => ({ ...prev, [fieldName]: null }));
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB");
-        e.target.value = "";
-        setFormData((prev) => ({ ...prev, [fieldName]: null }));
-        return;
-      }
+      // if (file.size > 10 * 1024 * 1024) {
+      //   toast.error("File size must be less than 10MB");
+      //   e.target.value = "";
+      //   setFormData((prev) => ({ ...prev, [fieldName]: null }));
+      //   return;
+      // }
       setFormData((prev) => ({ ...prev, [fieldName]: file }));
     } else {
       setFormData((prev) => ({ ...prev, [fieldName]: null }));
     }
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,7 +111,6 @@ function AdmissionResult() {
     if (formData.waiting_list_2) {
       submitData.append("waiting_list_2", formData.waiting_list_2);
     }
-
     try {
       if (isEditing) {
         await axios.put(`/api/admission-result/${editId}`, submitData, {
