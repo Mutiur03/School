@@ -1,54 +1,58 @@
 import fs from "fs";
+import path from "path";
 import { prisma } from "../config/prisma.js";
-import cloudinary from "../config/cloudinary.js";
 
-export async function uploadPDFToCloudinary(
-  file,
-  folder = "admission-results"
-) {
+export async function uploadPDFToLocal(file, folder = "admission-results") {
   try {
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          resource_type: "raw",
-          use_filename: true,
-          unique_filename: true,
-          timeout: 120000, 
-          chunk_size: 6_000_000, 
-        },
-        (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        }
-      );
+    const uploadsRoot = path.join(process.cwd(), "uploads");
+    const destDir = path.join(uploadsRoot, folder);
+    await fs.promises.mkdir(destDir, { recursive: true });
 
-      fs.createReadStream(file.path).pipe(uploadStream);
-    });
-
-    fs.unlink(file.path, (err) => {
-      if (err) console.error("Error deleting local file:", err);
-    });
-
-    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+    const originalName = file.originalname || path.basename(file.path);
+    const filename = `${Date.now()}-${originalName}`.replace(/\s+/g, "_");
+    const destPath = path.join(destDir, filename);
+    try {
+      await fs.promises.rename(file.path, destPath);
+    } catch (err) {
+      await fs.promises.copyFile(file.path, destPath);
+      await fs.promises.unlink(file.path).catch(() => {});
+    }
+    try {
+      await fs.promises.unlink(file.path);
+    } catch (err) {
+      // File might have been moved, ignore error
+    }
+    const relativeUrl = path
+      .join("/uploads", folder, filename)
+      .split(path.sep)
+      .join("/");
 
     return {
-      url: result.secure_url,
-      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
-      public_id: result.public_id,
+      url: relativeUrl,
+      downloadUrl: relativeUrl,
+      public_id: relativeUrl,
     };
   } catch (error) {
-    console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    console.error("Local upload failed:", error.message);
+    throw new Error("Local upload failed");
   }
 }
 
-
-export async function deletePDFFromCloudinary(publicId) {
+export async function deleteLocalPDF(publicId) {
   try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+    if (!publicId) return;
+    const relativePath = publicId.startsWith("/")
+      ? publicId.slice(1)
+      : publicId;
+    const filePath = path.join(process.cwd(), relativePath);
+
+    await fs.promises.unlink(filePath).catch((err) => {
+      if (err.code !== "ENOENT") {
+        console.error("Error deleting local file:", err.message);
+      }
+    });
   } catch (err) {
-    console.error("Error deleting file from Cloudinary:", err.message);
+    console.error("Error deleting local file:", err.message);
   }
 }
 
@@ -112,7 +116,7 @@ export const createAdmissionResult = async (req, res) => {
     };
 
     if (files?.merit_list?.[0]) {
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.merit_list[0],
         `admission-results/class-${class_name}/merit`
       );
@@ -121,7 +125,7 @@ export const createAdmissionResult = async (req, res) => {
     }
 
     if (files?.waiting_list_1?.[0]) {
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_1[0],
         `admission-results/class-${class_name}/waiting-1`
       );
@@ -130,7 +134,7 @@ export const createAdmissionResult = async (req, res) => {
     }
 
     if (files?.waiting_list_2?.[0]) {
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_2[0],
         `admission-results/class-${class_name}/waiting-2`
       );
@@ -177,10 +181,10 @@ export const updateAdmissionResult = async (req, res) => {
 
     if (files?.merit_list?.[0]) {
       if (existingResult.merit_list_public_id) {
-        await deletePDFFromCloudinary(existingResult.merit_list_public_id);
+        await deleteLocalPDF(existingResult.merit_list_public_id);
       }
 
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.merit_list[0],
         `admission-results/class-${
           class_name || existingResult.class_name
@@ -192,10 +196,10 @@ export const updateAdmissionResult = async (req, res) => {
 
     if (files?.waiting_list_1?.[0]) {
       if (existingResult.waiting_list_1_public_id) {
-        await deletePDFFromCloudinary(existingResult.waiting_list_1_public_id);
+        await deleteLocalPDF(existingResult.waiting_list_1_public_id);
       }
 
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_1[0],
         `admission-results/class-${
           class_name || existingResult.class_name
@@ -207,10 +211,10 @@ export const updateAdmissionResult = async (req, res) => {
 
     if (files?.waiting_list_2?.[0]) {
       if (existingResult.waiting_list_2_public_id) {
-        await deletePDFFromCloudinary(existingResult.waiting_list_2_public_id);
+        await deleteLocalPDF(existingResult.waiting_list_2_public_id);
       }
 
-      const { url, public_id } = await uploadPDFToCloudinary(
+      const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_2[0],
         `admission-results/class-${
           class_name || existingResult.class_name
@@ -248,13 +252,13 @@ export const deleteAdmissionResult = async (req, res) => {
     }
 
     if (existingResult.merit_list_public_id) {
-      await deletePDFFromCloudinary(existingResult.merit_list_public_id);
+      await deleteLocalPDF(existingResult.merit_list_public_id);
     }
     if (existingResult.waiting_list_1_public_id) {
-      await deletePDFFromCloudinary(existingResult.waiting_list_1_public_id);
+      await deleteLocalPDF(existingResult.waiting_list_1_public_id);
     }
     if (existingResult.waiting_list_2_public_id) {
-      await deletePDFFromCloudinary(existingResult.waiting_list_2_public_id);
+      await deleteLocalPDF(existingResult.waiting_list_2_public_id);
     }
 
     await prisma.admission_result.delete({
