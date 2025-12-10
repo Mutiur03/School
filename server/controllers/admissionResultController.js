@@ -7,11 +7,23 @@ export async function uploadPDFToCloudinary(
   folder = "admission-results"
 ) {
   try {
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: folder,
-      resource_type: "raw",
-      use_filename: true,
-      unique_filename: true,
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: true,
+          timeout: 120000, 
+          chunk_size: 6_000_000, 
+        },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+
+      fs.createReadStream(file.path).pipe(uploadStream);
     });
 
     fs.unlink(file.path, (err) => {
@@ -19,6 +31,7 @@ export async function uploadPDFToCloudinary(
     });
 
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+
     return {
       url: result.secure_url,
       downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
@@ -29,6 +42,7 @@ export async function uploadPDFToCloudinary(
     throw new Error("Cloudinary upload failed");
   }
 }
+
 
 export async function deletePDFFromCloudinary(publicId) {
   try {
