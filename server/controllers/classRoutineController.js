@@ -1,6 +1,7 @@
 import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
-// Helper function for PDF upload
+import { redis } from "../config/redis.js";
+import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
 async function uploadPDFToCloudinary(file) {
   try {
     const result = await new Promise((resolve, reject) => {
@@ -31,7 +32,6 @@ async function uploadPDFToCloudinary(file) {
   }
 }
 
-// CRUD for class slots
 export const getClassSlots = async (req, res) => {
   try {
     const slots = await prisma.class_slot_time.findMany({
@@ -145,7 +145,6 @@ export const updateRoutine = async (req, res) => {
   }
 };
 
-// Delete a routine entry
 export const deleteRoutine = async (req, res) => {
   const { id } = req.params;
   try {
@@ -156,7 +155,6 @@ export const deleteRoutine = async (req, res) => {
   }
 };
 
-// Upload class routine PDF
 export const uploadClassRoutinePDF = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -172,25 +170,36 @@ export const uploadClassRoutinePDF = async (req, res) => {
         public_id: public_id,
       },
     });
+    const key = `class_routine_pdfs`;
+    await redis.del(key);
     res.status(201).json(pdf);
   } catch (err) {
+    console.log(err);
+
     res.status(500).json({ error: "Failed to upload PDF" });
   }
 };
 
-// Get all class routine PDFs
 export const getClassRoutinePDFs = async (req, res) => {
+  const key = `class_routine_pdfs`;
+  const cachedPDFs = await redis
+    .get(key)
+    .then((data) => (data ? JSON.parse(data) : null));
+  if (cachedPDFs) {
+    return res.json(cachedPDFs);
+  }
   try {
     const pdfs = await prisma.class_routine_pdf.findMany({
       orderBy: [{ id: "desc" }],
     });
+    await redis.set(key, JSON.stringify(pdfs), "EX", LONG_TERM_CACHE_TTL);
+    console.log(pdfs);
     res.json(pdfs);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch PDFs" });
   }
 };
 
-// Delete a class routine PDF
 export const deleteClassRoutinePDF = async (req, res) => {
   const { id } = req.params;
   try {
@@ -198,16 +207,16 @@ export const deleteClassRoutinePDF = async (req, res) => {
       where: { id: Number(id) },
     });
     if (!pdf) return res.status(404).json({ error: "PDF not found" });
-    // Delete from Cloudinary
     cloudinary.uploader.destroy(pdf.public_id, { resource_type: "raw" });
     await prisma.class_routine_pdf.delete({ where: { id: Number(id) } });
+    const key = `class_routine_pdfs`;
+    await redis.del(key);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete PDF" });
   }
 };
 
-// Update (replace) a class routine PDF
 export const updateClassRoutinePDF = async (req, res) => {
   const { id } = req.params;
   try {
@@ -219,11 +228,9 @@ export const updateClassRoutinePDF = async (req, res) => {
     let updateData = {};
 
     if (req.file) {
-      // Delete old from Cloudinary
       cloudinary.uploader.destroy(pdf.public_id, {
         resource_type: "raw",
       });
-      // Upload new PDF using provided helper
       const { previewUrl, downloadUrl, public_id } =
         await uploadPDFToCloudinary(req.file);
       updateData.pdf_url = previewUrl;
@@ -235,6 +242,8 @@ export const updateClassRoutinePDF = async (req, res) => {
       where: { id: Number(id) },
       data: updateData,
     });
+    const key = `class_routine_pdfs`;
+    await redis.del(key);
     res.json(updated);
   } catch (err) {
     res.status(400).json({ error: "Failed to update PDF" });

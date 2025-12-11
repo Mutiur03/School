@@ -129,7 +129,10 @@ export const deleteNoticeController = async (req, res) => {
     if (notice.public_id) {
       await deletePDFFromCloudinary(notice.public_id);
     }
-
+    const key=`notices_limit`;
+    await redis.del(key);
+    const allKey="notices_all";
+    await redis.del(allKey);
     res.status(200).json({ message: "Notice deleted successfully" });
   } catch (error) {
     console.error("Error deleting notice:", error.message);

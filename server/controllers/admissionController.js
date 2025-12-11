@@ -1,6 +1,8 @@
 import fs from "fs";
 import cloudinary from "../config/cloudinary.js";
 import { prisma } from "../config/prisma.js";
+import { SHORT_TERM_CACHE_TTL } from "../utils/globalVars.js";
+import { redis } from "../config/redis.js";
 
 export async function uploadPDFToCloudinary(file) {
   try {
@@ -135,7 +137,8 @@ export const creatOrUpdateAdmission = async (req, res) => {
         serial_no_class9: updateData.serial_no_class9 ?? null,
       },
     });
-
+    const key=`admission`;
+    await redis.del(key);
     return res
       .status(200)
       .json({ success: true, message: "Settings saved", data: notice });
@@ -159,16 +162,14 @@ export const creatOrUpdateAdmission = async (req, res) => {
 };
 
 export const getAdmission = async (req, res) => {
+  const key=`admission`;
+  const cached = await redis.get(key);
+  if (cached) {
+    return res.status(200).json(JSON.parse(cached));
+  }
   try {
     const data = await prisma.admission.findFirst();
-
-    // if (!notice) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: "Admission notice not found",
-    //   });
-    // }
-
+    await redis.set(key, JSON.stringify(data), "EX", SHORT_TERM_CACHE_TTL);
     res.status(200).json(data);
   } catch (error) {
     console.error("Error fetching admission notice:", error);
@@ -204,7 +205,8 @@ export const deleteAdmission = async (req, res) => {
       where: { id: existing.id },
       data: { preview_url: null, download_url: null, public_id: null },
     });
-
+    const key=`admission`;
+    await redis.del(key);
     return res
       .status(200)
       .json({ success: true, message: "Notice removed", data: updated });

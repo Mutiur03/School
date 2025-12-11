@@ -3,6 +3,8 @@ import multer from "multer";
 import cloudinary from "../config/cloudinary.js";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
+import { redis } from "../config/redis.js";
+import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
 const fileUploadRouter = express.Router();
 export async function uploadPDFToCloudinary(file) {
   try {
@@ -31,14 +33,14 @@ export async function uploadPDFToCloudinary(file) {
   }
 }
 
-export async function deletePDFFromCloudinary(publicId) {
-  try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
-    console.log(`File with public ID "${publicId}" deleted successfully.`);
-  } catch (err) {
-    console.error("Error deleting file:", err.message);
-  }
-}
+// export async function deletePDFFromCloudinary(publicId) {
+//   try {
+//     await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+//     console.log(`File with public ID "${publicId}" deleted successfully.`);
+//   } catch (err) {
+//     console.error("Error deleting file:", err.message);
+//   }
+// }
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -104,7 +106,8 @@ fileUploadRouter.post(
       } else {
             return res.status(400).json({ error: "Invalid document type" });
       }
-
+      const key=`citizen_charter`;
+      await redis.del(key);
       res.status(200).json({
         message: "Document uploaded successfully",
         data: result,
@@ -119,8 +122,12 @@ fileUploadRouter.post(
   }
 );
 
-// Get citizen charter
 fileUploadRouter.get("/citizen-charter", async (req, res) => {
+  const key=`citizen_charter`;
+  const cachedCharter = await redis.get(key);
+  if (cachedCharter) {
+    return res.status(200).json(JSON.parse(cachedCharter));
+  }
   try {
     const charter = await prisma.citizenCharter.findFirst({
       orderBy: { updated_at: "desc" },
@@ -129,7 +136,7 @@ fileUploadRouter.get("/citizen-charter", async (req, res) => {
     if (!charter) {
       return res.status(404).json({ error: "Citizen charter not found" });
     }
-
+    await redis.set(key, JSON.stringify(charter), "EX", LONG_TERM_CACHE_TTL);
     res.status(200).json(charter);
   } catch (error) {
     console.error("Error fetching citizen charter:", error);
