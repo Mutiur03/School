@@ -1,27 +1,16 @@
-import React from 'react'
+import { useEffect } from 'react'
 import './NoticeBoard.css'
-import axios from 'axios';
 import { Link } from 'react-router-dom';
-interface Notice {
-    id?: string;
-    title?: string;
-    file?: string;
-}
+import useNoticeStore from '@/store/noticeStore';
+
 
 const NoticeBoard = () => {
-    const [notices, setNotices] = React.useState<Notice[]>([]);
-    const [isLoading, setIsLoading] = React.useState(true);
-    React.useEffect(() => {
-        setIsLoading(true);
-        axios.get('/api/notices/getNotices?limit=5')
-            .then(response => {
-                setNotices(response.data);
-                setIsLoading(false);
-            })
-            .catch(error => {
-                console.error('Error fetching notices:', error);
-                setIsLoading(false);
-            });
+
+    const { notices, isLoading, loadNotices } = useNoticeStore();
+    useEffect(() => {
+        if (notices.length === 0) {
+            loadNotices();
+        }
     }, []);
     return (
         <div className="front-notices-area ">
