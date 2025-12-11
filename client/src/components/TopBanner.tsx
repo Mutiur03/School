@@ -11,7 +11,7 @@ const TopBanner: React.FC = () => {
     useEffect(() => {
         mounted.current = true
         const controller = new AbortController()
-        if (notices.length === 0) {
+        if (notices.length === 0 && !isLoading) {
             loadNotices();
         }
 

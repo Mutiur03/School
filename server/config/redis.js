@@ -9,3 +9,4 @@ export const check = async () => {
   const pong = await redis.ping();
   console.log("Redis PING response:", pong);
 };
+redis.on("error", (err) => console.log("Redis Client Error", err));

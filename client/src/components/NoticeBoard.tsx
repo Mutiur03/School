@@ -8,7 +8,7 @@ const NoticeBoard = () => {
 
     const { notices, isLoading, loadNotices } = useNoticeStore();
     useEffect(() => {
-        if (notices.length === 0) {
+        if (notices.length === 0 && !isLoading) {
             loadNotices();
         }
     }, []);

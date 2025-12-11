@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import './Navbar.css'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import { useCommonStore } from '@/store/commonStore'
 
 interface SubDropdownItem {
     id: string
@@ -33,11 +33,11 @@ function Navbar() {
     const [isNavOpen, setIsNavOpen] = useState(false)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
     const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null)
-    const [routinePDF, setRoutinePDF] = useState<string | null>(null);
+    const { routinePDF, loadRoutinePDF } = useCommonStore();
     useEffect(() => {
-        axios.get("/api/class-routine/pdf")
-            .then(res => setRoutinePDF(res.data[0].pdf_url || null))
-            .catch(() => setRoutinePDF(null));
+        if (!routinePDF) {
+            loadRoutinePDF();
+        }
     }, []);
 
     const isExternalLink = (href?: string | null) => {
@@ -270,19 +270,19 @@ function Navbar() {
                             {isExternalLink(item.href) && !item.dropdown ? (
                                 <a
                                     href={item.href || '#'}
-                                    className="nav-link hover:!text-white transition-colors duration-200 !flex !items-center !justify-center gap-1"
+                                    className="nav-link hover:text-white! transition-colors duration-200 flex! items-center! justify-center! gap-1"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    <span className="menu-text hover:!text-white">
+                                    <span className="menu-text hover:text-white!">
                                         {item.isHome ? (
-                                            <i className={`${item.icon} hover:!text-white`} aria-hidden="true"></i>
+                                            <i className={`${item.icon} hover:text-white!`} aria-hidden="true"></i>
                                         ) : (
                                             item.text
                                         )}
                                     </span>
                                     {item.dropdown && (
-                                        <span className="dropdown-icon !inline-flex !items-center">
+                                        <span className="dropdown-icon inline-flex! items-center!">
                                             <ChevronDown size={14} />
                                         </span>
                                     )}
@@ -290,7 +290,7 @@ function Navbar() {
                             ) : (
                                 <Link
                                     to={item.href || '#'}
-                                    className="nav-link hover:!text-white transition-colors duration-200 !flex !items-center !justify-center gap-1"
+                                    className="nav-link hover:text-white! transition-colors duration-200 flex! items-center! justify-center! gap-1"
                                     onClick={(e) => {
                                         if (item.dropdown) {
                                             e.preventDefault()
@@ -298,15 +298,15 @@ function Navbar() {
                                         }
                                     }}
                                 >
-                                    <span className="menu-text hover:!text-white">
+                                    <span className="menu-text hover:text-white!">
                                         {item.isHome ? (
-                                            <i className={`${item.icon} hover:!text-white`} aria-hidden="true"></i>
+                                            <i className={`${item.icon} hover:text-white!`} aria-hidden="true"></i>
                                         ) : (
                                             item.text
                                         )}
                                     </span>
                                     {item.dropdown && (
-                                        <span className="dropdown-icon !inline-flex !items-center">
+                                        <span className="dropdown-icon inline-flex! items-center!">
 
                                             <ChevronDown size={14} />
                                         </span>
@@ -324,11 +324,10 @@ function Navbar() {
                                             aria-expanded={activeSubDropdown === subItem.id}
                                         >
                                             {subItem.subDropdown ? (
-                                                // If this subItem has its own nested dropdown, use the trigger to toggle it
                                                 isExternalLink(subItem.href) ? (
                                                     <a
                                                         href={subItem.href || '#'}
-                                                        className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                        className="dropdown-item hover:text-white! transition-colors duration-200"
                                                         onClick={(e) => {
                                                             e.preventDefault()
                                                             toggleSubDropdown(subItem.id)
@@ -336,15 +335,15 @@ function Navbar() {
                                                         aria-expanded={activeSubDropdown === subItem.id}
                                                         aria-controls={`${subItem.id}-submenu`}
                                                     >
-                                                        <span className="menu-text hover:!text-white">{subItem.text}</span>
-                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                        <span className="menu-text hover:text-white!">{subItem.text}</span>
+                                                        <span className="dropdown-icon inline-flex! items-center! ml-1">
                                                             <ChevronDown size={14} />
                                                         </span>
                                                     </a>
                                                 ) : (
                                                     <Link
                                                         to={subItem.href || '#'}
-                                                        className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                        className="dropdown-item hover:text-white! transition-colors duration-200"
                                                         onClick={(e) => {
                                                             e.preventDefault()
                                                             toggleSubDropdown(subItem.id)
@@ -352,8 +351,8 @@ function Navbar() {
                                                         aria-expanded={activeSubDropdown === subItem.id}
                                                         aria-controls={`${subItem.id}-submenu`}
                                                     >
-                                                        <span className="menu-text hover:!text-white">{subItem.text}</span>
-                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                        <span className="menu-text hover:text-white!">{subItem.text}</span>
+                                                        <span className="dropdown-icon inline-flex! items-center! ml-1">
                                                             <ChevronDown size={14} />
                                                         </span>
                                                     </Link>
@@ -361,14 +360,14 @@ function Navbar() {
                                             ) : isExternalLink(subItem.href) ? (
                                                 <a
                                                     href={subItem.href || '#'}
-                                                    className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                    className="dropdown-item hover:text-white! transition-colors duration-200"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     onClick={() => closeNavbarIfMobile(subItem.href)}
                                                 >
-                                                    <span className="menu-text hover:!text-white">{subItem.text}</span>
+                                                    <span className="menu-text hover:text-white!">{subItem.text}</span>
                                                     {subItem.hasChildren && (
-                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                        <span className="dropdown-icon inline-flex! items-center! ml-1">
                                                             <ChevronDown size={14} />
                                                         </span>
                                                     )}
@@ -376,12 +375,12 @@ function Navbar() {
                                             ) : (
                                                 <Link
                                                     to={subItem.href || '#'}
-                                                    className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                    className="dropdown-item hover:text-white! transition-colors duration-200"
                                                     onClick={() => closeNavbarIfMobile(subItem.href)}
                                                 >
-                                                    <span className="menu-text hover:!text-white">{subItem.text}</span>
+                                                    <span className="menu-text hover:text-white!">{subItem.text}</span>
                                                     {subItem.hasChildren && (
-                                                        <span className="dropdown-icon !inline-flex !items-center ml-1">
+                                                        <span className="dropdown-icon inline-flex! items-center! ml-1">
                                                             <ChevronDown size={14} />
                                                         </span>
                                                     )}
@@ -399,20 +398,20 @@ function Navbar() {
                                                             {isExternalLink(nestedItem.href) ? (
                                                                 <a
                                                                     href={nestedItem.href || '#'}
-                                                                    className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                                    className="dropdown-item hover:text-white! transition-colors duration-200"
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                                                 >
-                                                                    <span className="menu-text hover:!text-white">{nestedItem.text}</span>
+                                                                    <span className="menu-text hover:text-white!">{nestedItem.text}</span>
                                                                 </a>
                                                             ) : (
                                                                 <Link
                                                                     to={nestedItem.href || '#'}
-                                                                    className="dropdown-item hover:!text-white transition-colors duration-200"
+                                                                    className="dropdown-item hover:text-white! transition-colors duration-200"
                                                                     onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                                                 >
-                                                                    <span className="menu-text hover:!text-white">{nestedItem.text}</span>
+                                                                    <span className="menu-text hover:text-white!">{nestedItem.text}</span>
                                                                 </Link>
                                                             )}
                                                         </li>
