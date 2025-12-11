@@ -51,10 +51,22 @@ function Admission() {
     fetchPage();
     return () => controller.abort();
   }, [page, limit, search, status]);
-  function formatDate(d) {
+  function formatDate(d, includeTime = true) {
     if (!d) return "-";
     try {
-      return new Date(d).toLocaleString();
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return d;
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const yyyy = dt.getFullYear();
+      if (!includeTime) return `${dd}/${mm}/${yyyy}`;
+      let hours = dt.getHours();
+      const minutes = String(dt.getMinutes()).padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      if (hours === 0) hours = 12;
+      const hh = String(hours).padStart(2, "0");
+      return `${dd}/${mm}/${yyyy} ${hh}:${minutes} ${ampm}`;
     } catch {
       return d;
     }
