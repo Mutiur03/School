@@ -1,6 +1,8 @@
 import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
 import path from "path";
+import { redis } from "../config/redis.js";
+import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
 export async function uploadPDFToCloudinary(file) {
   try {
     const result = await new Promise((resolve, reject) => {
@@ -22,7 +24,7 @@ export async function uploadPDFToCloudinary(file) {
 
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
 
-    const ext = path.extname(file.originalname); 
+    const ext = path.extname(file.originalname);
 
     return {
       previewUrl: result.secure_url,
@@ -62,6 +64,8 @@ export const uploadSyllabus = async (req, res) => {
         public_id,
       },
     });
+    const key = `syllabus`;
+    await redis.del(key);
     res.json(syllabus);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -69,11 +73,20 @@ export const uploadSyllabus = async (req, res) => {
 };
 
 export const listSyllabus = async (req, res) => {
+  const key = `syllabus`;
+  const cachedSyllabus = await redis
+    .get(key)
+    .then((data) => (data ? JSON.parse(data) : null))
+    .catch(() => null);
+  if (cachedSyllabus) {
+    return res.json(cachedSyllabus);
+  }
   const { class: classNum, year } = req.query;
   const where = {};
   if (classNum) where.class = parseInt(classNum);
   if (year) where.year = parseInt(year);
   const syllabuses = await prisma.syllabus.findMany({ where });
+  await redis.set(key, JSON.stringify(syllabuses), "EX", LONG_TERM_CACHE_TTL);
   res.json(syllabuses);
 };
 
@@ -85,6 +98,8 @@ export const deleteSyllabus = async (req, res) => {
   if (!syllabus) return res.status(404).json({ error: "Not found" });
   await deletePDFFromCloudinary(syllabus.public_id);
   await prisma.syllabus.delete({ where: { id: parseInt(id) } });
+  const key = `syllabus`;
+  await redis.del(key);
   res.json({ success: true });
 };
 
@@ -124,6 +139,8 @@ export const updateSyllabus = async (req, res) => {
         public_id,
       },
     });
+    const key = `syllabus`;
+    await redis.del(key);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
