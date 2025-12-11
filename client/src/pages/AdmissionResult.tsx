@@ -28,7 +28,7 @@ function AdmissionResult() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
 
     const listTypes: ListType[] = [
-        { key: "merit_list", label: "Merit List", color: "green" },
+        { key: "merit_list", label: "1st Result List", color: "green" },
         { key: "waiting_list_1", label: "Waiting List 1", color: "yellow" },
         { key: "waiting_list_2", label: "Waiting List 2", color: "orange" },
     ];
