@@ -1,90 +1,58 @@
-import axios from 'axios';
+import useNoticeStore from '@/store/noticeStore';
 import { useEffect, useMemo, useState } from 'react';
 
-type NoticeItem = {
-    id: number;
-    title: string;
-    created_at: string; // ISO date string
-    download_url: string;
-    file?: string;
-};
-
-function formatDate(iso: string) {
+function formatDate(iso?: string) {
     if (!iso) return '';
-    // Take only the date part before 'T' or whitespace
-    const datePart = iso.split(/[T\s]/)[0];
-    // Prefer YYYY-MM-DD parsing to avoid timezone shifts
-    const [yStr, mStr, dStr] = datePart.split('-');
-    const y = Number(yStr);
-    const m = Number(mStr) || 1;
-    const d = Number(dStr) || 1;
-
-    let date: Date | null = null;
-    if (y && !Number.isNaN(y)) {
-        date = new Date(y, m - 1, d);
-    } else {
-        // Fallback for other formats
-        const parsed = new Date(iso);
-        if (!Number.isNaN(parsed.getTime())) date = parsed;
-    }
-
-    if (!date || Number.isNaN(date.getTime())) return '';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
     return new Intl.DateTimeFormat('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
-    }).format(date); // e.g., "30 September 2025"
+    }).format(date);
 }
 
 function Notice() {
+
+    const Notices = useNoticeStore((state) => state.AllNotices);
+    const isLoading = useNoticeStore((state) => state.loading);
+    const loadAllNotices = useNoticeStore((state) => state.loadAllNotices);
     const [pageSize, setPageSize] = useState<number>(20);
     const [query, setQuery] = useState<string>('');
-    const [Notices, setNotices] = useState<NoticeItem[]>([])
-    // NEW: loading state
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    // NEW: current page
     const [page, setPage] = useState<number>(1);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        const items = [...Notices].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+        const items = [...Notices].sort((a, b) => {
+            const ta = new Date(a.created_at).getTime();
+            const tb = new Date(b.created_at).getTime();
+            return tb - ta;
+        });
         if (!q) return items;
         return items.filter(
             n =>
                 n.title.toLowerCase().includes(q) ||
                 formatDate(n.created_at).toLowerCase().includes(q)
         );
-    }, [query, Notices]); // FIX: include Notices
+    }, [query, Notices]);
 
     useEffect(() => {
-        setIsLoading(true);
-        axios.get('/api/notices/getNotices')
-            .then(res => {
-                console.log(res.data);
-                setNotices(res.data);
-                setIsLoading(false);
-            })
-            .catch(() => {
-                setIsLoading(false);
-            });
-    }, []);
+        if (Notices.length === 0) loadAllNotices();
+    }, [Notices.length, loadAllNotices]);
 
-    // NEW: reset page when query/pageSize changes
     useEffect(() => {
         setPage(1);
     }, [query, pageSize]);
 
-    // NEW: paging math
     const totalPages = Math.ceil(filtered.length / pageSize) || 1;
     useEffect(() => {
-        if (page > totalPages) setPage(totalPages);
-    }, [totalPages, page]);
+        setPage(p => Math.min(p, totalPages));
+    }, [totalPages]);
 
     const startIndex = filtered.length ? (page - 1) * pageSize : 0;
     const endIndex = Math.min(startIndex + pageSize, filtered.length);
     const visible = filtered.slice(startIndex, endIndex);
 
-    // NEW: compact page numbers (max 5)
     const pagesToShow = useMemo(() => {
         const max = Math.min(totalPages, 5);
         const start = Math.max(1, Math.min(page - 2, totalPages - max + 1));
@@ -148,20 +116,18 @@ function Notice() {
                                             className="m-0 text-gray-900 text-sm leading-6 truncate flex-1 transition-opacity duration-200"
                                             title={n?.title || ''}
                                             href={n?.file || '#'}
-                                            target='_blank'
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                         >{n.title}</a></td>
                                         <td className="px-4 py-3 text-sm text-gray-700">{formatDate(n.created_at)}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center">
                                                 <a
                                                     href={n.download_url}
-                                                    // target="_blank"
-                                                    rel="noreferrer"
-                                                // className="inline-flex items-center gap-2 rounded-md bg-red-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
                                                 >
-                                                    {/* <PdfIcon className="w-4 h-4" /> */}
-                                                    <img src="/pdf.png" alt="" className='w-6 h-6' />
-                                                    {/* <span>PDF</span> */}
+                                                    <img src="/pdf.png" alt="PDF" className="w-6 h-6" />
                                                 </a>
                                             </div>
                                         </td>
@@ -181,7 +147,6 @@ function Notice() {
                 </table>
             </div>
 
-            {/* NEW: footer with range + pagination */}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-gray-600">
                 <p>
                     Showing {filtered.length ? startIndex + 1 : 0} to {endIndex} of {filtered.length} entries

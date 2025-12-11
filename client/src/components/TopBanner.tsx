@@ -1,41 +1,19 @@
-import axios from 'axios'
 import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import useNoticeStore from '@/store/noticeStore'
 
-interface Notice {
-    id?: string
-    title?: string
-    file?: string
-}
 
 const TopBanner: React.FC = () => {
+    const { notices, isLoading, loadNotices } = useNoticeStore();
     const [index, setIndex] = useState(0)
-    const [isLoading, setIsLoading] = useState(true)
-    const [notices, setNotices] = useState<Notice[]>([])
     const mounted = useRef(true)
     useEffect(() => {
         mounted.current = true
         const controller = new AbortController()
-        setIsLoading(true)
-
-        axios
-            .get('/api/notices/getNotices?limit=5')
-            .then((response) => {
-                if (!mounted.current) return
-                const data = response.data || []
-                setNotices(data)
-                setIndex(0)
-            })
-            .catch((error) => {
-                if (!mounted.current) return
-                if (axios.isCancel && axios.isCancel(error)) return
-                console.error('Error fetching notices:', error)
-            })
-            .finally(() => {
-                if (!mounted.current) return
-                setIsLoading(false)
-            })
+        if (notices.length === 0) {
+            loadNotices();
+        }
 
         return () => {
             mounted.current = false
@@ -74,7 +52,7 @@ const TopBanner: React.FC = () => {
                                 initial={{ opacity: 0, y: -6 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
-                                transition={{ duration: 0.28 }}
+                                transition={{ duration: 0.2 }}
                             >
                                 নোটিশ লোড হচ্ছে...
                             </motion.span>
@@ -85,7 +63,7 @@ const TopBanner: React.FC = () => {
                                 initial={{ opacity: 0, y: -6 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
-                                transition={{ duration: 0.15 }}
+                                transition={{ duration: 0.1 }}
                             >
                                 {notice.title}
                             </motion.span>
@@ -96,7 +74,7 @@ const TopBanner: React.FC = () => {
                                 initial={{ opacity: 0, y: -6 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 6 }}
-                                transition={{ duration: 0.28 }}
+                                transition={{ duration: 0.2 }}
                             >
                                 কোনো নোটিশ নেই
                             </motion.span>
