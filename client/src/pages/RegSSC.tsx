@@ -88,13 +88,6 @@ function RegSSC() {
                             </span>
                         </div>
                     )}
-                    {/* 
-                    {regData?.instructions && (
-                        <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-                            <h3 className="font-semibold text-yellow-800 mb-2">Instructions:</h3>
-                            <p className="text-yellow-700">{regData.instructions}</p>
-                        </div>
-                    )} */}
 
                     {regData?.notice ? (
                         <div className="mb-6">
