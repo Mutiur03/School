@@ -196,7 +196,7 @@ function Navbar() {
             text: "Admission",
             dropdown: [
                 { id: "menu-item-3387", href: "admission/notice", text: "Admission Notice" },
-                { id: "menu-item-3388", href: "admission/form", text: "Admission Form" },
+                { id: "menu-item-3388", href: "admission", text: "Admission Form" },
                 {
                     id: "menu-item-3389",
                     href: "admission/results",
