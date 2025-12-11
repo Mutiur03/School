@@ -193,7 +193,6 @@ export const getClassRoutinePDFs = async (req, res) => {
       orderBy: [{ id: "desc" }],
     });
     await redis.set(key, JSON.stringify(pdfs), "EX", LONG_TERM_CACHE_TTL);
-    console.log(pdfs);
     res.json(pdfs);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch PDFs" });
