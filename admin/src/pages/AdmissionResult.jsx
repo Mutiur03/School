@@ -31,7 +31,7 @@ function AdmissionResult() {
   const waitingList2Ref = React.useRef();
   const classes = ["6", "7", "8", "9"];
   const listTypes = [
-    { key: "merit_list", label: "Merit List", color: "green" },
+    { key: "merit_list", label: "1st Result List", color: "green" },
     { key: "waiting_list_1", label: "Waiting List 1", color: "yellow" },
     { key: "waiting_list_2", label: "Waiting List 2", color: "orange" },
   ];
@@ -234,7 +234,7 @@ function AdmissionResult() {
         <div>
           <h1 className="text-3xl font-bold mb-1">Admission Results</h1>
           <p className="text-sm text-muted-foreground">
-            Upload merit list and waiting lists for classes 6-9
+            Upload 1st Result List and waiting lists for classes 6-9
           </p>
         </div>
         {!showForm && (
@@ -345,7 +345,7 @@ function AdmissionResult() {
 
                 <div className="border border-border rounded-lg p-4 bg-accent mb-4">
                   <label className="block text-base font-medium mb-2">
-                    Merit List
+                    1st Result List
                   </label>
                   <input
                     ref={meritListRef}

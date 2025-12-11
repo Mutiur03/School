@@ -280,7 +280,7 @@ function AdmissionResultList() {
                         <li className="flex items-start gap-2">
                             <span className="text-blue-600 font-bold mt-0.5">•</span>
                             <span>
-                                Click on "View Results" to see the merit list and waiting lists for each class.
+                                Click on "View Results" to see the 1st Result List and waiting lists for each class.
                             </span>
                         </li>
                         <li className="flex items-start gap-2">
