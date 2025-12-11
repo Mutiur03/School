@@ -1,9 +1,13 @@
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
+import { redis } from "../config/redis.js";
+import {
+  LONG_TERM_CACHE_TTL,
+  SHORT_TERM_CACHE_TTL,
+} from "../utils/globalVars.js";
 export async function uploadPDFToCloudinary(file) {
   try {
-
     const result = await cloudinary.uploader.upload(file.path, {
       folder: "notices",
       resource_type: "raw",
@@ -51,7 +55,10 @@ export const addNoticeController = async (req, res) => {
         ...(created_at && { created_at: new Date(created_at) }),
       },
     });
-
+    const key=`notices_limit`;
+    await redis.del(key);
+    const allKey="notices_all";
+    await redis.del(allKey);
     res.status(201).json(result);
   } catch (error) {
     console.error("Error adding notice:", error);
@@ -62,16 +69,41 @@ export const addNoticeController = async (req, res) => {
 export const getNoticesController = async (req, res) => {
   try {
     const { limit } = req.query;
-    const take = limit !== undefined ? parseInt(limit, 10) : undefined; 
+    const take = limit !== undefined ? parseInt(limit, 10) : undefined;
 
     if (take !== undefined && (Number.isNaN(take) || take <= 0)) {
       return res.status(400).json({ error: "Invalid 'limit' query parameter" });
     }
-
+    if (take !== undefined) {
+      const key = `notices_limit`;
+      const cachedNotices = await redis.get(key);
+      if (cachedNotices) {
+        return res.status(200).json(JSON.parse(cachedNotices));
+      }
+    } else {
+      const key = "notices_all";
+      const cachedNotices = await redis.get(key);
+      if (cachedNotices) {
+        return res.status(200).json(JSON.parse(cachedNotices));
+      }
+    }
+    if (take !== undefined) {
+      console.log(`Cache miss for key: notices_limit`);
+    } else {
+      console.log("Cache miss for key: notices_all");
+    }
     const notices = await prisma.notices.findMany({
       orderBy: { created_at: "desc" },
       ...(take !== undefined ? { take } : {}),
-    });    
+    });
+    if (take !== undefined) {
+      const key = `notices_limit`;
+      await redis.set(key, JSON.stringify(notices), "EX", LONG_TERM_CACHE_TTL);
+      return res.status(200).json(notices);
+    } else {
+      const key = "notices_all";
+      await redis.set(key, JSON.stringify(notices), "EX", SHORT_TERM_CACHE_TTL);
+    }
     res.status(200).json(notices);
   } catch (error) {
     console.error("Error fetching notices:", error.message);
@@ -144,7 +176,10 @@ export const updateNoticeController = async (req, res) => {
       where: { id: parseInt(id) },
       data: updatedData,
     });
-
+    const key=`notices_limit`;
+    await redis.del(key);
+    const allKey="notices_all";
+    await redis.del(allKey);
     res.status(200).json(result);
   } catch (error) {
     console.error("Error updating notice:", error.message);

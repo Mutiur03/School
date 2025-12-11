@@ -6,8 +6,8 @@ interface NoticeState {
   AllNotices: NoticeItem[];
   isLoading: boolean;
   loading: boolean;
-  loadNotices: () => void;
-  loadAllNotices: () => void;
+  loadNotices: () => Promise<void>;
+  loadAllNotices: () => Promise<void>;
 }
 interface Notice {
   id?: string;
@@ -22,36 +22,34 @@ type NoticeItem = {
   file?: string;
 };
 
-const useNoticeStore = create<NoticeState>((set) => ({
+const useNoticeStore = create<NoticeState>((set, get) => ({
   notices: [],
   AllNotices: [],
-  isLoading: true,
-  loading: true,
+  isLoading: false,
+  loading: false,
   loadNotices: async () => {
+    if (get().isLoading) return;
     set({ isLoading: true });
-    axios
-      .get("/api/notices/getNotices?limit=5")
-      .then((response) => {
-        set({ notices: response.data });
-        set({ isLoading: false });
-      })
-      .catch((error) => {
-        console.error("Error fetching notices:", error);
-        set({ isLoading: false });
-      });
+    try {
+      const response = await axios.get("/api/notices/getNotices?limit=5");
+      set({ notices: response.data });
+    } catch (error) {
+      console.error("Error fetching notices:", error);
+    } finally {
+      set({ isLoading: false });
+    }
   },
   loadAllNotices: async () => {
+    if (get().loading) return;
     set({ loading: true });
-    axios
-      .get("/api/notices/getNotices")
-      .then((response) => {
-        set({ AllNotices: response.data });
-        set({ loading: false });
-      })
-      .catch((error) => {
-        console.error("Error fetching all notices:", error);
-        set({ loading: false });
-      });
+    try {
+      const response = await axios.get("/api/notices/getNotices");
+      set({ AllNotices: response.data });
+    } catch (error) {
+      console.error("Error fetching all notices:", error);
+    } finally {
+      set({ loading: false });
+    }
   },
 }));
 export default useNoticeStore;

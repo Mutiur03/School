@@ -6,6 +6,8 @@ import { fixUrl } from "../utils/fixURL.js"; // Add this import
 const removeNonNumber = (str) => str.replace(/\D/g, "");
 const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
+import { redis } from "../config/redis.js";
+import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
 
 const validateFieldLengths = (data) => {
   const limits = {
@@ -340,8 +342,9 @@ export const head_msg_update = async (req, res) => {
       create: { id: 1, ...updateData },
       update: updateData,
     });
-    console.log(updateData);
-
+    console.log(updateData); 
+    const key="head_msg_cache";
+    await redis.del(key);
     res.status(200).json({ success: true, message: "Updated successfully" });
   } catch (error) {
     console.error("Error updating head info:", error.message);
@@ -350,6 +353,11 @@ export const head_msg_update = async (req, res) => {
 };
 
 export const get_head_msg = async (req, res) => {
+  const key="head_msg_cache";
+  const cachedHeadMsg = await redis.get(key);
+  if (cachedHeadMsg) {
+    return res.status(200).json(JSON.parse(cachedHeadMsg));
+  }
   try {
     const headMsg = await prisma.head_msg.findUnique({
       where: { id: 1 },
@@ -357,6 +365,12 @@ export const get_head_msg = async (req, res) => {
         teacher: { select: { id: true, name: true, image: true } },
       },
     });
+    await redis.set(
+      key,
+      JSON.stringify(headMsg),
+      "EX",
+      LONG_TERM_CACHE_TTL
+    );
     res.status(200).json(headMsg);
   } catch (error) {
     console.error("Error updating head info:", error.message);

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './Chart.css'
 import axios from 'axios'
 import { Link } from 'react-router-dom';
+import { useCommonStore } from '@/store/commonStore';
 
 export type Syllabus = {
     id: number;
@@ -16,7 +17,6 @@ export type Syllabus = {
 function Chart() {
     const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
     const [citizenCharterUrl, setCitizenCharterUrl] = useState<string | null>(null);
-    const [routinePDF, setRoutinePDF] = useState<string | null>(null);
     useEffect(() => {
         axios.get("/api/syllabus").then((res) => {
             console.log(res.data);
@@ -27,10 +27,13 @@ function Chart() {
         }).catch(() => {
             console.log("No Citizen Charter PDF found");
         });
-        axios.get("/api/class-routine/pdf")
-            .then(res => setRoutinePDF(res.data[0].pdf_url || null))
-            .catch(() => setRoutinePDF(null));
     }, []);
+    const { routinePDF, loadRoutinePDF } = useCommonStore();
+        useEffect(() => {
+            if (!routinePDF) {
+                loadRoutinePDF();
+            }
+        }, []);
     const getLatestSyllabusForClass = (classNum: number) => {
         const list = syllabuses.filter(s => s.class === classNum);
         if (!list.length) return undefined;
