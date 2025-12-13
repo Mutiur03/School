@@ -37,7 +37,7 @@ const storagePath = path.join(__dirname, "uploads");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
+  ? process.env.ALLOWED_ORIGINS.split(",").trim()
   : null;
 const allowedOrigins = envAllowedOrigins;
 app.use(
