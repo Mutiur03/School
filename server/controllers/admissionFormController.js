@@ -1638,6 +1638,7 @@ export const generateAdmissionPDF = async (admission) => {
         "bytes=",
         pdfBuffer.length
       );
+      await browser.close();
       return pdfBuffer;
     } finally {
       if (browser) {
