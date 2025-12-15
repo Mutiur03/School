@@ -173,7 +173,8 @@ export const updateTeacher = async (req, res) => {
     } catch (sheetError) {
       console.error("Error updating Google Sheet:", sheetError.message);
     }
-
+    const key = "head_msg_cache";
+    await redis.del(key);
     res.status(200).json({
       success: true,
       data: result,
@@ -193,7 +194,8 @@ export const deleteTeacher = async (req, res) => {
       where: { id: parseInt(id) },
       data: { available: false },
     });
-
+    const key = "head_msg_cache";
+    await redis.del(key);
     res.status(200).json({
       success: true,
       data: result,
@@ -232,7 +234,8 @@ export const UpdateTeacherImage = async (req, res) => {
       where: { id: parseInt(id) },
       data: { image: fixUrl(image.path) }, // Fix here
     });
-
+    const key = "head_msg_cache";
+    await redis.del(key);
     res.status(200).json({
       success: true,
       data: {
@@ -342,8 +345,8 @@ export const head_msg_update = async (req, res) => {
       create: { id: 1, ...updateData },
       update: updateData,
     });
-    console.log(updateData); 
-    const key="head_msg_cache";
+    console.log(updateData);
+    const key = "head_msg_cache";
     await redis.del(key);
     res.status(200).json({ success: true, message: "Updated successfully" });
   } catch (error) {
@@ -353,7 +356,7 @@ export const head_msg_update = async (req, res) => {
 };
 
 export const get_head_msg = async (req, res) => {
-  const key="head_msg_cache";
+  const key = "head_msg_cache";
   const cachedHeadMsg = await redis.get(key);
   if (cachedHeadMsg) {
     return res.status(200).json(JSON.parse(cachedHeadMsg));
@@ -365,12 +368,7 @@ export const get_head_msg = async (req, res) => {
         teacher: { select: { id: true, name: true, image: true } },
       },
     });
-    await redis.set(
-      key,
-      JSON.stringify(headMsg),
-      "EX",
-      LONG_TERM_CACHE_TTL
-    );
+    await redis.set(key, JSON.stringify(headMsg), "EX", LONG_TERM_CACHE_TTL);
     res.status(200).json(headMsg);
   } catch (error) {
     console.error("Error updating head info:", error.message);

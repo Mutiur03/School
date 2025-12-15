@@ -7,6 +7,7 @@ function RightSidebar() {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [head, setHead] = useState<string>('');
     const [imgLoading, setImgLoading] = useState(true);
+    const [imgError, setImgError] = useState(false);
     const [head_msg_show, setHeadMsg] = useState(true)
     const monthNames = [
         'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
@@ -79,14 +80,16 @@ function RightSidebar() {
 
     const calendarData = getCalendarData(currentDate)
     useEffect(() => {
+        setImgLoading(true);
+        setImgError(false);
         let cancelled = false;
         axios.get('/api/teachers/get_head_msg')
             .then(response => {
                 if (cancelled) return;
                 const imagePath = response?.data?.teacher?.image || '';
                 if (imagePath) {
-                    setImgLoading(true);
                     setHead(imagePath);
+                    setImgLoading(true);
                 } else {
                     setHead('');
                     setImgLoading(false);
@@ -101,13 +104,7 @@ function RightSidebar() {
         return () => { cancelled = true; }
     }, [])
 
-    useEffect(() => {
-        if (!head) {
-            setImgLoading(false);
-        } else {
-            setImgLoading(true);
-        }
-    }, [head])
+
 
     return (
         <div className="content-right">
@@ -119,26 +116,28 @@ function RightSidebar() {
                     </div>
                     <div className="textwidget">
                         <div className="headmaster-wrapper">
-                            {!head ? (
+                            {(!head || imgError) && (
                                 <div
                                     className="aligncenter headmaster-image"
                                     role="status"
                                     aria-live="polite"
                                     style={{
-                                        background: '#f3f4f6',
+                                        background: '#ffffff',
                                         width: '100%',
                                         aspectRatio: '1 / 1',
                                         display: 'block',
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        borderRadius: 8
+                                        borderRadius: 8,
+                                        backgroundColor: '#f0f0f0'
                                     }}
                                 />
-                            ) : (
+                            )}
+                            {head && !imgError && (
                                 <div
                                     className="aligncenter headmaster-image"
                                     style={{
-                                        background: '#f3f4f6',
+                                        background: '#ffffff',
                                         width: '100%',
                                         aspectRatio: '1 / 1',
                                         display: 'block',
@@ -148,14 +147,20 @@ function RightSidebar() {
                                     }}
                                 >
                                     <img
-                                        decoding="async"
-                                        // loading="lazy"
-                                        src={host + '/' + head}
+                                        src={
+                                            head && /^(https?:)?\//.test(head)
+                                                ? head
+                                                : `${host?.replace(/\/$/, '') || ''}/${head.replace(/^\//, '')}`
+                                        }
                                         alt="প্রধান শিক্ষক"
-                                        onLoad={() => setImgLoading(false)}
+                                        onLoad={() => {
+                                            setImgLoading(false);
+                                            setImgError(false);
+                                        }}
                                         onError={() => {
                                             setHead('');
                                             setImgLoading(false);
+                                            setImgError(true);
                                         }}
                                         style={{
                                             width: '100%',
@@ -166,16 +171,6 @@ function RightSidebar() {
                                             transition: 'opacity 200ms ease'
                                         }}
                                     />
-                                    {/* {imgLoading && (
-                                        <div
-                                            aria-hidden="true"
-                                            style={{
-                                                position: 'absolute',
-                                                inset: 0,
-                                                background: '#f3f4f6'
-                                            }}
-                                        />
-                                    )} */}
                                 </div>
                             )}
                         </div>
