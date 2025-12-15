@@ -33,6 +33,8 @@ COPY package*.json ./
 # Install production dependencies only
 RUN pnpm install --prod --ignore-scripts
 
+RUN npm install pm2 -g
+
 # Copy the rest of the app
 COPY . .
 
@@ -47,4 +49,4 @@ RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
 EXPOSE 3001
 
 # Start server
-CMD ["node", "server.js"]
+CMD ["pm2-runtime", "index.js", "-i", "max"]

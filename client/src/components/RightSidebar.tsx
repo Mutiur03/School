@@ -104,8 +104,6 @@ function RightSidebar() {
         return () => { cancelled = true; }
     }, [])
 
-
-
     return (
         <div className="content-right">
 
