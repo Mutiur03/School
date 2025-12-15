@@ -49,4 +49,4 @@ RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
 EXPOSE 3001
 
 # Start server
-CMD ["pm2-runtime", "index.js", "-i", "max"]
+CMD ["pm2-runtime", "server.js", "-i", "max"]
