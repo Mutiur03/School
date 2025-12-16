@@ -1,22 +1,26 @@
-echo "Starting all services..."
+#!/usr/bin/env bash
+# Run multiple project dev servers in one terminal (POSIX shell / WSL / macOS).
+# Requires Node.js and npx to be available in PATH.
 
-# Frontend 1
-cd client || exit
-npm run dev &
-echo "Client started"
-cd ..
+set -euo pipefail
 
-# Frontend 2
-cd admin || exit
-npm run dev &
-echo "Admin started"
-cd ..
+# Ensure the script always runs from its own directory so commands are location-agnostic.
+# This makes the script safe to run from any working directory.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
+# Edit these commands to match each package's dev script if needed.
+CMD1="cd server && npm run dev"
+CMD2="cd client && npm run dev"
+CMD3="cd admin && npm run dev"
 
-# Backend
-cd server || exit
-npm run dev &
-echo "Backend started"
+echo "Starting dev servers (close this terminal to stop all)..."
 
-echo "✅ All services are running"
-wait
+# Use npx concurrently to run them in one terminal.
+npx --yes concurrently \
+  "$CMD1" \
+  "$CMD2" \
+  "$CMD3" \
+  --names "SERVER,CLIENT,ADMIN" --kill-others --success first
+
+exit $?

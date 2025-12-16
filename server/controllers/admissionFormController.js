@@ -1420,10 +1420,11 @@ export const generateAdmissionPDF = async (admission) => {
         "--lang=bn-BD",
       ],
     };
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    }
-
+    const isWindows = process.platform === "win32";
+    const chromePath = isWindows
+      ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      : process.env.PUPPETEER_EXECUTABLE_PATH;
+    launchOptions.executablePath = chromePath;
     let browser = null;
     const page = null;
     // keys to record worker-side status/errors when called directly or from worker
