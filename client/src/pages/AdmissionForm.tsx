@@ -377,8 +377,8 @@ function AdmissionForm() {
                             return
                         }
                         dispatch({ type: 'SET_FIELD', name: 'prevSchoolName', value: data.prev_school_name || '' });
-                        const fatherOptions = ['Government Service', 'Non-Government Service', 'Private Job', 'Other']
-                        const motherOptions = ['Housewife', 'Government Service', 'Non-Government Service', 'Private Job', 'Other']
+                        const fatherOptions = ['Govt. Service', 'Non-Govt. Service', 'Private Job', 'Other']
+                        const motherOptions = ['Housewife', 'Govt. Service', 'Non-Govt. Service', 'Private Job', 'Other']
                         const resolvedFather = resolveProfessionOnLoad(data.father_profession, data.father_profession_other, fatherOptions)
                         const resolvedMother = resolveProfessionOnLoad(data.mother_profession, data.mother_profession_other, motherOptions)
 
@@ -2160,8 +2160,8 @@ function AdmissionForm() {
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
                                 >
                                     <option value="">Select Profession</option>
-                                    <option value="Government Service">Government Service</option>
-                                    <option value="Non-Government Service">Non-Government Service</option>
+                                    <option value="Govt. Service">Govt. Service</option>
+                                    <option value="Non-Govt. Service">Non-Govt. Service</option>
                                     <option value="Private Job">Private Job</option>
                                     <option value="Other">Other</option>
                                 </select>
@@ -2191,8 +2191,8 @@ function AdmissionForm() {
                                 >
                                     <option value="">Select Profession</option>
                                     <option value="Housewife">Housewife</option>
-                                    <option value="Government Service">Government Service</option>
-                                    <option value="Non-Government Service">Non-Government Service</option>
+                                    <option value="Govt. Service">Govt. Service</option>
+                                    <option value="Non-Govt. Service">Non-Govt. Service</option>
                                     <option value="Private Job">Private Job</option>
                                     <option value="Other">Other</option>
                                 </select>
