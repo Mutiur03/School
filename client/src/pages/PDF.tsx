@@ -1,37 +1,61 @@
+import { useLocation } from "react-router-dom"
+
 function PDF() {
+    console.log("✅ PDF component mounted")
+
+    const location = useLocation()
+
     const iframeStyle = {
-        width: '100%',
-        height: '100vh',
-        border: 'none',
+        width: "100%",
+        height: "100vh",
+        border: "none",
     }
 
-    const backend = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || window.location.origin
+    // 🔍 ENV DEBUG
+    console.log("ENV VITE_BACKEND_URL =", import.meta.env.VITE_BACKEND_URL)
+    console.log("window.location.origin =", window.location.origin)
+    console.log("location.pathname =", location.pathname)
 
-    const rawPath = window.location.pathname.replace(/^\/pdf/, '')
+    const backend = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "")
 
-    let src = ''
+    if (!backend) {
+        console.error("❌ VITE_BACKEND_URL is NOT defined")
+        return (
+            <div style={{ padding: 20 }}>
+                <h2>Configuration Error</h2>
+                <p>VITE_BACKEND_URL is missing in production</p>
+            </div>
+        )
+    }
+
+    const rawPath = location.pathname.replace(/^\/pdf/, "")
+
+    console.log("rawPath =", rawPath)
+
+    let src = ""
 
     try {
         const decoded = decodeURIComponent(rawPath)
-        const cleanPath = decoded.startsWith('/') ? decoded.slice(1) : decoded
-        if (/^https?:\/\//i.test(cleanPath)) {
-            src = cleanPath
+        const cleanPath = decoded.startsWith("/") ? decoded : "/" + decoded
+
+        console.log("decoded =", decoded)
+        console.log("cleanPath =", cleanPath)
+
+        if (/^https?:\/\//i.test(cleanPath.slice(1))) {
+            src = cleanPath.slice(1)
+        } else {
+            src = backend + cleanPath
         }
-        else {
-            src = backend + decoded
-        }
-    } catch {
+    } catch (err) {
+        console.error("❌ decodeURIComponent failed:", err)
         src = backend + rawPath
     }
-    console.log(src);
 
-    if (!backend) {
-        return <div style={{ padding: '20px', textAlign: 'center' }}>
-            <h2>Configuration Error</h2>
-            <p>Backend URL not configured. Please contact administrator.</p>
-        </div>
-    }
+    console.log("🚀 FINAL PDF SRC =", src)
 
-    return <iframe src={src} style={iframeStyle} title="PDF Viewer" />
+    return <div className="p-10">
+        <iframe src={src} style={iframeStyle} title="PDF Viewer" />
+    </div>
 }
-export default PDF;
+
+export default PDF
