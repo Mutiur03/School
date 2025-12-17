@@ -2,7 +2,6 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import axios from "axios";
 
-import PDF from "./pages/PDF";
 
 // pages
 import Home from "./pages/Home";
@@ -34,7 +33,7 @@ function App() {
       <Toaster position="top-right" toastOptions={{ style: { marginTop: "50px" } }} />
 
       <Routes>
-        <Route path="/pdf/*" element={<PDF />} />
+        {/* <Route path="/pdf/*" element={<PDF />} /> */}
 
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
