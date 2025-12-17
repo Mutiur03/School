@@ -342,37 +342,15 @@ export const createForm = async (req, res) => {
 
 export const getForms = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, search } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
-    const where = {};
-    if (status && status !== "all") where.status = status;
-    if (search) {
-      where.OR = [
-        { student_name_en: { contains: String(search), mode: "insensitive" } },
-        { student_name_bn: { contains: String(search), mode: "insensitive" } },
-        { birth_reg_no: { contains: String(search), mode: "insensitive" } },
-        { registration_no: { contains: String(search), mode: "insensitive" } },
-      ];
-    }
-
     const [items, total] = await Promise.all([
       prisma.admission_form.findMany({
-        where,
-        skip,
-        take: Number(limit),
         orderBy: { created_at: "desc" },
       }),
-      prisma.admission_form.count({ where }),
     ]);
 
     res.status(200).json({
       success: true,
       data: items,
-      pagination: {
-        currentPage: Number(page),
-        totalPages: Math.ceil(total / Number(limit)),
-        totalItems: total,
-      },
     });
   } catch (error) {
     console.error("getForms error:", error);
