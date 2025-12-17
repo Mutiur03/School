@@ -24,7 +24,7 @@ function AdmissionResult() {
     const { classNumber } = useParams<{ classNumber: string }>();
     const [result, setResult] = useState<AdmissionResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [admissionYear, setAdmissionYear] = useState<number>(new Date().getFullYear());
+    const [admissionYear, setAdmissionYear] = useState<number | null>(null);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
 
     const listTypes: ListType[] = [
@@ -38,11 +38,12 @@ function AdmissionResult() {
     };
 
     useEffect(() => {
+        
         fetchAdmissionYear();
     }, []);
 
     useEffect(() => {
-        if (classNumber && admissionYear) {
+        if (classNumber && admissionYear !== null) {
             fetchResult();
         }
     }, [classNumber, admissionYear]);
@@ -54,7 +55,9 @@ function AdmissionResult() {
             setAvailableYears(getAvailableYears(res.data.admission_year));
         } catch (error) {
             console.error("Failed to fetch admission year:", error);
-            setAvailableYears(getAvailableYears(admissionYear));
+            const currentYear = new Date().getFullYear();
+            setAdmissionYear(currentYear);
+            setAvailableYears(getAvailableYears(currentYear));
         }
     };
 
@@ -131,9 +134,10 @@ function AdmissionResult() {
                         </label>
                         <select
                             id="year-select"
-                            value={admissionYear}
+                            value={admissionYear || ''}
                             onChange={(e) => setAdmissionYear(parseInt(e.target.value))}
                             className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-800 font-medium hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                            disabled={admissionYear === null}
                         >
                             {availableYears.map((year) => (
                                 <option key={year} value={year}>
