@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import backend from "@/lib/backend";
 
 interface AdmissionResult {
     id: number;
@@ -224,7 +223,7 @@ function AdmissionResult() {
 
                                     {result[listType.key] ? (
                                         <a
-                                            href={backend + result[listType.key]}
+                                            href={`/pdf${result[listType.key]}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white! rounded-md hover:bg-blue-700 transition-colors text-sm font-medium w-full justify-center"
