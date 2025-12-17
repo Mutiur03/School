@@ -11,7 +11,6 @@ function PDF() {
         border: "none",
     }
 
-    // 🔍 ENV DEBUG
     console.log("ENV VITE_BACKEND_URL =", import.meta.env.VITE_BACKEND_URL)
     console.log("window.location.origin =", window.location.origin)
     console.log("location.pathname =", location.pathname)
