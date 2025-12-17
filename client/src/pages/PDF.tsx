@@ -1,5 +1,3 @@
-import React from 'react'
-
 function PDF() {
     const iframeStyle = {
         width: '100%',
