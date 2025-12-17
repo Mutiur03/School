@@ -824,6 +824,8 @@ export const upazilas: Upazila[] = [
   { id: "Tangail Sadar", name: "Tangail Sadar", districtId: "Tangail" },
 
   // Thakurgaon District
+
+  { id: "Thakurgaon Sadar", name: "Thakurgaon Sadar", districtId: "Thakurgaon" },
   { id: "Baliadangi", name: "Baliadangi", districtId: "Thakurgaon" },
   { id: "Haripur", name: "Haripur", districtId: "Thakurgaon" },
   { id: "Pirganj", name: "Pirganj", districtId: "Thakurgaon" },
