@@ -3,8 +3,6 @@ import fs from "fs";
 import path from "path";
 import XLSX from "xlsx";
 import { createWriteStream } from "fs";
-import PDFDocument from "pdfkit";
-import { Readable } from "stream";
 import puppeteer from "puppeteer";
 
 // Simplified image save function
@@ -117,6 +115,45 @@ const convertDateFormat = (dateString) => {
   }
   // If in other format, return null
   return null;
+};
+
+// Parse Excel date (can be MM/DD/YYYY, DD/MM/YYYY, or Excel serial number)
+const parseExcelDate = (dateValue) => {
+  if (!dateValue) return null;
+
+  // If it's a string in MM/DD/YYYY or DD/MM/YYYY format
+  if (typeof dateValue === "string") {
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateValue)) {
+      // Try to parse as MM/DD/YYYY first, then DD/MM/YYYY
+      const [part1, part2, year] = dateValue.split("/");
+      const date1 = new Date(year, part1 - 1, part2); // MM/DD/YYYY
+      const date2 = new Date(year, part2 - 1, part1); // DD/MM/YYYY
+
+      // Return the one that makes more sense (month <= 12)
+      if (parseInt(part1) <= 12 && parseInt(part2) <= 12) {
+        // Ambiguous, assume MM/DD/YYYY format
+        return date1;
+      } else if (parseInt(part1) <= 12) {
+        return date1; // MM/DD/YYYY
+      } else if (parseInt(part2) <= 12) {
+        return date2; // DD/MM/YYYY
+      }
+    }
+  }
+
+  // If it's an Excel serial number
+  if (typeof dateValue === "number") {
+    // Excel date serial number (days since January 1, 1900)
+    const excelEpoch = new Date(1900, 0, 1);
+    const date = new Date(
+      excelEpoch.getTime() + (dateValue - 1) * 24 * 60 * 60 * 1000
+    );
+    return date;
+  }
+
+  // Try to create a Date object directly
+  const date = new Date(dateValue);
+  return isNaN(date.getTime()) ? null : date;
 };
 
 export const createRegistration = async (req, res) => {
@@ -1086,11 +1123,11 @@ export const downloadRegistrationPDF = async (req, res) => {
 
       // Normalize Unicode to NFC form
       let normalizedText = text.normalize("NFC");
-      
+
       // Regex explanation:
       // - [\u0980-\u09FF\u0964-\u096F]+ matches continuous Bengali characters
       // - [^\u0980-\u09FF\u0964-\u096F]+ matches continuous non-Bengali characters (including punctuation & spaces)
-      normalizedText= normalizedText.replace(
+      normalizedText = normalizedText.replace(
         /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (_, bn, nonBn) => {
           if (bn) return `<span >${bn}</span>`;
@@ -1099,7 +1136,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         }
       );
 
-      return normalizedText
+      return normalizedText;
     }
 
     function wrapBnEn(text) {
@@ -1810,6 +1847,270 @@ export const downloadRegistrationPDF = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to generate PDF",
+      error: error.message,
+    });
+  }
+};
+
+// Import registrations from Excel file
+export const importRegistrationsFromExcel = async (req, res) => {
+  try {
+    console.log("Import request received");
+    console.log("File:", req.file);
+    console.log("Body:", req.body);
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No Excel file uploaded. Please select a file and ensure the field name is 'excel'.",
+      });
+    }
+
+    console.log(
+      `Processing file: ${req.file.originalname}, Size: ${req.file.size} bytes`
+    );
+
+    // Validate file exists
+    if (!fs.existsSync(req.file.path)) {
+      return res.status(400).json({
+        success: false,
+        message: "Uploaded file not found on server.",
+      });
+    }
+
+    // Read the uploaded Excel file
+    let workbook, worksheet, data;
+
+    try {
+      console.log("Reading Excel file...");
+      workbook = XLSX.readFile(req.file.path);
+      console.log("Available sheets:", workbook.SheetNames);
+
+      const sheetName = workbook.SheetNames[0]; // Use the first sheet
+      worksheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json(worksheet);
+      console.log(`Found ${data.length} rows in Excel file`);
+    } catch (excelError) {
+      console.error("Excel reading error:", excelError);
+      // Clean up uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Invalid Excel file format: ${excelError.message}`,
+      });
+    }
+
+    if (!data || data.length === 0) {
+      // Clean up uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        message: "Excel file is empty or contains no valid data",
+      });
+    }
+
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: [],
+      duplicates: [],
+    };
+
+    // Get SSC batch for current year
+    let sscBatch;
+    try {
+      const sscReg = await prisma.ssc_reg.findUnique({
+        where: { id: 1 },
+      });
+      sscBatch = sscReg ? String(sscReg.ssc_year) : null;
+    } catch (error) {
+      console.error("Error fetching SSC batch:", error);
+      sscBatch = new Date().getFullYear().toString();
+    }
+
+    // Process each row in the Excel file
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNum = i + 2; // Excel row number (accounting for header)
+
+      try {
+        // Map Excel columns to database fields using exact header names
+        const registrationData = {
+          ssc_batch: row["SSC Batch"] || sscBatch,
+          section: row["Section"] || null,
+          roll: row["Roll"] ? String(row["Roll"]) : null,
+          religion: row["Religion"] || null,
+          upobritti: row["উপবৃত্তি (Upobritti)"] || null,
+          sorkari_brirti: row["সরকারি বৃত্তি (Sorkari Brirti)"] || null,
+          student_name_bn: row["Student Name (Bangla)"] || null,
+          student_nick_name_bn: row["Nick Name"] || null,
+          student_name_en: row["Student Name (English)"] || null,
+          birth_reg_no: row["Birth Registration No"]
+            ? String(row["Birth Registration No"])
+            : null,
+          father_name_bn: row["Father Name (Bangla)"] || null,
+          father_name_en: row["Father Name (English)"] || null,
+          father_nid: row["Father NID"] ? String(row["Father NID"]) : null,
+          father_phone: row["Father Phone"]
+            ? String(row["Father Phone"])
+            : null,
+          mother_name_bn: row["Mother Name (Bangla)"] || null,
+          mother_name_en: row["Mother Name (English)"] || null,
+          mother_nid: row["Mother NID"] ? String(row["Mother NID"]) : null,
+          mother_phone: row["Mother Phone"]
+            ? String(row["Mother Phone"])
+            : null,
+          birth_date: row["Birth Date"] || null,
+          birth_year: row["Birth Year"] ? String(row["Birth Year"]) : null,
+          birth_month: row["Birth Month"] ? String(row["Birth Month"]) : null,
+          birth_day: row["Birth Day"] ? String(row["Birth Day"]) : null,
+          blood_group: row["Blood Group"] || null,
+          email: row["Email"] || null,
+          present_district: row["Present District"] || null,
+          present_upazila: row["Present Upazila"] || null,
+          present_post_office: row["Present Post Office"] || null,
+          present_post_code: row["Present Post Code"]
+            ? String(row["Present Post Code"])
+            : null,
+          present_village_road: row["Present Village/Road"] || null,
+          permanent_district: row["Permanent District"] || null,
+          permanent_upazila: row["Permanent Upazila"] || null,
+          permanent_post_office: row["Permanent Post Office"] || null,
+          permanent_post_code: row["Permanent Post Code"]
+            ? String(row["Permanent Post Code"])
+            : null,
+          permanent_village_road: row["Permanent Village/Road"] || null,
+          guardian_name: row["Guardian Name"] || null,
+          guardian_phone: row["Guardian Phone"]
+            ? String(row["Guardian Phone"])
+            : null,
+          guardian_relation: row["Guardian Relation"] || null,
+          guardian_nid: row["Guardian NID"]
+            ? String(row["Guardian NID"])
+            : null,
+          guardian_district: row["Guardian District"] || null,
+          guardian_upazila: row["Guardian Upazila"] || null,
+          guardian_post_office: row["Guardian Post Office"] || null,
+          guardian_post_code: row["Guardian Post Code"]
+            ? String(row["Guardian Post Code"])
+            : null,
+          guardian_village_road: row["Guardian Village/Road"] || null,
+          prev_school_name: row["Previous School Name"] || null,
+          prev_school_district: row["Previous School District"] || null,
+          prev_school_upazila: row["Previous School Upazila"] || null,
+          jsc_passing_year: row["JSC Passing Year"]
+            ? String(row["JSC Passing Year"])
+            : null,
+          jsc_board: row["JSC Board"] || null,
+          jsc_reg_no: row["JSC Registration No"]
+            ? String(row["JSC Registration No"])
+            : null,
+          jsc_roll_no: row["JSC Roll No"] ? String(row["JSC Roll No"]) : null,
+          group_class_nine: row["Group (Class Nine)"] || null,
+          main_subject: row["Main Subject"] || null,
+          fourth_subject: row["Fourth Subject"] || null,
+          photo_path:
+            "uploads/" +
+            "student-photos/" +
+            row["SSC Batch"] +
+            "/" +
+            row["Section"] +
+            "-" +
+            row["Roll"] +
+            ".jpg",
+          nearby_nine_student_info: row["Nearby Nine Student Info"] || null,
+          section_in_class_8: row["Class Eight Section"] || null,
+          roll_in_class_8: row["Class Eight Roll"]
+            ? String(row["Class Eight Roll"])
+            : null,
+          status: row["Status"] || "pending",
+          submission_date: row["Submission Date"]
+            ? parseExcelDate(row["Submission Date"])
+            : new Date(),
+          updated_at: row["Submission Date"]
+            ? parseExcelDate(row["Submission Date"])
+            : new Date(),
+        };
+
+        // Check for duplicates before inserting
+        const duplicateCheck = await checkForDuplicates({
+          birthRegNo: registrationData.birth_reg_no,
+          section: registrationData.section,
+          roll: registrationData.roll,
+        });
+
+        if (duplicateCheck.length > 0) {
+          results.failed++;
+          results.duplicates.push({
+            row: rowNum,
+            data: {
+              student_name_en: registrationData.student_name_en,
+              section: registrationData.section,
+              roll: registrationData.roll,
+              birth_reg_no: registrationData.birth_reg_no,
+            },
+            duplicates: duplicateCheck,
+          });
+          continue;
+        }
+
+        // Insert into database
+        await prisma.student_registration_ssc.create({
+          data: registrationData,
+        });
+
+        results.successful++;
+      } catch (error) {
+        console.error(`Error processing row ${rowNum}:`, error);
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          error: error.message,
+          data: {
+            student_name_en:
+              row["Student Name (English)"] ||
+              row["student_name_en"] ||
+              "Unknown",
+            section: row["Section"] || row["section"] || "Unknown",
+            roll: row["Roll"] || row["roll"] || "Unknown",
+          },
+        });
+      }
+    }
+
+    // Clean up uploaded file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    // Return results
+    res.status(200).json({
+      success: true,
+      message: `Import completed. ${results.successful} records imported successfully, ${results.failed} failed.`,
+      data: {
+        totalProcessed: data.length,
+        successful: results.successful,
+        failed: results.failed,
+        errors: results.errors,
+        duplicates: results.duplicates,
+      },
+    });
+  } catch (error) {
+    console.error("Excel import error:", error);
+
+    // Clean up uploaded file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to import Excel file",
       error: error.message,
     });
   }

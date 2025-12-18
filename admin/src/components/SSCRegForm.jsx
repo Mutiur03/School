@@ -29,7 +29,7 @@ const SSCRegForm = () => {
     status: "all",
     search: "",
     section: "",
-    sscBatch: "", 
+    sscBatch: "",
   });
   const [formData, setFormData] = useState({
     a_sec_roll: "",
@@ -504,15 +504,15 @@ const SSCRegForm = () => {
             </p>
           </div>
         </div>
-          <div className="flex justify-end mb-4 md:mt-0">
-            <button
-              onClick={handleRefresh}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
-            >
-              <RefreshCw size={16} />
-              Refresh
-            </button>
-          </div>
+        <div className="flex justify-end mb-4 md:mt-0">
+          <button
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
 
         {/* Tab Navigation */}
         <div className="flex flex-wrap space-x-1 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
@@ -943,7 +943,6 @@ const SSCRegForm = () => {
             </div>
           )}
 
-          {/* Main Table */}
           <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
             <div className="px-6 py-4 border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
               <div className="flex justify-between items-center">
@@ -1026,73 +1025,80 @@ const SSCRegForm = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredRegistrations.map((registration) => (
-                      <tr
-                        key={registration.id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {registration.photo_path && (
-                              <img
-                                className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                                src={`${host}/${registration.photo_path}`}
-                                alt=""
-                              />
-                            )}
-                            <div>
-                              <div className="font-medium text-gray-900 dark:text-gray-100">
-                                {registration.student_name_en}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {registration.student_name_bn}
+                    filteredRegistrations
+                      .sort(
+                        (a, b) =>
+                          new Date(b.updated_at) - new Date(a.updated_at)
+                      )
+                      .map((registration) => (
+                        <tr
+                          key={registration.id}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {registration.photo_path && (
+                                <img
+                                  className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                                  src={`${host}/${registration.photo_path}`}
+                                  alt=""
+                                />
+                              )}
+                              <div>
+                                <div className="font-medium text-gray-900 dark:text-gray-100">
+                                  {registration.student_name_en}
+                                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  {registration.student_name_bn}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                            Section {registration.section}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
-                            {registration.roll}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {getStatusBadge(registration.status)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(registration.created_at)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewDetails(registration.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
-                            >
-                              <Eye size={12} />
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleEdit(registration.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-700 bg-emerald-100 rounded hover:bg-emerald-200 transition-colors dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
-                            >
-                              <Edit size={12} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => confirmDelete(registration)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
-                            >
-                              <Trash2 size={12} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                              Section {registration.section}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                              {registration.roll}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {getStatusBadge(registration.status)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                            {formatDate(registration.updated_at)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() =>
+                                  handleViewDetails(registration.id)
+                                }
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
+                              >
+                                <Eye size={12} />
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleEdit(registration.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-700 bg-emerald-100 rounded hover:bg-emerald-200 transition-colors dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
+                              >
+                                <Edit size={12} />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => confirmDelete(registration)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
+                              >
+                                <Trash2 size={12} />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
