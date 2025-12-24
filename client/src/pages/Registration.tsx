@@ -231,6 +231,9 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 function Registration() {
+    useEffect(() => {
+        document.title = "SSC Registration Form";
+    }, []);
     const navigate = useNavigate()
     const { id } = useParams()
     const isEditMode = Boolean(id)

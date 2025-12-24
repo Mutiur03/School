@@ -7,6 +7,9 @@ interface AdmissionData {
 }
 
 function Admission() {
+    useEffect(() => {
+        document.title = "Admission Notice";
+    }, []);
     const [admissionData, setAdmissionData] = useState<AdmissionData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

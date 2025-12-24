@@ -21,6 +21,9 @@ interface ListType {
 }
 
 function AdmissionResult() {
+    useEffect(() => {
+        document.title = "Admission Result";
+    }, []);
     const { classNumber } = useParams<{ classNumber: string }>();
     const [result, setResult] = useState<AdmissionResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);

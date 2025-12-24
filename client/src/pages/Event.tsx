@@ -36,6 +36,9 @@ function formatDate(iso: string) {
 }
 
 export default function Event() {
+    useEffect(() => {
+        document.title = "Events";
+    }, []);
     const [events, setEvents] = useState<EventItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [query, setQuery] = useState("");

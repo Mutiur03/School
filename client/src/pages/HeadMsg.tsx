@@ -8,6 +8,9 @@ interface Head {
     }
 }
 function HeadMsg() {
+    useEffect(() => {
+        document.title = "Message From Headmaster";
+    }, []);
     const host = import.meta.env.VITE_BACKEND_URL;
     const [head, setHead] = React.useState<Head | null>(null);
     const [imgLoading, setImgLoading] = React.useState<boolean>(true);

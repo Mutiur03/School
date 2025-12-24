@@ -6,6 +6,9 @@ interface AdmissionData {
     admission_open: boolean
 }
 function AdmissionFormNotice() {
+    useEffect(() => {
+        document.title = "Admission Notice for Form";
+    }, []);
     const [admissionData, setAdmissionData] = useState<AdmissionData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

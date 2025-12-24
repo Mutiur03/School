@@ -14,6 +14,9 @@ interface AdmissionResult {
 }
 
 function AdmissionResultList() {
+    useEffect(() => {
+        document.title = "Admission Results";
+    }, []);
     const [results, setResults] = useState<AdmissionResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [admissionYear, setAdmissionYear] = useState<number>(new Date().getFullYear());

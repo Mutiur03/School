@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 
 function StaffList() {
+    useEffect(() => {
+        document.title = "Staff List";
+    }, []);
     type StaffMember = {
         id: number
         name: string
