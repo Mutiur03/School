@@ -3,12 +3,12 @@ import React, { useEffect, useState } from "react";
 
 function Admission() {
   const [items, setItems] = useState([]);
-  const [page, setPage] = useState(1);
+  
   const [limit] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  
+  
   const [year, setYear] = useState("");
   const [filters, setFilters] = useState({
     status: "all",
@@ -31,10 +31,10 @@ function Admission() {
       setError(null);
       try {
         const q = new URLSearchParams();
-        q.set("page", page);
+        
         q.set("limit", limit);
-        if (status && status !== "all") q.set("status", status);
-        if (search) q.set("search", search);
+        
+        
         const res = await axios.get(`/api/admission/`);
         setFilters((prev) => ({ ...(prev || {}), ...(res.data || {}) }));
         setYear((res.data && res.data.admission_year) || "");
@@ -50,7 +50,7 @@ function Admission() {
     }
     fetchPage();
     return () => controller.abort();
-  }, [page, limit, search, status]);
+  }, [limit]);
   function formatDate(d, includeTime = true) {
     if (!d) return "-";
     try {
@@ -124,7 +124,7 @@ function Admission() {
             const d = new Date(dateStr);
             if (!isNaN(d.getTime())) ay = d.getFullYear();
           } catch {
-            // ignore
+            //
           }
         }
       }
@@ -334,37 +334,6 @@ function Admission() {
     <div className="min-h-screen p-4">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <h1 className="text-2xl font-semibold">Admissions</h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            className="px-3 py-2 rounded-md border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 min-w-[220px]"
-            placeholder="Search by name, birth admission no or serial..."
-            value={filters.search}
-            onChange={(e) => {
-              const v = e.target.value;
-              setFilters((prev) => ({ ...prev, search: v }));
-              setSearch(v);
-              setPage(1);
-            }}
-            aria-label="Search admissions"
-          />
-
-          <select
-            className="px-3 py-2 rounded-md border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-            value={filters.status}
-            onChange={(e) => {
-              const v = e.target.value;
-              setFilters((prev) => ({ ...prev, status: v }));
-              setStatus(v);
-              setPage(1);
-            }}
-            aria-label="Filter by status"
-          >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -795,7 +764,7 @@ function Admission() {
         <div
           className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={(e) => {
-            // only close when clicking the backdrop (overlay), not when clicking inside the modal
+            
             if (e.target === e.currentTarget) setShowModal(false);
           }}
         >
