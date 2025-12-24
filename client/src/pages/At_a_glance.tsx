@@ -1,6 +1,9 @@
-import React from "react"
+import React, { useEffect } from "react"
 
 export default function At_a_glance() {
+    useEffect(() => {
+            document.title = "At a Glance";
+        }, []);
     const allRows: { label: string; value: React.ReactNode }[] = [
         {
             label: "College / School Name",

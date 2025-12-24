@@ -13,7 +13,9 @@ function formatDate(iso?: string) {
 }
 
 function Notice() {
-
+    useEffect(() => {
+        document.title = "Notices";
+    }, []);
     const Notices = useNoticeStore((state) => state.AllNotices);
     const isLoading = useNoticeStore((state) => state.loading);
     const loadAllNotices = useNoticeStore((state) => state.loadAllNotices);

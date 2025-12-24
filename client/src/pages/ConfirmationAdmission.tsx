@@ -82,6 +82,9 @@ type ConfirmationAdmission_Props = {
 };
 
 function ConfirmationAdmission() {
+    useEffect(() => {
+        document.title = "Admission Confirmation";
+    }, []);
     const { id } = useParams<{ id: string }>();
     const [admission, setAdmission] = useState<ConfirmationAdmission_Props | null>(null);
     const [loading, setLoading] = useState(true);

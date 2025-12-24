@@ -70,6 +70,9 @@ interface RegistrationData {
 }
 
 function ConfirmationReg() {
+    useEffect(() => {
+        document.title = "Registration Confirmation";
+    }, []);
     const { id } = useParams<{ id: string }>();
     const [registration, setRegistration] = useState<RegistrationData | null>(null);
     const [loading, setLoading] = useState(true);

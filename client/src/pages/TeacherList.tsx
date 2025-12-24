@@ -2,6 +2,9 @@ import  { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
 function TeacherList() {
+    useEffect(() => {
+        document.title = "Teacher List";
+    }, []);
     type Teacher = {
         id: number
         name: string

@@ -13,6 +13,9 @@ interface Exam {
 }
 
 export default function ExamRoutinePage() {
+    useEffect(() => {
+        document.title = "Exam Routine";
+    }, []);
     const [exams, setExams] = useState<Exam[]>([]);
     const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
     const [loading, setLoading] = useState<boolean>(false);

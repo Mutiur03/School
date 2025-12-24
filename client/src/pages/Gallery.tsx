@@ -10,6 +10,9 @@ interface GalleryItem {
 }
 
 function Gallery() {
+    useEffect(() => {
+        document.title = "Gallery";
+    }, []);
     const host = import.meta.env.VITE_BACKEND_URL;
     const [active, setActive] = useState<'campus' | 'event'>('campus')
     const [campusItems, setCampusItems] = useState<GalleryItem[]>([])

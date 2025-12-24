@@ -274,6 +274,9 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 function AdmissionForm() {
+    useEffect(() => {
+        document.title = "Admission Form";
+    }, []);
     const navigate = useNavigate()
     const { id } = useParams()
     const isEditMode = Boolean(id)

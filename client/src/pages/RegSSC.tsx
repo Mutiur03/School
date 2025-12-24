@@ -14,6 +14,9 @@ interface SSCRegData {
 }
 
 function RegSSC() {
+    useEffect(() => {
+        document.title = "SSC Registration Notice";
+    }, []);
     const [regData, setRegData] = useState<SSCRegData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
