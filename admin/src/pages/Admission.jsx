@@ -371,19 +371,40 @@ function Admission() {
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Total</div>
           <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {yearStats.total || 0}
+            {(() => {
+              const f = filteredAdmissions.length;
+              const t = yearStats.total || 0;
+              if (f == t) return t;
+              return `${f} / ${t}`;
+            })()}
           </div>
         </div>
+
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Pending</div>
           <div className="text-2xl font-semibold text-amber-600">
-            {yearStats.pending || 0}
+            {(() => {
+              const f = filteredAdmissions.filter(
+                (a) => a.status === "pending"
+              ).length;
+              const t = yearStats.pending || 0;
+              if (filteredAdmissions.length == yearStats.total) return t;
+              return `${f} / ${t}`;
+            })()}{" "}
           </div>
         </div>
+
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Approved</div>
           <div className="text-2xl font-semibold text-emerald-600">
-            {yearStats.approved || 0}
+            {(() => {
+              const f = filteredAdmissions.filter(
+                (a) => a.status === "approved"
+              ).length;
+              const t = yearStats.approved || 0;
+              if (filteredAdmissions.length == yearStats.total) return t;
+              return `${f} / ${t}`;
+            })()}{" "}
           </div>
         </div>
       </div>
@@ -434,13 +455,12 @@ function Admission() {
               }
               className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Classes</option>
               {(() => {
                 const raw = filters.class_list || "";
-                let list = [];
+                let formList = [];
 
                 if (Array.isArray(raw)) {
-                  list = raw;
+                  formList = raw;
                 } else if (typeof raw === "string" && raw.trim()) {
                   const rows = raw
                     .split(/\r?\n/)
@@ -448,12 +468,12 @@ function Admission() {
                     .filter(Boolean);
 
                   if (rows.length === 1) {
-                    list = rows[0]
+                    formList = rows[0]
                       .split(/[,;]+/)
                       .map((s) => s.trim())
                       .filter(Boolean);
                   } else {
-                    list = rows
+                    formList = rows
                       .map((r) => {
                         const cols = r
                           .split(/[,;]+/)
@@ -464,13 +484,43 @@ function Admission() {
                       .filter(Boolean);
                   }
                 }
-                list = Array.from(new Set(list)).sort();
+                formList = Array.from(new Set(formList));
 
-                return list.map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls}
-                  </option>
-                ));
+                const allList = Array.from(
+                  new Set(
+                    (items || [])
+                      .map((a) => a.admission_class || "")
+                      .filter(Boolean)
+                  )
+                ).sort();
+
+                return (
+                  <>
+                    <option value="">All Classes</option>
+                    {formList.map((cls) => (
+                      <option key={`form-${cls}`} value={cls}>
+                        {cls}
+                      </option>
+                    ))}
+
+                    {allList.filter((c) => !formList.includes(c)).length >
+                      0 && (
+                      <optgroup
+                        label={`Other classes (${
+                          allList.filter((c) => !formList.includes(c)).length
+                        })`}
+                      >
+                        {allList
+                          .filter((c) => !formList.includes(c))
+                          .map((cls) => (
+                            <option key={`all-${cls}`} value={cls}>
+                              {cls}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                  </>
+                );
               })()}
             </select>
           </div>
