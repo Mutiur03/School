@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import axios from "axios";
 
 
-// pages
 import Home from "./pages/Home";
 import Notice from "./pages/Notice";
 import Event from "./pages/Event";

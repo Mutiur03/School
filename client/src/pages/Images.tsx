@@ -238,7 +238,7 @@ function Images() {
                                             onClick={() => setSelectedIndex(i)}
                                             // attach ref only to the active thumb so we can center it
                                             ref={isActive ? activeThumbRef : undefined}
-                                            className={`flex-shrink-0 rounded overflow-hidden border-2 transition-transform duration-150 ${isActive ? 'border-blue-400 scale-105' : 'border-transparent'}`}
+                                            className={`shrink-0 rounded overflow-hidden border-2 transition-transform duration-150 ${isActive ? 'border-blue-400 scale-105' : 'border-transparent'}`}
                                             style={{ width: 80, height: 60 }}
                                         >
                                             <img

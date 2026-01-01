@@ -216,11 +216,16 @@ body {
   }
 }
 
-.content-part-1,
-.content-part-2 {
+/* .content-part-1 {
   width: 100%;
   min-width: 0;
-}
+  overflow-wrap:normal;
+} */
+
+/* .content-part-2 {
+  width: 100%;
+  min-width: 0;
+} */
 
 .secondary-content {
   padding: 0;

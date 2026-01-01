@@ -217,12 +217,12 @@ export default function Event() {
 
             {/* Details modal */}
             {isModalOpen && selectedEvent && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+                <div className="fixed inset-0 z-9999 flex items-center justify-center">
                     <div
-                        className="fixed inset-0 bg-black opacity-40 z-[9998]"
+                        className="fixed inset-0 bg-black opacity-40 z-9998"
                         onClick={() => { setIsModalOpen(false); setSelectedEvent(null); }}
                     />
-                    <div className="relative bg-white text-gray-900 rounded-lg p-6 z-[9999] max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-auto">
+                    <div className="relative bg-white text-gray-900 rounded-lg p-6 z-9999 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-auto">
                         <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-semibold">{selectedEvent.title}</h2>
