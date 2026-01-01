@@ -130,7 +130,7 @@ export default function At_a_glance() {
                 <div className="mt-8">
                     <div className="bg-white rounded-xs shadow overflow-hidden">
                         <table className="min-w-full text-sm border-collapse">
-                            <tbody className="border-1 border-gray-300">
+                            <tbody className="border border-gray-300">
                                 {allRows.map((row, idx) => {
                                     const isEven = idx % 2 === 0
                                     return (

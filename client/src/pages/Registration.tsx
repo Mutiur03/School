@@ -21,7 +21,7 @@ type Duplicate = {
 const DuplicateWarning: React.FC<{ duplicates: Duplicate[] }> = ({ duplicates }) => (
     <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <div className="flex-1">
@@ -112,7 +112,7 @@ const FieldRow: React.FC<{
     children: React.ReactNode
 }> = ({ label, required, instruction, error, tooltip, children }) => (
     <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
-        <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 flex-shrink-0">
+        <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 shrink-0">
             <span className="flex items-center gap-1">
                 <span>{label}{required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}</span>
                 {tooltip && (
@@ -1934,7 +1934,7 @@ function Registration() {
                         >
                             <div >
                                 <div className="flex flex-col lg:flex-row items-start gap-4">
-                                    <div className="flex-shrink-0">
+                                    <div className="shrink-0">
                                         <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
                                             {photoPreview ? (
                                                 <img src={photoPreview} alt="photo preview" className="w-full h-full object-cover" />

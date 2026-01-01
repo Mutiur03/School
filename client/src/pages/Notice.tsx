@@ -62,10 +62,8 @@ function Notice() {
     }, [page, totalPages]);
 
     return (
-        <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="mx-auto px-4 py-6">
             <h1 className="text-2xl font-semibold mb-4">Notices</h1>
-
-            {/* Controls */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-2 text-sm">
                     <span>Show</span>
@@ -98,8 +96,8 @@ function Notice() {
                         <tr className="text-left text-sm font-semibold text-gray-700">
                             <th className="px-4 py-3 w-16">ক্রমিক</th>
                             <th className="px-4 py-3">শিরোনাম</th>
-                            <th className="px-4 py-3 w-40">প্রকাশের তারিখ</th>
-                            <th className="px-4 py-3 w-32 text-center">ডাউনলোড</th>
+                            <th className="px-4 py-3 w-28">প্রকাশের তারিখ</th>
+                            <th className="px-4 py-3 w-20 text-center">ডাউনলোড</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-300">
@@ -115,7 +113,7 @@ function Notice() {
                                     <tr key={n.id} className="hover:bg-gray-50 divide-x divide-gray-300">
                                         <td className="px-4 py-3 text-sm text-gray-700">{startIndex + idx + 1}</td>
                                         <td className="px-4 py-3 text-sm text-gray-900"><a
-                                            className="m-0 text-gray-900 text-sm leading-6 truncate flex-1 transition-opacity duration-200"
+                                            className="m-0 text-gray-900 text-sm leading-6 wrap-break-word transition-opacity duration-200"
                                             title={n?.title || ''}
                                             href={n?.file || '#'}
                                             target="_blank"

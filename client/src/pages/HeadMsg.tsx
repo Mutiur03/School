@@ -26,7 +26,7 @@ function HeadMsg() {
     return (
         <div className="flex flex-col items-center h-screen pt-12">
             <h2 className='mb-5 text-4xl underline'>Message From Headmaster</h2>
-            <div className="p-4 mb-5 border-1 border-gray-100  shadow-lg">
+            <div className="p-4 mb-5 border border-gray-100  shadow-lg">
                 {imgLoading ? (
                     <div className="w-42 h-42 mb-5 bg-gray-300 animate-pulse shadow-2xl"></div>
                 ) : (

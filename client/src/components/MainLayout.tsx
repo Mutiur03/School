@@ -24,7 +24,7 @@ function MainLayout() {
                 <div className="min-h-screen text-black">
                     <br />
                     <div className={shouldHideSidebar ? "main-content-full" : "main-content"}>
-                        <div className="rcontent-pat-1">
+                        <div className="content-part-1">
                             <Outlet />
                         </div>
 
