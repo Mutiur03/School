@@ -25,6 +25,7 @@ interface AttendanceData {
 
 interface AttendanceApiResponse {
   message: string;
+  present: number;
   absent: number;
   sms: {
     successful: number;
@@ -185,7 +186,7 @@ function Attendance() {
         .then((res) => res.data);
 
       alert(
-        `${data.message}\nAbsent: ${data.absent}\nSuccess: ${data.sms.successful}\nFailed: ${data.sms.failed}`
+        `${data.message}\nPresent: ${data.present}\nAbsent: ${data.absent}\nSMS Success: ${data.sms.successful}\nSMS Failed: ${data.sms.failed}`
       );
     } catch (error) {
       console.error("Error saving attendance:", error);

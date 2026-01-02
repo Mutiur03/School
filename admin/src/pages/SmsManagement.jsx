@@ -34,7 +34,6 @@ import { RefreshCw, Send, Trash2, Filter, Eye, Download } from "lucide-react";
 import Loading from "../components/Loading";
 
 function SmsManagement() {
-  
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, "0");
@@ -53,15 +52,13 @@ function SmsManagement() {
     return `${day}/${month}/${year}`;
   };
 
-  
   const convertToISODate = (ddmmyyyy) => {
     if (!ddmmyyyy) return "";
     const parts = ddmmyyyy.split("/");
-    if (parts.length !== 3) return ddmmyyyy; 
+    if (parts.length !== 3) return ddmmyyyy;
     const [day, month, year] = parts;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
-
 
   const [smsLogs, setSmsLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +92,7 @@ function SmsManagement() {
         page: currentPage,
         limit: filters.limit,
         ...filters,
-        date: convertToISODate(filters.date), 
+        date: convertToISODate(filters.date),
       });
 
       const response = await axios.get(`/api/sms/sms-logs?${params}`);
@@ -116,7 +113,6 @@ function SmsManagement() {
     const fetchSmsStats = async () => {
       try {
         await axios.get("/api/sms/sms-stats");
-        
       } catch (error) {
         console.error("Error fetching SMS stats:", error);
       }
@@ -302,7 +298,7 @@ function SmsManagement() {
                 placeholder="dd/mm/yyyy"
                 value={filters.date}
                 onChange={(e) => {
-                  let value = e.target.value.replace(/\D/g, ""); 
+                  let value = e.target.value.replace(/\D/g, "");
                   if (value.length >= 2)
                     value = value.slice(0, 2) + "/" + value.slice(2);
                   if (value.length >= 5)
@@ -374,7 +370,6 @@ function SmsManagement() {
         </CardContent>
       </Card>
 
-      {/* SMS Logs Table */}
       <Card>
         <CardHeader>
           <CardTitle>SMS Logs</CardTitle>
@@ -398,6 +393,7 @@ function SmsManagement() {
                   <th className="text-left p-2">Phone</th>
                   <th className="text-left p-2">Date</th>
                   <th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">SMS count</th>
                   <th className="text-left p-2">Retry Count</th>
                   <th className="text-left p-2">Message</th>
                   <th className="text-left p-2">Error</th>
@@ -444,6 +440,15 @@ function SmsManagement() {
                       >
                         {statusLabels[log.status]}
                       </Badge>
+                    </td>
+                    <td className="p-2">
+                      {log.sms_count ? (
+                        <div className="font-semibold text-sm bg-green-50 text-green-700 px-2 py-1 rounded border">
+                          {log.sms_count}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
                     </td>
                     <td className="p-2 text-center">{log.retry_count}</td>
                     <td className="p-2 max-w-xs">
