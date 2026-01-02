@@ -8,6 +8,12 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
     MessageParameters: messageParameters,
   };
 
+  console.log("Sending bulk SMS request:", {
+    messageCount: messageParameters.length,
+    hasSenderId: !!SENDER_ID,
+    endpoint: "https://sms.onecodesoft.com/api/send-bulk-sms",
+  });
+
   try {
     const response = await axios.post(
       "https://sms.onecodesoft.com/api/send-bulk-sms",
@@ -17,12 +23,26 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        timeout: 30000, // 30 second timeout
       }
     );
 
+    console.log("SMS API Response received:", {
+      status: response.status,
+      hasData: !!response.data,
+      hasResults: !!(response.data && response.data.results),
+    });
+
     return response.data;
   } catch (error) {
-    console.error("Bulk SMS Error:", error.message);
+    console.error("Bulk SMS Error Details:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      isTimeout: error.code === "ECONNABORTED",
+    });
     throw error;
   }
 };
@@ -129,6 +149,13 @@ export const addAttendenceController = async (req, res) => {
   try {
     const API_KEY = process.env.BULK_SMS_API_KEY;
     const SENDER_ID = process.env.BULK_SMS_SENDER_ID;
+
+    // Log environment variables status (without exposing sensitive data)
+    console.log("SMS Configuration Status:", {
+      hasApiKey: !!API_KEY,
+      hasSenderId: !!SENDER_ID,
+      environment: process.env.NODE_ENV || "development",
+    });
     const { records } = req.body;
 
     if (!records || !Array.isArray(records)) {
@@ -259,26 +286,44 @@ export const addAttendenceController = async (req, res) => {
               `Panchbibi Lal Bihari Govt. High School.`,
             ].join("\n");
 
-            const smsLog = await prisma.sms_logs.create({
-              data: {
-                student_id: studentId,
-                phone_number: parent_phone,
-                message: message,
-                attendance_date: date,
-                status: "pending",
-              },
-            });
+            try {
+              console.log(
+                `Creating SMS log for student ${studentId}, phone: ${parent_phone}`
+              );
+              const smsLog = await prisma.sms_logs.create({
+                data: {
+                  student_id: studentId,
+                  phone_number: parent_phone,
+                  message: message,
+                  attendance_date: date,
+                  status: "pending",
+                },
+              });
 
-            smsMessages.push({
-              Number: `88${parent_phone}`,
-              Text: message,
-            });
+              console.log(`SMS log created successfully with ID: ${smsLog.id}`);
 
-            smsLogMap.set(`88${parent_phone}`, {
-              smsLogId: smsLog.id,
-              studentId: studentId,
-              date: date,
-            });
+              smsMessages.push({
+                Number: `88${parent_phone}`,
+                Text: message,
+              });
+
+              smsLogMap.set(`88${parent_phone}`, {
+                smsLogId: smsLog.id,
+                studentId: studentId,
+                date: date,
+              });
+            } catch (smsLogError) {
+              console.error(
+                `Failed to create SMS log for student ${studentId}:`,
+                {
+                  error: smsLogError.message,
+                  stack: smsLogError.stack,
+                  studentId,
+                  phone: parent_phone,
+                }
+              );
+              // Continue processing other students even if SMS log creation fails
+            }
           }
         }
       } catch (recordError) {
@@ -295,60 +340,124 @@ export const addAttendenceController = async (req, res) => {
     }
 
     if (smsMessages.length > 0) {
+      console.log(`Processing ${smsMessages.length} SMS messages`);
       try {
-        if (!API_KEY) {
-          console.warn("SMS API key not configured, marking all SMS as failed");
+        if (!API_KEY || !SENDER_ID) {
+          const missingConfig = [];
+          if (!API_KEY) missingConfig.push("API_KEY");
+          if (!SENDER_ID) missingConfig.push("SENDER_ID");
+
+          console.error(
+            `SMS configuration missing: ${missingConfig.join(", ")}`
+          );
+          console.warn(
+            "SMS API key/sender ID not configured, marking all SMS as failed"
+          );
+
           for (const [phoneNumber, smsData] of smsLogMap) {
-            await prisma.sms_logs.update({
-              where: { id: smsData.smsLogId },
-              data: {
-                status: "failed",
-                error_reason: "SMS API key not configured",
-              },
-            });
-            smsFailedCount++;
+            try {
+              await prisma.sms_logs.update({
+                where: { id: smsData.smsLogId },
+                data: {
+                  status: "failed",
+                  error_reason: `SMS configuration missing: ${missingConfig.join(
+                    ", "
+                  )}`,
+                },
+              });
+              smsFailedCount++;
+            } catch (updateError) {
+              console.error(
+                `Failed to update SMS log ${smsData.smsLogId}:`,
+                updateError.message
+              );
+            }
           }
         } else {
+          console.log("Sending bulk SMS with configured API");
           const bulkSmsResponse = await sendBulkSMS(
             smsMessages,
             API_KEY,
             SENDER_ID
           );
+
+          console.log("Bulk SMS API Response:", {
+            hasResponse: !!bulkSmsResponse,
+            hasResults: !!(bulkSmsResponse && bulkSmsResponse.results),
+            resultCount: bulkSmsResponse?.results?.length || 0,
+          });
+
           if (bulkSmsResponse && bulkSmsResponse.results) {
             for (const result of bulkSmsResponse.results) {
               const smsData = smsLogMap.get(result.to);
               if (smsData) {
+                console.log(
+                  `Processing SMS result for ${result.to}: ${result.status}`
+                );
+
                 if (result.status === "sent") {
-                  await prisma.sms_logs.update({
-                    where: { id: smsData.smsLogId },
-                    data: {
-                      status: "sent",
-                      sms_count: result.sms_count || 1,
-                      message_id: result.message_id,
-                    },
-                  });
+                  try {
+                    await prisma.sms_logs.update({
+                      where: { id: smsData.smsLogId },
+                      data: {
+                        status: "sent",
+                        sms_count: result.sms_count || 1,
+                        message_id: result.message_id,
+                      },
+                    });
 
-                  await prisma.attendence.updateMany({
-                    where: {
-                      student_id: smsData.studentId,
-                      date: smsData.date,
-                    },
-                    data: { send_msg: true },
-                  });
+                    console.log(
+                      `SMS log updated successfully for ${result.to}`
+                    );
 
-                  smsSuccessCount++;
+                    await prisma.attendence.updateMany({
+                      where: {
+                        student_id: smsData.studentId,
+                        date: smsData.date,
+                      },
+                      data: { send_msg: true },
+                    });
+
+                    console.log(
+                      `Attendance send_msg flag updated for student ${smsData.studentId}`
+                    );
+                    smsSuccessCount++;
+                  } catch (updateError) {
+                    console.error(
+                      `Failed to update records for ${result.to}:`,
+                      {
+                        error: updateError.message,
+                        smsLogId: smsData.smsLogId,
+                        studentId: smsData.studentId,
+                      }
+                    );
+                    smsFailedCount++;
+                  }
                 } else {
-                  await prisma.sms_logs.update({
-                    where: { id: smsData.smsLogId },
-                    data: {
-                      status: "failed",
-                      error_reason: `API Error: ${
-                        result.code || "Unknown error"
-                      }`,
-                    },
-                  });
-                  smsFailedCount++;
+                  try {
+                    await prisma.sms_logs.update({
+                      where: { id: smsData.smsLogId },
+                      data: {
+                        status: "failed",
+                        error_reason: `API Error: ${
+                          result.code || "Unknown error"
+                        }`,
+                      },
+                    });
+                    console.log(
+                      `SMS marked as failed for ${result.to}: ${result.code}`
+                    );
+                    smsFailedCount++;
+                  } catch (updateError) {
+                    console.error(
+                      `Failed to update failed SMS log for ${result.to}:`,
+                      updateError.message
+                    );
+                    smsFailedCount++;
+                  }
                 }
+              } else {
+                console.warn(`No SMS data found for number: ${result.to}`);
               }
             }
           } else {
@@ -365,16 +474,33 @@ export const addAttendenceController = async (req, res) => {
           }
         }
       } catch (smsError) {
-        console.error("Bulk SMS Error:", smsError.message);
+        console.error("Bulk SMS Error:", {
+          message: smsError.message,
+          stack: smsError.stack,
+          code: smsError.code,
+          response: smsError.response?.data,
+        });
+
         for (const [phoneNumber, smsData] of smsLogMap) {
-          await prisma.sms_logs.update({
-            where: { id: smsData.smsLogId },
-            data: {
-              status: "failed",
-              error_reason: smsError.message,
-            },
-          });
-          smsFailedCount++;
+          try {
+            await prisma.sms_logs.update({
+              where: { id: smsData.smsLogId },
+              data: {
+                status: "failed",
+                error_reason: `SMS Service Error: ${smsError.message}`,
+              },
+            });
+            console.log(
+              `Marked SMS as failed for ${phoneNumber} due to service error`
+            );
+            smsFailedCount++;
+          } catch (updateError) {
+            console.error(
+              `Failed to update SMS log for ${phoneNumber}:`,
+              updateError.message
+            );
+            smsFailedCount++;
+          }
         }
       }
     }
