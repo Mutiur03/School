@@ -42,20 +42,37 @@ function Attendance() {
         setError(null);
 
         const [studentsResponse, attendanceResponse] = await Promise.all([
-          axios.get(`/api/students/getStudents/${selectedYear}`),
-          axios.get(`/api/attendance/getAttendence`),
+          axios
+            .get(`/api/students/getStudents/${selectedYear}`)
+            .catch((err) => {
+              if (
+                err.response?.status === 404 ||
+                err.response?.data?.data?.length === 0
+              ) {
+                return { data: { data: [] } };
+              }
+              throw err;
+            }),
+          axios.get(`/api/attendance/getAttendence`).catch((err) => {
+            if (
+              err.response?.status === 404 ||
+              err.response?.data?.length === 0
+            ) {
+              return { data: [] };
+            }
+            throw err;
+          }),
         ]);
 
-        // Process students data
-        const students = studentsResponse.data.data
+        const students = (studentsResponse.data.data || [])
           .sort((a, b) => a.roll - b.roll)
           .sort((a, b) => a.section.localeCompare(b.section));
         setClassList([...new Set(students.map((student) => student.class))]);
-        setStudents(students || []);
+        setStudents(students);
 
-        // Process attendance data
         const attendanceMap = {};
-        attendanceResponse.data.forEach((record) => {
+        const attendanceData = attendanceResponse.data || [];
+        attendanceData.forEach((record) => {
           const date = new Date(record.date);
           const day = date.getDate();
           const month = date.getMonth();
@@ -70,9 +87,11 @@ function Attendance() {
         setAttendanceData(attendanceMap);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(
-          "Failed to fetch students or attendance data. Please try again."
-        );
+        if (error.response?.status >= 500 || !error.response) {
+          setError(
+            "Failed to fetch students or attendance data. Please try again."
+          );
+        }
         setStudents([]);
         setAttendanceData({});
         setClassList([]);
