@@ -162,12 +162,12 @@ export const getStudentsController = async (req, res) => {
 
     console.log(`Found ${result.length} students`);
 
-    if (result.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "No students found for the specified year",
-      });
-    }
+    // if (result.length === 0) {
+    //   return res.status(200).json({
+    //     success: true,
+    //     message: "No students found for the specified year",
+    //   });
+    // }
 
     const formattedResult = result.flatMap((student) =>
       student.enrollments.map((enrollment) => ({
@@ -183,8 +183,6 @@ export const getStudentsController = async (req, res) => {
   } catch (error) {
     console.error("Error in getStudentsController:", error);
     console.error("Error stack:", error.stack);
-
-    // More specific error responses
     if (error.code === "P2002") {
       return res.status(409).json({
         success: false,
