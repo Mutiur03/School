@@ -1,5 +1,9 @@
 import express from "express";
 import "dotenv/config";
+
+// Set Bangladesh timezone for the entire application
+process.env.TZ = "Asia/Dhaka";
+
 export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
 import morgan from "morgan";
