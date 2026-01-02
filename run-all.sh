@@ -10,9 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Edit these commands to match each package's dev script if needed.
-CMD1="cd server && npm run dev"
-CMD2="cd client && npm run dev"
-CMD3="cd admin && npm run dev"
+CMD1="cd server && npm i && npm run dev"
+CMD2="cd client && npm i && npm run dev"
+CMD3="cd admin && npm i && npm run dev"
+CMD4="cd teachers && npm i && npm run dev"
 
 echo "Starting dev servers (close this terminal to stop all)..."
 
@@ -21,6 +22,7 @@ npx --yes concurrently \
   "$CMD1" \
   "$CMD2" \
   "$CMD3" \
-  --names "SERVER,CLIENT,ADMIN" --kill-others --success first
+  "$CMD4" \
+  --names "SERVER,CLIENT,ADMIN,TEACHER" --kill-others --success first
 
 exit $?

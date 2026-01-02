@@ -14,7 +14,6 @@ export interface Teacher {
     name: string;
     email: string;
     phone?: string;
-    department?: string;
     designation?: string;
     address?: string;
     image?: string;

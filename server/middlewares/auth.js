@@ -15,7 +15,7 @@ export const teacher_me = async (req, res, next) => {
     req.user = decoded;
 
     const teacher = await prisma.teachers.findUnique({
-      where: { id: req.user.id },
+      where: { id: req.user.id, available: true },
       include: {
         levels: true,
       },

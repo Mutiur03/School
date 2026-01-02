@@ -70,7 +70,7 @@ authRouter.post("/student_login", student_login);
 authRouter.post("/teacher_login", teacher_login);
 authRouter.get("/teacher_me", teacher_me, (req, res) => {
   console.log("Authenticated Teacher:", req.user);
-
+  
   res.json({ message: "You are authenticated!", user: req.user });
 });
 authRouter.get("/student-protected", authenticateStudent, (req, res) => {
