@@ -1,9 +1,34 @@
 import axios from "axios";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../config/prisma.js";
 
-const prisma = new PrismaClient();
+// Helper function to send bulk SMS
+const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
+  const bulkSmsPayload = {
+    api_key: API_KEY,
+    senderid: SENDER_ID,
+    MessageParameters: messageParameters,
+  };
 
+  try {
+    const response = await axios.post(
+      "https://sms.onecodesoft.com/api/send-bulk-sms",
+      bulkSmsPayload,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("Bulk SMS API Response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Bulk SMS Error:", error.message);
+    throw error;
+  }
+};
 
 export const getSmsLogsController = async (req, res) => {
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
@@ -16,7 +41,6 @@ export const getSmsLogsController = async (req, res) => {
 
     let whereClause = {};
 
-    
     if (status && status !== "all") {
       whereClause.status = status;
     }
@@ -25,7 +49,6 @@ export const getSmsLogsController = async (req, res) => {
       whereClause.attendance_date = date;
     }
 
-    
     let allowedStudentIds = null;
 
     if (req.cookies.teacher_token && !req.cookies.admin_token) {
@@ -57,7 +80,7 @@ export const getSmsLogsController = async (req, res) => {
         allowedStudentIds = allowedEnrollments.map((e) => e.student_id);
         whereClause.student_id = { in: allowedStudentIds };
       } else {
-        whereClause.student_id = { in: [] }; 
+        whereClause.student_id = { in: [] };
       }
     }
 
@@ -89,7 +112,6 @@ export const getSmsLogsController = async (req, res) => {
       prisma.sms_logs.count({ where: whereClause }),
     ]);
 
-    
     const stats = await prisma.sms_logs.groupBy({
       by: ["status"],
       where: allowedStudentIds ? { student_id: { in: allowedStudentIds } } : {},
@@ -120,7 +142,6 @@ export const getSmsLogsController = async (req, res) => {
   }
 };
 
-
 export const retrySmsController = async (req, res) => {
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -134,6 +155,7 @@ export const retrySmsController = async (req, res) => {
     }
 
     const API_KEY = process.env.BULK_SMS_API_KEY;
+    const SENDER_ID = process.env.BULK_SMS_SENDER_ID;
 
     if (!API_KEY) {
       return res.status(400).json({ error: "SMS API key not configured" });
@@ -142,7 +164,10 @@ export const retrySmsController = async (req, res) => {
     let successCount = 0;
     let failedCount = 0;
     const results = [];
+    const smsMessages = []; // Array to collect all SMS messages for bulk sending
+    const smsLogMap = new Map(); // Map to track SMS logs by phone number
 
+    // First pass: Validate SMS logs and collect data for bulk sending
     for (const smsLogId of smsLogIds) {
       try {
         const smsLog = await prisma.sms_logs.findUnique({
@@ -175,7 +200,7 @@ export const retrySmsController = async (req, res) => {
           continue;
         }
 
-        
+        // Update retry count and status
         await prisma.sms_logs.update({
           where: { id: smsLogId },
           data: {
@@ -185,27 +210,134 @@ export const retrySmsController = async (req, res) => {
           },
         });
 
-        
-        const smsResponse = await axios.post(
-          `https:
-            smsLog.phone_number
-          }&msg=${encodeURIComponent(smsLog.message)}`
-        );
+        // Add to bulk SMS array
+        smsMessages.push({
+          Number: `88${smsLog.phone_number}`,
+          Text: smsLog.message,
+        });
 
+        // Map SMS log to phone number for later updates
+        smsLogMap.set(`88${smsLog.phone_number}`, {
+          smsLogId: smsLogId,
+          smsLog: smsLog,
+        });
+
+        console.log("Added SMS retry to bulk queue for:", smsLog.phone_number);
+      } catch (error) {
+        console.error(
+          `Failed to prepare SMS retry for log ${smsLogId}:`,
+          error.message
+        );
+        results.push({
+          smsLogId,
+          status: "failed",
+          message: error.message,
+        });
+        failedCount++;
+      }
+    }
+
+    // Send bulk SMS if there are messages to retry
+    if (smsMessages.length > 0) {
+      try {
         console.log(
-          `SMS Retry API Response for ${smsLog.phone_number}:`,
-          smsResponse.data
+          `Sending bulk SMS retry for ${smsMessages.length} messages`
+        );
+        const bulkSmsResponse = await sendBulkSMS(
+          smsMessages,
+          API_KEY,
+          SENDER_ID
         );
 
-        
-        if (smsResponse.data.error !== 0) {
+        if (bulkSmsResponse && bulkSmsResponse.results) {
+          for (const result of bulkSmsResponse.results) {
+            const smsData = smsLogMap.get(result.to);
+            if (smsData) {
+              const { smsLogId, smsLog } = smsData;
+
+              if (result.status === "sent") {
+                await prisma.sms_logs.update({
+                  where: { id: smsLogId },
+                  data: {
+                    status: "sent",
+                    sms_count: result.sms_count || 1,
+                    message_id: result.message_id,
+                    error_reason: null,
+                    updated_at: new Date(),
+                  },
+                });
+
+                await prisma.attendence.updateMany({
+                  where: {
+                    student_id: smsLog.student_id,
+                    date: smsLog.attendance_date,
+                  },
+                  data: { send_msg: true },
+                });
+
+                results.push({
+                  smsLogId,
+                  status: "success",
+                  message: "SMS sent successfully",
+                  studentName: smsLog.student.name,
+                });
+                successCount++;
+                console.log(`SMS retry sent successfully to ${result.to}`);
+              } else {
+                await prisma.sms_logs.update({
+                  where: { id: smsLogId },
+                  data: {
+                    status: "failed",
+                    error_reason: `API Error: ${
+                      result.code || "Unknown error"
+                    }`,
+                    updated_at: new Date(),
+                  },
+                });
+
+                results.push({
+                  smsLogId,
+                  status: "failed",
+                  message: `API Error: ${result.code || "Unknown error"}`,
+                  studentName: smsLog.student.name,
+                });
+                failedCount++;
+                console.log(
+                  `SMS retry failed for ${result.to}: ${result.code}`
+                );
+              }
+            }
+          }
+        } else {
+          for (const [phoneNumber, smsData] of smsLogMap) {
+            const { smsLogId, smsLog } = smsData;
+            await prisma.sms_logs.update({
+              where: { id: smsLogId },
+              data: {
+                status: "failed",
+                error_reason: "Invalid bulk SMS response",
+                updated_at: new Date(),
+              },
+            });
+
+            results.push({
+              smsLogId,
+              status: "failed",
+              message: "Invalid bulk SMS response",
+              studentName: smsLog.student.name,
+            });
+            failedCount++;
+          }
+        }
+      } catch (smsError) {
+        console.error("Bulk SMS Retry Error:", smsError.message);
+        for (const [phoneNumber, smsData] of smsLogMap) {
+          const { smsLogId, smsLog } = smsData;
           await prisma.sms_logs.update({
             where: { id: smsLogId },
             data: {
               status: "failed",
-              error_reason: `API Error ${smsResponse.data.error}: ${
-                smsResponse.data.msg || "Unknown error"
-              }`,
+              error_reason: smsError.message,
               updated_at: new Date(),
             },
           });
@@ -213,60 +345,11 @@ export const retrySmsController = async (req, res) => {
           results.push({
             smsLogId,
             status: "failed",
-            message: `API Error ${smsResponse.data.error}: ${
-              smsResponse.data.msg || "Unknown error"
-            }`,
+            message: smsError.message,
             studentName: smsLog.student.name,
           });
           failedCount++;
-        } else {
-          await prisma.sms_logs.update({
-            where: { id: smsLogId },
-            data: {
-              status: "sent",
-              error_reason: null,
-              updated_at: new Date(),
-            },
-          });
-
-          
-          await prisma.attendence.updateMany({
-            where: {
-              student_id: smsLog.student_id,
-              date: smsLog.attendance_date,
-            },
-            data: { send_msg: true },
-          });
-
-          results.push({
-            smsLogId,
-            status: "success",
-            message: "SMS sent successfully",
-            studentName: smsLog.student.name,
-          });
-          successCount++;
         }
-      } catch (smsError) {
-        console.error(
-          `Failed to retry SMS for log ${smsLogId}:`,
-          smsError.message
-        );
-
-        await prisma.sms_logs.update({
-          where: { id: smsLogId },
-          data: {
-            status: "failed",
-            error_reason: smsError.message,
-            updated_at: new Date(),
-          },
-        });
-
-        results.push({
-          smsLogId,
-          status: "failed",
-          message: smsError.message,
-        });
-        failedCount++;
       }
     }
 
@@ -288,7 +371,6 @@ export const retrySmsController = async (req, res) => {
     });
   }
 };
-
 
 export const deleteSmsLogsController = async (req, res) => {
   if (!req.cookies.admin_token) {
@@ -322,7 +404,6 @@ export const deleteSmsLogsController = async (req, res) => {
   }
 };
 
-
 export const getSmsStatsController = async (req, res) => {
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -340,7 +421,6 @@ export const getSmsStatsController = async (req, res) => {
       };
     }
 
-    
     if (req.cookies.teacher_token && !req.cookies.admin_token) {
       const token = req.cookies.teacher_token;
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -375,13 +455,12 @@ export const getSmsStatsController = async (req, res) => {
     }
 
     const [statusStats, dailyStats, retryStats] = await Promise.all([
-      
       prisma.sms_logs.groupBy({
         by: ["status"],
         where: whereClause,
         _count: { status: true },
       }),
-      
+
       prisma.sms_logs.groupBy({
         by: ["attendance_date"],
         where: whereClause,
@@ -389,7 +468,7 @@ export const getSmsStatsController = async (req, res) => {
         orderBy: { attendance_date: "desc" },
         take: 30,
       }),
-      
+
       prisma.sms_logs.groupBy({
         by: ["retry_count"],
         where: whereClause,

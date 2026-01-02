@@ -1,6 +1,31 @@
 import { prisma } from "../config/prisma.js";
 import axios from "axios";
 import jwt from "jsonwebtoken";
+const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
+  const bulkSmsPayload = {
+    api_key: API_KEY,
+    senderid: SENDER_ID,
+    MessageParameters: messageParameters,
+  };
+
+  try {
+    const response = await axios.post(
+      "https://sms.onecodesoft.com/api/send-bulk-sms",
+      bulkSmsPayload,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Bulk SMS Error:", error.message);
+    throw error;
+  }
+};
 
 export const getAttendenceController = async (req, res) => {
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
@@ -47,8 +72,6 @@ export const getAttendenceController = async (req, res) => {
         section: level.section,
         year: level.year,
       }));
-      console.log(levelConditions);
-
       const attendenceRecords = await prisma.attendence.findMany({
         where: {
           student: {
@@ -105,6 +128,7 @@ export const addAttendenceController = async (req, res) => {
 
   try {
     const API_KEY = process.env.BULK_SMS_API_KEY;
+    const SENDER_ID = process.env.BULK_SMS_SENDER_ID;
     const { records } = req.body;
 
     if (!records || !Array.isArray(records)) {
@@ -152,6 +176,9 @@ export const addAttendenceController = async (req, res) => {
     let smsSuccessCount = 0;
     let smsFailedCount = 0;
     let absentCount = 0;
+    let presentCount = 0;
+    const smsMessages = [];
+    const smsLogMap = new Map();
 
     for (const record of records) {
       let { studentId, date, status } = record;
@@ -162,7 +189,6 @@ export const addAttendenceController = async (req, res) => {
       });
 
       try {
-        // Check if teacher is authorized to mark attendance for this student
         if (
           allowedStudentIds !== null &&
           !allowedStudentIds.includes(studentId)
@@ -198,12 +224,13 @@ export const addAttendenceController = async (req, res) => {
 
         processed.push({ studentId, date, status });
 
-        // Count absent students
         if (status === "absent") {
           absentCount++;
+        } else if (status === "present") {
+          presentCount++;
         }
 
-        if (date === today && status === "absent") {
+        if (date === today && status === "present") {
           const student = await prisma.students.findUnique({
             where: { id: studentId },
           });
@@ -224,10 +251,14 @@ export const addAttendenceController = async (req, res) => {
           });
 
           if (sent && sent.send_msg === false) {
-            const message = `Dear Parent, your child ${student.name} is absent today (${date}). Please check with them. - School Management`;
-            console.log("Sending SMS to parent:", parent_phone, message);
+            const message = [
+              `Dear Parent,`,
+              `Your child ${student.name} (ID: ${student.login_id}) has attended school today (${date}).`,
+              `Thank you.`,
+              `Head Master`,
+              `Panchbibi Lal Bihari Govt. High School.`,
+            ].join("\n");
 
-            // Create SMS log entry
             const smsLog = await prisma.sms_logs.create({
               data: {
                 student_id: studentId,
@@ -238,79 +269,16 @@ export const addAttendenceController = async (req, res) => {
               },
             });
 
-            try {
-              if (!API_KEY) {
-                console.warn(
-                  "SMS API key not configured, skipping SMS notification"
-                );
-                await prisma.sms_logs.update({
-                  where: { id: smsLog.id },
-                  data: {
-                    status: "failed",
-                    error_reason: "SMS API key not configured",
-                  },
-                });
-                smsFailedCount++;
-              } else {
-                console.log(API_KEY);
-                const smsResponse = await axios.post(
-                  `https://api.sms.net.bd/sendsms?api_key=${API_KEY}&to=88${parent_phone}&msg=${encodeURIComponent(
-                    message
-                  )}`
-                );
-                console.log(
-                  `SMS API Response for ${parent_phone}:`,
-                  smsResponse.data
-                );
+            smsMessages.push({
+              Number: `88${parent_phone}`,
+              Text: message,
+            });
 
-                // Check if SMS was successful (error === 0)
-                if (smsResponse.data.error !== 0) {
-                  await prisma.sms_logs.update({
-                    where: { id: smsLog.id },
-                    data: {
-                      status: "failed",
-                      error_reason: `API Error ${smsResponse.data.error}: ${
-                        smsResponse.data.msg || "Unknown error"
-                      }`,
-                    },
-                  });
-                  console.log(
-                    `SMS failed for ${parent_phone}: ${smsResponse.data.msg}`
-                  );
-                  smsFailedCount++;
-                } else {
-                  await prisma.sms_logs.update({
-                    where: { id: smsLog.id },
-                    data: { status: "sent" },
-                  });
-                  console.log(`SMS sent successfully to ${parent_phone}`);
-                  smsSuccessCount++;
-                  // Only mark as sent if SMS was successful
-                  await prisma.attendence.updateMany({
-                    where: {
-                      student_id: studentId,
-                      date: date,
-                    },
-                    data: { send_msg: true },
-                  });
-                }
-              }
-            } catch (smsError) {
-              console.error(
-                `Failed to send SMS to ${parent_phone}:`,
-                smsError.message
-              );
-              await prisma.sms_logs.update({
-                where: { id: smsLog.id },
-                data: {
-                  status: "failed",
-                  error_reason: smsError.message,
-                },
-              });
-              smsFailedCount++;
-            }
-          } else {
-            console.log("Message already sent for this date.");
+            smsLogMap.set(`88${parent_phone}`, {
+              smsLogId: smsLog.id,
+              studentId: studentId,
+              date: date,
+            });
           }
         }
       } catch (recordError) {
@@ -326,10 +294,95 @@ export const addAttendenceController = async (req, res) => {
       }
     }
 
+    if (smsMessages.length > 0) {
+      try {
+        if (!API_KEY) {
+          console.warn("SMS API key not configured, marking all SMS as failed");
+          for (const [phoneNumber, smsData] of smsLogMap) {
+            await prisma.sms_logs.update({
+              where: { id: smsData.smsLogId },
+              data: {
+                status: "failed",
+                error_reason: "SMS API key not configured",
+              },
+            });
+            smsFailedCount++;
+          }
+        } else {
+          const bulkSmsResponse = await sendBulkSMS(
+            smsMessages,
+            API_KEY,
+            SENDER_ID
+          );
+          if (bulkSmsResponse && bulkSmsResponse.results) {
+            for (const result of bulkSmsResponse.results) {
+              const smsData = smsLogMap.get(result.to);
+              if (smsData) {
+                if (result.status === "sent") {
+                  await prisma.sms_logs.update({
+                    where: { id: smsData.smsLogId },
+                    data: {
+                      status: "sent",
+                      sms_count: result.sms_count || 1,
+                      message_id: result.message_id,
+                    },
+                  });
+
+                  await prisma.attendence.updateMany({
+                    where: {
+                      student_id: smsData.studentId,
+                      date: smsData.date,
+                    },
+                    data: { send_msg: true },
+                  });
+
+                  smsSuccessCount++;
+                } else {
+                  await prisma.sms_logs.update({
+                    where: { id: smsData.smsLogId },
+                    data: {
+                      status: "failed",
+                      error_reason: `API Error: ${
+                        result.code || "Unknown error"
+                      }`,
+                    },
+                  });
+                  smsFailedCount++;
+                }
+              }
+            }
+          } else {
+            for (const [phoneNumber, smsData] of smsLogMap) {
+              await prisma.sms_logs.update({
+                where: { id: smsData.smsLogId },
+                data: {
+                  status: "failed",
+                  error_reason: "Invalid bulk SMS response",
+                },
+              });
+              smsFailedCount++;
+            }
+          }
+        }
+      } catch (smsError) {
+        console.error("Bulk SMS Error:", smsError.message);
+        for (const [phoneNumber, smsData] of smsLogMap) {
+          await prisma.sms_logs.update({
+            where: { id: smsData.smsLogId },
+            data: {
+              status: "failed",
+              error_reason: smsError.message,
+            },
+          });
+          smsFailedCount++;
+        }
+      }
+    }
     if (errors.length === 0) {
       res.status(200).json({
         message: "All attendance records processed successfully",
         processed: processed.length,
+        present: presentCount,
         absent: absentCount,
         sms: {
           successful: smsSuccessCount,
@@ -340,6 +393,7 @@ export const addAttendenceController = async (req, res) => {
       res.status(207).json({
         message: "Some attendance records processed with errors",
         processed: processed.length,
+        present: presentCount,
         absent: absentCount,
         errors: errors,
         sms: {
@@ -350,6 +404,7 @@ export const addAttendenceController = async (req, res) => {
     } else {
       res.status(400).json({
         error: "No records could be processed",
+        present: presentCount,
         absent: absentCount,
         errors: errors,
         sms: {

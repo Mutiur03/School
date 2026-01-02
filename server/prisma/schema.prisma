@@ -560,6 +560,9 @@ model sms_logs {
   phone_number    String   @db.VarChar(15)
   message         String   @db.Text
   status          String   @default("pending") // pending, sent, failed
+  request_id      String?  @db.VarChar(50) // SMS API request ID
+  message_id      String?  @db.VarChar(100) // Unique message ID from bulk SMS API
+  sms_count       Int? // Number of SMS units consumed
   error_reason    String?  @db.Text
   attendance_date String   @db.VarChar(10)
   retry_count     Int      @default(0)
