@@ -26,6 +26,7 @@ import {
   ViewMarks,
   Settings,
   AlumniList,
+  SmsManagement,
 } from "./pages";
 import Syllabus from "./pages/Syllabus";
 import ExamPDFRoutine from "./pages/ExamPDFRoutine";
@@ -159,6 +160,10 @@ function App() {
                             <Route
                               path="/attendance"
                               element={<Attendence />}
+                            />
+                            <Route
+                              path="/sms-management"
+                              element={<SmsManagement />}
                             />
                             <Route path="/notice" element={<Notice />} />
                             <Route

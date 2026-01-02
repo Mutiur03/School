@@ -36,6 +36,7 @@ model students {
   enrollments student_enrollments[]
   attendances attendence[]
   gpa         gpa?
+  sms_logs    sms_logs[]
 
   galleries gallery[] @relation("StudentGalleryUploader")
 
@@ -551,4 +552,23 @@ model admission_result {
 
   @@index([class_name])
   @@index([admission_year])
+}
+
+model sms_logs {
+  id              Int      @id @default(autoincrement())
+  student_id      Int
+  phone_number    String   @db.VarChar(15)
+  message         String   @db.Text
+  status          String   @default("pending") // pending, sent, failed
+  error_reason    String?  @db.Text
+  attendance_date String   @db.VarChar(10)
+  retry_count     Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([attendance_date])
+  @@index([student_id])
 }
