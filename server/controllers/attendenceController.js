@@ -257,6 +257,16 @@ export const addAttendenceController = async (req, res) => {
           presentCount++;
         }
 
+        // Add diagnostic logging for SMS processing
+        console.log(`Checking SMS eligibility for student ${studentId}:`, {
+          date,
+          today,
+          status,
+          dateMatches: date === today,
+          isPresent: status === "present",
+          shouldCheckSMS: date === today && status === "present",
+        });
+
         if (date === today && status === "present") {
           const student = await prisma.students.findUnique({
             where: { id: studentId },
@@ -268,6 +278,9 @@ export const addAttendenceController = async (req, res) => {
           }
 
           const parent_phone = student.parent_phone;
+          console.log(
+            `Student found: ${student.name}, parent phone: ${parent_phone}`
+          );
 
           const sent = await prisma.attendence.findFirst({
             where: {
@@ -275,6 +288,14 @@ export const addAttendenceController = async (req, res) => {
               date: date,
             },
             select: { send_msg: true },
+          });
+
+          console.log(`Attendance record check:`, {
+            studentId,
+            date,
+            recordExists: !!sent,
+            sendMsgValue: sent?.send_msg,
+            shouldSendSMS: sent && sent.send_msg === false,
           });
 
           if (sent && sent.send_msg === false) {
@@ -338,6 +359,15 @@ export const addAttendenceController = async (req, res) => {
         continue;
       }
     }
+
+    console.log(`SMS Processing Summary:`, {
+      totalRecordsProcessed: processed.length,
+      presentCount,
+      absentCount,
+      smsMessagesQueued: smsMessages.length,
+      smsLogMapSize: smsLogMap.size,
+      todaysDate: today,
+    });
 
     if (smsMessages.length > 0) {
       console.log(`Processing ${smsMessages.length} SMS messages`);
@@ -503,6 +533,12 @@ export const addAttendenceController = async (req, res) => {
           }
         }
       }
+    } else {
+      console.log("No SMS messages queued - reasons could be:");
+      console.log("1. No students marked present today");
+      console.log("2. SMS already sent for present students");
+      console.log("3. No valid phone numbers found");
+      console.log("4. Attendance records don't exist yet");
     }
     if (errors.length === 0) {
       res.status(200).json({
