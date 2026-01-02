@@ -140,10 +140,12 @@ export const addAttendenceController = async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  // Use Bangladesh timezone for today's date
   const today = new Date().toLocaleDateString("en-CA", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZone: "Asia/Dhaka",
   });
 
   try {
@@ -155,6 +157,16 @@ export const addAttendenceController = async (req, res) => {
       hasApiKey: !!API_KEY,
       hasSenderId: !!SENDER_ID,
       environment: process.env.NODE_ENV || "development",
+    });
+
+    // Log timezone information for debugging
+    console.log("Timezone Information:", {
+      serverTimezone: process.env.TZ || "system default",
+      currentTime: new Date().toLocaleString("en-US", {
+        timeZone: "Asia/Dhaka",
+      }),
+      todaysDate: today,
+      serverLocalTime: new Date().toLocaleString(),
     });
     const { records } = req.body;
 
@@ -209,10 +221,12 @@ export const addAttendenceController = async (req, res) => {
 
     for (const record of records) {
       let { studentId, date, status } = record;
+      // Use Bangladesh timezone for consistent date handling
       date = new Date(date).toLocaleDateString("en-CA", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
+        timeZone: "Asia/Dhaka",
       });
 
       try {
