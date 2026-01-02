@@ -58,7 +58,6 @@ export const getAlumniController = async (_req, res) => {
 };
 
 export const getStudentsController = async (req, res) => {
-  // Check authentication
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -66,7 +65,6 @@ export const getStudentsController = async (req, res) => {
   try {
     const { year } = req.params;
 
-    // Validate year parameter
     if (!year || isNaN(parseInt(year))) {
       return res.status(400).json({
         success: false,
@@ -76,7 +74,6 @@ export const getStudentsController = async (req, res) => {
 
     const parsedYear = parseInt(year);
 
-    // Validate year range (optional but recommended)
     const currentYear = new Date().getFullYear();
     if (parsedYear < 2000 || parsedYear > currentYear + 5) {
       return res.status(400).json({
@@ -91,7 +88,6 @@ export const getStudentsController = async (req, res) => {
 
     let result;
 
-    // Admin can see all students
     if (req.cookies.admin_token) {
       const token = req.cookies.admin_token;
       try {
@@ -168,7 +164,7 @@ export const getStudentsController = async (req, res) => {
 
     if (result.length === 0) {
       return res.status(404).json({
-        success: false,
+        success: true,
         message: "No students found for the specified year",
       });
     }
