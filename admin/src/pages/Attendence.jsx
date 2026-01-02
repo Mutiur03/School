@@ -11,6 +11,7 @@ function Attendance() {
   const [visibleDays, setVisibleDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [classList, setClassList] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
 
@@ -35,26 +36,26 @@ function Attendance() {
   const currentYear = currentDate.getFullYear();
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(
-          `/api/students/getStudents/${selectedYear}`
-        );
-        const students = response.data.data
+        setLoading(true);
+        setError(null);
+
+        const [studentsResponse, attendanceResponse] = await Promise.all([
+          axios.get(`/api/students/getStudents/${selectedYear}`),
+          axios.get(`/api/attendance/getAttendence`),
+        ]);
+
+        // Process students data
+        const students = studentsResponse.data.data
           .sort((a, b) => a.roll - b.roll)
           .sort((a, b) => a.section.localeCompare(b.section));
         setClassList([...new Set(students.map((student) => student.class))]);
         setStudents(students || []);
-      } catch (error) {
-        console.error("Error fetching students:", error);
-      }
-    };
 
-    const fetchAttendance = async () => {
-      try {
-        const response = await axios.get(`/api/attendance/getAttendence`);
+        // Process attendance data
         const attendanceMap = {};
-        response.data.forEach((record) => {
+        attendanceResponse.data.forEach((record) => {
           const date = new Date(record.date);
           const day = date.getDate();
           const month = date.getMonth();
@@ -68,18 +69,22 @@ function Attendance() {
         });
         setAttendanceData(attendanceMap);
       } catch (error) {
-        console.error("Error fetching attendance:", error);
+        console.error("Error fetching data:", error);
+        setError(
+          "Failed to fetch students or attendance data. Please try again."
+        );
+        setStudents([]);
+        setAttendanceData({});
+        setClassList([]);
       } finally {
         setLoading(false);
       }
     };
 
-    setLoading(true);
-    fetchStudents();
-    fetchAttendance();
+    fetchData();
     setVisibleDays([currentDay]);
     setEditableDays([]);
-  }, [selectedMonth, selectedYear]);
+  }, [currentDay, selectedMonth, selectedYear, selectedYear]);
 
   const getDaysInMonth = (month, year) =>
     new Date(year, month + 1, 0).getDate();
@@ -153,11 +158,15 @@ function Attendance() {
           });
         });
 
-      await axios.post("/api/attendance/addAttendence", {
-        records: attendanceRecords,
-      });
+      const data = await axios
+        .post("/api/attendance/addAttendence", {
+          records: attendanceRecords,
+        })
+        .then((res) => res.data);
 
-      alert("Attendance saved successfully!");
+      alert(
+        `${data.message}\nAbsent: ${data.absent}\nSuccess: ${data.sms.successful}\nFailed: ${data.sms.failed}`
+      );
     } catch (error) {
       console.error("Error saving attendance:", error);
       alert("Failed to save attendance");
@@ -314,9 +323,26 @@ function Attendance() {
         </select>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-700 text-sm">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 text-red-700 underline text-sm hover:text-red-900"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Attendance Table */}
       {loading ? (
         <p>Loading attendance data...</p>
+      ) : error ? (
+        <p className="text-gray-500">
+          Please resolve the error above to view attendance data.
+        </p>
       ) : (
         <>
           <div className=" rounded-lg shadow-sm border border-gray-100 overflow-hidden">

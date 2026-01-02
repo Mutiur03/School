@@ -8,8 +8,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/authContext";
 import { useApp } from "@/context/appContext";
 import { ReactNode } from "react";
-import LogoutConfirmation from "./LogOutConfirmation";
-
+import { Calendar } from "lucide-react";
 interface SidebarProps {
   children: ReactNode;
   open?: boolean;
@@ -46,6 +45,13 @@ const sidebarItems: SidebarItem[] = [
     id: "marks",
   },
   {
+    label: "Attendance",
+    icon: Calendar,
+    dropdown: false,
+    link: "/attendance",
+    id: "attendance",
+  },
+  {
     label: "Settings",
     icon: FaGear,
     dropdown: false,
@@ -58,7 +64,6 @@ const SIDEBAR_WIDTH = 320;
 
 const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) => {
   const { sidebarExpanded, setSidebarExpanded } = useApp();
-  const { logout } = useAuth(); // assuming user object has displayName
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
 
@@ -116,7 +121,6 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
     };
   }, [open, onClose, navbarRef]);
 
-  // Sidebar style for mobile and desktop
   return (
     <div className="flex">
       <aside
@@ -124,11 +128,11 @@ const Sidebar = ({ children, open = false, onClose, navbarRef }: SidebarProps) =
         className={`
           fixed z-50 left-0 flex flex-col
           shadow-xl
-          md:bg-[var(--color-sidebar)] md:shadow-none
+          md:bg-(--color-sidebar) md:shadow-none
           transition-transform duration-300
           ${open ? "translate-x-0" : "-translate-x-full"}
           md:static md:translate-x-0
-          bg-[var(--color-sidebar)]
+          bg-(--color-sidebar)
           overflow-y-auto
         `}
         style={{

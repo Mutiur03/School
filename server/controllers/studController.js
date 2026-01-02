@@ -57,9 +57,14 @@ export const getAlumniController = async (_req, res) => {
   }
 };
 
-export const getStudentsController = async (_req, res) => {
+export const getStudentsController = async (req, res) => {
+  // Check authentication
+  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   try {
-    const { year } = _req.params;
+    const { year } = req.params;
 
     // Validate year parameter
     if (!year || isNaN(parseInt(year))) {
@@ -84,14 +89,80 @@ export const getStudentsController = async (_req, res) => {
 
     console.log(`Fetching students for year: ${parsedYear}`);
 
-    const result = await prisma.students.findMany({
-      include: {
-        enrollments: {
-          where: { year: parsedYear },
-          orderBy: { year: "desc" },
-        },
-      },
-    });
+    let result;
+
+    // Admin can see all students
+    if (req.cookies.admin_token) {
+      const token = req.cookies.admin_token;
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const admin = await prisma.admin.findUnique({
+          where: { id: decoded.id },
+        });
+        if (!admin) {
+          res.clearCookie("admin_token");
+          return res.status(404).json({ message: "Admin not found" });
+        }
+
+        result = await prisma.students.findMany({
+          include: {
+            enrollments: {
+              where: { year: parsedYear },
+              orderBy: { year: "desc" },
+            },
+          },
+        });
+      } catch (error) {
+        res.clearCookie("admin_token");
+        return res.status(401).json({ message: "Invalid Admin Token" });
+      }
+    }
+    else if (req.cookies.teacher_token) {
+      const token = req.cookies.teacher_token;
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const teacher = await prisma.teachers.findUnique({
+          where: { id: decoded.id },
+          include: { levels: true },
+        });
+        if (!teacher) {
+          res.clearCookie("teacher_token");
+          return res.status(404).json({ message: "Teacher not found" });
+        }
+
+        if (!teacher.levels || teacher.levels.length === 0) {
+          return res.status(200).json({ success: true, data: [] });
+        }
+
+        const levelConditions = teacher.levels.map((level) => ({
+          class: level.class_name,
+          section: level.section,
+          year: level.year,
+        }));
+
+        result = await prisma.students.findMany({
+          where: {
+            enrollments: {
+              some: {
+                AND: [{ year: parsedYear }, { OR: levelConditions }],
+              },
+            },
+          },
+          include: {
+            enrollments: {
+              where: {
+                AND: [{ year: parsedYear }, { OR: levelConditions }],
+              },
+              orderBy: { year: "desc" },
+            },
+          },
+        });
+      } catch (error) {
+        console.error("Teacher authentication error:", error);
+        res.clearCookie("teacher_token");
+        return res.status(401).json({ message: "Invalid Teacher Token" });
+      }
+    }
 
     console.log(`Found ${result.length} students`);
 
@@ -152,7 +223,7 @@ export const getStudentController = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const studentId = decoded.id;
     // console.log(decoded);
-    
+
     const result = await prisma.students.findUnique({
       where: { id: studentId },
       include: {
@@ -164,12 +235,12 @@ export const getStudentController = async (req, res) => {
       },
     });
     console.log(`Fetched student with ID: ${studentId}`, result);
-    
+
     if (!result || result.enrollments.length === 0) {
       return res.status(404).json({ error: "Student not found" });
     }
 
-    const responseData = { 
+    const responseData = {
       ...result,
       ...result.enrollments[0],
       enrollment_id: result.enrollments[0].id,
@@ -768,7 +839,7 @@ export const updateStudentImageController = async (req, res) => {
         fs.unlinkSync(oldFilePath);
       }
     }
-    
+
     const result = await prisma.students.update({
       where: { id: parseInt(id) },
       data: { image: filePath },

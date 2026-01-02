@@ -14,7 +14,7 @@ const Navbar = forwardRef<HTMLDivElement, { onBurgerClick?: () => void }>(
         return (
             <nav
                 ref={ref}
-                className="navbar h-[3.5rem] flex z-30 justify-between sticky top-0 w-full bg-sidebar border-b shadow-md px-5 items-center backdrop-blur-xl"
+                className="navbar h-14 flex z-30 justify-between sticky top-0 w-full bg-sidebar border-b shadow-md px-5 items-center backdrop-blur-xl"
             >
                 <div className="flex items-center gap-2">
                     <button
@@ -33,15 +33,17 @@ const Navbar = forwardRef<HTMLDivElement, { onBurgerClick?: () => void }>(
                     <h2>Teacher Dashboard</h2>
                 </div>
                 <div className="flex items-center gap-2 justify-between">
-                    <span className="hidden md:block max-w-[120px] truncate"> {teacher?.name}</span>
+                    <span className="hidden md:block max-w-30 truncate"> {teacher?.name}</span>
                     {teacher?.image ? (
-                        <Image
-                            src={fixURL(teacher.image)}
-                            alt="Profile"
-                            width={40}
-                            height={40}
-                            className="rounded-full border-4 border-gray-300 shadow-sm object-cover"
-                        />
+                        <div className="w-10 h-10 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
+                            <Image
+                                src={fixURL(teacher.image)}
+                                alt="Profile"
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover object-top"
+                            />
+                        </div>
                     ) : (
                         <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xl">
                             {teacher?.name
