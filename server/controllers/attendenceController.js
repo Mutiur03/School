@@ -1,13 +1,13 @@
 import { prisma } from "../config/prisma.js";
 import axios from "axios";
 import jwt from "jsonwebtoken";
+
 export const getAttendenceController = async (req, res) => {
   if (!req.cookies.teacher_token && !req.cookies.admin_token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   if (req.cookies.admin_token) {
     const token = req.cookies.admin_token;
-    console.log(token);
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
@@ -48,7 +48,7 @@ export const getAttendenceController = async (req, res) => {
         year: level.year,
       }));
       console.log(levelConditions);
-      
+
       const attendenceRecords = await prisma.attendence.findMany({
         where: {
           student: {
@@ -143,7 +143,7 @@ export const addAttendenceController = async (req, res) => {
 
         allowedStudentIds = allowedEnrollments.map((e) => e.student_id);
       } else {
-        allowedStudentIds = []; // Teacher has no assigned levels
+        allowedStudentIds = [];
       }
     }
 
@@ -224,14 +224,32 @@ export const addAttendenceController = async (req, res) => {
           });
 
           if (sent && sent.send_msg === false) {
-            const message = `Dear Parent, your child is absent today. Please check with them.`;
+            const message = `Dear Parent, your child ${student.name} is absent today (${date}). Please check with them. - School Management`;
             console.log("Sending SMS to parent:", parent_phone, message);
+
+            // Create SMS log entry
+            const smsLog = await prisma.sms_logs.create({
+              data: {
+                student_id: studentId,
+                phone_number: parent_phone,
+                message: message,
+                attendance_date: date,
+                status: "pending",
+              },
+            });
 
             try {
               if (!API_KEY) {
                 console.warn(
                   "SMS API key not configured, skipping SMS notification"
                 );
+                await prisma.sms_logs.update({
+                  where: { id: smsLog.id },
+                  data: {
+                    status: "failed",
+                    error_reason: "SMS API key not configured",
+                  },
+                });
                 smsFailedCount++;
               } else {
                 console.log(API_KEY);
@@ -240,11 +258,32 @@ export const addAttendenceController = async (req, res) => {
                     message
                   )}`
                 );
-                console.log(`SMS sent to ${parent_phone}: ${message}`);
-                console.log("SMS Response:", smsResponse.data);
+                console.log(
+                  `SMS API Response for ${parent_phone}:`,
+                  smsResponse.data
+                );
+
+                // Check if SMS was successful (error === 0)
                 if (smsResponse.data.error !== 0) {
+                  await prisma.sms_logs.update({
+                    where: { id: smsLog.id },
+                    data: {
+                      status: "failed",
+                      error_reason: `API Error ${smsResponse.data.error}: ${
+                        smsResponse.data.msg || "Unknown error"
+                      }`,
+                    },
+                  });
+                  console.log(
+                    `SMS failed for ${parent_phone}: ${smsResponse.data.msg}`
+                  );
                   smsFailedCount++;
                 } else {
+                  await prisma.sms_logs.update({
+                    where: { id: smsLog.id },
+                    data: { status: "sent" },
+                  });
+                  console.log(`SMS sent successfully to ${parent_phone}`);
                   smsSuccessCount++;
                   // Only mark as sent if SMS was successful
                   await prisma.attendence.updateMany({
@@ -261,6 +300,13 @@ export const addAttendenceController = async (req, res) => {
                 `Failed to send SMS to ${parent_phone}:`,
                 smsError.message
               );
+              await prisma.sms_logs.update({
+                where: { id: smsLog.id },
+                data: {
+                  status: "failed",
+                  error_reason: smsError.message,
+                },
+              });
               smsFailedCount++;
             }
           } else {

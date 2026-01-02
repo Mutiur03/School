@@ -154,7 +154,7 @@ const Sidebar = ({
           label: "Result",
           link: "/admission/result",
           id: "admission-result",
-        }
+        },
       ],
     },
     {
@@ -216,6 +216,13 @@ const Sidebar = ({
       dropdown: false,
       link: "/attendance",
       id: "attendance",
+    },
+    {
+      label: "SMS Management",
+      icon: Megaphone,
+      dropdown: false,
+      link: "/sms-management",
+      id: "sms-management",
     },
     {
       label: "Notice",

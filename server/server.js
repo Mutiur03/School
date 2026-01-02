@@ -30,6 +30,7 @@ import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
+import smsRouter from "./routes/smsRoutes.js";
 import { check } from "./config/redis.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +70,7 @@ if (process.env.NODE_ENV === "development") {
     if (s >= 400) return `${colors.yellow}${status}${colors.reset}`;
     if (s >= 300) return `${colors.cyan}${status}${colors.reset}`;
     return `${colors.green}${status}${colors.reset}`;
-  }; 
+  };
 
   app.use(
     morgan((tokens, req, res) => {
@@ -117,6 +118,7 @@ app.use("/api/reg/ssc/form", studentRegistrationRouter);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
+app.use("/api/sms", smsRouter);
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -124,7 +126,7 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-app.use("*", (req, res) => { 
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
