@@ -8,7 +8,7 @@ import Footer from "./Footer";
 function MainLayout() {
     const location = useLocation();
 
-    const routesWithoutSidebar = ['/registration/ssc', '/reg/ssc', '/admission'];
+    const routesWithoutSidebar = ['/registration/ssc', '/reg/ssc', '/admission', '/teacher-list', '/staff-list'];
     const shouldHideSidebar = routesWithoutSidebar.some(route =>
         location.pathname === route || location.pathname.startsWith(route + '/')
     );
