@@ -1,10 +1,11 @@
-import  { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 function TeacherList() {
     useEffect(() => {
         document.title = "Teacher List";
     }, []);
+
     type Teacher = {
         id: number
         name: string
@@ -18,16 +19,10 @@ function TeacherList() {
     }
 
     const [teachers, setTeachers] = useState<Teacher[]>([])
-    const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null)
-    const [isOpen, setIsOpen] = useState(false)
-    const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    // new state for loading
     const [isLoading, setIsLoading] = useState(false)
-    const host = (import.meta && (import.meta).env?.VITE_BACKEND_URL) || ''
+    const host = import.meta.env?.VITE_BACKEND_URL;
 
     useEffect(() => {
-        // fetch teachers from backend
         const fetchTeachers = async () => {
             setIsLoading(true)
             try {
@@ -45,88 +40,68 @@ function TeacherList() {
         fetchTeachers()
     }, [])
 
-    // close modal on Escape
-    useEffect(() => {
-        if (!selectedTeacher) return
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') closeDetails()
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedTeacher])
-
-    const openDetails = (t: Teacher) => {
-        // mount modal with data
-        setSelectedTeacher(t)
-        // allow DOM to mount, then trigger enter animation
-        // small timeout ensures classes transition
-        setTimeout(() => setIsOpen(true), 20)
-    }
-
-    const closeDetails = () => {
-        // trigger exit animation
-        setIsOpen(false)
-        // clear previous timeout if any
-        if (closeTimeout.current) clearTimeout(closeTimeout.current)
-        // after animation duration, unmount modal
-        closeTimeout.current = setTimeout(() => {
-            setSelectedTeacher(null)
-            closeTimeout.current = null
-        }, 220) // match duration below (200)
-    }
-
-    useEffect(() => {
-        return () => {
-            if (closeTimeout.current) clearTimeout(closeTimeout.current)
-        }
-    }, [])
-
-    // filtered list similar to admin
     const filteredTeachers = teachers
         .filter((t) => (t.available === undefined ? true : !!t.available))
         .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0))
 
     return (
-        <div className=" text-gray-800">
-            <h1 className="text-3xl font-serif mb-4">Teacher List</h1>
+        <div className="text-gray-800 p-4 sm:p-6 lg:p-8">
+            <h1 className="text-2xl sm:text-3xl font-serif mb-4 sm:mb-6">Teacher List</h1>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+            <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
                     <thead className="bg-gray-50">
                         <tr className="divide-x divide-gray-200">
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SL</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NAME</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DESIGNATION</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 tracking-wider">Image</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 tracking-wider">Name & Email</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 tracking-wider">Contact Details</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-600">
+                                <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-600">
                                     Loading teachers...
                                 </td>
                             </tr>
                         ) : filteredTeachers.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-600">
+                                <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-600">
                                     No teachers found.
                                 </td>
                             </tr>
                         ) : (
                             filteredTeachers.map((t, i) => (
                                 <tr key={t.id} className={i % 2 === 0 ? 'bg-white divide-x divide-gray-200' : 'bg-gray-50 divide-x divide-gray-200'}>
-                                    <td className="px-4 py-3 text-sm text-left w-16">{i + 1}</td>
-                                    <td className="px-4 py-3 text-sm font-serif uppercase tracking-wide">{t.name}</td>
-                                    <td className="px-4 py-3 text-sm w-56">{t.designation || '—'}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <button
-                                            onClick={() => openDetails(t)}
-                                            className="text-pink-500 hover:underline font-medium"
-                                        >
-                                            View
-                                        </button>
+                                    <td className="px-4 py-3 text-sm w-32 align-top">
+                                        {t.image ? (
+                                            <img
+                                                src={t.image.startsWith('http') ? t.image : `${host}/${t.image}`}
+                                                alt={t.name}
+                                                className="w-20 h-20 object-cover rounded border border-gray-200"
+                                            />
+                                        ) : (
+                                            <div className="w-20 h-20 bg-gray-100 flex items-center justify-center rounded border border-gray-200 text-gray-400 text-xs">
+                                                No Image
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm font-serif tracking-wide align-top">
+                                        <div className="font-semibold text-lg">{t.name}</div>
+                                        <div className="mt-2">
+                                            {t.designation && (
+                                                <div className="text-sm text-gray-600 mt-1">Designation: {t.designation}</div>
+                                            )}
+                                        </div>
+                                        <div className="mt-2">
+                                            <span className="font-medium text-gray-600">Email:</span> {t.email || '—'}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm align-top">
+                                        <div className="space-y-2">
+                                            <div><span className="font-medium text-gray-600">Phone:</span> {t.phone || '—'}</div>
+                                            <div><span className="font-medium text-gray-600">Address:</span> {t.address || '—'}</div>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -135,62 +110,67 @@ function TeacherList() {
                 </table>
             </div>
 
-            {selectedTeacher && (
-                <div
-                    className={`fixed inset-0 flex items-center justify-center z-50 ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={`Details for ${selectedTeacher.name}`}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) closeDetails()
-                    }}
-                >
-                    <div
-                        className={`absolute inset-0 bg-black transition-opacity duration-200 ${isOpen ? 'opacity-50' : 'opacity-0'}`}
-                        aria-hidden="true"
-                    />
-
-                    <div
-                        className={`relative bg-white rounded-lg shadow-lg max-w-md w-full mx-4 overflow-hidden transform transition-all duration-200 ease-out
-							${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}
-                    >
-                        <div className="flex justify-between items-center p-4 border-b">
-                            <h2 className="text-lg font-semibold">{selectedTeacher.name}</h2>
-                            <button
-                                onClick={closeDetails}
-                                className="text-gray-500 hover:text-gray-700 px-2 py-1"
-                                aria-label="Close details"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <div className="p-4">
-                            <div className="flex justify-center mb-4">
-                                {selectedTeacher.image ? (
-                                    <img
-                                        src={selectedTeacher.image.startsWith('http') ? selectedTeacher.image : `${host}/${selectedTeacher.image}`}
-                                        alt={selectedTeacher.name}
-                                        className="w-48 h-48 object-cover rounded"
-                                    />
-                                ) : (
-                                    <div className="w-48 h-48 bg-gray-100 flex items-center justify-center rounded text-gray-400">
-                                        No image
-                                    </div>
-                                )}
-                            </div>
-                            <p className="text-sm"><strong>Email:</strong> {selectedTeacher.email || '—'}</p>
-                            <p className="text-sm"><strong>Phone:</strong> {selectedTeacher.phone || '—'}</p>
-                            <p className="text-sm"><strong>Designation:</strong> {selectedTeacher.designation || '—'}</p>
-                            <p className="text-sm"><strong>Address:</strong> {selectedTeacher.address || '—'}</p>
-                        </div>
-                        <div className="p-4 border-t flex justify-end">
-                            <button onClick={closeDetails} className="px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
-                                Close
-                            </button>
-                        </div>
+            <div className="lg:hidden">
+                {isLoading ? (
+                    <div className="text-center py-8 text-gray-600">
+                        Loading teachers...
                     </div>
-                </div>
-            )}
+                ) : filteredTeachers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-600">
+                        No teachers found.
+                    </div>
+                ) : (
+                    <div className="space-y-4 sm:space-y-6">
+                        {filteredTeachers.map((t) => (
+                            <div key={t.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:space-x-4 space-y-4 sm:space-y-0">
+                                    <div className="shrink-0 self-center sm:self-start">
+                                        {t.image ? (
+                                            <img
+                                                src={t.image.startsWith('http') ? t.image : `${host}/${t.image}`}
+                                                alt={t.name}
+                                                className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded border border-gray-200"
+                                            />
+                                        ) : (
+                                            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 flex items-center justify-center rounded border border-gray-200 text-gray-400 text-xs">
+                                                No Image
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="mb-3">
+                                            <h3 className="text-lg sm:text-xl font-serif tracking-wide font-semibold text-gray-900 wrap-break-word">
+                                                {t.name}
+                                            </h3>
+                                            {t.designation && (
+                                                <p className="text-sm text-gray-600 mt-1">{t.designation}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                            <div>
+                                                <span className="block text-xs font-medium text-gray-500 tracking-wider mb-1">Email</span>
+                                                <p className="text-sm text-gray-900 break-all">{t.email || '—'}</p>
+                                            </div>
+
+                                            <div>
+                                                <span className="block text-xs font-medium text-gray-500 tracking-wider mb-1">Phone</span>
+                                                <p className="text-sm text-gray-900">{t.phone || '—'}</p>
+                                            </div>
+
+                                            <div className="sm:col-span-2">
+                                                <span className="block text-xs font-medium text-gray-500 tracking-wider mb-1">Address</span>
+                                                <p className="text-sm text-gray-900 wrap-break-word">{t.address || '—'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
