@@ -72,7 +72,7 @@
 }
 
 :root {
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --background: #ffffff;
     --foreground: #242424;
     --card: #ffffff;
@@ -111,7 +111,7 @@
 }
 
 .dark {
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --background: #0e1015;
     --foreground: #ffffff;
     --card: #1E2939;
