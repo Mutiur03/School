@@ -200,25 +200,19 @@ function SmsManagement() {
   return (
     <div className="p-4 lg:p-6 space-y-6 mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
           SMS Management
         </h1>
-        <Button onClick={fetchSmsLogs} disabled={loading}>
-          <RefreshCw
-            className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
-          />
-          <span className="hidden sm:inline">Refresh</span>
-        </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
           <CardContent className="sm:p-6">
-            <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 sm:mb-2">
+            <div className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 sm:mb-2">
               Total SMS
             </div>
-            <div className="text-lg sm:text-2xl font-bold text-foreground">
+            <div className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">
               {Object.values(stats).reduce((a, b) => a + b, 0)}
             </div>
           </CardContent>
@@ -273,7 +267,7 @@ function SmsManagement() {
               <div>
                 <Label
                   htmlFor="status-filter"
-                  className="text-muted-foreground"
+                  className="text-slate-600 dark:text-slate-400"
                 >
                   Status
                 </Label>
@@ -294,7 +288,10 @@ function SmsManagement() {
               </div>
 
               <div>
-                <Label htmlFor="date-filter" className="text-muted-foreground">
+                <Label
+                  htmlFor="date-filter"
+                  className="text-slate-600 dark:text-slate-400"
+                >
                   Date
                 </Label>
                 <Input
@@ -316,7 +313,10 @@ function SmsManagement() {
               </div>
 
               <div>
-                <Label htmlFor="limit-filter" className="text-muted-foreground">
+                <Label
+                  htmlFor="limit-filter"
+                  className="text-slate-600 dark:text-slate-400"
+                >
                   Per Page
                 </Label>
                 <Select
@@ -386,7 +386,9 @@ function SmsManagement() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-foreground">SMS Logs</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-white">
+            SMS Logs
+          </CardTitle>
           <div className="flex items-center gap-2">
             <Checkbox
               checked={
@@ -394,7 +396,7 @@ function SmsManagement() {
               }
               onCheckedChange={handleSelectAll}
             />
-            <span className="text-sm text-muted-foreground hidden sm:inline">
+            <span className="text-sm text-slate-600 dark:text-slate-400 hidden sm:inline">
               Select All
             </span>
           </div>
@@ -404,8 +406,8 @@ function SmsManagement() {
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     <Checkbox
                       checked={
                         selectedLogs.length === smsLogs.length &&
@@ -414,34 +416,34 @@ function SmsManagement() {
                       onCheckedChange={handleSelectAll}
                     />
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Student
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Class Info
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Phone
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Date
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Status
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     SMS count
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Retry Count
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Message
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Error
                   </th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">
+                  <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     Created
                   </th>
                 </tr>
@@ -450,7 +452,7 @@ function SmsManagement() {
                 {smsLogs.map((log) => (
                   <tr
                     key={log.id}
-                    className="border-b border-border hover:bg-muted/50 hover:text-foreground transition-colors group"
+                    className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors group"
                   >
                     <td className="p-3">
                       <Checkbox
@@ -468,21 +470,21 @@ function SmsManagement() {
                     </td>
                     <td className="p-3">
                       <div>
-                        <div className="font-medium text-foreground group-hover:text-foreground">
+                        <div className="font-medium text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
                           {log.student?.name || "N/A"}
                         </div>
-                        <div className="text-sm text-muted-foreground group-hover:text-muted-foreground">
+                        <div className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-400">
                           ID: {log.student?.login_id || "N/A"}
                         </div>
                       </div>
                     </td>
-                    <td className="p-3 text-sm text-muted-foreground group-hover:text-muted-foreground">
+                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-400">
                       {getStudentInfo(log.student)}
                     </td>
-                    <td className="p-3 text-foreground group-hover:text-foreground">
+                    <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
                       {log.phone_number}
                     </td>
-                    <td className="p-3 text-foreground group-hover:text-foreground">
+                    <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
                       {formatDateOnly(log.attendance_date)}
                     </td>
                     <td className="p-3">
@@ -498,17 +500,17 @@ function SmsManagement() {
                           {log.sms_count}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground group-hover:text-muted-foreground">
+                        <span className="text-slate-600 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-400">
                           N/A
                         </span>
                       )}
                     </td>
-                    <td className="p-3 text-center text-foreground group-hover:text-foreground">
+                    <td className="p-3 text-center text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
                       {log.retry_count}
                     </td>
                     <td className="p-3 max-w-xs">
                       <div
-                        className="truncate text-foreground group-hover:text-foreground"
+                        className="truncate text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white"
                         title={log.message}
                       >
                         {log.message}
@@ -524,7 +526,7 @@ function SmsManagement() {
                         </div>
                       )}
                     </td>
-                    <td className="p-3 text-sm text-muted-foreground group-hover:text-muted-foreground">
+                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-400">
                       {formatDate(log.created_at)}
                     </td>
                   </tr>
@@ -536,7 +538,10 @@ function SmsManagement() {
           {/* Mobile Card View */}
           <div className="lg:hidden space-y-4">
             {smsLogs.map((log) => (
-              <Card key={log.id} className="border border-border">
+              <Card
+                key={log.id}
+                className="border border-slate-200 dark:border-slate-700"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -553,10 +558,10 @@ function SmsManagement() {
                         }}
                       />
                       <div>
-                        <div className="font-medium text-foreground">
+                        <div className="font-medium text-slate-900 dark:text-white">
                           {log.student?.name || "N/A"}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
                           ID: {log.student?.login_id || "N/A"}
                         </div>
                       </div>
@@ -568,58 +573,74 @@ function SmsManagement() {
 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Class Info:</span>
-                      <span className="text-foreground">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Class Info:
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
                         {getStudentInfo(log.student)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span className="text-foreground">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Phone:
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
                         {log.phone_number}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date:</span>
-                      <span className="text-foreground">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Date:
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
                         {formatDateOnly(log.attendance_date)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">SMS Count:</span>
+                      <span className="text-slate-600 dark:text-slate-400">
+                        SMS Count:
+                      </span>
                       {log.sms_count ? (
                         <span className="font-semibold text-green-600 dark:text-green-400">
                           {log.sms_count}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">N/A</span>
+                        <span className="text-slate-600 dark:text-slate-400">
+                          N/A
+                        </span>
                       )}
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                      <span className="text-slate-600 dark:text-slate-400">
                         Retry Count:
                       </span>
-                      <span className="text-foreground">{log.retry_count}</span>
+                      <span className="text-slate-900 dark:text-white">
+                        {log.retry_count}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Created:</span>
-                      <span className="text-foreground">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Created:
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
                         {formatDate(log.created_at)}
                       </span>
                     </div>
                     {log.message && (
                       <div className="pt-2">
-                        <div className="text-muted-foreground mb-1">
+                        <div className="text-slate-600 dark:text-slate-400 mb-1">
                           Message:
                         </div>
-                        <div className="text-foreground text-xs bg-muted p-2 rounded">
+                        <div className="text-slate-900 dark:text-white text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded">
                           {log.message}
                         </div>
                       </div>
                     )}
                     {log.error_reason && (
                       <div className="pt-2">
-                        <div className="text-muted-foreground mb-1">Error:</div>
+                        <div className="text-slate-600 dark:text-slate-400 mb-1">
+                          Error:
+                        </div>
                         <div className="text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/20 p-2 rounded">
                           {log.error_reason}
                         </div>
@@ -632,7 +653,7 @@ function SmsManagement() {
           </div>
 
           {smsLogs.length === 0 && !loading && (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
               No SMS logs found matching the current filters.
             </div>
           )}
@@ -649,7 +670,7 @@ function SmsManagement() {
                 Previous
               </Button>
 
-              <span className="flex items-center px-3 py-2 text-muted-foreground">
+              <span className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400">
                 Page {currentPage} of {totalPages}
               </span>
 
