@@ -46,7 +46,7 @@ function TeacherList() {
 
     return (
         <div className="text-gray-800 p-4 sm:p-6 lg:p-8">
-            <h1 className="text-2xl sm:text-3xl font-serif mb-4 sm:mb-6">Teacher List</h1>
+            <h1 className="text-2xl sm:text-3xl text-center font-serif mb-4 sm:mb-6">Teacher List</h1>
 
             <div className="hidden lg:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
