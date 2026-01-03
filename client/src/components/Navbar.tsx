@@ -147,7 +147,6 @@ function Navbar() {
                     text: "Sports",
                     // hasChildren: true,
                     subDropdown: [
-                        { id: "menu-item-3366", href: "#", text: "" },
                         { id: "menu-item-3361", href: "#", text: "Cultural activities" },
                     ]
                 },
