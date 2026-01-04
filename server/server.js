@@ -1,7 +1,6 @@
 import express from "express";
 import "dotenv/config";
 
-// Set Bangladesh timezone for the entire application
 process.env.TZ = "Asia/Dhaka";
 
 export const TTL = process.env.PDF_CACHE_TTL || "300";
@@ -21,7 +20,7 @@ import noticeRouter from "./routes/noticeRoutes.js";
 import holidayRouter from "./routes/holidayRoutes.js";
 import eventsRouter from "./routes/eventsRoutes.js";
 import galleryRouter from "./routes/galleryRoutes.js";
-import dashboardRouter from "./routes/dashboardRoutes.js";
+import dashboardRouter from "./routes/dashboardRoutes.js"; 
 import path from "path";
 import fs from "fs";
 import syllabusRoutes from "./routes/syllabusRoutes.js";
