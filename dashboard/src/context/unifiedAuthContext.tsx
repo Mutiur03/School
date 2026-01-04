@@ -146,37 +146,37 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     }
                     break;
                 }
-            }
-            if (preferredRole === null) {
-                try {
-                    const adminRes = await axios.get("/api/auth/protected");
-                    if (adminRes.data.user) {
-                        setUser(adminRes.data.user as AdminUser);
-                        setLoading(false);
-                        return;
+                default: {
+                    try {
+                        const adminRes = await axios.get("/api/auth/protected");
+                        if (adminRes.data.user) {
+                            setUser(adminRes.data.user as AdminUser);
+                            setLoading(false);
+                            return;
+                        }
+                    } catch {
+                        void 0;
                     }
-                } catch {
-                    void 0;
-                }
-                try {
-                    const teacherRes = await axios.get("/api/auth/teacher_me");
-                    if (teacherRes.data.user) {
-                        setUser(teacherRes.data.user as TeacherUser);
-                        setLoading(false);
-                        return;
+                    try {
+                        const teacherRes = await axios.get("/api/auth/teacher_me");
+                        if (teacherRes.data.user) {
+                            setUser(teacherRes.data.user as TeacherUser);
+                            setLoading(false);
+                            return;
+                        }
+                    } catch {
+                        void 0;
                     }
-                } catch {
-                    void 0;
-                }
-                try {
-                    const studentRes = await axios.get("/api/auth/student-protected");
-                    if (studentRes.data.user) {
-                        setUser(studentRes.data.user as StudentUser);
-                        setLoading(false);
-                        return;
+                    try {
+                        const studentRes = await axios.get("/api/auth/student-protected");
+                        if (studentRes.data.user) {
+                            setUser(studentRes.data.user as StudentUser);
+                            setLoading(false);
+                            return;
+                        }
+                    } catch {
+                        void 0;
                     }
-                } catch {
-                    void 0;
                 }
             }
             setUser(null);

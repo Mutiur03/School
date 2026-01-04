@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Toaster } from "react-hot-toast";
@@ -45,10 +45,13 @@ import StudentDashboard from "./pages/Students/StudentDashboard.tsx";
 import TeacherDashboard from "./pages/Teachers/TeacherDashboard.tsx";
 import Login from "./pages/Common/Login.tsx";
 import { TeacherSettings } from "./pages/Teachers/index.ts";
+import { useAuth } from "./context/useAuth.tsx";
+import NotFound from "./pages/Common/not-found.tsx";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
   );
+  const { user, loading } = useAuth();
   const role = import.meta.env.VITE_DEFAULT_ROLE;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navbarRef = useRef<HTMLElement>(null);
@@ -58,6 +61,28 @@ function App() {
       setSidebarExpanded(window.innerWidth >= 768);
     }
   }, []);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (user?.role) {
+      switch (user.role) {
+        case 'admin':
+          document.title = 'Admin Panel - School Management';
+          break;
+        case 'teacher':
+          document.title = 'Teacher\'s Dashboard - School Management';
+          break;
+        case 'student':
+          document.title = 'Student Portal - School Management';
+          break;
+        default:
+          document.title = 'Panchbibi Lal Bihari Govt. High School';
+      }
+    } else {
+      document.title = 'Panchbibi Lal Bihari Govt. High School';
+    }
+  }, [user?.role]);
+
   return (
     <>
       <Toaster
@@ -68,11 +93,24 @@ function App() {
       <div className=" flex flex-col h-screen">
         <div className="">
           <Routes>
+            {!user && location.pathname.startsWith("/admin") && location.pathname !== "/admin/login" && (
+              (window.location.href = `http://${window.location.host.replace("admin", "")}/admin/login`)
+            )}
+            {!user && location.pathname.startsWith("/teacher") && location.pathname != "/teacher/login" && (
+              (window.location.href = `http://${window.location.host.replace("teacher", "")}/teacher/login`)
+            )}
+            {!user && location.pathname.startsWith("/student") && location.pathname != "/student/login" && (
+              (window.location.href = `http://${window.location.host.replace("student", "")}/student/login`)
+            )}
             {role === "admin" && <Route path="/admin/login" element={<Login />} />}
             {role === "teacher" && <Route path="/teacher/login" element={<Login />} />}
             {role === "student" && <Route path="/student/login" element={<Login />} />}
-
-            {role === "teacher" && (
+            {!role && <>
+              <Route path="/admin/login" element={<Login />} />
+              <Route path="/teacher/login" element={<Login />} />
+              <Route path="/student/login" element={<Login />} />
+            </>}
+            {user?.role === "teacher" && (
               <Route
                 path="/teacher/*"
                 element={
@@ -113,7 +151,7 @@ function App() {
               />
             )}
 
-            {role === "student" && (
+            {user?.role === "student" && (
               <Route
                 path="/student/*"
                 element={
@@ -151,7 +189,7 @@ function App() {
               />
             )}
 
-            {role === "admin" && (
+            {user?.role === "admin" && (
               <Route
                 path="/admin/*"
                 element={
@@ -310,7 +348,7 @@ function App() {
             )}
             {role != undefined &&
               <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
-            {/* <Route path="*" element={<NotFound />} /> */}
+            {!loading && < Route path="*" element={<NotFound />} />}
           </Routes>
         </div>
       </div>

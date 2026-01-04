@@ -1,9 +1,9 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
-import { useUnifiedAuth } from "@/context/useUnifiedAuth";
+import { useAuth } from "@/context/useAuth";
 
 const PrivateRoute = ({ element }: { element: ReactNode }) => {
-  const { user, loading, isAdmin } = useUnifiedAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
