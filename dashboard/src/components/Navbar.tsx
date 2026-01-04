@@ -17,8 +17,9 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
   const navigate = useNavigate();
   const handleLogout = async () => {
     try {
+      const role = user?.role;
       await logout();
-      navigate("/login");
+      navigate(`/${role}/login`);
       console.log("Logged out");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -88,5 +89,4 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
   );
 });
 
-Navbar.displayName = "Navbar";
 export default Navbar;
