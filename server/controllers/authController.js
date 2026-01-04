@@ -135,11 +135,18 @@ export const authenticateStudent = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
     const check = await prisma.students.findUnique({
-      where: { id: req.user.id },
+      where: { id: decoded.id },
     });
-    
+    if (!check) {
+      res.clearCookie("student_token");
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    req.user = decoded;
+    if (req.user.password) {
+      delete req.user.password;
+    }
+    req.user.role = "student";
     if (!check) return res.status(401).json({ message: "Unauthorized" });
     next();
   } catch (error) {
@@ -199,11 +206,13 @@ export const checkAdminExists = async (req, res) => {
     res.json({
       success: true,
       hasAdmins: adminCount > 0,
-      adminCount
+      adminCount,
     });
   } catch (err) {
     console.error("Error checking admin existence:", err);
-    res.status(500).json({ success: false, error: "Error checking admin existence" });
+    res
+      .status(500)
+      .json({ success: false, error: "Error checking admin existence" });
   }
 };
 
@@ -217,45 +226,47 @@ export const addAdmin = async (req, res) => {
   try {
     // Check if any admin exists in the system
     const adminCount = await prisma.admin.count();
-    
+
     // If admins exist, require authentication
     if (adminCount > 0) {
       const token = req.cookies?.admin_token;
       if (!token) {
-        return res.status(401).json({ 
-          message: "Admin authentication required to create additional admins" 
+        return res.status(401).json({
+          message: "Admin authentication required to create additional admins",
         });
       }
-      
+
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (!decoded.id || decoded.role !== "admin") {
-          return res.status(401).json({ 
-            message: "Admin authentication required to create additional admins" 
+          return res.status(401).json({
+            message:
+              "Admin authentication required to create additional admins",
           });
         }
-        
+
         const authenticatedAdmin = await prisma.admin.findUnique({
           where: { id: decoded.id },
         });
         if (!authenticatedAdmin) {
-          return res.status(401).json({ 
-            message: "Admin authentication required to create additional admins" 
+          return res.status(401).json({
+            message:
+              "Admin authentication required to create additional admins",
           });
         }
       } catch (error) {
-        return res.status(401).json({ 
-          message: "Invalid admin token" 
+        return res.status(401).json({
+          message: "Invalid admin token",
         });
       }
     }
-    
+
     // Check if admin with this username already exists
     const existing = await prisma.admin.findUnique({ where: { username } });
     if (existing) {
       return res.status(409).json({ message: "Admin already exists" });
     }
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const admin = await prisma.admin.create({
       data: {
@@ -264,11 +275,12 @@ export const addAdmin = async (req, res) => {
         role: "admin",
       },
     });
-    
-    const message = adminCount === 0 
-      ? "First admin created successfully" 
-      : "Admin created successfully";
-      
+
+    const message =
+      adminCount === 0
+        ? "First admin created successfully"
+        : "Admin created successfully";
+
     res.json({
       success: true,
       message,

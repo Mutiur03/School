@@ -30,6 +30,7 @@ export const teacher_me = async (req, res, next) => {
       delete teacher.password;
     }
     req.user = teacher;
+    req.user.role = "teacher";
     next();
   } catch (error) {
     res.clearCookie("teacher_token");
