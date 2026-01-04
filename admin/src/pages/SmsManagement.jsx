@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import {
@@ -30,7 +30,15 @@ import {
   AlertDialogTrigger,
 } from "../components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
-import { RefreshCw, Send, Trash2, Filter, Eye, Download } from "lucide-react";
+import {
+  RefreshCw,
+  Send,
+  Trash2,
+  Filter,
+  Eye,
+  Download,
+  Calendar,
+} from "lucide-react";
 import Loading from "../components/Loading";
 
 function SmsManagement() {
@@ -91,7 +99,6 @@ function SmsManagement() {
       const params = new URLSearchParams({
         page: currentPage,
         limit: filters.limit,
-        ...filters,
         date: convertToISODate(filters.date),
       });
 
@@ -105,7 +112,7 @@ function SmsManagement() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filters]);
+  }, [currentPage, filters.date, filters.limit]);
 
   useEffect(() => {
     fetchSmsLogs();
@@ -118,7 +125,12 @@ function SmsManagement() {
       }
     };
     fetchSmsStats();
-  }, [currentPage, filters, fetchSmsLogs]);
+  }, [currentPage, filters.date, filters.limit, fetchSmsLogs]);
+
+  const displayedLogs = useMemo(() => {
+    if (filters.status === "all") return smsLogs;
+    return smsLogs.filter((log) => log.status === filters.status);
+  }, [smsLogs, filters.status]);
 
   const handleRetrySelected = async () => {
     if (selectedLogs.length === 0) {
@@ -173,10 +185,10 @@ function SmsManagement() {
   };
 
   const handleSelectAll = () => {
-    if (selectedLogs.length === smsLogs.length) {
+    if (selectedLogs.length === displayedLogs.length) {
       setSelectedLogs([]);
     } else {
-      setSelectedLogs(smsLogs.map((log) => log.id));
+      setSelectedLogs(displayedLogs.map((log) => log.id));
     }
   };
 
@@ -205,7 +217,6 @@ function SmsManagement() {
         </h1>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
           <CardContent className="sm:p-6">
@@ -252,7 +263,6 @@ function SmsManagement() {
         </Card>
       </div>
 
-      {/* Filters and Actions */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -262,7 +272,6 @@ function SmsManagement() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label
@@ -294,22 +303,21 @@ function SmsManagement() {
                 >
                   Date
                 </Label>
-                <Input
-                  id="date-filter"
-                  type="text"
-                  placeholder="dd/mm/yyyy"
-                  value={filters.date}
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\D/g, "");
-                    if (value.length >= 2)
-                      value = value.slice(0, 2) + "/" + value.slice(2);
-                    if (value.length >= 5)
-                      value = value.slice(0, 5) + "/" + value.slice(5, 9);
-                    handleFilterChange("date", value);
-                  }}
-                  maxLength={10}
-                  className="w-full"
-                />
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <Input
+                    id="date-filter"
+                    type="date"
+                    value={convertToISODate(filters.date)}
+                    onChange={(e) => {
+                      handleFilterChange(
+                        "date",
+                        formatDateOnly(e.target.value)
+                      );
+                    }}
+                    className="w-full pl-10 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden"
+                  />
+                </div>
               </div>
 
               <div>
@@ -392,7 +400,8 @@ function SmsManagement() {
           <div className="flex items-center gap-2">
             <Checkbox
               checked={
-                selectedLogs.length === smsLogs.length && smsLogs.length > 0
+                selectedLogs.length === displayedLogs.length &&
+                displayedLogs.length > 0
               }
               onCheckedChange={handleSelectAll}
             />
@@ -410,8 +419,8 @@ function SmsManagement() {
                   <th className="text-left p-3 text-slate-600 dark:text-slate-400 font-medium">
                     <Checkbox
                       checked={
-                        selectedLogs.length === smsLogs.length &&
-                        smsLogs.length > 0
+                        selectedLogs.length === displayedLogs.length &&
+                        displayedLogs.length > 0
                       }
                       onCheckedChange={handleSelectAll}
                     />
@@ -449,7 +458,7 @@ function SmsManagement() {
                 </tr>
               </thead>
               <tbody>
-                {smsLogs.map((log) => (
+                {displayedLogs.map((log) => (
                   <tr
                     key={log.id}
                     className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors group"
@@ -537,7 +546,7 @@ function SmsManagement() {
 
           {/* Mobile Card View */}
           <div className="lg:hidden space-y-4">
-            {smsLogs.map((log) => (
+            {displayedLogs.map((log) => (
               <Card
                 key={log.id}
                 className="border border-slate-200 dark:border-slate-700"
@@ -652,7 +661,7 @@ function SmsManagement() {
             ))}
           </div>
 
-          {smsLogs.length === 0 && !loading && (
+          {displayedLogs.length === 0 && !loading && (
             <div className="text-center py-8 text-slate-600 dark:text-slate-400">
               No SMS logs found matching the current filters.
             </div>
