@@ -428,7 +428,7 @@ const Sidebar = ({
                       {!item.dropdown ? (
                         <NavLink
                           to={item.link as string}
-                          className={({ isActive }) =>
+                          className={({ isActive }: { isActive: boolean }) =>
                             `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isActive
                               ? "bg-accent text-accent-foreground"
                               : "hover:inset-1 hover:inset-ring"
@@ -505,7 +505,7 @@ const Sidebar = ({
                                     <li key={subItem.id}>
                                       <NavLink
                                         to={subItem.link}
-                                        className={({ isActive }) =>
+                                        className={({ isActive }: { isActive: boolean }) =>
                                           `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isActive
                                             ? "bg-accent text-accent-foreground"
                                             : "hover:inset-1 hover:inset-ring"
