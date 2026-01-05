@@ -36,7 +36,7 @@ function StudentDashboard() {
                         <CardContent>
                             {student?.enrollments && student.enrollments.length > 0 ? (
                                 <ul className="space-y-2">
-                                    {student.enrollments.map((enrollment) => (
+                                    {student.enrollments.map((enrollment: { id: number; class: number; section: string; year: number }) => (
                                         <li key={enrollment.id} className="text-sm">
                                             Class {enrollment.class} - Section {enrollment.section} (
                                             {enrollment.year})

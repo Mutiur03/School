@@ -1,10 +1,37 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { toast } from "react-toastify";
 
-const useHolidayStore = create()(
+export interface Holiday {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  is_optional: boolean;
+}
+
+export interface HolidayFormData {
+  title: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  is_optional: boolean;
+}
+
+interface HolidayState {
+  holidays: Holiday[];
+  isDeleting: boolean;
+  isSubmitting: boolean;
+  isLoading: boolean;
+  addHoliday: (formData: HolidayFormData) => Promise<void>;
+  fetchHolidays: () => Promise<void>;
+  deleteHoliday: (id: string) => Promise<void>;
+  updateHoliday: (id: string, formData: HolidayFormData) => Promise<void>;
+}
+
+const useHolidayStore = create<HolidayState>()(
   devtools((set) => ({
     holidays: [],
     isDeleting: false,
@@ -12,29 +39,32 @@ const useHolidayStore = create()(
     isLoading: false,
     addHoliday: async (formData) => {
       set({ isSubmitting: true });
-      console.log("formData", formData);
-
       try {
-        const response = await axios.post("/api/holidays/addHoliday", formData);
+        const response = await axios.post<Holiday>(
+          "/api/holidays/addHoliday",
+          formData
+        );
         set((state) => ({
           holidays: [...state.holidays, response.data],
         }));
         toast.success("Holiday added successfully");
       } catch (error) {
-        console.error("Error adding holiday:", error);
-        toast.error(error.response.data.error);
+        const err = error as AxiosError<{ error: string }>;
+        toast.error(err.response?.data?.error || "Error adding holiday");
+      } finally {
+        set({ isSubmitting: false });
       }
-      set({ isSubmitting: false });
     },
     fetchHolidays: async () => {
       set({ isLoading: true });
       try {
-        const res = await axios.get("/api/holidays/getHolidays");
+        const res = await axios.get<Holiday[]>("/api/holidays/getHolidays");
         set({ holidays: res.data });
-      } catch (error) {
-        console.error("Error fetching holidays:", error);
+      } catch {
+        toast.error("Error fetching holidays");
+      } finally {
+        set({ isLoading: false });
       }
-      set({ isLoading: false });
     },
     deleteHoliday: async (id) => {
       set({ isDeleting: true });
@@ -45,31 +75,33 @@ const useHolidayStore = create()(
         }));
         toast.success("Holiday deleted successfully");
       } catch (error) {
-        console.error("Error deleting holiday:", error);
-        toast.error(error.response.data.error);
+        const err = error as AxiosError<{ error: string }>;
+        toast.error(err.response?.data?.error || "Error deleting holiday");
+      } finally {
+        set({ isDeleting: false });
       }
-      set({ isDeleting: false });
     },
     updateHoliday: async (id, formData) => {
       set({ isSubmitting: true });
       try {
-        const response = await axios.put(
+        const response = await axios.put<Holiday>(
           `/api/holidays/updateHoliday/${id}`,
           formData
         );
-        const data = await response.data;
         set((state) => ({
           holidays: state.holidays.map((holiday) =>
-            holiday.id === id ? data : holiday
+            holiday.id === id ? response.data : holiday
           ),
         }));
         toast.success("Holiday updated successfully");
       } catch (error) {
-        console.error("Error updating holiday:", error);
-        toast.error(error.response.data.error);
+        const err = error as AxiosError<{ error: string }>;
+        toast.error(err.response?.data?.error || "Error updating holiday");
+      } finally {
+        set({ isSubmitting: false });
       }
-      set({ isSubmitting: false });
     },
   }))
 );
+
 export default useHolidayStore;

@@ -18,23 +18,9 @@ import toast from "react-hot-toast";
 import DateRangePickerF from "@/components/DateRangePickerF";
 import { useHolidayStore } from "@/store";
 import { Loader2 } from "lucide-react";
+import type { Holiday, HolidayFormData } from "@/store/holiday.Store";
 
-interface Holiday {
-  id: number;
-  title: string;
-  start_date: string;
-  end_date: string;
-  description: string;
-  is_optional: boolean;
-}
-
-interface HolidayForm {
-  title: string;
-  start_date: string;
-  end_date: string;
-  description: string;
-  is_optional: boolean;
-}
+type HolidayForm = HolidayFormData;
 
 interface DateRange {
   from: Date | null;
@@ -49,14 +35,7 @@ const HolidayCalendar = () => {
     deleteHoliday,
     addHoliday,
     updateHoliday,
-  } = useHolidayStore() as {
-    holidays: Holiday[];
-    fetchHolidays: () => Promise<void>;
-    isLoading: boolean;
-    deleteHoliday: (id: number) => Promise<void>;
-    addHoliday: (form: HolidayForm) => Promise<void>;
-    updateHoliday: (id: number, form: HolidayForm) => Promise<void>;
-  };
+  } = useHolidayStore()
   const [open, setOpen] = useState<boolean>(false);
   const [form, setForm] = useState<HolidayForm>({
     title: "",
@@ -65,7 +44,7 @@ const HolidayCalendar = () => {
     description: "",
     is_optional: false,
   });
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dateDialogOpen, setDateDialogOpen] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null });

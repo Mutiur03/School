@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
@@ -98,8 +98,9 @@ function Dashboard() {
       } else {
         throw new Error(response.data.message || "Failed to fetch data");
       }
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || "An error occurred");
       console.error("Error fetching dashboard data:", err);
     } finally {
       setLoading(false);
@@ -206,8 +207,8 @@ function Dashboard() {
                           strokeDasharray="3 3"
                           className="opacity-30"
                         />
-                        <XAxis dataKey="name" className="text-xs sm:text-sm" tick={{fontSize: 12}} />
-                        <YAxis className="text-xs sm:text-sm" tick={{fontSize: 12}} />
+                        <XAxis dataKey="name" className="text-xs sm:text-sm" tick={{ fontSize: 12 }} />
+                        <YAxis className="text-xs sm:text-sm" tick={{ fontSize: 12 }} />
                         <Tooltip />
                         <Legend />
                         <Line
@@ -284,8 +285,8 @@ function Dashboard() {
                       strokeDasharray="3 3"
                       className="opacity-30"
                     />
-                    <XAxis dataKey="name" tick={{fontSize: 12}} />
-                    <YAxis tick={{fontSize: 12}} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
                     <Legend />
                     <Line
@@ -490,11 +491,10 @@ function Dashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-shrink-0 text-sm sm:text-base ${
-                  activeTab === tab.id
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-shrink-0 text-sm sm:text-base ${activeTab === tab.id
                     ? "bg-blue-600 text-white shadow-md"
                     : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm"
-                }`}
+                  }`}
               >
                 <span className="text-xs sm:text-sm">{tab.icon}</span>
                 <span>{tab.label}</span>
