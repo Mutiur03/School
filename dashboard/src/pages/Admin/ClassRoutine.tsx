@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import {
   PencilLine,
   Trash2,
@@ -9,8 +9,8 @@ import {
   CheckCircle2,
   XCircle,
   Info,
+  Loader2,
 } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const MAIN_COLOR = "bg-blue-600 dark:bg-blue-500"; // main color for light/dark
+const MAIN_COLOR = "bg-blue-600 dark:bg-blue-500";
 const MAIN_COLOR_HOVER = "hover:bg-blue-700 dark:hover:bg-blue-400";
 const WARNING_COLOR = "bg-yellow-500 dark:bg-yellow-600";
 const WARNING_COLOR_HOVER = "hover:bg-yellow-600 dark:hover:bg-yellow-700";
@@ -35,13 +35,44 @@ const TEXT_MUTED = "text-gray-500 dark:text-gray-400";
 const TEXT_SUCCESS = "text-green-600 dark:text-green-400";
 const TEXT_ERROR = "text-red-600 dark:text-red-400";
 
+interface TimeOption {
+  label: string;
+  value: string;
+  mins: number;
+}
+
+interface Slot {
+  id: number;
+  start_time: string;
+  end_time: string;
+}
+
+interface Routine {
+  id: number;
+  class: number;
+  slot_id: number;
+  day: string;
+  subject: string;
+  slot?: Slot;
+}
+
+interface RoutineForm {
+  class: string;
+  slot_id: string;
+  day: string;
+  subject: string;
+}
+
+interface SlotForm {
+  start_time: string;
+  end_time: string;
+}
+
 const classOptions = [6, 7, 8, 9, 10].sort((a, b) => a - b);
 const dayOptions = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
 
-// Update helper to generate time options between 08:00 AM and 05:00 PM, and sort them
-function generateTimeOptions(stepMinutes = 5) {
-  const options = [];
-  // 8 AM = 8*60 = 480, 5 PM = 17*60 = 1020
+function generateTimeOptions(stepMinutes = 5): TimeOption[] {
+  const options: TimeOption[] = [];
   for (let mins = 480; mins <= 1020; mins += stepMinutes) {
     const h24 = Math.floor(mins / 60);
     const m = mins % 60;
@@ -50,42 +81,35 @@ function generateTimeOptions(stepMinutes = 5) {
     const label = `${hour12.toString().padStart(2, "0")}:${m
       .toString()
       .padStart(2, "0")} ${ampm}`;
-    const value = label;
-    options.push({ label, value, mins });
+    options.push({ label, value: label, mins });
   }
-  // Sort by minutes (though already sorted, this ensures order if changed)
   options.sort((a, b) => a.mins - b.mins);
   return options;
 }
+
 const timeOptions = generateTimeOptions(5);
 
 function ClassRoutine() {
-  const [routines, setRoutines] = useState([]);
-  const [slots, setSlots] = useState([]);
-  const [form, setForm] = useState({
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [form, setForm] = useState<RoutineForm>({
     class: "",
     slot_id: "",
     day: "",
     subject: "",
   });
-  const [editingId, setEditingId] = useState(null);
-  const [editingSlotId, setEditingSlotId] = useState(null);
-
-  // Slot creation state
-  const [slotForm, setSlotForm] = useState({
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingSlotId, setEditingSlotId] = useState<number | null>(null);
+  const [slotForm, setSlotForm] = useState<SlotForm>({
     start_time: "",
     end_time: "",
   });
   const [slotError, setSlotError] = useState("");
-
   const [routineError, setRoutineError] = useState("");
-
-  // New: Loading and success/error states
   const [loadingRoutines, setLoadingRoutines] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [slotSuccessMsg, setSlotSuccessMsg] = useState("");
-
   const [classFilter, setClassFilter] = useState("");
   const [dayFilter, setDayFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -95,7 +119,7 @@ function ClassRoutine() {
   const fetchRoutines = async () => {
     setLoadingRoutines(true);
     try {
-      const res = await axios.get("/api/class-routine");
+      const res = await axios.get<Routine[]>("/api/class-routine");
       setRoutines(res.data);
     } catch {
       setRoutineError("Failed to fetch routines.");
@@ -106,7 +130,7 @@ function ClassRoutine() {
   const fetchSlots = async () => {
     setLoadingSlots(true);
     try {
-      const res = await axios.get("/api/class-routine/slots");
+      const res = await axios.get<Slot[]>("/api/class-routine/slots");
       setSlots(res.data);
     } catch {
       setSlotError("Failed to fetch slots.");
@@ -119,13 +143,13 @@ function ClassRoutine() {
     fetchSlots();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setRoutineError("");
     setSuccessMsg("");
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.slot_id) {
       setRoutineError("Please select a class slot.");
@@ -149,33 +173,34 @@ function ClassRoutine() {
       setRoutineError("");
       fetchRoutines();
     } catch (err) {
+      const error = err as AxiosError<{ error?: string }>;
       setRoutineError(
-        err?.response?.data?.error ||
-          "Failed to save routine entry. Please try again."
+        error?.response?.data?.error ||
+        "Failed to save routine entry. Please try again."
       );
     }
   };
 
-  const handleEdit = (routine) => {
+  const handleEdit = (routine: Routine) => {
     setForm({
-      class: routine.class,
-      slot_id: routine.slot_id,
+      class: String(routine.class),
+      slot_id: String(routine.slot_id),
       day: routine.day,
       subject: routine.subject,
     });
     setEditingId(routine.id);
-    setShowForm(true); // Open form when editing
+    setShowForm(true);
     setSuccessMsg("");
     setRoutineError("");
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     setLoadingRoutines(true);
     try {
       await axios.delete(`/api/class-routine/${id}`);
       setSuccessMsg("Routine deleted successfully!");
-      setEditingId(null); // Close edit mode if open
-      setShowForm(false); // Close form if open
+      setEditingId(null);
+      setShowForm(false);
       fetchRoutines();
     } catch {
       setRoutineError("Failed to delete routine.");
@@ -183,27 +208,18 @@ function ClassRoutine() {
     setLoadingRoutines(false);
   };
 
-  //   // Slot handlers
-  //   const handleSlotChange = (e) => {
-  //     const { name, value } = e.target;
-  //     // Allow user to type freely, including spaces
-  //     setSlotForm({ ...slotForm, [name]: value });
-  //     setSlotError("");
-  //     setSlotSuccessMsg("");
-  //   };
-
-  const handleSlotEdit = (slot) => {
+  const handleSlotEdit = (slot: Slot) => {
     setSlotForm({
       start_time: slot.start_time,
       end_time: slot.end_time,
     });
     setEditingSlotId(slot.id);
-    setShowSlotForm(true); // Open slot form when editing
+    setShowSlotForm(true);
     setSlotError("");
     setSlotSuccessMsg("");
   };
 
-  const handleSlotDelete = async (id) => {
+  const handleSlotDelete = async (id: number) => {
     setLoadingSlots(true);
     try {
       await axios.delete(`/api/class-routine/slots/${id}`);
@@ -215,10 +231,10 @@ function ClassRoutine() {
     setLoadingSlots(false);
   };
 
-  const handleSlotSubmit = async (e) => {
+  const handleSlotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let start_time = slotForm.start_time;
-    let end_time = slotForm.end_time;
+    const start_time = slotForm.start_time;
+    const end_time = slotForm.end_time;
     const time12hrRegex = /^(0[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
     if (!start_time || !end_time) {
       setSlotError("All fields are required.");
@@ -253,7 +269,6 @@ function ClassRoutine() {
     setLoadingSlots(false);
   };
 
-  // Color theme using variable
   const theme = {
     primary: MAIN_COLOR,
     primaryHover: MAIN_COLOR_HOVER,
@@ -270,15 +285,9 @@ function ClassRoutine() {
     error: TEXT_ERROR,
   };
 
-  // Responsive grid for cards
   return (
     <div className="max-w-6xl mx-auto mt-6 px-2 sm:px-4 font-sans">
-      {/* <h1 className="text-2xl font-bold text-center mb-8 flex items-center justify-center gap-2">
-        <BookOpen className="inline-block text-blue-600 dark:text-blue-400" />{" "}
-        Class Routine Admin Panel
-      </h1> */}
       <div className="flex flex-col lg:flex-row gap-6 mb-8 items-stretch">
-        {/* Slot creation */}
         <Card
           className={`flex-1 min-w-0 mb-6 ${theme.card} ${theme.border} shadow-sm`}
         >
@@ -434,10 +443,11 @@ function ClassRoutine() {
                     ) : (
                       [...slots]
                         .sort((a, b) => {
-                          // Parse start_time to minutes for accurate sorting
-                          const parseTime = (t) => {
+                          const parseTime = (t: string) => {
                             const [time, ampm] = t.split(" ");
-                            let [h, m] = time.split(":").map(Number);
+                            const [hStr, mStr] = time.split(":");
+                            let h = Number(hStr);
+                            const m = Number(mStr);
                             if (ampm === "PM" && h !== 12) h += 12;
                             if (ampm === "AM" && h === 12) h = 0;
                             return h * 60 + m;
@@ -495,9 +505,7 @@ function ClassRoutine() {
             )}
           </CardContent>
         </Card>
-        {/* Routine entry */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
-          {/* Suggestion Info Button */}
           <div className="flex items-center gap-2 mb-2 bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded px-3 py-2 text-xs sm:text-sm text-blue-800 dark:text-blue-200">
             <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             <span>
@@ -560,10 +568,11 @@ function ClassRoutine() {
                       <SelectContent>
                         {[...slots]
                           .sort((a, b) => {
-                            // Parse start_time to minutes for accurate sorting
-                            const parseTime = (t) => {
+                            const parseTime = (t: string) => {
                               const [time, ampm] = t.split(" ");
-                              let [h, m] = time.split(":").map(Number);
+                              const [hStr, mStr] = time.split(":");
+                              let h = Number(hStr);
+                              const m = Number(mStr);
                               if (ampm === "PM" && h !== 12) h += 12;
                               if (ampm === "AM" && h === 12) h = 0;
                               return h * 60 + m;
@@ -665,14 +674,12 @@ function ClassRoutine() {
           </Card>
         </div>
       </div>
-      {/* Routine entries table */}
       <Card className={`mb-8 ${theme.card} ${theme.border} shadow-sm`}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <BookOpen className="text-blue-600 dark:text-blue-400" /> Class
             Routine Entries
           </CardTitle>
-          {/* Filters */}
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-4">
             <div>
               <Label htmlFor="filter-class" className="mr-2">
@@ -752,7 +759,6 @@ function ClassRoutine() {
                   </tr>
                 ) : (
                   [...routines]
-                    // Filter by class and day
                     .filter(
                       (r) =>
                         (classFilter === "" ||
@@ -765,15 +771,16 @@ function ClassRoutine() {
                       const dayB = dayOrder.indexOf(b.day);
                       if (dayA !== dayB) return dayA - dayB;
 
-                      const parseTime = (t) => {
+                      const parseTime = (t: string) => {
                         if (!t) return -1;
                         const [time, ampm] = t.split(" ");
-                        let [h, m] = time.split(":").map(Number);
+                        const [hStr, mStr] = time.split(":");
+                        let h = Number(hStr);
+                        const m = Number(mStr);
                         if (ampm === "PM" && h !== 12) h += 12;
                         if (ampm === "AM" && h === 12) h = 0;
                         return h * 60 + m;
                       };
-                      // If slot missing, put at end
                       if (!a.slot && !b.slot) return 0;
                       if (!a.slot) return 1;
                       if (!b.slot) return -1;

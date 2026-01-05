@@ -1,19 +1,45 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 
+interface Student {
+  id: number;
+  name: string;
+  roll: number;
+  section: string;
+  class: number;
+}
+
+interface AttendanceRecord {
+  student_id: number;
+  date: string;
+  status: "present" | "absent";
+}
+
+interface AttendanceData {
+  [studentId: number]: {
+    [day: number]: "present" | "absent";
+  };
+}
+
+interface SavedAttendanceRecord {
+  studentId: number;
+  date: string;
+  status: string;
+}
+
 function Attendance() {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [attendanceData, setAttendanceData] = useState({});
-  const [editableDays, setEditableDays] = useState([]);
-  const [visibleDays, setVisibleDays] = useState([]);
+  const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
+  const [editableDays, setEditableDays] = useState<number[]>([]);
+  const [visibleDays, setVisibleDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [classList, setClassList] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [classList, setClassList] = useState<number[]>([]);
+  const [selectedClass, setSelectedClass] = useState<number | "">("");
 
   const months = [
     "January",
@@ -64,15 +90,15 @@ function Attendance() {
           }),
         ]);
 
-        const students = (studentsResponse.data.data || [])
-          .sort((a, b) => a.roll - b.roll)
-          .sort((a, b) => a.section.localeCompare(b.section));
-        setClassList([...new Set(students.map((student) => student.class))]);
-        setStudents(students);
+        const fetchedStudents: Student[] = (studentsResponse.data.data || [])
+          .sort((a: Student, b: Student) => a.roll - b.roll)
+          .sort((a: Student, b: Student) => a.section.localeCompare(b.section));
+        setClassList([...new Set(fetchedStudents.map((student: Student) => student.class))] as number[]);
+        setStudents(fetchedStudents);
 
-        const attendanceMap = {};
-        const attendanceData = attendanceResponse.data || [];
-        attendanceData.forEach((record) => {
+        const attendanceMap: AttendanceData = {};
+        const attendanceRecords: AttendanceRecord[] = attendanceResponse.data || [];
+        attendanceRecords.forEach((record) => {
           const date = new Date(record.date);
           const day = date.getDate();
           const month = date.getMonth();
@@ -85,9 +111,10 @@ function Attendance() {
           }
         });
         setAttendanceData(attendanceMap);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        if (error.response?.status >= 500 || !error.response) {
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        const error = err as { response?: { status?: number } };
+        if (!error.response || (typeof error.response.status === "number" && error.response.status >= 500)) {
           setError(
             "Failed to fetch students or attendance data. Please try again."
           );
@@ -103,36 +130,30 @@ function Attendance() {
     fetchData();
     setVisibleDays([currentDay]);
     setEditableDays([]);
-  }, [currentDay, selectedMonth, selectedYear, selectedYear]);
+  }, [currentDay, selectedMonth, selectedYear]);
 
-  const getDaysInMonth = (month, year) =>
+  const getDaysInMonth = (month: number, year: number): number =>
     new Date(year, month + 1, 0).getDate();
 
-  const toggleEditableDay = (day) => {
-    setEditableDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
-
-  const toggleVisibleDay = (day) => {
+  const toggleVisibleDay = (day: number) => {
     setVisibleDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
 
-  const isEditable = (day) =>
+  const isEditable = (day: number): boolean =>
     (selectedMonth === currentMonth &&
       selectedYear === currentYear &&
       day === currentDay) ||
     editableDays.includes(day);
 
-  const isVisible = (day) =>
+  const isVisible = (day: number): boolean =>
     (selectedMonth === currentMonth &&
       selectedYear === currentYear &&
       day === currentDay) ||
     visibleDays.includes(day);
 
-  const handleAttendanceChange = (studentId, day, isChecked) => {
+  const handleAttendanceChange = (studentId: number, day: number, isChecked: boolean) => {
     if (isEditable(day)) {
       const updatedAttendance = { ...attendanceData };
       if (!updatedAttendance[studentId]) {
@@ -143,8 +164,7 @@ function Attendance() {
     }
   };
 
-  const getAttendanceStatus = (studentId, day) => {
-    console.log("Attendance Data:", attendanceData[studentId]?.[day]);
+  const getAttendanceStatus = (studentId: number, day: number): string => {
     return attendanceData[studentId]?.[day] || "";
   };
 
@@ -164,7 +184,7 @@ function Attendance() {
           : []),
         ...editableDays,
       ];
-      const attendanceRecords = [];
+      const attendanceRecords: SavedAttendanceRecord[] = [];
       students
         .filter((student) => student.class === selectedClass)
         .forEach((student) => {
@@ -186,8 +206,8 @@ function Attendance() {
       alert(
         `${data.message}\nPresent: ${data.present}\nAbsent: ${data.absent}\nSMS Success: ${data.sms.successful}\nSMS Failed: ${data.sms.failed}`
       );
-    } catch (error) {
-      console.error("Error saving attendance:", error);
+    } catch (err) {
+      console.error("Error saving attendance:", err);
       alert("Failed to save attendance");
     } finally {
       setSaving(false);
@@ -203,22 +223,8 @@ function Attendance() {
     );
   };
 
-  const addtoeditable = () => {
-    addtovisible();
-    setEditableDays(
-      Array.from(
-        { length: getDaysInMonth(selectedMonth, selectedYear) },
-        (_, i) => i + 1
-      )
-    );
-  };
-
   const resetvisible = () => {
     setVisibleDays([currentDay]);
-  };
-
-  const reseteditable = () => {
-    setEditableDays([currentDay]);
   };
 
   return (
@@ -230,7 +236,6 @@ function Attendance() {
         View and manage attendance records for students.
       </p>
 
-      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 items-stretch md:items-center">
         <select
           className="border rounded-lg text-input dark:bg-accent px-3 py-2 w-full md:w-auto"
@@ -245,7 +250,7 @@ function Attendance() {
         </select>
 
         <select
-          className="border rounded-lg px-3 py-2  text-input dark:bg-accent w-full md:w-auto"
+          className="border rounded-lg px-3 py-2 text-input dark:bg-accent w-full md:w-auto"
           value={selectedYear}
           onChange={(e) => setSelectedYear(parseInt(e.target.value))}
         >
@@ -256,12 +261,11 @@ function Attendance() {
           ))}
         </select>
 
-        <Button onClick={resetFilters} variant={"outline"}>
+        <Button onClick={resetFilters} variant="outline">
           Reset
         </Button>
       </div>
 
-      {/* Day Toggles */}
       <div className="mb-4 space-y-4">
         <div>
           <p className="font-semibold mb-1">Toggle Visible Days:</p>
@@ -273,9 +277,8 @@ function Attendance() {
               <button
                 key={day}
                 onClick={() => toggleVisibleDay(day)}
-                className={`px-2 py-1 text-sm border rounded-md ${
-                  isVisible(day) ? "bg-green-500 text-white" : ""
-                }`}
+                className={`px-2 py-1 text-sm border rounded-md ${isVisible(day) ? "bg-green-500 text-white" : ""
+                  }`}
               >
                 {day}
               </button>
@@ -284,47 +287,17 @@ function Attendance() {
           <div className="flex gap-2 mt-2">
             <Button
               onClick={addtovisible}
-              className={"bg-green-500 text-white hover:bg-green-600"}
+              className="bg-green-500 text-white hover:bg-green-600"
             >
               Select All
             </Button>
-            <Button variant={"outline"} onClick={resetvisible}>
+            <Button variant="outline" onClick={resetvisible}>
               Reset
             </Button>
           </div>
         </div>
-
-        {/* <div>
-          <p className="font-semibold mb-1">Toggle Editable Days:</p>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(
-              { length: getDaysInMonth(selectedMonth, selectedYear) },
-              (_, i) => i + 1
-            ).map((day) => (
-              <button
-                key={day}
-                onClick={() => {
-                  toggleEditableDay(day);
-                  setVisibleDays((prev) => [...new Set([...prev, day])]);
-                }}
-                className={`px-2 py-1 text-sm border rounded-md ${
-                  isEditable(day) ? "bg-sky-500 text-white" : ""
-                }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-2">
-            <Button onClick={addtoeditable}>Select All</Button>
-            <Button variant={"outline"} onClick={reseteditable}>
-              Reset
-            </Button>
-          </div>
-        </div> */}
       </div>
 
-      {/* Class Selection */}
       <div className="mb-4">
         <select
           className="border rounded-md text-input dark:bg-accent px-3 py-2 w-full md:w-auto"
@@ -342,7 +315,6 @@ function Attendance() {
         </select>
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-700 text-sm">{error}</p>
@@ -355,7 +327,6 @@ function Attendance() {
         </div>
       )}
 
-      {/* Attendance Table */}
       {loading ? (
         <p>Loading attendance data...</p>
       ) : error ? (
@@ -364,18 +335,18 @@ function Attendance() {
         </p>
       ) : (
         <>
-          <div className=" rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full border divide-y divide-gray-200">
                 <thead className="bg-popover">
                   <tr>
-                    <th className=" min-w-[50px]  px-4 py-2 text-left sticky top-0  z-10">
+                    <th className="min-w-[50px] px-4 py-2 text-left sticky top-0 z-10">
                       Section
                     </th>
-                    <th className=" min-w-[50px]  px-4 py-2 text-left sticky top-0  z-10">
+                    <th className="min-w-[50px] px-4 py-2 text-left sticky top-0 z-10">
                       Roll
                     </th>
-                    <th className=" min-w-[150px]  px-4 py-2 text-left sticky top-0  z-10">
+                    <th className="min-w-[150px] px-4 py-2 text-left sticky top-0 z-10">
                       Name
                     </th>
                     {selectedClass &&
@@ -387,9 +358,8 @@ function Attendance() {
                         .map((day) => (
                           <th
                             key={day}
-                            className={` min-w-[50px]  px-3 py-2 text-center sticky top-0 z-10 ${
-                              isEditable(day) ? "" : "opacity-50"
-                            }`}
+                            className={`min-w-[50px] px-3 py-2 text-center sticky top-0 z-10 ${isEditable(day) ? "" : "opacity-50"
+                              }`}
                           >
                             {day}
                           </th>
@@ -408,7 +378,7 @@ function Attendance() {
                     students
                       .filter((student) => student.class === selectedClass)
                       .map((student) => (
-                        <tr key={student.id} className="">
+                        <tr key={student.id}>
                           <td className="px-4 py-2">{student.section}</td>
                           <td className="px-4 py-2">{student.roll}</td>
                           <td className="px-4 py-2">{student.name}</td>
@@ -425,9 +395,7 @@ function Attendance() {
                             .map((day) => (
                               <td
                                 key={day}
-                                className={`px-3 py-2 text-center ${
-                                  isEditable(day) ? "" : ""
-                                }`}
+                                className="px-3 py-2 text-center"
                               >
                                 {isEditable(day) ? (
                                   <input
@@ -447,12 +415,12 @@ function Attendance() {
                                   />
                                 ) : (
                                   <span
-                                    className={` ${
+                                    className={
                                       getAttendanceStatus(student.id, day) ===
-                                      "present"
+                                        "present"
                                         ? "text-green-600"
                                         : "text-red-600"
-                                    }`}
+                                    }
                                   >
                                     {getAttendanceStatus(student.id, day)
                                       .charAt(0)
@@ -468,13 +436,12 @@ function Attendance() {
             </div>
           </div>
 
-          {/* Save Button */}
           {(selectedMonth === currentMonth && selectedYear === currentYear) ||
-          editableDays.length > 0 ? (
+            editableDays.length > 0 ? (
             <Button
               onClick={saveAttendance}
               disabled={saving}
-              className={`mt-4 `}
+              className="mt-4"
             >
               {saving ? "Saving..." : "Save Attendance"}
             </Button>

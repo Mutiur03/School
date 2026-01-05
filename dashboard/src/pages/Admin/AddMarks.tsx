@@ -1,7 +1,79 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
+
+interface Student {
+  student_id: number;
+  name: string;
+  roll: number;
+  section: string;
+  class: number;
+  department: string;
+}
+
+interface Subject {
+  id: number;
+  name: string;
+  class: number;
+  department: string;
+  teacher_name: string;
+  cq_mark: number;
+  mcq_mark: number;
+  practical_mark: number;
+  full_mark: number;
+}
+
+interface Exam {
+  exam_name: string;
+  exam_year: number;
+  levels: number[];
+}
+
+interface SubjectMark {
+  subjectId: number;
+  cq_marks: number;
+  mcq_marks: number;
+  practical_marks: number;
+}
+
+interface MarksData {
+  [studentId: number]: {
+    subjectMarks: SubjectMark[];
+  };
+}
+
+interface GpaData {
+  [studentId: number]: {
+    gpa: string | number;
+    studentId?: number;
+  };
+}
+
+interface FormValues {
+  year: number;
+  examName: string;
+  level: string;
+  department: string;
+  section: string;
+  specific: number;
+}
+
+interface StudentMarkResponse {
+  student_id: number;
+  marks?: Array<{
+    subject_id: number;
+    cq_marks: number;
+    mcq_marks: number;
+    practical_marks: number;
+  }>;
+}
+
+interface GPAResponse {
+  student_id: number;
+  jsc_gpa?: number;
+  ssc_gpa?: number;
+}
 
 const AddMarks = () => {
   const {
@@ -9,8 +81,7 @@ const AddMarks = () => {
     handleSubmit,
     watch,
     setValue,
-    // formState: { errors },
-  } = useForm({
+  } = useForm<FormValues>({
     defaultValues: {
       year: new Date().getFullYear(),
       examName: "",
@@ -21,27 +92,24 @@ const AddMarks = () => {
     },
   });
 
-  // State management
-  const [students, setStudents] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [examList, setExamList] = useState([]);
-  const [classList, setClassList] = useState([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [examList, setExamList] = useState<string[]>([]);
+  const [classList, setClassList] = useState<number[][]>([]);
   const [loading, setLoading] = useState({
     initial: true,
     students: false,
     marks: false,
     submit: false,
   });
-  const [marksData, setMarksData] = useState({});
-  const [sections, setSections] = useState([]);
-  const [gpaData, setGpaData] = useState({});
+  const [marksData, setMarksData] = useState<MarksData>({});
+  const [sections, setSections] = useState<string[]>([]);
+  const [gpaData, setGpaData] = useState<GpaData>({});
 
-  // Form values
   const formValues = watch();
   const { year, examName, level, department, section, specific } = formValues;
 
-  // Fetch initial data
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, initial: true }));
 
@@ -51,8 +119,7 @@ const AddMarks = () => {
       ]);
 
       setSubjects(subjectsRes.data?.data || []);
-      console.log("Subjects:", subjectsRes.data?.data || []);
-      const exams = examsRes.data?.data || [];
+      const exams: Exam[] = examsRes.data?.data || [];
       const currentYearExams = exams.filter(
         (e) => e.exam_year === Number(year)
       );
@@ -64,10 +131,9 @@ const AddMarks = () => {
     } finally {
       setLoading((prev) => ({ ...prev, initial: false }));
     }
-  };
+  }, [year]);
 
-  // Fetch students after class selection
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     if (!level) {
       setStudents([]);
       return;
@@ -80,7 +146,6 @@ const AddMarks = () => {
       );
       const studentsData = studentsRes.data?.data || [];
       setStudents(studentsData);
-      console.log("Students:", studentsData);
     } catch (error) {
       console.error("Students fetch error:", error);
       toast.error("Failed to load students");
@@ -88,20 +153,19 @@ const AddMarks = () => {
     } finally {
       setLoading((prev) => ({ ...prev, students: false }));
     }
-  };
+  }, [level, year]);
 
   useEffect(() => {
     fetchInitialData();
-  }, [year]);
+  }, [year, fetchInitialData]);
 
   useEffect(() => {
-    setValue("level", ""); // Reset level when examName is empty
+    setValue("level", "");
     setValue("department", "");
     setValue("section", "");
     setValue("specific", 0);
-    setStudents([]); // Clear students when exam changes
+    setStudents([]);
 
-    // Auto-set class for JSC and SSC
     if (examName === "JSC") {
       setValue("level", "8");
     } else if (examName === "SSC") {
@@ -116,28 +180,25 @@ const AddMarks = () => {
       setStudents([]);
       setSections([]);
     }
-  }, [level, year]);
+  }, [level, year, fetchStudents]);
 
-  // Filtered data
   const filteredStudents = useMemo(() => {
     return students
-      .filter((s) => (department ? s.department === department : true)) // Match department or include all
-      .filter((s) => !section || s.section === section) // Match section or include all
-      .sort((a, b) => a.roll - b.roll); // Sort by roll number
+      .filter((s) => (department ? s.department === department : true))
+      .filter((s) => !section || s.section === section)
+      .sort((a, b) => a.roll - b.roll);
   }, [students, department, section]);
 
   const subjectsForClass = useMemo(() => {
-    // Remove department filtering - show all subjects for the selected class
-    return subjects.filter((s) => s.class.toString() == level); // Only filter by class
+    return subjects.filter((s) => s.class.toString() == level);
   }, [subjects, level]);
 
   useEffect(() => {
     if (!subjectsForClass.some((sub) => sub.id == specific)) {
-      setValue("specific", 0); // Reset specific if the selected subject is no longer valid
+      setValue("specific", 0);
     }
   }, [subjectsForClass, specific, setValue]);
 
-  // Auto-select department when specific subject is chosen
   useEffect(() => {
     if (specific && specific !== 0) {
       const selectedSubject = subjectsForClass.find(
@@ -149,20 +210,17 @@ const AddMarks = () => {
           selectedSubject.department !== "" &&
           selectedSubject.department !== null
         ) {
-          // Auto-select department if the subject has a specific department
           setValue("department", selectedSubject.department);
         } else {
-          // Reset to "All Departments" if subject is general (for all departments)
           setValue("department", "");
         }
       }
     } else if (specific === 0) {
-      setValue("department", ""); // Reset to "All Departments" when "Select Subject" is selected
+      setValue("department", "");
     }
   }, [specific, subjectsForClass, setValue]);
 
-  // Fetch existing marks
-  const fetchExistingMarks = async () => {
+  const fetchExistingMarks = useCallback(async () => {
     if (
       !level ||
       !year ||
@@ -181,16 +239,15 @@ const AddMarks = () => {
       const res = await axios.get(
         `/api/marks/getClassMarks/${level}/${year}/${examName}`
       );
-      console.log("Marks data:", res.data);
 
       const marks = res.data?.data || [];
-      const initialData = {};
+      const initialData: MarksData = {};
 
-      marks.forEach((student) => {
+      marks.forEach((student: StudentMarkResponse) => {
         initialData[student.student_id] = {
           subjectMarks: subjectsForClass.map((subject) => {
             const existingMark = (student.marks || []).find(
-              (mark) => mark.subject_id === subject.id
+              (mark: { subject_id: number; cq_marks: number; mcq_marks: number; practical_marks: number }) => mark.subject_id === subject.id
             );
             return {
               subjectId: subject.id,
@@ -201,7 +258,6 @@ const AddMarks = () => {
           }),
         };
       });
-      console.log("Initial marks data:", initialData);
 
       setMarksData(initialData);
     } catch (error) {
@@ -210,9 +266,9 @@ const AddMarks = () => {
     } finally {
       setLoading((prev) => ({ ...prev, marks: false }));
     }
-  };
+  }, [level, year, examName, subjectsForClass]);
 
-  const fetchGPA = async () => {
+  const fetchGPA = useCallback(async () => {
     if (!year || !examName || (examName !== "JSC" && examName !== "SSC")) {
       setGpaData({});
       return;
@@ -221,25 +277,23 @@ const AddMarks = () => {
     try {
       setLoading((prev) => ({ ...prev, marks: true }));
       const res = await axios.get(`/api/marks/getGPA/${year}`);
-      console.log("GPA data:", res.data);
       const gpaDatas = res.data?.data || [];
 
-      const initialData = {};
+      const initialData: GpaData = {};
       if (examName == "JSC") {
-        gpaDatas.forEach((student) => {
+        gpaDatas.forEach((student: GPAResponse) => {
           initialData[student.student_id] = {
-            gpa: student.jsc_gpa,
+            gpa: student.jsc_gpa || 0,
           };
         });
       } else if (examName == "SSC") {
-        gpaDatas.forEach((student) => {
+        gpaDatas.forEach((student: GPAResponse) => {
           initialData[student.student_id] = {
             studentId: student.student_id,
-            gpa: student.ssc_gpa,
+            gpa: student.ssc_gpa || 0,
           };
         });
       }
-      console.log("Initial GPA data:", initialData);
       setGpaData(initialData);
     } catch (error) {
       console.error("GPA fetch error:", error);
@@ -247,7 +301,7 @@ const AddMarks = () => {
     } finally {
       setLoading((prev) => ({ ...prev, marks: false }));
     }
-  };
+  }, [year, examName]);
 
   useEffect(() => {
     if (students.length > 0) {
@@ -255,7 +309,6 @@ const AddMarks = () => {
         return Array.from(new Set(students.map((s) => s.section)));
       });
 
-      // Fetch marks/GPA data when students are loaded AND exam is selected
       if (examName === "JSC" || examName === "SSC") {
         fetchGPA();
       } else if (
@@ -271,16 +324,13 @@ const AddMarks = () => {
       setMarksData({});
       setGpaData({});
     }
-  }, [students, examName, level, year]);
+  }, [students, examName, level, year, fetchExistingMarks, fetchGPA]);
 
-  // Handle marks change
-  const handleMarksChange = (studentId, subjectId, markType, value) => {
-    console.log("Marks changed:", studentId, subjectId, markType, value);
+  const handleMarksChange = (studentId: number, subjectId: number, markType: string, value: string) => {
     const subject = subjectsForClass.find((s) => s.id === subjectId);
     const marks = value;
 
-    // Get max mark based on mark type and subject
-    let maxMark = 100; // default fallback
+    let maxMark = 100;
     if (subject) {
       switch (markType) {
         case "cq_marks":
@@ -299,8 +349,8 @@ const AddMarks = () => {
       marks === ""
         ? 0
         : parseInt(marks) > maxMark
-        ? maxMark.toString()
-        : marks.slice(0, 3);
+          ? maxMark.toString()
+          : marks.slice(0, 3);
 
     setMarksData((prev) => {
       const currentStudent = prev[studentId] || { subjectMarks: [] };
@@ -308,24 +358,22 @@ const AddMarks = () => {
         (m) => m.subjectId === subjectId
       );
 
-      let updatedSubjectMarks;
+      let updatedSubjectMarks: SubjectMark[];
       if (currentSubjectIndex >= 0) {
-        // Update existing subject marks
         updatedSubjectMarks = [...currentStudent.subjectMarks];
         updatedSubjectMarks[currentSubjectIndex] = {
           ...updatedSubjectMarks[currentSubjectIndex],
           [markType]: validatedMarks,
         };
       } else {
-        // Add new subject marks
         updatedSubjectMarks = [
           ...currentStudent.subjectMarks,
           {
             subjectId,
-            cq_marks: markType === "cq_marks" ? validatedMarks : 0,
-            mcq_marks: markType === "mcq_marks" ? validatedMarks : 0,
+            cq_marks: markType === "cq_marks" ? Number(validatedMarks) : 0,
+            mcq_marks: markType === "mcq_marks" ? Number(validatedMarks) : 0,
             practical_marks:
-              markType === "practical_marks" ? validatedMarks : 0,
+              markType === "practical_marks" ? Number(validatedMarks) : 0,
           },
         ];
       }
@@ -340,8 +388,7 @@ const AddMarks = () => {
     });
   };
 
-  const handleGPAchange = (studentId, value) => {
-    console.log("GPA changed:", studentId, value);
+  const handleGPAchange = (studentId: number, value: string | number) => {
     setGpaData((prev) => ({
       ...prev,
       [studentId]: {
@@ -356,18 +403,16 @@ const AddMarks = () => {
     if (examName === "SSC" || examName === "JSC") {
       const gpaDataToSend = Object.entries(gpaData)
         .filter(([studentId]) => {
-          // Only include students that are currently visible/filtered
           const student = filteredStudents.find(
             (s) => s?.student_id === Number(studentId)
           );
-          return student; // This ensures only visible students are submitted
+          return student;
         })
         .map(([studentId, data]) => ({
           studentId: parseInt(studentId),
           gpa: data.gpa,
         }));
 
-      console.log("Submitting GPA data:", gpaDataToSend);
       try {
         const response = await axios.post("/api/marks/addGPA", {
           students: gpaDataToSend,
@@ -378,34 +423,29 @@ const AddMarks = () => {
         console.error("Submission error:", error);
         toast.error("Failed to save marks");
       }
-      fetchGPA(); // Refresh GPA data after submission
+      fetchGPA();
       setLoading((prev) => ({ ...prev, submit: false }));
       return;
     }
     try {
-      console.log("Submitting marks data:", marksData);
-
-      // Get currently visible subjects based on filters
       const visibleSubjects = subjectsForClass.filter(
         (s) => !specific || s.id == specific
       );
 
-      // Include all visible students, even those without marks entered
       const submissionData = filteredStudents.map((student) => {
         const studentData = marksData[student.student_id];
 
-        // Create subject marks for all visible subjects
         const subjectMarks = visibleSubjects.map((subject) => {
           const existingMark = studentData?.subjectMarks?.find(
             (m) => m.subjectId === subject.id
           );
           return {
             subjectId: subject.id,
-            cq_marks: Math.max(0, parseInt(existingMark?.cq_marks) || 0),
-            mcq_marks: Math.max(0, parseInt(existingMark?.mcq_marks) || 0),
+            cq_marks: Math.max(0, Number(existingMark?.cq_marks) || 0),
+            mcq_marks: Math.max(0, Number(existingMark?.mcq_marks) || 0),
             practical_marks: Math.max(
               0,
-              parseInt(existingMark?.practical_marks) || 0
+              Number(existingMark?.practical_marks) || 0
             ),
           };
         });
@@ -415,8 +455,6 @@ const AddMarks = () => {
           subjectMarks: subjectMarks,
         };
       });
-
-      console.log("Submission data:", submissionData);
 
       if (submissionData.length === 0) {
         throw new Error("No students found to submit marks for");
@@ -431,22 +469,15 @@ const AddMarks = () => {
       toast.success(response.data.message || "Marks saved successfully");
     } catch (error) {
       console.error("Submission error:", error);
+      const axiosError = error as { response?: { data?: { error?: string } }; message?: string };
       toast.error(
-        error.response?.data?.error || error.message || "Failed to save marks"
+        axiosError.response?.data?.error || axiosError.message || "Failed to save marks"
       );
     } finally {
       fetchExistingMarks();
       setLoading((prev) => ({ ...prev, submit: false }));
     }
   };
-
-  // if (loading.initial) {
-  //   return (
-  //     <div className="flex justify-center items-center h-screen">
-  //       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="container mx-auto p-2 sm:p-4 max-w-7xl">
@@ -459,7 +490,6 @@ const AddMarks = () => {
         className="space-y-4 sm:space-y-6"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-card p-4 sm:p-6 rounded-lg shadow">
-          {/* Year Select */}
           <div className="col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Academic Year
@@ -477,7 +507,6 @@ const AddMarks = () => {
             </select>
           </div>
 
-          {/* Exam Select */}
           <div className="col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Examination
@@ -501,7 +530,6 @@ const AddMarks = () => {
             </select>
           </div>
 
-          {/* Class Select */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Class/Grade
@@ -535,7 +563,6 @@ const AddMarks = () => {
             </select>
           </div>
 
-          {/* Department Select */}
           <div className="col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Department
@@ -545,21 +572,20 @@ const AddMarks = () => {
               className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
               disabled={!level || loading.initial}
             >
-              {level >= 9
+              {Number(level) >= 9
                 ? ["", "Science", "Arts", "Commerce"].map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept ? dept : "All Departments"}
-                    </option>
-                  ))
+                  <option key={dept} value={dept}>
+                    {dept ? dept : "All Departments"}
+                  </option>
+                ))
                 : [""].map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept ? dept : "General"}
-                    </option>
-                  ))}
+                  <option key={dept} value={dept}>
+                    {dept ? dept : "General"}
+                  </option>
+                ))}
             </select>
           </div>
 
-          {/* Section Select */}
           <div className="col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Section
@@ -578,7 +604,6 @@ const AddMarks = () => {
             </select>
           </div>
 
-          {/* Subject Filter */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <label className="block text-sm font-medium mb-1 sm:mb-2">
               Subject
@@ -624,10 +649,8 @@ const AddMarks = () => {
         ) : filteredStudents.length > 0 ? (
           <div className="px-2 sm:px-0">
             {examName !== "JSC" && examName !== "SSC" ? (
-              // Only show table if a specific subject is selected
-              specific && specific !== "0" ? (
+              specific && specific !== 0 ? (
                 <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                  {/* Mobile Subject Header */}
                   <div className="block sm:hidden bg-blue-50 dark:bg-blue-900 p-3 border-b border-gray-200 dark:border-gray-600">
                     <div className="text-sm font-semibold text-blue-900 dark:text-blue-100">
                       Subject:{" "}
@@ -649,7 +672,6 @@ const AddMarks = () => {
 
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
-                      {/* Desktop Subject Header */}
                       <tr className="hidden sm:table-row bg-blue-50 dark:bg-blue-900">
                         <td className="px-6 py-2 text-sm font-semibold text-blue-900 dark:text-blue-100">
                           Subject:{" "}
@@ -660,7 +682,7 @@ const AddMarks = () => {
                         </td>
                         <td
                           className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
-                          colSpan="2"
+                          colSpan={2}
                         >
                           Teacher:{" "}
                           {
@@ -670,7 +692,7 @@ const AddMarks = () => {
                         </td>
                         <td
                           className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
-                          colSpan="1"
+                          colSpan={1}
                         >
                           Total Marks:{" "}
                           {subjectsForClass.find((sub) => sub.id == specific)
@@ -759,7 +781,7 @@ const AddMarks = () => {
                                 </div>
                               </td>
                               <td
-                                colSpan="3"
+                                colSpan={3}
                                 className="px-3 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400"
                               >
                                 Subject not available for this student's
@@ -824,12 +846,11 @@ const AddMarks = () => {
                                   !selectedSubject.cq_mark ||
                                   selectedSubject.cq_mark === 0
                                 }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                  !selectedSubject.cq_mark ||
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!selectedSubject.cq_mark ||
                                   selectedSubject.cq_mark === 0
-                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                    : "bg-white dark:bg-gray-700"
-                                }`}
+                                  ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                  : "bg-white dark:bg-gray-700"
+                                  }`}
                               />
                             </td>
                             <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
@@ -850,12 +871,11 @@ const AddMarks = () => {
                                   !selectedSubject.mcq_mark ||
                                   selectedSubject.mcq_mark === 0
                                 }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                  !selectedSubject.mcq_mark ||
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!selectedSubject.mcq_mark ||
                                   selectedSubject.mcq_mark === 0
-                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                    : "bg-white dark:bg-gray-700"
-                                }`}
+                                  ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                  : "bg-white dark:bg-gray-700"
+                                  }`}
                               />
                             </td>
                             <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
@@ -876,12 +896,11 @@ const AddMarks = () => {
                                   !selectedSubject.practical_mark ||
                                   selectedSubject.practical_mark === 0
                                 }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                  !selectedSubject.practical_mark ||
+                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-gray-300 dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!selectedSubject.practical_mark ||
                                   selectedSubject.practical_mark === 0
-                                    ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                    : "bg-white dark:bg-gray-700"
-                                }`}
+                                  ? "bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                  : "bg-white dark:bg-gray-700"
+                                  }`}
                               />
                             </td>
                           </tr>
@@ -891,7 +910,6 @@ const AddMarks = () => {
                   </table>
                 </div>
               ) : (
-                // Show message when no subject is selected
                 <div className="p-6 sm:p-8 rounded-lg dark:bg-accent bg-gray-50 shadow text-center mx-2 sm:mx-0">
                   <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                     Please select a subject from the dropdown above to enter
@@ -900,7 +918,6 @@ const AddMarks = () => {
                 </div>
               )
             ) : (
-              // JSC/SSC GPA Table - always show
               <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -976,8 +993,8 @@ const AddMarks = () => {
               {!level
                 ? "Please select a class to view students"
                 : students.length === 0
-                ? "No students found in the system for the selected class"
-                : "No students match the selected filters"}
+                  ? "No students found in the system for the selected class"
+                  : "No students match the selected filters"}
             </p>
           </div>
         )}
@@ -989,11 +1006,10 @@ const AddMarks = () => {
               examName !== "SSC" &&
               specific &&
               specific !== 0)) &&
-          subjectsForClass.find((sub) => sub.id == specific)?.full_mark > 0 &&
-          (subjectsForClass.find((sub) => sub.id == specific)?.cq_mark ||
-            subjectsForClass.find((sub) => sub.id == specific)?.mcq_mark ||
-            subjectsForClass.find((sub) => sub.id == specific)
-              ?.practical_mark) && (
+          ((subjectsForClass.find((sub) => sub.id == specific)?.full_mark ?? 0) > 0) &&
+          ((subjectsForClass.find((sub) => sub.id == specific)?.cq_mark ?? 0) ||
+            (subjectsForClass.find((sub) => sub.id == specific)?.mcq_mark ?? 0) ||
+            (subjectsForClass.find((sub) => sub.id == specific)?.practical_mark ?? 0)) && (
             <div className="flex justify-center sm:justify-end px-2 sm:px-0">
               <button
                 type="submit"
@@ -1025,8 +1041,7 @@ const AddMarks = () => {
                     Processing...
                   </>
                 ) : (
-                  `Save ${
-                    examName === "JSC" || examName === "SSC" ? "GPA" : "Marks"
+                  `Save ${examName === "JSC" || examName === "SSC" ? "GPA" : "Marks"
                   }`
                 )}
               </button>

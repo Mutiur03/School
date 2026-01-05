@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -14,64 +13,82 @@ import {
   FiCheck,
   FiClock,
   FiAlertCircle,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Separator } from "@/components/ui/separator";
 
+interface GalleryImage {
+  id: number;
+  image_path: string;
+  caption?: string;
+  student_name?: string;
+  student_batch?: string;
+  event_id?: number;
+  category_id?: number;
+}
+
+interface GroupedGalleries {
+  events: Record<string, GalleryImage[]>;
+  categories: Record<string, GalleryImage[]>;
+}
+
 export default function RejectedImages() {
-  const [groupedGalleries, setGroupedGalleries] = useState({
+  const [groupedGalleries, setGroupedGalleries] = useState<GroupedGalleries>({
     events: {},
     categories: {},
   });
-  const [selectedGroup, setSelectedGroup] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const [direction, setDirection] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [foldedCategories, setFoldedCategories] = useState({});
-  const host = import.meta.env.VITE_BACKEND_URL;
+  const [selectedGroup, setSelectedGroup] = useState<GalleryImage[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [direction, setDirection] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
+  const host = import.meta.env.VITE_BACKEND_URL as string;
 
   const modalVariants = {
-    enter: (dir) => ({
+    enter: (dir: number) => ({
       x: dir > 0 ? 500 : -500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
     }),
     center: {
       x: 0,
       opacity: 1,
-      position: "relative",
+      position: "relative" as const,
       transition: {
-        x: { type: "spring", stiffness: 400, damping: 30 },
+        x: { type: "spring" as const, stiffness: 400, damping: 30 },
         opacity: { duration: 0.3 },
       },
     },
-    exit: (dir) => ({
+    exit: (dir: number) => ({
       x: dir > 0 ? -500 : 500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
       transition: {
-        x: { type: "spring", stiffness: 400, damping: 30 },
+        x: { type: "spring" as const, stiffness: 400, damping: 30 },
         opacity: { duration: 0.2 },
       },
     }),
   };
+
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.4, ease: "easeOut" },
+      transition: { duration: 0.4, ease: "easeOut" as const },
     },
   };
+
   const foldVariants = {
     open: {
       opacity: 1,
-      height: "auto",
+      height: "auto" as const,
       transition: {
-        height: { duration: 0.3, ease: "easeInOut" },
+        height: { duration: 0.3, ease: "easeInOut" as const },
         opacity: { duration: 0.2, delay: 0.1 },
       },
     },
@@ -79,7 +96,7 @@ export default function RejectedImages() {
       opacity: 0,
       height: 0,
       transition: {
-        height: { duration: 0.3, ease: "easeInOut" },
+        height: { duration: 0.3, ease: "easeInOut" as const },
         opacity: { duration: 0.1 },
       },
     },
@@ -101,7 +118,7 @@ export default function RejectedImages() {
     fetchPendingGalleries();
   }, []);
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (id: number) => {
     try {
       await axios.patch(`/api/gallery/approve/${id}`);
       toast.success("Image approved successfully!");
@@ -111,7 +128,8 @@ export default function RejectedImages() {
       toast.error("Failed to approve image");
     }
   };
-  const handleDelete = async (id) => {
+
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this image?")) return;
     try {
       await axios.delete(`/api/gallery/deleteGallery/${id}`);
@@ -122,7 +140,8 @@ export default function RejectedImages() {
       toast.error("Failed to delete image");
     }
   };
-  const handleDeleteAll = async (images) => {
+
+  const handleDeleteAll = async (images: GalleryImage[]) => {
     if (
       !window.confirm(
         `Are you sure you want to delete all ${images.length} images?`
@@ -132,22 +151,20 @@ export default function RejectedImages() {
     try {
       const ids = images.map((img) => img.id);
       await axios.post("/api/gallery/deleteMultiple", { ids });
-
       toast.success(`Deleted ${images.length} images successfully!`);
       fetchPendingGalleries();
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete images");
     }
   };
 
-  const handleActionComplete = (processedId) => {
+  const handleActionComplete = (processedId: number) => {
     fetchPendingGalleries().then(() => {
       const currentGroupIndex = selectedGroup.findIndex(
         (img) => img.id === processedId
       );
-      let nextIndex = null;
+      let nextIndex: number | null = null;
 
-      // Try to find next image in current group
       if (currentGroupIndex !== -1) {
         if (currentGroupIndex < selectedGroup.length - 1) {
           nextIndex = currentGroupIndex;
@@ -162,34 +179,33 @@ export default function RejectedImages() {
           prev.filter((img) => img.id !== processedId)
         );
       } else {
-        // No more images in this group, close the dialog
         setSelectedGroup([]);
         setCurrentIndex(null);
       }
     });
   };
-  const toggleFoldCategory = (title) => {
+
+  const toggleFoldCategory = (title: string) => {
     setFoldedCategories((prev) => ({
       ...prev,
       [title]: !prev[title],
     }));
   };
-  const navigateImage = (direction) => {
-    setDirection(direction);
-    if (direction > 0) {
-      // Next image
+
+  const navigateImage = (dir: number) => {
+    setDirection(dir);
+    if (dir > 0) {
       setCurrentIndex((prev) =>
-        prev < selectedGroup.length - 1 ? prev + 1 : 0
+        prev !== null && prev < selectedGroup.length - 1 ? prev + 1 : 0
       );
     } else {
-      // Previous image
       setCurrentIndex((prev) =>
-        prev > 0 ? prev - 1 : selectedGroup.length - 1
+        prev !== null && prev > 0 ? prev - 1 : selectedGroup.length - 1
       );
     }
   };
 
-  const renderImageGroup = (title, images = []) => {
+  const renderImageGroup = (title: string, images: GalleryImage[] = []) => {
     const isFolded = foldedCategories[title] || false;
     const groupKey = images[0]?.event_id || images[0]?.category_id || title;
 
@@ -198,8 +214,6 @@ export default function RejectedImages() {
         <motion.div
           className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
           onClick={() => toggleFoldCategory(title)}
-          // whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.05)" }}
-          // whileTap={{ scale: 0.98 }}
         >
           <div className="flex items-center gap-4">
             <motion.div
@@ -231,7 +245,6 @@ export default function RejectedImages() {
               variant="secondary"
               className="bg-red-500/20 text-red-400 dark:text-red-200"
             >
-              {/* {images.length} Pending */}
               Rejected
             </Badge>
           </div>
@@ -316,19 +329,16 @@ export default function RejectedImages() {
               variant="outline"
               className="flex items-center gap-2"
               onClick={() => {
-                // Count total categories
                 const totalCategories = [
                   ...Object.keys(groupedGalleries.events),
                   ...Object.keys(groupedGalleries.categories),
                 ].length;
 
-                // Count currently folded categories
                 const currentlyFolded =
                   Object.values(foldedCategories).filter(Boolean).length;
 
-                // If all or some are unfolded, hide all
                 if (currentlyFolded < totalCategories) {
-                  const allFolded = {};
+                  const allFolded: Record<string, boolean> = {};
                   [
                     ...Object.keys(groupedGalleries.events),
                     ...Object.keys(groupedGalleries.categories),
@@ -336,15 +346,13 @@ export default function RejectedImages() {
                     allFolded[title] = true;
                   });
                   setFoldedCategories(allFolded);
-                }
-                // If all are folded, unfold all
-                else {
+                } else {
                   setFoldedCategories({});
                 }
               }}
             >
               {Object.values(foldedCategories).length > 0 &&
-              Object.values(foldedCategories).every((v) => v) ? (
+                Object.values(foldedCategories).every((v) => v) ? (
                 <>
                   <FiChevronDown className="transition-transform" />
                   Show All
@@ -434,19 +442,19 @@ export default function RejectedImages() {
                         handleDelete(selectedGroup[currentIndex].id);
                       }}
                     >
-                      <FiTrash2 size={20} md:size={24} />
+                      <FiTrash2 size={20} />
                     </button>
                     <button
                       className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-black/60 text-white p-2 md:p-3 rounded-full z-10 hover:bg-black/80 transition-colors"
                       onClick={() => navigateImage(-1)}
                     >
-                      <FiChevronLeft size={20} md:size={24} />
+                      <FiChevronLeft size={20} />
                     </button>
                     <button
                       className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-black/60 text-white p-2 md:p-3 rounded-full z-10 hover:bg-black/80 transition-colors"
                       onClick={() => navigateImage(1)}
                     >
-                      <FiChevronRight size={20} md:size={24} />
+                      <FiChevronRight size={20} />
                     </button>
                   </>
                 )}
@@ -483,10 +491,6 @@ export default function RejectedImages() {
                           />
                         </div>
                         <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
-                          {/* <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white">
-                            {selectedGroup[currentIndex].caption ||
-                              "No caption provided"}
-                          </h3> */}
                           <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
@@ -536,11 +540,10 @@ export default function RejectedImages() {
                           setDirection(idx > currentIndex ? 1 : -1);
                           setCurrentIndex(idx);
                         }}
-                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${
-                          idx === currentIndex
+                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${idx === currentIndex
                             ? "bg-primary w-4 md:w-6"
                             : "bg-white/50 hover:bg-white/80"
-                        }`}
+                          }`}
                         aria-label={`Go to image ${idx + 1}`}
                       />
                     ))}

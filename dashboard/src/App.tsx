@@ -25,7 +25,6 @@ import {
   ShowMarkSheet,
   GenerateResult,
   ViewMarks,
-  Settings,
   AlumniList,
   SmsManagement,
   Head,
@@ -67,19 +66,19 @@ function App() {
     if (user?.role) {
       switch (user.role) {
         case 'admin':
-          document.title = 'Admin Panel - School Management';
+          document.title = 'Admin Panel';
           break;
         case 'teacher':
-          document.title = 'Teacher\'s Dashboard - School Management';
+          document.title = 'Teacher\'s Dashboard';
           break;
         case 'student':
-          document.title = 'Student Portal - School Management';
+          document.title = 'Student\'s Dashboard';
           break;
         default:
-          document.title = 'Panchbibi Lal Bihari Govt. High School';
+          document.title = 'Panchbibi Lal Bihari Pilot Govt. High School';
       }
     } else {
-      document.title = 'Panchbibi Lal Bihari Govt. High School';
+      document.title = 'Panchbibi Lal Bihari Pilot Govt. High School';
     }
   }, [user?.role]);
 
@@ -221,7 +220,6 @@ function App() {
                                 path="/result/view-marks"
                                 element={<ViewMarks />}
                               />
-                              <Route path="/settings" element={<Settings />} />
                               <Route
                                 path="/students"
                                 element={<div>Students</div>}

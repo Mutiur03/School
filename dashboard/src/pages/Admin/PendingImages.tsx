@@ -3,6 +3,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import {
   FiChevronLeft,
   FiChevronRight,
@@ -13,44 +14,60 @@ import {
   FiCheck,
   FiClock,
   FiAlertCircle,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Separator } from "@/components/ui/separator";
 
+interface GalleryImage {
+  id: number;
+  image_path: string;
+  caption?: string;
+  student_name?: string;
+  student_batch?: string;
+  event_id?: number;
+  category_id?: number;
+}
+
+interface GroupedGalleries {
+  events: Record<string, GalleryImage[]>;
+  categories: Record<string, GalleryImage[]>;
+}
+
 export default function PendingGalleries() {
-  const [groupedGalleries, setGroupedGalleries] = useState({
+  const [groupedGalleries, setGroupedGalleries] = useState<GroupedGalleries>({
     events: {},
     categories: {},
   });
-  const [selectedGroup, setSelectedGroup] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState<GalleryImage[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [direction, setDirection] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [foldedCategories, setFoldedCategories] = useState({});
+  const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
   const host = import.meta.env.VITE_BACKEND_URL;
 
-  const modalVariants = {
-    enter: (dir) => ({
+  const modalVariants: Variants = {
+    enter: (dir: number) => ({
       x: dir > 0 ? 500 : -500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
     }),
     center: {
       x: 0,
       opacity: 1,
-      position: "relative",
+      position: "relative" as const,
       transition: {
         x: { type: "spring", stiffness: 400, damping: 30 },
         opacity: { duration: 0.3 },
       },
     },
-    exit: (dir) => ({
+    exit: (dir: number) => ({
       x: dir > 0 ? -500 : 500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
       transition: {
         x: { type: "spring", stiffness: 400, damping: 30 },
         opacity: { duration: 0.2 },
@@ -58,7 +75,7 @@ export default function PendingGalleries() {
     }),
   };
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -67,7 +84,7 @@ export default function PendingGalleries() {
     },
   };
 
-  const foldVariants = {
+  const foldVariants: Variants = {
     open: {
       opacity: 1,
       height: "auto",
@@ -92,7 +109,6 @@ export default function PendingGalleries() {
       setGroupedGalleries(response.data || { events: {}, categories: {} });
     } catch (error) {
       console.error("Error fetching pending galleries:", error);
-      // toast.error("Failed to load pending galleries");
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +118,7 @@ export default function PendingGalleries() {
     fetchPendingGalleries();
   }, []);
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (id: number) => {
     try {
       await axios.patch(`/api/gallery/approve/${id}`);
       toast.success("Image approved successfully!");
@@ -113,7 +129,7 @@ export default function PendingGalleries() {
     }
   };
 
-  const handleReject = async (id) => {
+  const handleReject = async (id: number) => {
     try {
       await axios.patch(`/api/gallery/reject/${id}`);
       toast.success("Image rejected successfully!");
@@ -123,7 +139,7 @@ export default function PendingGalleries() {
       toast.error("Failed to reject image");
     }
   };
-  const handleRejectAll = async (images) => {
+  const handleRejectAll = async (images: GalleryImage[]) => {
     if (
       !window.confirm(
         `Are you sure you want to reject all ${images.length} images?`
@@ -136,23 +152,20 @@ export default function PendingGalleries() {
       await axios.post("/api/gallery/rejectMultiple", { ids });
 
       toast.success(`Rejected ${images.length} images successfully!`);
-      fetchPendingGalleries(); // Refresh the list
+      fetchPendingGalleries();
     } catch (error) {
       console.error("Error rejecting images:", error);
       toast.error("Failed to reject images");
     }
   };
 
-  const handleActionComplete = (processedId) => {
-    // Refetch the latest pending images
+  const handleActionComplete = (processedId: number) => {
     fetchPendingGalleries().then(() => {
-      // Find the next image to show
       const currentGroupIndex = selectedGroup.findIndex(
         (img) => img.id === processedId
       );
-      let nextIndex = null;
+      let nextIndex: number | null = null;
 
-      // Try to find next image in current group
       if (currentGroupIndex !== -1) {
         if (currentGroupIndex < selectedGroup.length - 1) {
           nextIndex = currentGroupIndex;
@@ -167,34 +180,30 @@ export default function PendingGalleries() {
           prev.filter((img) => img.id !== processedId)
         );
       } else {
-        // No more images in this group, close the dialog
         setSelectedGroup([]);
         setCurrentIndex(null);
       }
     });
   };
-  const toggleFoldCategory = (title) => {
+  const toggleFoldCategory = (title: string) => {
     setFoldedCategories((prev) => ({
       ...prev,
       [title]: !prev[title],
     }));
   };
-  const navigateImage = (direction) => {
-    setDirection(direction);
-    if (direction > 0) {
-      // Next image
+  const navigateImage = (dir: number) => {
+    setDirection(dir);
+    if (dir > 0) {
       setCurrentIndex((prev) =>
-        prev < selectedGroup.length - 1 ? prev + 1 : 0
+        prev !== null && prev < selectedGroup.length - 1 ? prev + 1 : 0
       );
     } else {
-      // Previous image
       setCurrentIndex((prev) =>
-        prev > 0 ? prev - 1 : selectedGroup.length - 1
+        prev !== null && prev > 0 ? prev - 1 : selectedGroup.length - 1
       );
     }
   };
-  
-  const renderImageGroup = (title, images = []) => {
+  const renderImageGroup = (title: string, images: GalleryImage[] = []) => {
     const isFolded = foldedCategories[title] || false;
     const groupKey = images[0]?.event_id || images[0]?.category_id || title;
 
@@ -203,8 +212,6 @@ export default function PendingGalleries() {
         <motion.div
           className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
           onClick={() => toggleFoldCategory(title)}
-          // whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.05)" }}
-          // whileTap={{ scale: 0.98 }}
         >
           <div className="flex items-center gap-4">
             <motion.div
@@ -215,8 +222,7 @@ export default function PendingGalleries() {
             </motion.div>
             <motion.h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <FiClock className="text-yellow-500" />
-              {title}{" "}
-              <span className="text-sm text-gray-500">({images.length})</span>
+              {title} <span className="text-sm text-gray-500">({images.length})</span>
             </motion.h2>
           </div>
           <div className="flex items-center gap-4">
@@ -236,7 +242,6 @@ export default function PendingGalleries() {
               variant="secondary"
               className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400"
             >
-              {/* {images.length} Pending */}
               Pending Review
             </Badge>
           </div>
@@ -265,7 +270,7 @@ export default function PendingGalleries() {
                 <div className="relative aspect-square">
                   <img
                     src={`${host}/${img.image_path}`}
-                    alt={ "Pending gallery image"}
+                    alt="Pending gallery image"
                     className="object-cover w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />
@@ -321,19 +326,16 @@ export default function PendingGalleries() {
               variant="outline"
               className="flex items-center gap-2"
               onClick={() => {
-                // Count total categories
                 const totalCategories = [
                   ...Object.keys(groupedGalleries.events),
                   ...Object.keys(groupedGalleries.categories),
                 ].length;
 
-                // Count currently folded categories
                 const currentlyFolded =
                   Object.values(foldedCategories).filter(Boolean).length;
 
-                // If all or some are unfolded, hide all
                 if (currentlyFolded < totalCategories) {
-                  const allFolded = {};
+                  const allFolded: Record<string, boolean> = {};
                   [
                     ...Object.keys(groupedGalleries.events),
                     ...Object.keys(groupedGalleries.categories),
@@ -341,15 +343,13 @@ export default function PendingGalleries() {
                     allFolded[title] = true;
                   });
                   setFoldedCategories(allFolded);
-                }
-                // If all are folded, unfold all
-                else {
+                } else {
                   setFoldedCategories({});
                 }
               }}
             >
               {Object.values(foldedCategories).length > 0 &&
-              Object.values(foldedCategories).every((v) => v) ? (
+                Object.values(foldedCategories).every((v) => v) ? (
                 <>
                   <FiChevronDown className="transition-transform" />
                   Show All
@@ -380,7 +380,7 @@ export default function PendingGalleries() {
                 Event Submissions
               </h1>
               {Object.entries(groupedGalleries.events).map(([title, images]) =>
-                renderImageGroup(title, images)
+                renderImageGroup(title, images as GalleryImage[])
               )}
             </motion.div>
             <Separator className="my-8 bg-gray-200 dark:bg-gray-700" />
@@ -394,7 +394,7 @@ export default function PendingGalleries() {
                 Category Submissions
               </h1>
               {Object.entries(groupedGalleries.categories).map(
-                ([title, images]) => renderImageGroup(title, images)
+                ([title, images]) => renderImageGroup(title, images as GalleryImage[])
               )}
             </motion.div>
           </>
@@ -438,13 +438,13 @@ export default function PendingGalleries() {
                       className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-black/60 text-white p-2 md:p-3 rounded-full z-10 hover:bg-black/80 transition-colors"
                       onClick={() => navigateImage(-1)}
                     >
-                      <FiChevronLeft size={20} md:size={24} />
+                      <FiChevronLeft size={20} />
                     </button>
                     <button
                       className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-black/60 text-white p-2 md:p-3 rounded-full z-10 hover:bg-black/80 transition-colors"
                       onClick={() => navigateImage(1)}
                     >
-                      <FiChevronRight size={20} md:size={24} />
+                      <FiChevronRight size={20} />
                     </button>
                   </>
                 )}
@@ -542,11 +542,10 @@ export default function PendingGalleries() {
                           setDirection(idx > currentIndex ? 1 : -1);
                           setCurrentIndex(idx);
                         }}
-                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${
-                          idx === currentIndex
-                            ? "bg-primary w-4 md:w-6"
-                            : "bg-white/50 hover:bg-white/80"
-                        }`}
+                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${idx === currentIndex
+                          ? "bg-primary w-4 md:w-6"
+                          : "bg-white/50 hover:bg-white/80"
+                          }`}
                         aria-label={`Go to image ${idx + 1}`}
                       />
                     ))}

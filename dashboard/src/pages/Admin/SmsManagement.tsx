@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,19 +30,48 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
-import {
-  RefreshCw,
-  Send,
-  Trash2,
-  Filter,
-  Eye,
-  Download,
-  Calendar,
-} from "lucide-react";
+import { Send, Trash2, Filter, Calendar } from "lucide-react";
 import Loading from "@/components/Loading";
 
+interface Enrollment {
+  class: string;
+  section: string;
+  roll: string;
+}
+
+interface Student {
+  name: string;
+  login_id: string;
+  enrollments: Enrollment[];
+}
+
+interface SmsLog {
+  id: number;
+  student: Student;
+  phone_number: string;
+  attendance_date: string;
+  status: "sent" | "failed" | "pending";
+  sms_count: number | null;
+  retry_count: number;
+  message: string;
+  error_reason: string | null;
+  created_at: string;
+}
+
+interface Stats {
+  sent?: number;
+  failed?: number;
+  pending?: number;
+}
+
+interface Filters {
+  status: string;
+  date: string;
+  limit: number;
+}
+
 function SmsManagement() {
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -52,7 +81,7 @@ function SmsManagement() {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const formatDateOnly = (dateString) => {
+  const formatDateOnly = (dateString: string): string => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -60,7 +89,7 @@ function SmsManagement() {
     return `${day}/${month}/${year}`;
   };
 
-  const convertToISODate = (ddmmyyyy) => {
+  const convertToISODate = (ddmmyyyy: string): string => {
     if (!ddmmyyyy) return "";
     const parts = ddmmyyyy.split("/");
     if (parts.length !== 3) return ddmmyyyy;
@@ -68,26 +97,26 @@ function SmsManagement() {
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
-  const [smsLogs, setSmsLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [retrying, setRetrying] = useState(false);
-  const [selectedLogs, setSelectedLogs] = useState([]);
-  const [stats, setStats] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [filters, setFilters] = useState({
+  const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [retrying, setRetrying] = useState<boolean>(false);
+  const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
+  const [stats, setStats] = useState<Stats>({});
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [filters, setFilters] = useState<Filters>({
     status: "all",
     date: formatDateOnly(new Date().toISOString()),
     limit: 50,
   });
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     sent: "bg-green-500",
     failed: "bg-red-500",
     pending: "bg-yellow-500",
   };
 
-  const statusLabels = {
+  const statusLabels: Record<string, string> = {
     sent: "Sent",
     failed: "Failed",
     pending: "Pending",
@@ -97,8 +126,8 @@ function SmsManagement() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        page: currentPage,
-        limit: filters.limit,
+        page: currentPage.toString(),
+        limit: filters.limit.toString(),
         date: convertToISODate(filters.date),
       });
 
@@ -116,23 +145,14 @@ function SmsManagement() {
 
   useEffect(() => {
     fetchSmsLogs();
-
-    const fetchSmsStats = async () => {
-      try {
-        await axios.get("/api/sms/sms-stats");
-      } catch (error) {
-        console.error("Error fetching SMS stats:", error);
-      }
-    };
-    fetchSmsStats();
-  }, [currentPage, filters.date, filters.limit, fetchSmsLogs]);
+  }, [fetchSmsLogs]);
 
   const displayedLogs = useMemo(() => {
     if (filters.status === "all") return smsLogs;
     return smsLogs.filter((log) => log.status === filters.status);
   }, [smsLogs, filters.status]);
 
-  const handleRetrySelected = async () => {
+  const handleRetrySelected = async (): Promise<void> => {
     if (selectedLogs.length === 0) {
       toast.error("Please select SMS logs to retry");
       return;
@@ -164,7 +184,7 @@ function SmsManagement() {
     }
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = async (): Promise<void> => {
     if (selectedLogs.length === 0) {
       toast.error("Please select SMS logs to delete");
       return;
@@ -184,7 +204,7 @@ function SmsManagement() {
     }
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = (): void => {
     if (selectedLogs.length === displayedLogs.length) {
       setSelectedLogs([]);
     } else {
@@ -192,12 +212,12 @@ function SmsManagement() {
     }
   };
 
-  const handleFilterChange = (key, value) => {
+  const handleFilterChange = (key: keyof Filters, value: string | number): void => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
 
-  const getStudentInfo = (student) => {
+  const getStudentInfo = (student: Student | null | undefined): string => {
     if (!student || !student.enrollments || student.enrollments.length === 0) {
       return "N/A";
     }
@@ -345,7 +365,6 @@ function SmsManagement() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={handleRetrySelected}
@@ -411,7 +430,6 @@ function SmsManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Desktop Table View */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -544,7 +562,6 @@ function SmsManagement() {
             </table>
           </div>
 
-          {/* Mobile Card View */}
           <div className="lg:hidden space-y-4">
             {displayedLogs.map((log) => (
               <Card
@@ -667,7 +684,6 @@ function SmsManagement() {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row justify-center items-center mt-6 gap-2">
               <Button

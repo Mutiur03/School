@@ -15,7 +15,6 @@ export { default as StudentList } from "./StudentList";
 export { default as ShowMarkSheet } from "./ShowMarkSheet";
 export { default as GenerateResult } from "./GenerateResult";
 export { default as ViewMarks } from "./ViewMarks";
-export { default as Settings } from "./Settings";
 export { default as AlumniList } from "./AlumniList";
 export { default as SmsManagement } from "./SmsManagement";
 export { default as Syllabus } from "./Syllabus";

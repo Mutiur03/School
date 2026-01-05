@@ -3,45 +3,77 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import Loading from "@/components/Loading";
 
+interface SubjectMark {
+  subject: string;
+  marks: number;
+  cq_marks?: number;
+  mcq_marks?: number;
+  practical_marks?: number;
+  subject_info?: {
+    full_mark?: number;
+    cq_mark?: number;
+    mcq_mark?: number;
+    practical_mark?: number;
+  };
+}
+
+interface StudentData {
+  student_id: string;
+  roll: string;
+  name: string;
+  class: string;
+  section?: string;
+  department?: string;
+  marks?: SubjectMark[];
+}
+
+interface ExamData {
+  exam_name: string;
+  exam_year: string;
+  levels?: string[];
+}
+
+interface ClassList {
+  [examName: string]: string[];
+}
+
 const ViewMarks = () => {
-  const [marksData, setMarksData] = useState([]);
+  const [marksData, setMarksData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState({
     initial: true,
     marks: false,
   });
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [className, setClassName] = useState("");
   const [year, setYear] = useState("2025");
   const [exam, setExam] = useState("");
   const [section, setSection] = useState("");
   const [department, setDepartment] = useState("");
-  const [subjects, setSubjects] = useState([]);
-  const [availableSections, setAvailableSections] = useState([]);
-  const [availableDepartments, setAvailableDepartments] = useState([]);
-  const [examList, setExamList] = useState([]);
-  const [classList, setClassList] = useState({});
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [examList, setExamList] = useState<string[]>([]);
+  const [classList, setClassList] = useState<ClassList>({});
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
-  // Fetch initial exam and class data
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoading((prev) => ({ ...prev, initial: true }));
 
         const examsRes = await axios.get("/api/exams/getExams");
-        const exams = examsRes.data?.data || [];
+        const exams: ExamData[] = examsRes.data?.data || [];
         const currentYearExams = exams.filter((e) => e.exam_year == year);
 
         setExamList(currentYearExams.map((e) => e.exam_name));
         setClassList(
-          currentYearExams.reduce((acc, e) => {
+          currentYearExams.reduce((acc: ClassList, e) => {
             acc[e.exam_name] = e.levels || [];
             return acc;
           }, {})
         );
-      } catch (error) {
-        console.error("Initial data error:", error);
+      } catch {
         toast.error("Failed to load exam data");
       } finally {
         setLoading((prev) => ({ ...prev, initial: false }));
@@ -51,7 +83,6 @@ const ViewMarks = () => {
     fetchInitialData();
   }, [year]);
 
-  // Fetch marks data when filters change
   useEffect(() => {
     const fetchMarks = async () => {
       if (!className || !year || !exam) {
@@ -67,33 +98,24 @@ const ViewMarks = () => {
         const response = await axios.get(
           `/api/marks/getClassMarks/${className}/${year}/${exam}`
         );
-        // if (!response.success) {
-        //   console.log("sakdjfhgsdf")
-        //   setMarksData([]);
-        //   return;
-        // }
-        console.log(response.data);
 
-        const data = await response.data;
+        const data = response.data;
         if (!data.success) {
-          console.log(data.message);
-
           setMarksData([]);
           setAvailableDepartments([]);
           setAvailableSections([]);
           return;
         }
-        console.log(data.success);
 
-        const marks = Array.isArray(data.data) ? data.data : [];
+        const marks: StudentData[] = Array.isArray(data.data) ? data.data : [];
         setMarksData(marks);
 
         if (marks.length === 0) {
           setError("No marks data available for the selected filters");
         } else {
-          const allSubjects = new Set();
-          const sections = new Set();
-          const departments = new Set();
+          const allSubjects = new Set<string>();
+          const sections = new Set<string>();
+          const departments = new Set<string>();
 
           marks.forEach((student) => {
             student.marks?.forEach((subject) => {
@@ -102,14 +124,12 @@ const ViewMarks = () => {
             if (student.section) sections.add(student.section);
             if (student.department) departments.add(student.department);
           });
-          console.log(Array.from(sections).sort());
+
           setSubjects(Array.from(allSubjects).sort());
           setAvailableSections(Array.from(sections).sort());
           setAvailableDepartments(Array.from(departments).sort());
         }
-      } catch (err) {
-        console.error(err.message);
-        // setError(err.message);
+      } catch {
         setMarksData([]);
       } finally {
         setLoading((prev) => ({ ...prev, marks: false }));
@@ -119,31 +139,31 @@ const ViewMarks = () => {
     fetchMarks();
   }, [className, year, exam]);
 
-  const handleExamChange = (selectedExam) => {
+  const handleExamChange = (selectedExam: string) => {
     setExam(selectedExam);
-    subjects.length > 0 && setSubjects([]);
+    if (subjects.length > 0) setSubjects([]);
     setAvailableSections([]);
     setClassName("");
-    setSection([]);
-    setDepartment([]);
+    setSection("");
+    setDepartment("");
     setMarksData([]);
     setAvailableDepartments([]);
   };
 
-  const handleClassChange = (selectedClass) => {
+  const handleClassChange = (selectedClass: string) => {
     setClassName(selectedClass);
     setSection("");
     setDepartment("");
   };
 
-  const downloadMarksheet = (id, event) => {
+  const downloadMarksheet = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const host = import.meta.env.VITE_BACKEND_URL;
     const url = `${host}/api/marks/markSheet/${id}/marks/${year}/${exam}/download`;
     window.open(url, "_blank");
   };
 
-  const showStudentDetails = (student) => {
+  const showStudentDetails = (student: StudentData) => {
     setSelectedStudent(student);
     setShowDetailsPopup(true);
   };
@@ -159,8 +179,6 @@ const ViewMarks = () => {
     return sectionMatch && deptMatch;
   });
 
-  // if (loading.initial)
-  //   return <p className="text-center mt-4">Loading initial data...</p>;
   if (error) return <p className="text-center mt-4 text-red-500">{error}</p>;
 
   return (
@@ -285,7 +303,7 @@ const ViewMarks = () => {
                 </tr>
               ) : (
                 filteredData.map((data) => {
-                  const marksMap = {};
+                  const marksMap: { [key: string]: number } = {};
                   data.marks?.forEach((subject) => {
                     marksMap[subject.subject] = subject.marks;
                   });
@@ -357,7 +375,6 @@ const ViewMarks = () => {
         </div>
       </div>
 
-      {/* Details Popup */}
       {showDetailsPopup && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -434,13 +451,13 @@ const ViewMarks = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedStudent.marks?.length > 0 ? (
+                      {Array.isArray(selectedStudent.marks) && selectedStudent.marks.length > 0 ? (
                         selectedStudent.marks.map((mark, index) => {
                           const percentage = mark.subject_info?.full_mark
                             ? (
-                                (mark.marks / mark.subject_info.full_mark) *
-                                100
-                              ).toFixed(2)
+                              (mark.marks / mark.subject_info.full_mark) *
+                              100
+                            ).toFixed(2)
                             : 0;
 
                           return (
@@ -453,7 +470,7 @@ const ViewMarks = () => {
                               </td>
                               <td className="border p-3 text-center">
                                 {mark.cq_marks !== null &&
-                                mark.cq_marks !== undefined
+                                  mark.cq_marks !== undefined
                                   ? mark.cq_marks
                                   : "N/A"}
                                 {mark.subject_info?.cq_mark && (
@@ -464,7 +481,7 @@ const ViewMarks = () => {
                               </td>
                               <td className="border p-3 text-center">
                                 {mark.mcq_marks !== null &&
-                                mark.mcq_marks !== undefined
+                                  mark.mcq_marks !== undefined
                                   ? mark.mcq_marks
                                   : "N/A"}
                                 {mark.subject_info?.mcq_mark && (
@@ -475,7 +492,7 @@ const ViewMarks = () => {
                               </td>
                               <td className="border p-3 text-center">
                                 {mark.practical_marks !== null &&
-                                mark.practical_marks !== undefined
+                                  mark.practical_marks !== undefined
                                   ? mark.practical_marks
                                   : "N/A"}
                                 {mark.subject_info?.practical_mark && (
@@ -494,21 +511,20 @@ const ViewMarks = () => {
                               </td>
                               <td className="border p-3 text-center">
                                 <span
-                                  className={`font-medium ${
-                                    percentage && parseFloat(percentage) >= 80
-                                      ? "text-green-600"
-                                      : percentage &&
-                                        parseFloat(percentage) >= 60
+                                  className={`font-medium ${percentage && parseFloat(percentage) >= 80
+                                    ? "text-green-600"
+                                    : percentage &&
+                                      parseFloat(percentage) >= 60
                                       ? "text-yellow-600"
                                       : percentage &&
                                         parseFloat(percentage) >= 40
-                                      ? "text-orange-600"
-                                      : "text-red-600"
-                                  }`}
+                                        ? "text-orange-600"
+                                        : "text-red-600"
+                                    }`}
                                 >
                                   {mark.marks !== null &&
-                                  mark.marks !== undefined &&
-                                  mark.subject_info?.full_mark
+                                    mark.marks !== undefined &&
+                                    mark.subject_info?.full_mark
                                     ? `${percentage}%`
                                     : "N/A"}
                                 </span>
@@ -519,7 +535,7 @@ const ViewMarks = () => {
                       ) : (
                         <tr>
                           <td
-                            colSpan="7"
+                            colSpan={7}
                             className="border p-4 text-center text-gray-500"
                           >
                             No marks data available

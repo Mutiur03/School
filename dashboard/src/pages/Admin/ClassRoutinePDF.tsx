@@ -2,14 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 
-function ClassRoutinePDF() {
-  const [pdf, setPDF] = useState(null);
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef();
+interface PDFData {
+  id: string;
+  pdf_url: string;
+  download_url: string;
+}
 
-  const fetchPDF = async () => {
-    const res = await axios.get("/api/class-routine/pdf");
+function ClassRoutinePDF() {
+  const [pdf, setPDF] = useState<PDFData | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchPDF = async (): Promise<void> => {
+    const res = await axios.get<PDFData[]>("/api/class-routine/pdf");
     setPDF(res.data[0] || null);
   };
 
@@ -17,7 +23,7 @@ function ClassRoutinePDF() {
     fetchPDF();
   }, []);
 
-  const handleUpload = async (e) => {
+  const handleUpload = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!file) return;
     setUploading(true);
@@ -26,15 +32,15 @@ function ClassRoutinePDF() {
     try {
       await axios.post("/api/class-routine/pdf", formData);
       setFile(null);
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
       fetchPDF();
-    } catch  {
+    } catch {
       alert("Failed to upload PDF");
     }
     setUploading(false);
   };
 
-  const handleUpdate = async (e) => {
+  const handleUpdate = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!file || !pdf) return;
     setUploading(true);
@@ -43,20 +49,20 @@ function ClassRoutinePDF() {
     try {
       await axios.put(`/api/class-routine/pdf/${pdf.id}`, formData);
       setFile(null);
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
       fetchPDF();
-    } catch  {
+    } catch {
       alert("Failed to update PDF");
     }
     setUploading(false);
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this PDF?")) return;
+  const handleDelete = async (): Promise<void> => {
+    if (!pdf || !window.confirm("Delete this PDF?")) return;
     await axios.delete(`/api/class-routine/pdf/${pdf.id}`);
     setPDF(null);
     setFile(null);
-    fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
     fetchPDF();
   };
 
@@ -77,14 +83,14 @@ function ClassRoutinePDF() {
             id="routine-upload"
             type="file"
             accept="application/pdf"
-            onChange={(e) => setFile(e.target.files[0])}
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
             ref={fileInputRef}
             className="hidden"
           />
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => fileInputRef.current.click()}
+              onClick={() => fileInputRef.current?.click()}
               className="bg-secondary text-secondary-foreground rounded-md px-4 py-2 font-semibold shadow-sm border border-border transition hover:bg-accent"
               disabled={uploading}
             >
@@ -97,11 +103,10 @@ function ClassRoutinePDF() {
           <button
             type="submit"
             disabled={uploading || !file}
-            className={`mt-2 bg-primary text-primary-foreground rounded-md px-6 py-2 font-semibold shadow-sm transition ${
-              uploading || !file
+            className={`mt-2 bg-primary text-primary-foreground rounded-md px-6 py-2 font-semibold shadow-sm transition ${uploading || !file
                 ? "opacity-60 cursor-not-allowed"
                 : "hover:bg-primary/90"
-            }`}
+              }`}
           >
             {uploading ? "Uploading..." : "Upload"}
           </button>
@@ -129,20 +134,19 @@ function ClassRoutinePDF() {
             >
               Download
             </a>
-           
           </div>
           <form onSubmit={handleUpdate} className="flex flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <input
                 type="file"
                 accept="application/pdf"
-                onChange={(e) => setFile(e.target.files[0])}
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
                 ref={fileInputRef}
                 className="hidden"
               />
               <Button
                 type="button"
-                onClick={() => fileInputRef.current.click()}
+                onClick={() => fileInputRef.current?.click()}
                 className="bg-secondary text-secondary-foreground rounded-md px-4 py-2 font-semibold border border-border transition hover:bg-accent"
                 disabled={uploading}
               >
@@ -156,19 +160,17 @@ function ClassRoutinePDF() {
               <Button
                 type="submit"
                 disabled={uploading || !file}
-                className={`bg-primary text-primary-foreground rounded-md px-4 py-2 font-semibold transition ${
-                  uploading || !file
+                className={`bg-primary text-primary-foreground rounded-md px-4 py-2 font-semibold transition ${uploading || !file
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:bg-primary/90"
-                }`}
+                  }`}
               >
                 {uploading ? "Updating..." : "Update"}
               </Button>
               <Button
-                variant={"destructive"}
+                variant="destructive"
                 type="button"
                 onClick={handleDelete}
-                // className="bg-destructive text-destructive-foreground rounded-md px-4 py-2 font-semibold transition hover:bg-destructive/80"
               >
                 Delete
               </Button>

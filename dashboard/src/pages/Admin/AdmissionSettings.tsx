@@ -1,10 +1,42 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import axios from "axios";
 import { RefreshCw, FileText, Loader2, Settings } from "lucide-react";
 import toast from "react-hot-toast";
 
+interface FormData {
+  admission_year: number;
+  admission_open: boolean;
+  instruction: string;
+  attachment_instruction: string;
+  attachment_instruction_class6: string;
+  attachment_instruction_class7: string;
+  attachment_instruction_class8: string;
+  attachment_instruction_class9: string;
+  ingikar: string;
+  class_list: string;
+  list_type_class6: string;
+  list_type_class7: string;
+  list_type_class8: string;
+  list_type_class9: string;
+  user_id_class6: string;
+  user_id_class7: string;
+  user_id_class8: string;
+  user_id_class9: string;
+  serial_no_class6: string;
+  serial_no_class7: string;
+  serial_no_class8: string;
+  serial_no_class9: string;
+  [key: string]: string | number | boolean;
+}
+
+interface Notice {
+  url: string | null;
+  download_url: string | null;
+  public_id: string | null;
+}
+
 function AdmissionSettings() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     admission_year: new Date().getFullYear(),
     admission_open: false,
     instruction: "Please follow the instructions carefully",
@@ -29,11 +61,11 @@ function AdmissionSettings() {
     serial_no_class9: "",
   });
 
-  const [noticeFile, setNoticeFile] = useState(null);
-  const [currentNotice, setCurrentNotice] = useState(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formMessage, setFormMessage] = useState("");
-  const [isEdit, setIsEdit] = useState(false);
+  const [noticeFile, setNoticeFile] = useState<File | null>(null);
+  const [currentNotice, setCurrentNotice] = useState<Notice | null>(null);
+  const [formLoading, setFormLoading] = useState<boolean>(false);
+  const [formMessage, setFormMessage] = useState<string>("");
+  const [isEdit, setIsEdit] = useState<boolean>(false);
 
   useEffect(() => {
     fetchAdmissionSettings();
@@ -42,7 +74,6 @@ function AdmissionSettings() {
   const fetchAdmissionSettings = async () => {
     try {
       const res = await axios.get("/api/admission");
-      console.log(res.data);
 
       if (res.data) {
         const data = res.data;
@@ -133,28 +164,26 @@ function AdmissionSettings() {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setNoticeFile(file);
       setFormMessage("");
     } else if (file) {
       setFormMessage("Error: Only PDF files are allowed");
-      e.target.value = null;
+      if (e.target) e.target.value = "";
     }
   };
 
-  const handleFormSubmit = async (e) => {
+  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormLoading(true);
     setFormMessage("");
 
     try {
       const payload = new FormData();
-      if (
-        formData.admission_year !== undefined &&
-        formData.admission_year !== null
-      ) {
+
+      if (formData.admission_year !== undefined && formData.admission_year !== null) {
         payload.append("admission_year", String(formData.admission_year));
       }
 
@@ -168,67 +197,32 @@ function AdmissionSettings() {
         payload.append("instruction_for_b", String(formData.instruction));
       }
 
-      if (
-        formData.user_id_class6 !== undefined &&
-        formData.user_id_class6 !== null
-      ) {
+      if (formData.user_id_class6 !== undefined && formData.user_id_class6 !== null) {
         payload.append("user_id_class6", String(formData.user_id_class6));
       }
-      if (
-        formData.user_id_class7 !== undefined &&
-        formData.user_id_class7 !== null
-      ) {
+      if (formData.user_id_class7 !== undefined && formData.user_id_class7 !== null) {
         payload.append("user_id_class7", String(formData.user_id_class7));
       }
-      if (
-        formData.user_id_class8 !== undefined &&
-        formData.user_id_class8 !== null
-      ) {
+      if (formData.user_id_class8 !== undefined && formData.user_id_class8 !== null) {
         payload.append("user_id_class8", String(formData.user_id_class8));
       }
-      if (
-        formData.user_id_class9 !== undefined &&
-        formData.user_id_class9 !== null
-      ) {
+      if (formData.user_id_class9 !== undefined && formData.user_id_class9 !== null) {
         payload.append("user_id_class9", String(formData.user_id_class9));
       }
 
-      if (
-        formData.attachment_instruction_class6 !== undefined &&
-        formData.attachment_instruction_class6 !== null
-      ) {
-        payload.append(
-          "attachment_instruction_class6",
-          String(formData.attachment_instruction_class6)
-        );
+      if (formData.attachment_instruction_class6 !== undefined && formData.attachment_instruction_class6 !== null) {
+        payload.append("attachment_instruction_class6", String(formData.attachment_instruction_class6));
       }
-      if (
-        formData.attachment_instruction_class7 !== undefined &&
-        formData.attachment_instruction_class7 !== null
-      ) {
-        payload.append(
-          "attachment_instruction_class7",
-          String(formData.attachment_instruction_class7)
-        );
+      if (formData.attachment_instruction_class7 !== undefined && formData.attachment_instruction_class7 !== null) {
+        payload.append("attachment_instruction_class7", String(formData.attachment_instruction_class7));
       }
-      if (
-        formData.attachment_instruction_class8 !== undefined &&
-        formData.attachment_instruction_class8 !== null
-      ) {
-        payload.append(
-          "attachment_instruction_class8",
-          String(formData.attachment_instruction_class8)
-        );
+      if (formData.attachment_instruction_class8 !== undefined && formData.attachment_instruction_class8 !== null) {
+        payload.append("attachment_instruction_class8", String(formData.attachment_instruction_class8));
       }
-      if (
-        formData.attachment_instruction_class9 !== undefined &&
-        formData.attachment_instruction_class9 !== null
-      ) {
-        payload.append(
-          "attachment_instruction_class9",
-          String(formData.attachment_instruction_class9)
-        );
+      if (formData.attachment_instruction_class9 !== undefined && formData.attachment_instruction_class9 !== null) {
+        payload.append("attachment_instruction_class9", String(formData.attachment_instruction_class9));
       }
+
       if (formData.ingikar !== undefined && formData.ingikar !== null) {
         payload.append("ingikar", String(formData.ingikar));
       }
@@ -236,7 +230,6 @@ function AdmissionSettings() {
         payload.append("class_list", String(formData.class_list));
       }
 
-      // Append per-class list type and serial no for classes 6-9
       [6, 7, 8, 9].forEach((c) => {
         const ltKey = `list_type_class${c}`;
         const snKey = `serial_no_class${c}`;
@@ -249,20 +242,19 @@ function AdmissionSettings() {
           payload.append(snKey, String(snVal));
         }
       });
-      if (currentNotice && currentNotice.public_id) {
+
+      if (currentNotice?.public_id) {
         payload.append("public_id", String(currentNotice.public_id));
       }
 
       if (noticeFile) {
         payload.append("notice", noticeFile);
       }
-      console.log(payload.forEach((v, k) => console.log(k, v)));
 
-      let res;
-
-      res = await axios.put("/api/admission", payload, {
+      const res = await axios.put("/api/admission", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       if (res?.data?.success) {
         toast.success(isEdit ? "Settings updated" : "Settings created");
         setFormMessage("Settings saved successfully");
@@ -270,10 +262,8 @@ function AdmissionSettings() {
       } else {
         toast.error("Failed to save settings");
         setFormMessage("Error: Failed to save settings");
-        console.error("Save failed:", res?.data);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("An unexpected error occurred");
       setFormMessage("Error: An unexpected error occurred");
     } finally {
@@ -293,31 +283,28 @@ function AdmissionSettings() {
       } else {
         setFormMessage("Error: Failed to remove notice");
       }
-    } catch (error) {
-      console.error("Failed to remove notice:", error);
+    } catch {
       setFormMessage("Error: Failed to remove notice");
     } finally {
       setFormLoading(false);
     }
   };
+
   const handleRefresh = () => {
     fetchAdmissionSettings();
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     const numericPattern = /^-?\d+(?:\.\d+)?$/;
-    let newValue;
+    let newValue: string | number | boolean;
+
     if (name === "admission_year") {
       newValue = value.replace(/\D/g, "");
     } else if (name === "instruction") {
       const trimmed = String(value).trim();
-      newValue =
-        trimmed === ""
-          ? ""
-          : numericPattern.test(trimmed)
-          ? Number(trimmed)
-          : value;
+      newValue = trimmed === "" ? "" : numericPattern.test(trimmed) ? Number(trimmed) : value;
     } else {
       newValue = type === "checkbox" ? checked : value;
     }
@@ -352,11 +339,10 @@ function AdmissionSettings() {
 
       {formMessage && (
         <div
-          className={`p-3 rounded-lg ${
-            formMessage.includes("Error")
-              ? "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
-              : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700"
-          }`}
+          className={`p-3 rounded-lg ${formMessage.includes("Error")
+            ? "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
+            : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700"
+            }`}
         >
           {formMessage}
         </div>
@@ -763,73 +749,71 @@ function AdmissionSettings() {
               </div>
             </div>
 
-            {/* per-class list type and serial numbers are provided next to each class's user ids */}
-          </div>
+            <div>
+              <label htmlFor="notice" className="block text-sm font-medium mb-2">
+                Notice Document
+              </label>
 
-          <div>
-            <label htmlFor="notice" className="block text-sm font-medium mb-2">
-              Notice Document
-            </label>
-
-            {currentNotice && (
-              <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-500 dark:border-gray-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText size={18} className="text-red-600" />
-                    <span className="text-sm ">Current Notice PDF</span>
-                  </div>
-                  <div className="flex gap-3">
-                    <a
-                      href={currentNotice.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-700"
-                    >
-                      View
-                    </a>
-                    <button
-                      type="button"
-                      onClick={removeNotice}
-                      className="text-sm text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
+              {currentNotice && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-500 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText size={18} className="text-red-600" />
+                      <span className="text-sm ">Current Notice PDF</span>
+                    </div>
+                    <div className="flex gap-3">
+                      <a
+                        href={currentNotice.url || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        View
+                      </a>
+                      <button
+                        type="button"
+                        onClick={removeNotice}
+                        className="text-sm text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <input
-              type="file"
-              id="notice"
-              accept=".pdf"
-              onChange={handleFileChange}
-              title="Upload a PDF file for the admission notice (only .pdf allowed)"
-              aria-label="Upload notice PDF file"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            />
-            <p className="text-xs text-red-500 mt-1">
-              Only PDF files are allowed
-            </p>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={formLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-600 dark:hover:bg-blue-700"
-            >
-              {formLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  {isEdit ? "Updating..." : "Creating..."}
-                </>
-              ) : isEdit ? (
-                "Update"
-              ) : (
-                "Create"
               )}
-            </button>
+
+              <input
+                type="file"
+                id="notice"
+                accept=".pdf"
+                onChange={handleFileChange}
+                title="Upload a PDF file for the admission notice (only .pdf allowed)"
+                aria-label="Upload notice PDF file"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <p className="text-xs text-red-500 mt-1">
+                Only PDF files are allowed
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                disabled={formLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-600 dark:hover:bg-blue-700"
+              >
+                {formLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    {isEdit ? "Updating..." : "Creating..."}
+                  </>
+                ) : isEdit ? (
+                  "Update"
+                ) : (
+                  "Create"
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
