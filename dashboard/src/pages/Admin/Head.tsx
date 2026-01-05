@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
+
+interface Teacher {
+  id: string;
+  name: string;
+}
+
+interface HeadData {
+  teacher?: Teacher;
+  head_message?: string;
+}
 
 function Head() {
-  const [teachers, setTeachers] = useState([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
 
   useEffect(() => {
     let isMounted = true;
@@ -17,38 +27,33 @@ function Head() {
       setSuccess("");
       let fetchError = "";
 
-      // Fetch teachers
       try {
         const res = await axios.get("/api/teachers/getTeachers");
         if (isMounted)
           setTeachers(Array.isArray(res.data?.data) ? res.data.data : []);
       } catch (e) {
-        fetchError =
-          e.response?.data?.error || e.message || "Error loading teachers";
+        if (isAxiosError(e))
+          fetchError =
+            e.response?.data?.error || e.message || "Error loading teachers";
       }
 
-      // Fetch current head message + teacher (non-fatal if fails)
       try {
-        // endpoint: adjust if your API uses a different path
-        const resHead = await axios.get("/api/teachers/get_head_msg");
+        const resHead = await axios.get<HeadData>("/api/teachers/get_head_msg");
         const headData = resHead.data || {};
-        console.log("Fetched head data:", headData);
-        
         if (isMounted) {
           if (headData.teacher) setSelectedTeacherId(headData.teacher.id);
           if (typeof headData.head_message === "string")
             setMessage(headData.head_message);
         }
       } catch (e) {
-        // Only set error if none from teachers fetch; otherwise keep first
-        if (!fetchError) {
-          fetchError =
-            e.response?.data?.error ||
-            e.message ||
-            "Error loading head message";
-        }
+        if (isAxiosError(e))
+          if (!fetchError) {
+            fetchError =
+              e.response?.data?.error ||
+              e.message ||
+              "Error loading head message";
+          }
       }
-
       if (isMounted && fetchError) setError(fetchError);
       if (isMounted) setLoading(false);
     })();
@@ -57,20 +62,21 @@ function Head() {
     };
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccess("");
     try {
-      const payload = {};
+      const payload: { teacherId?: string; message?: string } = {};
       if (selectedTeacherId) payload.teacherId = selectedTeacherId;
       if (message.trim()) payload.message = message.trim();
       if (Object.keys(payload).length === 0) throw new Error("Nothing to save");
       await axios.put("/api/teachers/update_head_msg", payload);
       setSuccess("Saved");
     } catch (e) {
-      setError(e.response?.data?.error || e.message || "Request failed");
+      if (isAxiosError(e))
+        setError(e.response?.data?.error || e.message || "Request failed");
     } finally {
       setLoading(false);
     }

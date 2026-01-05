@@ -1,15 +1,53 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Pencil, Trash2, Eye, Upload } from "lucide-react";
+import { Eye, Upload, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "@/components/Loading";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 
+interface Student {
+  id: number;
+  name: string;
+  father_name: string;
+  mother_name: string;
+  phone: string;
+  parent_phone: string;
+  blood_group: string;
+  roll: number;
+  section: string;
+  address: string;
+  dob: string;
+  class: number;
+  department: string;
+  has_stipend: boolean;
+  available: boolean;
+  image?: string;
+  enrollment_id: number;
+}
+
+interface StudentFormData {
+  name: string;
+  father_name: string;
+  mother_name: string;
+  phone: string;
+  parent_phone: string;
+  blood_group: string;
+  roll: string;
+  section: string;
+  address: string;
+  dob: string;
+  class: string;
+  department: string;
+  has_stipend: boolean;
+  available: boolean;
+  image?: string;
+}
+
 function StudentList() {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
@@ -17,13 +55,17 @@ function StudentList() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const currentYear = new Date().getFullYear();
-  const [popup, setPopup] = useState({
+  const [popup, setPopup] = useState<{
+    visible: boolean;
+    type: string;
+    student: Student | null;
+  }>({
     visible: false,
     type: "",
     student: null,
   });
   const [showForm, setShowForm] = useState(false);
-  const [data, setData] = useState({
+  const [data, setData] = useState<StudentFormData>({
     name: "",
     father_name: "",
     mother_name: "",
@@ -40,82 +82,88 @@ function StudentList() {
     available: true,
   });
   const [isExcelUpload, setIsExcelUpload] = useState(false);
-  const [jsonData, setJsonData] = useState(null);
+  const [jsonData, setJsonData] = useState<Record<string, unknown>[] | null>(null);
   const [fileUploaded, setFileUploaded] = useState(false);
-  const [excelfile, setexcelfile] = useState(null);
-  const fileref = React.useRef(null);
+  const [excelfile, setexcelfile] = useState<File | null>(null);
+  const fileref = React.useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log(file);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
       setImage(file);
       const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result);
+      reader.onload = () => setPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
-  const handleIndivisualImageUpload = async (e, student) => {
-    const imageFormData = new FormData();
-    imageFormData.append("image", e.target.files[0]);
-    const file = e.target.files[0];
-    console.log(student.name);
 
-    if (file) {
-      const imageResponse = await axios.post(
-        `/api/students/updateStudentImage/${student.id}`,
-        imageFormData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      console.log("Image upload response:", imageResponse.data);
-    }
+  const handleIndivisualImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    student: Student
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const imageFormData = new FormData();
+    imageFormData.append("image", file);
+
+    await axios.post(
+      `/api/students/updateStudentImage/${student.id}`,
+      imageFormData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     getStudentList();
   };
   const getStudentList = async () => {
     try {
-      // setLoading(true);
       const response = await axios.get(`/api/students/getStudents/${year}`);
-      console.log("Students:", response.data.data);
       const filteredStudents = (response.data.data || []).filter(
-        (student) => student.class >= 1 && student.class <= 10
+        (student: Student) => student.class >= 1 && student.class <= 10
       );
-      // .filter((student) => student.available === true);
       setStudents(filteredStudents);
       setErrorMessage("");
     } catch (error) {
       setStudents([]);
-      if (error.response?.status === 404) {
-        setErrorMessage("No students found for the selected year.");
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number } };
+        if (axiosError.response?.status === 404) {
+          setErrorMessage("No students found for the selected year.");
+        } else {
+          setErrorMessage("An error occurred while fetching students.");
+        }
       } else {
-        console.error("Error fetching students:", error);
         setErrorMessage("An error occurred while fetching students.");
       }
     } finally {
       setLoading(false);
     }
   };
-  const handleEdit = (student) => {
-    isExcelUpload && setIsExcelUpload(false);
+
+  const handleEdit = (student: Student) => {
+    if (isExcelUpload) setIsExcelUpload(false);
     setIsEditing(true);
     setSelectedStudent(student);
-    setData(student);
-    console.log(student);
+    setData({
+      ...student,
+      class: student.class.toString(),
+      roll: student.roll.toString(),
+    });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (student) => {
+  const handleDelete = async (student: Student) => {
     try {
       const response = await axios.delete(
         `/api/students/deleteStudent/${student.id}`
@@ -123,22 +171,25 @@ function StudentList() {
       if (response.status === 200) {
         toast.success("Student deleted successfully.");
       }
-    } catch (error) {
-      console.error("Error deleting student:", error);
+    } catch {
       toast.error("Failed to delete student. Please try again.");
     }
     getStudentList();
   };
+
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
+
   useEffect(() => {
     getStudentList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
+
   const filteredStudents = students
     .filter((student) =>
       searchQuery
         ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          student.phone?.toString().includes(searchQuery)
+        student.phone?.toString().includes(searchQuery)
         : true
     )
     .filter((student) =>
@@ -150,32 +201,37 @@ function StudentList() {
     .sort((a, b) => a.roll - b.roll)
     .sort((a, b) => a.section.localeCompare(b.section))
     .sort((a, b) => a.class - b.class);
+
   const uniqueClasses = [...new Set(students.map((student) => student.class))];
   const uniqueSections = [
     ...new Set(students.map((student) => student.section)),
   ];
-  const handleChange = (e) => {
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setData((prevData) => ({
       ...prevData,
       [name]: value,
     }));
   };
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
       const formData = new FormData(e.currentTarget);
-      let students = {};
+      const students: Record<string, FormDataEntryValue> = {};
       formData.forEach((value, key) => {
         students[key] = value;
       });
-      console.log(students);
+
       const imageFormData = new FormData();
       if (image) {
         imageFormData.append("image", image);
       }
-      const basicDeatils = {};
+
+      const basicDeatils: Record<string, FormDataEntryValue | boolean> = {};
       basicDeatils.name = students.name || "";
       basicDeatils.father_name = students.father_name || "";
       basicDeatils.mother_name = students.mother_name || "";
@@ -186,28 +242,26 @@ function StudentList() {
       basicDeatils.dob = students.dob || "";
       basicDeatils.address = students.address || "";
       basicDeatils.available = students.available ? true : false;
-      console.log(basicDeatils.available);
 
-      const academicDetails = {};
+      const academicDetails: Record<string, FormDataEntryValue> = {};
       academicDetails.roll = students.roll || "";
       academicDetails.class = students.class || "";
       academicDetails.section = students.section || "";
       academicDetails.department = students.department || "";
-      students = [students];
-      console.log("Submitting data:", students);
-      console.log(selectedStudent);
+      const studentsArray = [students];
+
       let response;
-      if (isEditing) {
+      if (isEditing && selectedStudent) {
         response = await axios.put(
           `/api/students/updateStudent/${selectedStudent.id}`,
-          basicDeatils // Pass 'basicDeatils' including 'available'
+          basicDeatils
         );
         response = await axios.put(
           `/api/students/updateacademic/${selectedStudent.enrollment_id}`,
           academicDetails
         );
         if (image) {
-          const imageResponse = await axios.post(
+          await axios.post(
             `/api/students/updateStudentImage/${selectedStudent.id}`,
             imageFormData,
             {
@@ -216,14 +270,13 @@ function StudentList() {
               },
             }
           );
-          console.log("Image upload response:", imageResponse.data);
         }
       } else {
         response = await axios.post("/api/students/addStudents", {
-          students: students,
+          students: studentsArray,
         });
         if (image) {
-          const imageResponse = await axios.post(
+          await axios.post(
             `/api/students/updateStudentImage/${response.data.data[0].id}`,
             imageFormData,
             {
@@ -232,46 +285,40 @@ function StudentList() {
               },
             }
           );
-          console.log("Image upload response:", imageResponse.data);
         }
       }
-      if (response.success === false) {
-        toast.error(response.message);
+      if (response.data.success === false) {
+        toast.error(response.data.message);
         return;
       } else {
         handleCancel();
         toast.success(response.data.message);
       }
     } catch (err) {
-      console.error(
-        "Error adding student:",
-        err.response?.data?.error || err.message
-      );
-      toast.error(err.response?.data?.error || err.message);
+      const error = err as { response?: { data?: { error?: string } }; message?: string };
+      toast.error(error.response?.data?.error || error.message || 'An error occurred');
     } finally {
       getStudentList();
       setIsSubmitting(false);
     }
   };
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     setexcelfile(file);
     setFileUploaded(true);
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
     reader.onload = (e) => {
-      const arrayBuffer = e.target.result;
+      const arrayBuffer = e.target?.result;
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      console.log(sheet);
 
       const rawData = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
-        raw: false, // Ensures dates are parsed as strings
-      });
-      console.log("Raw Data from Excel:", rawData);
+        raw: false,
+      }) as unknown[][];
 
       const requiredFields = [
         "name",
@@ -289,7 +336,9 @@ function StudentList() {
         "department",
       ];
 
-      const headers = rawData[0]?.map((header) => header.toLowerCase().trim());
+      const headers = rawData[0]?.map((header) =>
+        String(header).toLowerCase().trim()
+      );
       const missingFields = requiredFields.filter(
         (field) => !headers.includes(field)
       );
@@ -305,50 +354,47 @@ function StudentList() {
         return;
       }
 
-      const formattedData = rawData.slice(1).map((row) => {
-        const student = {};
-        headers.forEach((header, index) => {
+      const formattedData = rawData.slice(1).map((row: unknown[]) => {
+        const student: Record<string, unknown> = {};
+        headers.forEach((header: string, index: number) => {
           student[header] = row[index];
         });
 
-        if (student.dob && !isNaN(student.dob)) {
-          const excelDate = new Date((student.dob - 25569) * 86400 * 1000); 
+        if (student.dob && !isNaN(Number(student.dob))) {
+          const excelDate = new Date((Number(student.dob) - 25569) * 86400 * 1000);
           student.dob = excelDate.toISOString().split("T")[0];
         }
 
+        const toString = (val: unknown) => (val != null ? String(val) : null);
+        const toTrim = (val: unknown) => toString(val)?.trim() || null;
+
         return {
-          name: student.name?.trim() || null,
-          father_name: student.father_name?.trim() || null,
-          mother_name: student.mother_name?.trim() || null,
-          phone:
-            student.phone?.toString().replace(/\D/g, "").slice(-10) || null,
-          parent_phone:
-            student.parent_phone?.toString().replace(/\D/g, "").slice(-10) ||
-            null,
-          blood_group: student.blood_group?.trim() || null,
-          has_stipend:
-            student.has_stipend?.toString().toLowerCase() === "yes" || false,
-          address: student.address?.trim() || null,
+          name: toTrim(student.name),
+          father_name: toTrim(student.father_name),
+          mother_name: toTrim(student.mother_name),
+          phone: toString(student.phone)?.replace(/\D/g, "").slice(-10) || null,
+          parent_phone: toString(student.parent_phone)?.replace(/\D/g, "").slice(-10) || null,
+          blood_group: toTrim(student.blood_group),
+          has_stipend: toString(student.has_stipend)?.toLowerCase() === "yes" || false,
+          address: toTrim(student.address),
           dob: student.dob || null,
-          class: parseInt(student.class, 10) || null,
-          roll: parseInt(student.roll, 10) || null,
-          section: student.section?.toString().trim() || null,
-          department: student.department?.trim() || null,
+          class: parseInt(toString(student.class) || "0", 10) || null,
+          roll: parseInt(toString(student.roll) || "0", 10) || null,
+          section: toTrim(student.section),
+          department: toTrim(student.department),
         };
       });
 
-      console.log("Formatted Data:", formattedData);
       setJsonData(formattedData);
     };
     reader.onerror = () => {
       toast.error("Error reading the file. Please try again.");
     };
   };
-  const sendToBackend = async (e) => {
+  const sendToBackend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      console.log("Data being sent to backend:", jsonData);
       if (!jsonData || jsonData.length === 0) {
         toast.error("No data to upload. Please check your Excel file.");
         return;
@@ -366,14 +412,14 @@ function StudentList() {
       setexcelfile(null);
       setIsExcelUpload(false);
       setShowForm(false);
-      document.querySelector('input[name="excelFile"]').value = "";
+      const excelInput = document.querySelector(
+        'input[name="excelFile"]'
+      ) as HTMLInputElement;
+      if (excelInput) excelInput.value = "";
     } catch (err) {
-      console.error(
-        "Error adding student:",
-        err.response?.data?.message || err.message
-      );
+      const error = err as { response?: { data?: { message?: string } } };
       toast.error("Error adding student");
-      toast.error(err.response?.data?.message || "Failed to upload students.");
+      toast.error(error.response?.data?.message || "Failed to upload students.");
     } finally {
       getStudentList();
       setIsSubmitting(false);
@@ -381,7 +427,7 @@ function StudentList() {
   };
   const handleCancel = () => {
     setFileUploaded(false);
-    isExcelUpload && setJsonData(null);
+    if (isExcelUpload) setJsonData(null);
     setData({
       name: "",
       father_name: "",
@@ -399,45 +445,46 @@ function StudentList() {
       available: true,
     });
     setSelectedStudent(null);
-    isExcelUpload && (fileref.current.value = "");
-    isExcelUpload && setexcelfile(null);
-    isExcelUpload && setFileUploaded(false);
+    if (isExcelUpload && fileref.current) {
+      fileref.current.value = "";
+    }
+    if (isExcelUpload) setexcelfile(null);
+    if (isExcelUpload) setFileUploaded(false);
     setImage(null);
     setPreview(null);
     setShowForm(false);
-    isEditing && setIsEditing(false);
+    if (isEditing) setIsEditing(false);
   };
+
   const removeImage = async () => {
+    if (!selectedStudent) return;
     try {
       setImage(null);
       setPreview(null);
       const response = await axios.post(
         `/api/students/updateStudentImage/${selectedStudent.id}`,
-        {}, // No file is sent for removal
+        {},
         {
           headers: {
             "Content-Type": "multipart/form-data",
           },
         }
       );
-      console.log("Image removed response:", response.data);
       if (response.data.success) {
         toast.success("Image removed successfully.");
-        // handleEdit(response.data.data);
-        data.image = null;
+        setData({ ...data, image: undefined });
         setShowForm(false);
       } else {
         toast.error(response.data.error || "Failed to remove image.");
       }
     } catch (error) {
-      console.error("Error removing image:", error);
+      const err = error as { response?: { data?: { error?: string } } };
       toast.error(
-        error.response?.data?.error ||
-          "An error occurred while removing the image."
+        err.response?.data?.error ||
+        "An error occurred while removing the image."
       );
     }
     getStudentList();
-    // handleCancel();
   };
   return (
     <div className="max-w-6xl  mx-auto mt-10 px-4 sm:px-6 lg:px-8">
@@ -466,22 +513,20 @@ function StudentList() {
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
-                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${
-                    !isExcelUpload
+                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${!isExcelUpload
                       ? "bg-sky-500 text-white shadow-lg"
                       : "bg-accent hover:bg-gray-400 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Form
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
-                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${
-                    isExcelUpload
+                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${isExcelUpload
                       ? "bg-sky-500 text-white shadow-lg"
                       : "bg-accent hover:bg-gray-400 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Excel Upload
                 </button>
@@ -635,12 +680,12 @@ function StudentList() {
                       required
                       className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
                     />
-                    {data.class >= 9 && (
+                    {Number(data.class) >= 9 && (
                       <select
                         name="department"
                         onChange={handleChange}
-                        disabled={data.class < 9}
-                        required={data.class >= 9}
+                        disabled={Number(data.class) < 9}
+                        required={Number(data.class) >= 9}
                         value={data.department}
                         className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
                       >
@@ -725,7 +770,8 @@ function StudentList() {
                       name="excelFile"
                       accept=".xlsx, .xls"
                       onClick={(e) => {
-                        e.target.value = null;
+                        const target = e.target as HTMLInputElement;
+                        target.value = '';
                         setFileUploaded(false);
                         setJsonData(null);
                         setexcelfile(null);
@@ -739,7 +785,7 @@ function StudentList() {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-sky-500 "
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-sky-500"
                     >
                       <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
@@ -773,8 +819,9 @@ function StudentList() {
                         )}
                       </div>
                       <span className="text-gray-400 font-medium">
-                        {fileUploaded ? "File Uploaded" : "Upload Excel File"}
-                        {fileUploaded && `: ${excelfile.name}`}
+                        {fileUploaded
+                          ? `File Uploaded: ${excelfile?.name}`
+                          : "Upload Excel File"}
                       </span>
                       {!fileUploaded && (
                         <span className="text-sm text-gray-500">
@@ -839,7 +886,7 @@ function StudentList() {
           </select>
           <select
             value={year}
-            onChange={(e) => setYear(e.target.value)}
+            onChange={(e) => setYear(Number(e.target.value))}
             className="border border-gray-300 dark:bg-accent rounded-lg px-3 py-2 w-full"
           >
             {Array.from({ length: 3 }, (_, i) => (
@@ -868,9 +915,8 @@ function StudentList() {
                   ].map((header) => (
                     <th
                       key={header}
-                      className={`px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold uppercase tracking-wider ${
-                        header === "Actions" ? "text-right" : "text-left"
-                      }`}
+                      className={`px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold uppercase tracking-wider ${header === "Actions" ? "text-right" : "text-left"
+                        }`}
                     >
                       {header}
                     </th>
@@ -879,11 +925,13 @@ function StudentList() {
               </thead>
               <tbody className="divide-y divide-gray-200 overflow-y-auto">
                 {loading ? (
-                  <td colSpan="8" className="py-2">
-                    <div className="flex justify-center items-center w-full h-full">
-                      <Loading />
-                    </div>
-                  </td>
+                  <tr>
+                    <td colSpan={8} className="py-2">
+                      <div className="flex justify-center items-center w-full h-full">
+                        <Loading />
+                      </div>
+                    </td>
+                  </tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
                     <tr key={student.id}>
@@ -966,7 +1014,7 @@ function StudentList() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan={8}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
                       {errorMessage ||
@@ -979,7 +1027,7 @@ function StudentList() {
           </div>
         </div>
       </div>
-      {popup.visible && (
+      {popup.visible && popup.student && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
           <div className="bg-card w-full max-w-md sm:max-w-lg rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:px-6">
@@ -994,7 +1042,6 @@ function StudentList() {
                           alt="Student"
                           className="w-32 h-32 object-cover rounded-full"
                         />
-                        <p>{popup.student.image}</p>
                       </div>
                     )}
                     {Object.entries({
@@ -1036,7 +1083,6 @@ function StudentList() {
         </div>
       )}
 
-      {/* Excel Format Info Popup */}
       {showFormatInfo && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
           <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">

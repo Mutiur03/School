@@ -1,43 +1,67 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, type JSX } from "react";
+import axios, { isAxiosError } from "axios";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
 
+interface AdmissionResult {
+  id: number;
+  class_name: string;
+  admission_year: number;
+  merit_list: string | null;
+  waiting_list_1: string | null;
+  waiting_list_2: string | null;
+  created_at: string;
+}
+
+interface FormData {
+  class_name: string;
+  admission_year: number;
+  merit_list: File | string | null;
+  waiting_list_1: File | string | null;
+  waiting_list_2: File | string | null;
+}
+
+interface ListType {
+  key: keyof Pick<AdmissionResult, "merit_list" | "waiting_list_1" | "waiting_list_2">;
+  label: string;
+  color: string;
+}
+
 function AdmissionResult() {
-  const [results, setResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [activeTab, setActiveTab] = useState("6");
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [availableYears, setAvailableYears] = useState([]);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [formData, setFormData] = useState({
+  const [results, setResults] = useState<AdmissionResult[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("6");
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+  const [formData, setFormData] = useState<FormData>({
     class_name: "6",
     admission_year: new Date().getFullYear(),
     merit_list: null,
     waiting_list_1: null,
     waiting_list_2: null,
   });
-  function getCurrentYear(currentYear) {
-    const availableYears = [currentYear, currentYear - 1, currentYear - 2];
-    return availableYears;
-  }
 
-  const meritListRef = React.useRef();
-  const waitingList1Ref = React.useRef();
-  const waitingList2Ref = React.useRef();
+  const getCurrentYear = (currentYear: number): number[] => {
+    return [currentYear, currentYear - 1, currentYear - 2];
+  };
+
+  const meritListRef = React.useRef<HTMLInputElement>(null);
+  const waitingList1Ref = React.useRef<HTMLInputElement>(null);
+  const waitingList2Ref = React.useRef<HTMLInputElement>(null);
   const classes = ["6", "7", "8", "9"];
-  const listTypes = [
+  const listTypes: ListType[] = [
     { key: "merit_list", label: "1st Result List", color: "green" },
     { key: "waiting_list_1", label: "Waiting List 1", color: "yellow" },
     { key: "waiting_list_2", label: "Waiting List 2", color: "orange" },
   ];
-  const fetchAdmissionSettings = async () => {
+  const fetchAdmissionSettings = async (): Promise<void> => {
     try {
-      const res = await axios.get("/api/admission");
+      const res = await axios.get<{ admission_year: number }>("/api/admission");
       setFormData((prev) => ({
         ...prev,
         admission_year: res.data.admission_year,
@@ -49,15 +73,16 @@ function AdmissionResult() {
       console.error("Failed to fetch admission settings:", error);
     }
   };
+
   useEffect(() => {
     fetchAdmissionSettings();
     fetchResults();
   }, []);
 
-  const fetchResults = async () => {
+  const fetchResults = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await axios.get("/api/admission-result");
+      const response = await axios.get<AdmissionResult[]>("/api/admission-result");
       setResults(response.data);
     } catch (error) {
       console.error("Error fetching results:", error);
@@ -66,13 +91,15 @@ function AdmissionResult() {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       admission_year: currentYear,
     }));
-  }, [showForm]);
-  const handleFileChange = (e, fieldName) => {
+  }, [showForm, currentYear]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof FormData): void => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type !== "application/pdf") {
@@ -93,7 +120,7 @@ function AdmissionResult() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     const hasAnyFile =
       !!formData.merit_list ||
@@ -109,7 +136,7 @@ function AdmissionResult() {
 
     const submitData = new FormData();
     submitData.append("class_name", formData.class_name);
-    submitData.append("admission_year", formData.admission_year);
+    submitData.append("admission_year", formData.admission_year.toString());
 
     if (formData.merit_list) {
       submitData.append("merit_list", formData.merit_list);
@@ -137,16 +164,21 @@ function AdmissionResult() {
       fetchResults();
       setShowForm(false);
     } catch (error) {
-      console.error("Error submitting form:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to upload admission result"
-      );
+      if (isAxiosError(error)) {
+        console.error("Error submitting form:", error);
+        toast.error(
+          error.response?.data?.message || "Failed to upload admission result"
+        );
+      } else {
+        console.error("Error submitting form:", error);
+        toast.error("Failed to upload admission result");
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (result) => {
+  const handleEdit = (result: AdmissionResult): void => {
     setFormData({
       class_name: result.class_name,
       admission_year: result.admission_year,
@@ -160,7 +192,7 @@ function AdmissionResult() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number): Promise<void> => {
     if (!window.confirm("Are you sure you want to delete this result?")) {
       return;
     }
@@ -175,7 +207,7 @@ function AdmissionResult() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = (): void => {
     setFormData({
       class_name: "6",
       admission_year: new Date().getFullYear(),
@@ -187,7 +219,7 @@ function AdmissionResult() {
     setEditId(null);
   };
 
-  const getResultsByClass = (className) => {
+  const getResultsByClass = (className: string): AdmissionResult[] => {
     return results.filter(
       (result) =>
         result.class_name === className &&
@@ -195,7 +227,7 @@ function AdmissionResult() {
     );
   };
 
-  const getFileStatus = (fileUrl) => {
+  const getFileStatus = (fileUrl: string | null): JSX.Element => {
     return fileUrl ? (
       <div className="flex items-center gap-1 text-chart-4">
         <svg
@@ -258,7 +290,6 @@ function AdmissionResult() {
         )}
       </div>
 
-      {/* Form */}
       {showForm && (
         <div className="bg-card border border-border rounded-lg shadow mb-6">
           <div className="p-5 border-b border-border">
@@ -336,7 +367,6 @@ function AdmissionResult() {
                 </div>
               </div>
 
-              {/* File Uploads */}
               <div className="border-t border-border pt-4 mb-6">
                 <h3 className="text-lg font-semibold mb-2">Upload PDF Files</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -482,7 +512,6 @@ function AdmissionResult() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-4">
                 <button
                   type="submit"
@@ -547,7 +576,6 @@ function AdmissionResult() {
         </div>
       )}
 
-      {/* Results Display - Tabs by Class */}
       <div className="bg-card border border-border rounded-lg shadow">
         <div className="p-5 border-b border-border">
           <div className="flex justify-between items-center gap-4">
@@ -571,17 +599,15 @@ function AdmissionResult() {
           </div>
         </div>
         <div className="p-5">
-          {/* Tabs */}
           <div className="border-b border-border mb-6">
             <div className="flex">
               {classes.map((cls) => (
                 <button
                   key={cls}
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === cls
-                      ? "text-primary border-primary"
-                      : "text-muted-foreground border-transparent hover:text-foreground"
-                  }`}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === cls
+                    ? "text-primary border-primary"
+                    : "text-muted-foreground border-transparent hover:text-foreground"
+                    }`}
                   onClick={() => setActiveTab(cls)}
                 >
                   Class {cls}
@@ -590,7 +616,6 @@ function AdmissionResult() {
             </div>
           </div>
 
-          {/* Tab Content */}
           {isLoading ? (
             <div className="flex justify-center items-center py-10">
               <svg

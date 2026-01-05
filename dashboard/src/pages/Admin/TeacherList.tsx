@@ -1,20 +1,47 @@
 import axios from "axios";
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { Pencil,  Eye } from "lucide-react";
+import { Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 import Loading from "@/components/Loading";
+
+interface Teacher {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  designation: string;
+  subject: string;
+  available: boolean;
+  image?: string;
+}
+
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  designation: string;
+}
+
+interface PopupState {
+  visible: boolean;
+  type: string;
+  teacher: Teacher | null;
+}
+
 const TeacherList = () => {
-  const [teachers, setTeachers] = useState([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [popup, setPopup] = useState({
+  const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
     teacher: null,
   });
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     phone: "",
@@ -24,8 +51,8 @@ const TeacherList = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isloading, setIsLoading] = useState(false);
-  const [image, setImage] = useState(null);
-  const fileInputRef = useRef(null);
+  const [image, setImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const host = import.meta.env.VITE_BACKEND_URL;
   const fetchTeachers = async () => {
     setIsLoading(true);
@@ -35,7 +62,6 @@ const TeacherList = () => {
     } catch (error) {
       console.error("Error fetching teachers:", error);
     }
-
     setIsLoading(false);
   };
 
@@ -43,7 +69,7 @@ const TeacherList = () => {
     fetchTeachers();
   }, []);
 
-  const handleEdit = (teacher) => {
+  const handleEdit = (teacher: Teacher) => {
     setFormData({
       name: teacher.name || "",
       email: teacher.email || "",
@@ -51,14 +77,12 @@ const TeacherList = () => {
       address: teacher.address || "",
       designation: teacher.designation || "",
     });
-    console.log(teacher);
-
     setIsEditing(true);
     setShowForm(true);
-    setPopup({ visible: false, type: "", teacher }); // Hide any open popup
+    setPopup({ visible: false, type: "", teacher });
   };
 
-  const handleDelete = async (teacher) => {
+  const handleDelete = async (teacher: Teacher) => {
     try {
       await axios.delete(`/api/teachers/deleteTeacher/${teacher.id}`);
       toast.success("Teacher deleted successfully.");
@@ -83,14 +107,14 @@ const TeacherList = () => {
     )
     .sort((a, b) => a.id - b.id);
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       setImage(file);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
@@ -103,11 +127,11 @@ const TeacherList = () => {
           teacherData
         );
         if (image) {
-          const formData = new FormData();
-          formData.append("image", image);
+          const imageFormData = new FormData();
+          imageFormData.append("image", image);
           await axios.post(
             `/api/teachers/uploadImage/${popup.teacher.id}`,
-            formData,
+            imageFormData,
             {
               headers: {
                 "Content-Type": "multipart/form-data",
@@ -120,11 +144,11 @@ const TeacherList = () => {
           teachers: [teacherData],
         });
         if (image) {
-          const formData = new FormData();
-          formData.append("image", image);
+          const imageFormData = new FormData();
+          imageFormData.append("image", image);
           await axios.post(
             `/api/teachers/uploadImage/${response.data.data[0].id}`,
-            formData,
+            imageFormData,
             {
               headers: {
                 "Content-Type": "multipart/form-data",
@@ -167,24 +191,22 @@ const TeacherList = () => {
           <Button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
-            className={`px-4 py-2 rounded-md hover:bg-opacity-90`}
+            className="px-4 py-2 rounded-md hover:bg-opacity-90"
           >
             + Add Teacher
           </Button>
         )}
       </div>
       {showForm && (
-        <div
-          className={`flex justify-center bg-card rounded-lg mb-4 items-center max-w-6xl  `}
-        >
-          <div className={`w-full  p-6 rounded-lg shadow-md `}>
-            <h1 className={`text-2xl font-bold text-center mb-6 `}>
+        <div className="flex justify-center bg-card rounded-lg mb-4 items-center max-w-6xl">
+          <div className="w-full p-6 rounded-lg shadow-md">
+            <h1 className="text-2xl font-bold text-center mb-6">
               {isEditing ? "Edit Teacher" : "Add Teacher"}
             </h1>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4 md:gap-6 grid-cols-1">
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Name:
                   </label>
                   <input
@@ -195,12 +217,12 @@ const TeacherList = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className={`w-full px-3 py-2 dark:bg-accent  border rounded-md focus:outline-none focus:ring-2 `}
+                    className="w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2"
                     required
                   />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Email:
                   </label>
                   <input
@@ -211,32 +233,32 @@ const TeacherList = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
+                    className="w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2"
                     required
                   />
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4 md:gap-6 grid-cols-1">
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Phone:
                   </label>
                   <input
                     type="number"
                     name="phone"
                     placeholder="Enter teacher's phone number"
-                    maxLength="11"
+                    maxLength={11}
                     value={formData.phone}
                     onChange={(e) =>
                       setFormData({ ...formData, phone: e.target.value })
                     }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
+                    className="w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Home Town:
                   </label>
                   <input
@@ -247,14 +269,14 @@ const TeacherList = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
                     }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
+                    className="w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2"
                   />
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 md:gap-6 grid-cols-1">
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Designation:
                   </label>
                   <input
@@ -266,14 +288,13 @@ const TeacherList = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, designation: e.target.value })
                     }
-                    className={`w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2 `}
+                    className="w-full px-3 py-2 dark:bg-accent border rounded-md focus:outline-none focus:ring-2"
                   />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1 `}>
+                  <label className="block text-sm font-medium mb-1">
                     Profile Image:
                   </label>
-                  {/* hidden native file input */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -281,7 +302,6 @@ const TeacherList = () => {
                     onChange={handleImageUpload}
                     className="hidden"
                   />
-                  {/* If a new image is selected show preview */}
                   {image ? (
                     <div className="block mt-2">
                       <img
@@ -296,7 +316,7 @@ const TeacherList = () => {
                           onClick={() => {
                             setImage(null);
                             if (fileInputRef.current)
-                              fileInputRef.current.value = null;
+                              fileInputRef.current.value = "";
                           }}
                         >
                           Remove
@@ -332,7 +352,6 @@ const TeacherList = () => {
                       </div>
                     </div>
                   ) : (
-                    /* placeholder when no image exists */
                     <div
                       onClick={() =>
                         fileInputRef.current && fileInputRef.current.click()
@@ -359,12 +378,10 @@ const TeacherList = () => {
                     setIsEditing(false);
                     setFormData({
                       name: "",
-                      subject: "",
                       email: "",
                       phone: "",
                       address: "",
-                      dob: "",
-                      blood_group: "",
+                      designation: "",
                     });
                     setImage(null);
                   }}
@@ -375,7 +392,7 @@ const TeacherList = () => {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`py-2  font-medium rounded-md  focus:outline-none focus:ring-2 `}
+                  className="py-2 font-medium rounded-md focus:outline-none focus:ring-2"
                 >
                   Submit
                 </Button>
@@ -392,13 +409,13 @@ const TeacherList = () => {
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div className=" rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full border divide-y divide-gray-200">
             <thead className="bg-popover">
               <tr>
                 {["ID", "Name", "Email", "Actions"].map((header) => (
-                  <th key={header} className="  px-4 py-2 text-left">
+                  <th key={header} className="px-4 py-2 text-left">
                     {header}
                   </th>
                 ))}
@@ -407,7 +424,7 @@ const TeacherList = () => {
             <tbody className="divide-y divide-gray-200">
               {isloading ? (
                 <tr>
-                  <td colSpan="5" className="py-2">
+                  <td colSpan={5} className="py-2">
                     <div className="flex justify-center items-center w-full h-full">
                       <Loading />
                     </div>
@@ -415,11 +432,11 @@ const TeacherList = () => {
                 </tr>
               ) : filteredTeachers.length > 0 ? (
                 filteredTeachers.map((teacher) => (
-                  <tr key={teacher.id} className="">
-                    <td className=" px-4 py-2">{teacher.id}</td>
-                    <td className=" px-4 py-2">{teacher.name}</td>
-                    <td className=" px-4 py-2">{teacher.email}</td>
-                    <td className=" py-2 text-center space-x-4">
+                  <tr key={teacher.id}>
+                    <td className="px-4 py-2">{teacher.id}</td>
+                    <td className="px-4 py-2">{teacher.name}</td>
+                    <td className="px-4 py-2">{teacher.email}</td>
+                    <td className="py-2 text-center space-x-4">
                       <button
                         onClick={() =>
                           setPopup({ visible: true, type: "view", teacher })
@@ -444,7 +461,7 @@ const TeacherList = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan="5"
+                    colSpan={5}
                     className="border px-4 py-2 text-center text-gray-500"
                   >
                     No teachers found.
@@ -457,14 +474,13 @@ const TeacherList = () => {
       </div>
 
       {popup.visible && (
-        <div className="fixed inset-0 backdrop-blur-xl backdrop-filter  flex items-center justify-center z-50">
-          <div className=" p-6 rounded-lg shadow-lg w-96 bg-card max-h-[90vh] overflow-y-auto">
-            {popup.type === "view" && (
+        <div className="fixed inset-0 backdrop-blur-xl backdrop-filter flex items-center justify-center z-50">
+          <div className="p-6 rounded-lg shadow-lg w-96 bg-card max-h-[90vh] overflow-y-auto">
+            {popup.type === "view" && popup.teacher && (
               <>
                 <h2 className="text-xl font-bold">Teacher Info</h2>
                 {popup.teacher.image && (
                   <p className="flex justify-center items-center">
-                    {/* <strong>Profile Image:</strong> */}
                     <img
                       src={`${host}/${popup.teacher.image}`}
                       alt="Profile"
@@ -478,7 +494,6 @@ const TeacherList = () => {
                 <p>
                   <strong>Name:</strong> {popup.teacher.name}
                 </p>
-
                 <p>
                   <strong>Email:</strong> {popup.teacher.email}
                 </p>
@@ -488,14 +503,13 @@ const TeacherList = () => {
                 <p>
                   <strong>Address:</strong> {popup.teacher.address}
                 </p>
-
                 <p>
                   <strong>Designation:</strong> {popup.teacher.designation}
                 </p>
                 <div className="mt-4 text-right">
                   <Button
                     variant="outline"
-                    className=" px-4 py-2 rounded-lg"
+                    className="px-4 py-2 rounded-lg"
                     onClick={closePopup}
                   >
                     Close

@@ -1,40 +1,113 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 
+interface AdmissionData {
+  id: string | number;
+  status: string;
+  student_name_en: string;
+  student_name_bn?: string;
+  admission_class?: string;
+  section?: string;
+  class?: string;
+  admission_user_id?: string;
+  roll?: string;
+  serial_no?: string;
+  birth_reg_no?: string;
+  admission_year?: number | string;
+  prev_school_passing_year?: number | string;
+  year?: number | string;
+  submission_date?: string;
+  created_at?: string;
+  photo_path?: string;
+  list_type?: string;
+  student_nick_name_bn?: string;
+  registration_no?: string;
+  birth_date?: string;
+  blood_group?: string;
+  email?: string;
+  religion?: string;
+  present_village_road?: string;
+  present_post_office?: string;
+  present_post_code?: string;
+  present_upazila?: string;
+  present_district?: string;
+  permanent_village_road?: string;
+  permanent_post_office?: string;
+  permanent_post_code?: string;
+  permanent_upazila?: string;
+  permanent_district?: string;
+  guardian_name?: string;
+  guardian_relation?: string;
+  guardian_phone?: string;
+  guardian_nid?: string;
+  guardian_village_road?: string;
+  guardian_post_office?: string;
+  guardian_post_code?: string;
+  guardian_upazila?: string;
+  guardian_district?: string;
+  prev_school_name?: string;
+  prev_school_upazila?: string;
+  prev_school_district?: string;
+  section_in_prev_school?: string;
+  roll_in_prev_school?: string;
+  father_name_bn?: string;
+  father_name_en?: string;
+  father_nid?: string;
+  father_phone?: string;
+  mother_name_bn?: string;
+  mother_name_en?: string;
+  mother_nid?: string;
+  mother_phone?: string;
+  father_profession?: string;
+  mother_profession?: string;
+  parent_income?: string;
+  whatsapp_number?: string;
+  qouta?: string;
+}
+
+interface Filters {
+  status: string;
+  class: string;
+  admission_year: string;
+  search: string;
+  class_list?: string | string[];
+}
+
+interface EditFormData {
+  id?: string | number;
+  status?: string;
+  student_name_en?: string;
+  class?: string;
+  admission_user_id?: string;
+}
+
 function Admission() {
-  const [items, setItems] = useState([]);
-  
-  const [limit] = useState(20);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  
-  const [year, setYear] = useState("");
-  const [filters, setFilters] = useState({
+  const [items, setItems] = useState<AdmissionData[]>([]);
+  const [limit] = useState<number>(20);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [year, setYear] = useState<string>("");
+  const [filters, setFilters] = useState<Filters>({
     status: "all",
     class: "",
     admission_year: "",
     search: "",
   });
   const host = import.meta.env.VITE_BACKEND_URL;
-  const [showModal, setShowModal] = useState(false);
-  const [selectedAdmission, setSelectedAdmission] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({});
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteTargetAdmission, setDeleteTargetAdmission] = useState(null);
-  const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [selectedAdmission, setSelectedAdmission] = useState<AdmissionData | null>(null);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editFormData, setEditFormData] = useState<EditFormData>({});
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [deleteTargetAdmission, setDeleteTargetAdmission] = useState<AdmissionData | null>(null);
+  const [pdfDownloading, setPdfDownloading] = useState<boolean>(false);
+
   useEffect(() => {
     const controller = new AbortController();
     async function fetchPage() {
       setLoading(true);
       setError(null);
       try {
-        const q = new URLSearchParams();
-        
-        q.set("limit", limit);
-        
-        
         const res = await axios.get(`/api/admission/`);
         setFilters((prev) => ({ ...(prev || {}), ...(res.data || {}) }));
         setYear((res.data && res.data.admission_year) || "");
@@ -42,8 +115,9 @@ function Admission() {
         const json = resp.data;
         const data = json.data || [];
         setItems(data);
-      } catch (err) {
-        if (err.name !== "AbortError") setError(err.message || "Failed");
+      } catch (err: unknown) {
+        if ((err as { name?: string }).name !== "AbortError")
+          setError((err as Error).message || "Failed");
       } finally {
         setLoading(false);
       }
@@ -51,7 +125,8 @@ function Admission() {
     fetchPage();
     return () => controller.abort();
   }, [limit]);
-  function formatDate(d, includeTime = true) {
+
+  function formatDate(d: string | undefined, includeTime = true): string {
     if (!d) return "-";
     try {
       const dt = new Date(d);
@@ -71,6 +146,7 @@ function Admission() {
       return d;
     }
   }
+
   const filteredAdmissions = items.filter((r) => {
     if (!r) return false;
     if (
@@ -84,7 +160,7 @@ function Admission() {
       if (cls !== filters.class) return false;
     }
     if (filters.admission_year) {
-      let ay = r.admission_year || r.prev_school_passing_year || r.year || null;
+      let ay: number | string | null = r.admission_year || r.prev_school_passing_year || r.year || null;
       if (!ay) {
         const dateStr = r.submission_date || r.created_at || null;
         if (dateStr) {
@@ -111,20 +187,20 @@ function Admission() {
     }
     return true;
   });
+
   const yearStats = (() => {
-    const year =
-      filters.admission_year && String(filters.admission_year).trim();
+    const year = filters.admission_year && String(filters.admission_year).trim();
     const arr = items.filter((r) => {
       if (!year) return true;
-      let ay = r.admission_year || r.prev_school_passing_year || r.year || null;
+      let ay: number | string | null = r.admission_year || r.prev_school_passing_year || r.year || null;
       if (!ay) {
         const dateStr = r.submission_date || r.created_at || null;
         if (dateStr) {
           try {
             const d = new Date(dateStr);
             if (!isNaN(d.getTime())) ay = d.getFullYear();
-          } catch {
-            //
+          } catch (e) {
+            console.error(e);
           }
         }
       }
@@ -137,10 +213,11 @@ function Admission() {
       approved: arr.filter((d) => d && d.status === "approved").length,
     };
   })();
-  const formatQuota = (q) => {
+
+  const formatQuota = (q: string | undefined): string | null => {
     if (!q) return null;
     const key = String(q).trim();
-    const map = {
+    const map: Record<string, string> = {
       "(GEN)": "সাধারণ (GEN)",
       "(DIS)": "বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)",
       "(FF)": "মুক্তিযোদ্ধার সন্তান (FF)",
@@ -152,22 +229,23 @@ function Admission() {
       "(Govt. Transfer)": "সরকারি বদলি (Govt. Transfer)",
     };
 
-    if (map[key]) return map[key];
+    if (key in map) return map[key];
 
     const normalized = key.replace(/\s+/g, " ").trim();
-    if (map[normalized]) return map[normalized];
+    if (normalized in map) return map[normalized];
 
     const noParens = normalized.replace(/[()]/g, "").trim();
     const withParens = `(${noParens})`;
-    if (map[withParens]) return map[withParens];
+    if (withParens in map) return map[withParens];
 
     return normalized;
   };
 
-  const formatParentIncome = (p) => {
+
+  const formatParentIncome = (p: string | undefined): string | null => {
     if (!p) return null;
     const key = String(p).trim();
-    const map = {
+    const map: Record<string, string> = {
       below_50000: "0 - 50,000",
       "50000_100000": "50,000 - 100,000",
       "100001_200000": "100,001 - 200,000",
@@ -180,7 +258,8 @@ function Admission() {
       .replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
     return fallback;
   };
-  function getStatusBadge(st) {
+
+  function getStatusBadge(st: string) {
     return (
       <span
         className={
@@ -188,10 +267,10 @@ function Admission() {
           (st === "approved"
             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40"
             : st === "pending"
-            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30"
-            : st === "rejected"
-            ? "bg-red-100 text-red-800 dark:bg-red-900/30"
-            : "bg-gray-200 text-gray-800 dark:bg-slate-700/30")
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30"
+              : st === "rejected"
+                ? "bg-red-100 text-red-800 dark:bg-red-900/30"
+                : "bg-gray-200 text-gray-800 dark:bg-slate-700/30")
         }
       >
         {st || "unknown"}
@@ -262,26 +341,26 @@ function Admission() {
     })();
   }
 
-  function handleViewDetails(id) {
+  function handleViewDetails(id: string | number) {
     const admission = items.find((x) => x.id === id);
     setSelectedAdmission(admission || null);
     setShowModal(true);
   }
 
-  function handleEdit(id) {
+  function handleEdit(id: string | number) {
     const admission = items.find((x) => x.id === id);
     setEditFormData(
       admission
         ? {
-            id: admission.id,
-            status: admission.status,
-            student_name_en: admission.student_name_en,
-            class: admission.admission_class || admission.section,
-            admission_user_id:
-              admission.admission_user_id ||
-              admission.roll ||
-              admission.serial_no,
-          }
+          id: admission.id,
+          status: admission.status,
+          student_name_en: admission.student_name_en,
+          class: admission.admission_class || admission.section,
+          admission_user_id:
+            admission.admission_user_id ||
+            admission.roll ||
+            admission.serial_no,
+        }
         : {}
     );
     setShowEditModal(true);
@@ -297,12 +376,12 @@ function Admission() {
       setItems((prev) =>
         prev.map((it) =>
           it.id === editFormData.id
-            ? { ...it, status: editFormData.status }
+            ? { ...it, status: editFormData.status || it.status }
             : it
         )
       );
       setShowEditModal(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Failed to update status");
     } finally {
@@ -310,19 +389,19 @@ function Admission() {
     }
   }
 
-  function confirmDelete(admission) {
+  function confirmDelete(admission: AdmissionData) {
     setDeleteTargetAdmission(admission);
     setShowDeleteModal(true);
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(id: string | number) {
     try {
       setLoading(true);
       await axios.delete(`/api/admission/form/${id}`);
       setItems((prev) => prev.filter((it) => it.id !== id));
       setShowDeleteModal(false);
       setDeleteTargetAdmission(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Failed to delete admission");
     } finally {
@@ -426,7 +505,7 @@ function Admission() {
             >
               {(() => {
                 const raw = filters.class_list || "";
-                let formList = [];
+                let formList: string[] = [];
 
                 if (Array.isArray(raw)) {
                   formList = raw;
@@ -450,7 +529,7 @@ function Admission() {
                           .filter(Boolean);
                         return cols.length ? cols[0] : null;
                       })
-                      .filter(Boolean);
+                      .filter((item): item is string => item !== null);
                   }
                 }
                 formList = Array.from(new Set(formList));
@@ -474,20 +553,19 @@ function Admission() {
 
                     {allList.filter((c) => !formList.includes(c)).length >
                       0 && (
-                      <optgroup
-                        label={`Other classes (${
-                          allList.filter((c) => !formList.includes(c)).length
-                        })`}
-                      >
-                        {allList
-                          .filter((c) => !formList.includes(c))
-                          .map((cls) => (
-                            <option key={`all-${cls}`} value={cls}>
-                              {cls}
-                            </option>
-                          ))}
-                      </optgroup>
-                    )}
+                        <optgroup
+                          label={`Other classes (${allList.filter((c) => !formList.includes(c)).length
+                            })`}
+                        >
+                          {allList
+                            .filter((c) => !formList.includes(c))
+                            .map((cls) => (
+                              <option key={`all-${cls}`} value={cls}>
+                                {cls}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
                   </>
                 );
               })()}
@@ -667,7 +745,7 @@ function Admission() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-300"></div>
                     </div>
@@ -676,7 +754,7 @@ function Admission() {
               ) : filteredAdmissions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan={6}
                     className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
                   >
                     No admissions found
@@ -759,12 +837,11 @@ function Admission() {
         </div>
       </div>
 
-      {/* View Modal */}
       {showModal && selectedAdmission && (
         <div
           className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={(e) => {
-            
+
             if (e.target === e.currentTarget) setShowModal(false);
           }}
         >
@@ -819,7 +896,7 @@ function Admission() {
                     <tbody>
                       <tr>
                         <td
-                          colSpan="2"
+                          colSpan={2}
                           className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
                         >
                           ভর্তি তথ্য (Admission Information)
@@ -878,7 +955,7 @@ function Admission() {
 
                       <tr>
                         <td
-                          colSpan="2"
+                          colSpan={2}
                           className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
                         >
                           ব্যক্তিগত তথ্য (Personal Information)
@@ -941,7 +1018,7 @@ function Admission() {
                         <td className="py-2 px-4">
                           {selectedAdmission.birth_date ? (
                             (() => {
-                              const formatDateLong = (dateStr) => {
+                              const formatDateLong = (dateStr: string) => {
                                 if (!dateStr) return "";
                                 let d, m, y;
                                 if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
@@ -1004,7 +1081,7 @@ function Admission() {
 
                       <tr>
                         <td
-                          colSpan="2"
+                          colSpan={2}
                           className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
                         >
                           অবস্থান (Address)
@@ -1071,7 +1148,7 @@ function Admission() {
 
                       <tr>
                         <td
-                          colSpan="2"
+                          colSpan={2}
                           className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
                         >
                           অভিভাবক / পূর্বের স্কুল (Guardian / Previous School)
@@ -1299,8 +1376,8 @@ function Admission() {
                           {formatParentIncome(
                             selectedAdmission.parent_income
                           ) || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
+                              <span className="text-gray-400">Not provided</span>
+                            )}
                         </td>
                       </tr>
                       <tr>
@@ -1383,7 +1460,6 @@ function Admission() {
         </div>
       )}
 
-      {/* Edit Modal */}
       {showEditModal && (
         <div
           className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
@@ -1448,7 +1524,6 @@ function Admission() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && deleteTargetAdmission && (
         <div
           className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"

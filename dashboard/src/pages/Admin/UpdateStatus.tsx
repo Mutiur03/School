@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
+interface Student {
+  id: string;
+  name: string;
+  class: number;
+  section: string;
+  department: string;
+  status: "Passed" | "Failed" | "Pending";
+  fail_count: number;
+}
+
 function UpdateStatus() {
-  const [students, setStudents] = useState([]);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [classSection, setClassSection] = useState("");
-  const [department, setDepartment] = useState("");
-  const [selectedClass, setSelectedClass] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [classSection, setClassSection] = useState<string>("");
+  const [department, setDepartment] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>("");
 
   const getStudentList = async () => {
     try {
@@ -16,8 +26,7 @@ function UpdateStatus() {
         setErrorMessage("Year is required to fetch students.");
         return;
       }
-      const response = await axios.get(`/api/students/getStudents/${year}`);
-      console.log(response.data.data);
+      const response = await axios.get<{ data: Student[] }>(`/api/students/getStudents/${year}`);
       const filteredStudents = (response.data.data || []).filter(
         (student) => student.class >= 1 && student.class <= 10
       );
@@ -29,9 +38,8 @@ function UpdateStatus() {
       setStudents(filteredStudents);
     } catch (error) {
       setStudents([]);
-      if (error.response && error.response.status === 404) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         setErrorMessage("No students found for the selected year.");
-        console.log(error);
         return;
       }
       setErrorMessage("An error occurred while fetching students.");
@@ -42,13 +50,13 @@ function UpdateStatus() {
     getStudentList();
   }, [year]);
 
-  const handleStatusChange = async (studentId, newStatus) => {
+  const handleStatusChange = async (studentId: string, newStatus: Student["status"]) => {
     if (!newStatus) {
       toast.error("Status cannot be empty.");
       return;
     }
     try {
-      await axios.put(`/api/promotion/updateStatus`, {
+      await axios.put("/api/promotion/updateStatus", {
         id: studentId,
         status: newStatus,
       });
@@ -82,7 +90,7 @@ function UpdateStatus() {
             id="year"
             type="number"
             value={year}
-            onChange={(e) => setYear(e.target.value)}
+            onChange={(e) => setYear(Number(e.target.value))}
             className="p-2 border border-gray-300 rounded-md dark:bg-accent w-full"
           />
         </div>
@@ -123,7 +131,7 @@ function UpdateStatus() {
             ))}
           </select>
         </div>
-        {selectedClass > 8 && (
+        {parseInt(selectedClass) > 8 && (
           <div>
             <label htmlFor="department" className="block font-medium mb-1">
               Department:
@@ -152,25 +160,21 @@ function UpdateStatus() {
         <div className="overflow-x-auto">
           <table className="min-w-full border divide-y divide-gray-200">
             <thead className="bg-popover">
-              <tr className="">
-                <th className=" p-3 text-left">Name</th>
-                <th className="  p-3 text-left">Status</th>
-                <th className="  p-3 text-left">
-                  Fail Count
-                </th>
-                <th className="p-3 text-left">
-                  Change Status
-                </th>
+              <tr>
+                <th className="p-3 text-left">Name</th>
+                <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Fail Count</th>
+                <th className="p-3 text-left">Change Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
-                  <tr key={student.id} className="">
-                    <td className=" p-3">
+                  <tr key={student.id}>
+                    <td className="p-3">
                       {student.name || "N/A"}
                     </td>
-                    <td className=" p-3">
+                    <td className="p-3">
                       {student.status === "Passed" && (
                         <span className="text-green-600 font-bold">
                           ✔ Passed
@@ -185,16 +189,16 @@ function UpdateStatus() {
                         </span>
                       )}
                     </td>
-                    <td className=" p-3">
+                    <td className="p-3">
                       {student.fail_count || 0}
                     </td>
                     <td className="p-3">
                       <select
                         value={student.status || ""}
                         onChange={(e) =>
-                          handleStatusChange(student.id, e.target.value)
+                          handleStatusChange(student.id, e.target.value as Student["status"])
                         }
-                        className="p-2 border border-gray-300 rounded-md dark:bg-accent "
+                        className="p-2 border border-gray-300 rounded-md dark:bg-accent"
                       >
                         <option value="">Select Status</option>
                         <option value="Passed">Passed</option>
@@ -206,10 +210,7 @@ function UpdateStatus() {
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan="4"
-                    className="p-3 text-center text-gray-500"
-                  >
+                  <td colSpan={4} className="p-3 text-center text-gray-500">
                     No students available.
                   </td>
                 </tr>

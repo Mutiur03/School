@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import toast from "react-hot-toast";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import {
   FiChevronLeft,
   FiChevronRight,
@@ -19,72 +19,109 @@ import {
   FiCalendar,
   FiTag,
   FiEdit3,
+  FiChevronDown,
+  FiChevronUp,
   FiTrash2,
 } from "react-icons/fi";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+
+interface Event {
+  id: number;
+  title: string;
+}
+
+interface Category {
+  id: number;
+  category: string;
+}
+
+interface GalleryImage {
+  id: number;
+  image_path: string;
+  caption: string;
+  category: string;
+  category_id?: number;
+  event_id?: number;
+  student_name?: string;
+  student_batch?: string;
+}
+
+interface GalleryData {
+  events: Record<string, GalleryImage[]>;
+  categories: Record<string, GalleryImage[]>;
+}
+
+interface FormValues {
+  category: string | number;
+  eventId: string | number;
+  caption: string;
+  image: string | null;
+}
 
 export default function Gallery() {
-  const [files, setFiles] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [galleryData, setGalleryData] = useState(null);
-  const [selectedGroup, setSelectedGroup] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const [direction, setDirection] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const fileref = useRef(null);
-  const [categories, setCategories] = useState([]);
-  const [formValues, setFormValues] = useState({
+  const [files, setFiles] = useState<File[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [galleryData, setGalleryData] = useState<GalleryData | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<GalleryImage[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [direction, setDirection] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const fileref = useRef<HTMLInputElement>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [formValues, setFormValues] = useState<FormValues>({
     category: "",
     eventId: "",
     caption: "",
     image: null,
   });
-  const [foldedCategories, setFoldedCategories] = useState({});
-  const host = import.meta.env.VITE_BACKEND_URL;
-  const modalVariants = {
-    enter: (dir) => ({
+  const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
+  const host = import.meta.env.VITE_BACKEND_URL as string;
+
+  const modalVariants: Variants = {
+    enter: (dir: number) => ({
       x: dir > 0 ? 500 : -500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
     }),
     center: {
       x: 0,
       opacity: 1,
-      position: "relative",
+      position: "relative" as const,
       transition: {
-        x: { type: "spring", stiffness: 400, damping: 30 },
+        x: { type: "spring" as const, stiffness: 400, damping: 30 },
         opacity: { duration: 0.3 },
       },
     },
-    exit: (dir) => ({
+    exit: (dir: number) => ({
       x: dir > 0 ? -500 : 500,
       opacity: 0,
-      position: "absolute",
+      position: "absolute" as const,
       transition: {
-        x: { type: "spring", stiffness: 400, damping: 30 },
+        x: { type: "spring" as const, stiffness: 400, damping: 30 },
         opacity: { duration: 0.2 },
       },
     }),
   };
-  const cardVariants = {
+
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.4, ease: "easeOut" },
+      transition: { duration: 0.4, ease: "easeOut" as const },
     },
   };
-  const foldVariants = {
+
+  const foldVariants: Variants = {
     open: {
       opacity: 1,
       height: "auto",
       transition: {
-        height: { duration: 0.3, ease: "easeInOut" },
+        height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
         opacity: { duration: 0.2, delay: 0.1 },
       },
     },
@@ -92,28 +129,27 @@ export default function Gallery() {
       opacity: 0,
       height: 0,
       transition: {
-        height: { duration: 0.3, ease: "easeInOut" },
+        height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
         opacity: { duration: 0.1 },
       },
     },
   };
+
   const fetchEvents = async () => {
     try {
-      const response = await axios.get("/api/events/getEvents");
+      const response = await axios.get<Event[]>("/api/events/getEvents");
       setEvents(response.data || []);
     } catch (error) {
       console.error("Error fetching events:", error);
-      // toast.error("Failed to load events");
     }
   };
+
   const fetchGallery = async () => {
     try {
-      const res = await axios.get("/api/gallery/getGalleries");
-      console.log(res.data);
+      const res = await axios.get<GalleryData>("/api/gallery/getGalleries");
       setGalleryData(res.data);
     } catch (err) {
       console.error("Error fetching gallery:", err);
-      // toast.error("Failed to load gallery");
     } finally {
       setIsLoading(false);
     }
@@ -121,19 +157,20 @@ export default function Gallery() {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get("/api/gallery/getCategories");
+      const response = await axios.get<Category[]>("/api/gallery/getCategories");
       setCategories(response.data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      // toast.error("Failed to load categories");
     }
   };
+
   useEffect(() => {
     fetchCategories();
     fetchEvents();
     fetchGallery();
   }, []);
-  const handleFileChange = (e) => {
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       const validFiles = filesArray.filter((file) => {
@@ -150,6 +187,7 @@ export default function Gallery() {
       setFiles(validFiles);
     }
   };
+
   const resetForm = () => {
     setFormValues({
       category: "",
@@ -159,13 +197,14 @@ export default function Gallery() {
     });
     setFiles([]);
     if (fileref.current) {
-      fileref.current.value = null;
+      fileref.current.value = "";
     }
     setIsEditing(false);
     setEditId(null);
     setShowForm(false);
   };
-  const handleSubmit = async (e) => {
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isEditing) {
       await handleUpdate();
@@ -173,7 +212,8 @@ export default function Gallery() {
       await handleUpload(e);
     }
   };
-  const handleUpload = async (e) => {
+
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     if (!files.length && !isEditing) {
       toast.error("Please select at least one image");
       return;
@@ -186,10 +226,10 @@ export default function Gallery() {
       toast.error("Please select an event for event category");
       return;
     }
+
     const form = e.currentTarget;
     const formData = new FormData(form);
     formData.append("status", "approved");
-    console.log(...formData.entries());
 
     try {
       setUploadProgress(0);
@@ -199,7 +239,7 @@ export default function Gallery() {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
+            (progressEvent.loaded * 100) / (progressEvent.total || 100)
           );
           setUploadProgress(percentCompleted);
         },
@@ -218,6 +258,7 @@ export default function Gallery() {
       toast.error("Failed to upload images");
     }
   };
+
   const handleUpdate = async () => {
     if (!formValues.category && !formValues.eventId) {
       toast.error("Please select either a category or an event");
@@ -227,6 +268,7 @@ export default function Gallery() {
       toast.error("Please select an event for event category");
       return;
     }
+
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("images", file);
@@ -234,12 +276,12 @@ export default function Gallery() {
     formData.append("caption", formValues.caption);
     formData.append("status", "approved");
     if (formValues.eventId) {
-      formData.append("eventId", formValues.eventId);
-      formData.append("category", 1);
+      formData.append("eventId", formValues.eventId.toString());
+      formData.append("category", "1");
     } else {
-      formData.append("category", formValues.category);
+      formData.append("category", formValues.category.toString());
     }
-    console.log(...formData.entries());
+
     try {
       setUploadProgress(0);
       await axios.put(`/api/gallery/updateGallery/${editId}`, formData, {
@@ -248,13 +290,12 @@ export default function Gallery() {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
+            (progressEvent.loaded * 100) / (progressEvent.total || 100)
           );
           setUploadProgress(percentCompleted);
         },
       });
       toast.success("Image updated successfully!");
-      // Inform user that backend processing may take some time
       toast(
         "Note: Changes may take a few moments to appear while the backend finishes processing.",
         { icon: "⏳" }
@@ -268,7 +309,8 @@ export default function Gallery() {
       toast.error("Failed to update image");
     }
   };
-  const handleReject = async (id) => {
+
+  const handleReject = async (id: number) => {
     try {
       await axios.patch(`/api/gallery/reject/${id}`);
       toast.success("Image rejected successfully!");
@@ -278,16 +320,14 @@ export default function Gallery() {
       toast.error("Failed to reject image");
     }
   };
-  const handleActionComplete = (processedId) => {
-    // Refetch the latest pending images
+
+  const handleActionComplete = (processedId: number) => {
     fetchGallery().then(() => {
-      // Find the next image to show
       const currentGroupIndex = selectedGroup.findIndex(
         (img) => img.id === processedId
       );
-      let nextIndex = null;
+      let nextIndex: number | null = null;
 
-      // Try to find next image in current group
       if (currentGroupIndex !== -1) {
         if (currentGroupIndex < selectedGroup.length - 1) {
           nextIndex = currentGroupIndex;
@@ -302,13 +342,13 @@ export default function Gallery() {
           prev.filter((img) => img.id !== processedId)
         );
       } else {
-        // No more images in this group, close the dialog
         setSelectedGroup([]);
         setCurrentIndex(null);
       }
     });
   };
-  const handleRejectAll = async (images) => {
+
+  const handleRejectAll = async (images: GalleryImage[]) => {
     if (
       !window.confirm(
         `Are you sure you want to delete all ${images.length} images?`
@@ -319,22 +359,21 @@ export default function Gallery() {
     try {
       const ids = images.map((img) => img.id);
       await axios.post("/api/gallery/rejectMultiple", { ids });
-
       toast.success(`Deleted ${images.length} images successfully!`);
-      fetchGallery(); // Refresh the list
+      fetchGallery();
     } catch (error) {
       console.error("Error deleting images:", error);
       toast.error("Failed to delete images");
     }
   };
-  const handleCategoryDelete = async (category_id) => {
-    console.log(category_id);
+
+  const handleCategoryDelete = async (category_id: number) => {
     if (!window.confirm("Are you sure you want to delete this category?"))
       return;
+
     try {
       await axios.delete(`/api/gallery/deleteCategoryGallery/${category_id}`);
       toast.success("Images deleted successfully!");
-      //It will just update status to rejected
       resetForm();
       fetchGallery();
     } catch (error) {
@@ -343,8 +382,7 @@ export default function Gallery() {
     }
   };
 
-  const handleThumbnailChange = async (id) => {
-    console.log(id, selectedGroup);
+  const handleThumbnailChange = async (id: number) => {
     if (selectedGroup[0].event_id) {
       try {
         await axios.put(
@@ -366,17 +404,9 @@ export default function Gallery() {
         toast.error("Failed to change thumbnail");
       }
     }
-    // try {
-    //   await axios.patch(`/api/gallery/setThumbnail/${id}`);
-    //   toast.success("Thumbnail changed successfully!");
-    //   fetchGallery();
-    // } catch (error) {
-    //   console.error("Error changing thumbnail:", error);
-    //   toast.error("Failed to change thumbnail");
-    // }
   };
 
-  const renderImageGroup = (title, images = []) => {
+  const renderImageGroup = (title: string, images: GalleryImage[] = []) => {
     const isFolded = foldedCategories[title] || false;
     const groupKey = images[0]?.event_id || images[0]?.category_id || title;
 
@@ -390,7 +420,6 @@ export default function Gallery() {
               [title]: !prev[title],
             }))
           }
-          // whileTap={{ scale: 0.98 }}
         >
           <div className="flex items-center gap-4">
             <motion.div
@@ -409,9 +438,11 @@ export default function Gallery() {
             <FiTrash2
               onClick={(e) => {
                 e.stopPropagation();
-                images[0].event_id
-                  ? handleRejectAll(images)
-                  : handleCategoryDelete(images[0].category_id);
+                if (images[0].event_id) {
+                  handleRejectAll(images);
+                } else {
+                  handleCategoryDelete(images[0].category_id!);
+                }
               }}
               className="text-red-500 hover:text-red-700 transition-colors cursor-pointer"
             />
@@ -466,6 +497,7 @@ export default function Gallery() {
       </div>
     );
   };
+
   const renderSkeletonLoader = () => (
     <div className="space-y-12">
       {[...Array(4)].map((_, i) => (
@@ -480,6 +512,7 @@ export default function Gallery() {
       ))}
     </div>
   );
+
   return (
     <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -497,7 +530,7 @@ export default function Gallery() {
                 const currentlyFolded =
                   Object.values(foldedCategories).filter(Boolean).length;
                 if (currentlyFolded < totalCategories) {
-                  const allFolded = {};
+                  const allFolded: Record<string, boolean> = {};
                   [
                     ...Object.keys(galleryData.events),
                     ...Object.keys(galleryData.categories),
@@ -511,7 +544,7 @@ export default function Gallery() {
               }}
             >
               {Object.values(foldedCategories).length > 0 &&
-              Object.values(foldedCategories).every((v) => v) ? (
+                Object.values(foldedCategories).every((v) => v) ? (
                 <>
                   <FiChevronDown className="transition-transform" />
                   <span className="hidden sm:inline">Show All</span>
@@ -625,7 +658,7 @@ export default function Gallery() {
                         setFormValues({
                           ...formValues,
                           eventId: e.target.value,
-                          category: e.target.value ? 1 : "",
+                          category: e.target.value ? "1" : "",
                         });
                       }}
                       className="w-full dark:bg-accent border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base"
@@ -654,7 +687,7 @@ export default function Gallery() {
                           ...formValues,
                           category: e.target.value,
                           eventId:
-                            e.target.value === 1 ? formValues.eventId : "",
+                            e.target.value === "1" ? formValues.eventId : "",
                         })
                       }
                       className="w-full border dark:bg-accent rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base"
@@ -699,8 +732,8 @@ export default function Gallery() {
                     {isEditing
                       ? "Update Image"
                       : uploadProgress > 0 && uploadProgress < 100
-                      ? "Uploading..."
-                      : "Upload Images"}
+                        ? "Uploading..."
+                        : "Upload Images"}
                   </Button>
                 </div>
               </form>
@@ -724,7 +757,7 @@ export default function Gallery() {
                 Event Galleries
               </h1>
               {galleryData.events &&
-              Object.keys(galleryData.events).length > 0 ? (
+                Object.keys(galleryData.events).length > 0 ? (
                 Object.entries(galleryData.events).map(([title, images]) =>
                   renderImageGroup(title, images)
                 )
@@ -745,7 +778,7 @@ export default function Gallery() {
                 Category Galleries
               </h1>
               {galleryData.categories &&
-              Object.keys(galleryData.categories).length > 0 ? (
+                Object.keys(galleryData.categories).length > 0 ? (
                 Object.entries(galleryData.categories).map(([title, images]) =>
                   renderImageGroup(title, images)
                 )
@@ -782,7 +815,7 @@ export default function Gallery() {
                       onClick={() => {
                         setDirection(-1);
                         setCurrentIndex((prev) =>
-                          prev === 0 ? selectedGroup.length - 1 : prev - 1
+                          prev === 0 ? selectedGroup.length - 1 : prev! - 1
                         );
                       }}
                     >
@@ -793,7 +826,7 @@ export default function Gallery() {
                       onClick={() => {
                         setDirection(1);
                         setCurrentIndex((prev) =>
-                          prev === selectedGroup.length - 1 ? 0 : prev + 1
+                          prev === selectedGroup.length - 1 ? 0 : prev! + 1
                         );
                       }}
                     >
@@ -827,7 +860,7 @@ export default function Gallery() {
                     setCurrentIndex(null);
                     setDirection(0);
                     setShowForm(true);
-                    window.scrollTo(0, 0, { behavior: "smooth" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 >
                   <FiEdit3 size={20} />
@@ -855,10 +888,6 @@ export default function Gallery() {
                           />
                         </div>
                         <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
-                          {/* <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-                            {selectedGroup[currentIndex].caption &&
-                              selectedGroup[currentIndex].caption}
-                          </h3> */}
                           <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
@@ -889,21 +918,11 @@ export default function Gallery() {
                                 Set as Thumbnail
                               </button>
                             </div>
-                            {/* <div>
-                              <FiTrash2
-                                size={20}
-                                onClick={() =>
-                                  handleReject(selectedGroup[currentIndex].id)
-                                }
-                              />
-                            </div> */}
                             <DeleteConfirmationIcon
                               onDelete={() =>
                                 handleReject(selectedGroup[currentIndex].id)
                               }
-                              msg={
-                                "Are you sure you want to reject this image?"
-                              }
+                              msg="Are you sure you want to reject this image?"
                             />
                           </div>
                         </div>
@@ -917,14 +936,13 @@ export default function Gallery() {
                       <button
                         key={idx}
                         onClick={() => {
-                          setDirection(idx > currentIndex ? 1 : -1);
+                          setDirection(idx > currentIndex! ? 1 : -1);
                           setCurrentIndex(idx);
                         }}
-                        className={`w-3 h-3 rounded-full transition-all ${
-                          idx === currentIndex
-                            ? "bg-primary w-6"
-                            : "bg-white/50 hover:bg-white/80"
-                        }`}
+                        className={`w-3 h-3 rounded-full transition-all ${idx === currentIndex
+                          ? "bg-primary w-6"
+                          : "bg-white/50 hover:bg-white/80"
+                          }`}
                         aria-label={`Go to image ${idx + 1}`}
                       />
                     ))}

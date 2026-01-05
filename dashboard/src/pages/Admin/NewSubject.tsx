@@ -1,15 +1,57 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import axios, { AxiosError } from "axios";
 import { toast } from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 import Loading from "@/components/Loading";
-function NewSubject() {
-  const [teachers, setTeachers] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [formData, setFormData] = useState({
+
+interface Teacher {
+  id: number;
+  name: string;
+}
+
+interface Subject {
+  id: number;
+  name: string;
+  class: number;
+  full_mark: number;
+  pass_mark: number;
+  cq_mark?: number;
+  mcq_mark?: number;
+  practical_mark?: number;
+  cq_pass_mark?: number;
+  mcq_pass_mark?: number;
+  practical_pass_mark?: number;
+  department: string;
+  year: number;
+  teacher_id: number;
+  created_at: string;
+}
+
+interface FormData {
+  id: number | null;
+  name: string;
+  class: string;
+  full_mark: string;
+  pass_mark: string;
+  cq_mark: string;
+  mcq_mark: string;
+  practical_mark: string;
+  cq_pass_mark: string;
+  mcq_pass_mark: string;
+  practical_pass_mark: string;
+  department: string;
+  year: number;
+  teacher_id: string;
+}
+
+const NewSubject: React.FC = () => {
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [formData, setFormData] = useState<FormData>({
     id: null,
     name: "",
     class: "",
@@ -25,260 +67,55 @@ function NewSubject() {
     year: new Date().getFullYear(),
     teacher_id: "",
   });
-  const [uploadMethod, setUploadMethod] = useState("form");
-  const [jsonData, setJsonData] = useState(null);
-  const [fileUploaded, setFileUploaded] = useState(false);
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [showFormatInfo, setShowFormatInfo] = useState(false);
-  const [showSubjectDetails, setShowSubjectDetails] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const excelFileRef = React.useRef(null);
+  const [uploadMethod, setUploadMethod] = useState<"form" | "file">("form");
+  const [jsonData, setJsonData] = useState<Subject[] | null>(null);
+  const [fileUploaded, setFileUploaded] = useState<boolean>(false);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const [showFormatInfo, setShowFormatInfo] = useState<boolean>(false);
+  const [showSubjectDetails, setShowSubjectDetails] = useState<boolean>(false);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const excelFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     fetchTeachers();
     fetchSubjects();
   }, []);
 
-  const fetchTeachers = async () => {
-    await axios
-      .get("/api/teachers/getTeachers")
-      .then((response) => setTeachers(response.data.data))
-      .catch((error) => console.error("Error fetching teachers:", error));
+  const fetchTeachers = async (): Promise<void> => {
+    try {
+      const response = await axios.get("/api/teachers/getTeachers");
+      setTeachers(response.data.data);
+    } catch {
+      toast.error("Error fetching teachers");
+    }
   };
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = async (): Promise<void> => {
     setIsLoading(true);
-    await axios
-      .get("/api/sub/getSubjects")
-      .then((response) => {
-        setSubjects(response.data.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching subjects:", error);
-      });
+    try {
+      const response = await axios.get("/api/sub/getSubjects");
+      setSubjects(response.data.data);
+    } catch {
+      toast.error("Error fetching subjects");
+    }
     setIsLoading(false);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleMethodChange = (method) => {
+  const handleMethodChange = (method: "form" | "file"): void => {
     setUploadMethod(method);
     if (method === "form") {
-      setFormData({
-        id: null,
-        name: "",
-        class: "",
-        full_mark: "",
-        pass_mark: "",
-        cq_mark: "",
-        mcq_mark: "",
-        practical_mark: "",
-        cq_pass_mark: "",
-        mcq_pass_mark: "",
-        practical_pass_mark: "",
-        department: "",
-        year: new Date().getFullYear(),
-        teacher_id: "",
-      });
+      resetFormData();
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    if (uploadMethod === "form") {
-      if (formData.id) {
-        await axios
-          .put(`/api/sub/updateSubject/${formData.id}`, formData)
-          .then((response) => {
-            toast.success("Subject updated successfully.");
-            console.log(response.data);
-
-            fetchSubjects();
-            setFormData({
-              id: null,
-              name: "",
-              class: "",
-              full_mark: "",
-              pass_mark: "",
-              cq_mark: "",
-              mcq_mark: "",
-              practical_mark: "",
-              cq_pass_mark: "",
-              mcq_pass_mark: "",
-              practical_pass_mark: "",
-              department: "",
-              year: new Date().getFullYear(),
-              teacher_id: "",
-            });
-            setShowForm(false);
-          })
-          .catch((error) => {
-            console.error("Error updating subject:", error);
-            toast.error(
-              error.response?.data?.error || "Error updating subject"
-            );
-          });
-      } else {
-        await axios
-          .post("/api/sub/addSubject", {
-            subjects: [formData],
-          })
-          .then((response) => {
-            toast.success(response.data.message);
-            fetchSubjects();
-            setFormData({
-              id: null,
-              name: "",
-              class: "",
-              full_mark: "",
-              pass_mark: "",
-              cq_mark: "",
-              mcq_mark: "",
-              practical_mark: "",
-              cq_pass_mark: "",
-              mcq_pass_mark: "",
-              practical_pass_mark: "",
-              department: "",
-              year: new Date().getFullYear(),
-              teacher_id: "",
-            });
-            setShowForm(false);
-          })
-          .catch((error) => {
-            console.error("Error adding subject:", error);
-            toast.error(error.response?.data?.error || "Error adding subject");
-          });
-      }
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setFileUploaded(true);
-
-    const reader = new FileReader();
-    reader.readAsArrayBuffer(file);
-
-    reader.onload = (e) => {
-      const arrayBuffer = e.target.result;
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      console.log(sheet, rawData);
-      const requiredColumns = [
-        "name",
-        "class",
-        "full_mark",
-        "pass_mark",
-        "cq_mark",
-        "mcq_mark",
-        "practical_mark",
-        "cq_pass_mark",
-        "mcq_pass_mark",
-        "practical_pass_mark",
-        "department",
-        "year",
-        "teacher_id",
-      ];
-      const sheetHeaders = rawData[0] || [];
-      const hasRequiredColumns = requiredColumns.every((col) =>
-        sheetHeaders.includes(col)
-      );
-
-      if (!hasRequiredColumns) {
-        toast.error(
-          "Excel file is missing required columns. Please check the format."
-        );
-        setFileUploaded(false);
-        return;
-      }
-
-      setJsonData(XLSX.utils.sheet_to_json(sheet));
-    };
-
-    reader.onerror = () => {
-      toast.error("Error reading the file. Please try again.");
-      setFileUploaded(false);
-    };
-  };
-
-  const sendToBackend = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    if (!jsonData || jsonData.length === 0) {
-      toast.error("No data to upload. Please check your Excel file.");
-      return;
-    }
-
-    try {
-      const response = await axios.post("/api/sub/addSubject", {
-        subjects: jsonData,
-      });
-
-      if (!response.data.success) {
-        toast.error(response.data.message);
-        return;
-      }
-
-      toast.success(response.data.message);
-      setJsonData(null);
-      setFileUploaded(false);
-      document.querySelector('input[name="excelFile"]').value = "";
-      fetchSubjects();
-      setShowForm(false);
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to upload Subjects.");
-    }
-    setIsSubmitting(false);
-  };
-
-  const deleteSubject = (id) => {
-    axios
-      .delete(`/api/sub/deleteSubject/${id}`)
-      .then(() => {
-        toast.success("Subject deleted successfully.");
-        fetchSubjects();
-      })
-      .catch((error) => {
-        console.error("Error deleting subject:", error);
-        toast.error(error.response?.data?.error || "Failed to delete subject.");
-      });
-  };
-
-  const editSubject = (subject) => {
-    setUploadMethod("form");
-    setShowForm(true);
-    setFormData({
-      id: subject.id,
-      name: subject.name,
-      class: subject.class,
-      full_mark: subject.full_mark,
-      pass_mark: subject.pass_mark,
-      cq_mark: subject.cq_mark || "",
-      mcq_mark: subject.mcq_mark || "",
-      practical_mark: subject.practical_mark || "",
-      cq_pass_mark: subject.cq_pass_mark || "",
-      mcq_pass_mark: subject.mcq_pass_mark || "",
-      practical_pass_mark: subject.practical_pass_mark || "",
-      department: subject.department,
-      year: subject.year,
-      teacher_id: subject.teacher_id,
-    });
-    // Scroll to the form
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleCancel = () => {
+  const resetFormData = (): void => {
     setFormData({
       id: null,
       name: "",
@@ -295,16 +132,172 @@ function NewSubject() {
       year: new Date().getFullYear(),
       teacher_id: "",
     });
+  };
+
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    if (uploadMethod === "form") {
+      try {
+        if (formData.id) {
+          await axios.put(`/api/sub/updateSubject/${formData.id}`, formData);
+          toast.success("Subject updated successfully.");
+        } else {
+          const response = await axios.post("/api/sub/addSubject", {
+            subjects: [formData],
+          });
+          toast.success(response.data.message);
+        }
+        fetchSubjects();
+        resetFormData();
+        setShowForm(false);
+      } catch (error) {
+        const axiosError = error as AxiosError<{ error: string }>;
+        toast.error(
+          axiosError.response?.data?.error ||
+            formData.id ? "Error updating subject" : "Error adding subject"
+        );
+      }
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFileUploaded(true);
+
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(file);
+
+    reader.onload = (e) => {
+      const arrayBuffer = e.target?.result;
+      if (!arrayBuffer) return;
+
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+
+      const requiredColumns = [
+        "name",
+        "class",
+        "full_mark",
+        "pass_mark",
+        "cq_mark",
+        "mcq_mark",
+        "practical_mark",
+        "cq_pass_mark",
+        "mcq_pass_mark",
+        "practical_pass_mark",
+        "department",
+        "year",
+        "teacher_id",
+      ];
+      const sheetHeaders = (rawData[0] || []) as string[];
+      const hasRequiredColumns = requiredColumns.every((col) =>
+        sheetHeaders.includes(col)
+      );
+
+      if (!hasRequiredColumns) {
+        toast.error(
+          "Excel file is missing required columns. Please check the format."
+        );
+        setFileUploaded(false);
+        return;
+      }
+
+      setJsonData(XLSX.utils.sheet_to_json(sheet) as Subject[]);
+    };
+
+    reader.onerror = () => {
+      toast.error("Error reading the file. Please try again.");
+      setFileUploaded(false);
+    };
+  };
+
+  const sendToBackend = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    if (!jsonData || jsonData.length === 0) {
+      toast.error("No data to upload. Please check your Excel file.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post("/api/sub/addSubject", {
+        subjects: jsonData,
+      });
+
+      if (!response.data.success) {
+        toast.error(response.data.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success(response.data.message);
+      setJsonData(null);
+      setFileUploaded(false);
+      if (excelFileRef.current) {
+        excelFileRef.current.value = "";
+      }
+      fetchSubjects();
+      setShowForm(false);
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>;
+      toast.error(axiosError.response?.data?.error || "Failed to upload Subjects.");
+    }
+    setIsSubmitting(false);
+  };
+
+  const deleteSubject = async (id: number): Promise<void> => {
+    try {
+      await axios.delete(`/api/sub/deleteSubject/${id}`);
+      toast.success("Subject deleted successfully.");
+      fetchSubjects();
+    } catch (error) {
+      const axiosError = error as AxiosError<{ error: string }>;
+      toast.error(axiosError.response?.data?.error || "Failed to delete subject.");
+    }
+  };
+
+  const editSubject = (subject: Subject): void => {
+    setUploadMethod("form");
+    setShowForm(true);
+    setFormData({
+      id: subject.id,
+      name: subject.name,
+      class: String(subject.class),
+      full_mark: String(subject.full_mark),
+      pass_mark: String(subject.pass_mark),
+      cq_mark: subject.cq_mark ? String(subject.cq_mark) : "",
+      mcq_mark: subject.mcq_mark ? String(subject.mcq_mark) : "",
+      practical_mark: subject.practical_mark ? String(subject.practical_mark) : "",
+      cq_pass_mark: subject.cq_pass_mark ? String(subject.cq_pass_mark) : "",
+      mcq_pass_mark: subject.mcq_pass_mark ? String(subject.mcq_pass_mark) : "",
+      practical_pass_mark: subject.practical_pass_mark ? String(subject.practical_pass_mark) : "",
+      department: subject.department,
+      year: subject.year,
+      teacher_id: String(subject.teacher_id),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancel = (): void => {
+    resetFormData();
     setUploadMethod("form");
     setFileUploaded(false);
     setJsonData(null);
     if (excelFileRef.current) {
-      excelFileRef.current.value = null;
+      excelFileRef.current.value = "";
     }
-    setShowForm(false); // Ensure this is called to hide the form
+    setShowForm(false);
   };
 
-  const showSubjectInfo = (subject) => {
+  const showSubjectInfo = (subject: Subject): void => {
     setSelectedSubject(subject);
     setShowSubjectDetails(true);
   };
@@ -316,43 +309,41 @@ function NewSubject() {
 
   return (
     <>
-      <div className={"max-w-6xl  mx-auto mt-10 px-4 sm:px-6 lg:px-8"}>
+      <div className="max-w-6xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
           <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-0">
             Subject List
           </h1>
           <Button
             type="button"
-            variant={`${showForm ? "outline" : ""}`}
+            variant={showForm ? "outline" : "default"}
             onClick={() => setShowForm((prev) => !prev)}
           >
             {showForm ? "Cancel" : "+ Add New Subject"}
           </Button>
         </div>
         {showForm && (
-          <div className={`p-8 rounded-lg shadow-2xl w-full max-w-6xl `}>
-            <h2 className={`text-3xl font-semibold text-center mb-6 `}>
+          <div className="p-8 rounded-lg shadow-2xl w-full max-w-6xl">
+            <h2 className="text-3xl font-semibold text-center mb-6">
               {formData.id ? "Edit Subject" : "Add New Subject"}
             </h2>
             {!formData.id && (
               <div className="flex justify-center mb-6">
                 <button
                   onClick={() => handleMethodChange("form")}
-                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${
-                    uploadMethod === "form"
+                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${uploadMethod === "form"
                       ? "bg-sky-500 text-white shadow-lg"
                       : "bg-accent hover:bg-gray-400 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Form
                 </button>
                 <button
                   onClick={() => handleMethodChange("file")}
-                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${
-                    uploadMethod === "file"
+                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${uploadMethod === "file"
                       ? "bg-sky-500 text-white shadow-lg"
                       : "bg-accent hover:bg-gray-400 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   Excel Upload
                 </button>
@@ -380,7 +371,7 @@ function NewSubject() {
                       max={10}
                       value={formData.class}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -392,7 +383,7 @@ function NewSubject() {
                       placeholder="Full Mark"
                       value={formData.full_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -402,7 +393,7 @@ function NewSubject() {
                       placeholder="Pass Mark"
                       value={formData.pass_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                       required
                     />
@@ -414,7 +405,7 @@ function NewSubject() {
                       placeholder="CQ Mark (Optional)"
                       value={formData.cq_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -423,7 +414,7 @@ function NewSubject() {
                       placeholder="MCQ Mark (Optional)"
                       value={formData.mcq_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -432,7 +423,7 @@ function NewSubject() {
                       placeholder="Practical Mark (Optional)"
                       value={formData.practical_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                   </div>
@@ -443,7 +434,7 @@ function NewSubject() {
                       placeholder="CQ Pass Mark (Optional)"
                       value={formData.cq_pass_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -452,7 +443,7 @@ function NewSubject() {
                       placeholder="MCQ Pass Mark (Optional)"
                       value={formData.mcq_pass_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                     <input
@@ -461,7 +452,7 @@ function NewSubject() {
                       placeholder="Practical Pass Mark (Optional)"
                       value={formData.practical_pass_mark}
                       onChange={handleChange}
-                      onWheel={(e) => e.target.blur()}
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
                     />
                   </div>
@@ -515,7 +506,7 @@ function NewSubject() {
                       ref={excelFileRef}
                       onChange={handleFileUpload}
                       onClick={(e) => {
-                        e.target.value = null;
+                        (e.target as HTMLInputElement).value = "";
                         setFileUploaded(false);
                       }}
                       className="absolute w-full h-full opacity-0 cursor-pointer"
@@ -558,8 +549,9 @@ function NewSubject() {
                       </div>
                       <span className="text-gray-400 font-medium">
                         {fileUploaded ? "File Uploaded" : "Upload Excel File"}
-                        {fileUploaded &&
-                          ` (${excelFileRef.current?.files[0]?.name})`}
+                        {fileUploaded && excelFileRef.current?.files?.[0]
+                          ? ` (${excelFileRef.current.files[0].name})`
+                          : ""}
                       </span>
                       <span className="text-sm text-gray-500">
                         .xlsx or .xls files only
@@ -636,7 +628,7 @@ function NewSubject() {
               <tbody className="divide-y divide-gray-200">
                 {isLoading ? (
                   <tr>
-                    <td colSpan="7" className="py-2">
+                    <td colSpan={7} className="py-2">
                       <div className="flex justify-center items-center w-full h-full">
                         <Loading />
                       </div>
@@ -644,18 +636,18 @@ function NewSubject() {
                   </tr>
                 ) : filteredSubjects.length > 0 ? (
                   filteredSubjects.map((subject) => (
-                    <tr key={subject.id} className={``}>
-                      <td className=" px-4 py-2">{subject.name}</td>
-                      <td className=" px-4 py-2">{subject.class}</td>
-                      <td className=" px-4 py-2">{subject.full_mark}</td>
-                      <td className=" px-4 py-2">{subject.pass_mark}</td>
-                      <td className=" px-4 py-2">{subject.department}</td>
-                      <td className=" px-4 py-2">
+                    <tr key={subject.id}>
+                      <td className="px-4 py-2">{subject.name}</td>
+                      <td className="px-4 py-2">{subject.class}</td>
+                      <td className="px-4 py-2">{subject.full_mark}</td>
+                      <td className="px-4 py-2">{subject.pass_mark}</td>
+                      <td className="px-4 py-2">{subject.department}</td>
+                      <td className="px-4 py-2">
                         {teachers.find(
                           (teacher) => teacher.id === subject.teacher_id
                         )?.name || "N/A"}
                       </td>
-                      <td className=" px-4 py-2">
+                      <td className="px-4 py-2">
                         <div className="flex space-x-2 justify-center items-center">
                           <button
                             onClick={() => showSubjectInfo(subject)}
@@ -688,14 +680,11 @@ function NewSubject() {
 
                           <DeleteConfirmationIcon
                             onDelete={() => deleteSubject(subject.id)}
-                            msg={`Are you sure you want to delete this subject (${
-                              subject.name
-                            }) for ${subject.class} which is assigned to ${
-                              teachers.find(
+                            msg={`Are you sure you want to delete this subject (${subject.name
+                              }) for ${subject.class} which is assigned to ${teachers.find(
                                 (teacher) => teacher.id === subject.teacher_id
                               )?.name || "N/A"
-                            } ?`}
-                            className="px-3 py-1 bg-red-500 text-white rounded-lg"
+                              } ?`}
                           />
                         </div>
                       </td>
@@ -703,7 +692,7 @@ function NewSubject() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="border px-4 py-2 text-center">
+                    <td colSpan={7} className="border px-4 py-2 text-center">
                       No subjects found for the selected year
                     </td>
                   </tr>
@@ -714,7 +703,6 @@ function NewSubject() {
         </div>
       </div>
 
-      {/* Subject Details Popup */}
       {showSubjectDetails && selectedSubject && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
           <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
@@ -853,7 +841,6 @@ function NewSubject() {
         </div>
       )}
 
-      {/* Excel Format Info Popup */}
       {showFormatInfo && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
           <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">

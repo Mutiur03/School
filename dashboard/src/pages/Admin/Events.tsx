@@ -9,18 +9,45 @@ import { toast } from "react-hot-toast";
 import DatePicker from "@/components/DatePickerF";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { format } from "date-fns";
-const Events = () => {
-  const [events, setEvents] = useState([]);
-  const [popup, setPopup] = useState({
+import backend from "@/lib/backend";
+
+interface Event {
+  id: string;
+  title: string;
+  details: string;
+  location: string;
+  file: string;
+  image: string;
+  date: string;
+}
+
+interface FormValues {
+  title: string;
+  details: string;
+  location: string;
+  file: File | null | string;
+  image: File | null | string;
+  date: string | null;
+}
+
+interface PopupState {
+  visible: boolean;
+  type: string;
+  event: Event | null;
+}
+
+const Events: React.FC = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
     event: null,
   });
-  const [showForm, setShowForm] = useState(false);
-  const fileref = useRef(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [formValues, setFormValues] = useState({
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const fileref = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<FormValues>({
     title: "",
     details: "",
     location: "",
@@ -28,17 +55,15 @@ const Events = () => {
     image: null,
     date: null,
   });
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const host = import.meta.env.VITE_BACKEND_URL;
+  const [loading, setLoading] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
+  const host = backend;;
 
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/events/getEvents");
-      console.log(response.data);
-
+      const response = await axios.get<Event[]>("/api/events/getEvents");
       setEvents(response.data || []);
     } catch (error) {
       console.error("Error fetching notices:", error);
@@ -50,18 +75,15 @@ const Events = () => {
     fetchEvents();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (submitting) return; // Prevent multiple submissions
+    if (submitting) return;
 
     setSubmitting(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
-    console.log(...formData.entries());
 
     try {
-      console.log(isEditing);
-
       if (isEditing) {
         await axios.put(`/api/events/updateEvent/${editId}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -94,7 +116,7 @@ const Events = () => {
     }
   };
 
-  const openPopup = (type, event) => {
+  const openPopup = (type: string, event: Event) => {
     setPopup({ visible: true, type, event });
   };
 
@@ -102,8 +124,8 @@ const Events = () => {
     setPopup({ visible: false, type: "", event: null });
   };
 
-  const handleDelete = async (id) => {
-    if (deleting) return; // Prevent multiple deletions
+  const handleDelete = async (id: string) => {
+    if (deleting) return;
 
     setDeleting(true);
     try {
@@ -180,20 +202,20 @@ const Events = () => {
                     onChange={(e) =>
                       setFormValues({
                         ...formValues,
-                        file: e.target.files?.[0],
+                        file: e.target.files?.[0] || null,
                       })
                     }
                     {...(!isEditing && { required: true })}
                   />
                   {formValues.file && (
                     <p className="text-sm text-gray-500">
-                      {formValues.file.name
+                      {formValues.file instanceof File
                         ? "Selected file: " +
-                          formValues.file.name.slice(0, 20) +
-                          "..."
+                        formValues.file.name.slice(0, 20) +
+                        "..."
                         : "Uploaded file: " +
-                          formValues.file.slice(0, 20) +
-                          "..."}
+                        formValues.file.slice(0, 20) +
+                        "..."}
                     </p>
                   )}
                 </div>
@@ -208,26 +230,26 @@ const Events = () => {
                     onChange={(e) =>
                       setFormValues({
                         ...formValues,
-                        image: e.target.files?.[0],
+                        image: e.target.files?.[0] || null,
                       })
                     }
                     {...(!isEditing && { required: true })}
                   />
                   {formValues.image && (
                     <p className="text-sm text-gray-500">
-                      {formValues.image.name
+                      {formValues.image instanceof File
                         ? "Selected file: " +
-                          formValues.image.name.slice(0, 20) +
-                          "..."
+                        formValues.image.name.slice(0, 20) +
+                        "..."
                         : "Uploaded file: " +
-                          formValues.image
-                            .split("\\")
-                            .pop()
-                            .split("-")
-                            .slice(2)
-                            .join("-")
-                            .slice(0, 20) +
-                          "..."}
+                        formValues.image
+                          .split("\\")
+                          .pop()
+                          ?.split("-")
+                          .slice(2)
+                          .join("-")
+                          .slice(0, 20) +
+                        "..."}
                     </p>
                   )}
                 </div>
@@ -274,7 +296,9 @@ const Events = () => {
                       image: null,
                       date: "",
                     });
-                    fileref.current.value = null;
+                    if (fileref.current) {
+                      fileref.current.value = "";
+                    }
                     setShowForm(false);
                   }}
                 >
@@ -286,8 +310,8 @@ const Events = () => {
                       ? "Updating..."
                       : "Creating..."
                     : isEditing
-                    ? "Update Event"
-                    : "Create Event"}
+                      ? "Update Event"
+                      : "Create Event"}
                 </Button>
               </div>
             </form>
@@ -393,26 +417,27 @@ const Events = () => {
                 <div className="flex justify-between pt-4">
                   <div className="flex gap-2">
                     <DeleteConfirmation
-                      onDelete={() => handleDelete(popup.event.id)}
-                      disabled={deleting}
-                      buttonText={deleting ? "Deleting..." : "Delete"}
+                      onDelete={() => popup.event && handleDelete(popup.event.id)}
                     />
                     <Button
                       type="button"
+                      disabled={deleting}
                       onClick={() => {
-                        setFormValues({
-                          title: popup.event.title,
-                          details: popup.event.details || "",
-                          file: popup.event.file,
-                          image: popup.event.image,
-                          date: popup.event.date,
-                          location: popup.event.location,
-                        });
-                        setIsEditing(true);
-                        setEditId(popup.event.id);
-                        setShowForm(true);
-                        closePopup();
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        if (popup.event) {
+                          setFormValues({
+                            title: popup.event.title,
+                            details: popup.event.details || "",
+                            file: popup.event.file,
+                            image: popup.event.image,
+                            date: popup.event.date,
+                            location: popup.event.location,
+                          });
+                          setIsEditing(true);
+                          setEditId(popup.event.id);
+                          setShowForm(true);
+                          closePopup();
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
                       }}
                       className=""
                     >

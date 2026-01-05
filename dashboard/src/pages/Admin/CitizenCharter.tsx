@@ -1,30 +1,41 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
+interface PDFData {
+  file: string;
+  updated_at: string;
+  download_url: string;
+}
+
+interface UploadStatus {
+  type: "success" | "error" | "";
+  message: string;
+}
+
 function CitizenCharter() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState({ type: "", message: "" });
-  const [currentPDF, setCurrentPDF] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ type: "", message: "" });
+  const [currentPDF, setCurrentPDF] = useState<PDFData | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     fetchCurrentPDF();
   }, []);
 
-  const fetchCurrentPDF = async () => {
+  const fetchCurrentPDF = async (): Promise<void> => {
     try {
-      const response = await axios.get("/api/file-upload/citizen-charter");
+      const response = await axios.get<PDFData>("/api/file-upload/citizen-charter");
       setCurrentPDF(response.data);
     } catch {
-      console.log("No existing PDF found");
+      setCurrentPDF(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0];
 
     if (file && file.type === "application/pdf") {
       setSelectedFile(file);
@@ -38,7 +49,7 @@ function CitizenCharter() {
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (): Promise<void> => {
     if (!selectedFile) {
       setUploadStatus({ type: "error", message: "Please select a file first" });
       return;
@@ -68,13 +79,14 @@ function CitizenCharter() {
       });
       setSelectedFile(null);
       setCurrentPDF(response.data.data);
-      // Reset file input
-      document.getElementById("pdfUpload").value = "";
+      const fileInput = document.getElementById("pdfUpload") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
     } catch (error) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
       setUploadStatus({
         type: "error",
         message:
-          error.response?.data?.error ||
+          axiosError.response?.data?.error ||
           "Failed to upload PDF. Please try again.",
       });
     } finally {
@@ -87,7 +99,6 @@ function CitizenCharter() {
       <h1 className="text-2xl font-bold mb-6">Citizen Charter Management</h1>
 
       <div className="grid grid-rows gap-6">
-        {/* Upload Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold mb-4">
             Upload Citizen Charter PDF
@@ -119,11 +130,10 @@ function CitizenCharter() {
 
             {uploadStatus.message && (
               <div
-                className={`p-3 rounded-md ${
-                  uploadStatus.type === "success"
+                className={`p-3 rounded-md ${uploadStatus.type === "success"
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700"
-                }`}
+                  }`}
               >
                 {uploadStatus.message}
               </div>
@@ -165,7 +175,6 @@ function CitizenCharter() {
           </div>
         </div>
 
-        {/* PDF Viewer Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold mb-4">
             Current Citizen Charter

@@ -12,21 +12,78 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  date: string;
+}
+
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  location: string;
+}
+
+interface AttendanceData {
+  name: string;
+  present: number;
+  absent: number;
+}
+
+interface ExamSchedule {
+  name: string;
+  start_date: string;
+  end_date: string;
+}
+
+interface DashboardData {
+  quickStats: {
+    students: number;
+    teachers: number;
+    events: number;
+  };
+  announcements: Announcement[];
+  attendanceData: AttendanceData[];
+  events: Event[];
+  examSchedule: ExamSchedule[];
+}
+
+interface Tab {
+  id: string;
+  label: string;
+  icon: string;
+}
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: string;
+  color: string;
+}
+
+interface AnnouncementCardProps {
+  announcement: Announcement;
+}
+
+interface EventCardProps {
+  event: Event;
+}
+
 function Dashboard() {
-  // State for dashboard elements
-  const [dashboardData, setDashboardData] = useState({
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
     quickStats: { students: 0, teachers: 0, events: 0 },
     announcements: [],
     attendanceData: [],
     events: [],
     examSchedule: [],
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const navigate = useNavigate();
 
-  // Fetch dashboard data from API
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -49,7 +106,7 @@ function Dashboard() {
     }
   };
 
-  const tabs = [
+  const tabs: Tab[] = [
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "attendance", label: "Attendance", icon: "📈" },
     { id: "announcements", label: "Notices", icon: "📢" },
@@ -59,11 +116,10 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen  p-2 sm:p-4 lg:p-6 xl:p-8">
+      <div className="min-h-screen p-2 sm:p-4 lg:p-6 xl:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4 sm:mb-6 animate-pulse"></div>
 
-          {/* Skeleton Tab Navigation */}
           <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto">
             {[...Array(5)].map((_, index) => (
               <div
@@ -73,14 +129,12 @@ function Dashboard() {
             ))}
           </div>
 
-          {/* Skeleton Quick Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
             {[...Array(3)].map((_, index) => (
               <StatCardSkeleton key={index} />
             ))}
           </div>
 
-          {/* Skeleton Content */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-4 sm:space-y-6">
               <ChartSkeleton />
@@ -409,7 +463,6 @@ function Dashboard() {
           School Dashboard
         </h1>
 
-        {/* Quick Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard
             title="Total Students"
@@ -431,7 +484,6 @@ function Dashboard() {
           />
         </div>
 
-        {/* Tab Navigation */}
         <div className="mb-4 sm:mb-6">
           <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 px-1 scrollbar-hide">
             {tabs.map((tab) => (
@@ -451,15 +503,13 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Tab Content */}
         <div className="mb-4 sm:mb-6">{renderTabContent()}</div>
       </div>
     </div>
   );
 }
 
-// Component for stat cards
-function StatCard({ title, value, icon, color }) {
+function StatCard({ title, value, icon, color }: StatCardProps) {
   return (
     <div
       className={`p-3 sm:p-4 lg:p-6 rounded-lg shadow-md ${color} transition-transform hover:scale-105`}
@@ -475,9 +525,7 @@ function StatCard({ title, value, icon, color }) {
   );
 }
 
-// Component for announcement cards
-function AnnouncementCard({ announcement }) {
-
+function AnnouncementCard({ announcement }: AnnouncementCardProps) {
   return (
     <div
       className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 cursor-pointer"
@@ -499,9 +547,7 @@ function AnnouncementCard({ announcement }) {
   );
 }
 
-// Component for event cards
-function EventCard({ event }) {
-
+function EventCard({ event }: EventCardProps) {
   return (
     <div
       className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 cursor-pointer"
@@ -542,7 +588,6 @@ function EventCard({ event }) {
   );
 }
 
-// Component for stat card skeleton
 function StatCardSkeleton() {
   return (
     <div className="p-3 sm:p-4 lg:p-6 rounded-lg shadow-md bg-gray-100 dark:bg-gray-800 animate-pulse">
@@ -557,7 +602,6 @@ function StatCardSkeleton() {
   );
 }
 
-// Component for chart skeleton
 function ChartSkeleton() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
@@ -578,7 +622,6 @@ function ChartSkeleton() {
   );
 }
 
-// Component for announcement skeleton
 function AnnouncementSkeleton() {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-white dark:bg-gray-800">
@@ -594,7 +637,6 @@ function AnnouncementSkeleton() {
   );
 }
 
-// Component for event skeleton
 function EventSkeleton() {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-white dark:bg-gray-800">

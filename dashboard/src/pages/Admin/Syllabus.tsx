@@ -11,32 +11,46 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
+interface Syllabus {
+  id: number;
+  class: string;
+  year: string;
+  pdf_url: string;
+  download_url: string;
+}
+
+interface SyllabusForm {
+  class: string;
+  year: string;
+  pdf: File | null;
+}
+
 function Syllabus() {
   const currentYear = new Date().getFullYear();
-  const [syllabuses, setSyllabuses] = useState([]);
-  const [form, setForm] = useState({
+  const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
+  const [form, setForm] = useState<SyllabusForm>({
     class: "",
     year: String(currentYear),
     pdf: null,
   });
-  const [editingId, setEditingId] = useState(null);
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const [yearFilter, setYearFilter] = useState(String(currentYear));
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
+  const [yearFilter, setYearFilter] = useState<string>(String(currentYear));
+  const [loading, setLoading] = useState<boolean>(false);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [updating, setUpdating] = useState<boolean>(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSyllabuses();
   }, []);
 
-  const fetchSyllabuses = async () => {
+  const fetchSyllabuses = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get("/api/syllabus");
+      const res = await axios.get<Syllabus[]>("/api/syllabus");
       setSyllabuses(res.data);
     } catch {
       setError("Failed to fetch syllabuses.");
@@ -44,7 +58,7 @@ function Syllabus() {
     setLoading(false);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value, files } = e.target;
     setForm((f) => ({
       ...f,
@@ -52,7 +66,7 @@ function Syllabus() {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setError(null);
     if (editingId) setUpdating(true);
@@ -80,7 +94,7 @@ function Syllabus() {
     setUpdating(false);
   };
 
-  const handleEdit = (s) => {
+  const handleEdit = (s: Syllabus): void => {
     setEditingId(s.id);
     setForm({
       class: s.class,
@@ -90,7 +104,7 @@ function Syllabus() {
     setIsFormVisible(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number): Promise<void> => {
     setDeletingId(id);
     setError(null);
     try {
@@ -102,7 +116,7 @@ function Syllabus() {
     setDeletingId(null);
   };
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = (): void => {
     setEditingId(null);
     setForm({ class: "", year: String(currentYear), pdf: null });
     setIsFormVisible(false);
@@ -162,7 +176,6 @@ function Syllabus() {
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Show classes 6 to 10 */}
                     {[6, 7, 8, 9, 10].map((cls) => (
                       <SelectItem key={cls} value={String(cls)}>
                         {cls}
@@ -201,25 +214,17 @@ function Syllabus() {
                 onChange={handleChange}
                 disabled={uploading || updating}
               />
-              {/* Show uploaded file title when editing */}
-              {editingId &&
-                syllabuses.length > 0 &&
-                (() => {
-                  const editingSyllabus = syllabuses.find(
-                    (s) => s.id === editingId
+              {editingId && syllabuses.length > 0 && (() => {
+                const editingSyllabus = syllabuses.find((s) => s.id === editingId);
+                if (editingSyllabus && editingSyllabus.pdf_url) {
+                  return (
+                    <div className="mt-1 text-xs text-gray-500">
+                      Current file: <span className="font-medium">{editingSyllabus.pdf_url.split("/").pop()}</span>
+                    </div>
                   );
-                  if (editingSyllabus && editingSyllabus.pdf_url) {
-                    return (
-                      <div className="mt-1 text-xs text-gray-500">
-                        Current file:{" "}
-                        <span className="font-medium">
-                          {editingSyllabus.pdf_url.split("/").pop()}
-                        </span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+                }
+                return null;
+              })()}
             </div>
             <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-2">
               <Button
@@ -244,8 +249,8 @@ function Syllabus() {
                     ? "Updating..."
                     : "Update"
                   : uploading
-                  ? "Uploading..."
-                  : "Upload"}
+                    ? "Uploading..."
+                    : "Upload"}
               </Button>
             </div>
           </form>
@@ -273,7 +278,6 @@ function Syllabus() {
       </div>
 
       <div className="rounded-lg shadow-sm border min-w-fit border-gray-100 overflow-x-auto">
-        {/* Table for sm and up */}
         <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-[400px] w-full divide-y divide-gray-200 text-sm table-fixed">
             <thead>
@@ -328,17 +332,16 @@ function Syllabus() {
                           onClick={() => handleEdit(s)}
                           className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                           title="Edit"
-                          disabled={uploading || updating || deletingId}
+                          disabled={uploading || updating || Boolean(deletingId)}
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(s.id)}
-                          className={`text-red-600 hover:bg-red-100 px-2 py-1 rounded border border-red-100 bg-red-50 text-xs flex items-center ${
-                            deletingId === s.id
-                              ? "opacity-50 pointer-events-none"
-                              : ""
-                          }`}
+                          className={`text-red-600 hover:bg-red-100 px-2 py-1 rounded border border-red-100 bg-red-50 text-xs flex items-center ${deletingId === s.id
+                            ? "opacity-50 pointer-events-none"
+                            : ""
+                            }`}
                           title="Delete"
                           disabled={
                             deletingId === s.id || uploading || updating
@@ -367,7 +370,6 @@ function Syllabus() {
             </tbody>
           </table>
         </div>
-        {/* Card layout for mobile */}
         <div className="block sm:hidden">
           {loading ? (
             <div className="py-8 text-center">
@@ -409,17 +411,16 @@ function Syllabus() {
                     onClick={() => handleEdit(s)}
                     className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                     title="Edit"
-                    disabled={uploading || updating || deletingId}
+                    disabled={uploading || updating || Boolean(deletingId)}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(s.id)}
-                    className={`text-red-600 hover:bg-red-100 px-2 py-1 rounded border border-red-100 bg-red-50 text-xs flex items-center ${
-                      deletingId === s.id
-                        ? "opacity-50 pointer-events-none"
-                        : ""
-                    }`}
+                    className={`text-red-600 hover:bg-red-100 px-2 py-1 rounded border border-red-100 bg-red-50 text-xs flex items-center ${deletingId === s.id
+                      ? "opacity-50 pointer-events-none"
+                      : ""
+                      }`}
                     title="Delete"
                     disabled={deletingId === s.id || uploading || updating}
                   >
