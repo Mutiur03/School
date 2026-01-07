@@ -78,7 +78,7 @@ function TeacherList() {
                                             <img
                                                 src={t.image.startsWith('http') ? t.image : `${host}/${t.image}`}
                                                 alt={t.name}
-                                                className="w-20 h-20 object-cover rounded border border-gray-200"
+                                                className="w-20 h-20 object-cover object-top rounded border border-gray-200"
                                             />
                                         ) : (
                                             <div className="w-20 h-20 bg-gray-100 flex items-center justify-center rounded border border-gray-200 text-gray-400 text-xs">
