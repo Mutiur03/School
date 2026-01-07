@@ -141,10 +141,10 @@ function RightSidebar() {
                                         display: 'block',
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        borderRadius: 8
+                                        borderRadius: 2
                                     }}
                                 >
-                                    <img
+                                    <img className='object-cover object-top'
                                         src={
                                             head && /^(https?:)?\//.test(head)
                                                 ? head

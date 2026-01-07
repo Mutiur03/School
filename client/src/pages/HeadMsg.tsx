@@ -33,7 +33,7 @@ function HeadMsg() {
                     <img
                         src={head?.teacher.image ? `${host}/${head.teacher.image}` : '/placeholder.svg'}
                         alt="Head Image"
-                        className="w-42 h-42 object-cover "
+                        className="w-42 h-42 object-cover object-top "
                     />
                 )}
             </div>
