@@ -8,10 +8,14 @@ import Footer from "./Footer";
 function MainLayout() {
     const location = useLocation();
 
-    const routesWithoutSidebar = ['/registration/ssc', '/reg/ssc', '/admission', '/teacher-list', '/staff-list'];
-    const shouldHideSidebar = routesWithoutSidebar.some(route =>
-        location.pathname === route || location.pathname.startsWith(route + '/')
-    );
+    const routesWithoutSidebar = ['/registration/ssc', '/reg/ssc', '/admission', '/teacher-list', '/staff-list', '/gallery/*'];
+    const shouldHideSidebar = routesWithoutSidebar.some(route => {
+        if (route.endsWith('/*')) {
+            const base = route.slice(0, -2);
+            return location.pathname === base || location.pathname.startsWith(base + '/');
+        }
+        return location.pathname === route || location.pathname.startsWith(route + '/');
+    });
 
     return (
         <>
