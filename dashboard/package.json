@@ -7,7 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:admin": "vite --mode admin",
+    "dev:student": "vite --mode student",
+    "dev:teacher": "vite --mode teacher",
+    "build:admin": "tsc -b && vite build --mode admin",
+    "build:student": "tsc -b && vite build --mode student",
+    "build:teacher": "tsc -b && vite build --mode teacher"
   },
   "dependencies": {
     "@progress/kendo-react-pdf": "^10.1.0",

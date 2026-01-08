@@ -92,13 +92,13 @@ function App() {
       <div className=" flex flex-col h-screen">
         <div className="">
           <Routes>
-            {!user && location.pathname.startsWith("/admin") && location.pathname !== "/admin/login" && (
+            {!loading && !user && location.pathname.startsWith("/admin") && location.pathname !== "/admin/login" && (
               (window.location.href = `http://${window.location.host.replace("admin", "")}/admin/login`)
             )}
-            {!user && location.pathname.startsWith("/teacher") && location.pathname != "/teacher/login" && (
+            {!loading && !user && location.pathname.startsWith("/teacher") && location.pathname != "/teacher/login" && (
               (window.location.href = `http://${window.location.host.replace("teacher", "")}/teacher/login`)
             )}
-            {!user && location.pathname.startsWith("/student") && location.pathname != "/student/login" && (
+            {!loading && !user && location.pathname.startsWith("/student") && location.pathname != "/student/login" && (
               (window.location.href = `http://${window.location.host.replace("student", "")}/student/login`)
             )}
             {role === "admin" && <Route path="/admin/login" element={<Login />} />}
@@ -173,7 +173,7 @@ function App() {
                             navbarRef={navbarRef}
                           />
                           <div
-                            className={`content-area flex-1 overflow-y-auto relative p-[1rem] transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]}`}
+                            className={`content-area flex-1 overflow-y-auto relative px-[1rem] transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]}`}
                           >
                             <Routes>
                               <Route path="/dashboard" element={<StudentDashboard />} />
@@ -211,7 +211,7 @@ function App() {
                             navbarRef={navbarRef}
                           />
                           <div
-                            className={`content-area flex-1 overflow-y-auto relative p-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]
+                            className={`content-area flex-1 overflow-y-auto relative px-[1rem]  transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]
                           }`}
                           >
                             <Routes>
@@ -333,7 +333,7 @@ function App() {
                               ></Route>
                               <Route
                                 path="*"
-                                element={<Navigate to="/dashboard" />}
+                                element={<Navigate to="/admin/dashboard" />}
                               />
                             </Routes>
                           </div>
@@ -344,9 +344,10 @@ function App() {
                 }
               />
             )}
-            {role != undefined &&
+            {!loading && !user && role != undefined &&
               <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
-            {!loading && < Route path="*" element={<NotFound />} />}
+            {!loading && !user && role === undefined &&
+              <Route path="*" element={<NotFound />} />}
           </Routes>
         </div>
       </div>

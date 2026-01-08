@@ -27,41 +27,41 @@ import {
   updateCategoryThumbnailController,
   updateEventThumbnailController,
 } from "../controllers/galleryController.js";
-import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 
 const __dirname = path.resolve();
 const storagePath = path.join(__dirname, "uploads/gallery");
 
 fs.mkdirSync(storagePath, { recursive: true });
 
-const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      fs.mkdirSync(storagePath, { recursive: true });
+      cb(null, storagePath);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname);
+      const name = path.basename(file.originalname, ext);
+      cb(null, `${uniqueSuffix}-${name}${ext}`);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("Only images are allowed"));
     }
     cb(null, true);
   },
+  // limits: {
+  //   fileSize: 5 * 1024 * 1024, // 5MB limit
+  // },
 });
 
-galleryRouter.post(
-  "/upload",
-  upload.array("images"), // Field name must match frontend form
-  compressImageToLocation({
-    targetLocation: "uploads/gallery",
-    targetSizeKB: 200,
-  }),
-  addGalleryController
-);
+galleryRouter.post("/upload", upload.array("images"), addGalleryController);
 galleryRouter.get("/getGalleries", getGalleryController);
 galleryRouter.put(
   "/updateGallery/:id",
-  upload.single("images"), // Field name must match frontend form
-  compressImageToLocation({
-    targetLocation: "uploads/gallery",
-    targetSizeKB: 200,
-  }),
+  upload.single("images"),
   updateGalleryController
 );
 galleryRouter.delete("/deleteGallery/:id", deleteGalleryController);
@@ -78,12 +78,10 @@ galleryRouter.post("/rejectMultiple", rejectMultipleGalleryController);
 galleryRouter.get("/rejected", getRejectedGalleriesController);
 galleryRouter.post("/deleteMultiple", deleteMultipleGalleryController);
 
-// Students part
 galleryRouter.get("/approvedStudents", getApprovedStudentGalleryController);
 galleryRouter.get("/pendingStudents", getPendingStudentGalleriesController);
 galleryRouter.get("/rejectedStudents", getRejectedStudentGalleriesController);
 
-// Client side routes
 galleryRouter.get("/getGalleries/event/:id", getGalleriesByEventId);
 galleryRouter.get("/getGalleries/campus/:id", getGalleriesByCategoryId);
 

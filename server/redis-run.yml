@@ -1,10 +1,9 @@
 services:
   school_redis:
     image: redis:7-alpine
-    container_name: school_redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
@@ -13,7 +12,9 @@ services:
 
 networks:
   school_network:
-    driver: bridge
+    external: true
+    name: ${school_name}_school_network
 
 volumes:
   redis_data:
+    name: redis_school_${school_name}_data

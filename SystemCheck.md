@@ -221,3 +221,26 @@ awk '{
     }
 }' /var/log/nginx/access.log | sort -nr
 ```
+
+
+
+
+```
+docker exec ontainer-name pg_dump -U user dbname > backup.sql
+```
+```
+docker run -d \
+  --name pg-temp \
+  -v volume_name:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=password \
+  postgres:17
+```
+```
+docker exec -it pg-temp pg_dump -U user dbname > backup.sql
+```
+```
+docker exec -i container-name psql -U user dbname < backup.sql
+```
+```
+kill $(lsof -t -i:3000)
+```

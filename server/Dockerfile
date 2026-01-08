@@ -38,15 +38,19 @@ RUN npm install pm2 -g
 # Copy the rest of the app
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Make the startup script executable
+RUN chmod +x docker-entrypoint.sh
+
+# Build application (Prisma client generation only)
+RUN pnpm run build:docker
 
 # Optional: remove unnecessary Prisma engines to save space (~50MB)
 RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
     && rm -rf node_modules/.prisma/client/libschema_engine-*
+RUN pnpm prune --prod
 
 # Expose port
 EXPOSE 3001
 
-# Start server
-CMD ["pm2-runtime", "server.js", "-i", "max"]
+# Start server with our custom entrypoint
+CMD ["./docker-entrypoint.sh"]

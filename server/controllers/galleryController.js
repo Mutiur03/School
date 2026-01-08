@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
 import { fixUrl } from "../utils/fixURL.js";
+import path from "path";
 
 export const getGalleryController = async (req, res) => {
   try {
@@ -52,6 +53,8 @@ export const getGalleryController = async (req, res) => {
 
 export const addGalleryController = async (req, res) => {
   const { caption, eventId, category, status } = req.body;
+  console.log(req.files);
+
   const token = req.cookies?.admin_token;
   if (!token) {
     return res.status(401).json({ message: "Unauthorized: token missing" });
@@ -67,14 +70,14 @@ export const addGalleryController = async (req, res) => {
 
   try {
     const insertPromises = req.files.map((file) => {
-      const imagePath = fixUrl(file.path);
+      const imagePath = fixUrl(file.filename);
       return prisma.gallery.create({
         data: {
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
           category_id: category && category !== "" ? parseInt(category) : null,
           uploader_id: uploaderType === "student" ? parseInt(uploaderId) : null,
           uploader_type: uploaderType,
-          image_path: imagePath,
+          image_path: path.join("uploads/gallery", file.filename),
           caption: caption,
           status: status || "pending",
         },
@@ -95,9 +98,8 @@ export const deleteGalleryController = async (req, res) => {
       where: { id: parseInt(id) },
     });
     const filePath = exist.image_path;
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    console.log(filePath);
+
     const result = await prisma.gallery.delete({ where: { id: parseInt(id) } });
     res.json(result);
   } catch (error) {
@@ -109,7 +111,7 @@ export const updateGalleryController = async (req, res) => {
   try {
     const { id } = req.params;
     const { caption, eventId, category } = req.body;
-    const image = req.file ? fixUrl(req.file.path) : null; // file.path is set by compressImageToLocation
+    const image = req.file ? fixUrl(req.file.filename) : null;
 
     if (image) {
       const exist = await prisma.gallery.findUnique({
@@ -122,7 +124,7 @@ export const updateGalleryController = async (req, res) => {
       const result = await prisma.gallery.update({
         where: { id: parseInt(id) },
         data: {
-          image_path: image,
+          image_path: path.join("uploads/gallery", req.file.filename),
           caption: caption,
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
           category_id: category && category !== "" ? parseInt(category) : null,
@@ -324,7 +326,7 @@ export const getRejectedGalleriesController = async (req, res) => {
     images.forEach((image) => {
       const imgData = {
         id: image.id,
-        image_path: fixUrl(image.image_path), // Fix here
+        image_path: fixUrl(image.image_path),
         caption: image.caption,
         event_id: image.event_id || null,
         event_name: image.event?.title || null,
