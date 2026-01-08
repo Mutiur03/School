@@ -346,6 +346,8 @@ function App() {
             )}
             {!loading && !user && role != undefined &&
               <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
+            {!loading && user && role != undefined &&
+              <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
             {!loading && !user && role === undefined &&
               <Route path="*" element={<NotFound />} />}
           </Routes>
