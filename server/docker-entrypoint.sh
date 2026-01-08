@@ -4,8 +4,9 @@ echo "Starting School Management System Backend..."
 
 # Wait for database to be ready
 echo "Waiting for database connection..."
-until pg_isready -h postgres_school -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} > /dev/null 2>&1; do
-  echo "Database not ready, on PORT ${POSTGRES_PORT:-5432} waiting 2 seconds..."
+until pg_isready -h postgres_school -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-school_management} > /dev/null 2>&1; do
+  echo "Checking: pg_isready -h postgres_school -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-school_management}"
+  echo "Database not ready, on PORT ${POSTGRES_PORT:-5432} waiting for 2 seconds..."
   sleep 2
 done
 
