@@ -1,0 +1,131 @@
+# Production Nginx Configuration with Enhanced Security
+server {
+    listen 443 ssl http2;
+    server_name ${DOMAIN};
+
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    # Enhanced SSL Security
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:MozTLS:10m;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    # Security Headers
+    add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;
+    add_header X-Frame-Options \"DENY\" always;
+    add_header X-Content-Type-Options \"nosniff\" always;
+    add_header X-XSS-Protection \"1; mode=block\" always;
+    add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;
+    add_header Content-Security-Policy \"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; media-src 'self'; object-src 'none'; child-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';\" always;
+
+    # Rate Limiting - Stricter for production
+    limit_req zone=api burst=10 nodelay;
+    limit_conn conn_limit_per_ip 10;
+
+    # Hide Nginx version
+    server_tokens off;
+
+    # Admin endpoints - Restricted access
+    location /admin/ {
+        # Allow only specific IPs (replace with your admin IPs)
+        # allow 192.168.1.0/24;
+        # allow 10.0.0.0/8;
+        # deny all;
+        
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Additional security for admin
+        limit_req zone=login burst=3 nodelay;
+    }
+
+    # API endpoints with enhanced security
+    location /api/ {
+        # Block common attack patterns
+        if ($request_uri ~* \"/(\\.|wp-|admin|config|setup|install)\") {
+            return 444;
+        }
+        
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeout settings
+        proxy_connect_timeout 30s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        
+        # Buffer settings
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+        proxy_busy_buffers_size 8k;
+    }
+
+    # Static files with aggressive caching
+    location /static/ {
+        alias /var/www/static/;
+        expires 1y;
+        add_header Cache-Control \"public, immutable\";
+        add_header X-Content-Type-Options \"nosniff\";
+        
+        # Security for static files
+        location ~* \\.(php|jsp|pl|py|asp|sh|cgi)$ {
+            deny all;
+        }
+    }
+
+    # Block common exploit attempts
+    location ~* /(wp-admin|wp-login|wp-config|phpmyadmin|admin|administrator|manager|login) {
+        return 444;
+    }
+
+    # Block file extensions that shouldn't be accessible
+    location ~* \\.(bak|config|sql|log|ini|sh|inc|swp|save)$ {
+        deny all;
+    }
+
+    # Monitoring endpoint (internal only)
+    location /nginx-status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 \"healthy\\n\";
+        add_header Content-Type text/plain;
+    }
+
+    # Main application
+    location / {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Security
+        proxy_hide_header X-Powered-By;
+        proxy_hide_header Server;
+    }
+}
