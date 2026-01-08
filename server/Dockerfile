@@ -4,7 +4,7 @@ FROM node:22-bookworm-slim
 # Set working directory
 WORKDIR /app
 
-# Install minimal dependencies for Playwright Chromium
+# Install minimal dependencies for Playwright Chromium and system utilities
 RUN apt-get update && apt-get install -y \
     chromium \
     ca-certificates \
@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     wget \
     curl \
+    netcat-traditional \
+    postgresql-client \
     --no-install-recommends && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -40,7 +42,7 @@ COPY . .
 
 # Make the startup script executable
 RUN chmod +x docker-entrypoint.sh
-
+RUN chmod +x setup-network.sh
 # Build application (Prisma client generation only)
 RUN pnpm run build:docker
 
