@@ -20,7 +20,7 @@ import noticeRouter from "./routes/noticeRoutes.js";
 import holidayRouter from "./routes/holidayRoutes.js";
 import eventsRouter from "./routes/eventsRoutes.js";
 import galleryRouter from "./routes/galleryRoutes.js";
-import dashboardRouter from "./routes/dashboardRoutes.js"; 
+import dashboardRouter from "./routes/dashboardRoutes.js";
 import path from "path";
 import fs from "fs";
 import syllabusRoutes from "./routes/syllabusRoutes.js";
@@ -49,7 +49,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );

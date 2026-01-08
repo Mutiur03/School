@@ -2,18 +2,18 @@ services:
   school_backend:
     build: .  
     image: school_backend
-    container_name: school_backend
     restart: unless-stopped
     ports:
       - "${PORT}:${PORT}"
     volumes:
       - ./uploads:/app/uploads
+    env_file:
+      - ${ENV_FILE:-".env"}
     networks:
       - school_network
-    env_file:
-      - .env.prod
 
 
 networks:
   school_network:
-    driver: bridge
+    external: true
+    name: ${school_name}_school_network
