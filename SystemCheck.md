@@ -226,7 +226,7 @@ awk '{
 
 
 ```
-docker exec ontainer-name pg_dump -U user dbname > backup.sql
+docker exec container-name pg_dump -U user dbname > backup.sql
 ```
 ```
 docker run -d \
@@ -243,4 +243,15 @@ docker exec -i container-name psql -U user dbname < backup.sql
 ```
 ```
 kill $(lsof -t -i:3000)
+```
+
+
+
+Make sure Postgres is stopped in both old and new containers.
+then to rename volume
+```
+docker run --rm -it \
+  -v my_old_volume:/from \
+  -v my_new_volume:/to \
+  alpine sh -c "cp -a /from/. /to/"
 ```
