@@ -62,7 +62,8 @@ fi
 # Wait for Redis if configured
 if [ -n "$REDIS_URL" ] || [ -n "$REDIS_HOST" ]; then
     REDIS_HOST_TO_CHECK=${REDIS_HOST:-school_redis}
-    REDIS_PORT_TO_CHECK=${REDIS_PORT:-6379}
+    # Redis internal port is always 6379, regardless of external port mapping
+    REDIS_PORT_TO_CHECK=6379
     wait_for_service "$REDIS_HOST_TO_CHECK" "$REDIS_PORT_TO_CHECK" "Redis Cache"
 fi
 
