@@ -23,7 +23,7 @@ import AdmissionResult from "./pages/AdmissionResult";
 import AdmissionResultList from "./pages/AdmissionResultList";
 import AdmissionFormNotice from "./pages/AdmissionFormNotice";
 import MainLayout from "./components/MainLayout";
-
+import AdmissionFormNew from "./pages/AdmissionFormNew";
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
@@ -53,6 +53,7 @@ function App() {
           <Route path="/admission" element={<AdmissionFormNotice />} />
           <Route path="/admission/form" element={<AdmissionForm />} />
           <Route path="/admission/form/:id" element={<AdmissionForm />} />
+          <Route path="/admission/test" element={<AdmissionFormNew />} />
           <Route path="/admission/form/confirm/:id" element={<ConfirmationAdmission />} />
           <Route path="/admission/results" element={<AdmissionResultList />} />
           <Route path="/admission/result/:classNumber" element={<AdmissionResult />} />
