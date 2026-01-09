@@ -559,28 +559,28 @@ function Form() {
         try {
             console.log(errors);
 
-            // // 1) Upload photo first if present
-            // let storedPhotoPath = data.photo_path
-            // if (photo) {
-            //     const fd = new FormData()
-            //     fd.append('file', photo)
-            //     // Optionally include a desired path or metadata
-            //     fd.append('originalName', photo.name)
+            // 1) Upload photo first if present
+            let storedPhotoPath = data.photo_path
+            if (photo) {
+                const fd = new FormData()
+                fd.append('file', photo)
+                // Optionally include a desired path or metadata
+                fd.append('originalName', photo.name)
 
-            //     const uploadRes = await axios.post('/api/upload/photo', fd, {
-            //         headers: { 'Content-Type': 'multipart/form-data' },
-            //     })
-            //     // Expect backend to return { path: '/uploads/xyz.jpg' }
-            //     storedPhotoPath = uploadRes?.data?.path || photo.name
-            // }
+                const uploadRes = await axios.post('/api/upload/photo', fd, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
+                // Expect backend to return { path: '/uploads/xyz.jpg' }
+                storedPhotoPath = uploadRes?.data?.path || photo.name
+            }
 
-            // // 2) Submit full form with photo_path from upload
-            // const payload = { ...data, photo_path: storedPhotoPath }
-            // const submitRes = await axios.post('/api/admission/submit', payload)
+            // 2) Submit full form with photo_path from upload
+            const payload = { ...data, photo_path: storedPhotoPath }
+            const submitRes = await axios.post('/api/admission/submit', payload)
 
-            // console.log('Submission successful:', submitRes.data)
-            // alert('Application submitted successfully!')
-            // // reset()
+            console.log('Submission successful:', submitRes.data)
+            alert('Application submitted successfully!')
+            // reset()
         } catch (err: any) {
             console.error('Submission failed:', err)
             const msg = err?.response?.data?.message || 'Failed to submit application'
