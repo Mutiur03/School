@@ -1524,9 +1524,6 @@ function AdmissionForm() {
                                     {days.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
-                            {/* <Instruction>
-                                Student must be at least 12 years old on 1st January {currentYear}.
-                            </Instruction> */}
                         </FieldRow>
                         <FieldRow label="পিতার নাম (বাংলায়):" required instruction={getGuidance('fatherNameBn').instruction || '(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)'} error={errors.fatherNameBn} tooltip={getGuidance('fatherNameBn').tooltip || "Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali"}>
                             <input name="fatherNameBn" value={form.fatherNameBn} onChange={handleChange} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="পিতার নাম (বাংলায়)" aria-invalid={!!errors.fatherNameBn} />
