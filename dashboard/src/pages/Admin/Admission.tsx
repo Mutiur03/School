@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-
+import { toast } from "react-hot-toast";
 interface AdmissionData {
   id: string | number;
   status: string;
@@ -380,12 +380,12 @@ function Admission() {
             : it
         )
       );
-      setShowEditModal(false);
     } catch (err: unknown) {
       console.error(err);
       setError("Failed to update status");
     } finally {
       setLoading(false);
+      setShowEditModal(false);
     }
   }
 
@@ -399,13 +399,15 @@ function Admission() {
       setLoading(true);
       await axios.delete(`/api/admission/form/${id}`);
       setItems((prev) => prev.filter((it) => it.id !== id));
-      setShowDeleteModal(false);
       setDeleteTargetAdmission(null);
+      toast.success("Admission deleted successfully");
     } catch (err: unknown) {
       console.error(err);
-      setError("Failed to delete admission");
+      if (axios.isAxiosError(err))
+        setError(err.response?.data?.message || "Failed to delete admission");
     } finally {
       setLoading(false);
+      setShowDeleteModal(false);
     }
   }
 

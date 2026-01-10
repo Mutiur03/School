@@ -523,7 +523,7 @@ model admission_form {
 
   // Photo
   photo_path      String? @db.VarChar(255)
-  whatsapp_number String? @db.Char(11)
+  whatsapp_number String? @db.VarChar(11)
 
   status          String?   @default("pending") @db.VarChar(20)
   submission_date DateTime? @default(now())
