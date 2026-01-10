@@ -671,10 +671,10 @@ export const updateEventThumbnailController = async (req, res) => {
     if (!exist) {
       return res.status(404).json({ error: "Image not found" });
     }
-    const filePath = fixUrl(exist.image_path); // Fix here
+    const filePath = fixUrl(exist.image_path); 
     const result = await prisma.events.update({
       where: { id: parseInt(event_id) },
-      data: { thumbnail: filePath },
+      data: { thumbnail: filePath, image: filePath },
     });
     res.json(result);
   } catch (error) {
