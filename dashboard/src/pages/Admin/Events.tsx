@@ -163,7 +163,7 @@ const Events: React.FC = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="title">Event Title</Label>
+                <Label htmlFor="title">Event Title <span className="text-red-500">*</span></Label>
                 <Input
                   id="title"
                   name="title"
@@ -176,7 +176,7 @@ const Events: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="details">Event Details</Label>
+                <Label htmlFor="details">Event Details <span className="text-gray-400 font-normal">(Optional)</span></Label>
                 <Textarea
                   id="details"
                   name="details"
@@ -191,7 +191,7 @@ const Events: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="file">Upload PDF Notice</Label>
+                  <Label htmlFor="file">Upload PDF Notice <span className="text-gray-400 font-normal">(Optional)</span></Label>
                   <Input
                     id="file"
                     type="file"
@@ -218,7 +218,7 @@ const Events: React.FC = () => {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="image">Upload Photo</Label>
+                  <Label htmlFor="image">Upload Photo <span className="text-gray-400 font-normal">(Optional)</span></Label>
                   <Input
                     id="image"
                     type="file"
@@ -253,7 +253,7 @@ const Events: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="date">Event Date</Label>
+                  <Label htmlFor="date">Event Date <span className="text-red-500">*</span></Label>
                   <DatePicker
                     value={formValues.date}
                     onChange={(e) =>
@@ -263,7 +263,7 @@ const Events: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="location">Event Location</Label>
+                  <Label htmlFor="location">Event Location <span className="text-gray-400 font-normal">(Optional)</span></Label>
                   <Input
                     id="location"
                     name="location"
@@ -389,27 +389,34 @@ const Events: React.FC = () => {
                   <div>
                     <strong>Title:</strong> {popup.event.title}
                   </div>
-                  <div>
-                    <strong>Details:</strong> {popup.event.details}
-                  </div>
+                  {popup.event.details && (
+                    <div>
+                      <strong>Details:</strong> {popup.event.details}
+                    </div>
+                  )}
                   <div>
                     <strong>Date:</strong>{" "}
                     {format(new Date(popup.event.date), "dd MMM yyyy")}
                   </div>
-                  <div>
-                    <strong>Location:</strong> {popup.event.location}
-                  </div>
-                  <div>
-                    <strong>File:</strong>{" "}
-                    <a
-                      href={`${popup.event.file}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline"
-                    >
-                      View PDF
-                    </a>
-                  </div>
+                  {popup.event.location && (
+                    <div>
+                      <strong>Location:</strong> {popup.event.location}
+                    </div>
+                  )}
+                  {popup.event.file && (
+                    <div>
+                      <strong>File:</strong>{" "}
+                      <a
+                        href={`${popup.event.file}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        View PDF
+                      </a>
+                    </div>
+                  )}
+
                 </div>
                 <div className="flex justify-between pt-4">
                   <div className="flex gap-2">

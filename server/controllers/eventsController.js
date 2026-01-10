@@ -9,8 +9,8 @@ import { fixUrl } from "../utils/fixURL.js";
 export const addEventController = async (req, res) => {
   try {
     let { title, details, date, location } = req.body;
-    const image = req.files.image[0];
-    const file = req.files.file[0];
+    const image = req.files?.image?.[0];
+    const file = req.files?.file?.[0];
 
     date = new Date(date)
       .toLocaleDateString("en-US", {
@@ -20,19 +20,19 @@ export const addEventController = async (req, res) => {
       })
       .replace(/\//g, "-");
 
-    const { previewUrl, public_id, downloadUrl } = await uploadPDFToCloudinary(
-      file
-    );
-
-    // Remove both local PDF and image files after upload (check existence)
-    const filePath = file.path.startsWith("uploads")
-      ? `${process.cwd()}/${file.path}`
-      : file.path;
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (err) {
-        console.error("Error deleting local file:", err);
+    let uploadResult = {};
+    if (file) {
+      uploadResult = await uploadPDFToCloudinary(file);
+      // Remove local PDF file after upload
+      const filePath = file.path.startsWith("uploads")
+        ? `${process.cwd()}/${file.path}`
+        : file.path;
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error("Error deleting local file:", err);
+        }
       }
     }
 
@@ -42,10 +42,10 @@ export const addEventController = async (req, res) => {
         details,
         date,
         location,
-        image: fixUrl(image.path),
-        file: previewUrl,
-        download_url: downloadUrl,
-        public_id: public_id,
+        image: image ? fixUrl(image.path) : null,
+        file: uploadResult.previewUrl || null,
+        download_url: uploadResult.downloadUrl || null,
+        public_id: uploadResult.public_id || null,
       },
     });
 
@@ -58,7 +58,11 @@ export const addEventController = async (req, res) => {
 
 export const getEventsController = async (req, res) => {
   try {
-    const result = await prisma.events.findMany();
+    const result = await prisma.events.findMany({
+      orderBy: {
+        date: "desc",
+      },
+    });
     const thumbnails = result.map((event) => {
       return {
         ...event,
@@ -81,7 +85,11 @@ export const deleteEventController = async (req, res) => {
 
     const imagePath = result.image;
     if (imagePath && fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
+      try {
+        fs.unlinkSync(imagePath);
+      } catch (err) {
+        console.error("Error deleting local image:", err);
+      }
     }
 
     if (result.public_id) {
@@ -127,9 +135,7 @@ export const updateEventController = async (req, res) => {
         })
         .replace(/\//g, "-"),
     };
-    console.log("====================================");
-    console.log(file);
-    console.log("====================================");
+
     if (file) {
       const { previewUrl, public_id, downloadUrl } =
         await uploadPDFToCloudinary(file);
@@ -137,7 +143,7 @@ export const updateEventController = async (req, res) => {
       updateData.public_id = public_id;
       updateData.download_url = downloadUrl;
 
-      // Remove local PDF file after upload (check existence)
+      // Remove local PDF file after upload
       const filePath = file.path.startsWith("uploads")
         ? `${process.cwd()}/${file.path}`
         : file.path;
@@ -157,8 +163,12 @@ export const updateEventController = async (req, res) => {
     if (image) {
       updateData.image = fixUrl(image.path);
 
-      if (fs.existsSync(existingEvent.image)) {
-        fs.unlinkSync(existingEvent.image);
+      if (existingEvent.image && fs.existsSync(existingEvent.image)) {
+        try {
+          fs.unlinkSync(existingEvent.image);
+        } catch (err) {
+          console.error("Error deleting old local image:", err);
+        }
       }
     }
 
