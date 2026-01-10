@@ -29,7 +29,7 @@ const admissionSchema = z.object({
     birth_month: z.string().min(1, "Birth Month is required").max(2).regex(/^(0[1-9]|1[0-2])$/, "Month must be 01-12").default(""),
     birth_day: z.string().min(1, "Birth Day is required").max(2).regex(/^(0[1-9]|[12]\d|3[01])$/, "Day must be 01-31").default(""),
     blood_group: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""]).default(""),
-    email: z.string().default("").refine(val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), "Invalid email format"),
+    email: z.string().default("").refine((val) => !val || /^[\x00-\x7F]+$/.test(val), "Email must contain only English characters").refine((val) => !val || z.string().email().safeParse(val).success, "Invalid email format");
     religion: z.string().min(1, "Religion is required").max(50).default(""),
 
     present_district: z.string().min(1, "Present District is required").max(50).default(""),
