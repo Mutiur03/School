@@ -3,85 +3,79 @@ import { z } from "zod"
 import { useForm, type FieldError, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { districts, getUpazilasByDistrict } from '@/lib/location'
-import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import axios, { isAxiosError } from 'axios'
+import { useNavigate, useParams } from 'react-router-dom'
+import backend from '@/lib/backend'
 
 const admissionSchema = z.object({
-    student_name_bn: z.string().min(1, "Student Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed"),
-    student_nick_name_bn: z.string().min(1, "Student Nickname in Bangla is required").max(50).regex(/^[\u0980-\u09FF\s]*$/, "Only Bangla characters are allowed"),
-    student_name_en: z.string().min(1, "Student Name in English is required").max(100).regex(/^[A-Za-z\s]*$/, "Only English characters are allowed"),
-    birth_reg_no: z.string().min(1, "Birth Registration Number is required").max(17, "Birth Registration Number must be 17 characters"),
-    registration_no: z.string().max(50),
+    student_name_bn: z.string().min(1, "Student Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed").default(""),
+    student_nick_name_bn: z.string().min(1, "Student Nickname in Bangla is required").max(50).regex(/^[\u0980-\u09FF\s]*$/, "Only Bangla characters are allowed").default(""),
+    student_name_en: z.string().min(1, "Student Name in English is required").max(100).regex(/^[A-Za-z\s]+$/, "Only English characters are allowed").default(""),
+    birth_reg_no: z.string().min(1, "Birth Registration Number is required").max(17, "Birth Registration Number must be 17 characters").regex(/^\d{17}$/, "Birth Registration Number must be 17 digits").default(""),
+    registration_no: z.string().default(""),
 
-    father_name_bn: z.string().min(1, "Father's Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed"),
-    father_name_en: z.string().min(1, "Father's Name in English is required").max(100).regex(/^[A-Za-z\s]*$/, "Only English characters are allowed"),
-    father_nid: z.string().min(10, "Father's NID is required").max(17).regex(/^\d+$/, "Father's NID must be numeric"),
-    father_phone: z.string().length(11, "Phone number must be 11 digits").regex(/^(01[3-9]\d{8})$/, "Invalid Bangladeshi phone number"),
+    father_name_bn: z.string().min(1, "Father's Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed").default(""),
+    father_name_en: z.string().min(1, "Father's Name in English is required").max(100).regex(/^[A-Za-z\s]+$/, "Only English characters are allowed").default(""),
+    father_nid: z.string().min(10, "Father's NID is required").max(17).regex(/^\d{10,17}$/, "Father's NID must be 10 to 17 digits").default(""),
+    father_phone: z.string().length(11, "Phone number must be 11 digits").regex(/^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number").default(""),
 
-    mother_name_bn: z.string().min(1, "Mother's Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed"),
-    mother_name_en: z.string().min(1, "Mother's Name in English is required").max(100).regex(/^[A-Za-z\s]*$/, "Only English characters are allowed"),
-    mother_nid: z.string().min(10, "Mother's NID is required").max(17).regex(/^\d+$/, "Mother's NID must be numeric"),
-    mother_phone: z.string().length(11, "Phone number must be 11 digits").regex(/^(01[3-9]\d{8})$/, "Invalid Bangladeshi phone number"),
+    mother_name_bn: z.string().min(1, "Mother's Name in Bangla is required").max(100).regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed").default(""),
+    mother_name_en: z.string().min(1, "Mother's Name in English is required").max(100).regex(/^[A-Za-z\s]+$/, "Only English characters are allowed").default(""),
+    mother_nid: z.string().min(10, "Mother's NID is required").max(17).regex(/^\d{10,17}$/, "Mother's NID must be 10 to 17 digits").default(""),
+    mother_phone: z.string().length(11, "Phone number must be 11 digits").regex(/^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number").default(""),
 
-    birth_date: z.string().max(10),
-    birth_year: z.string().min(1, "Birth Year is required").max(4).regex(/^\d{4}$/, "Year must be 4 digits"),
-    birth_month: z.string().min(1, "Birth Month is required").max(2).regex(/^(0[1-9]|1[0-2])$/, "Month must be 01-12"),
-    birth_day: z.string().min(1, "Birth Day is required").max(2).regex(/^(0[1-9]|[12]\d|3[01])$/, "Day must be 01-31"),
-    blood_group: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""]),
-    email: z.string().optional().refine(val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), "Invalid email format"),
-    religion: z.string().min(1, "Religion is required").max(50),
+    birth_date: z.string().max(10).default(""),
+    birth_year: z.string().min(1, "Birth Year is required").max(4).regex(/^\d{4}$/, "Year must be 4 digits").default(""),
+    birth_month: z.string().min(1, "Birth Month is required").max(2).regex(/^(0[1-9]|1[0-2])$/, "Month must be 01-12").default(""),
+    birth_day: z.string().min(1, "Birth Day is required").max(2).regex(/^(0[1-9]|[12]\d|3[01])$/, "Day must be 01-31").default(""),
+    blood_group: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""]).default(""),
+    email: z.string().default("").refine(val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), "Invalid email format"),
+    religion: z.string().min(1, "Religion is required").max(50).default(""),
 
-    present_district: z.string().min(1, "Present District is required").max(50),
-    present_upazila: z.string().min(1, "Present Upazila is required").max(50),
-    present_post_office: z.string().min(1, "Present Post Office is required").max(100),
-    present_post_code: z.string().min(4, "Present Post Code is required").max(4).regex(/^\d{4}$/, "Post code must be 4 digits"),
-    present_village_road: z.string().min(1, "Present Village/Road is required").max(200),
+    present_district: z.string().min(1, "Present District is required").max(50).default(""),
+    present_upazila: z.string().min(1, "Present Upazila is required").max(50).default(""),
+    present_post_office: z.string().min(1, "Present Post Office is required").max(100).default(""),
+    present_post_code: z.string().min(4, "Present Post Code is required").max(4).regex(/^\d{4}$/, "Post code must be 4 digits").default(""),
+    present_village_road: z.string().min(1, "Present Village/Road is required").max(200).default(""),
 
-    permanent_district: z.string().min(1, "Permanent District is required").max(50),
-    permanent_upazila: z.string().min(1, "Permanent Upazila is required").max(50),
-    permanent_post_office: z.string().min(1, "Permanent Post Office is required").max(100),
-    permanent_post_code: z.string().min(4, "Permanent Post Code is required").max(4).regex(/^\d{4}$/, "Post code must be 4 digits"),
-    permanent_village_road: z.string().min(1, "Permanent Village/Road is required").max(200),
+    permanent_district: z.string().min(1, "Permanent District is required").max(50).default(""),
+    permanent_upazila: z.string().min(1, "Permanent Upazila is required").max(50).default(""),
+    permanent_post_office: z.string().min(1, "Permanent Post Office is required").max(100).default(""),
+    permanent_post_code: z.string().min(4, "Permanent Post Code is required").max(4).regex(/^\d{4}$/, "Post code must be 4 digits").default(""),
+    permanent_village_road: z.string().min(1, "Permanent Village/Road is required").max(200).default(""),
 
     guardian_is_not_father: z.boolean().default(false),
-    guardian_name: z.string().max(100).optional().or(z.literal("")),
-    guardian_phone: z.string().optional().or(z.literal("")).refine(
-        (val) => !val || (val.length === 11 && /^(01[3-9]\d{8})$/.test(val)),
-        "Invalid Bangladeshi phone number (must be 11 digits)"
-    ),
-    guardian_relation: z.string().max(50).optional().or(z.literal("")),
-    guardian_nid: z.string().max(17).optional().or(z.literal("")),
+    guardian_name: z.string().max(100).default(""),
+    guardian_phone: z.string().max(11).regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number").default(""),
+    guardian_relation: z.string().max(50).default(""),
+    guardian_nid: z.string().max(17).regex(/^$|^\d{10,17}$/, "Guardian NID must be 10 to 17 digits").default(""),
     guardian_address_same_as_permanent: z.boolean().default(false),
-    guardian_district: z.string().max(50).optional().or(z.literal("")),
-    guardian_upazila: z.string().max(50).optional().or(z.literal("")),
-    guardian_post_office: z.string().max(100).optional().or(z.literal("")),
-    guardian_post_code: z.string().optional().or(z.literal("")).refine(
-        (val) => !val || /^\d{4}$/.test(val),
-        "Post code must be 4 digits"
-    ),
-    guardian_village_road: z.string().max(200).optional().or(z.literal("")),
+    guardian_district: z.string().max(50).default(""),
+    guardian_upazila: z.string().max(50).default(""),
+    guardian_post_office: z.string().max(100).default(""),
+    guardian_post_code: z.string().regex(/^$|^\d{4}$/, "Post code must be 4 digits").default(""),
+    guardian_village_road: z.string().max(200).default(""),
 
-    prev_school_name: z.string().min(1, "Previous School Name is required").max(200),
-    prev_school_district: z.string().min(1, "Previous School District is required").max(50),
-    prev_school_upazila: z.string().min(1, "Previous School Upazila is required").max(50),
-    section_in_prev_school: z.string().min(1, "Section is required").max(10),
-    roll_in_prev_school: z.string().min(1, "Roll Number is required").max(20),
-    prev_school_passing_year: z.string().min(1, "Passing Year is required").max(4).regex(/^\d{4}$/, "Year must be 4 digits"),
+    prev_school_name: z.string().min(1, "Previous School Name is required").max(200).default(""),
+    prev_school_district: z.string().min(1, "Previous School District is required").max(50).default(""),
+    prev_school_upazila: z.string().min(1, "Previous School Upazila is required").max(50).default(""),
+    section_in_prev_school: z.string().min(1, "Section is required").max(10).default(""),
+    roll_in_prev_school: z.string().min(1, "Roll Number is required").max(20).default(""),
+    prev_school_passing_year: z.string().min(1, "Passing Year is required").max(4).regex(/^\d{4}$/, "Year must be 4 digits").default(""),
 
-    father_profession: z.string().min(1, "Father's Profession is required").max(100),
-    mother_profession: z.string().min(1, "Mother's Profession is required").max(100),
-    parent_income: z.string().min(1, "Parent's Annual Income is required").max(100),
+    father_profession: z.string().min(1, "Father's Profession is required").max(100).default(""),
+    mother_profession: z.string().min(1, "Mother's Profession is required").max(100).default(""),
+    parent_income: z.string().min(1, "Parent's Annual Income is required").max(100).default(""),
 
-    admission_class: z.string().min(1, "Admission Class is required").max(50),
-    admission_year: z.number().min(2020).max(2030),
-    list_type: z.string().min(1, "List Type is required").max(50),
-    admission_user_id: z.string().min(1, "User ID is required").max(50),
-    serial_no: z.string().min(1, "Serial No is required").max(50),
-    qouta: z.string().min(1, "Qouta is required").max(50),
+    admission_class: z.string().min(1, "Admission Class is required").max(50).default(""),
+    list_type: z.string().min(1, "List Type is required").max(50).default(""),
+    admission_user_id: z.string().min(1, "User ID is required").max(50).default(""),
+    serial_no: z.string().min(1, "Serial No is required").max(50).default(""),
+    qouta: z.string().min(1, "Qouta is required").max(50).default(""),
 
-    photo_path: z.string().min(1, "Photo is required").max(255),
-    whatsapp_number: z.string().optional().or(z.literal("")).refine(
-        (val) => !val || (val.length === 11 && /^(01[3-9]\d{8})$/.test(val)),
+    photo_path: z.string().min(1, "Photo is required").max(255).default(""),
+    whatsapp_number: z.string().default("").refine(
+        (val) => !val || (val.length === 11 && /^01[3-9][0-9]{8}$/.test(val)),
         "Invalid Bangladeshi phone number (must be 11 digits)"
     ),
 }).superRefine((data, ctx) => {
@@ -99,7 +93,7 @@ const admissionSchema = z.object({
                 message: "Guardian phone is required when guardian is not father",
                 path: ["guardian_phone"],
             });
-        } else if (!/^(01[3-9]\d{8})$/.test(data.guardian_phone)) {
+        } else if (!/^01[3-9][0-9]{8}$/.test(data.guardian_phone)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: "Invalid Bangladeshi phone number",
@@ -170,16 +164,19 @@ const admissionSchema = z.object({
         const cls = String(data.admission_class).trim().toLowerCase()
         const isEightOrNine = cls === '8' || cls.includes('8') || cls.includes('eight') || cls === '9' || cls.includes('9') || cls.includes('nine')
         if (isEightOrNine) {
-            if (!data.registration_no || data.registration_no.length !== 10) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: "Registration Number must be 10 digits",
-                    path: ["registration_no"],
-                });
+            if (!data.registration_no || !/^\d{10}$/.test(data.registration_no)) {
+                if (!data.registration_no || !/^\d{10}$/.test(data.registration_no)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: "Registration Number must be 10 digits",
+                        path: ["registration_no"],
+                    });
+                }
             }
         }
     }
 })
+
 
 type AdmissionFormData = z.infer<typeof admissionSchema>
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -245,6 +242,7 @@ const FieldRow: React.FC<{
         </div>
     </div>
 )
+
 function getUserIdListFromSettings(settings: AdmissionSettings | null | undefined, admission_class?: string | null) {
     if (!settings) return []
     const cls = String(admission_class || '').trim().toLowerCase()
@@ -276,13 +274,17 @@ function Form() {
         formState: { errors },
         reset,
         watch,
-        setValue
+        setValue,
+        setError,
+        setFocus
     } = useForm<AdmissionFormData>({
         resolver: zodResolver(admissionSchema) as Resolver<AdmissionFormData>,
         mode: 'onBlur',
-        reValidateMode: 'onChange'
+        reValidateMode: 'onChange',
+        defaultValues: admissionSchema.parse({}),
     })
     const form = watch()
+    const { id } = useParams()
     const [permanentUpazillas, setPermanentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [presentUpazillas, setPresentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [sameAsPermanent, setSameAsPermanent] = useState(false)
@@ -290,7 +292,7 @@ function Form() {
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<{ id: string; name: string }[]>([])
     const [photo, setPhoto] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-    const isEditMode = false
+    const isEditMode = Boolean(id)
     const [admission_year, setAdmissionYear] = useState(new Date().getFullYear())
     const classGuidance: Record<string, Record<string, { instruction?: string; tooltip?: string }>> = {
         sixx: {
@@ -334,6 +336,8 @@ function Form() {
     const [admissionClosed, setAdmissionClosed] = useState(false)
     const [initialLoading, setInitialLoading] = useState(true)
     const navigate = useNavigate()
+    const [shouldNavigate, setShouldNavigate] = useState(false);
+    const [tempDataonEdit, setTempDataOnEdit] = useState<Record<string, string>>({});
     function getGuidance(fieldKey: string) {
         const clsKey = normalizeClassKey(form.admission_class)
         if (!clsKey) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
@@ -384,11 +388,11 @@ function Form() {
     }, [form.guardian_is_not_father, form.guardian_district, form.guardian_address_same_as_permanent])
     useEffect(() => {
         if (sameAsPermanent) {
-            setValue('present_district', form.permanent_district)
-            setValue('present_upazila', form.permanent_upazila)
-            setValue('present_post_office', form.permanent_post_office)
-            setValue('present_post_code', form.permanent_post_code)
-            setValue('present_village_road', form.permanent_village_road)
+            setValue('present_district', form.permanent_district, { shouldValidate: true })
+            setValue('present_upazila', form.permanent_upazila, { shouldValidate: true })
+            setValue('present_post_office', form.permanent_post_office, { shouldValidate: true })
+            setValue('present_post_code', form.permanent_post_code, { shouldValidate: true })
+            setValue('present_village_road', form.permanent_village_road, { shouldValidate: true })
         } else {
             setValue('present_district', '')
             setValue('present_upazila', '')
@@ -410,10 +414,50 @@ function Form() {
         const k = normalizeClassKey(c)
         return k === 'eight' || k === 'nine'
     }
-    const isRequired = (field: keyof AdmissionFormData) => {
-        const shape = admissionSchema.shape[field];
-        return (shape)._zod.optin !== "optional";
-    };
+    const requiredFields: Array<keyof AdmissionFormData> = [
+        'student_name_bn',
+        'student_nick_name_bn',
+        'student_name_en',
+        'birth_reg_no',
+        'father_name_bn',
+        'father_name_en',
+        'father_nid',
+        'father_phone',
+        'mother_name_bn',
+        'mother_name_en',
+        'mother_nid',
+        'mother_phone',
+        'birth_year',
+        'birth_month',
+        'birth_day',
+        'religion',
+        'present_district',
+        'present_upazila',
+        'present_post_office',
+        'present_post_code',
+        'present_village_road',
+        'permanent_district',
+        'permanent_upazila',
+        'permanent_post_office',
+        'permanent_post_code',
+        'permanent_village_road',
+        'prev_school_name',
+        'prev_school_district',
+        'prev_school_upazila',
+        'section_in_prev_school',
+        'roll_in_prev_school',
+        'prev_school_passing_year',
+        'father_profession',
+        'mother_profession',
+        'parent_income',
+        'admission_class',
+        'list_type',
+        'admission_user_id',
+        'serial_no',
+        'qouta',
+        'photo_path',
+    ];
+    const isRequired = (field: keyof AdmissionFormData) => requiredFields.includes(field);
     function expandSerialList(tokens: string[]): string[] {
         const seen = new Set<string>()
         const result: string[] = []
@@ -442,83 +486,160 @@ function Form() {
         }
         return result
     }
-    const fetchClasses = async () => {
-        const admissionStatusResponse = await axios.get('/api/admission')
-        if (admissionStatusResponse.data) {
-            const { admission_open } = admissionStatusResponse.data
-            setAdmissionYear(admissionStatusResponse.data.admission_year || '');
-            setAdmissionSettings(admissionStatusResponse.data)
-            const clsList = parseCsvString(admissionStatusResponse.data.class_list)
-            if (clsList.length) setClassListOptions(clsList)
-            if (!admission_open) {
-                setAdmissionClosed(true)
-                setInitialLoading(false)
-                return
-            }
-            setInitialLoading(false)
-        } else {
-            navigate('/', { replace: true })
-            return
-        }
-    }
 
-    React.useEffect(() => {
-        fetchClasses()
-    }, [initialLoading])
+
     useEffect(() => {
-        if (!admissionSettings) return
-        const list = getUserIdListFromSettings(admissionSettings, form.admission_class)
-        setUserIdOptions(list)
-        const cls = String(form.admission_class || '').trim().toLowerCase()
-        const getSetting = (k: string) => (admissionSettings as Record<string, unknown>)[k]
-        let listTypeTokens: string[] = []
-        let serialRawTokens: string[] = []
-        let user_id_list: string[] = []
+        const initializeData = async () => {
+            try {
+                setInitialLoading(true)
+
+                const admissionStatusResponse = await axios.get('/api/admission')
+                if (admissionStatusResponse.data) {
+                    const { admission_open } = admissionStatusResponse.data
+                    setAdmissionYear(Number(admissionStatusResponse.data.admission_year));
+                    setAdmissionSettings(admissionStatusResponse.data)
+                    const clsList = parseCsvString(admissionStatusResponse.data.class_list)
+                    if (clsList.length) setClassListOptions(clsList)
+                    if (!admission_open) {
+                        setAdmissionClosed(true)
+                        setInitialLoading(false)
+                        return
+                    }
+                } else {
+                    navigate('/', { replace: true })
+                    return
+                }
+                if (isEditMode && id) {
+                    const response = await axios.get(`/api/admission/form/${id}`)
+                    if (response.data.success) {
+                        const data = response.data.data
+                        if (data.status !== 'pending') {
+                            setShouldNavigate(true)
+                            navigate('/admission/form/confirm/' + id, { replace: true })
+                            return
+                        }
+                        if (data) {
+                            reset(data);
+                            if (data.guardian_name && data.guardian_name.trim() !== '') {
+                                setValue('guardian_is_not_father', true);
+                            }
+                            else {
+                                setValue('guardian_is_not_father', false);
+                            }
+                            if (
+                                data.present_district === data.permanent_district &&
+                                data.present_upazila === data.permanent_upazila &&
+                                data.present_post_office === data.permanent_post_office &&
+                                data.present_post_code === data.permanent_post_code &&
+                                data.present_village_road === data.permanent_village_road
+                            ) {
+                                setSameAsPermanent(true);
+                            } else {
+                                setSameAsPermanent(false);
+                            }
+                            setGuardianUpazillas(getUpazilasByDistrict(data.guardian_district))
+                            setPermanentUpazillas(getUpazilasByDistrict(data.permanent_district))
+                            setPresentUpazillas(getUpazilasByDistrict(data.present_district))
+                            setPrevSchoolUpazilas(getUpazilasByDistrict(data.prev_school_district))
+                            setValue('guardian_upazila', data.guardian_upazila)
+                            setValue('present_upazila', data.present_upazila)
+                            setValue('permanent_upazila', data.permanent_upazila)
+                            setValue('prev_school_upazila', data.prev_school_upazila)
+                            setTempDataOnEdit({ list_type: data.list_type, serial_no: data.serial_no })
+
+
+                        }
+
+                        if (data.photo_path) {
+                            try {
+                                const host = backend;
+                                setPhotoPreview(`${host}/${data.photo_path}`)
+                            } catch (photoError) {
+                                console.warn('Could not load existing photo:', photoError)
+                            }
+                        }
+                    } else {
+                        setShouldNavigate(true)
+                        navigate('/admission/form', { replace: true })
+                        return
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to initialize data:', error)
+                if (isEditMode) {
+                    setShouldNavigate(true)
+                    navigate('/admission/form', { replace: true })
+                    return
+                } else {
+                    setShouldNavigate(true)
+                    navigate('/', { replace: true })
+                    return
+                }
+            } finally {
+                setInitialLoading(false)
+            }
+        }
+
+        initializeData()
+    }, [isEditMode, id, navigate, reset, setValue])
+    useEffect(() => {
+        if (!admissionSettings || initialLoading) return;
+        const list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+        setUserIdOptions(list);
+        const cls = String(form.admission_class || '').trim().toLowerCase();
+        const getSetting = (k: string) => (admissionSettings as Record<string, unknown>)[k];
+        let listTypeTokens: string[] = [];
+        let serialRawTokens: string[] = [];
+        let user_id_list: string[] = [];
         if (cls === '6' || cls.includes('6') || cls.includes('six')) {
-            listTypeTokens = parseCsvString(getSetting('list_type_class6') ?? getSetting('listTypeClass6') ?? getSetting('list_type') ?? getSetting('listType'))
-            serialRawTokens = parseCsvString(getSetting('serial_no_class6') ?? getSetting('serialNoClass6') ?? getSetting('serial_no') ?? getSetting('serialNo'))
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class)
+            listTypeTokens = parseCsvString(getSetting('list_type_class6') ?? getSetting('listTypeClass6') ?? getSetting('list_type') ?? getSetting('listType'));
+            serialRawTokens = parseCsvString(getSetting('serial_no_class6') ?? getSetting('serialNoClass6') ?? getSetting('serial_no') ?? getSetting('serialNo'));
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
         } else if (cls === '7' || cls.includes('7') || cls.includes('seven')) {
-            listTypeTokens = parseCsvString(getSetting('list_type_class7') ?? getSetting('listTypeClass7') ?? getSetting('list_type') ?? getSetting('listType'))
-            serialRawTokens = parseCsvString(getSetting('serial_no_class7') ?? getSetting('serialNoClass7') ?? getSetting('serial_no') ?? getSetting('serialNo'))
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class)
+            listTypeTokens = parseCsvString(getSetting('list_type_class7') ?? getSetting('listTypeClass7') ?? getSetting('list_type') ?? getSetting('listType'));
+            serialRawTokens = parseCsvString(getSetting('serial_no_class7') ?? getSetting('serialNoClass7') ?? getSetting('serial_no') ?? getSetting('serialNo'));
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
         } else if (cls === '8' || cls.includes('8') || cls.includes('eight')) {
-            listTypeTokens = parseCsvString(getSetting('list_type_class8') ?? getSetting('listTypeClass8') ?? getSetting('list_type') ?? getSetting('listType'))
-            serialRawTokens = parseCsvString(getSetting('serial_no_class8') ?? getSetting('serialNoClass8') ?? getSetting('serial_no') ?? getSetting('serialNo'))
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class)
+            listTypeTokens = parseCsvString(getSetting('list_type_class8') ?? getSetting('listTypeClass8') ?? getSetting('list_type') ?? getSetting('listType'));
+            serialRawTokens = parseCsvString(getSetting('serial_no_class8') ?? getSetting('serialNoClass8') ?? getSetting('serial_no') ?? getSetting('serialNo'));
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
         } else if (cls === '9' || cls.includes('9') || cls.includes('nine')) {
-            listTypeTokens = parseCsvString(getSetting('list_type_class9') ?? getSetting('listTypeClass9') ?? getSetting('list_type') ?? getSetting('listType'))
-            serialRawTokens = parseCsvString(getSetting('serial_no_class9') ?? getSetting('serialNoClass9') ?? getSetting('serial_no') ?? getSetting('serialNo'))
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class)
+            listTypeTokens = parseCsvString(getSetting('list_type_class9') ?? getSetting('listTypeClass9') ?? getSetting('list_type') ?? getSetting('listType'));
+            serialRawTokens = parseCsvString(getSetting('serial_no_class9') ?? getSetting('serialNoClass9') ?? getSetting('serial_no') ?? getSetting('serialNo'));
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
         } else {
-            listTypeTokens = parseCsvString(getSetting('list_type') ?? getSetting('listType'))
-            serialRawTokens = parseCsvString(getSetting('serial_no') ?? getSetting('serialNo'))
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class)
+            listTypeTokens = parseCsvString(getSetting('list_type') ?? getSetting('listType'));
+            serialRawTokens = parseCsvString(getSetting('serial_no') ?? getSetting('serialNo'));
+            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
         }
 
         if (listTypeTokens.length) {
-            setListTypeOptions(listTypeTokens)
+            setListTypeOptions(listTypeTokens);
         } else {
-            setListTypeOptions([])
+            setListTypeOptions([]);
         }
         if (user_id_list.length) {
-            setUserIdOptions(user_id_list)
+            setUserIdOptions(user_id_list);
         } else {
-            setUserIdOptions([])
+            setUserIdOptions([]);
         }
-        const serialList = expandSerialList(serialRawTokens)
-        if (serialList.length) setSerialNoOptions(serialList)
-        else setSerialNoOptions([])
-        if (form.list_type && listTypeTokens.length > 0 && !listTypeTokens.includes(String(form.list_type))) {
-            setValue('list_type', '', { shouldValidate: true })
+        const serialList = expandSerialList(serialRawTokens);
+        if (serialList.length) setSerialNoOptions(serialList);
+        else setSerialNoOptions([]);
+    }, [admissionSettings, form.admission_class, initialLoading]);
+    useEffect(() => {
+        if (
+            isEditMode &&
+            !initialLoading &&
+            tempDataonEdit.list_type &&
+            tempDataonEdit.serial_no &&
+            listTypeOptions.length > 0 &&
+            userIdOptions.length > 0
+        ) {
+            setValue('list_type', tempDataonEdit.list_type, { shouldValidate: true });
+            setValue('serial_no', tempDataonEdit.serial_no, { shouldValidate: true });
         }
-        if (form.serial_no && serialList.length > 0 && !serialList.includes(String(form.serial_no))) {
-            setValue('serial_no', '', { shouldValidate: true })
-        }
-        if (form.admission_user_id && user_id_list.length > 0 && !user_id_list.includes(String(form.admission_user_id))) {
-            setValue('admission_user_id', '', { shouldValidate: true })
-        }
-    }, [admissionSettings, form.admission_class, form.list_type, form.serial_no, form.admission_user_id, setValue])
+    }, [isEditMode, initialLoading, tempDataonEdit, setValue, listTypeOptions, userIdOptions]);
     function filterEnglishInput(e: React.FormEvent<HTMLInputElement>) {
         const target = e.target as HTMLInputElement;
         return target.value.replace(/[^A-Za-z.()\s]/g, '')
@@ -556,35 +677,20 @@ function Form() {
     }
 
     const onSubmit = async (data: AdmissionFormData) => {
+        if (form.admission_user_id && !userIdOptions.includes(form.admission_user_id)) {
+            setError('admission_user_id', { type: 'manual', message: 'Invalid User ID for the selected class' });
+            setFocus('admission_user_id');
+            return;
+        }
         try {
-            console.log(errors);
-
-            // 1) Upload photo first if present
-            let storedPhotoPath = data.photo_path
-            if (photo) {
-                const fd = new FormData()
-                fd.append('file', photo)
-                // Optionally include a desired path or metadata
-                fd.append('originalName', photo.name)
-
-                const uploadRes = await axios.post('/api/upload/photo', fd, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                })
-                // Expect backend to return { path: '/uploads/xyz.jpg' }
-                storedPhotoPath = uploadRes?.data?.path || photo.name
-            }
-
-            // 2) Submit full form with photo_path from upload
-            const payload = { ...data, photo_path: storedPhotoPath }
-            const submitRes = await axios.post('/api/admission/submit', payload)
-
-            console.log('Submission successful:', submitRes.data)
-            alert('Application submitted successfully!')
-            // reset()
-        } catch (err: any) {
+            console.log(data);
+            // ...existing code...
+        } catch (err) {
             console.error('Submission failed:', err)
-            const msg = err?.response?.data?.message || 'Failed to submit application'
-            alert(msg)
+            if (isAxiosError(err)) {
+                const msg = err?.response?.data?.message || 'Failed to submit application'
+                alert(msg)
+            }
         }
     }
     const currentYear = new Date().getFullYear()
@@ -645,12 +751,12 @@ function Form() {
                     </div>
                     <div className="text-center">
                         <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                            {/* {shouldNavigate
+                            {shouldNavigate
                                 ? 'Redirecting...'
                                 : isEditMode
                                     ? 'Loading Admission Data...'
                                     : 'Initializing Admission Form...'
-                            } */}
+                            }
                         </h3>
                         <p className="text-sm text-gray-500">Please wait while we prepare everything for you</p>
                     </div>
@@ -704,6 +810,24 @@ function Form() {
             )} */}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+                {Object.keys(errors).length > 0 && (
+                    <div style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', padding: '10px', marginBottom: '10px' }}>
+                        <strong>Validation Errors:</strong>
+                        <ul style={{ fontSize: '12px', margin: 0, paddingLeft: '18px' }}>
+                            {Object.entries(errors).map(([field, error]) => {
+                                let message = error?.message;
+                                if (!message && Array.isArray(error?.types)) {
+                                    message = error.types[0]?.message;
+                                }
+                                return (
+                                    <li key={field} style={{ marginBottom: 2 }}>
+                                        <strong>{field}:</strong> {message || 'Invalid value'}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
 
                 <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
                     <legend><strong>Personal Information</strong></legend>
@@ -747,6 +871,10 @@ function Form() {
                             list="admission-userid-list"
                             {...register("admission_user_id")}
                             disabled={!form.admission_class}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = target.value.replace(/[^A-Za-z0-9]/g, '');
+                            }}
                             placeholder={form.admission_class ? 'Type or select User ID' : 'Select class first'}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             autoComplete="off"
@@ -835,7 +963,6 @@ function Form() {
                             id="birth_reg_no"
                             {...register("birth_reg_no")}
                             inputMode="numeric"
-                            pattern="\d{17}"
                             minLength={17}
                             maxLength={17}
                             onInput={(e) => {
@@ -918,7 +1045,6 @@ function Form() {
                             id="father_nid"
                             {...register("father_nid")}
                             inputMode="numeric"
-                            pattern="\d{10,17}"
                             minLength={10}
                             maxLength={17}
                             onInput={(e) => {
@@ -936,7 +1062,6 @@ function Form() {
                             id="father_phone"
                             {...register("father_phone")}
                             inputMode="numeric"
-                            pattern="\d*"
                             maxLength={11}
                             minLength={11}
                             onInput={(e) => {
@@ -976,15 +1101,12 @@ function Form() {
                     <FieldRow label="Mother's NID:" isRequired={isRequired("mother_nid")} error={errors.mother_nid} tooltip="Enter mother's National ID number (10-17 digits)">
                         <input
                             type="text"
-                            id="mother_nid"
                             {...register("mother_nid")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterNumericInput(e);
                             }}
-                            name="motherNid"
                             inputMode="numeric"
-                            pattern="\d{10,17}"
                             minLength={10}
                             maxLength={17}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -1002,7 +1124,6 @@ function Form() {
                                 target.value = filterNumericInput(e);
                             }}
                             inputMode="numeric"
-                            pattern="\d*"
                             maxLength={11}
                             minLength={11}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -1036,7 +1157,6 @@ function Form() {
                             {...register("whatsapp_number")}
                             type="text"
                             inputMode="numeric"
-                            pattern="01\d{9}"
                             maxLength={11}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-200"
                             placeholder="01XXXXXXXXX"
@@ -1099,7 +1219,6 @@ function Form() {
                             }}
                             type='text'
                             inputMode="numeric"
-                            pattern="\d{4}"
                             maxLength={4}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                             placeholder="1234"
@@ -1173,7 +1292,6 @@ function Form() {
                                     }}
                                     type='text'
                                     inputMode="numeric"
-                                    pattern="\d{4}"
                                     maxLength={4}
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     placeholder="1234"
@@ -1223,7 +1341,6 @@ function Form() {
                                         {...register("guardian_nid")}
                                         type="text"
                                         inputMode="numeric"
-                                        pattern="\d{10,17}"
                                         minLength={10}
                                         maxLength={17}
                                         onInput={(e) => {
@@ -1240,7 +1357,6 @@ function Form() {
                                         {...register("guardian_phone")}
                                         type="text"
                                         inputMode="numeric"
-                                        pattern="01\d{9}"
                                         maxLength={11}
                                         onInput={(e) => {
                                             const target = e.target as HTMLInputElement;
@@ -1326,7 +1442,6 @@ function Form() {
                                             {...register("guardian_post_code")}
                                             type='text'
                                             inputMode="numeric"
-                                            pattern="\d{4}"
                                             maxLength={4}
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                             placeholder="1234"
@@ -1359,10 +1474,7 @@ function Form() {
                     {isClassEightOrNine(form.admission_class) && (
                         <FieldRow label="Registration Number:" isRequired={isRequired("registration_no")} error={errors.registration_no} tooltip="Enter your Registration Number from the registration card (required for Class 8 & 9)">
                             <input
-                                name="registrationNo"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\\d{10}"
+                                {...register("registration_no")}
                                 minLength={10}
                                 maxLength={10}
                                 onInput={(e) => {
@@ -1404,6 +1516,10 @@ function Form() {
                             {...register("roll_in_prev_school")}
                             inputMode="numeric"
                             maxLength={6}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterNumericInput(e).slice(0, 6);
+                            }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             placeholder="Roll number"
                             aria-invalid={!!errors.roll_in_prev_school}
@@ -1469,7 +1585,7 @@ function Form() {
                         </div>
                     </FieldRow>
 
-                    <FieldRow label="Mother's Profession:" isRequired={isRequired("mother_profession")} error={errors.mother_profession || errors.mother_profession} tooltip="Select mother's profession">
+                    <FieldRow label="Mother's Profession:" isRequired={isRequired("mother_profession")} error={errors.mother_profession} tooltip="Select mother's profession">
                         <div>
                             <select
                                 value={(["Housewife", "Govt. Service", "Non-Govt. Service", "Private Job"].includes(form.mother_profession || '') || !form.mother_profession) ? (form.mother_profession || '') : 'Other'}
