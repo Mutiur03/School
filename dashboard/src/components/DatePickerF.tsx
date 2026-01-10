@@ -8,12 +8,14 @@ interface DatePickerProps {
   onChange: (event: { target: { name: string; value: string | null } }) => void;
   name?: string;
   placeholder?: string;
+  required?: boolean;
 }
 const DatePicker = ({
   value,
   onChange,
   name = "date",
   placeholder = "Pick a date",
+  required = false,
 }: DatePickerProps) => {
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
@@ -121,6 +123,7 @@ const DatePicker = ({
         onClick={() => setShowCalendar(!showCalendar)}
         placeholder={placeholder}
         className=" px-10 "
+        required={required}
       />
       <Calendar
         size={18}

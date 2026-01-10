@@ -181,7 +181,6 @@ const Events: React.FC = () => {
                   id="details"
                   name="details"
                   placeholder="Enter detailed event text"
-                  required
                   maxLength={100}
                   value={formValues.details}
                   onChange={(e) =>
@@ -205,7 +204,6 @@ const Events: React.FC = () => {
                         file: e.target.files?.[0] || null,
                       })
                     }
-                    {...(!isEditing && { required: true })}
                   />
                   {formValues.file && (
                     <p className="text-sm text-gray-500">
@@ -233,7 +231,6 @@ const Events: React.FC = () => {
                         image: e.target.files?.[0] || null,
                       })
                     }
-                    {...(!isEditing && { required: true })}
                   />
                   {formValues.image && (
                     <p className="text-sm text-gray-500">
@@ -262,6 +259,7 @@ const Events: React.FC = () => {
                     onChange={(e) =>
                       setFormValues({ ...formValues, date: e.target.value })
                     }
+                    required={true}
                   />
                 </div>
                 <div className="space-y-1">
@@ -277,7 +275,6 @@ const Events: React.FC = () => {
                         location: e.target.value,
                       })
                     }
-                    required
                   />
                 </div>
               </div>
