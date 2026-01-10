@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { z } from "zod"
-import { useForm, type FieldError, type Resolver } from "react-hook-form"
+import { useForm, useWatch, type FieldError, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { districts, getUpazilasByDistrict } from '@/lib/location'
-import axios, { isAxiosError } from 'axios'
+import axios from 'axios'
 import { useNavigate, useParams } from 'react-router-dom'
 import backend from '@/lib/backend'
 
@@ -74,10 +74,7 @@ const admissionSchema = z.object({
     qouta: z.string().min(1, "Qouta is required").max(50).default(""),
 
     photo_path: z.string().min(1, "Photo is required").max(255).default(""),
-    whatsapp_number: z.string().default("").refine(
-        (val) => !val || (val.length === 11 && /^01[3-9][0-9]{8}$/.test(val)),
-        "Invalid Bangladeshi phone number (must be 11 digits)"
-    ),
+    whatsapp_number: z.string().max(11).regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number").default("").optional(),
 }).superRefine((data, ctx) => {
     if (data.guardian_is_not_father) {
         if (!data.guardian_name || data.guardian_name.trim() === "") {
@@ -186,31 +183,31 @@ const Error: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="text-red-600 text-sm">{children}</div>
 )
 
-// type Duplicate = {
-//     message: string
-//     existingRecord?: {
-//         id?: string | number
-//     }
-// }
-// const DuplicateWarning: React.FC<{ duplicates: Duplicate[] }> = ({ duplicates }) => (
-//     <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-//         <div className="flex items-start gap-2">
-//             <svg className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-//                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-//             </svg>
-//             <div className="flex-1">
-//                 <h3 className="text-yellow-800 font-semibold mb-2">Duplicate Information Detected</h3>
-//                 <div className="space-y-2">
-//                     {duplicates.map((duplicate, index) => (
-//                         <div key={index} className="text-yellow-700 text-sm">
-//                             <p className="font-medium">{duplicate.message}</p>
-//                         </div>
-//                     ))}
-//                 </div>
-//             </div>
-//         </div>
-//     </div>
-// )
+type Duplicate = {
+    message: string
+    existingRecord?: {
+        id?: string | number
+    }
+}
+const DuplicateWarning: React.FC<{ duplicates: Duplicate[] }> = ({ duplicates }) => (
+    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+                <h3 className="text-yellow-800 font-semibold mb-2">Duplicate Information Detected</h3>
+                <div className="space-y-2">
+                    {duplicates.map((duplicate, index) => (
+                        <div key={index} className="text-yellow-700 text-sm">
+                            <p className="font-medium">{duplicate.message}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+)
 const FieldRow: React.FC<{
     label: React.ReactNode
     isRequired: boolean
@@ -271,20 +268,20 @@ function Form() {
     const {
         register,
         handleSubmit,
-        formState: { errors },
+        formState: { errors, isSubmitting },
         reset,
-        watch,
         setValue,
         setError,
-        setFocus
+        setFocus,
+        control
     } = useForm<AdmissionFormData>({
         resolver: zodResolver(admissionSchema) as Resolver<AdmissionFormData>,
         mode: 'onBlur',
         reValidateMode: 'onChange',
         defaultValues: admissionSchema.parse({}),
     })
-    const form = watch()
     const { id } = useParams()
+
     const [permanentUpazillas, setPermanentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [presentUpazillas, setPresentUpazillas] = useState<{ id: string; name: string }[]>([])
     const [sameAsPermanent, setSameAsPermanent] = useState(false)
@@ -294,6 +291,9 @@ function Form() {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const isEditMode = Boolean(id)
     const [admission_year, setAdmissionYear] = useState(new Date().getFullYear())
+    const [duplicates, setDuplicates] = useState<Duplicate[]>([])
+    const [success, setSuccess] = useState<string | null>(null)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const classGuidance: Record<string, Record<string, { instruction?: string; tooltip?: string }>> = {
         sixx: {
             studentNameBn: { instruction: '(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)', tooltip: 'Enter your name as shown in Primary/Birth Registration Card in Bengali' },
@@ -338,8 +338,26 @@ function Form() {
     const navigate = useNavigate()
     const [shouldNavigate, setShouldNavigate] = useState(false);
     const [tempDataonEdit, setTempDataOnEdit] = useState<Record<string, string>>({});
+    const admission_class = useWatch({ control, name: 'admission_class' })
+    const permanent_district = useWatch({ control, name: 'permanent_district' })
+    const permanent_upazila = useWatch({ control, name: 'permanent_upazila' })
+    const permanent_post_office = useWatch({ control, name: 'permanent_post_office' })
+    const permanent_post_code = useWatch({ control, name: 'permanent_post_code' })
+    const permanent_village_road = useWatch({ control, name: 'permanent_village_road' })
+    const present_district = useWatch({ control, name: 'present_district' })
+    const guardian_is_not_father = useWatch({ control, name: 'guardian_is_not_father' })
+    const guardian_address_same_as_permanent = useWatch({ control, name: 'guardian_address_same_as_permanent' })
+    const guardian_district = useWatch({ control, name: 'guardian_district' })
+    const prev_school_district = useWatch({ control, name: 'prev_school_district' })
+    const birth_year = useWatch({ control, name: 'birth_year' })
+    const birth_month = useWatch({ control, name: 'birth_month' })
+    const birth_reg_no = useWatch({ control, name: 'birth_reg_no' })
+    const father_profession = useWatch({ control, name: 'father_profession' })
+    const mother_profession = useWatch({ control, name: 'mother_profession' })
+    const admission_user_id = useWatch({ control, name: 'admission_user_id' })
+
     function getGuidance(fieldKey: string) {
-        const clsKey = normalizeClassKey(form.admission_class)
+        const clsKey = normalizeClassKey(admission_class)
         if (!clsKey) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
         const data = classGuidance[clsKey]
         if (!data) return { instruction: undefined as string | undefined, tooltip: undefined as string | undefined }
@@ -355,16 +373,16 @@ function Form() {
         return ''
     }
     useEffect(() => {
-        const selectedDistrictId = form.permanent_district
+        const selectedDistrictId = permanent_district
         if (!selectedDistrictId) {
             setPermanentUpazillas([])
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPermanentUpazillas(upazilas)
-    }, [form.permanent_district])
+    }, [permanent_district])
     useEffect(() => {
-        const selectedDistrictId = form.present_district
+        const selectedDistrictId = present_district
         if (!selectedDistrictId) {
             setPresentUpazillas([])
             return
@@ -372,44 +390,39 @@ function Form() {
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPresentUpazillas(upazilas)
 
-    }, [form.present_district])
+    }, [present_district])
     useEffect(() => {
-        if (!form.guardian_is_not_father || form.guardian_address_same_as_permanent) {
+        if (!guardian_is_not_father || guardian_address_same_as_permanent) {
             setGuardianUpazillas([])
             return
         }
-        const selectedDistrictId = form.guardian_district
+        const selectedDistrictId = guardian_district
         if (!selectedDistrictId) {
             setGuardianUpazillas([])
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setGuardianUpazillas(upazilas)
-    }, [form.guardian_is_not_father, form.guardian_district, form.guardian_address_same_as_permanent])
+    }, [guardian_is_not_father, guardian_district, guardian_address_same_as_permanent])
     useEffect(() => {
         if (sameAsPermanent) {
-            setValue('present_district', form.permanent_district, { shouldValidate: true })
-            setValue('present_upazila', form.permanent_upazila, { shouldValidate: true })
-            setValue('present_post_office', form.permanent_post_office, { shouldValidate: true })
-            setValue('present_post_code', form.permanent_post_code, { shouldValidate: true })
-            setValue('present_village_road', form.permanent_village_road, { shouldValidate: true })
-        } else {
-            setValue('present_district', '')
-            setValue('present_upazila', '')
-            setValue('present_post_office', '')
-            setValue('present_post_code', '')
-            setValue('present_village_road', '')
+            setValue('present_district', permanent_district, { shouldValidate: true })
+            setValue('present_upazila', permanent_upazila, { shouldValidate: true })
+            setValue('present_post_office', permanent_post_office, { shouldValidate: true })
+            setValue('present_post_code', permanent_post_code, { shouldValidate: true })
+            setValue('present_village_road', permanent_village_road, { shouldValidate: true })
         }
-    }, [sameAsPermanent, form.permanent_district, form.permanent_upazila, form.permanent_post_office, form.permanent_post_code, form.permanent_village_road, setValue])
+    }, [sameAsPermanent, permanent_district, permanent_upazila, permanent_post_office, permanent_post_code, permanent_village_road, setValue])
+
     useEffect(() => {
-        const selectedDistrictId = form.prev_school_district
+        const selectedDistrictId = prev_school_district
         if (!selectedDistrictId) {
             setPrevSchoolUpazilas([])
             return
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId)
         setPrevSchoolUpazilas(upazilas)
-    }, [form.prev_school_district])
+    }, [prev_school_district])
     function isClassEightOrNine(c?: string | null) {
         const k = normalizeClassKey(c)
         return k === 'eight' || k === 'nine'
@@ -526,17 +539,21 @@ function Form() {
                             else {
                                 setValue('guardian_is_not_father', false);
                             }
-                            if (
+                            const isSame =
                                 data.present_district === data.permanent_district &&
                                 data.present_upazila === data.permanent_upazila &&
                                 data.present_post_office === data.permanent_post_office &&
                                 data.present_post_code === data.permanent_post_code &&
                                 data.present_village_road === data.permanent_village_road
-                            ) {
-                                setSameAsPermanent(true);
-                            } else {
-                                setSameAsPermanent(false);
-                            }
+                            const isGuardianSameAsPermanent =
+                                data.guardian_district === data.permanent_district &&
+                                data.guardian_upazila === data.permanent_upazila &&
+                                data.guardian_post_office === data.permanent_post_office &&
+                                data.guardian_post_code === data.permanent_post_code &&
+                                data.guardian_village_road === data.permanent_village_road
+                            setValue('guardian_address_same_as_permanent', isGuardianSameAsPermanent)
+                            setSameAsPermanent(isSame)
+
                             setGuardianUpazillas(getUpazilasByDistrict(data.guardian_district))
                             setPermanentUpazillas(getUpazilasByDistrict(data.permanent_district))
                             setPresentUpazillas(getUpazilasByDistrict(data.present_district))
@@ -546,8 +563,6 @@ function Form() {
                             setValue('permanent_upazila', data.permanent_upazila)
                             setValue('prev_school_upazila', data.prev_school_upazila)
                             setTempDataOnEdit({ list_type: data.list_type, serial_no: data.serial_no })
-
-
                         }
 
                         if (data.photo_path) {
@@ -584,9 +599,9 @@ function Form() {
     }, [isEditMode, id, navigate, reset, setValue])
     useEffect(() => {
         if (!admissionSettings || initialLoading) return;
-        const list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+        const list = getUserIdListFromSettings(admissionSettings, admission_class);
         setUserIdOptions(list);
-        const cls = String(form.admission_class || '').trim().toLowerCase();
+        const cls = String(admission_class || '').trim().toLowerCase();
         const getSetting = (k: string) => (admissionSettings as Record<string, unknown>)[k];
         let listTypeTokens: string[] = [];
         let serialRawTokens: string[] = [];
@@ -594,23 +609,23 @@ function Form() {
         if (cls === '6' || cls.includes('6') || cls.includes('six')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class6') ?? getSetting('listTypeClass6') ?? getSetting('list_type') ?? getSetting('listType'));
             serialRawTokens = parseCsvString(getSetting('serial_no_class6') ?? getSetting('serialNoClass6') ?? getSetting('serial_no') ?? getSetting('serialNo'));
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+            user_id_list = getUserIdListFromSettings(admissionSettings, admission_class);
         } else if (cls === '7' || cls.includes('7') || cls.includes('seven')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class7') ?? getSetting('listTypeClass7') ?? getSetting('list_type') ?? getSetting('listType'));
             serialRawTokens = parseCsvString(getSetting('serial_no_class7') ?? getSetting('serialNoClass7') ?? getSetting('serial_no') ?? getSetting('serialNo'));
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+            user_id_list = getUserIdListFromSettings(admissionSettings, admission_class);
         } else if (cls === '8' || cls.includes('8') || cls.includes('eight')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class8') ?? getSetting('listTypeClass8') ?? getSetting('list_type') ?? getSetting('listType'));
             serialRawTokens = parseCsvString(getSetting('serial_no_class8') ?? getSetting('serialNoClass8') ?? getSetting('serial_no') ?? getSetting('serialNo'));
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+            user_id_list = getUserIdListFromSettings(admissionSettings, admission_class);
         } else if (cls === '9' || cls.includes('9') || cls.includes('nine')) {
             listTypeTokens = parseCsvString(getSetting('list_type_class9') ?? getSetting('listTypeClass9') ?? getSetting('list_type') ?? getSetting('listType'));
             serialRawTokens = parseCsvString(getSetting('serial_no_class9') ?? getSetting('serialNoClass9') ?? getSetting('serial_no') ?? getSetting('serialNo'));
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+            user_id_list = getUserIdListFromSettings(admissionSettings, admission_class);
         } else {
             listTypeTokens = parseCsvString(getSetting('list_type') ?? getSetting('listType'));
             serialRawTokens = parseCsvString(getSetting('serial_no') ?? getSetting('serialNo'));
-            user_id_list = getUserIdListFromSettings(admissionSettings, form.admission_class);
+            user_id_list = getUserIdListFromSettings(admissionSettings, admission_class);
         }
 
         if (listTypeTokens.length) {
@@ -626,7 +641,7 @@ function Form() {
         const serialList = expandSerialList(serialRawTokens);
         if (serialList.length) setSerialNoOptions(serialList);
         else setSerialNoOptions([]);
-    }, [admissionSettings, form.admission_class, initialLoading]);
+    }, [admissionSettings, admission_class, initialLoading]);
     useEffect(() => {
         if (
             isEditMode &&
@@ -677,19 +692,106 @@ function Form() {
     }
 
     const onSubmit = async (data: AdmissionFormData) => {
-        if (form.admission_user_id && !userIdOptions.includes(form.admission_user_id)) {
+        if (admission_user_id && !userIdOptions.includes(admission_user_id)) {
             setError('admission_user_id', { type: 'manual', message: 'Invalid User ID for the selected class' });
             setFocus('admission_user_id');
             return;
         }
         try {
-            console.log(data);
-            // ...existing code...
-        } catch (err) {
-            console.error('Submission failed:', err)
-            if (isAxiosError(err)) {
-                const msg = err?.response?.data?.message || 'Failed to submit application'
-                alert(msg)
+            const formData = new FormData();
+            Object.entries(data).forEach(([key, value]) => {
+                if (key === 'photo_path') return;
+                if (typeof value === 'boolean') {
+                    formData.append(key, value ? 'true' : 'false');
+                } else if (value !== undefined && value !== null) {
+                    formData.append(key, value);
+                }
+            });
+            if (photo) {
+                formData.append('photo', photo);
+            }
+            if (isEditMode && id) {
+                formData.append('id', id);
+            }
+            const url = isEditMode ? `/api/admission/form/${id}` : '/api/admission/form';
+            const method = isEditMode ? 'put' : 'post';
+            const response = await axios({
+                method: method,
+                url: url,
+                data: formData,
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const result = response.data || {}
+            if (result.success) {
+                const successMessage = isEditMode
+                    ? `Admission updated successfully! Admission ID: ${id}`
+                    : `Admission submitted successfully! Your admission ID is: ${result.data.id}. Status: ${result.data.status}`
+
+                setSuccess(successMessage)
+                if (!isEditMode) {
+                    setPhotoPreview(null)
+                    setErrorMessage(null)
+                    setDuplicates([])
+                    reset()
+                    navigate(`/admission/form/confirm/${result.data.id}`)
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                    navigate(`/admission/form/confirm/${result.data.id}`)
+
+                }
+            } else {
+                if (result.duplicates && result.duplicates.length > 0) {
+                    setDuplicates(result.duplicates)
+                }
+                if (result.error) {
+                    let msg = '';
+                    if (typeof result.error === 'string') {
+                        msg = result.error;
+                    } else if (typeof result.error === 'object' && result.error.message) {
+                        msg = result.error.message;
+                    } else {
+                        msg = JSON.stringify(result.error);
+                    }
+                    setErrorMessage(msg);
+                } else {
+                    const errorMessage = isEditMode
+                        ? 'Update failed. Please try again.'
+                        : 'Admission failed. Please try again.'
+                    setErrorMessage(result.message || errorMessage)
+                }
+                if (result.duplicates && result.duplicates.length > 0) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+            }
+        } catch (error) {
+            console.error('Admission submission error:', error)
+
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data
+
+                if (errorData.duplicates && errorData.duplicates.length > 0) {
+                    setDuplicates(errorData.duplicates)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+
+                if (errorData.error) {
+                    let msg = '';
+                    if (typeof errorData.error === 'string') {
+                        msg = errorData.error;
+                    } else if (typeof errorData.error === 'object' && errorData.error.message) {
+                        msg = errorData.error.message;
+                    } else {
+                        msg = JSON.stringify(errorData.error);
+                    }
+                    setErrorMessage(msg);
+                } else {
+                    const errorMessage = isEditMode
+                        ? 'Update failed. Please try again.'
+                        : 'Admission failed. Please try again.'
+                    setErrorMessage(errorData.message || errorMessage)
+                }
+            } else {
+                setErrorMessage('An unexpected error occurred. Please try again.')
             }
         }
     }
@@ -711,11 +813,11 @@ function Form() {
     let monthOptions = months
     let disableMonth = false
     let disableDay = false
-    if (form.birth_year && years.includes(form.birth_year)) {
+    if (birth_year && years.includes(birth_year)) {
         monthOptions = months
         disableMonth = false
-        if (form.birth_month) {
-            days = getDaysInMonth(form.birth_year, form.birth_month)
+        if (birth_month) {
+            days = getDaysInMonth(birth_year, birth_month)
             disableDay = false
         } else {
             days = []
@@ -726,10 +828,9 @@ function Form() {
         disableMonth = true
         disableDay = true
     }
-    const birthRegNo = watch("birth_reg_no")
     useEffect(() => {
-        if (birthRegNo && birthRegNo.length >= 4) {
-            const year = birthRegNo.slice(0, 4)
+        if (birth_reg_no && birth_reg_no.length >= 4) {
+            const year = birth_reg_no.slice(0, 4)
             const yearNum = Number(year)
             if (/^\d{4}$/.test(year) && yearNum >= earliestYear && yearNum <= currentYear) {
                 setValue('birth_year', year, { shouldValidate: true })
@@ -737,10 +838,10 @@ function Form() {
                 setValue('birth_year', '', { shouldValidate: true })
             }
 
-        } else if (form.birth_year !== '') {
+        } else if (birth_year !== '') {
             setValue('birth_year', '', { shouldValidate: true })
         }
-    }, [birthRegNo, currentYear, form.birth_reg_no, form.birth_year, setValue])
+    }, [birth_reg_no, currentYear, birth_year, setValue])
     const bloodGroups = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
     if (initialLoading) {
         return (
@@ -793,7 +894,7 @@ function Form() {
                 </span>
             </div>
 
-            {/* {success && (
+            {success && (
                 <div className="mb-4 p-3 sm:p-4 bg-green-100 text-green-800 rounded text-sm sm:text-base animate-fade-in shadow">
                     {success}
                 </div>
@@ -801,16 +902,16 @@ function Form() {
 
             {duplicates.length > 0 && (
                 <DuplicateWarning duplicates={duplicates} />
-            )} */}
+            )}
 
-            {/* {errors.general && (
+            {errorMessage && (
                 <div className="mb-4 p-3 sm:p-4 bg-red-100 text-red-800 rounded text-sm sm:text-base animate-fade-in shadow">
-                    {errors.general}
+                    {errorMessage}
                 </div>
-            )} */}
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
-                {Object.keys(errors).length > 0 && (
+                {/* {Object.keys(errors).length > 0 && (
                     <div style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', padding: '10px', marginBottom: '10px' }}>
                         <strong>Validation Errors:</strong>
                         <ul style={{ fontSize: '12px', margin: 0, paddingLeft: '18px' }}>
@@ -827,9 +928,9 @@ function Form() {
                             })}
                         </ul>
                     </div>
-                )}
+                )} */}
 
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Personal Information</strong></legend>
 
                     <FieldRow label="Admit to Class:" isRequired={isRequired("admission_class")} error={errors.admission_class} tooltip="Select the class from the admission settings">
@@ -870,12 +971,12 @@ function Form() {
                         <input
                             list="admission-userid-list"
                             {...register("admission_user_id")}
-                            disabled={!form.admission_class}
+                            disabled={!admission_class}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
                                 target.value = target.value.replace(/[^A-Za-z0-9]/g, '');
                             }}
-                            placeholder={form.admission_class ? 'Type or select User ID' : 'Select class first'}
+                            placeholder={admission_class ? 'Type or select User ID' : 'Select class first'}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             autoComplete="off"
                         />
@@ -994,7 +1095,7 @@ function Form() {
                                 id="birth_month"
                                 {...register("birth_month")}
                                 className="border rounded px-3 py-2 w-full sm:w-40 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                                disabled={disableMonth || !form.birth_year}
+                                disabled={disableMonth || !birth_year}
                                 aria-invalid={!!errors.birth_month}
                             >
                                 <option value="">Month</option>
@@ -1167,7 +1268,7 @@ function Form() {
 
 
                 </fieldset>
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Address</strong></legend>
                     <h4 className="font-semibold mb-2 text-sm sm:text-base">Permanent Address:</h4>
 
@@ -1188,7 +1289,7 @@ function Form() {
                     <FieldRow label="Upazila/Thana:" isRequired={isRequired("permanent_upazila")} error={errors.permanent_upazila} tooltip="Select the upazila/thana of your permanent address. First select district to see options">
                         <select
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            disabled={!form.permanent_district}
+                            disabled={!permanent_district}
                             {...register("permanent_upazila")}
                         >
                             <option value="">Select upazila/thana</option>
@@ -1266,7 +1367,7 @@ function Form() {
                                 <select
                                     {...register("present_upazila")}
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    disabled={!form.present_district}
+                                    disabled={!present_district}
                                 >
                                     <option value="">Select upazila/thana</option>
                                     {presentUpazillas.map((u) => (
@@ -1311,7 +1412,7 @@ function Form() {
 
 
 
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Guardian Information</strong></legend>
                     <FieldRow label="Guardian is not the father:" isRequired={isRequired("guardian_is_not_father")} error={errors.guardian_is_not_father} tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
                         <label className="inline-flex items-start sm:items-center gap-2">
@@ -1324,7 +1425,7 @@ function Form() {
                             <span className="text-sm leading-relaxed">Check if guardian is not father (can be mother or others)</span>
                         </label>
                     </FieldRow>
-                    {form.guardian_is_not_father && (
+                    {guardian_is_not_father && (
                         <>
                             <div className="space-y-2">
                                 <FieldRow label="Guardian's Name:" isRequired={true} error={errors.guardian_name} tooltip="Enter the full name of your guardian in English capital letters">
@@ -1401,7 +1502,7 @@ function Form() {
                                     <span className="text-sm">Same as Permanent Address</span>
                                 </label>
                             </FieldRow>
-                            {!form.guardian_address_same_as_permanent && (
+                            {!guardian_address_same_as_permanent && (
                                 <div className="space-y-2">
                                     <FieldRow label="District:" isRequired={true} error={errors.guardian_district} tooltip="Select the district where your guardian lives">
                                         <select
@@ -1420,7 +1521,7 @@ function Form() {
                                         <select
                                             {...register("guardian_upazila")}
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                            disabled={!form.guardian_district}
+                                            disabled={!guardian_district}
                                         >
                                             <option value="">Select upazila/thana</option>
                                             {guardianUpazillas.map((u) => (
@@ -1461,7 +1562,7 @@ function Form() {
                     )}
                 </fieldset>
 
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Previous School Information</strong></legend>
                     <FieldRow label="Name of Previous School :" isRequired={isRequired("prev_school_name")} error={errors.prev_school_name} tooltip="Enter the full name of your previous school">
                         <input
@@ -1471,7 +1572,7 @@ function Form() {
                             aria-invalid={!!errors.prev_school_name}
                         />
                     </FieldRow>
-                    {isClassEightOrNine(form.admission_class) && (
+                    {isClassEightOrNine(admission_class) && (
                         <FieldRow label="Registration Number:" isRequired={isRequired("registration_no")} error={errors.registration_no} tooltip="Enter your Registration Number from the registration card (required for Class 8 & 9)">
                             <input
                                 {...register("registration_no")}
@@ -1541,7 +1642,7 @@ function Form() {
                         <select
                             {...register("prev_school_upazila")}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            disabled={!form.prev_school_district}
+                            disabled={!prev_school_district}
                             aria-invalid={!!errors.prev_school_upazila}
                         >
                             <option value="">Select Upazila/Thana</option>
@@ -1551,12 +1652,12 @@ function Form() {
                         </select>
                     </FieldRow>
                 </fieldset>
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
-                    <legend><strong>Admission Information</strong></legend>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
+                    <legend><strong>Additional Information</strong></legend>
                     <FieldRow label="Father's Profession:" isRequired={isRequired("father_profession")} error={errors.father_profession} tooltip="Select father's profession">
                         <div>
                             <select
-                                value={(["Govt. Service", "Non-Govt. Service", "Private Job"].includes(form.father_profession || '') || !form.father_profession) ? (form.father_profession || '') : 'Other'}
+                                value={(["Govt. Service", "Non-Govt. Service", "Private Job"].includes(father_profession || '') || !father_profession) ? (father_profession || '') : 'Other'}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setValue("father_profession", val === 'Other' ? 'Other' : val, { shouldValidate: true });
@@ -1570,11 +1671,11 @@ function Form() {
                                 <option value="Other">Other</option>
                             </select>
 
-                            {((!["Govt. Service", "Non-Govt. Service", "Private Job"].includes(form.father_profession || '') && !!form.father_profession) || form.father_profession === 'Other') && (
+                            {((!["Govt. Service", "Non-Govt. Service", "Private Job"].includes(father_profession || '') && !!father_profession) || father_profession === 'Other') && (
                                 <div className="mt-2">
                                     <input
                                         {...register("father_profession")}
-                                        value={form.father_profession === 'Other' ? '' : (form.father_profession || '')}
+                                        value={father_profession === 'Other' ? '' : (father_profession || '')}
                                         onChange={(e) => setValue("father_profession", e.target.value, { shouldValidate: true })}
                                         placeholder="Please specify father's profession"
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
@@ -1588,7 +1689,7 @@ function Form() {
                     <FieldRow label="Mother's Profession:" isRequired={isRequired("mother_profession")} error={errors.mother_profession} tooltip="Select mother's profession">
                         <div>
                             <select
-                                value={(["Housewife", "Govt. Service", "Non-Govt. Service", "Private Job"].includes(form.mother_profession || '') || !form.mother_profession) ? (form.mother_profession || '') : 'Other'}
+                                value={(["Housewife", "Govt. Service", "Non-Govt. Service", "Private Job"].includes(mother_profession || '') || !mother_profession) ? (mother_profession || '') : 'Other'}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setValue("mother_profession", val === 'Other' ? 'Other' : val, { shouldValidate: true });
@@ -1603,11 +1704,11 @@ function Form() {
                                 <option value="Other">Other</option>
                             </select>
 
-                            {((!["Housewife", "Govt. Service", "Non-Govt. Service", "Private Job"].includes(form.mother_profession || '') && !!form.mother_profession) || form.mother_profession === 'Other') && (
+                            {((!["Housewife", "Govt. Service", "Non-Govt. Service", "Private Job"].includes(mother_profession || '') && !!mother_profession) || mother_profession === 'Other') && (
                                 <div className="mt-2">
                                     <input
                                         {...register("mother_profession")}
-                                        value={form.mother_profession === 'Other' ? '' : (form.mother_profession || '')}
+                                        value={mother_profession === 'Other' ? '' : (mother_profession || '')}
                                         onChange={(e) => setValue("mother_profession", e.target.value, { shouldValidate: true })}
                                         placeholder="Please specify mother's profession"
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
@@ -1633,17 +1734,17 @@ function Form() {
                     </FieldRow>
                 </fieldset>
 
-                <fieldset style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Additional Information</strong></legend>
 
                     <FieldRow
                         label={
                             <span>
                                 Photo:
-                                {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
+                                {/* {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>} */}
                             </span>
                         }
-                        isRequired={!isEditMode}
+                        isRequired={true}
                         tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
                         error={errors.photo_path}
                     >
@@ -1702,13 +1803,36 @@ function Form() {
                     </FieldRow>
                 </fieldset>
 
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
-                    <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-                        Submit Application
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-6 sm:mt-8">
+                    <button
+                        type="submit"
+                        className={`px-6 py-3 bg-blue-600 text-white rounded shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition font-semibold flex items-center justify-center gap-2 text-sm sm:text-base ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting && <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>}
+                        {isSubmitting
+                            ? (isEditMode ? 'Updating...' : 'Submitting...')
+                            : (isEditMode ? 'Update Admission' : 'Submit Admission')
+                        }
                     </button>
-                    <button type='button' onClick={() => reset()} style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-                        Reset Form
-                    </button>
+
+                    {!isEditMode && (
+                        <button
+                            type="button"
+                            className="px-6 py-3 border border-gray-300 rounded shadow bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition text-sm sm:text-base"
+                            onClick={() => reset()}
+                            disabled={isSubmitting}
+                        >Reset</button>
+                    )}
+
+                    {isEditMode && (
+                        <button
+                            type="button"
+                            className="px-6 py-3 border border-gray-300 rounded shadow bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition text-sm sm:text-base"
+                            onClick={() => navigate(-1)}
+                            disabled={isSubmitting}
+                        >Cancel</button>
+                    )}
                 </div>
             </form>
             <style>{`   

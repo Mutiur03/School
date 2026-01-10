@@ -34,29 +34,6 @@ const formatQuota = (q) => {
 };
 const checkDuplicates = async (data, excludeId = null) => {
   const duplicates = [];
-  // try {
-  //   if (data && data.serial_no) {
-  //     const existing = await prisma.admission_form.findFirst({
-  //       where: {
-  //         serial_no: data.serial_no,
-  //         ...(excludeId ? { id: { not: excludeId } } : {}),
-  //       },
-  //       select: { id: true, student_name_en: true },
-  //     });
-  //     if (existing) {
-  //       duplicates.push({
-  //         field: "serialNo",
-  //         message: "A form with this Serial number already exists",
-  //         existingRecord: existing,
-  //       });
-  //     }
-  //   }
-  // } catch (err) {
-  //   console.warn(
-  //     "checkDuplicates error:",
-  //     err && err.message ? err.message : err
-  //   );
-  // }
   try {
     if (data && data.admission_user_id) {
       const existing = await prisma.admission_form.findFirst({
@@ -70,7 +47,6 @@ const checkDuplicates = async (data, excludeId = null) => {
         duplicates.push({
           field: "admissionUserId",
           message: "A form with this User ID already exists",
-          existingRecord: existing,
         });
       }
     }
@@ -93,7 +69,6 @@ const checkDuplicates = async (data, excludeId = null) => {
         duplicates.push({
           field: "birthRegNo",
           message: "A form with this Birth Registration number already exists",
-          existingRecord: existing,
         });
       }
     }
@@ -187,73 +162,21 @@ export const createForm = async (req, res) => {
   try {
     const body = req.body || {};
     const settings = await prisma.admission.findFirst();
-    const payload = {
-      student_name_bn: body.studentNameBn || null,
-      student_nick_name_bn: body.studentNickNameBn || null,
-      student_name_en: body.studentNameEn || null,
-      birth_reg_no: body.birthRegNo || null,
-      registration_no: body.registration_no || null,
-
-      father_name_bn: body.fatherNameBn || null,
-      father_name_en: body.fatherNameEn || null,
-      father_nid: body.fatherNid || null,
-      father_phone: body.fatherPhone || null,
-
-      mother_name_bn: body.motherNameBn || null,
-      mother_name_en: body.motherNameEn || null,
-      mother_nid: body.motherNid || null,
-      mother_phone: body.motherPhone || null,
-
-      birth_date: body.birthDate || null,
-      birth_year: body.birthYear || null,
-      birth_month: body.birthMonth || null,
-      birth_day: body.birthDay || null,
-      blood_group: body.bloodGroup || null,
-      email: body.email || null,
-      religion: body.religion || null,
-
-      present_district: body.presentDistrict || null,
-      present_upazila: body.presentUpazila || null,
-      present_post_office: body.presentPostOffice || null,
-      present_post_code: body.presentPostCode || null,
-      present_village_road: body.presentVillageRoad || null,
-
-      permanent_district: body.permanentDistrict || null,
-      permanent_upazila: body.permanentUpazila || null,
-      permanent_post_office: body.permanentPostOffice || null,
-      permanent_post_code: body.permanentPostCode || null,
-      permanent_village_road: body.permanentVillageRoad || null,
-
-      guardian_name: body.guardianName || null,
-      guardian_phone: body.guardianPhone || null,
-      guardian_relation: body.guardianRelation || null,
-      guardian_nid: body.guardianNid || null,
-      guardian_district: body.guardianDistrict || null,
-      guardian_upazila: body.guardianUpazila || null,
-      guardian_post_office: body.guardianPostOffice || null,
-      guardian_post_code: body.guardianPostCode || null,
-      guardian_village_road: body.guardianVillageRoad || null,
-
-      prev_school_name: body.prevSchoolName || null,
-      prev_school_district: body.prevSchoolDistrict || null,
-      prev_school_upazila: body.prevSchoolUpazila || null,
-      section_in_prev_school: body.sectionInprevSchool || null,
-      roll_in_prev_school: body.rollInprevSchool || null,
-      prev_school_passing_year: body.prevSchoolPassingYear || null,
-
-      father_profession: body.father_profession || null,
-      mother_profession: body.mother_profession || null,
-      parent_income: body.parent_income || null,
-
-      admission_class: body.admissionClass || null,
-      admission_year: settings.admission_year || null,
-      list_type: body.listType || null,
-      admission_user_id: body.admissionUserId || null,
-      serial_no: body.serialNo || null,
-      qouta: body.qouta || null,
-      whatsapp_number: body.whatsappNumber || body.whatsapp_number || null,
-    };
-
+    const payload = { ...body };
+    console.log(payload);
+    delete payload.guardian_is_not_father;
+    delete payload.guardian_address_same_as_permanent;
+    if (!payload.admission_year && settings?.admission_year) {
+      payload.admission_year = settings.admission_year;
+    }
+    payload.birth_year = payload.birth_reg_no.slice(0, 4);
+    payload.birth_date = [
+      payload.birth_day,
+      payload.birth_month,
+      payload.birth_year,
+    ]
+      .filter(Boolean)
+      .join("/");
     const duplicates = await checkDuplicates(payload);
     if (duplicates.length > 0) {
       if (req.file && fs.existsSync(req.file.path))
@@ -262,10 +185,6 @@ export const createForm = async (req, res) => {
         success: false,
         message: "Duplicate information found",
         duplicates,
-        error: duplicates.reduce((acc, d) => {
-          acc[d.field] = d.message;
-          return acc;
-        }, {}),
       });
     }
     if (
@@ -390,69 +309,17 @@ export const updateForm = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Form not found" });
     const settings = await prisma.admission.findFirst();
-    const body = req.body || {};
-    const payload = {
-      student_name_bn: body.studentNameBn || null,
-      student_nick_name_bn: body.studentNickNameBn || null,
-      student_name_en: body.studentNameEn || null,
-      birth_reg_no: body.birthRegNo || null,
-      registration_no: body.registration_no || null,
-      father_name_bn: body.fatherNameBn || null,
-      father_name_en: body.fatherNameEn || null,
-      father_nid: body.fatherNid || null,
-      father_phone: body.fatherPhone || null,
-      mother_name_bn: body.motherNameBn || null,
-      mother_name_en: body.motherNameEn || null,
-      mother_nid: body.motherNid || null,
-      mother_phone: body.motherPhone || null,
-      birth_date: body.birthDate || null,
-      birth_year: body.birthYear || null,
-      birth_month: body.birthMonth || null,
-      birth_day: body.birthDay || null,
-      blood_group: body.bloodGroup || null,
-      email: body.email || null,
-      religion: body.religion || null,
-      present_district: body.presentDistrict || null,
-      present_upazila: body.presentUpazila || null,
-      present_post_office: body.presentPostOffice || null,
-      present_post_code: body.presentPostCode || null,
-      present_village_road: body.presentVillageRoad || null,
+    const payload = { ...req.body };
+    delete payload.guardian_is_not_father;
+    delete payload.guardian_address_same_as_permanent;
+    payload.birth_year = payload.birth_reg_no.slice(0, 4);
+    payload.birth_date = [
+      payload.birth_day,
+      payload.birth_month,
+      payload.birth_year,
+    ].join("/");
+    console.log(payload);
 
-      permanent_district: body.permanentDistrict || null,
-      permanent_upazila: body.permanentUpazila || null,
-      permanent_post_office: body.permanentPostOffice || null,
-      permanent_post_code: body.permanentPostCode || null,
-      permanent_village_road: body.permanentVillageRoad || null,
-
-      guardian_name: body.guardianName || null,
-      guardian_phone: body.guardianPhone || null,
-      guardian_relation: body.guardianRelation || null,
-      guardian_nid: body.guardianNid || null,
-      guardian_district: body.guardianDistrict || null,
-      guardian_upazila: body.guardianUpazila || null,
-      guardian_post_office: body.guardianPostOffice || null,
-      guardian_post_code: body.guardianPostCode || null,
-      guardian_village_road: body.guardianVillageRoad || null,
-
-      prev_school_name: body.prevSchoolName || null,
-      prev_school_district: body.prevSchoolDistrict || null,
-      prev_school_upazila: body.prevSchoolUpazila || null,
-      section_in_prev_school: body.sectionInprevSchool || null,
-      roll_in_prev_school: body.rollInprevSchool || null,
-      prev_school_passing_year: body.prevSchoolPassingYear || null,
-
-      father_profession: body.father_profession || null,
-      mother_profession: body.mother_profession || null,
-      parent_income: body.parent_income || null,
-
-      admission_class: body.admissionClass || null,
-      admission_year: settings.admission_year,
-      list_type: body.listType || null,
-      admission_user_id: body.admissionUserId || null,
-      serial_no: body.serialNo || null,
-      qouta: body.qouta || null,
-      whatsapp_number: body.whatsappNumber || body.whatsapp_number || null,
-    };
     const duplicates = await checkDuplicates(payload, id);
     if (duplicates.length > 0) {
       if (req.file && fs.existsSync(req.file.path))
@@ -461,10 +328,6 @@ export const updateForm = async (req, res) => {
         success: false,
         message: "Duplicate information found",
         duplicates,
-        error: duplicates.reduce((acc, d) => {
-          acc[d.field] = d.message;
-          return acc;
-        }, {}),
       });
     }
 
@@ -491,11 +354,13 @@ export const updateForm = async (req, res) => {
         });
       }
     }
-
+    payload.whatsapp_number = payload.whatsapp_number.trim() || "";
     const updated = await prisma.admission_form.update({
       where: { id },
       data: { ...payload, photo_path: photoPath },
     });
+    console.log(updated);
+
     {
       const statusKey = `pdf:${id}:status`;
       await redis.set(statusKey, "generating");
@@ -514,7 +379,6 @@ export const updateForm = async (req, res) => {
           queueErr && queueErr.message ? queueErr.message : queueErr
         );
         await redis.set(statusKey, "failed");
-        // throw queueErr;
       }
     }
     res
