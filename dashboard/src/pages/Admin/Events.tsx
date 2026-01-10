@@ -58,6 +58,7 @@ const Events: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [dateError, setDateError] = useState<string | null>(null);
   const host = backend;;
 
   const fetchEvents = async () => {
@@ -79,9 +80,19 @@ const Events: React.FC = () => {
     e.preventDefault();
     if (submitting) return;
 
+    // Validate required date field
+    if (!formValues.date) {
+      setDateError("Event date is required.");
+      toast.error("Please select event date.");
+      return;
+    }
+    setDateError(null);
+
     setSubmitting(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
+    // Ensure date is included even if DatePicker doesn't set a named input
+    formData.set("date", String(formValues.date));
 
     try {
       if (isEditing) {
@@ -256,11 +267,15 @@ const Events: React.FC = () => {
                   <Label htmlFor="date">Event Date <span className="text-red-500">*</span></Label>
                   <DatePicker
                     value={formValues.date}
-                    onChange={(e) =>
-                      setFormValues({ ...formValues, date: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormValues({ ...formValues, date: e.target.value });
+                      setDateError(null);
+                    }}
                     required={true}
                   />
+                  {dateError && (
+                    <p className="text-sm text-red-500">{dateError}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="location">Event Location <span className="text-gray-400 font-normal">(Optional)</span></Label>
@@ -291,7 +306,7 @@ const Events: React.FC = () => {
                       location: "",
                       file: null,
                       image: null,
-                      date: "",
+                      date: null,
                     });
                     if (fileref.current) {
                       fileref.current.value = "";
