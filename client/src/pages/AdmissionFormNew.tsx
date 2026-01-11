@@ -413,7 +413,15 @@ function Form() {
             setValue('present_village_road', permanent_village_road, { shouldValidate: true })
         }
     }, [sameAsPermanent, permanent_district, permanent_upazila, permanent_post_office, permanent_post_code, permanent_village_road, setValue])
-
+    useEffect(() => {
+        if (!guardian_is_not_father || guardian_address_same_as_permanent) {
+            setValue('guardian_district', '', { shouldValidate: true })
+            setValue('guardian_upazila', '', { shouldValidate: true })
+            setValue('guardian_post_office', '', { shouldValidate: true })
+            setValue('guardian_post_code', '', { shouldValidate: true })
+            setValue('guardian_village_road', '', { shouldValidate: true })
+        }
+    }, [guardian_is_not_father, guardian_address_same_as_permanent, setValue])
     useEffect(() => {
         const selectedDistrictId = prev_school_district
         if (!selectedDistrictId) {
@@ -599,6 +607,9 @@ function Form() {
     }, [isEditMode, id, navigate, reset, setValue])
     useEffect(() => {
         if (!admissionSettings || initialLoading) return;
+        if (!isClassEightOrNine(admission_class)) {
+            setValue('registration_no', '', { shouldValidate: true });
+        }
         const list = getUserIdListFromSettings(admissionSettings, admission_class);
         setUserIdOptions(list);
         const cls = String(admission_class || '').trim().toLowerCase();
@@ -1150,7 +1161,7 @@ function Form() {
                             maxLength={17}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = target.value.replace(/[^0-9]/g, '');
+                                target.value = filterNumericInput(e);
                             }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             placeholder="1234567890"
@@ -1167,10 +1178,10 @@ function Form() {
                             minLength={11}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = target.value.replace(/[^0-9]/g, '');
+                                target.value = filterNumericInput(e);
                             }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            placeholder="Father's Phone"
+                            placeholder="01XXXXXXXXX"
                             aria-invalid={!!errors.father_phone}
                         />
                     </FieldRow>
@@ -1259,6 +1270,10 @@ function Form() {
                             type="text"
                             inputMode="numeric"
                             maxLength={11}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterNumericInput(e);
+                            }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-200"
                             placeholder="01XXXXXXXXX"
                             aria-invalid={!!errors.whatsapp_number}
@@ -1414,7 +1429,7 @@ function Form() {
 
                 <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Guardian Information</strong></legend>
-                    <FieldRow label="Guardian is not the father:" isRequired={isRequired("guardian_is_not_father")} error={errors.guardian_is_not_father} tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
+                    <FieldRow label="Guardian is not the father:" isRequired={isRequired("guardian_is_not_father")} error={null} tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
                         <label className="inline-flex items-start sm:items-center gap-2">
                             <input
                                 type="checkbox"
@@ -1492,7 +1507,7 @@ function Form() {
                                 </FieldRow>
                             </div>
 
-                            <FieldRow label="Guardian's Address:" isRequired={false} error={errors.guardian_district} tooltip="Check if guardian's address is same as permanent address, otherwise fill separately">
+                            <FieldRow label="Guardian's Address:" isRequired={false} tooltip="Check if guardian's address is same as permanent address, otherwise fill separately">
                                 <label className="inline-flex items-center gap-2 mb-2">
                                     <input
                                         type="checkbox"
