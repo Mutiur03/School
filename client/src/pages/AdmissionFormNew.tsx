@@ -1429,7 +1429,7 @@ function Form() {
 
                 <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
                     <legend><strong>Guardian Information</strong></legend>
-                    <FieldRow label="Guardian is not the father:" isRequired={isRequired("guardian_is_not_father")} error={null} tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
+                    <FieldRow label="Guardian is not the father:" isRequired={isRequired("guardian_is_not_father")} error={undefined} tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)">
                         <label className="inline-flex items-start sm:items-center gap-2">
                             <input
                                 type="checkbox"
