@@ -1507,7 +1507,7 @@ function Form() {
                                 </FieldRow>
                             </div>
 
-                            <FieldRow label="Guardian's Address:" isRequired={false} tooltip="Check if guardian's address is same as permanent address, otherwise fill separately">
+                            <FieldRow label="Guardian's Address:" isRequired={false} error={undefined} tooltip="Check if guardian's address is same as permanent address, otherwise fill separately">
                                 <label className="inline-flex items-center gap-2 mb-2">
                                     <input
                                         type="checkbox"
