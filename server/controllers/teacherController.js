@@ -103,6 +103,9 @@ export const addTeacher = async (req, res) => {
 export const getTeachers = async (_, res) => {
   try {
     const teachers = await prisma.teachers.findMany();
+    teachers.forEach((teacher) => {
+      delete teacher.password;
+    });
     res.status(200).json({ success: true, data: teachers });
   } catch (error) {
     console.error("Error fetching teachers:", error.message);
