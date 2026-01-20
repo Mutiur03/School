@@ -1,0 +1,11 @@
+name = "lbp-r2-upload-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+MAX_FILE_SIZE = "104857600"
+URL_EXPIRATION = "60"
+
+[[r2_buckets]]
+bucket_name = "lbp"
+binding = "lbp"
