@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { cdn } from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 
 type ConfirmationAdmission_Props = {
   id?: string;
@@ -573,7 +573,7 @@ function ConfirmationAdmission() {
               Student's Photo
             </h3>
             <img
-              src={`${cdn}/${admission.photo_path}`}
+              src={`${getFileUrl(admission.photo_path)}`}
               alt="Student Photo"
               className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
               onError={(e) => {
