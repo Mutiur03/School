@@ -23,7 +23,7 @@ export async function uploadPDFToLocal(file, folder = "admission-results") {
       // File might have been moved, ignore error
     }
     const relativeUrl = path
-      .join("/uploads", folder, filename)
+      .join("uploads", folder, filename)
       .split(path.sep)
       .join("/");
 
@@ -67,12 +67,37 @@ export const getAdmissionResults = async (req, res) => {
     if (admission_year) {
       whereCondition.admission_year = parseInt(admission_year);
     }
+    // Fix legacy paths starting with /
+    const itemsToFix = await prisma.admission_result.findMany({
+      where: {
+        OR: [
+          { merit_list: { startsWith: "/" } },
+          { waiting_list_1: { startsWith: "/" } },
+          { waiting_list_2: { startsWith: "/" } },
+        ],
+      },
+    });
 
+    for (const item of itemsToFix) {
+      const updateData = {};
+      if (item.merit_list?.startsWith("/"))
+        updateData.merit_list = item.merit_list.slice(1);
+      if (item.waiting_list_1?.startsWith("/"))
+        updateData.waiting_list_1 = item.waiting_list_1.slice(1);
+      if (item.waiting_list_2?.startsWith("/"))
+        updateData.waiting_list_2 = item.waiting_list_2.slice(1);
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.admission_result.update({
+          where: { id: item.id },
+          data: updateData,
+        });
+      }
+    }
     const results = await prisma.admission_result.findMany({
       where: whereCondition,
       orderBy: [{ admission_year: "desc" }, { class_name: "asc" }],
     });
-
     res.status(200).json(results);
   } catch (error) {
     console.error("Error fetching admission results:", error);
@@ -118,7 +143,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.merit_list?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.merit_list[0],
-        `admission-results/class-${class_name}/merit`
+        `admission-results/class-${class_name}/merit`,
       );
       resultData.merit_list = url;
       resultData.merit_list_public_id = public_id;
@@ -127,7 +152,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.waiting_list_1?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_1[0],
-        `admission-results/class-${class_name}/waiting-1`
+        `admission-results/class-${class_name}/waiting-1`,
       );
       resultData.waiting_list_1 = url;
       resultData.waiting_list_1_public_id = public_id;
@@ -136,7 +161,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.waiting_list_2?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_2[0],
-        `admission-results/class-${class_name}/waiting-2`
+        `admission-results/class-${class_name}/waiting-2`,
       );
       resultData.waiting_list_2 = url;
       resultData.waiting_list_2_public_id = public_id;
@@ -188,7 +213,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.merit_list[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/merit`
+        }/merit`,
       );
       updateData.merit_list = url;
       updateData.merit_list_public_id = public_id;
@@ -203,7 +228,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.waiting_list_1[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/waiting-1`
+        }/waiting-1`,
       );
       updateData.waiting_list_1 = url;
       updateData.waiting_list_1_public_id = public_id;
@@ -218,7 +243,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.waiting_list_2[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/waiting-2`
+        }/waiting-2`,
       );
       updateData.waiting_list_2 = url;
       updateData.waiting_list_2_public_id = public_id;

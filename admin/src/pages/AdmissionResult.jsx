@@ -693,7 +693,7 @@ function AdmissionResult() {
                           </div>
                           {result[listType.key] && (
                             <a
-                              href={backend + result[listType.key]}
+                              href={backend + "/" + result[listType.key]}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 text-primary hover:underline text-sm mt-2"
