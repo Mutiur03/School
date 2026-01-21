@@ -3,6 +3,10 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -28,8 +32,48 @@ export const getUploadUrl = async (key, contentType) => {
   return await getSignedUrl(r2Client, command, { expiresIn: 3600 });
 };
 
+export const createMultipartUpload = async (key, contentType) => {
+  const command = new CreateMultipartUploadCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+  const { UploadId } = await r2Client.send(command);
+  return UploadId;
+};
+
+export const getMultipartPartUrl = async (key, uploadId, partNumber) => {
+  const command = new UploadPartCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    UploadId: uploadId,
+    PartNumber: partNumber,
+  });
+  return await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+};
+
+export const completeMultipartUpload = async (key, uploadId, parts) => {
+  const command = new CompleteMultipartUploadCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    UploadId: uploadId,
+    MultipartUpload: {
+      Parts: parts,
+    },
+  });
+  return await r2Client.send(command);
+};
+
+export const abortMultipartUpload = async (key, uploadId) => {
+  const command = new AbortMultipartUploadCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    UploadId: uploadId,
+  });
+  return await r2Client.send(command);
+};
+
 export const getDownloadUrl = async (key) => {
-  // If we have a public URL, use that instead of signing
   if (process.env.R2_PUBLIC_URL) {
     return `${process.env.R2_PUBLIC_URL}/${key}`;
   }

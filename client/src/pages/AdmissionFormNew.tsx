@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import backend, { cdn } from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 
 const admissionSchema = z
   .object({
@@ -985,7 +985,7 @@ function Form() {
 
             if (data.photo_path) {
               try {
-                setPhotoPreview(`${cdn}/${data.photo_path}`);
+                setPhotoPreview(`${getFileUrl(data.photo_path)}`);
               } catch (photoError) {
                 console.warn("Could not load existing photo:", photoError);
               }

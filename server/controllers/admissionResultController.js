@@ -1,60 +1,166 @@
-import fs from "fs";
-import path from "path";
 import { prisma } from "../config/prisma.js";
+import {
+  getUploadUrl,
+  deleteFromR2,
+  createMultipartUpload,
+  getMultipartPartUrl,
+  completeMultipartUpload,
+} from "../config/r2.js";
+import path from "path";
+import crypto from "crypto";
 
-export async function uploadPDFToLocal(file, folder = "admission-results") {
+const CONFIG = {
+  MAX_FILE_SIZE: 5 * 1024 * 1024 * 1024,
+  MULTIPART_THRESHOLD: 50 * 1024 * 1024,
+};
+
+const validateFile = (filename, contentType, fileSize) => {
+  const errors = [];
+  if (!filename || filename.trim() === "") errors.push("Filename is required");
+  if (!contentType || contentType.trim() === "")
+    errors.push("Content type is required");
+  if (!fileSize || fileSize <= 0) {
+    errors.push("File size must be greater than 0");
+  } else if (fileSize > CONFIG.MAX_FILE_SIZE) {
+    errors.push(`File size exceeds maximum allowed size`);
+  }
+  return errors;
+};
+
+const generateKey = (filename, className, admissionYear, type) => {
+  const safeClassName = String(className)
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]+/g, "_");
+  const safeYear = String(admissionYear).trim();
+  const ext = path.extname(filename);
+  const safeFilename = `${type}-${safeYear}-${Date.now()}-${crypto.randomUUID()}${ext}`;
+  return `admission-results/${safeYear}/class-${safeClassName}/${safeFilename}`;
+};
+
+export const handleUploadRequest = async (req, res) => {
   try {
-    const uploadsRoot = path.join(process.cwd(), "uploads");
-    const destDir = path.join(uploadsRoot, folder);
-    await fs.promises.mkdir(destDir, { recursive: true });
+    const { files, className, admissionYear } = req.body;
 
-    const originalName = file.originalname || path.basename(file.path);
-    const filename = `${Date.now()}-${originalName}`.replace(/\s+/g, "_");
-    const destPath = path.join(destDir, filename);
-    try {
-      await fs.promises.rename(file.path, destPath);
-    } catch (err) {
-      await fs.promises.copyFile(file.path, destPath);
-      await fs.promises.unlink(file.path).catch(() => {});
+    if (!files || !Array.isArray(files) || !className || !admissionYear) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing required fields" });
     }
-    try {
-      await fs.promises.unlink(file.path);
-    } catch (err) {
-      // File might have been moved, ignore error
-    }
-    const relativeUrl = path
-      .join("/uploads", folder, filename)
-      .split(path.sep)
-      .join("/");
 
-    return {
-      url: relativeUrl,
-      downloadUrl: relativeUrl,
-      public_id: relativeUrl,
-    };
+    const validTypes = ["merit_list", "waiting_list_1", "waiting_list_2"];
+
+    const results = await Promise.all(
+      files.map(async (file) => {
+        const { filename, contentType, fileSize, type } = file;
+
+        if (!validTypes.includes(type)) {
+          return {
+            success: false,
+            filename,
+            error: `Invalid result type: ${type}`,
+          };
+        }
+
+        const validationErrors = validateFile(filename, contentType, fileSize);
+        if (validationErrors.length > 0) {
+          return { success: false, filename, errors: validationErrors };
+        }
+
+        const key = generateKey(filename, className, admissionYear, type);
+
+        // Decision: Multipart vs Simple
+        if (fileSize > CONFIG.MULTIPART_THRESHOLD) {
+          try {
+            const uploadId = await createMultipartUpload(key, contentType);
+            return {
+              success: true,
+              mode: "multipart",
+              filename,
+              type,
+              key,
+              uploadId,
+              chunkSize: 10 * 1024 * 1024,
+              endpoints: {
+                signPart: "/api/admission-result/multipart/sign-part",
+                complete: "/api/admission-result/multipart/complete",
+              },
+            };
+          } catch (err) {
+            console.error("Multipart init error:", err);
+            return {
+              success: false,
+              filename,
+              error: "Failed to init multipart upload",
+            };
+          }
+        } else {
+          try {
+            const url = await getUploadUrl(key, contentType);
+            return {
+              success: true,
+              mode: "simple",
+              filename,
+              type,
+              key,
+              uploadUrl: url,
+            };
+          } catch (err) {
+            console.error("Simple auth error:", err);
+            return {
+              success: false,
+              filename,
+              error: "Failed to generate upload URL",
+            };
+          }
+        }
+      }),
+    );
+
+    const hasErrors = results.some((r) => !r.success);
+    res.json({ success: !hasErrors, data: results });
   } catch (error) {
-    console.error("Local upload failed:", error.message);
-    throw new Error("Local upload failed");
+    console.error("Upload request error:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to process request" });
   }
-}
+};
 
-export async function deleteLocalPDF(publicId) {
+// Multipart: Sign Part
+export const signMultipartUploadPart = async (req, res) => {
   try {
-    if (!publicId) return;
-    const relativePath = publicId.startsWith("/")
-      ? publicId.slice(1)
-      : publicId;
-    const filePath = path.join(process.cwd(), relativePath);
-
-    await fs.promises.unlink(filePath).catch((err) => {
-      if (err.code !== "ENOENT") {
-        console.error("Error deleting local file:", err.message);
-      }
-    });
-  } catch (err) {
-    console.error("Error deleting local file:", err.message);
+    const { key, uploadId, partNumber } = req.body;
+    if (!key || !uploadId || !partNumber) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing fields" });
+    }
+    const url = await getMultipartPartUrl(key, uploadId, parseInt(partNumber));
+    res.json({ success: true, url });
+  } catch (error) {
+    console.error("Sign Part error:", error);
+    res.status(500).json({ success: false, message: "Failed to sign part" });
   }
-}
+};
+
+// Multipart: Complete
+export const completeMultipartUploadHandler = async (req, res) => {
+  try {
+    const { key, uploadId, parts } = req.body;
+    if (!key || !uploadId || !parts) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing fields" });
+    }
+    await completeMultipartUpload(key, uploadId, parts);
+    res.json({ success: true, key });
+  } catch (error) {
+    console.error("Complete Multipart error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to complete multipart upload" });
+  }
+};
 
 export const getAdmissionResults = async (req, res) => {
   try {
@@ -73,7 +179,14 @@ export const getAdmissionResults = async (req, res) => {
       orderBy: [{ admission_year: "desc" }, { class_name: "asc" }],
     });
 
-    res.status(200).json(results);
+    const resultsWithUrls = await Promise.all(
+      results.map(async (result) => {
+        const updatedResult = { ...result };
+        return updatedResult;
+      }),
+    );
+
+    res.status(200).json(resultsWithUrls);
   } catch (error) {
     console.error("Error fetching admission results:", error);
     res.status(500).json({
@@ -85,11 +198,13 @@ export const getAdmissionResults = async (req, res) => {
 
 export const createAdmissionResult = async (req, res) => {
   try {
-    console.log(req.body);
-
-    const { class_name, admission_year } = req.body;
-    const files = req.files;
-    console.log(files);
+    const {
+      class_name,
+      admission_year,
+      merit_list,
+      waiting_list_1,
+      waiting_list_2,
+    } = req.body;
 
     if (!class_name || !admission_year) {
       return res.status(400).json({
@@ -113,34 +228,13 @@ export const createAdmissionResult = async (req, res) => {
     const resultData = {
       class_name,
       admission_year: parseInt(admission_year),
+      merit_list: merit_list || null,
+      merit_list_public_id: merit_list ? "r2" : null,
+      waiting_list_1: waiting_list_1 || null,
+      waiting_list_1_public_id: waiting_list_1 ? "r2" : null,
+      waiting_list_2: waiting_list_2 || null,
+      waiting_list_2_public_id: waiting_list_2 ? "r2" : null,
     };
-
-    if (files?.merit_list?.[0]) {
-      const { url, public_id } = await uploadPDFToLocal(
-        files.merit_list[0],
-        `admission-results/class-${class_name}/merit`,
-      );
-      resultData.merit_list = url;
-      resultData.merit_list_public_id = public_id;
-    }
-
-    if (files?.waiting_list_1?.[0]) {
-      const { url, public_id } = await uploadPDFToLocal(
-        files.waiting_list_1[0],
-        `admission-results/class-${class_name}/waiting-1`,
-      );
-      resultData.waiting_list_1 = url;
-      resultData.waiting_list_1_public_id = public_id;
-    }
-
-    if (files?.waiting_list_2?.[0]) {
-      const { url, public_id } = await uploadPDFToLocal(
-        files.waiting_list_2[0],
-        `admission-results/class-${class_name}/waiting-2`,
-      );
-      resultData.waiting_list_2 = url;
-      resultData.waiting_list_2_public_id = public_id;
-    }
 
     const result = await prisma.admission_result.create({
       data: resultData,
@@ -159,8 +253,13 @@ export const createAdmissionResult = async (req, res) => {
 export const updateAdmissionResult = async (req, res) => {
   try {
     const { id } = req.params;
-    const { class_name, admission_year } = req.body;
-    const files = req.files;
+    const {
+      class_name,
+      admission_year,
+      merit_list,
+      waiting_list_1,
+      waiting_list_2,
+    } = req.body;
 
     const existingResult = await prisma.admission_result.findUnique({
       where: { id: parseInt(id) },
@@ -172,56 +271,40 @@ export const updateAdmissionResult = async (req, res) => {
 
     const updateData = {};
 
-    if (class_name) {
-      updateData.class_name = class_name;
-    }
-    if (admission_year) {
-      updateData.admission_year = parseInt(admission_year);
-    }
+    if (class_name) updateData.class_name = class_name;
+    if (admission_year) updateData.admission_year = parseInt(admission_year);
 
-    if (files?.merit_list?.[0]) {
-      if (existingResult.merit_list_public_id) {
-        await deleteLocalPDF(existingResult.merit_list_public_id);
+    if (merit_list !== undefined) {
+      if (
+        existingResult.merit_list &&
+        existingResult.merit_list !== merit_list
+      ) {
+        await deleteFromR2(existingResult.merit_list);
       }
-
-      const { url, public_id } = await uploadPDFToLocal(
-        files.merit_list[0],
-        `admission-results/class-${
-          class_name || existingResult.class_name
-        }/merit`,
-      );
-      updateData.merit_list = url;
-      updateData.merit_list_public_id = public_id;
+      updateData.merit_list = merit_list;
+      updateData.merit_list_public_id = merit_list ? "r2" : null;
     }
 
-    if (files?.waiting_list_1?.[0]) {
-      if (existingResult.waiting_list_1_public_id) {
-        await deleteLocalPDF(existingResult.waiting_list_1_public_id);
+    if (waiting_list_1 !== undefined) {
+      if (
+        existingResult.waiting_list_1 &&
+        existingResult.waiting_list_1 !== waiting_list_1
+      ) {
+        await deleteFromR2(existingResult.waiting_list_1);
       }
-
-      const { url, public_id } = await uploadPDFToLocal(
-        files.waiting_list_1[0],
-        `admission-results/class-${
-          class_name || existingResult.class_name
-        }/waiting-1`,
-      );
-      updateData.waiting_list_1 = url;
-      updateData.waiting_list_1_public_id = public_id;
+      updateData.waiting_list_1 = waiting_list_1;
+      updateData.waiting_list_1_public_id = waiting_list_1 ? "r2" : null;
     }
 
-    if (files?.waiting_list_2?.[0]) {
-      if (existingResult.waiting_list_2_public_id) {
-        await deleteLocalPDF(existingResult.waiting_list_2_public_id);
+    if (waiting_list_2 !== undefined) {
+      if (
+        existingResult.waiting_list_2 &&
+        existingResult.waiting_list_2 !== waiting_list_2
+      ) {
+        await deleteFromR2(existingResult.waiting_list_2);
       }
-
-      const { url, public_id } = await uploadPDFToLocal(
-        files.waiting_list_2[0],
-        `admission-results/class-${
-          class_name || existingResult.class_name
-        }/waiting-2`,
-      );
-      updateData.waiting_list_2 = url;
-      updateData.waiting_list_2_public_id = public_id;
+      updateData.waiting_list_2 = waiting_list_2;
+      updateData.waiting_list_2_public_id = waiting_list_2 ? "r2" : null;
     }
 
     const result = await prisma.admission_result.update({
@@ -251,14 +334,14 @@ export const deleteAdmissionResult = async (req, res) => {
       return res.status(404).json({ message: "Admission result not found" });
     }
 
-    if (existingResult.merit_list_public_id) {
-      await deleteLocalPDF(existingResult.merit_list_public_id);
+    if (existingResult.merit_list) {
+      await deleteFromR2(existingResult.merit_list);
     }
-    if (existingResult.waiting_list_1_public_id) {
-      await deleteLocalPDF(existingResult.waiting_list_1_public_id);
+    if (existingResult.waiting_list_1) {
+      await deleteFromR2(existingResult.waiting_list_1);
     }
-    if (existingResult.waiting_list_2_public_id) {
-      await deleteLocalPDF(existingResult.waiting_list_2_public_id);
+    if (existingResult.waiting_list_2) {
+      await deleteFromR2(existingResult.waiting_list_2);
     }
 
     await prisma.admission_result.delete({
@@ -286,7 +369,6 @@ export const getAdmissionResultById = async (req, res) => {
     if (!result) {
       return res.status(404).json({ message: "Admission result not found" });
     }
-
     res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching admission result:", error);
