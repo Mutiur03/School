@@ -118,7 +118,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.merit_list?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.merit_list[0],
-        `admission-results/class-${class_name}/merit`
+        `admission-results/class-${class_name}/merit`,
       );
       resultData.merit_list = url;
       resultData.merit_list_public_id = public_id;
@@ -127,7 +127,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.waiting_list_1?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_1[0],
-        `admission-results/class-${class_name}/waiting-1`
+        `admission-results/class-${class_name}/waiting-1`,
       );
       resultData.waiting_list_1 = url;
       resultData.waiting_list_1_public_id = public_id;
@@ -136,7 +136,7 @@ export const createAdmissionResult = async (req, res) => {
     if (files?.waiting_list_2?.[0]) {
       const { url, public_id } = await uploadPDFToLocal(
         files.waiting_list_2[0],
-        `admission-results/class-${class_name}/waiting-2`
+        `admission-results/class-${class_name}/waiting-2`,
       );
       resultData.waiting_list_2 = url;
       resultData.waiting_list_2_public_id = public_id;
@@ -188,7 +188,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.merit_list[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/merit`
+        }/merit`,
       );
       updateData.merit_list = url;
       updateData.merit_list_public_id = public_id;
@@ -203,7 +203,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.waiting_list_1[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/waiting-1`
+        }/waiting-1`,
       );
       updateData.waiting_list_1 = url;
       updateData.waiting_list_1_public_id = public_id;
@@ -218,7 +218,7 @@ export const updateAdmissionResult = async (req, res) => {
         files.waiting_list_2[0],
         `admission-results/class-${
           class_name || existingResult.class_name
-        }/waiting-2`
+        }/waiting-2`,
       );
       updateData.waiting_list_2 = url;
       updateData.waiting_list_2_public_id = public_id;
