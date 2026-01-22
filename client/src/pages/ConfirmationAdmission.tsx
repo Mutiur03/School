@@ -100,7 +100,6 @@ function ConfirmationAdmission() {
       fetchAdmissionData(id);
     }
   }, [id]);
-  const host = import.meta.env.VITE_BACKEND_URL;
   const fetchAdmissionData = async (admissionId: string) => {
     try {
       setLoading(true);
