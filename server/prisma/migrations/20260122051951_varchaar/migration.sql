@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "admission_form" ALTER COLUMN "father_phone" SET DATA TYPE VARCHAR(11),
+ALTER COLUMN "mother_phone" SET DATA TYPE VARCHAR(11),
+ALTER COLUMN "guardian_phone" SET DATA TYPE VARCHAR(11);
+
+-- AlterTable
+ALTER TABLE "staffs" ALTER COLUMN "phone" SET DATA TYPE VARCHAR(11);
+
+-- AlterTable
+ALTER TABLE "teachers" ALTER COLUMN "phone" SET DATA TYPE VARCHAR(11);

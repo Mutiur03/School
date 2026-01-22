@@ -1,3 +1,4 @@
+import { getFileUrl } from "@/lib/backend";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -93,7 +94,6 @@ function Admission() {
     admission_year: "",
     search: "",
   });
-  const host = import.meta.env.VITE_BACKEND_URL;
   const [showModal, setShowModal] = useState<boolean>(false);
   const [selectedAdmission, setSelectedAdmission] = useState<AdmissionData | null>(null);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -773,7 +773,7 @@ function Admission() {
                         {admission.photo_path && (
                           <img
                             className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                            src={`${host}/${admission.photo_path}`}
+                            src={`${getFileUrl(admission.photo_path)}`}
                             alt=""
                           />
                         )}
@@ -869,7 +869,7 @@ function Admission() {
                     Student's Photo
                   </h4>
                   <img
-                    src={`${host}/${selectedAdmission.photo_path}`}
+                    src={`${getFileUrl(selectedAdmission.photo_path)}`}
                     alt="Student Photo"
                     className="w-28 h-28 object-cover border-2 border-gray-300 rounded-lg shadow"
                     onError={(e) => {
