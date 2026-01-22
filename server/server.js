@@ -51,7 +51,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
@@ -76,18 +76,19 @@ if (process.env.NODE_ENV === "development") {
   };
 
   app.use(
-    morgan((tokens, req, res) => {
-      const method = tokens.method(req, res);
-      const url = tokens.url(req, res);
-      const status = tokens.status(req, res) || "-";
-      const responseTime = tokens["response-time"](req, res) || "-";
-      const remote = tokens["remote-addr"](req, res) || "-";
-      return `${colors.magenta}${method}${colors.reset} ${colors.reset}${url}${
-        colors.reset
-      } ${colorStatus(status)} ${colors.gray}-${
-        colors.reset
-      } ${responseTime} ms ${colors.gray}${remote}${colors.reset}`;
-    })
+    // morgan((tokens, req, res) => {
+    //   const method = tokens.method(req, res);
+    //   const url = tokens.url(req, res);
+    //   const status = tokens.status(req, res) || "-";
+    //   const responseTime = tokens["response-time"](req, res) || "-";
+    //   const remote = tokens["remote-addr"](req, res) || "-";
+    //   return `${colors.magenta}${method}${colors.reset} ${colors.reset}${url}${
+    //     colors.reset
+    //   } ${colorStatus(status)} ${colors.gray}-${
+    //     colors.reset
+    //   } ${responseTime} ms ${colors.gray}${remote}${colors.reset}`;
+    // })
+    morgan("combined"),
   );
 }
 app.options("*", cors());
@@ -158,7 +159,7 @@ app.listen(PORT, () => {
   console.log(
     `Server running on port ${PORT} in ${
       process.env.NODE_ENV === "production" ? "production" : "dev"
-    } mode`
+    } mode`,
   );
   check();
   console.log(`Health check: http://localhost:${PORT}/api/health`);
