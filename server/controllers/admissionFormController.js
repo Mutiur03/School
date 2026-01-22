@@ -6,7 +6,13 @@ import archiver from "archiver";
 import XLSX from "xlsx";
 import { redis } from "../config/redis.js";
 import { pdfQueue } from "../utils/pdfQueue.js";
-import { getUploadUrl, deleteFromR2, getDownloadUrl } from "../config/r2.js";
+import {
+  getUploadUrl,
+  deleteFromR2,
+  getDownloadUrl,
+  r2Client,
+} from "../config/r2.js";
+import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
@@ -119,9 +125,8 @@ export const getAdmissionUploadUrl = async (req, res) => {
     const safeSerialNo = String(serialNo)
       .trim()
       .replace(/[^a-zA-Z0-9-_]+/g, "_");
-    const safeFilename = `${safeSerialNo}_${safeName}${ext}`;
-
-    const key = `admission/${safeYear}/${admissionClassSafe}/${safeListType}/${safeFilename}`;
+    const safeFilename = `${safeSerialNo}_${safeName}`;
+    const key = `admission/${safeYear}/${admissionClassSafe}/${safeListType}/${safeFilename}-${Date.now()}${ext}`;
     const url = await getUploadUrl(key, filetype);
 
     res.json({ success: true, url, key });
@@ -1653,14 +1658,6 @@ export const exportAdmissionImagesZip = async (req, res) => {
       if (isNaN(yearNum)) yearNum = null;
     }
 
-    const uploadsBase = path.join(process.cwd(), "uploads", "admission");
-    if (!fs.existsSync(uploadsBase)) {
-      return res.status(404).json({
-        success: false,
-        message: "No admission uploads directory found",
-      });
-    }
-
     const fileName =
       yearNum !== null
         ? `admission_images_${String(yearNum)}.zip`
@@ -1670,6 +1667,7 @@ export const exportAdmissionImagesZip = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
     const archive = archiver("zip", { zlib: { level: 9 } });
+
     archive.on("error", (err) => {
       console.error("Archiver error:", err);
       if (!res.headersSent)
@@ -1679,36 +1677,48 @@ export const exportAdmissionImagesZip = async (req, res) => {
           error: err.message,
         });
     });
+
     archive.pipe(res);
 
+    const where = {};
     if (yearNum !== null) {
-      const targetDir = path.join(uploadsBase, String(yearNum));
-      if (!fs.existsSync(targetDir)) {
-        return res.status(404).json({
-          success: false,
-          message: `No uploads found for year ${yearNum}`,
+      where.admission_year = yearNum;
+    }
+    where.photo_path = { not: null };
+
+    const forms = await prisma.admission_form.findMany({
+      where,
+      select: {
+        photo_path: true,
+      },
+    });
+
+    console.log(
+      `Found ${forms.length} records with photos for export (Year: ${yearNum})`,
+    );
+
+    let fileCount = 0;
+
+    for (const form of forms) {
+      const photoPath = form.photo_path;
+      if (!photoPath) continue;
+      try {
+        const getCommand = new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: photoPath,
         });
+        const getResponse = await r2Client.send(getCommand);
+        archive.append(getResponse.Body, { name: photoPath });
+        fileCount++;
+      } catch (err) {
+        console.warn(`Failed to export image ${photoPath}:`, err.message);
       }
-      archive.directory(targetDir, String(yearNum));
-    } else {
-      const entries = fs.readdirSync(uploadsBase, { withFileTypes: true });
-      const dirs = entries.filter((d) => d.isDirectory());
-      const files = entries.filter((d) => d.isFile());
+    }
 
-      if (dirs.length === 0 && files.length === 0) {
-        return res
-          .status(404)
-          .json({ success: false, message: "No admission uploads found" });
-      }
+    console.log(`Added ${fileCount} files to zip archive`);
 
-      for (const d of dirs) {
-        const dirPath = path.join(uploadsBase, d.name);
-        archive.directory(dirPath, d.name);
-      }
-      for (const f of files) {
-        const filePath = path.join(uploadsBase, f.name);
-        archive.file(filePath, { name: f.name });
-      }
+    if (fileCount === 0) {
+      console.warn("No files successfully added to the archive.");
     }
 
     await archive.finalize();

@@ -108,7 +108,7 @@ model teachers {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(100)
   email       String   @unique @db.VarChar(100)
-  phone       String   @db.Char(11)
+  phone       String   @db.VarChar(11)
   designation String?  @db.VarChar(100)
   password    String
   image       String?
@@ -125,7 +125,7 @@ model staffs {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(100)
   email       String?  @unique @db.VarChar(100)
-  phone       String   @db.Char(11)
+  phone       String   @db.VarChar(11)
   designation String?  @db.VarChar(100)
   image       String?
   address     String?
@@ -464,12 +464,12 @@ model admission_form {
   father_name_bn String? @db.VarChar(100)
   father_name_en String? @db.VarChar(100)
   father_nid     String? @db.VarChar(17)
-  father_phone   String? @db.Char(11)
+  father_phone   String? @db.VarChar(11)
 
   mother_name_bn String? @db.VarChar(100)
   mother_name_en String? @db.VarChar(100)
   mother_nid     String? @db.VarChar(17)
-  mother_phone   String? @db.Char(11)
+  mother_phone   String? @db.VarChar(11)
 
   birth_date  String? @db.VarChar(10)
   birth_year  String? @db.VarChar(4)
@@ -494,7 +494,7 @@ model admission_form {
 
   // Guardian
   guardian_name         String? @db.VarChar(100)
-  guardian_phone        String? @db.Char(11)
+  guardian_phone        String? @db.VarChar(11)
   guardian_relation     String? @db.VarChar(50)
   guardian_nid          String? @db.VarChar(17)
   guardian_district     String? @db.VarChar(50)
