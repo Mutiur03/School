@@ -96,9 +96,9 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-// app.get("/", (req, res) => {
-//   res.send("Ballo World");
-// });
+app.get("/", (req, res) => {
+  res.send("Hello World");
+});
 app.use("/api/students", studRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/sub", subRouter);
