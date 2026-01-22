@@ -110,17 +110,20 @@ const admissionSchema = z
     blood_group: z
       .enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""])
       .default(""),
-    email: z
-      .string()
-      .default("")
-      .refine(
-        (val) => !val || /^[\x00-\x7F]+$/.test(val),
-        "Email must contain only English characters",
-      )
-      .refine(
-        (val) => !val || z.string().email().safeParse(val).success,
-        "Invalid email format",
-      ),
+    email: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z
+        .string()
+        .default("")
+        .refine(
+          (val) => !val || /^[\x00-\x7F]+$/.test(val),
+          "Email must contain only English characters",
+        )
+        .refine(
+          (val) => !val || z.string().email().safeParse(val).success,
+          "Invalid email format",
+        ),
+    ),
     religion: z.string().min(1, "Religion is required").max(50).default(""),
 
     present_district: z
@@ -178,27 +181,54 @@ const admissionSchema = z
       .default(""),
 
     guardian_is_not_father: z.boolean().default(false),
-    guardian_name: z.string().max(100).default(""),
-    guardian_phone: z
-      .string()
-      .max(11)
-      .regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
-      .default(""),
-    guardian_relation: z.string().max(50).default(""),
-    guardian_nid: z
-      .string()
-      .max(17)
-      .regex(/^$|^\d{10,17}$/, "Guardian NID must be 10 to 17 digits")
-      .default(""),
+    guardian_name: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(100).default(""),
+    ),
+    guardian_phone: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z
+        .string()
+        .max(11)
+        .regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
+        .default(""),
+    ),
+    guardian_relation: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(50).default(""),
+    ),
+    guardian_nid: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z
+        .string()
+        .max(17)
+        .regex(/^$|^\d{10,17}$/, "Guardian NID must be 10 to 17 digits")
+        .default(""),
+    ),
     guardian_address_same_as_permanent: z.boolean().default(false),
-    guardian_district: z.string().max(50).default(""),
-    guardian_upazila: z.string().max(50).default(""),
-    guardian_post_office: z.string().max(100).default(""),
-    guardian_post_code: z
-      .string()
-      .regex(/^$|^\d{4}$/, "Post code must be 4 digits")
-      .default(""),
-    guardian_village_road: z.string().max(200).default(""),
+    guardian_district: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(50).default(""),
+    ),
+    guardian_upazila: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(50).default(""),
+    ),
+    guardian_post_office: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(100).default(""),
+    ),
+    guardian_post_code: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z
+        .string()
+        .regex(/^$|^\d{4}$/, "Post code must be 4 digits")
+        .default(""),
+    ),
+    guardian_village_road: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z.string().max(200).default(""),
+    ),
 
     prev_school_name: z
       .string()
@@ -263,12 +293,18 @@ const admissionSchema = z
     qouta: z.string().min(1, "Qouta is required").max(50).default(""),
 
     photo_path: z.string().min(1, "Photo is required").max(255).default(""),
-    whatsapp_number: z
-      .string()
-      .max(11)
-      .regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
-      .default("")
-      .optional(),
+    whatsapp_number: z.preprocess(
+      (v) => (v === null ? "" : v),
+      z
+        .string()
+        .max(11)
+        .regex(/^$|^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
+        .default(""),
+    ),
+    admission_year: z.preprocess(
+      (v) => (v === null ? undefined : typeof v === "string" ? parseInt(v) : v),
+      z.number().optional(),
+    ),
   })
   .superRefine((data, ctx) => {
     if (data.guardian_is_not_father) {
@@ -380,7 +416,6 @@ const admissionSchema = z
       }
     }
   });
-
 type AdmissionFormData = z.infer<typeof admissionSchema>;
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="text-sm text-gray-900">{children}</p>
@@ -925,6 +960,12 @@ function Form() {
             setInitialLoading(false);
             return;
           }
+          if (!isEditMode) {
+            setValue(
+              "admission_year",
+              Number(admissionStatusResponse.data.admission_year),
+            );
+          }
         } else {
           navigate("/", { replace: true });
           return;
@@ -1185,7 +1226,11 @@ function Form() {
   }
 
   const onSubmit = async (data: AdmissionFormData) => {
-    if (admission_user_id && !userIdOptions.includes(admission_user_id)) {
+    if (
+      userIdOptions.length > 0 &&
+      admission_user_id &&
+      !userIdOptions.includes(admission_user_id)
+    ) {
       setError("admission_user_id", {
         type: "manual",
         message: "Invalid User ID for the selected class",
@@ -1202,7 +1247,7 @@ function Form() {
         const uploadRes = await axios.post("/api/admission/form/upload-url", {
           filename: photo.name,
           filetype: photo.type,
-          year: admissionSettings?.admission_year || new Date().getFullYear(),
+          year: data.admission_year || admissionSettings?.admission_year,
           admissionClass: data.admission_class,
           listType: data.list_type,
           serialNo: data.serial_no,
@@ -1486,24 +1531,33 @@ function Form() {
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-4 sm:space-y-6"
       >
-        {/* {Object.keys(errors).length > 0 && (
-                    <div style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', padding: '10px', marginBottom: '10px' }}>
-                        <strong>Validation Errors:</strong>
-                        <ul style={{ fontSize: '12px', margin: 0, paddingLeft: '18px' }}>
-                            {Object.entries(errors).map(([field, error]) => {
-                                let message = error?.message;
-                                if (!message && Array.isArray(error?.types)) {
-                                    message = error.types[0]?.message;
-                                }
-                                return (
-                                    <li key={field} style={{ marginBottom: 2 }}>
-                                        <strong>{field}:</strong> {message || 'Invalid value'}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                )} */}
+        {Object.keys(errors).length > 0 && (
+          <div
+            style={{
+              background: "#fff3cd",
+              color: "#856404",
+              border: "1px solid #ffeeba",
+              borderRadius: "4px",
+              padding: "10px",
+              marginBottom: "10px",
+            }}
+          >
+            <strong>Validation Errors:</strong>
+            <ul style={{ fontSize: "12px", margin: 0, paddingLeft: "18px" }}>
+              {Object.entries(errors).map(([field, error]) => {
+                let message = error?.message;
+                if (!message && Array.isArray(error?.types)) {
+                  message = (error as any).types[0]?.message;
+                }
+                return (
+                  <li key={field} style={{ marginBottom: 2 }}>
+                    <strong>{field}:</strong> {message || "Invalid value"}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
           <legend>
