@@ -6,6 +6,13 @@ import archiver from "archiver";
 import XLSX from "xlsx";
 import { redis } from "../config/redis.js";
 import { pdfQueue } from "../utils/pdfQueue.js";
+import {
+  getUploadUrl,
+  deleteFromR2,
+  getDownloadUrl,
+  r2Client,
+} from "../config/r2.js";
+import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
@@ -53,7 +60,7 @@ const checkDuplicates = async (data, excludeId = null) => {
   } catch (err) {
     console.warn(
       "checkDuplicates error:",
-      err && err.message ? err.message : err
+      err && err.message ? err.message : err,
     );
   }
   try {
@@ -75,89 +82,62 @@ const checkDuplicates = async (data, excludeId = null) => {
   } catch (err) {
     console.warn(
       "checkDuplicates error:",
-      err && err.message ? err.message : err
+      err && err.message ? err.message : err,
     );
   }
   return duplicates;
 };
-const saveAdmissionPhoto = async (
-  file,
-  year,
-  listType,
-  serialNo,
-  name,
-  admissionClass
-) => {
-  if (!file) return null;
-  if (!fs.existsSync(file.path)) {
-    throw new Error(`File not found: ${file.path}`);
-  }
+// saveAdmissionPhoto removed
 
-  const safeYear = year || new Date().getFullYear();
-
-  const safeListType = String(listType || "unknown")
-    .trim()
-    .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
-    .replace(/\s+/g, "_")
-    .toLowerCase();
-
-  const safeSerial = serialNo
-    ? String(serialNo)
-        .trim()
-        .replace(/[^a-zA-Z0-9-_]+/g, "_")
-    : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  const admissionClassSafe = admissionClass
-    ? String(admissionClass)
-        .trim()
-        .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
-        .replace(/\s+/g, "_")
-    : null;
-  const safeName = name
-    ? String(name)
-        .trim()
-        .replace(/[^a-zA-Z0-9-_ ]+/g, "_")
-        .replace(/\s+/g, "_")
-    : null;
-
-  const uploadDir = path.join(
-    "uploads",
-    "admission",
-    String(safeYear),
-    admissionClassSafe || "unknown_class",
-    safeListType
-  );
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-  const ext = path.extname(file.originalname) || ".jpg";
-  const baseName = safeName
-    ? `${safeListType}-${safeSerial}-${safeName}`
-    : `${safeListType}-${safeSerial}`;
-  let filename = `${baseName}${ext}`;
-  let finalPath = path.join(uploadDir, filename);
-  let counter = 1;
-  while (fs.existsSync(finalPath)) {
-    filename = `${baseName}(${counter})${ext}`;
-    finalPath = path.join(uploadDir, filename);
-    counter++;
-  }
-
+export const getAdmissionUploadUrl = async (req, res) => {
   try {
-    fs.renameSync(file.path, finalPath);
-    return finalPath;
-  } catch (err) {
-    try {
-      fs.copyFileSync(file.path, finalPath);
-      fs.unlinkSync(file.path);
-      return finalPath;
-    } catch (err2) {
-      throw new Error(
-        `Failed to save uploaded file: ${
-          err2 && err2.message ? err2.message : err2
-        }`
-      );
+    const {
+      filename,
+      filetype,
+      year,
+      admissionClass,
+      listType,
+      name,
+      serialNo,
+    } = req.body;
+    if (!filename || !filetype) {
+      return res.status(400).json({
+        success: false,
+        message: "Filename and filetype are required",
+      });
     }
+
+    const safeYear = year || new Date().getFullYear();
+    const safeListType = String(listType || "unknown")
+      .trim()
+      .replace(/[^a-zA-Z0-9-_]+/g, "_")
+      .toLowerCase();
+    const admissionClassSafe = admissionClass
+      ? String(admissionClass)
+          .trim()
+          .replace(/[^a-zA-Z0-9-_]+/g, "_")
+      : "unknown_class";
+
+    const ext = path.extname(filename);
+    const safeName = String(name)
+      .trim()
+      .replace(/[^a-zA-Z0-9-_]+/g, "_");
+    const safeSerialNo = String(serialNo)
+      .trim()
+      .replace(/[^a-zA-Z0-9-_]+/g, "_");
+    const safeFilename = `${safeSerialNo}_${safeName}`;
+    const key = `admission/${safeYear}/${admissionClassSafe}/${safeListType}/${safeFilename}-${Date.now()}${ext}`;
+    const url = await getUploadUrl(key, filetype);
+
+    res.json({ success: true, url, key });
+  } catch (error) {
+    console.error("Presigned URL error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to generate upload URL" });
   }
 };
+
 export const createForm = async (req, res) => {
   try {
     const body = req.body || {};
@@ -179,8 +159,6 @@ export const createForm = async (req, res) => {
       .join("/");
     const duplicates = await checkDuplicates(payload);
     if (duplicates.length > 0) {
-      if (req.file && fs.existsSync(req.file.path))
-        fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
         message: "Duplicate information found",
@@ -194,27 +172,9 @@ export const createForm = async (req, res) => {
     )
       payload.admission_year = settings.admission_year;
     let photoPath = null;
-    if (req.file) {
-      try {
-        photoPath = await saveAdmissionPhoto(
-          req.file,
-          settings.admission_year,
-          payload.list_type,
-          payload.serial_no,
-          payload.student_name_en || payload.student_name_bn,
-          payload.admission_class
-        );
-      } catch (err) {
-        if (req.file && fs.existsSync(req.file.path))
-          fs.unlinkSync(req.file.path);
-        return res.status(400).json({
-          success: false,
-          message: "Photo save failed",
-          error: err.message,
-        });
-      }
+    if (req.body.photo_path) {
+      photoPath = req.body.photo_path;
     }
-
     const dataToCreate = { ...payload, photo_path: photoPath };
 
     const rec = await prisma.admission_form.create({ data: dataToCreate });
@@ -229,12 +189,12 @@ export const createForm = async (req, res) => {
             jobId: `pdf:${id}`,
             removeOnComplete: true,
             removeOnFail: true,
-          }
+          },
         );
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
-          queueErr && queueErr.message ? queueErr.message : queueErr
+          queueErr && queueErr.message ? queueErr.message : queueErr,
         );
         await redis.set(statusKey, "failed");
       }
@@ -310,6 +270,7 @@ export const updateForm = async (req, res) => {
         .json({ success: false, message: "Form not found" });
     const settings = await prisma.admission.findFirst();
     const payload = { ...req.body };
+
     delete payload.guardian_is_not_father;
     delete payload.guardian_address_same_as_permanent;
     payload.birth_year = payload.birth_reg_no.slice(0, 4);
@@ -318,7 +279,6 @@ export const updateForm = async (req, res) => {
       payload.birth_month,
       payload.birth_year,
     ].join("/");
-    console.log(payload);
 
     const duplicates = await checkDuplicates(payload, id);
     if (duplicates.length > 0) {
@@ -332,28 +292,22 @@ export const updateForm = async (req, res) => {
     }
 
     let photoPath = existing.photo_path;
-    if (req.file) {
-      try {
-        if (existing.photo_path && fs.existsSync(existing.photo_path))
-          fs.unlinkSync(existing.photo_path);
-        photoPath = await saveAdmissionPhoto(
-          req.file,
-          settings.admission_year,
-          payload.list_type,
-          payload.serial_no,
-          payload.student_name_en || payload.student_name_bn,
-          payload.admission_class
-        );
-      } catch (err) {
-        if (req.file && fs.existsSync(req.file.path))
-          fs.unlinkSync(req.file.path);
-        return res.status(400).json({
-          success: false,
-          message: "Photo save failed",
-          error: err.message,
-        });
+    if (req.body.photo_path) {
+      if (existing.photo_path && existing.photo_path !== req.body.photo_path) {
+        if (
+          existing.photo_path.includes("uploads/admission") &&
+          fs.existsSync(existing.photo_path)
+        ) {
+          try {
+            fs.unlinkSync(existing.photo_path);
+          } catch (e) {}
+        }
+        await deleteFromR2(existing.photo_path);
       }
+      photoPath = req.body.photo_path;
     }
+    // else if (req.file) { -- REMOVED LEGACY SUPPORT
+    // }
     payload.whatsapp_number = payload.whatsapp_number.trim() || "";
     const updated = await prisma.admission_form.update({
       where: { id },
@@ -371,12 +325,12 @@ export const updateForm = async (req, res) => {
             jobId: `pdf:${id}`,
             removeOnComplete: true,
             removeOnFail: true,
-          }
+          },
         );
       } catch (queueErr) {
         console.error(
           "Failed to add PDF job to queue:",
-          queueErr && queueErr.message ? queueErr.message : queueErr
+          queueErr && queueErr.message ? queueErr.message : queueErr,
         );
         await redis.set(statusKey, "failed");
       }
@@ -403,8 +357,16 @@ export const deleteForm = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Form not found" });
-    if (existing.photo_path && fs.existsSync(existing.photo_path))
-      fs.unlinkSync(existing.photo_path);
+    if (existing.photo_path) {
+      if (existing.photo_path.includes("uploads/admission")) {
+        if (fs.existsSync(existing.photo_path)) {
+          try {
+            fs.unlinkSync(existing.photo_path);
+          } catch (e) {}
+        }
+      }
+      await deleteFromR2(existing.photo_path);
+    }
     await prisma.admission_form.delete({ where: { id } });
     res.status(200).json({ success: true, message: "Form deleted" });
   } catch (error) {
@@ -504,8 +466,8 @@ export const generateAdmissionPDF = async (admission) => {
           logoExtension === ".png"
             ? "image/png"
             : logoExtension === ".jpg" || logoExtension === ".jpeg"
-            ? "image/jpeg"
-            : "image/png";
+              ? "image/jpeg"
+              : "image/png";
         logoBase64 = `data:${mimeType};base64,${logoBuffer.toString("base64")}`;
       } catch (logoError) {
         console.warn("Failed to load logo:", logoError);
@@ -524,7 +486,7 @@ export const generateAdmissionPDF = async (admission) => {
         console.warn(
           "Failed to load font:",
           fontPath,
-          err && err.message ? err.message : err
+          err && err.message ? err.message : err,
         );
         return null;
       }
@@ -567,7 +529,7 @@ export const generateAdmissionPDF = async (admission) => {
           if (bn) return `<span >${bn}</span>`;
           if (nonBn) return `<span class="en">${nonBn}</span>`;
           return _;
-        }
+        },
       );
 
       return normalizedText;
@@ -584,7 +546,7 @@ export const generateAdmissionPDF = async (admission) => {
           if (bn) return `<span class="bn">${bn}</span>`;
           if (nonBn) return `<span class="en">${nonBn}</span>`;
           return match;
-        }
+        },
       );
     }
 
@@ -664,7 +626,7 @@ export const generateAdmissionPDF = async (admission) => {
           admission.guardian_post_office,
           admission.guardian_post_code,
           admission.guardian_upazila,
-          admission.guardian_district
+          admission.guardian_district,
         ) || null,
       ],
       [
@@ -674,7 +636,7 @@ export const generateAdmissionPDF = async (admission) => {
           admission.permanent_post_office,
           admission.permanent_post_code,
           admission.permanent_upazila,
-          admission.permanent_district
+          admission.permanent_district,
         ) || null,
       ],
       [
@@ -684,7 +646,7 @@ export const generateAdmissionPDF = async (admission) => {
           admission.present_post_office,
           admission.present_post_code,
           admission.present_upazila,
-          admission.present_district
+          admission.present_district,
         ) || null,
       ],
       [
@@ -719,7 +681,9 @@ export const generateAdmissionPDF = async (admission) => {
       .map(([label, value]) => [label, value ? wrapBnEn(String(value)) : ""])
       .filter(
         ([, value]) =>
-          value && value.trim() !== "" && value !== '<span class="en">No</span>'
+          value &&
+          value.trim() !== "" &&
+          value !== '<span class="en">No</span>',
       );
 
     let tableRows = "";
@@ -741,6 +705,32 @@ export const generateAdmissionPDF = async (admission) => {
     const schoolAddr = "Panchbibi, Joypurhat";
     const schoolWeb = "www.lbphs.gov.bd";
     const admission_year = admission.admission_year || "";
+
+    // Process student photo
+    let studentPhotoUrl = "";
+    if (admission.photo_path) {
+      if (admission.photo_path.startsWith("http")) {
+        studentPhotoUrl = admission.photo_path;
+      } else if (admission.photo_path.startsWith("uploads/")) {
+        // Legacy local file
+        const p = path.join(process.cwd(), admission.photo_path);
+        if (fs.existsSync(p)) {
+          try {
+            const b = fs.readFileSync(p);
+            studentPhotoUrl = `data:image/jpeg;base64,${b.toString("base64")}`;
+          } catch (e) {
+            console.warn("Failed to read local photo", e);
+          }
+        }
+      } else {
+        // R2 Key
+        try {
+          studentPhotoUrl = await getDownloadUrl(admission.photo_path);
+        } catch (e) {
+          console.warn("Failed to sign R2 url", e);
+        }
+      }
+    }
 
     // prepare display strings for title: use list_type, admission_class and admission_year
     const admission_class_raw = admission.admission_class || "";
@@ -788,7 +778,7 @@ export const generateAdmissionPDF = async (admission) => {
     const religionDisplay = admission.religion || "";
 
     const currentDateTime = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" })
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
     ).toLocaleString("en-GB", {
       day: "2-digit",
       month: "2-digit",
@@ -1279,7 +1269,7 @@ export const generateAdmissionPDF = async (admission) => {
         console.error(
           "Puppeteer launch failed for admissionId:",
           admission.id,
-          launchErr && launchErr.stack ? launchErr.stack : launchErr
+          launchErr && launchErr.stack ? launchErr.stack : launchErr,
         );
         try {
           await redis.set(statusKey, "failed");
@@ -1287,12 +1277,12 @@ export const generateAdmissionPDF = async (admission) => {
             errorKey,
             `launch error: ${
               launchErr && launchErr.stack ? launchErr.stack : launchErr
-            }`
+            }`,
           );
         } catch (rErr) {
           console.error(
             "Failed to write launch error to Redis:",
-            rErr && rErr.message ? rErr.message : rErr
+            rErr && rErr.message ? rErr.message : rErr,
           );
         }
         throw launchErr;
@@ -1300,7 +1290,7 @@ export const generateAdmissionPDF = async (admission) => {
       const page = await browser.newPage();
 
       await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       );
       await page.setExtraHTTPHeaders({
         "Accept-Charset": "utf-8",
@@ -1315,7 +1305,7 @@ export const generateAdmissionPDF = async (admission) => {
           document.body,
           NodeFilter.SHOW_TEXT,
           null,
-          false
+          false,
         );
 
         let node;
@@ -1349,7 +1339,7 @@ export const generateAdmissionPDF = async (admission) => {
         console.error(
           "page.pdf failed for admissionId:",
           admission.id,
-          pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr
+          pdfErr && pdfErr.stack ? pdfErr.stack : pdfErr,
         );
         throw pdfErr;
       }
@@ -1479,7 +1469,7 @@ export const generateAdmissionPDF = async (admission) => {
         "PDF generated for admission ID:",
         admission.id,
         "bytes=",
-        pdfBuffer.length
+        pdfBuffer.length,
       );
       await browser.close();
       return pdfBuffer;
@@ -1490,7 +1480,7 @@ export const generateAdmissionPDF = async (admission) => {
         } catch (closeErr) {
           console.warn(
             "Failed to close browser after PDF generation:",
-            closeErr && closeErr.message ? closeErr.message : closeErr
+            closeErr && closeErr.message ? closeErr.message : closeErr,
           );
         }
       }
@@ -1636,13 +1626,13 @@ export const exportAllAdmissionsExcel = async (req, res) => {
 
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="admissions_export_${new Date()
         .toISOString()
-        .slice(0, 10)}.xlsx"`
+        .slice(0, 10)}.xlsx"`,
     );
     return res.status(200).send(buffer);
   } catch (error) {
@@ -1668,14 +1658,6 @@ export const exportAdmissionImagesZip = async (req, res) => {
       if (isNaN(yearNum)) yearNum = null;
     }
 
-    const uploadsBase = path.join(process.cwd(), "uploads", "admission");
-    if (!fs.existsSync(uploadsBase)) {
-      return res.status(404).json({
-        success: false,
-        message: "No admission uploads directory found",
-      });
-    }
-
     const fileName =
       yearNum !== null
         ? `admission_images_${String(yearNum)}.zip`
@@ -1685,6 +1667,7 @@ export const exportAdmissionImagesZip = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
     const archive = archiver("zip", { zlib: { level: 9 } });
+
     archive.on("error", (err) => {
       console.error("Archiver error:", err);
       if (!res.headersSent)
@@ -1694,36 +1677,48 @@ export const exportAdmissionImagesZip = async (req, res) => {
           error: err.message,
         });
     });
+
     archive.pipe(res);
 
+    const where = {};
     if (yearNum !== null) {
-      const targetDir = path.join(uploadsBase, String(yearNum));
-      if (!fs.existsSync(targetDir)) {
-        return res.status(404).json({
-          success: false,
-          message: `No uploads found for year ${yearNum}`,
+      where.admission_year = yearNum;
+    }
+    where.photo_path = { not: null };
+
+    const forms = await prisma.admission_form.findMany({
+      where,
+      select: {
+        photo_path: true,
+      },
+    });
+
+    console.log(
+      `Found ${forms.length} records with photos for export (Year: ${yearNum})`,
+    );
+
+    let fileCount = 0;
+
+    for (const form of forms) {
+      const photoPath = form.photo_path;
+      if (!photoPath) continue;
+      try {
+        const getCommand = new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: photoPath,
         });
+        const getResponse = await r2Client.send(getCommand);
+        archive.append(getResponse.Body, { name: photoPath });
+        fileCount++;
+      } catch (err) {
+        console.warn(`Failed to export image ${photoPath}:`, err.message);
       }
-      archive.directory(targetDir, String(yearNum));
-    } else {
-      const entries = fs.readdirSync(uploadsBase, { withFileTypes: true });
-      const dirs = entries.filter((d) => d.isDirectory());
-      const files = entries.filter((d) => d.isFile());
+    }
 
-      if (dirs.length === 0 && files.length === 0) {
-        return res
-          .status(404)
-          .json({ success: false, message: "No admission uploads found" });
-      }
+    console.log(`Added ${fileCount} files to zip archive`);
 
-      for (const d of dirs) {
-        const dirPath = path.join(uploadsBase, d.name);
-        archive.directory(dirPath, d.name);
-      }
-      for (const f of files) {
-        const filePath = path.join(uploadsBase, f.name);
-        archive.file(filePath, { name: f.name });
-      }
+    if (fileCount === 0) {
+      console.warn("No files successfully added to the archive.");
     }
 
     await archive.finalize();

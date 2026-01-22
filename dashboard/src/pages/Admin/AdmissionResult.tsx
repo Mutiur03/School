@@ -1,7 +1,7 @@
 import React, { useState, useEffect, type JSX } from "react";
 import axios, { isAxiosError } from "axios";
 import toast from "react-hot-toast";
-import backend from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 
 interface AdmissionResult {
   id: number;
@@ -22,7 +22,10 @@ interface FormData {
 }
 
 interface ListType {
-  key: keyof Pick<AdmissionResult, "merit_list" | "waiting_list_1" | "waiting_list_2">;
+  key: keyof Pick<
+    AdmissionResult,
+    "merit_list" | "waiting_list_1" | "waiting_list_2"
+  >;
   label: string;
   color: string;
 }
@@ -35,9 +38,13 @@ function AdmissionResult() {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("6");
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear(),
+  );
   const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+  const [currentYear, setCurrentYear] = useState<number>(
+    new Date().getFullYear(),
+  );
   const [formData, setFormData] = useState<FormData>({
     class_name: "6",
     admission_year: new Date().getFullYear(),
@@ -82,7 +89,9 @@ function AdmissionResult() {
   const fetchResults = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await axios.get<AdmissionResult[]>("/api/admission-result");
+      const response = await axios.get<AdmissionResult[]>(
+        "/api/admission-result",
+      );
       setResults(response.data);
     } catch (error) {
       console.error("Error fetching results:", error);
@@ -99,17 +108,14 @@ function AdmissionResult() {
     }));
   }, [showForm, currentYear]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof FormData): void => {
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fieldName: keyof FormData,
+  ): void => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type !== "application/pdf") {
         toast.error("Please upload only PDF files");
-        e.target.value = "";
-        setFormData((prev) => ({ ...prev, [fieldName]: null }));
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB");
         e.target.value = "";
         setFormData((prev) => ({ ...prev, [fieldName]: null }));
         return;
@@ -120,7 +126,9 @@ function AdmissionResult() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     e.preventDefault();
     const hasAnyFile =
       !!formData.merit_list ||
@@ -133,45 +141,172 @@ function AdmissionResult() {
     }
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Preparing upload...");
 
-    const submitData = new FormData();
-    submitData.append("class_name", formData.class_name);
-    submitData.append("admission_year", formData.admission_year.toString());
-
-    if (formData.merit_list) {
-      submitData.append("merit_list", formData.merit_list);
-    }
-    if (formData.waiting_list_1) {
-      submitData.append("waiting_list_1", formData.waiting_list_1);
-    }
-    if (formData.waiting_list_2) {
-      submitData.append("waiting_list_2", formData.waiting_list_2);
-    }
     try {
+      const payload: Record<string, any> = {
+        class_name: formData.class_name,
+        admission_year: formData.admission_year,
+      };
+
+      const filesToUpload: { file: File; type: string }[] = [];
+      if (formData.merit_list instanceof File)
+        filesToUpload.push({ file: formData.merit_list, type: "merit_list" });
+      else if (typeof formData.merit_list === "string")
+        payload.merit_list = formData.merit_list;
+
+      if (formData.waiting_list_1 instanceof File)
+        filesToUpload.push({
+          file: formData.waiting_list_1,
+          type: "waiting_list_1",
+        });
+      else if (typeof formData.waiting_list_1 === "string")
+        payload.waiting_list_1 = formData.waiting_list_1;
+
+      if (formData.waiting_list_2 instanceof File)
+        filesToUpload.push({
+          file: formData.waiting_list_2,
+          type: "waiting_list_2",
+        });
+      else if (typeof formData.waiting_list_2 === "string")
+        payload.waiting_list_2 = formData.waiting_list_2;
+
+      if (filesToUpload.length > 0) {
+        toast.loading(
+          `Initializing upload for ${filesToUpload.length} files...`,
+          {
+            id: toastId,
+          },
+        );
+
+        const { data: uploadResponse } = await axios.post(
+          "/api/admission-result/upload",
+          {
+            files: filesToUpload.map((f) => ({
+              filename: f.file.name,
+              contentType: f.file.type || "application/pdf",
+              fileSize: f.file.size,
+              type: f.type,
+            })),
+            className: formData.class_name,
+            admissionYear: formData.admission_year,
+          },
+        );
+
+        if (!uploadResponse.success) {
+          throw new Error("Failed to initialize uploads");
+        }
+
+        await Promise.all(
+          uploadResponse.data.map(async (item: any) => {
+            const fileObj = filesToUpload.find((f) => f.type === item.type);
+            if (!fileObj) return;
+
+            if (!item.success) {
+              throw new Error(
+                `Error initializing ${item.filename}: ${
+                  item.error || "Unknown error"
+                }`,
+              );
+            }
+
+            if (item.mode === "simple") {
+              toast.loading(`Uploading ${item.type}...`, { id: toastId });
+              await axios.put(item.uploadUrl, fileObj.file, {
+                headers: { "Content-Type": fileObj.file.type },
+                withCredentials: false,
+              });
+              payload[item.type] = item.key;
+            } else if (item.mode === "multipart") {
+              const { uploadId, key, endpoints, chunkSize } = item;
+              const PART_SIZE = chunkSize || 10 * 1024 * 1024;
+              const totalParts = Math.ceil(fileObj.file.size / PART_SIZE);
+              const parts: { ETag: string; PartNumber: number }[] = [];
+
+              for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+                const start = (partNumber - 1) * PART_SIZE;
+                const end = Math.min(start + PART_SIZE, fileObj.file.size);
+                const chunk = fileObj.file.slice(start, end);
+
+                const { data: signData } = await axios.post(
+                  endpoints.signPart,
+                  {
+                    key,
+                    uploadId,
+                    partNumber,
+                  },
+                );
+                if (!signData.success)
+                  throw new Error(
+                    `Failed to sign part ${partNumber} for ${item.type}`,
+                  );
+
+                const uploadRes = await axios.put(signData.url, chunk, {
+                  headers: { "Content-Type": fileObj.file.type },
+                  withCredentials: false,
+                });
+
+                const etag = uploadRes.headers["etag"]?.replace(/"/g, "");
+                if (!etag)
+                  throw new Error(
+                    `Missing ETag for part ${partNumber} of ${item.type}`,
+                  );
+                parts.push({ ETag: etag, PartNumber: partNumber });
+
+                toast.loading(
+                  `Uploading ${item.type}: ${(
+                    (partNumber / totalParts) *
+                    100
+                  ).toFixed(0)}%`,
+                  { id: toastId },
+                );
+              }
+
+              const { data: completeData } = await axios.post(
+                endpoints.complete,
+                {
+                  key,
+                  uploadId,
+                  parts,
+                },
+              );
+              if (!completeData.success)
+                throw new Error(`Failed to complete upload for ${item.type}`);
+
+              payload[item.type] = key;
+            }
+          }),
+        );
+      }
+
+      toast.loading("Saving changes...", { id: toastId });
+
       if (isEditing) {
-        await axios.put(`/api/admission-result/${editId}`, submitData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Admission result updated successfully");
+        await axios.put(`/api/admission-result/${editId}`, payload);
+        toast.success("Admission result updated successfully", { id: toastId });
       } else {
-        await axios.post("/api/admission-result", submitData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        await axios.post("/api/admission-result", payload);
+        toast.success("Admission result uploaded successfully", {
+          id: toastId,
         });
-        toast.success("Admission result uploaded successfully");
       }
 
       resetForm();
       fetchResults();
       setShowForm(false);
     } catch (error) {
+      console.error("Error submitting form:", error);
       if (isAxiosError(error)) {
-        console.error("Error submitting form:", error);
         toast.error(
-          error.response?.data?.message || "Failed to upload admission result"
+          error.response?.data?.message || "Failed to upload admission result",
+          { id: toastId },
         );
       } else {
-        console.error("Error submitting form:", error);
-        toast.error("Failed to upload admission result");
+        toast.error(
+          "Failed to upload admission result: " +
+            (error instanceof Error ? error.message : "Unknown error"),
+          { id: toastId },
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -223,7 +358,7 @@ function AdmissionResult() {
     return results.filter(
       (result) =>
         result.class_name === className &&
-        result.admission_year === selectedYear
+        result.admission_year === selectedYear,
     );
   };
 
@@ -604,10 +739,11 @@ function AdmissionResult() {
               {classes.map((cls) => (
                 <button
                   key={cls}
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === cls
-                    ? "text-primary border-primary"
-                    : "text-muted-foreground border-transparent hover:text-foreground"
-                    }`}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === cls
+                      ? "text-primary border-primary"
+                      : "text-muted-foreground border-transparent hover:text-foreground"
+                  }`}
                   onClick={() => setActiveTab(cls)}
                 >
                   Class {cls}
@@ -718,7 +854,7 @@ function AdmissionResult() {
                           </div>
                           {result[listType.key] && (
                             <a
-                              href={backend + "/" + result[listType.key]}
+                              href={getFileUrl(result[listType.key])}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 text-primary hover:underline text-sm mt-2"
