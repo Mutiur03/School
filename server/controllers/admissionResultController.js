@@ -173,20 +173,38 @@ export const getAdmissionResults = async (req, res) => {
     if (admission_year) {
       whereCondition.admission_year = parseInt(admission_year);
     }
+    // Fix legacy paths starting with /
+    const itemsToFix = await prisma.admission_result.findMany({
+      where: {
+        OR: [
+          { merit_list: { startsWith: "/" } },
+          { waiting_list_1: { startsWith: "/" } },
+          { waiting_list_2: { startsWith: "/" } },
+        ],
+      },
+    });
 
+    for (const item of itemsToFix) {
+      const updateData = {};
+      if (item.merit_list?.startsWith("/"))
+        updateData.merit_list = item.merit_list.slice(1);
+      if (item.waiting_list_1?.startsWith("/"))
+        updateData.waiting_list_1 = item.waiting_list_1.slice(1);
+      if (item.waiting_list_2?.startsWith("/"))
+        updateData.waiting_list_2 = item.waiting_list_2.slice(1);
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.admission_result.update({
+          where: { id: item.id },
+          data: updateData,
+        });
+      }
+    }
     const results = await prisma.admission_result.findMany({
       where: whereCondition,
       orderBy: [{ admission_year: "desc" }, { class_name: "asc" }],
     });
-
-    const resultsWithUrls = await Promise.all(
-      results.map(async (result) => {
-        const updatedResult = { ...result };
-        return updatedResult;
-      }),
-    );
-
-    res.status(200).json(resultsWithUrls);
+    res.status(200).json(results);
   } catch (error) {
     console.error("Error fetching admission results:", error);
     res.status(500).json({
