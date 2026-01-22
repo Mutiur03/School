@@ -1,5 +1,4 @@
 import { prisma } from "../config/prisma.js";
-import fs from "fs";
 import path from "path";
 import puppeteer from "puppeteer";
 import archiver from "archiver";
@@ -12,7 +11,7 @@ import {
   getDownloadUrl,
   r2Client,
 } from "../config/r2.js";
-import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
@@ -210,7 +209,6 @@ export const createForm = async (req, res) => {
     });
   } catch (error) {
     console.error("createForm error:", error);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({
       success: false,
       message: "Failed to submit form",
@@ -282,8 +280,6 @@ export const updateForm = async (req, res) => {
 
     const duplicates = await checkDuplicates(payload, id);
     if (duplicates.length > 0) {
-      if (req.file && fs.existsSync(req.file.path))
-        fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
         message: "Duplicate information found",
@@ -294,20 +290,10 @@ export const updateForm = async (req, res) => {
     let photoPath = existing.photo_path;
     if (req.body.photo_path) {
       if (existing.photo_path && existing.photo_path !== req.body.photo_path) {
-        if (
-          existing.photo_path.includes("uploads/admission") &&
-          fs.existsSync(existing.photo_path)
-        ) {
-          try {
-            fs.unlinkSync(existing.photo_path);
-          } catch (e) {}
-        }
         await deleteFromR2(existing.photo_path);
       }
       photoPath = req.body.photo_path;
     }
-    // else if (req.file) { -- REMOVED LEGACY SUPPORT
-    // }
     payload.whatsapp_number = payload.whatsapp_number.trim() || "";
     const updated = await prisma.admission_form.update({
       where: { id },
@@ -340,7 +326,6 @@ export const updateForm = async (req, res) => {
       .json({ success: true, message: "Form updated", data: updated });
   } catch (error) {
     console.error("updateForm error:", error);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({
       success: false,
       message: "Failed to update form",
@@ -358,13 +343,6 @@ export const deleteForm = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Form not found" });
     if (existing.photo_path) {
-      if (existing.photo_path.includes("uploads/admission")) {
-        if (fs.existsSync(existing.photo_path)) {
-          try {
-            fs.unlinkSync(existing.photo_path);
-          } catch (e) {}
-        }
-      }
       await deleteFromR2(existing.photo_path);
     }
     await prisma.admission_form.delete({ where: { id } });
