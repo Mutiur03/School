@@ -23,6 +23,15 @@ if [ -z "$SCHOOL_NAME" ]; then
   exit 1
 fi
 
+# Check if global proxy network exists
+if docker network ls | grep -q "proxy-nw"; then
+  echo "✅ Global network proxy-nw already exists"
+else
+  echo "🔨 Creating global network: proxy-nw"
+  docker network create "proxy-nw" --driver bridge
+  echo "✅ Global network proxy-nw created successfully"
+fi
+
 NETWORK_NAME="${SCHOOL_NAME}_school_network"
 
 # Check if network already exists

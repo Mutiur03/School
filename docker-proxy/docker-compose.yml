@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs:ro
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+    networks:
+      - proxy-nw
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    restart: always
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d:rw
+      - html:/usr/share/nginx/html:rw
+      - acme:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=${DEFAULT_EMAIL}
+      - NGINX_PROXY_CONTAINER=${NGINX_PROXY_CONTAINER:-nginx-proxy}
+    networks:
+      - proxy-nw
+
+networks:
+  proxy-nw:
+    name: proxy-nw
+
+volumes:
+  certs:
+  vhost:
+  html:
+  acme:
