@@ -148,7 +148,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.listen(PORT, "127.0.0.1", () => {
+app.listen(PORT, () => {
   fs.mkdir(storagePath, { recursive: true }, (err) => {
     if (err) {
       console.error("Error creating uploads directory:", err);
