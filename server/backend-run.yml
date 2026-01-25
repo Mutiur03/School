@@ -1,19 +1,26 @@
 services:
   school_backend:
-    build: .  
+    build: .
     image: school_backend
     restart: unless-stopped
     ports:
       - "${PORT}:${PORT}"
     volumes:
       - ./uploads:/app/uploads
+    environment:
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - VIRTUAL_PORT=${PORT:-3001}
+      - LETSENCRYPT_HOST=${VIRTUAL_HOST}
+      - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
     env_file:
       - ${ENV_FILE:-".env"}
     networks:
       - school_network
-
+      - proxy-nw
 
 networks:
   school_network:
     external: true
     name: ${school_name}_school_network
+  proxy-nw:
+    external: true
