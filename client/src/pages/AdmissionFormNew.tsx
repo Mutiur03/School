@@ -11,6 +11,7 @@ import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
+import { schoolConfig } from "@/lib/info";
 
 const admissionSchema = z
   .object({
@@ -550,7 +551,9 @@ function Form() {
     defaultValues: admissionSchema.parse({}),
   });
   const { id } = useParams();
-
+  useEffect(() => {
+    document.title = "Admission Form | " + schoolConfig.name.en;
+  }, []);
   const [permanentUpazillas, setPermanentUpazillas] = useState<
     { id: string; name: string }[]
   >([]);

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
+import { schoolConfig } from "@/lib/info";
 
 type ConfirmationAdmission_Props = {
   id?: string;
@@ -534,11 +535,11 @@ function ConfirmationAdmission() {
                       <div className="space-y-2 text-gray-600">
                         <p className="flex items-center space-x-2">
                           <span className="font-medium">Phone:</span>{" "}
-                          <span>+880 1309-121983</span>
+                          <span>{schoolConfig.contact.phone}</span>
                         </p>
                         <p className="flex items-center space-x-2">
                           <span className="font-medium">Email:</span>{" "}
-                          <span>lbpgovtschool@gmail.com</span>
+                          <span>{schoolConfig.contact.email}</span>
                         </p>
                       </div>
                     </div>
