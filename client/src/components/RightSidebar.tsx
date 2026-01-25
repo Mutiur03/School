@@ -1,12 +1,12 @@
-import axios from "axios";
 import "./RightSidebar.css";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { schoolConfig } from "@/lib/info";
+import { useHeadMasterMsg } from "@/hooks/useSchoolData";
 
 function RightSidebar() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [head, setHead] = useState<string>("");
+  const { data: headMasterMsg } = useHeadMasterMsg();
   const [imgLoading, setImgLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [head_msg_show, setHeadMsg] = useState(true);
@@ -90,33 +90,12 @@ function RightSidebar() {
   };
 
   const calendarData = getCalendarData(currentDate);
+
+  // This useEffect now only manages image loading state based on headMasterMsg
   useEffect(() => {
     setImgLoading(true);
     setImgError(false);
-    let cancelled = false;
-    axios
-      .get("/api/teachers/get_head_msg")
-      .then((response) => {
-        if (cancelled) return;
-        const imagePath = response?.data?.teacher?.image || "";
-        if (imagePath) {
-          setHead(imagePath);
-          setImgLoading(true);
-        } else {
-          setHead("");
-          setImgLoading(false);
-        }
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        console.error("Error fetching head message:", error);
-        setHead("");
-        setImgLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [headMasterMsg]); // Added headMasterMsg to dependencies to reset loading state when it changes
 
   return (
     <div className="content-right">
@@ -127,7 +106,7 @@ function RightSidebar() {
           </div>
           <div className="textwidget">
             <div className="headmaster-wrapper">
-              {(!head || imgError) && (
+              {(!headMasterMsg || imgError) && (
                 <div
                   className="aligncenter headmaster-image"
                   role="status"
@@ -144,7 +123,7 @@ function RightSidebar() {
                   }}
                 />
               )}
-              {head && !imgError && (
+              {headMasterMsg && !imgError && (
                 <div
                   className="aligncenter headmaster-image"
                   style={{
@@ -158,25 +137,16 @@ function RightSidebar() {
                   }}
                 >
                   <img
-                    className="object-cover object-top"
-                    src={
-                      head && /^(https?:)?\//.test(head)
-                        ? head
-                        : `${host?.replace(/\/$/, "") || ""}/${head.replace(/^\//, "")}`
-                    }
-                    alt="প্রধান শিক্ষক"
-                    onLoad={() => {
-                      setImgLoading(false);
-                      setImgError(false);
-                    }}
+                    alt="image"
+                    src={`${host}/${headMasterMsg}`}
+                    onLoad={() => setImgLoading(false)}
                     onError={() => {
-                      setHead("");
-                      setImgLoading(false);
                       setImgError(true);
+                      setImgLoading(false);
                     }}
                     style={{
+                      height: "auto",
                       width: "100%",
-                      height: "100%",
                       objectFit: "cover",
                       display: "block",
                       opacity: imgLoading ? 0 : 1,

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import "./Navbar.css";
 import { Link } from "react-router-dom";
-import { useCommonStore } from "@/store/commonStore";
+import { useRoutinePDF } from "@/hooks/useSchoolData";
 import { schoolConfig } from "@/lib/info";
 
 interface SubDropdownItem {
@@ -36,12 +36,7 @@ function Navbar() {
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(
     null,
   );
-  const { routinePDF, loadRoutinePDF } = useCommonStore();
-  useEffect(() => {
-    if (!routinePDF) {
-      loadRoutinePDF();
-    }
-  }, []);
+  const { data: routinePDF } = useRoutinePDF();
 
   const isExternalLink = (href?: string | null) => {
     if (!href) return false;
