@@ -92,7 +92,6 @@ if (process.env.NODE_ENV === "development") {
   );
 }
 app.options("*", cors());
-app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -136,8 +135,9 @@ app.use("*", (req, res) => {
     message: "Route not found",
   });
 });
-app.use((error, res) => {
+app.use((error, req, res, next) => {
   console.error("Server error:", error);
+
   res.status(500).json({
     success: false,
     message: "Internal server error",

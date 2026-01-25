@@ -51,8 +51,5 @@ RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
     && rm -rf node_modules/.prisma/client/libschema_engine-*
 RUN pnpm prune --prod
 
-# Expose port
-EXPOSE 3001
-
 # Start server with our custom entrypoint
 CMD ["./docker-entrypoint.sh"]
