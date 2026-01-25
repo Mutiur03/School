@@ -1,50 +1,17 @@
-import { useEffect, useState } from "react";
 import "./Chart.css";
-import axios from "axios";
 import { Link } from "react-router-dom";
-import { useCommonStore } from "@/store/commonStore";
+import {
+  useRoutinePDF,
+  useSyllabuses,
+  useCitizenCharter,
+} from "@/hooks/useSchoolData";
 import { schoolConfig } from "@/lib/info";
 
-export type Syllabus = {
-  id: number;
-  class: number;
-  year: number;
-  pdf_url: string;
-  download_url: string;
-  public_id: string;
-  created_at: string;
-};
-
 function Chart() {
-  const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
-  const [citizenCharterUrl, setCitizenCharterUrl] = useState<string | null>(
-    null,
-  );
-  useEffect(() => {
-    axios
-      .get("/api/syllabus")
-      .then((res) => {
-        console.log(res.data);
-        setSyllabuses(res.data);
-      })
-      .catch((err) => {
-        console.error("Error fetching syllabuses:", err);
-      });
-    axios
-      .get("/api/file-upload/citizen-charter")
-      .then((response) => {
-        setCitizenCharterUrl(response.data.file);
-      })
-      .catch(() => {
-        console.log("No Citizen Charter PDF found");
-      });
-  }, []);
-  const { routinePDF, loadRoutinePDF } = useCommonStore();
-  useEffect(() => {
-    if (!routinePDF) {
-      loadRoutinePDF();
-    }
-  }, []);
+  const { data: routinePDF } = useRoutinePDF();
+  const { data: syllabuses = [] } = useSyllabuses();
+  const { data: citizenCharterUrl } = useCitizenCharter();
+
   const getLatestSyllabusForClass = (classNum: number) => {
     const list = syllabuses.filter((s) => s.class === classNum);
     if (!list.length) return undefined;
