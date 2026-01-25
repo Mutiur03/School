@@ -51,7 +51,7 @@ export const useHeadMasterMsg = () => {
     queryFn: async () => {
       try {
         const response = await axios.get("/api/teachers/get_head_msg");
-        return response?.data?.image || null;
+        return response?.data?.teacher?.image || null;
       } catch {
         return null;
       }
