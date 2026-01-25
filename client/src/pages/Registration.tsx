@@ -490,16 +490,18 @@ function Registration() {
               dispatch({
                 type: "SET_FIELD",
                 name: "prevSchoolDistrict",
-                value: "Joypurhat",
+                value: schoolConfig.contact.district,
               });
-              const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat");
+              const prevSchoolUpazilas = getUpazilasByDistrict(
+                schoolConfig.contact.district,
+              );
               setPrevSchoolUpazilas(prevSchoolUpazilas);
 
               setTimeout(() => {
                 dispatch({
                   type: "SET_FIELD",
                   name: "prevSchoolUpazila",
-                  value: "Panchbibi",
+                  value: schoolConfig.contact.upazila,
                 });
               }, 100);
             }, 50);
@@ -513,16 +515,18 @@ function Registration() {
             dispatch({
               type: "SET_FIELD",
               name: "prevSchoolDistrict",
-              value: "Joypurhat",
+              value: schoolConfig.contact.district,
             });
-            const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat");
+            const prevSchoolUpazilas = getUpazilasByDistrict(
+              schoolConfig.contact.district,
+            );
             setPrevSchoolUpazilas(prevSchoolUpazilas);
 
             setTimeout(() => {
               dispatch({
                 type: "SET_FIELD",
                 name: "prevSchoolUpazila",
-                value: "Panchbibi",
+                value: schoolConfig.contact.upazila,
               });
             }, 100);
           }, 50);
@@ -839,13 +843,13 @@ function Registration() {
     if (name === "birthYear") return;
 
     if (name == "prevSchoolDistrict") {
-      if (value != "Joypurhat") {
+      if (value != schoolConfig.contact.district) {
         setPrevSchoolOption("Others");
         dispatch({ type: "SET_FIELD", name: "prevSchoolName", value: "" });
       }
     }
     if (name == "prevSchoolUpazila") {
-      if (form.prevSchoolDistrict != "Panchbibi") {
+      if (form.prevSchoolDistrict != schoolConfig.contact.upazila) {
         setPrevSchoolOption("Others");
         dispatch({ type: "SET_FIELD", name: "prevSchoolName", value: "" });
       }
@@ -859,16 +863,18 @@ function Registration() {
           dispatch({
             type: "SET_FIELD",
             name: "prevSchoolDistrict",
-            value: "Joypurhat",
+            value: schoolConfig.contact.district,
           });
-          const prevSchoolUpazilas = getUpazilasByDistrict("Joypurhat");
+          const prevSchoolUpazilas = getUpazilasByDistrict(
+            schoolConfig.contact.district,
+          );
           setPrevSchoolUpazilas(prevSchoolUpazilas);
 
           setTimeout(() => {
             dispatch({
               type: "SET_FIELD",
               name: "prevSchoolUpazila",
-              value: "Panchbibi",
+              value: schoolConfig.contact.upazila,
             });
           }, 100);
         }, 50);
@@ -960,9 +966,7 @@ function Registration() {
 
   function validate() {
     const e: Record<string, string> = {};
-    if (
-      prevSchoolOption === "Panchbibi Lal Bihari Pilot Government High School"
-    ) {
+    if (prevSchoolOption === schoolConfig.name.en) {
       form.prevSchoolName = prevSchoolOption;
     }
     if (!form.prevSchoolName.trim())
@@ -2558,8 +2562,8 @@ function Registration() {
                 onChange={handleChange}
                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
-                <option value="Panchbibi Lal Bihari Pilot Government High School">
-                  Panchbibi Lal Bihari Pilot Govt. High School
+                <option value={schoolConfig.name.en}>
+                  {schoolConfig.name.en}
                 </option>
                 <option value="Others">Others</option>
               </select>

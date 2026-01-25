@@ -10,6 +10,8 @@ export const schoolConfig = {
     phone: "+880 1309-121983",
     address: "Panchbibi, Joypurhat, Rajshahi Division, Bangladesh",
     location: "Damdama, Panchbibi.",
+    district: "Joypurhat",
+    upazila: "Panchbibi",
   },
   identifiers: {
     eiin: "121983",
@@ -35,6 +37,78 @@ export const schoolConfig = {
   },
   links: {
     results: "https://student.lbphs.gov.bd/",
+    teacherLogin: "https://teacher.lbphs.gov.bd/",
+    studentLogin: "https://student.lbphs.gov.bd/",
+  },
+  sidebarLinks: {
+    important: [
+      {
+        title: "Rajshahi Education Board",
+        url: "http://rajshahieducationboard.gov.bd/",
+      },
+      { title: "Directorate of Education", url: "http://www.dshe.gov.bd/" },
+      { title: "National University", url: "http://nu.ac.bd/" },
+      { title: "Rajshahi University", url: "http://www.ru.ac.bd/" },
+      { title: "National Web Portal", url: "http://www.bangladesh.gov.bd/" },
+      {
+        title: "Rajshahi Division Portal",
+        url: "http://www.rajshahidiv.gov.bd/",
+      },
+      {
+        title: "Rajshahi City Corporation",
+        url: "http://www.erajshahi.gov.bd/",
+      },
+      { title: "Rajshahi District Portal", url: "http://www.rajshahi.gov.bd/" },
+    ],
+    quick: [
+      { title: "প্রধানমন্ত্রীর কার্যালয়", url: "http://www.pmo.gov.bd/" },
+      { title: "রাষ্ট্রপতির কার্যালয়", url: "http://www.bangabhaban.gov.bd/" },
+      { title: "মন্ত্রিপরিষদ বিভাগ", url: "http://www.cabinet.gov.bd/" },
+      { title: "জনপ্রশাসন মন্ত্রণালয়", url: "http://www.mopa.gov.bd/" },
+      { title: "অর্থ মন্ত্রণালয়", url: "http://www.mof.gov.bd/en/" },
+      { title: "জাতীয় পোর্টাল", url: "http://www.bangladesh.gov.bd/" },
+      { title: "শিক্ষা মন্ত্রণালয়", url: "http://www.moedu.gov.bd/" },
+      { title: "মাধ্যমিক ও উচ্চশিক্ষা অধিদপ্তর", url: "http://dshe.gov.bd/" },
+      {
+        title: "জাতীয় শিক্ষা ব্যবস্থাপনা একাডেমি (নায়েম)",
+        url: "http://naem.gov.bd/",
+      },
+      {
+        title: "বাংলাদেশ শিক্ষাতথ্য ও পরিসংখ্যান ব্যুরো (ব্যানবেইস)",
+        url: "http://www.banbeis.gov.bd/",
+      },
+      { title: "ই-নথি", url: "https://www.nothi.gov.bd/" },
+    ],
+    useful: [
+      { title: "National Web Portal", url: "http://www.bangladesh.gov.bd/" },
+      { title: "National University", url: "https://www.nu.ac.bd" },
+      {
+        title: "Education Board, Jashore",
+        url: "https://www.jessoreboard.gov.bd",
+      },
+      { title: "e-Shikhha", url: "https://www.eshikkha.net" },
+      { title: "Muktopaath", url: "https://www.muktopaath.gov.bd" },
+      { title: "Shikkhak Batayon", url: "https://www.teachers.gov.bd" },
+      { title: "eksheba", url: "https://eksheba.gov.bd" },
+      { title: "EMIS | DSHE", url: "http://emis.gov.bd" },
+      {
+        title: "Integrated Budget And Accounting System",
+        url: "http://www.payfixation.gov.bd/",
+      },
+      { title: "IBAS++ Version Selector", url: "https://ibas.finance.gov.bd" },
+      { title: "ইমিগ্রেশন ও পাসপোর্ট অধিদপ্তর", url: "http://www.dip.gov.bd" },
+      { title: "বাংলাদেশ ফরম", url: "http://forms.mygov.bd/" },
+    ],
+    hotlines: [
+      {
+        title: "Emergency Hotline",
+        image: "/biwta.jpeg",
+      },
+      {
+        title: "National Helpline",
+        image: "/National-Helpline.jpg",
+      },
+    ],
   },
   map: {
     embedUrl:
