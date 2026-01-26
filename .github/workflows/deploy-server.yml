@@ -81,6 +81,19 @@ jobs:
             # Tag it so backend-run.yml can use it
             docker tag $IMAGE_NAME school_backend:latest
 
+            # Run migrations before restarting the full stack
+            echo "Running database migrations..."
+            ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
+            PROJECT_NAME=$(basename "$ENV_FILE")
+            PROJECT_NAME="${PROJECT_NAME#.env.}"
+
+            # Use docker compose run to perform the migration and seeding
+            # We override the entrypoint to avoid running the full startup script (PM2)
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm school_backend npx prisma migrate deploy
+
+            echo "Seeding database..."
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm school_backend npx prisma db seed
+
             # Run the restart script with the production env
             # You can set ENV_FILE_NAME secret (e.g., .env.school)
             ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
