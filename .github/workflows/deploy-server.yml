@@ -92,6 +92,7 @@ jobs:
             set -e
             # Set target directory relative to home
             cd ~/${{ env.PROJECT_PATH }}/server
+            git reset --hard HEAD
             git pull 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
@@ -177,6 +178,7 @@ jobs:
             set -e
             # Set target directory relative to home
             cd ~/${{ env.PROJECT_PATH }}/server
+            git reset --hard HEAD
             git pull
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
