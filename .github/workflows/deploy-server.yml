@@ -52,7 +52,33 @@ jobs:
   deploy-test:
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      PROJECT_PATH: "Test/School"
+      ENV_FILE: ".env.test"
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure target directory exists
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: mkdir -p ~/${{ env.PROJECT_PATH }}/server
+
+      - name: Copy deployment files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          source: "server/backend-run.yml,server/restart.sh,server/setup-network.sh"
+          target: "~/${{ env.PROJECT_PATH }}/server"
+          strip_components: 1
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -61,14 +87,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
-            # Set target directory
-            PROJECT_PATH=/Test/School
-            cd $PROJECT_PATH/server
+            # Set target directory relative to home
+            cd ~/${{ env.PROJECT_PATH }}/server
 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space cleanup to prevent overlayfs errors
+            # Disk space cleanup
             docker system prune -f
 
             # Login to GHCR
@@ -84,7 +109,7 @@ jobs:
             docker tag $IMAGE_NAME school_backend:latest
 
             # Environment setup
-            ENV_FILE=.env.test
+            ENV_FILE="${{ env.ENV_FILE }}"
             PROJECT_NAME=$(basename "$ENV_FILE")
             PROJECT_NAME="${PROJECT_NAME#.env.}"
 
@@ -103,11 +128,36 @@ jobs:
             # Cleanup
             docker image prune -f
 
-
   deploy-lbp:
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      PROJECT_PATH: "School"
+      ENV_FILE: ".env.lbp"
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure target directory exists
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: mkdir -p ~/${{ env.PROJECT_PATH }}/server
+
+      - name: Copy deployment files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          source: "server/backend-run.yml,server/restart.sh,server/setup-network.sh"
+          target: "~/${{ env.PROJECT_PATH }}/server"
+          strip_components: 1
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -116,14 +166,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
-            # Set target directory
-            PROJECT_PATH=/School
-            cd $PROJECT_PATH/server
+            # Set target directory relative to home
+            cd ~/${{ env.PROJECT_PATH }}/server
 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space cleanup to prevent overlayfs errors
+            # Disk space cleanup
             docker system prune -f
 
             # Login to GHCR
@@ -139,7 +188,7 @@ jobs:
             docker tag $IMAGE_NAME school_backend:latest
 
             # Environment setup
-            ENV_FILE=.env.lbp
+            ENV_FILE="${{ env.ENV_FILE }}"
             PROJECT_NAME=$(basename "$ENV_FILE")
             PROJECT_NAME="${PROJECT_NAME#.env.}"
 
