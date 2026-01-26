@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 interface CommonStore {
-  // Add any common UI state here if needed
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }

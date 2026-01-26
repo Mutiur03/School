@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { schoolConfig } from "@/lib/info";
 import { useHeadMasterMsg } from "@/hooks/useSchoolData";
+import backend from "@/lib/backend";
 
 function RightSidebar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -29,7 +30,6 @@ function RightSidebar() {
   useEffect(() => {
     setHeadMsg(location.pathname === "/" || location.pathname === "");
   }, [location.pathname]);
-  const host = import.meta.env.VITE_BACKEND_URL;
   const getCalendarData = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -91,12 +91,6 @@ function RightSidebar() {
 
   const calendarData = getCalendarData(currentDate);
 
-  // This useEffect now only manages image loading state based on headMasterMsg
-  useEffect(() => {
-    setImgLoading(true);
-    setImgError(false);
-  }, [headMasterMsg]); // Added headMasterMsg to dependencies to reset loading state when it changes
-
   return (
     <div className="content-right">
       {head_msg_show && (
@@ -138,7 +132,7 @@ function RightSidebar() {
                 >
                   <img
                     alt="image"
-                    src={`${host}/${headMasterMsg}`}
+                    src={`${backend}/${headMasterMsg}`}
                     onLoad={() => setImgLoading(false)}
                     onError={() => {
                       setImgError(true);

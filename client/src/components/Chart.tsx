@@ -6,21 +6,35 @@ import {
   useCitizenCharter,
 } from "@/hooks/useSchoolData";
 import { schoolConfig } from "@/lib/info";
+import { useQueryClient } from "@tanstack/react-query";
 
 function Chart() {
-  const { data: routinePDF } = useRoutinePDF();
-  const { data: syllabuses = [] } = useSyllabuses();
-  const { data: citizenCharterUrl } = useCitizenCharter();
+  const queryClient = useQueryClient();
 
-  const getLatestSyllabusForClass = (classNum: number) => {
-    const list = syllabuses.filter((s) => s.class === classNum);
-    if (!list.length) return undefined;
-    return list.reduce(
-      (max, cur) => (cur.year > max.year ? cur : max),
-      list[0],
-    );
+  const getLatestSyllabusForClass = async (classNum: number) => {
+    let currentSyllabuses = await useSyllabuses(queryClient);
+    const list = currentSyllabuses.filter((s: any) => s.class === classNum);
+    if (list.length > 0) {
+      const latest = list.reduce(
+        (max: any, cur: any) => (cur.year > max.year ? cur : max),
+        list[0],
+      );
+      window.open(latest.pdf_url, "_blank", "noopener,noreferrer");
+    }
   };
-
+  const openRootineInNewTab = async (e: any) => {
+    e.preventDefault();
+    const pdfUrl = await useRoutinePDF(queryClient);
+    if (pdfUrl) {
+      window.open(pdfUrl, "_blank");
+    }
+  };
+  const openCitizenCharterInNewTab = async () => {
+    let url = await useCitizenCharter(queryClient);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
   return (
     <div className="front-boxs-area">
       <div className="boxs-front">
@@ -88,45 +102,40 @@ function Chart() {
                     <ul>
                       <li>
                         <a
-                          href={routinePDF ?? "#"}
-                          target={routinePDF ? "_blank" : undefined}
-                          rel="noopener noreferrer"
+                          onClick={openRootineInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           ষষ্ঠ শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={routinePDF ?? "#"}
-                          target={routinePDF ? "_blank" : undefined}
-                          rel="noopener noreferrer"
+                          onClick={openRootineInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           সপ্তম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={routinePDF ?? "#"}
-                          target={routinePDF ? "_blank" : undefined}
-                          rel="noopener noreferrer"
+                          onClick={openRootineInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           অষ্টম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={routinePDF ?? "#"}
-                          target={routinePDF ? "_blank" : undefined}
-                          rel="noopener noreferrer"
+                          onClick={openRootineInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           নবম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={routinePDF ?? "#"}
-                          target={routinePDF ? "_blank" : undefined}
-                          rel="noopener noreferrer"
+                          onClick={openRootineInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           দশম শ্রেণি
                         </a>
@@ -196,55 +205,40 @@ function Chart() {
                     <ul>
                       <li>
                         <a
-                          href={getLatestSyllabusForClass(6)?.pdf_url ?? "#"}
-                          target={
-                            getLatestSyllabusForClass(6) ? "_blank" : undefined
-                          }
-                          rel="noopener noreferrer"
+                          onClick={() => getLatestSyllabusForClass(6)}
+                          style={{ cursor: "pointer" }}
                         >
                           ষষ্ঠ শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={getLatestSyllabusForClass(7)?.pdf_url ?? "#"}
-                          target={
-                            getLatestSyllabusForClass(7) ? "_blank" : undefined
-                          }
-                          rel="noopener noreferrer"
+                          onClick={() => getLatestSyllabusForClass(7)}
+                          style={{ cursor: "pointer" }}
                         >
                           সপ্তম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={getLatestSyllabusForClass(8)?.pdf_url ?? "#"}
-                          target={
-                            getLatestSyllabusForClass(8) ? "_blank" : undefined
-                          }
-                          rel="noopener noreferrer"
+                          onClick={() => getLatestSyllabusForClass(8)}
+                          style={{ cursor: "pointer" }}
                         >
                           অষ্টম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={getLatestSyllabusForClass(9)?.pdf_url ?? "#"}
-                          target={
-                            getLatestSyllabusForClass(9) ? "_blank" : undefined
-                          }
-                          rel="noopener noreferrer"
+                          onClick={() => getLatestSyllabusForClass(9)}
+                          style={{ cursor: "pointer" }}
                         >
                           নবম শ্রেণি
                         </a>
                       </li>
                       <li>
                         <a
-                          href={getLatestSyllabusForClass(10)?.pdf_url ?? "#"}
-                          target={
-                            getLatestSyllabusForClass(10) ? "_blank" : undefined
-                          }
-                          rel="noopener noreferrer"
+                          onClick={() => getLatestSyllabusForClass(10)}
+                          style={{ cursor: "pointer" }}
                         >
                           দশম শ্রেণি
                         </a>
@@ -461,13 +455,8 @@ function Chart() {
                     <ul>
                       <li>
                         <a
-                          href={citizenCharterUrl ?? "#"}
-                          target={citizenCharterUrl ? "_blank" : undefined}
-                          rel={
-                            citizenCharterUrl
-                              ? "noopener noreferrer"
-                              : undefined
-                          }
+                          onClick={openCitizenCharterInNewTab}
+                          style={{ cursor: "pointer" }}
                         >
                           সিটিজেন্‌স চার্টার
                         </a>

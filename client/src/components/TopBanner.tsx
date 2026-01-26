@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNotices, type NoticeItem } from "@/hooks/useSchoolData";
+import { useNotices } from "@/hooks/useSchoolData";
+import type { NoticeItem } from "@/types";
 
 const TopBanner: React.FC = () => {
   const { data, isLoading } = useNotices();
