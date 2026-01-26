@@ -43,13 +43,17 @@ COPY . .
 # Make the startup script executable
 RUN chmod +x docker-entrypoint.sh
 RUN chmod +x setup-network.sh
-# Build application (Prisma client generation only)
-RUN pnpm run build:docker
+# Build application (Prisma client generation)
+RUN npx prisma generate
 
-# Optional: remove unnecessary Prisma engines to save space (~50MB)
-RUN rm -rf node_modules/.prisma/client/libquery_engine-* \
-    && rm -rf node_modules/.prisma/client/libschema_engine-*
+# Final cleanup
 RUN pnpm prune --prod
 
-# Start server with our custom entrypoint
-CMD ["./docker-entrypoint.sh"]
+# Expose the application port
+EXPOSE 3001
+
+# Start the application directly
+# Using node instead of PM2 if the user wants simplicity, 
+# or keep PM2 if they want process management. 
+# Given "dont use entrypoint", let's use node for directness.
+CMD ["node", "server.js"]
