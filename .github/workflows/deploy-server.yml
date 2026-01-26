@@ -13,7 +13,8 @@ jobs:
     permissions:
       contents: read
       packages: write
-
+    outputs:
+      image_name: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,11 +26,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ steps.repo.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
@@ -55,23 +60,27 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
-            # Set target directory - adjust this to your actual project path on the server
-            PROJECT_PATH=${{ secrets.DEPLOY_PATH || '/home/mutiur03/Projects/School' }}
+            # Set target directory
+            PROJECT_PATH=${{ secrets.DEPLOY_PATH || '/School' }}
             cd $PROJECT_PATH/server
+
+            # Ensure scripts are executable
+            chmod +x restart.sh setup-network.sh
 
             # Login to GHCR to pull the image
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull the latest image (using the branch name as tag)
-            BRANCH_NAME=$(echo ${{ github.ref_name }} | tr '[:upper:]' '[:lower:]')
-            IMAGE_NAME="ghcr.io/${{ github.repository }}:$BRANCH_NAME"
+            # Get the first tag from the build-and-push job
+            # We filter it to get the 'latest' or branch tag
+            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
+
+            echo "Pulling image: $IMAGE_NAME"
             docker pull $IMAGE_NAME
 
-            # Tag it so backend-run.yml can use it if it expects school_backend:latest
+            # Tag it so backend-run.yml can use it
             docker tag $IMAGE_NAME school_backend:latest
 
             # Run the restart script with the production env
-            # --no-build skips local build, --no-logs prevents hanging the action
             ./restart.sh .env.prod --no-build --no-logs
 
             # Cleanup old images
