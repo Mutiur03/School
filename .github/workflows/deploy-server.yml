@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "server/**"
+      - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
 jobs:
