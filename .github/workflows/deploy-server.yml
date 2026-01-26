@@ -66,7 +66,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          script: mkdir -p ~/${{ env.PROJECT_PATH }}/server
+          script: |
+            set -e
+            mkdir -p ~/${{ env.PROJECT_PATH }}/server
 
       - name: Copy deployment files via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -87,14 +89,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
+            set -e
             # Set target directory relative to home
             cd ~/${{ env.PROJECT_PATH }}/server
 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space cleanup
-            docker system prune -f
+            # Disk space and Docker cleanup
+            echo "Checking disk space..."
+            df -h
+            echo "Aggressive cleanup..."
+            docker system prune -a -f
 
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -145,7 +151,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          script: mkdir -p ~/${{ env.PROJECT_PATH }}/server
+          script: |
+            set -e
+            mkdir -p ~/${{ env.PROJECT_PATH }}/server
 
       - name: Copy deployment files via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -166,14 +174,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
+            set -e
             # Set target directory relative to home
             cd ~/${{ env.PROJECT_PATH }}/server
 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space cleanup
-            docker system prune -f
+            # Disk space and Docker cleanup
+            echo "Checking disk space..."
+            df -h
+            echo "Aggressive cleanup..."
+            docker system prune -a -f
 
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
