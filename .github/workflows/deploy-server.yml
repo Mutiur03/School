@@ -49,8 +49,43 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  deploy-test:
+  prepare-server:
     needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare server and pull image
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: |
+            set -e
+
+            # Disk space and Docker cleanup (once for both deployments)
+            echo "Checking disk space..."
+            df -h
+            echo "Aggressive cleanup..."
+            docker system prune -a -f
+
+            # Login to GHCR (once for both deployments)
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Get image name
+            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
+
+            echo "Pulling image: $IMAGE_NAME"
+            docker pull $IMAGE_NAME
+
+            # Tag for compose
+            docker tag $IMAGE_NAME school_backend:latest
+
+            # Cleanup old images
+            docker image prune -f
+
+  deploy-test:
+    needs: prepare-server
     runs-on: ubuntu-latest
     env:
       PROJECT_PATH: "Test/School"
@@ -97,24 +132,6 @@ jobs:
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space and Docker cleanup
-            echo "Checking disk space..."
-            df -h
-            echo "Aggressive cleanup..."
-            docker system prune -a -f
-
-            # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Get image name
-            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
-
-            echo "Pulling image: $IMAGE_NAME"
-            docker pull $IMAGE_NAME
-
-            # Tag for compose
-            docker tag $IMAGE_NAME school_backend:latest
-
             # Environment setup
             ENV_FILE="${{ env.ENV_FILE }}"
             PROJECT_NAME=$(basename "$ENV_FILE")
@@ -132,11 +149,8 @@ jobs:
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs
 
-            # Cleanup
-            docker image prune -f
-
   deploy-lbp:
-    needs: [build-and-push, deploy-test]
+    needs: prepare-server
     runs-on: ubuntu-latest
     env:
       PROJECT_PATH: "School"
@@ -183,24 +197,6 @@ jobs:
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Disk space and Docker cleanup
-            echo "Checking disk space..."
-            df -h
-            echo "Aggressive cleanup..."
-            docker system prune -a -f
-
-            # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Get image name
-            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
-
-            echo "Pulling image: $IMAGE_NAME"
-            docker pull $IMAGE_NAME
-
-            # Tag for compose
-            docker tag $IMAGE_NAME school_backend:latest
-
             # Environment setup
             ENV_FILE="${{ env.ENV_FILE }}"
             PROJECT_NAME=$(basename "$ENV_FILE")
@@ -217,6 +213,3 @@ jobs:
 
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs
-
-            # Cleanup
-            docker image prune -f
