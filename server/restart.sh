@@ -28,10 +28,10 @@ docker system df
 
 if [ "$NO_BUILD" == "true" ]; then
   echo "🚀 Starting without build..."
-  ENV_FILE="$ENV_FILE" docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml up -d
+  ENV_FILE="$ENV_FILE" docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml up -d --remove-orphans
 else
   echo "🔨 Building and starting..."
-  ENV_FILE="$ENV_FILE" docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml up -d --build
+  ENV_FILE="$ENV_FILE" docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml up -d --build --remove-orphans
 fi
 
 # Database migrations and seeding are now handled by docker-entrypoint.sh
