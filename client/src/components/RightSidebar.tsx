@@ -132,7 +132,7 @@ function RightSidebar() {
                 >
                   <img
                     alt="image"
-                    src={`${backend}/${headMasterMsg}`}
+                    src={`${backend}/${headMasterMsg.teacher.image}`}
                     onLoad={() => setImgLoading(false)}
                     onError={() => {
                       setImgError(true);
