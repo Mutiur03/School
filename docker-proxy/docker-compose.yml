@@ -11,6 +11,8 @@ services:
       - certs:/etc/nginx/certs:ro
       - vhost:/etc/nginx/vhost.d
       - html:/usr/share/nginx/html
+    environment:
+      - CLIENT_MAX_BODY_SIZE=100M
     networks:
       - proxy-nw
     labels:
