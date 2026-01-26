@@ -40,3 +40,11 @@ export interface MenuItem {
   isHome?: boolean;
   dropdown?: DropdownItem[];
 }
+
+export interface Head {
+  head_message: string;
+  teacher: {
+    name: string;
+    image: string;
+  };
+}
