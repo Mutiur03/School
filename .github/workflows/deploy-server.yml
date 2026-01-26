@@ -135,7 +135,7 @@ jobs:
             docker image prune -f
 
   deploy-lbp:
-    needs: build-and-push
+    needs: [build-and-push, deploy-test]
     runs-on: ubuntu-latest
     env:
       PROJECT_PATH: "School"
