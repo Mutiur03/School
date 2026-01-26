@@ -48,9 +48,6 @@ RUN npx prisma generate
 # Final cleanup
 RUN pnpm prune --prod
 
-# Expose the application port
-EXPOSE 3001
-
 # Clear any entrypoint from the base image
 ENTRYPOINT []
 

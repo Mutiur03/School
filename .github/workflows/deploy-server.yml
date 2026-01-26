@@ -68,36 +68,37 @@ jobs:
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
-            # Login to GHCR to pull the image
+            # Disk space cleanup to prevent overlayfs errors
+            docker system prune -f
+
+            # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Get the first tag from the build-and-push job
-            # We filter it to get the 'latest' or branch tag
+            # Get image name
             IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
 
             echo "Pulling image: $IMAGE_NAME"
             docker pull $IMAGE_NAME
 
-            # Tag it so backend-run.yml can use it
+            # Tag for compose
             docker tag $IMAGE_NAME school_backend:latest
 
-            # Run migrations before restarting the full stack
-            echo "Running database migrations..."
+            # Environment setup
             ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
             PROJECT_NAME=$(basename "$ENV_FILE")
             PROJECT_NAME="${PROJECT_NAME#.env.}"
 
-            # Use docker compose run to perform the migration and seeding
-            # We override the entrypoint to be absolutely sure we skip the PM2/startup logic
+            # Export ENV_FILE for docker compose interpolation
+            export ENV_FILE="$ENV_FILE"
+
+            echo "Running database migrations..."
             docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma migrate deploy
 
             echo "Seeding database..."
             docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
 
-            # Run the restart script with the production env
-            # You can set ENV_FILE_NAME secret (e.g., .env.school)
-            ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
+            # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs
 
-            # Cleanup old images
+            # Cleanup
             docker image prune -f
