@@ -1,4 +1,4 @@
-import type { NoticeItem, Syllabus } from "@/types";
+import type { Head, NoticeItem, Syllabus } from "@/types";
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
@@ -45,12 +45,12 @@ export const useCitizenCharter = (queryClient: QueryClient) => {
 };
 
 export const useHeadMasterMsg = () => {
-  return useQuery({
+  return useQuery<Head>({
     queryKey: ["headMasterMsg"],
     queryFn: async () => {
       try {
         const response = await axios.get("/api/teachers/get_head_msg");
-        return response?.data?.teacher?.image || null;
+        return response?.data || null;
       } catch {
         return null;
       }
@@ -59,7 +59,7 @@ export const useHeadMasterMsg = () => {
 };
 
 export const useNotices = (limit = 5) => {
-  return useQuery({
+  return useQuery<NoticeItem[]>({
     queryKey: ["notices", limit],
     queryFn: async () => {
       try {
