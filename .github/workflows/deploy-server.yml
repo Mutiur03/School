@@ -1,0 +1,78 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "server/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: |
+            # Set target directory - adjust this to your actual project path on the server
+            PROJECT_PATH=${{ secrets.DEPLOY_PATH || '/home/mutiur03/Projects/School' }}
+            cd $PROJECT_PATH/server
+
+            # Login to GHCR to pull the image
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull the latest image (using the branch name as tag)
+            BRANCH_NAME=$(echo ${{ github.ref_name }} | tr '[:upper:]' '[:lower:]')
+            IMAGE_NAME="ghcr.io/${{ github.repository }}:$BRANCH_NAME"
+            docker pull $IMAGE_NAME
+
+            # Tag it so backend-run.yml can use it if it expects school_backend:latest
+            docker tag $IMAGE_NAME school_backend:latest
+
+            # Run the restart script with the production env
+            # --no-build skips local build, --no-logs prevents hanging the action
+            ./restart.sh .env.prod --no-build --no-logs
+
+            # Cleanup old images
+            docker image prune -f
