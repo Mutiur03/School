@@ -61,25 +61,6 @@ function Header() {
           ))}
         </div>
 
-        {/* Navigation Arrows */}
-        <button
-          onClick={() =>
-            setCurrentSlide((prev) =>
-              prev === 0 ? bannerImages.length - 1 : prev - 1,
-            )
-          }
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors duration-200"
-        >
-          ←
-        </button>
-        <button
-          onClick={() =>
-            setCurrentSlide((prev) => (prev + 1) % bannerImages.length)
-          }
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors duration-200"
-        >
-          →
-        </button>
       </div>
     </div>
   );

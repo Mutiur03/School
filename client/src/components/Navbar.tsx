@@ -2,41 +2,25 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import "./Navbar.css";
 import { Link } from "react-router-dom";
-import { useRoutinePDF } from "@/hooks/useSchoolData";
 import { schoolConfig } from "@/lib/info";
-
-interface SubDropdownItem {
-  id: string;
-  href: string;
-  text: string;
-}
-
-interface DropdownItem {
-  id: string;
-  href: string;
-  text: string;
-  className?: string;
-  hasChildren?: boolean;
-  subDropdown?: SubDropdownItem[];
-}
-
-interface MenuItem {
-  id: string;
-  className: string;
-  href: string;
-  text: string;
-  icon?: string;
-  isHome?: boolean;
-  dropdown?: DropdownItem[];
-}
+import type { MenuItem } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRoutinePDF } from "@/hooks/useSchoolData";
 
 function Navbar() {
+  const queryClient = useQueryClient();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(
     null,
   );
-  const { data: routinePDF } = useRoutinePDF();
+  const handleRoutineClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const pdfUrl = await useRoutinePDF(queryClient);
+    if (pdfUrl) {
+      window.open(pdfUrl, "_blank");
+    }
+  };
 
   const isExternalLink = (href?: string | null) => {
     if (!href) return false;
@@ -173,7 +157,7 @@ function Navbar() {
         { id: "menu-item-3376", href: "exam-routine", text: "Exam schedule" },
         {
           id: "menu-item-3371",
-          href: `${routinePDF}`,
+          href: "#",
           text: "Academic Calender",
         },
         { id: "menu-item-3382", href: "#", text: "Vacation Calendar" },
@@ -442,7 +426,12 @@ function Navbar() {
                         <Link
                           to={subItem.href || "#"}
                           className="dropdown-item hover:text-white! transition-colors duration-200"
-                          onClick={() => closeNavbarIfMobile(subItem.href)}
+                          onClick={(e) => {
+                            if (subItem.id === "menu-item-3371") {
+                              handleRoutineClick(e);
+                            }
+                            closeNavbarIfMobile(subItem.href);
+                          }}
                         >
                           <span className="menu-text hover:text-white!">
                             {subItem.text}

@@ -1,38 +1,37 @@
-import { useQuery } from "@tanstack/react-query";
+import type { NoticeItem, Syllabus } from "@/types";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
-export type Syllabus = {
-  id: number;
-  class: number;
-  year: number;
-  pdf_url: string;
-  download_url: string;
-  public_id: string;
-  created_at: string;
-};
-
-export const useRoutinePDF = () => {
-  return useQuery({
+export const useRoutinePDF = (queryClient: QueryClient) => {
+  return queryClient.fetchQuery({
     queryKey: ["routinePDF"],
     queryFn: async () => {
-      const res = await axios.get("/api/class-routine/pdf");
-      return res?.data?.[0]?.pdf_url || null;
+      try {
+        const res = await axios.get("/api/class-routine/pdf");
+        return res?.data?.[0]?.pdf_url || null;
+      } catch {
+        return null;
+      }
     },
   });
 };
 
-export const useSyllabuses = () => {
-  return useQuery<Syllabus[]>({
+export const useSyllabuses = (queryClient: QueryClient) => {
+  return queryClient.fetchQuery<Syllabus[]>({
     queryKey: ["syllabuses"],
     queryFn: async () => {
-      const res = await axios.get("/api/syllabus");
-      return res.data;
+      try {
+        const res = await axios.get("/api/syllabus");
+        return res.data;
+      } catch {
+        return [];
+      }
     },
   });
 };
 
-export const useCitizenCharter = () => {
-  return useQuery({
+export const useCitizenCharter = (queryClient: QueryClient) => {
+  return queryClient.fetchQuery({
     queryKey: ["citizenCharter"],
     queryFn: async () => {
       try {
@@ -63,20 +62,16 @@ export const useNotices = (limit = 5) => {
   return useQuery({
     queryKey: ["notices", limit],
     queryFn: async () => {
-      const response = await axios.get(
-        `/api/notices/getNotices?limit=${limit}`,
-      );
-      return response.data;
+      try {
+        const response = await axios.get(
+          `/api/notices/getNotices?limit=${limit}`,
+        );
+        return response.data;
+      } catch {
+        return [];
+      }
     },
   });
-};
-
-export type NoticeItem = {
-  id: number;
-  title: string;
-  created_at: string;
-  download_url: string;
-  file?: string;
 };
 
 export const useAllNotices = () => {
