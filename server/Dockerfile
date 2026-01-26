@@ -41,7 +41,6 @@ RUN npm install pm2 -g
 COPY . .
 
 # Make the startup script executable
-RUN chmod +x docker-entrypoint.sh
 RUN chmod +x setup-network.sh
 # Build application (Prisma client generation)
 RUN npx prisma generate
@@ -52,8 +51,8 @@ RUN pnpm prune --prod
 # Expose the application port
 EXPOSE 3001
 
+# Clear any entrypoint from the base image
+ENTRYPOINT []
+
 # Start the application directly
-# Using node instead of PM2 if the user wants simplicity, 
-# or keep PM2 if they want process management. 
-# Given "dont use entrypoint", let's use node for directness.
 CMD ["node", "server.js"]
