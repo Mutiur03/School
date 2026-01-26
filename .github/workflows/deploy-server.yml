@@ -63,7 +63,7 @@ jobs:
           script: |
             # Set target directory
             PROJECT_PATH=${{ secrets.DEPLOY_PATH || '/School' }}
-            cd $PROJECT_PATH
+            cd $PROJECT_PATH/server
 
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
