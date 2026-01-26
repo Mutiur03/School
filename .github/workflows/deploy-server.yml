@@ -82,7 +82,9 @@ jobs:
             docker tag $IMAGE_NAME school_backend:latest
 
             # Run the restart script with the production env
-            ./restart.sh .env.prod --no-build --no-logs
+            # You can set ENV_FILE_NAME secret (e.g., .env.school)
+            ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
+            ./restart.sh $ENV_FILE --no-build --no-logs
 
             # Cleanup old images
             docker image prune -f
