@@ -49,7 +49,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  deploy:
+  deploy-test:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -62,7 +62,7 @@ jobs:
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
             # Set target directory
-            PROJECT_PATH=${{ secrets.DEPLOY_PATH || '/School' }}
+            PROJECT_PATH=/Test/School
             cd $PROJECT_PATH/server
 
             # Ensure scripts are executable
@@ -84,7 +84,62 @@ jobs:
             docker tag $IMAGE_NAME school_backend:latest
 
             # Environment setup
-            ENV_FILE=${{ secrets.ENV_FILE_NAME || '.env.prod' }}
+            ENV_FILE=.env.test
+            PROJECT_NAME=$(basename "$ENV_FILE")
+            PROJECT_NAME="${PROJECT_NAME#.env.}"
+
+            # Export ENV_FILE for docker compose interpolation
+            export ENV_FILE="$ENV_FILE"
+
+            echo "Running database migrations..."
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma migrate deploy
+
+            echo "Seeding database..."
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
+
+            # Final restart with orphans cleanup
+            ./restart.sh $ENV_FILE --no-build --no-logs
+
+            # Cleanup
+            docker image prune -f
+
+
+  deploy-lbp:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: |
+            # Set target directory
+            PROJECT_PATH=/School
+            cd $PROJECT_PATH/server
+
+            # Ensure scripts are executable
+            chmod +x restart.sh setup-network.sh
+
+            # Disk space cleanup to prevent overlayfs errors
+            docker system prune -f
+
+            # Login to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Get image name
+            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
+
+            echo "Pulling image: $IMAGE_NAME"
+            docker pull $IMAGE_NAME
+
+            # Tag for compose
+            docker tag $IMAGE_NAME school_backend:latest
+
+            # Environment setup
+            ENV_FILE=.env.lbp
             PROJECT_NAME=$(basename "$ENV_FILE")
             PROJECT_NAME="${PROJECT_NAME#.env.}"
 
