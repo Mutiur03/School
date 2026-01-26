@@ -8,7 +8,6 @@ PROJECT_NAME=$(basename "$ENV_FILE")
 PROJECT_NAME="${PROJECT_NAME#.env.}"
 echo "Restarting backend for project: $PROJECT_NAME using env: $ENV_FILE"
 
-# Check for flags
 NO_BUILD=""
 NO_LOGS=false
 
@@ -21,7 +20,6 @@ for arg in "$@"; do
   fi
 done
 
-# Setup network first
 ./setup-network.sh "$ENV_FILE"
 
 docker system df
@@ -34,11 +32,9 @@ else
   ENV_FILE="$ENV_FILE" docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml up -d --build
 fi
 
-# Database migrations and seeding are now handled by docker-entrypoint.sh
 docker system df
 
 if [ "$NO_LOGS" = false ] && [ -z "$CI" ]; then
-  # Only follow logs if not in CI
   ENV_FILE="$ENV_FILE" docker compose  -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml logs -f
 fi
 
