@@ -13,18 +13,17 @@ function ExtraHome() {
             <h2 className="text-3xl">Photo Gallery</h2>
           </div>
 
-          <div className="gallery-grid-4col">
-            <div className="gallery-item">
-              <img src="placeholder.svg" alt="" />
-            </div>
-            <div className="gallery-item">
-              <img src="placeholder.svg" alt="" />
-            </div>
-            <div className="gallery-item">
-              <img src="placeholder.svg" alt="" />
-            </div>
-            <div className="gallery-item">
-              <img src="placeholder.svg" alt="" />
+          <div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 ">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="overflow-hidden rounded-sm bg-gray-100 w-40 h-40">
+                  <img
+                    src="placeholder.svg"
+                    alt={`gallery-${i}`}
+                    className="w-full h-full object-cover block"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
