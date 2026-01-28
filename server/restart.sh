@@ -39,3 +39,6 @@ if [ "$NO_LOGS" = false ] && [ -z "$CI" ]; then
 fi
 
 docker system df
+# docker system prune -a -f
+# docker builder prune -f
+echo "✅ Backend restart process completed."

@@ -45,7 +45,7 @@ const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : null;
 const allowedOrigins = envAllowedOrigins;
-app.use(
+app.use( 
   cors({
     origin: allowedOrigins,
     credentials: true,
