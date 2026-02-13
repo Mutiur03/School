@@ -37,6 +37,7 @@ import {
   Syllabus,
   ClassRoutinePDF,
   SSCRegForm,
+  Class6RegForm,
 } from "./pages/Admin/index.ts"
 
 import backend from "./lib/backend.ts";
@@ -330,6 +331,10 @@ function App() {
                               <Route
                                 path="/registration/ssc"
                                 element={<SSCRegForm />}
+                              ></Route>
+                              <Route
+                                path="/registration/class-6"
+                                element={<Class6RegForm />}
                               ></Route>
                               <Route
                                 path="*"

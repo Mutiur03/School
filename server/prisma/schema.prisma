@@ -575,3 +575,91 @@ model sms_logs {
   @@index([attendance_date])
   @@index([student_id])
 }
+model class6_reg {
+  id                     Int      @id @default(autoincrement())
+  reg_open               Boolean? @default(false)
+  a_sec_roll             String?
+  b_sec_roll             String?
+  notice                 String?
+  class6_year            Int?
+  instruction_for_a      String?  @default("Please follow the instructions carefully")
+  instruction_for_b      String?  @default("Please follow the instructions carefully")
+  attachment_instruction String?  @default("Please attach all required documents")
+}
+
+model student_registration_class6 {
+  id                   String  @id @default(uuid())
+  class6_year         String? @db.VarChar(4)
+  // Personal Information
+  section              String? @db.VarChar(10)
+  roll                 String? @db.VarChar(20)
+  religion             String? @db.VarChar(50)
+  sorkari_brirti       String? @db.VarChar(20)
+  student_name_bn      String? @db.VarChar(100)
+  student_nick_name_bn String? @db.VarChar(50)
+  student_name_en      String? @db.VarChar(100)
+  birth_reg_no         String? @db.VarChar(17)
+
+  // Parents Information
+  father_name_bn String? @db.VarChar(100)
+  father_name_en String? @db.VarChar(100)
+  father_nid     String? @db.VarChar(17)
+  father_phone   String? @db.VarChar(11)
+  mother_name_bn String? @db.VarChar(100)
+  mother_name_en String? @db.VarChar(100)
+  mother_nid     String? @db.VarChar(17)
+  mother_phone   String? @db.VarChar(11)
+
+  // Birth Information
+  birth_date  String? @db.VarChar(10)
+  birth_year  String? @db.VarChar(4)
+  birth_month String? @db.VarChar(2)
+  birth_day   String? @db.VarChar(2)
+  blood_group String? @db.VarChar(10)
+  email       String? @db.VarChar(100)
+
+  // Address Information
+  present_district     String? @db.VarChar(50)
+  present_upazila      String? @db.VarChar(50)
+  present_post_office  String? @db.VarChar(100)
+  present_post_code    String? @db.VarChar(4)
+  present_village_road String? @db.VarChar(200)
+
+  permanent_district     String? @db.VarChar(50)
+  permanent_upazila      String? @db.VarChar(50)
+  permanent_post_office  String? @db.VarChar(100)
+  permanent_post_code    String? @db.VarChar(4)
+  permanent_village_road String? @db.VarChar(200)
+
+  // Guardian Information (optional)
+  guardian_name         String? @db.VarChar(100)
+  guardian_phone        String? @db.VarChar(11)
+  guardian_relation     String? @db.VarChar(50)
+  guardian_nid          String? @db.VarChar(17)
+  guardian_district     String? @db.VarChar(50)
+  guardian_upazila      String? @db.VarChar(50)
+  guardian_post_office  String? @db.VarChar(100)
+  guardian_post_code    String? @db.VarChar(4)
+  guardian_village_road String? @db.VarChar(200)
+
+  // Previous School Information
+  prev_school_name     String? @db.VarChar(200)
+  prev_school_district String? @db.VarChar(50)
+  prev_school_upazila  String? @db.VarChar(50)
+
+  // Photo Information
+  photo_path String? @db.VarChar(255)
+
+  // Status and Metadata
+  status          String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  submission_date DateTime? @default(now())
+
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([birth_reg_no])
+  @@index([father_nid])
+  @@index([mother_nid])
+  @@index([status])
+  @@index([submission_date])
+}

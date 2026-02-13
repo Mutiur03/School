@@ -76,6 +76,6 @@ authRouter.get("/teacher_me", teacher_me, (req, res) => {
 authRouter.get("/student-protected", authenticateStudent, (req, res) => {
   res.json({ message: "You are authenticated!", user: req.user });
 });
-authRouter.post("/add-admin", addAdmin); // <-- add this line
+authRouter.post("/add-admin", addAdmin); 
 
 export default authRouter;

@@ -34,6 +34,8 @@ import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
 import smsRouter from "./routes/smsRoutes.js";
+import regClass6Router from "./routes/regClass6Routes.js";
+import studentRegistrationClass6Router from "./routes/studentRegistrationClass6Routes.js";
 import { check } from "./config/redis.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,7 +47,7 @@ const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : null;
 const allowedOrigins = envAllowedOrigins;
-app.use( 
+app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
@@ -119,6 +121,8 @@ app.use("/api/class-routine", classRoutineRouter);
 app.use("/api/file-upload", fileUploadRouter);
 app.use("/api/reg/ssc", regSSCRouter);
 app.use("/api/reg/ssc/form", studentRegistrationRouter);
+app.use("/api/reg/class-6", regClass6Router);
+app.use("/api/reg/class-6/form", studentRegistrationClass6Router);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
