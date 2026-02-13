@@ -27,4 +27,4 @@ export { default as Admission } from "./Admission";
 export { default as AdmissionSettings } from "./AdmissionSettings";
 export { default as AdmissionResult } from "./AdmissionResult";
 export { default as SSCRegForm } from "./SSCRegForm";
-
+export { default as Class6RegForm } from "./Class6RegForm";

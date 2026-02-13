@@ -12,7 +12,7 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { schoolConfig } from "@/lib/info";
-
+export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const admissionSchema = z
   .object({
     student_name_bn: z
@@ -109,8 +109,8 @@ const admissionSchema = z
       .regex(/^(0[1-9]|[12]\d|3[01])$/, "Day must be 01-31")
       .default(""),
     blood_group: z
-      .enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""])
-      .default(""),
+      .enum(bloodGroups)
+      .default("").optional(),
     email: z.preprocess(
       (v) => (v === null ? "" : v),
       z
@@ -1076,15 +1076,15 @@ function Form() {
     if (cls === "6" || cls.includes("6") || cls.includes("six")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class6") ??
-          getSetting("listTypeClass6") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass6") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class6") ??
-          getSetting("serialNoClass6") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass6") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -1093,15 +1093,15 @@ function Form() {
     } else if (cls === "7" || cls.includes("7") || cls.includes("seven")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class7") ??
-          getSetting("listTypeClass7") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass7") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class7") ??
-          getSetting("serialNoClass7") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass7") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -1110,15 +1110,15 @@ function Form() {
     } else if (cls === "8" || cls.includes("8") || cls.includes("eight")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class8") ??
-          getSetting("listTypeClass8") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass8") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class8") ??
-          getSetting("serialNoClass8") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass8") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -1127,15 +1127,15 @@ function Form() {
     } else if (cls === "9" || cls.includes("9") || cls.includes("nine")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class9") ??
-          getSetting("listTypeClass9") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass9") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class9") ??
-          getSetting("serialNoClass9") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass9") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -1435,7 +1435,7 @@ function Form() {
       setValue("birth_year", "", { shouldValidate: true });
     }
   }, [birth_reg_no, currentYear, birth_year, setValue]);
-  const bloodGroups = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
   if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -2047,6 +2047,7 @@ function Form() {
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
               aria-invalid={!!errors.blood_group}
             >
+              <option value="">Select Blood Group</option>
               {bloodGroups.map((group) => (
                 <option key={group} value={group}>
                   {group || "Select Blood Group"}
@@ -2694,25 +2695,25 @@ function Form() {
               ].includes(father_profession || "") &&
                 !!father_profession) ||
                 father_profession === "Other") && (
-                <div className="mt-2">
-                  <input
-                    {...register("father_profession")}
-                    value={
-                      father_profession === "Other"
-                        ? ""
-                        : father_profession || ""
-                    }
-                    onChange={(e) =>
-                      setValue("father_profession", e.target.value, {
-                        shouldValidate: true,
-                      })
-                    }
-                    placeholder="Please specify father's profession"
-                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-                    aria-invalid={!!errors.father_profession}
-                  />
-                </div>
-              )}
+                  <div className="mt-2">
+                    <input
+                      {...register("father_profession")}
+                      value={
+                        father_profession === "Other"
+                          ? ""
+                          : father_profession || ""
+                      }
+                      onChange={(e) =>
+                        setValue("father_profession", e.target.value, {
+                          shouldValidate: true,
+                        })
+                      }
+                      placeholder="Please specify father's profession"
+                      className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                      aria-invalid={!!errors.father_profession}
+                    />
+                  </div>
+                )}
             </div>
           </FieldRow>
 
@@ -2760,25 +2761,25 @@ function Form() {
               ].includes(mother_profession || "") &&
                 !!mother_profession) ||
                 mother_profession === "Other") && (
-                <div className="mt-2">
-                  <input
-                    {...register("mother_profession")}
-                    value={
-                      mother_profession === "Other"
-                        ? ""
-                        : mother_profession || ""
-                    }
-                    onChange={(e) =>
-                      setValue("mother_profession", e.target.value, {
-                        shouldValidate: true,
-                      })
-                    }
-                    placeholder="Please specify mother's profession"
-                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-                    aria-invalid={!!errors.mother_profession}
-                  />
-                </div>
-              )}
+                  <div className="mt-2">
+                    <input
+                      {...register("mother_profession")}
+                      value={
+                        mother_profession === "Other"
+                          ? ""
+                          : mother_profession || ""
+                      }
+                      onChange={(e) =>
+                        setValue("mother_profession", e.target.value, {
+                          shouldValidate: true,
+                        })
+                      }
+                      placeholder="Please specify mother's profession"
+                      className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                      aria-invalid={!!errors.mother_profession}
+                    />
+                  </div>
+                )}
             </div>
           </FieldRow>
 

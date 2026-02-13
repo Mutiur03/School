@@ -253,7 +253,7 @@ function Navbar() {
       dropdown: [
         { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
         { id: "menu-item-3548", href: "", text: "Class Eight" },
-        { id: "menu-item-3549", href: "", text: "Class Six" },
+        { id: "menu-item-3549", href: "reg/class-6", text: "Class Six" },
       ],
     },
     {
