@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-
-const host = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+import { cdn } from '@/lib/backend'
 
 interface Class6RegData {
     id: number
@@ -30,7 +29,7 @@ function RegClass6() {
     const fetchRegData = async () => {
         try {
             setLoading(true)
-            const response = await axios.get(`${host}/api/reg/class-6`)
+            const response = await axios.get(`/api/reg/class-6`)
 
             if (response.data.success) {
                 setRegData(response.data.data)
@@ -78,7 +77,7 @@ function RegClass6() {
         )
     }
 
-    const noticeUrl = regData?.notice ? (regData.notice.startsWith('http') ? regData.notice : `${host}/${regData.notice}`) : null;
+    const noticeUrl = regData?.notice ? (regData.notice.startsWith('http') ? regData.notice : `${cdn}/${regData.notice}`) : null;
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">

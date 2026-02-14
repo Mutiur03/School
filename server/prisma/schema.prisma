@@ -652,6 +652,9 @@ model student_registration_class6 {
   // Photo Information
   photo String @db.VarChar(255)
 
+  // New field for nearby class nine student info
+  nearby_student_info String? @db.VarChar(200)
+
   // Status and Metadata
   status          String   @default("pending") @db.VarChar(20) // pending, approved, rejected
   submission_date DateTime @default(now())
