@@ -332,8 +332,8 @@ const NewSubject: React.FC = () => {
                 <button
                   onClick={() => handleMethodChange("form")}
                   className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${uploadMethod === "form"
-                      ? "bg-sky-500 text-white shadow-lg"
-                      : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-sky-500 text-white shadow-lg"
+                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
                     }`}
                 >
                   Form
@@ -341,8 +341,8 @@ const NewSubject: React.FC = () => {
                 <button
                   onClick={() => handleMethodChange("file")}
                   className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${uploadMethod === "file"
-                      ? "bg-sky-500 text-white shadow-lg"
-                      : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-sky-500 text-white shadow-lg"
+                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
                     }`}
                 >
                   Excel Upload

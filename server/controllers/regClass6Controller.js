@@ -120,16 +120,14 @@ export const getClass6NoticeUploadUrl = async (req, res) => {
   try {
     const { filename, filetype } = req.body;
     if (!filename || !filetype) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Filename and filetype are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Filename and filetype are required",
+      });
     }
 
     const ext = path.extname(filename);
-    const key = `notices/class6/notice-${Date.now()}${ext}`;
+    const key = `notices/registrations/notice-${Date.now()}${ext}`;
     const url = await getUploadUrl(key, filetype);
 
     res.json({ success: true, url, key });

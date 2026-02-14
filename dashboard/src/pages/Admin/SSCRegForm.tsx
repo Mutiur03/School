@@ -577,8 +577,8 @@ const SSCRegForm = () => {
           <button
             onClick={() => setActiveTab("registrations")}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "registrations"
-                ? "bg-blue-500 text-white shadow-md"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+              ? "bg-blue-500 text-white shadow-md"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
           >
             Registrations
@@ -586,8 +586,8 @@ const SSCRegForm = () => {
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "settings"
-                ? "bg-blue-500 text-white shadow-md"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+              ? "bg-blue-500 text-white shadow-md"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
           >
             <Settings size={16} className="inline mr-1" />
@@ -601,8 +601,8 @@ const SSCRegForm = () => {
           {formMessage && (
             <div
               className={`p-3 rounded-lg ${formMessage.includes("Error")
-                  ? "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
-                  : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700"
+                ? "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
+                : "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700"
                 }`}
             >
               {formMessage}
@@ -1730,14 +1730,14 @@ const SSCRegForm = () => {
                                 {selectedRegistration.blood_group && (
                                   <tr
                                     className={`border-b ${selectedRegistration.student_nick_name_bn
-                                        ? "bg-gray-50"
-                                        : ""
+                                      ? "bg-gray-50"
+                                      : ""
                                       }`}
                                   >
                                     <td
                                       className={`py-2 px-4 font-medium  ${selectedRegistration.student_nick_name_bn
-                                          ? "bg-gray-100"
-                                          : "bg-gray-50"
+                                        ? "bg-gray-100"
+                                        : "bg-gray-50"
                                         }`}
                                     >
                                       Blood Group:

@@ -478,11 +478,10 @@ function ConfirmationAdmission() {
                 <button
                   onClick={handleDownloadPDF}
                   disabled={downloadingPDF}
-                  className={`px-8 py-4 rounded font-semibold text-lg transition-all duration-300 shadow ${
-                    downloadingPDF
+                  className={`px-8 py-4 rounded font-semibold text-lg transition-all duration-300 shadow ${downloadingPDF
                       ? "bg-gray-300 cursor-not-allowed text-gray-500"
                       : "bg-gray-700 text-white hover:bg-gray-800"
-                  }`}
+                    }`}
                 >
                   {downloadingPDF ? (
                     <div className="flex items-center space-x-3">
@@ -764,11 +763,10 @@ function ConfirmationAdmission() {
                 <button
                   onClick={handleConfirmadmission}
                   disabled={confirming}
-                  className={`px-8 py-3 rounded font-medium transition-all duration-200 ${
-                    confirming
+                  className={`px-8 py-3 rounded font-medium transition-all duration-200 ${confirming
                       ? "bg-gray-300 cursor-not-allowed text-gray-500"
                       : "bg-green-600 hover:bg-green-700 text-white"
-                  } text-lg focus:outline-none flex items-center justify-center`}
+                    } text-lg focus:outline-none flex items-center justify-center`}
                 >
                   {confirming ? (
                     <>

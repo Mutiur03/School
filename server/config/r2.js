@@ -98,4 +98,18 @@ export const deleteFromR2 = async (key) => {
   }
 };
 
+export const getFileBuffer = async (key) => {
+  if (!key) return null;
+  const command = new GetObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+  });
+  const response = await r2Client.send(command);
+  const chunks = [];
+  for await (const chunk of response.Body) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+};
+
 export { r2Client };

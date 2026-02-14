@@ -9,7 +9,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { schoolConfig } from "@/lib/info";
 import {
     BANGLA_ONLY,
     BANGLA_OPTIONAL,
@@ -25,6 +24,7 @@ import {
 } from "@/lib/regex";
 import { bloodGroups } from "./AdmissionFormNew";
 import { guardianRelations } from "@/lib/guardian";
+import { cdn } from "@/lib/backend";
 
 const registrationSchema = z.object({
     student_name_bn: z.string().min(1, "Student Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
@@ -34,12 +34,12 @@ const registrationSchema = z.object({
     birth_year: z.string().min(1, "Year is required"),
     birth_month: z.string().min(1, "Month is required"),
     birth_day: z.string().min(1, "Day is required"),
-    blood_group: z.enum(bloodGroups).default("").optional(),
+    blood_group: z.string().optional(),
     email: z.preprocess((v) => (v === null ? "" : v), z.string().default("")
         .refine((val) => !val || /^[\x00-\x7F]+$/.test(val), "Email must contain only English characters",)
         .refine((val) => !val || z.string().email().safeParse(val).success, "Invalid email format",),
     ),
-    religion: z.string().min(1, "Religion is required"),
+    religion: z.string().min(1, "Religion is required").max(50).default(""),
 
     father_name_bn: z.string().min(1, "Father's Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
     father_name_en: z.string().min(1, "Father's Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
@@ -77,8 +77,6 @@ const registrationSchema = z.object({
 
     section: z.string().min(1, "Section is required"),
     roll: z.string().min(1, "Roll is required").regex(ROLL_NUMBER, "Invalid roll"),
-    upobritti: z.string().min(1, "This field is required"),
-    sorkari_brirti: z.string().min(1, "This field is required"),
 
     prev_school_name: z.string().min(1, "Previous School Name is required"),
     prev_school_passing_year: z.string().min(1, "Previous School Passing Year is required"),
@@ -86,8 +84,11 @@ const registrationSchema = z.object({
     roll_in_prev_school: z.string().min(1, "Roll in previous school is required").regex(ROLL_NUMBER, "Roll must be numeric"),
     prev_school_district: z.string().min(1, "Previous School District is required"),
     prev_school_upazila: z.string().min(1, "Previous School Upazila is required"),
-
-    photo: z.any().optional(),
+    photo: z.custom<File | string>((val) => {
+        if (val instanceof File) return true;
+        if (typeof val === "string" && val.length > 0) return true;
+        return false;
+    }, "Student photo is required"),
 }).superRefine((data, ctx) => {
     if (data.guardian_is_not_father) {
         if (!data.guardian_name) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_name"] });
@@ -106,6 +107,7 @@ const registrationSchema = z.object({
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
+export type { RegistrationFormData };
 const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-sm text-gray-900">{children}</p>
 );
@@ -211,19 +213,25 @@ export default function RegistrationClass6() {
     const [presentUpazilas, setPresentUpazilas] = useState<any[]>([]);
     const [guardianUpazilas, setGuardianUpazilas] = useState<any[]>([]);
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<any[]>([]);
+    const [settings, setSettings] = useState<any>(null);
+    const [availableRolls, setAvailableRolls] = useState<string[]>([]);
+    const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
 
     const {
         register,
         handleSubmit,
         setValue,
         control,
+        reset,
         formState: { errors },
     } = useForm<RegistrationFormData>({
         resolver: zodResolver(registrationSchema) as Resolver<RegistrationFormData>,
+        mode: "onTouched",
         defaultValues: {
             guardian_is_not_father: false,
             guardian_address_same_as_permanent: false,
             blood_group: "",
+            birth_year: "",
         },
     });
 
@@ -266,6 +274,171 @@ export default function RegistrationClass6() {
         control,
         name: "photo",
     });
+    const selectedSection = useWatch({
+        control,
+        name: "section",
+    });
+    // Unified data initialization
+    useEffect(() => {
+        const initializeData = async () => {
+            try {
+                setLoading(true);
+
+                // 1. Fetch Settings
+                const settingsRes = await axios.get("/api/reg/class-6");
+                let currentSettings = null;
+                if (settingsRes.data.success) {
+                    currentSettings = settingsRes.data.data;
+                    setSettings(currentSettings);
+                }
+
+                // 2. Fetch Registration Data if Edit Mode
+                if (isEditMode && id) {
+                    const response = await axios.get(`/api/reg/class-6/form/${id}`);
+                    if (response.data.success) {
+                        const data = response.data.data;
+
+                        // Check status - redirect if not pending
+                        if (data.status && data.status !== "pending") {
+                            navigate(`/registration/class-6/confirm/${id}`, { replace: true });
+                            return;
+                        }
+
+                        // Prepare form data
+                        const formData: any = { ...data };
+
+                        // Convert nulls to empty strings to avoid controlled/uncontrolled warnings and Zod errors
+                        Object.keys(formData).forEach((key) => {
+                            if (formData[key] === null) {
+                                formData[key] = "";
+                            }
+                        });
+
+                        // Ensure booleans
+                        formData.same_as_permanent = Boolean(data.same_as_permanent);
+                        formData.guardian_is_not_father = Boolean(data.guardian_is_not_father);
+                        formData.guardian_address_same_as_permanent = Boolean(data.guardian_address_same_as_permanent);
+
+                        // Populate available rolls BEFORE reset so the dropdown has options to match
+                        if (currentSettings && data.section) {
+                            const rollRange = data.section === "A" ? currentSettings.a_sec_roll : currentSettings.b_sec_roll;
+                            const rolls = parseRollRange(rollRange);
+                            setAvailableRolls(rolls);
+                        }
+
+                        reset(formData);
+
+                        // Explicitly set roll to ensure it's selected once options are ready
+                        if (data.roll) {
+                            setValue("roll", data.roll, { shouldValidate: true });
+                        }
+
+                        // Handle Address Matching Logic
+                        const isSame =
+                            data.present_district === data.permanent_district &&
+                            data.present_upazila === data.permanent_upazila &&
+                            data.present_post_office === data.permanent_post_office &&
+                            data.present_post_code === data.permanent_post_code &&
+                            data.present_village_road === data.permanent_village_road;
+
+                        const isGuardianSameAsPermanent =
+                            data.guardian_district === data.permanent_district &&
+                            data.guardian_upazila === data.permanent_upazila &&
+                            data.guardian_post_office === data.permanent_post_office &&
+                            data.guardian_post_code === data.permanent_post_code &&
+                            data.guardian_village_road === data.permanent_village_road;
+
+                        setValue("same_as_permanent", isSame);
+                        setValue("guardian_address_same_as_permanent", isGuardianSameAsPermanent);
+
+                        // Populate Upazilas
+                        if (data.guardian_district) {
+                            setGuardianUpazilas(getUpazilasByDistrict(data.guardian_district));
+                        }
+                        if (data.permanent_district) {
+                            setPermanentUpazilas(getUpazilasByDistrict(data.permanent_district));
+                        }
+                        if (data.present_district) {
+                            setPresentUpazilas(getUpazilasByDistrict(data.present_district));
+                        }
+                        if (data.prev_school_district) {
+                            setPrevSchoolUpazilas(getUpazilasByDistrict(data.prev_school_district));
+                        }
+
+                        // Handle Guardian Logic (from snippet)
+                        if (data.guardian_name && data.guardian_name.trim() !== "") {
+                            setValue("guardian_is_not_father", true);
+                        } else {
+                            setValue("guardian_is_not_father", false);
+                        }
+
+                        // Photo photoPreview
+                        if (data.photo) {
+                            const url = `${cdn}/${data.photo}`;
+                            setPhotoPreview(url);
+                        }
+                    } else {
+                        // Registration not found or error
+                        navigate("/registration/class-6", { replace: true });
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to initialize data:", error);
+                navigate("/", { replace: true });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initializeData();
+    }, [isEditMode, id, navigate, reset, setValue]);
+
+    // Parse roll range from string like "01-50", "1,10,12-50", or "1,5,10-20,25"
+    const parseRollRange = (rollRange: string | null): string[] => {
+        if (!rollRange) return [];
+
+        const rolls: Set<number> = new Set();
+        const parts = rollRange.split(',').map(p => p.trim());
+
+        for (const part of parts) {
+            // Check if it's a range (e.g., "12-50")
+            const rangeMatch = part.match(/^(\d+)-(\d+)$/);
+            if (rangeMatch) {
+                const start = parseInt(rangeMatch[1]);
+                const end = parseInt(rangeMatch[2]);
+                for (let i = start; i <= end; i++) {
+                    rolls.add(i);
+                }
+            } else {
+                // It's a single number (e.g., "1" or "10")
+                const num = parseInt(part);
+                if (!isNaN(num)) {
+                    rolls.add(num);
+                }
+            }
+        }
+
+        // Convert to sorted array of padded strings
+        return Array.from(rolls)
+            .sort((a, b) => a - b)
+            .map(num => String(num).padStart(2, "0"));
+    };
+
+    // Update available rolls when section changes
+    useEffect(() => {
+        if (!settings || !selectedSection) {
+            setAvailableRolls([]);
+            return;
+        }
+        if (selectedSection === "A") {
+            setAvailableRolls(parseRollRange(settings.a_sec_roll));
+        } else if (selectedSection === "B") {
+            setAvailableRolls(parseRollRange(settings.b_sec_roll));
+        } else {
+            setAvailableRolls([]);
+        }
+    }, [selectedSection, settings]);
+
     useEffect(() => {
         const selectedDistrictId = permanent_district;
         if (!selectedDistrictId) {
@@ -326,6 +499,47 @@ export default function RegistrationClass6() {
         permanent_village_road,
         setValue,
     ]);
+
+    useEffect(() => {
+        if (guardian_address_same_as_permanent) {
+            setValue("guardian_district", permanent_district, {
+                shouldValidate: true,
+            });
+            setValue("guardian_upazila", permanent_upazila, { shouldValidate: true });
+            setValue("guardian_post_office", permanent_post_office, {
+                shouldValidate: true,
+            });
+            setValue("guardian_post_code", permanent_post_code, {
+                shouldValidate: true,
+            });
+            setValue("guardian_village_road", permanent_village_road, {
+                shouldValidate: true,
+            });
+        }
+    }, [
+        guardian_address_same_as_permanent,
+        permanent_district,
+        permanent_upazila,
+        permanent_post_office,
+        permanent_post_code,
+        permanent_village_road,
+        setValue,
+    ]);
+
+    useEffect(() => {
+        if (!guardian_is_not_father) {
+            setValue("guardian_name", "");
+            setValue("guardian_phone", "");
+            setValue("guardian_relation", "");
+            setValue("guardian_nid", "");
+            setValue("guardian_address_same_as_permanent", false);
+            setValue("guardian_district", "");
+            setValue("guardian_upazila", "");
+            setValue("guardian_post_office", "");
+            setValue("guardian_post_code", "");
+            setValue("guardian_village_road", "");
+        }
+    }, [guardian_is_not_father, setValue]);
     useEffect(() => {
         const selectedDistrictId = prev_school_district;
         if (!selectedDistrictId) {
@@ -338,7 +552,7 @@ export default function RegistrationClass6() {
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setValue("photo", file);
+            setValue("photo", file, { shouldValidate: true });
             const reader = new FileReader();
             reader.onloadend = () => setPhotoPreview(reader.result as string);
             reader.readAsDataURL(file);
@@ -408,25 +622,57 @@ export default function RegistrationClass6() {
     }, [birth_reg_no, currentYear, birth_year, setValue]);
     const onSubmit = async (data: RegistrationFormData) => {
         setLoading(true);
+        setDuplicates([]);
         try {
-            const formDataToSend = new FormData();
-            Object.entries(data).forEach(([key, value]) => {
-                if (key === "photo" && value instanceof File) {
-                    formDataToSend.append("photo", value);
-                } else {
-                    formDataToSend.append(key, String(value));
-                }
-            });
+            let photo_path = "";
 
-            const endpoint = isEditMode ? `/api/reg/class-6/${id}` : "/api/reg/class-6";
+            // Handle Photo Upload
+            if (data.photo instanceof File) {
+                // 1. Get upload URL
+                const { data: uploadData } = await axios.post("/api/reg/class-6/form/upload-url", {
+                    filename: data.photo.name,
+                    filetype: data.photo.type,
+                    name: data.student_name_en,
+                    roll: data.roll,
+                    section: data.section,
+                    year: data.birth_year
+                });
+
+                if (uploadData.success) {
+                    // 2. Upload to R2
+                    await axios.put(uploadData.url, data.photo, {
+                        headers: { "Content-Type": data.photo.type },
+                    });
+                    photo_path = uploadData.key;
+                }
+            } else if (typeof data.photo === "string") {
+                photo_path = data.photo;
+            }
+
+            // 3. Submit Registration
+            const submissionData = {
+                ...data,
+                photo_path,
+            };
+            // @ts-ignore
+            delete submissionData.photo;
+
+            const endpoint = isEditMode ? `/api/reg/class-6/form/${id}` : "/api/reg/class-6/form";
             const method = isEditMode ? "put" : "post";
 
-            const response = await axios[method](endpoint, formDataToSend);
+            const response = await axios[method](endpoint, submissionData);
             if (response.data.success) {
-                navigate(`/registration/class-6/confirm/${response.data.id}`);
+                navigate(`/registration/class-6/confirm/${response.data.data.id}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Submission error", error);
+            if (error.response && error.response.status === 400 && error.response.data.duplicates) {
+                setDuplicates(error.response.data.duplicates);
+                // Scroll to top to see duplicates
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                alert(error.response?.data?.message || "Failed to submit registration. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -443,28 +689,74 @@ export default function RegistrationClass6() {
 
 
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white shadow-xl rounded-xl my-10">
-            <div className="text-center mb-8 border-b-2 border-blue-600 pb-4">
-                <h1 className="text-3xl font-bold text-blue-900 truncate px-4">
-                    {isEditMode ? "Edit Registration (Class 6)" : "Class Six Registration Form"}
-                </h1>
-                <p className="text-gray-600 mt-1">{schoolConfig.name.en}</p>
+        <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
+            <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
+                    {isEditMode
+                        ? "Edit Admission"
+                        : `Student's Information for Admission ${settings?.class6_year}`}
+                </h2>
+                <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
+                    Please fill all required fields. Fields marked{" "}
+                    <span className="text-red-600">*</span> are mandatory.
+                </span>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+            {duplicates.length > 0 && <DuplicateWarning duplicates={duplicates} />}
+
+            <form onSubmit={handleSubmit(onSubmit, (errors) => {
+                console.log("=== FORM VALIDATION ERRORS ===");
+                console.log(errors);
+                console.log("Total errors:", Object.keys(errors).length);
+                Object.entries(errors).forEach(([field, error]) => {
+                    console.log(`${field}:`, error?.message);
+                });
+                console.log("==============================");
+            })} className="space-y-10">
                 {/* Step 1: Personal Info */}
                 <SectionHeader title="Personal Information" >
-                    <FieldRow label="Section" isRequired={isRequired("section")} error={errors.section}>
+                    <FieldRow label="Section" isRequired={isRequired("section")} error={errors.section}
+                        tooltip="Select your section (A or B). Available rolls will be shown based on your selection">
                         <select {...register("section")} className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300">
                             <option value="">Select Section</option>
                             <option value="A">A</option>
                             <option value="B">B</option>
                         </select>
                     </FieldRow>
-                    <FieldRow label="Roll" isRequired={isRequired("roll")} error={errors.roll}>
-                        <input {...register("roll")} placeholder="Roll Number" className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                    <FieldRow label="Roll" isRequired={isRequired("roll")} error={errors.roll}
+                        tooltip="Select your roll number from the available options for your section">
+                        <select
+                            {...register("roll")}
+                            disabled={!selectedSection || availableRolls.length === 0}
+                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                            <option value="">{!selectedSection ? "Select section first" : availableRolls.length === 0 ? "No rolls available" : "Select Roll"}</option>
+                            {availableRolls.map((roll) => (
+                                <option key={roll} value={roll}>
+                                    {roll}
+                                </option>
+                            ))}
+                        </select>
                     </FieldRow>
-
+                    <FieldRow
+                        label="Religion:"
+                        isRequired={isRequired("religion")}
+                        error={errors.religion}
+                        tooltip="Select your religion"
+                    >
+                        <select
+                            {...register("religion")}
+                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            aria-invalid={!!errors.religion}
+                        >
+                            <option value="">Select Religion</option>
+                            <option value="Islam">Islam</option>
+                            <option value="Hinduism">Hinduism</option>
+                            <option value="Christianity">Christianity</option>
+                            <option value="Buddhism">Buddhism</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </FieldRow>
                     <FieldRow label="Student's Name (English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
                         instruction="(According to Primary/Birth Registration Card)"
                         tooltip="Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
@@ -477,15 +769,7 @@ export default function RegistrationClass6() {
                             className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
 
-                    <FieldRow label="Email" isRequired={isRequired("email")} error={errors.email}
-                        tooltip="Enter a valid email address for communication. This is recommended">
-                        <input {...register("email")}
-                            onInput={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                target.value = target.value.replace(/[^\x00-\x7F]/g, "");
-                            }}
-                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" placeholder="example@email.com" />
-                    </FieldRow>
+
 
                     <FieldRow label="ছাত্রের নাম (বাংলা)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
                         instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
@@ -572,21 +856,8 @@ export default function RegistrationClass6() {
                         </div>
                     </FieldRow>
 
-                    <FieldRow label="Religion" isRequired={isRequired("religion")} error={errors.religion}>
-                        <select {...register("religion")} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300">
-                            <option value="">Select</option>
-                            <option value="Islam">Islam</option>
-                            <option value="Hinduism">Hinduism</option>
-                            <option value="Christianity">Christianity</option>
-                            <option value="Buddhism">Buddhism</option>
-                        </select>
-                    </FieldRow>
-                    <FieldRow label="Blood Group" isRequired={isRequired("blood_group")} error={errors.blood_group}>
-                        <select {...register("blood_group")} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300">
-                            <option value="">Select</option>
-                            {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                        </select>
-                    </FieldRow>
+
+
 
 
                     <FieldRow label="Father's Name (English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
@@ -674,6 +945,22 @@ export default function RegistrationClass6() {
                             }}
                             placeholder="01XXXXXXXXX"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
+                    </FieldRow>
+                    <FieldRow label="Blood Group" isRequired={isRequired("blood_group")} error={errors.blood_group}>
+                        <select {...register("blood_group")} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300">
+                            <option value="">Select Blood Group</option>
+                            {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                        </select>
+                    </FieldRow>
+
+                    <FieldRow label="Email" isRequired={false} error={errors.email}
+                        tooltip="Enter a valid email address for communication. This is recommended">
+                        <input {...register("email")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = target.value.replace(/[^\x00-\x7F]/g, "");
+                            }}
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" placeholder="example@email.com" />
                     </FieldRow>
                 </SectionHeader>
 
@@ -872,7 +1159,7 @@ export default function RegistrationClass6() {
                 <SectionHeader title="Guardian Information">
                     <FieldRow
                         label="Guardian is not the father:"
-                        isRequired={isRequired("guardian_is_not_father")}
+                        isRequired={false}
                         error={undefined}
                         tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)"
                     >
@@ -1076,85 +1363,6 @@ export default function RegistrationClass6() {
                         </>
                     )}
                 </SectionHeader>
-
-                {/* Step 4: Photo */}
-                <SectionHeader title="Student Photo">
-                    <FieldRow
-                        label={
-                            <span>
-                                Photo:
-                                {/* {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>} */}
-                            </span>
-                        }
-                        isRequired={true}
-                        tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
-                        error={errors.photo}
-                    >
-                        <div className="flex flex-col lg:flex-row items-start gap-4">
-                            <div className="shrink-0">
-                                <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
-                                    {photoPreview ? (
-                                        <img
-                                            src={photoPreview}
-                                            alt="photo preview"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="text-center px-2">
-                                            <div className="text-xs sm:text-sm text-gray-500">
-                                                {isEditMode ? "Current photo" : "No photo uploaded"}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <input
-                                        id="photo-input"
-                                        type="file"
-                                        name="photo"
-                                        accept=".jpg,.jpeg,image/jpeg"
-                                        onChange={handlePhotoChange}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                    <label
-                                        htmlFor="photo-input"
-                                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base"
-                                    >
-                                        {photoPreview ? "Change Photo" : "Choose Photo"}
-                                    </label>
-
-                                    {(photoPreview || photo) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setPhotoPreview(null);
-                                                setValue("photo", "", { shouldValidate: true });
-                                                const input = document.getElementById(
-                                                    "photo-input",
-                                                ) as HTMLInputElement | null;
-                                                if (input) input.value = "";
-                                            }}
-                                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded bg-white text-sm sm:text-base hover:bg-gray-50"
-                                        >
-                                            Remove Photo
-                                        </button>
-                                    )}
-                                </div>
-
-                                <Instruction>
-                                    JPG only. Max file size 2MB. Click the box or "Choose Photo"
-                                    to upload.
-                                </Instruction>
-                            </div>
-                        </div>
-                    </FieldRow>
-                </SectionHeader>
-
-                {/* Step 5: Previous School */}
                 <SectionHeader title="Previous School Information (Class 5)">
                     <FieldRow
                         label="Name of Previous School :"
@@ -1181,8 +1389,8 @@ export default function RegistrationClass6() {
                             aria-invalid={!!errors.prev_school_passing_year}
                         >
                             <option value="">Select Year</option>
-                            {Array.from({ length: 5 }, (_, i) =>
-                                String(new Date().getFullYear() - i),
+                            {Array.from({ length: 3 }, (_, i) =>
+                                String(new Date().getFullYear() - 1 - i),
                             ).map((y) => (
                                 <option key={y} value={y}>
                                     {y}
@@ -1270,28 +1478,83 @@ export default function RegistrationClass6() {
                         </select>
                     </FieldRow>
                 </SectionHeader>
+                <SectionHeader title="Student Photo">
+                    <FieldRow
+                        label={
+                            <span>
+                                Photo: (Wearing school uniform)
+                                {/* {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>} */}
+                            </span>
+                        }
+                        isRequired={true}
+                        tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
+                        error={errors.photo}
+                    >
+                        <div className="flex flex-col lg:flex-row items-start gap-4">
+                            <div className="shrink-0">
+                                <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
+                                    {photoPreview ? (
+                                        <img
+                                            src={photoPreview}
+                                            alt="photo preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="text-center px-2">
+                                            <div className="text-xs sm:text-sm text-gray-500">
+                                                {isEditMode ? "Current photo" : "No photo uploaded"}
+                                            </div>
+                                        </div>
+                                    )}
 
-                {/* Step 6: Stipend Info */}
-                <section>
-                    <SectionHeader title="Stipend & Scholarship">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FieldRow label="Govt Scholarship?" isRequired error={errors.sorkari_brirti}>
-                                <select {...register("sorkari_brirti")} className="w-full border p-2 rounded">
-                                    <option value="">Select</option>
-                                    <option value="Talentpool">Talentpool</option>
-                                    <option value="General">General</option>
-                                </select>
-                            </FieldRow>
-                            <FieldRow label="Upobritti?" isRequired error={errors.upobritti}>
-                                <select {...register("upobritti")} className="w-full border p-2 rounded">
-                                    <option value="">Select</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </FieldRow>
+                                    <input
+                                        id="photo-input"
+                                        type="file"
+                                        name="photo"
+                                        accept=".jpg,.jpeg,image/jpeg"
+                                        onChange={handlePhotoChange}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <label
+                                        htmlFor="photo-input"
+                                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base"
+                                    >
+                                        {photoPreview ? "Change Photo" : "Choose Photo"}
+                                    </label>
+
+                                    {(photoPreview || photo) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setPhotoPreview(null);
+                                                setValue("photo", "", { shouldValidate: true });
+                                                const input = document.getElementById(
+                                                    "photo-input",
+                                                ) as HTMLInputElement | null;
+                                                if (input) input.value = "";
+                                            }}
+                                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded bg-white text-sm sm:text-base hover:bg-gray-50"
+                                        >
+                                            Remove Photo
+                                        </button>
+                                    )}
+                                </div>
+
+                                <Instruction>
+                                    JPG only. Max file size 2MB. Click the box or "Choose Photo"
+                                    to upload.
+                                </Instruction>
+                            </div>
                         </div>
-                    </SectionHeader>
-                </section>
+                    </FieldRow>
+                </SectionHeader>
+
+
 
                 <div className="pt-10 border-t-2 border-gray-100 flex justify-center">
                     <button

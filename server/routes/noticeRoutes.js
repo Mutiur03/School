@@ -40,3 +40,4 @@ noticeRouter.delete("/deleteNotice/:id", deleteNoticeController);
 
 
 export default noticeRouter;
+ 
