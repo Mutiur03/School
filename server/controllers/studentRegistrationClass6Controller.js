@@ -12,19 +12,47 @@ import fs from "fs";
 import puppeteer from "puppeteer";
 import axios from "axios";
 
-const loadFontAsBase64 = (fontPath) => {
+export const getClassMates = async (req, res) => {
   try {
-    if (fs.existsSync(fontPath)) {
-      const fontBuffer = fs.readFileSync(fontPath);
-      return fontBuffer.toString("base64");
+    const settings = await prisma.class6_reg.findFirst();
+
+    if (!settings) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
     }
-    return null;
+
+    const enrollments = await prisma.student_enrollments.findMany({
+      where: {
+        year: parseInt(settings.class6_year),
+        class: 6,
+      },
+      include: {
+        student: true,
+      },
+    });
+
+    const formattedStudents = enrollments.map((en) => ({
+      id: en.student.id,
+      name: en.student.name,
+      roll: en.roll,
+      section: en.section,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedStudents,
+    });
   } catch (error) {
-    console.warn(`Failed to load font: ${fontPath}`, error);
-    return null;
+    console.error("getClassMates error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch students",
+      error: error.message,
+    });
   }
 };
-
 const checkDuplicates = async (data, excludeId = null) => {
   const duplicates = [];
   try {
@@ -768,6 +796,10 @@ export const downloadRegistrationPDF = async (req, res) => {
             .filter(Boolean)
             .join(", "),
         ),
+      ],
+      [
+        "বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
+        wrapBnEn(registration.nearby_student_info || "Not Applicable"),
       ],
       // [
       //   "Religion and Blood Group:",

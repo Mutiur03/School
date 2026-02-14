@@ -37,3 +37,23 @@ export const teacher_me = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid Token" });
   }
 };
+export const authenticateAdmin = async (req, res, next) => {
+  const token = req.cookies?.admin_token;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    if (!req.user.id) return res.status(401).json({ message: "Unauthorized" });
+    if (req.user.role !== "admin")
+      return res.status(401).json({ message: "Unauthorized" });
+    const check = await prisma.admin.findUnique({
+      where: { id: req.user.id },
+    });
+    if (!check) return res.status(401).json({ message: "Unauthorized" });
+    req.admin = check;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid Token" });
+  }
+};

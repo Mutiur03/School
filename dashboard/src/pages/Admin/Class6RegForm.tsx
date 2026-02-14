@@ -67,6 +67,7 @@ interface Registration {
     guardian_upazila?: string;
     guardian_district?: string;
     class6_year: number;
+    nearby_student_info?: string;
     created_at: string;
 }
 
@@ -138,8 +139,8 @@ const Class6RegForm = () => {
                 const data = res.data.data;
                 setStats({
                     total: data.length,
-                    pending: data.filter((r:Registration) => r.status === "pending").length,
-                    approved: data.filter((r:Registration) => r.status === "approved").length
+                    pending: data.filter((r: Registration) => r.status === "pending").length,
+                    approved: data.filter((r: Registration) => r.status === "approved").length
                 });
             }
         } catch (error) {
@@ -229,7 +230,7 @@ const Class6RegForm = () => {
         const { status, section, year } = filters;
         const endpoint = type === "sheet" ? "export" : "export-photos";
         const url = `/api/reg/class-6/form/${endpoint}?status=${status}&section=${section}&class6_year=${year}`;
-        
+
         try {
             toast.loading(`Preparing ${type}...`, { id: "export" });
             const res = await axios.get(url, { responseType: "blob" });
@@ -251,12 +252,12 @@ const Class6RegForm = () => {
                 // Try to read the error message from the blob
                 const reader = new FileReader();
                 reader.onload = () => {
-                   try {
-                       const errData = JSON.parse(reader.result as string);
-                       toast.error(errData.message || message, { id: "export" });
-                   } catch {
-                       toast.error(message, { id: "export" });
-                   }
+                    try {
+                        const errData = JSON.parse(reader.result as string);
+                        toast.error(errData.message || message, { id: "export" });
+                    } catch {
+                        toast.error(message, { id: "export" });
+                    }
                 };
                 reader.readAsText(error.response.data);
             } else {
@@ -766,8 +767,14 @@ const Class6RegForm = () => {
                                                 </tr>
 
                                                 <tr>
+                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Nearby Student Info</td>
+                                                    <td className="px-4 py-2.5">
+                                                        {selectedReg.nearby_student_info || "Not Applicable"}
+                                                    </td>
+                                                </tr>
+                                                <tr>
                                                     <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
-                                                        Academic & Guardian Info (একাডেমিক ও অভিভাবক)
+                                                        Guardian Info (অভিভাবক)
                                                     </td>
                                                 </tr>
                                                 <tr>

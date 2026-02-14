@@ -69,6 +69,7 @@ type ConfirmationClass6_Props = {
     roll?: string | null;
     class6_year?: number | null;
     status?: string | null;
+    nearby_student_info?: string | null;
     photo_path?: string | null;
     photo?: string | null;
     [key: string]: unknown;
@@ -638,6 +639,7 @@ function Class6RegConfirmation() {
                                             "Previous School Acadmic Info:",
                                             formatPreviousSchoolMeta(),
                                         )}
+                                        
                                         {renderOptionalRow(
                                             "Father's Mobile Number:",
                                             registration.father_phone,
@@ -650,6 +652,10 @@ function Class6RegConfirmation() {
                                         {renderOptionalRow(
                                             "Student Nickname (BN):",
                                             registration.student_nick_name_bn,
+                                        )}
+                                        {renderOptionalRow(
+                                            "Nearby Student Info:",
+                                            registration.nearby_student_info,
                                         )}
                                     </tbody>
                                 </table>

@@ -84,6 +84,7 @@ const registrationSchema = z.object({
     roll_in_prev_school: z.string().min(1, "Roll in previous school is required").regex(ROLL_NUMBER, "Roll must be numeric"),
     prev_school_district: z.string().min(1, "Previous School District is required"),
     prev_school_upazila: z.string().min(1, "Previous School Upazila is required"),
+    nearby_student_info: z.string().min(1, "Nearby student information is required"),
     photo: z.custom<File | string>((val) => {
         if (val instanceof File) return true;
         if (typeof val === "string" && val.length > 0) return true;
@@ -215,6 +216,7 @@ export default function RegistrationClass6() {
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<any[]>([]);
     const [settings, setSettings] = useState<any>(null);
     const [availableRolls, setAvailableRolls] = useState<string[]>([]);
+    const [class6Students, setClass6Students] = useState<any[]>([]);
     const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
 
     const {
@@ -288,11 +290,21 @@ export default function RegistrationClass6() {
                 const settingsRes = await axios.get("/api/reg/class-6");
                 let currentSettings = null;
                 if (settingsRes.data.success) {
+                    if (!settingsRes.data.data.reg_open) {
+                        navigate("/registration/class-6");
+                        return;
+                    }
                     currentSettings = settingsRes.data.data;
                     setSettings(currentSettings);
                 }
 
-                // 2. Fetch Registration Data if Edit Mode
+                // 2. Fetch Class 6 Students for Nearby Reference
+                const studentsRes = await axios.get(`/api/reg/class-6/form/getclassmates`);
+                if (studentsRes.data.success) {
+                    setClass6Students(studentsRes.data.data);
+                }
+
+                // 3. Fetch Registration Data if Edit Mode
                 if (isEditMode && id) {
                     const response = await axios.get(`/api/reg/class-6/form/${id}`);
                     if (response.data.success) {
@@ -686,7 +698,15 @@ export default function RegistrationClass6() {
         return true;
     };
 
-
+    if (!loading && class6Students.length === 0) {
+        return (
+            <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight mb-1 sm:mb-2">
+                    No Students Found for class Six
+                </h2>
+            </div>
+        )
+    }
 
     return (
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
@@ -1476,6 +1496,45 @@ export default function RegistrationClass6() {
                                 </option>
                             ))}
                         </select>
+                    </FieldRow>
+                </SectionHeader>
+                <SectionHeader title="Student Information Reference">
+                    <FieldRow
+                        label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
+                        isRequired={true}
+                        error={errors.nearby_student_info}
+                        tooltip="Select a current class six student from your neighborhood area for reference"
+                    >
+                        <select
+                            {...register("nearby_student_info")}
+                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            aria-invalid={!!errors.nearby_student_info}
+                        >
+                            <option value="">Select Option</option>
+                            {class6Students.length === 0 ? (
+                                <option value="নিবন্ধিত কোনো ছাত্র পাওয়া যায়নি">নিবন্ধিত কোনো ছাত্র পাওয়া যায়নি</option>
+                            ) : (
+                                class6Students
+                                    .slice()
+                                    .sort((a, b) => {
+                                        // Sort by section, then by roll
+                                        if (a.section < b.section) return -1;
+                                        if (a.section > b.section) return 1;
+                                        return Number(a.roll) - Number(b.roll);
+                                    })
+                                    .map((opt) => (
+                                        <option
+                                            key={`${opt.name}-${opt.section}/${opt.roll}`}
+                                            value={`${opt.name}-${opt.section}/${opt.roll}`}
+                                        >
+                                            {`${opt.name}-${opt.section}/${opt.roll}`}
+                                        </option>
+                                    ))
+                            )}
+                        </select>
+                        {class6Students.length === 0 && (
+                            <p className="text-sm text-yellow-600 mt-1">No students found for this year. Please select the "Not found" option.</p>
+                        )}
                     </FieldRow>
                 </SectionHeader>
                 <SectionHeader title="Student Photo">
