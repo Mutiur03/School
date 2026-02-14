@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUnifiedAuth } from "@/context/useUnifiedAuth";
-import ThemeChange from "@/components/ThemeChange";
 
 type UserRole = "admin" | "teacher" | "student";
 
@@ -40,7 +39,7 @@ function Login() {
         className="w-full max-w-md"
       >
         <Card className="shadow-2xl  relative rounded-2xl">
-          <ThemeChange vars={"top-0 absolute right-0"} />
+          {/* <ThemeChange vars={"top-0 absolute right-0"} /> */}
 
           <div>
             <CardContent className="p-6">

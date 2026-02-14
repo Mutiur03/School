@@ -2,7 +2,6 @@ import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import ThemeChange from "../components/ThemeChange";
 import LogoutConfirmation from "@/components/LogOutConfirmation";
 import { Menu } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
@@ -80,7 +79,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
             </div>
           )
         )}
-        <ThemeChange vars={""} />
+        {/* <ThemeChange vars={""} /> */}
         <div className="scale-80 bg-popover rounded-full p-2 ">
           <LogoutConfirmation onClick={handleLogout} />
         </div>

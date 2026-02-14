@@ -197,6 +197,8 @@ const Class6RegForm = () => {
             toast.error("Failed to update settings");
         } finally {
             setFormLoading(false);
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (fileInput) fileInput.value = "";
         }
     };
 
@@ -542,7 +544,7 @@ const Class6RegForm = () => {
                                         <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Roll</th>
                                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
                                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
+                                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -554,7 +556,7 @@ const Class6RegForm = () => {
                                         </tr>
                                     ) : registrations.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="py-12 text-center text-gray-500">No registrations found</td>
+                                            <td colSpan={6} className="py-12 text-center text-gray-500">No registrations found</td>
                                         </tr>
                                     ) : (
                                         registrations.map((reg) => (

@@ -28,10 +28,13 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       attachment_instruction:
         attachment_instruction || "Please attach all required documents",
     };
-
     if (notice_key) {
       const existingRecord = await prisma.class6_reg.findFirst();
-      if (existingRecord && existingRecord.notice) {
+      if (
+        existingRecord &&
+        existingRecord.notice &&
+        existingRecord.notice !== notice_key
+      ) {
         await deleteFromR2(existingRecord.notice);
       }
       updateData.notice = notice_key;
