@@ -353,7 +353,7 @@ const Class6RegForm = () => {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={settings.class6_year || ""}
                                         onChange={(e) => setSettings({ ...settings, class6_year: e.target.value })}
                                         className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
