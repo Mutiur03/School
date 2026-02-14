@@ -204,8 +204,7 @@ function AdmissionResult() {
 
             if (!item.success) {
               throw new Error(
-                `Error initializing ${item.filename}: ${
-                  item.error || "Unknown error"
+                `Error initializing ${item.filename}: ${item.error || "Unknown error"
                 }`,
               );
             }
@@ -304,7 +303,7 @@ function AdmissionResult() {
       } else {
         toast.error(
           "Failed to upload admission result: " +
-            (error instanceof Error ? error.message : "Unknown error"),
+          (error instanceof Error ? error.message : "Unknown error"),
           { id: toastId },
         );
       }
@@ -739,11 +738,10 @@ function AdmissionResult() {
               {classes.map((cls) => (
                 <button
                   key={cls}
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === cls
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === cls
                       ? "text-primary border-primary"
                       : "text-muted-foreground border-transparent hover:text-foreground"
-                  }`}
+                    }`}
                   onClick={() => setActiveTab(cls)}
                 >
                   Class {cls}
