@@ -839,10 +839,6 @@ export default function RegistrationClass6() {
                             placeholder="Student Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-
-
-
-
                     <FieldRow label="Birth Registration No" isRequired={isRequired("birth_reg_no")} error={errors.birth_reg_no}
                         tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number">
                         <input {...register("birth_reg_no")}
@@ -904,11 +900,6 @@ export default function RegistrationClass6() {
                             </select>
                         </div>
                     </FieldRow>
-
-
-
-
-
                     <FieldRow label="পিতার নাম (বাংলায়)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
                         instruction="(SSC সনদ/NID/ছাত্রের প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
                         tooltip="Enter father's name exactly as it appears in  SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in Bengali">
@@ -938,7 +929,7 @@ export default function RegistrationClass6() {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterNumericInput(e).slice(0, 17);
                             }}
-                            placeholder="1234567890"
+                            placeholder="10 Digits/ 13 Digits/ 17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Father's Mobile Number" isRequired={isRequired("father_phone")} error={errors.father_phone}
@@ -982,7 +973,7 @@ export default function RegistrationClass6() {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterNumericInput(e).slice(0, 17);
                             }}
-                            placeholder="1234567890"
+                            placeholder="10 Digits/ 13 Digits/ 17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Mother's Mobile Number" isRequired={isRequired("mother_phone")} error={errors.mother_phone}
