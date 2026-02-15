@@ -714,36 +714,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       ],
       ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || "")],
       [
-        "Guardian's Name:",
-        wrapBnEn(
-          [
-            registration.guardian_name
-              ? `Name: ${registration.guardian_name}`
-              : "Not Applicable",
-            registration.guardian_relation
-              ? `Relation: ${registration.guardian_relation}`
-              : "",
-            registration.guardian_phone
-              ? `Phone: ${registration.guardian_phone}`
-              : "",
-          ]
-            .filter(Boolean)
-            .join(", "),
-        ),
-      ],
-      [
-        "Guardian's Address:",
-        wrapBnEn(
-          joinAddr(
-            registration.guardian_village_road,
-            registration.guardian_post_office,
-            registration.guardian_post_code,
-            registration.guardian_upazila,
-            registration.guardian_district,
-          ) || "Not Applicable",
-        ),
-      ],
-      [
         "Permanent Address:",
         wrapBnEn(
           joinAddr(
@@ -795,6 +765,36 @@ export const downloadRegistrationPDF = async (req, res) => {
           ]
             .filter(Boolean)
             .join(", "),
+        ),
+      ],
+      [
+        "Guardian's Name:",
+        wrapBnEn(
+          [
+            registration.guardian_name
+              ? `Name: ${registration.guardian_name}`
+              : "Not Applicable",
+            registration.guardian_relation
+              ? `Relation: ${registration.guardian_relation}`
+              : "",
+            registration.guardian_phone
+              ? `Phone: ${registration.guardian_phone}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(", "),
+        ),
+      ],
+      [
+        "Guardian's Address:",
+        wrapBnEn(
+          joinAddr(
+            registration.guardian_village_road,
+            registration.guardian_post_office,
+            registration.guardian_post_code,
+            registration.guardian_upazila,
+            registration.guardian_district,
+          ) || "Not Applicable",
         ),
       ],
       [
