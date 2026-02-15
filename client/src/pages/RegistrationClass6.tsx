@@ -818,8 +818,8 @@ export default function RegistrationClass6() {
                         </select>
                     </FieldRow>
                     <FieldRow label="Student's Name (in English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
-                        instruction="(According to Primary/Birth Registration Card)"
-                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
+                        instruction="(According to Primary/Birth Registration Certificate)"
+                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("student_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -832,8 +832,8 @@ export default function RegistrationClass6() {
 
 
                     <FieldRow label="ছাত্রের নাম (বাংলায়)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
-                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
-                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
+                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in Bengali">
                         <input {...register("student_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -910,8 +910,8 @@ export default function RegistrationClass6() {
 
 
                     <FieldRow label="Father's Name (in English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
-                        instruction="(According to Primary/Birth Registration Card)"
-                        tooltip="Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
+                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
+                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("father_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -921,8 +921,8 @@ export default function RegistrationClass6() {
                             className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="পিতার নাম (বাংলায়)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
-                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
-                        tooltip="Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
+                        instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
                         <input {...register("father_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -954,8 +954,8 @@ export default function RegistrationClass6() {
 
 
                     <FieldRow label="Mother's Name (in English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
-                        instruction="(According to Primary/Birth Registration Card)"
-                        tooltip="Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
+                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
+                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("mother_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -965,8 +965,8 @@ export default function RegistrationClass6() {
                             className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="মাতার নাম (বাংলায়)" isRequired={isRequired("mother_name_bn")} error={errors.mother_name_bn}
-                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
-                        tooltip="Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
+                        instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
                         <input {...register("mother_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
