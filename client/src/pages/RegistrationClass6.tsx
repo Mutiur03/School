@@ -41,12 +41,12 @@ const registrationSchema = z.object({
 
     father_name_bn: z.string().min(1, "Father's Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
     father_name_en: z.string().min(1, "Father's Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
-    father_nid: z.string().min(1, "Father's NID is required").regex(NID, "Must be 10-17 digits"),
+    father_nid: z.string().min(1, "Father's NID is required").regex(NID, "Must be 10, 13 or 17 digits"),
     father_phone: z.string().min(1, "Father's Phone is required").regex(PHONE_NUMBER, "Invalid phone number"),
 
     mother_name_bn: z.string().min(1, "Mother's Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
     mother_name_en: z.string().min(1, "Mother's Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
-    mother_nid: z.string().min(1, "Mother's NID is required").regex(NID, "Must be 10-17 digits"),
+    mother_nid: z.string().min(1, "Mother's NID is required").regex(NID, "Must be 10, 13 or 17 digits"),
     mother_phone: z.string().min(1, "Mother's Phone is required").regex(PHONE_NUMBER, "Invalid phone number"),
 
     permanent_district: z.string().min(1, "District is required"),
@@ -100,7 +100,7 @@ const registrationSchema = z.object({
         if (!data.guardian_nid) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian NID is required", path: ["guardian_nid"] });
         } else if (!NID.test(data.guardian_nid)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian NID", path: ["guardian_nid"] });
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)", path: ["guardian_nid"] });
         }
 
         if (!data.guardian_address_same_as_permanent) {
@@ -929,7 +929,7 @@ export default function RegistrationClass6() {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterNumericInput(e).slice(0, 17);
                             }}
-                            placeholder="10 Digits/ 13 Digits/ 17 Digits"
+                            placeholder="10 Digits/13 Digits/17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Father's Mobile Number" isRequired={isRequired("father_phone")} error={errors.father_phone}
@@ -973,7 +973,7 @@ export default function RegistrationClass6() {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterNumericInput(e).slice(0, 17);
                             }}
-                            placeholder="10 Digits/ 13 Digits/ 17 Digits"
+                            placeholder="10 Digits/13 Digits/17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Mother's Mobile Number" isRequired={isRequired("mother_phone")} error={errors.mother_phone}
@@ -1247,7 +1247,7 @@ export default function RegistrationClass6() {
                                             target.value = filterNumericInput(e);
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                                        placeholder="10 Digits/ 13 Digits/ 17 Digits"
+                                        placeholder="10 Digits/13 Digits/17 Digits"
                                         aria-invalid={!!errors.guardian_nid}
                                     />
                                 </FieldRow>
