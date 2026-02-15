@@ -618,7 +618,6 @@ function StudentList() {
                       value={data.phone}
                       onChange={handleChange}
                       className="w-full p-2 sm:p-3 border border-gray-300 dark:bg-accent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                      required
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -629,7 +628,6 @@ function StudentList() {
                       value={data.father_name}
                       onChange={handleChange}
                       className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                      required
                     />
                     <input
                       type="text"
@@ -638,7 +636,6 @@ function StudentList() {
                       value={data.mother_name}
                       onChange={handleChange}
                       className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                      required
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -649,7 +646,6 @@ function StudentList() {
                       value={data.parent_phone}
                       onChange={handleChange}
                       className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                      required
                     />
                     <input
                       type="text"
@@ -706,7 +702,6 @@ function StudentList() {
                       placeholder="Date of Birth"
                       value={data.dob || ""}
                       onChange={handleChange}
-                      required
                       className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
                     />
                     {Number(data.class) >= 9 && (
