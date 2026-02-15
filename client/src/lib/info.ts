@@ -1,6 +1,6 @@
 export const schoolConfig = {
   name: {
-    en: "Panchbibi Lal Bihari Pilot Government High School",
+    en: "Panchbibi Lal Bihari Pilot Govt. High School",
     bn: "পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়",
     shortEn: "LBPHS",
   },

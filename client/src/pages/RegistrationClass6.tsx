@@ -754,7 +754,7 @@ export default function RegistrationClass6() {
                 <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
                     {isEditMode
                         ? "Edit Admission"
-                        : `Student's Information for Admission ${settings?.class6_year}`}
+                        : `Student's Information for Registration of Class Six ${settings?.class6_year}`}
                 </h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
                     Please fill all required fields. Fields marked{" "}
@@ -791,7 +791,7 @@ export default function RegistrationClass6() {
                             disabled={!selectedSection || availableRolls.length === 0}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         >
-                            <option value="">{!selectedSection ? "Select section first" : availableRolls.length === 0 ? "No rolls available" : "Select Roll"}</option>
+                            <option value="">{!selectedSection ? "Select Section First" : availableRolls.length === 0 ? "No rolls available" : "Select Roll Number"}</option>
                             {availableRolls.map((roll) => (
                                 <option key={roll} value={roll}>
                                     {roll}
@@ -819,7 +819,7 @@ export default function RegistrationClass6() {
                     </FieldRow>
                     <FieldRow label="ছাত্রের নাম (বাংলায়)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
                         instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in Bengali">
+                        tooltip="Enter your name exactly as it appears in Student's Primary/Birth Registration Certificate in Bengali">
                         <input {...register("student_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -830,7 +830,7 @@ export default function RegistrationClass6() {
                     </FieldRow>
                     <FieldRow label="Student's Name (in English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
                         instruction="(According to Primary/Birth Registration Certificate)"
-                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in English capital letters">
+                        tooltip="Enter your name exactly as it appears in Student's Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("student_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -851,7 +851,7 @@ export default function RegistrationClass6() {
                                 target.value = filterNumericInput(e).slice(0, 17);
                             }}
                             maxLength={17}
-                            placeholder="20XXXXXXXXXXXXXXX"
+                            placeholder="17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
 
@@ -910,8 +910,8 @@ export default function RegistrationClass6() {
 
 
                     <FieldRow label="পিতার নাম (বাংলায়)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
-                        instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
+                        instruction="(SSC সনদ/NID/ছাত্রের প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter father's name exactly as it appears in  SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in Bengali">
                         <input {...register("father_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -921,15 +921,15 @@ export default function RegistrationClass6() {
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Father's Name (in English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
-                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
-                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
+                        instruction="(According to SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate)"
+                        tooltip="Enter father's name exactly as it appears in  SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("father_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterEnglishInput(e).toUpperCase();
                             }}
                             placeholder="Father's Name (in English)"
-                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Father's NID" isRequired={isRequired("father_nid")} error={errors.father_nid}
                         tooltip="Enter father's National ID number (10-17 digits)">
@@ -941,7 +941,7 @@ export default function RegistrationClass6() {
                             placeholder="1234567890"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="Father's Phone" isRequired={isRequired("father_phone")} error={errors.father_phone}
+                    <FieldRow label="Father's Mobile Number" isRequired={isRequired("father_phone")} error={errors.father_phone}
                         tooltip="Enter father's mobile number in 11-digit format (e.g., 01XXXXXXXXX)">
                         <input {...register("father_phone")}
                             onInput={(e) => {
@@ -954,8 +954,8 @@ export default function RegistrationClass6() {
 
 
                     <FieldRow label="মাতার নাম (বাংলায়)" isRequired={isRequired("mother_name_bn")} error={errors.mother_name_bn}
-                        instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
+                        instruction="(SSC সনদ/NID/ছাত্রের প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter mother's name exactly as it appears in  SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in Bengali">
                         <input {...register("mother_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
@@ -965,15 +965,15 @@ export default function RegistrationClass6() {
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Mother's Name (in English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
-                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
-                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
+                        instruction="(According to SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate)"
+                        tooltip="Enter mother's name exactly as it appears in  SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in English capital letters">
                         <input {...register("mother_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
                                 target.value = filterEnglishInput(e).toUpperCase();
                             }}
                             placeholder="Mother's Name (in English)"
-                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Mother's NID" isRequired={isRequired("mother_nid")} error={errors.mother_nid}
                         tooltip="Enter mother's National ID number (10-17 digits)">
@@ -985,7 +985,7 @@ export default function RegistrationClass6() {
                             placeholder="1234567890"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="Mother's Phone" isRequired={isRequired("mother_phone")} error={errors.mother_phone}
+                    <FieldRow label="Mother's Mobile Number" isRequired={isRequired("mother_phone")} error={errors.mother_phone}
                         tooltip="Enter mother's mobile number in 11-digit format (e.g., 01XXXXXXXXX)">
                         <input {...register("mother_phone")}
                             onInput={(e) => {
@@ -1024,7 +1024,7 @@ export default function RegistrationClass6() {
                             {...register("permanent_district")}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                         >
-                            <option value="">Select district</option>
+                            <option value="">Select District</option>
                             {districts.map((d) => (
                                 <option key={d.id} value={d.id}>
                                     {d.name}
@@ -1043,7 +1043,7 @@ export default function RegistrationClass6() {
                             disabled={!permanent_district}
                             {...register("permanent_upazila")}
                         >
-                            <option value="">Select upazila/thana</option>
+                            <option value="">Select Upazila/Thana</option>
                             {permanentUpazilas.map((u) => (
                                 <option key={u.id} value={u.id}>
                                     {u.name}
@@ -1127,7 +1127,7 @@ export default function RegistrationClass6() {
                                     {...register("present_district")}
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 >
-                                    <option value="">Select district</option>
+                                    <option value="">Select District</option>
                                     {districts.map((d) => (
                                         <option key={d.id} value={d.id}>
                                             {d.name}
@@ -1145,7 +1145,7 @@ export default function RegistrationClass6() {
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     disabled={!present_district}
                                 >
-                                    <option value="">Select upazila/thana</option>
+                                    <option value="">Select Upazila/Thana</option>
                                     {presentUpazilas.map((u) => (
                                         <option key={u.id} value={u.id}>
                                             {u.name}
@@ -1261,7 +1261,7 @@ export default function RegistrationClass6() {
                                     />
                                 </FieldRow>
                                 <FieldRow
-                                    label="Guardian's Mobile No:"
+                                    label="Guardian's Mobile Number:"
                                     isRequired={guardian_is_not_father}
                                     error={errors.guardian_phone}
                                     tooltip="Enter guardian's mobile number in 11-digit format"
@@ -1330,7 +1330,7 @@ export default function RegistrationClass6() {
                                             {...register("guardian_district")}
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                         >
-                                            <option value="">Select district</option>
+                                            <option value="">Select District</option>
                                             {districts.map((d) => (
                                                 <option key={d.id} value={d.id}>
                                                     {d.name}
@@ -1349,7 +1349,7 @@ export default function RegistrationClass6() {
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                             disabled={!guardian_district}
                                         >
-                                            <option value="">Select upazila/thana</option>
+                                            <option value="">Select Upazila/Thana</option>
                                             {guardianUpazilas.map((u) => (
                                                 <option key={u.id} value={u.id}>
                                                     {u.name}
@@ -1477,7 +1477,7 @@ export default function RegistrationClass6() {
                                 target.value = filterNumericInput(e).slice(0, 6);
                             }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            placeholder="Roll number"
+                            placeholder="Roll Number"
                             aria-invalid={!!errors.roll_in_prev_school}
                         />
                     </FieldRow>
@@ -1523,7 +1523,7 @@ export default function RegistrationClass6() {
                 </SectionHeader>
                 <SectionHeader title="Student Information Reference">
                     <FieldRow
-                        label="বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
+                        label="বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
                         isRequired={true}
                         error={errors.nearby_student_info}
                         tooltip="Select a classmate name from the list"
@@ -1533,7 +1533,7 @@ export default function RegistrationClass6() {
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             aria-invalid={!!errors.nearby_student_info}
                         >
-                            <option value="">Select Option</option>
+                            <option value="">Select Name</option>
                             {settings?.classmates && settings.classmates.split(',').map((name: string, idx: number) => {
                                 const trimmedName = name.trim();
                                 return trimmedName ? (
@@ -1545,11 +1545,11 @@ export default function RegistrationClass6() {
                         </select>
                     </FieldRow>
                 </SectionHeader>
-                <SectionHeader title="Student Photo">
+                <SectionHeader title="বিদ্যালয়ের ইউনিফর্ম পরিহিত ছাত্রের রঙ্গিন ছবি">
                     <FieldRow
                         label={
                             <span>
-                                Photo: (Wearing school uniform)
+                                Photo:
                                 {/* {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>} */}
                             </span>
                         }
