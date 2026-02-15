@@ -98,7 +98,7 @@ function RegClass6() {
                             <div className="border rounded-lg overflow-hidden">
                                 <iframe
                                     src={`${noticeUrl}#navpanes=0&scrollbar=0`}
-                                    className="w-full h-[600px]"
+                                    className="w-full h-250"
                                     title="Class Six Registration Notice"
                                 />
                             </div>
