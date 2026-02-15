@@ -724,6 +724,27 @@ export default function RegistrationClass6() {
             setLoading(false);
         }
     };
+
+    const scrollToFirstError = (errors: any) => {
+        if (!errors) return;
+        const firstKey = Object.keys(errors)[0];
+        if (!firstKey) return;
+
+        // Try to find element by name (React Hook Form sets name on registered inputs)
+        let el = document.querySelector(`[name="${firstKey}"]`) as HTMLElement | null;
+        if (!el) el = document.getElementById(firstKey) as HTMLElement | null;
+        if (!el) {
+            // fallback: try to find any element with data-field attribute
+            el = document.querySelector(`[data-field="${firstKey}"]`) as HTMLElement | null;
+        }
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { (el as HTMLElement).focus(); } catch{ /* ignore */ }
+        } else {
+            // If element not found, scroll to top as fallback
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    };
     const isRequired = (
         fieldName: keyof RegistrationFormData
     ) => {
@@ -767,6 +788,7 @@ export default function RegistrationClass6() {
                     console.log(`${field}:`, error?.message);
                 });
                 console.log("==============================");
+                scrollToFirstError(errors);
             })} className="space-y-10">
                 {/* Step 1: Personal Info */}
                 <SectionHeader title="Personal Information" >
