@@ -255,3 +255,6 @@ docker run --rm -it \
   -v my_new_volume:/to \
   alpine sh -c "cp -a /from/. /to/"
 ```
+docker system df
+
+docker system prune -a
