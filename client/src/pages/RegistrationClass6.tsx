@@ -817,6 +817,17 @@ export default function RegistrationClass6() {
                             <option value="Buddhism">Buddhism</option>
                         </select>
                     </FieldRow>
+                    <FieldRow label="ছাত্রের নাম (বাংলায়)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
+                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
+                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in Bengali">
+                        <input {...register("student_name_bn")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterBanglaInput(e);
+                            }}
+                            placeholder="ছাত্রের নাম (বাংলায়)"
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
+                    </FieldRow>
                     <FieldRow label="Student's Name (in English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
                         instruction="(According to Primary/Birth Registration Certificate)"
                         tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in English capital letters">
@@ -831,17 +842,6 @@ export default function RegistrationClass6() {
 
 
 
-                    <FieldRow label="ছাত্রের নাম (বাংলায়)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
-                        instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-                        tooltip="Enter your name exactly as it appears in your Primary/Birth Registration Certificate in Bengali">
-                        <input {...register("student_name_bn")}
-                            onInput={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                target.value = filterBanglaInput(e);
-                            }}
-                            placeholder="ছাত্রের নাম (বাংলায়)"
-                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
-                    </FieldRow>
 
                     <FieldRow label="Birth Registration No" isRequired={isRequired("birth_reg_no")} error={errors.birth_reg_no}
                         tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number">
@@ -909,17 +909,6 @@ export default function RegistrationClass6() {
 
 
 
-                    <FieldRow label="Father's Name (in English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
-                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
-                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
-                        <input {...register("father_name_en")}
-                            onInput={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(e).toUpperCase();
-                            }}
-                            placeholder="Father's Name (in English)"
-                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
-                    </FieldRow>
                     <FieldRow label="পিতার নাম (বাংলায়)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
                         instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
                         tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
@@ -930,6 +919,17 @@ export default function RegistrationClass6() {
                             }}
                             placeholder="পিতার নাম (বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
+                    </FieldRow>
+                    <FieldRow label="Father's Name (in English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
+                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
+                        tooltip="Enter father's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
+                        <input {...register("father_name_en")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterEnglishInput(e).toUpperCase();
+                            }}
+                            placeholder="Father's Name (in English)"
+                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Father's NID" isRequired={isRequired("father_nid")} error={errors.father_nid}
                         tooltip="Enter father's National ID number (10-17 digits)">
@@ -953,17 +953,6 @@ export default function RegistrationClass6() {
                     </FieldRow>
 
 
-                    <FieldRow label="Mother's Name (in English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
-                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
-                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
-                        <input {...register("mother_name_en")}
-                            onInput={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(e).toUpperCase();
-                            }}
-                            placeholder="Mother's Name (in English)"
-                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
-                    </FieldRow>
                     <FieldRow label="মাতার নাম (বাংলায়)" isRequired={isRequired("mother_name_bn")} error={errors.mother_name_bn}
                         instruction="(SSC সনদ বা NID বা প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
                         tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in Bengali">
@@ -974,6 +963,17 @@ export default function RegistrationClass6() {
                             }}
                             placeholder="মাতার নাম (বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
+                    </FieldRow>
+                    <FieldRow label="Mother's Name (in English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
+                        instruction="(According to SSC Certificate or NID Card or Primary/Birth Registration Certificate)"
+                        tooltip="Enter mother's name exactly as it appears in your SSC Certificate or NID Card or Primary/Birth Registration Certificate in English capital letters">
+                        <input {...register("mother_name_en")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterEnglishInput(e).toUpperCase();
+                            }}
+                            placeholder="Mother's Name (in English)"
+                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
                     <FieldRow label="Mother's NID" isRequired={isRequired("mother_nid")} error={errors.mother_nid}
                         tooltip="Enter mother's National ID number (10-17 digits)">
