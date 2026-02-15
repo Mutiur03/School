@@ -25,6 +25,7 @@ import {
 import { bloodGroups } from "./AdmissionFormNew";
 import { guardianRelations } from "@/lib/guardian";
 import { cdn } from "@/lib/backend";
+import { schoolConfig } from "@/lib/info";
 
 const registrationSchema = z.object({
     student_name_bn: z.string().min(1, "Student Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
@@ -92,17 +93,25 @@ const registrationSchema = z.object({
     }, "Student photo is required"),
 }).superRefine((data, ctx) => {
     if (data.guardian_is_not_father) {
-        if (!data.guardian_name) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_name"] });
-        if (!data.guardian_phone || !PHONE_NUMBER.test(data.guardian_phone)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Phone", path: ["guardian_phone"] });
-        if (!data.guardian_relation) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_relation"] });
-        if (!data.guardian_nid || !NID.test(data.guardian_nid)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid NID", path: ["guardian_nid"] });
+        if (!data.guardian_name) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian name is required", path: ["guardian_name"] });
+        if (!data.guardian_phone) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian phone is required", path: ["guardian_phone"] });
+        } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian Phone Number", path: ["guardian_phone"] });
+        }
+        if (!data.guardian_relation) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian relation is required", path: ["guardian_relation"] });
+        if (!data.guardian_nid) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian NID is required", path: ["guardian_nid"] });
+        } else if (!NID.test(data.guardian_nid)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian NID", path: ["guardian_nid"] });
+        }
 
         if (!data.guardian_address_same_as_permanent) {
-            if (!data.guardian_district) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_district"] });
-            if (!data.guardian_upazila) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_upazila"] });
-            if (!data.guardian_post_office) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_post_office"] });
-            if (!data.guardian_post_code || !POST_CODE.test(data.guardian_post_code)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Post Code", path: ["guardian_post_code"] });
-            if (!data.guardian_village_road) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Required", path: ["guardian_village_road"] });
+            if (!data.guardian_district) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian district is required", path: ["guardian_district"] });
+            if (!data.guardian_upazila) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian upazila is required", path: ["guardian_upazila"] });
+            if (!data.guardian_post_office) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian post office is required", path: ["guardian_post_office"] });
+            if (!data.guardian_post_code || !POST_CODE.test(data.guardian_post_code)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian Post Code", path: ["guardian_post_code"] });
+            if (!data.guardian_village_road) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian village/road is required", path: ["guardian_village_road"] });
         }
     }
 });
@@ -205,6 +214,9 @@ const SectionHeader: React.FC<{ title: string, children: React.ReactNode }> = ({
 );
 
 export default function RegistrationClass6() {
+    useEffect(() => {
+        document.title = "Class Six Registration | " + schoolConfig.name.en;
+    }, []);
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = Boolean(id);
@@ -228,7 +240,8 @@ export default function RegistrationClass6() {
         formState: { errors },
     } = useForm<RegistrationFormData>({
         resolver: zodResolver(registrationSchema) as Resolver<RegistrationFormData>,
-        mode: "onTouched",
+        mode: "onBlur",
+        reValidateMode: "onChange",
         defaultValues: {
             guardian_is_not_father: false,
             guardian_address_same_as_permanent: false,
@@ -252,6 +265,7 @@ export default function RegistrationClass6() {
         name: "permanent_village_road",
     });
     const present_district = useWatch({ control, name: "present_district" });
+    const present_upazila = useWatch({ control, name: "present_upazila" });
     const guardian_is_not_father = useWatch({
         control,
         name: "guardian_is_not_father",
@@ -261,10 +275,12 @@ export default function RegistrationClass6() {
         name: "guardian_address_same_as_permanent",
     });
     const guardian_district = useWatch({ control, name: "guardian_district" });
+    const guardian_upazila = useWatch({ control, name: "guardian_upazila" });
     const prev_school_district = useWatch({
         control,
         name: "prev_school_district",
     });
+    const prev_school_upazila = useWatch({ control, name: "prev_school_upazila" });
     const birth_year = useWatch({ control, name: "birth_year" });
     const birth_month = useWatch({ control, name: "birth_month" });
     const birth_reg_no = useWatch({ control, name: "birth_reg_no" });
@@ -459,7 +475,11 @@ export default function RegistrationClass6() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPermanentUpazilas(upazilas);
-    }, [permanent_district]);
+        // Only clear the upazila value if it's missing or not present in the new options
+        if (!permanent_upazila || !upazilas.some((u: any) => String(u.id) === String(permanent_upazila))) {
+            setValue("permanent_upazila", "", { shouldValidate: true });
+        }
+    }, [permanent_district, permanent_upazila, setValue]);
     useEffect(() => {
         const selectedDistrictId = present_district;
         if (!selectedDistrictId) {
@@ -468,23 +488,34 @@ export default function RegistrationClass6() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPresentUpazilas(upazilas);
-    }, [present_district]);
+        if (!present_upazila || !upazilas.some((u: any) => String(u.id) === String(present_upazila))) {
+            setValue("present_upazila", "", { shouldValidate: true });
+        }
+    }, [present_district, present_upazila, setValue]);
     useEffect(() => {
-        if (!guardian_is_not_father || guardian_address_same_as_permanent) {
+        if (!guardian_is_not_father) {
             setGuardianUpazilas([]);
             return;
         }
-        const selectedDistrictId = guardian_district;
+        const selectedDistrictId = guardian_address_same_as_permanent ? permanent_district : guardian_district;
         if (!selectedDistrictId) {
             setGuardianUpazilas([]);
             return;
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setGuardianUpazilas(upazilas);
+        const expectedUpazila = guardian_address_same_as_permanent ? permanent_upazila : guardian_upazila;
+        if (!expectedUpazila || !upazilas.some((u: any) => String(u.id) === String(expectedUpazila))) {
+            setValue("guardian_upazila", "", { shouldValidate: true });
+        }
     }, [
         guardian_is_not_father,
         guardian_district,
         guardian_address_same_as_permanent,
+        permanent_district,
+        permanent_upazila,
+        guardian_upazila,
+        setValue,
     ]);
     useEffect(() => {
         if (sameAsPermanent) {
@@ -560,7 +591,11 @@ export default function RegistrationClass6() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPrevSchoolUpazilas(upazilas);
-    }, [prev_school_district]);
+        // Only clear the upazila value if it's missing or not present in the new options
+        if (!prev_school_upazila || !upazilas.some((u: any) => String(u.id) === String(prev_school_upazila))) {
+            setValue("prev_school_upazila", "", { shouldValidate: true });
+        }
+    }, [prev_school_district, prev_school_upazila, setValue]);
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {

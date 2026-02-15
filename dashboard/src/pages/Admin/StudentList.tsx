@@ -320,7 +320,18 @@ function StudentList() {
         raw: false,
       }) as unknown[][];
 
-      const requiredFields = [
+      const headers = rawData[0]?.map((header) =>
+        String(header).toLowerCase().trim()
+      );
+
+      // Check for simplified format (only name, section, class, roll)
+      const simplifiedRequiredFields = ["name", "section", "class", "roll"];
+      const hasSimplifiedFormat = simplifiedRequiredFields.every(field =>
+        headers.includes(field)
+      );
+
+      // Full format required fields
+      const fullRequiredFields = [
         "name",
         "father_name",
         "mother_name",
@@ -336,19 +347,33 @@ function StudentList() {
         "department",
       ];
 
-      const headers = rawData[0]?.map((header) =>
-        String(header).toLowerCase().trim()
-      );
-      const missingFields = requiredFields.filter(
-        (field) => !headers.includes(field)
+      const hasFullFormat = fullRequiredFields.every(field =>
+        headers.includes(field)
       );
 
-      if (missingFields.length > 0) {
-        toast.error(
-          `Missing required fields: ${missingFields.join(
-            ", "
-          )}. Please check your file.`
+      // If neither format is complete, check which one is closer
+      if (!hasSimplifiedFormat && !hasFullFormat) {
+        const missingSimplified = simplifiedRequiredFields.filter(
+          (field) => !headers.includes(field)
         );
+        const missingFull = fullRequiredFields.filter(
+          (field) => !headers.includes(field)
+        );
+
+        // Show error for whichever format has fewer missing fields
+        if (missingSimplified.length <= missingFull.length) {
+          toast.error(
+            `Missing required fields for simplified format: ${missingSimplified.join(
+              ", "
+            )}. Required: name, section, class, roll`
+          );
+        } else {
+          toast.error(
+            `Missing required fields: ${missingFull.join(
+              ", "
+            )}. Please check your file.`
+          );
+        }
         setFileUploaded(false);
         setexcelfile(null);
         return;
@@ -386,6 +411,10 @@ function StudentList() {
       });
 
       setJsonData(formattedData);
+
+      if (hasSimplifiedFormat && !hasFullFormat) {
+        toast.success(`Loaded ${formattedData.length} students in simplified format. Missing fields will be left blank.`);
+      }
     };
     reader.onerror = () => {
       toast.error("Error reading the file. Please try again.");
@@ -514,8 +543,8 @@ function StudentList() {
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
                   className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${!isExcelUpload
-                      ? "bg-sky-500 text-white shadow-lg"
-                      : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-sky-500 text-white shadow-lg"
+                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
                     }`}
                 >
                   Form
@@ -524,8 +553,8 @@ function StudentList() {
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
                   className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${isExcelUpload
-                      ? "bg-sky-500 text-white shadow-lg"
-                      : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-sky-500 text-white shadow-lg"
+                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
                     }`}
                 >
                   Excel Upload
@@ -1101,11 +1130,33 @@ function StudentList() {
 
               <div className="space-y-4">
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Your Excel file must contain the following columns with exact
-                  names (case-insensitive):
+                  You can use either the <strong>Simplified Format</strong> (recommended for quick bulk uploads) or the <strong>Full Format</strong> (for complete student information).
                 </p>
 
+                {/* Simplified Format */}
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <h3 className="font-medium text-green-800 dark:text-green-200 mb-2">
+                    ✅ Simplified Format (Recommended)
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300 mb-2">
+                    Only 4 columns required. Missing fields will be left blank.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-sm bg-white dark:bg-gray-800 rounded p-3">
+                    <div className="font-medium">Required Columns:</div>
+                    <div></div>
+                    <div>• name</div>
+                    <div>• section</div>
+                    <div>• class</div>
+                    <div>• roll</div>
+                  </div>
+                </div>
+
+                {/* Full Format */}
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <h3 className="font-medium mb-2">Full Format (All Details)</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                    Use this format if you have complete student information:
+                  </p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="font-medium">Required Columns:</div>
                     <div></div>
@@ -1137,37 +1188,30 @@ function StudentList() {
                   <h3 className="font-medium">Important Notes:</h3>
                   <ul className="text-sm space-y-1 list-disc list-inside text-gray-600 dark:text-gray-300">
                     <li>
-                      <strong>Date Format:</strong> Use DD/MM/YYYY format for
-                      date of birth (e.g., 15/08/2005)
+                      <strong>Simplified Format:</strong> Missing fields will be left blank (null) - you can update them later individually
                     </li>
                     <li>
-                      <strong>Phone Numbers:</strong> Enter without country code
-                      (10 digits)
+                      <strong>Date Format (Full):</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)
                     </li>
                     <li>
-                      <strong>has_stipend:</strong> Use "Yes" or "No"
+                      <strong>Phone Numbers (Full):</strong> Enter without country code (10 digits)
                     </li>
                     <li>
-                      <strong>department:</strong> Required only for classes 9
-                      and 10 (Science/Commerce/Arts)
+                      <strong>has_stipend (Full):</strong> Use "Yes" or "No"
                     </li>
                     <li>
-                      <strong>File Format:</strong> Only .xlsx or .xls files are
-                      accepted
+                      <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Arts)
                     </li>
-                    <li>First row should contain column headers</li>
                     <li>
-                      All required fields must be present, even if some cells
-                      are empty
+                      <strong>File Format:</strong> Only .xlsx or .xls files are accepted
                     </li>
+                    <li>First row should contain column headers (case-insensitive)</li>
                   </ul>
                 </div>
 
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Tip:</strong> Make sure your Excel file has all the
-                    required column headers in the first row exactly as listed
-                    above.
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>💡 Quick Start:</strong> For bulk uploads, use the simplified format with just name, section, class, and roll. You can update other details later individually.
                   </p>
                 </div>
               </div>

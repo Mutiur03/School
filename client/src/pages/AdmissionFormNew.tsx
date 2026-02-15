@@ -849,14 +849,45 @@ function Form() {
     setValue,
   ]);
   useEffect(() => {
-    if (!guardian_is_not_father || guardian_address_same_as_permanent) {
-      setValue("guardian_district", "", { shouldValidate: true });
-      setValue("guardian_upazila", "", { shouldValidate: true });
-      setValue("guardian_post_office", "", { shouldValidate: true });
-      setValue("guardian_post_code", "", { shouldValidate: true });
-      setValue("guardian_village_road", "", { shouldValidate: true });
+    if (guardian_address_same_as_permanent) {
+      setValue("guardian_district", permanent_district, {
+        shouldValidate: true,
+      });
+      setValue("guardian_upazila", permanent_upazila, { shouldValidate: true });
+      setValue("guardian_post_office", permanent_post_office, {
+        shouldValidate: true,
+      });
+      setValue("guardian_post_code", permanent_post_code, {
+        shouldValidate: true,
+      });
+      setValue("guardian_village_road", permanent_village_road, {
+        shouldValidate: true,
+      });
     }
-  }, [guardian_is_not_father, guardian_address_same_as_permanent, setValue]);
+  }, [
+    guardian_address_same_as_permanent,
+    permanent_district,
+    permanent_upazila,
+    permanent_post_office,
+    permanent_post_code,
+    permanent_village_road,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    if (!guardian_is_not_father) {
+      setValue("guardian_name", "");
+      setValue("guardian_phone", "");
+      setValue("guardian_relation", "");
+      setValue("guardian_nid", "");
+      setValue("guardian_address_same_as_permanent", false);
+      setValue("guardian_district", "");
+      setValue("guardian_upazila", "");
+      setValue("guardian_post_office", "");
+      setValue("guardian_post_code", "");
+      setValue("guardian_village_road", "");
+    }
+  }, [guardian_is_not_father, setValue]);
   useEffect(() => {
     const selectedDistrictId = prev_school_district;
     if (!selectedDistrictId) {
