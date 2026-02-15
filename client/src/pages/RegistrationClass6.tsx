@@ -11,7 +11,6 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     BANGLA_ONLY,
-    BANGLA_OPTIONAL,
     ENGLISH_ONLY,
     PHONE_NUMBER,
     NID,
@@ -22,20 +21,18 @@ import {
     filterEnglishInput,
     filterBanglaInput,
 } from "@/lib/regex";
-import { bloodGroups } from "./AdmissionFormNew";
+
 import { guardianRelations } from "@/lib/guardian";
 import { cdn } from "@/lib/backend";
 import { schoolConfig } from "@/lib/info";
 
 const registrationSchema = z.object({
     student_name_bn: z.string().min(1, "Student Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
-    student_nick_name_bn: z.string().min(1, "Nickname in Bangla is required").regex(BANGLA_OPTIONAL, "Only Bangla characters are allowed"),
     student_name_en: z.string().min(1, "Student Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
     birth_reg_no: z.string().min(1, "Birth Registration Number is required").regex(BIRTH_REG_NO, "Must be 17 digits"),
     birth_year: z.string().min(1, "Year is required"),
     birth_month: z.string().min(1, "Month is required"),
     birth_day: z.string().min(1, "Day is required"),
-    blood_group: z.string().optional(),
     email: z.preprocess((v) => (v === null ? "" : v), z.string().default("")
         .refine((val) => !val || /^[\x00-\x7F]+$/.test(val), "Email must contain only English characters",)
         .refine((val) => !val || z.string().email().safeParse(val).success, "Invalid email format",),
@@ -245,7 +242,6 @@ export default function RegistrationClass6() {
         defaultValues: {
             guardian_is_not_father: false,
             guardian_address_same_as_permanent: false,
-            blood_group: "",
             birth_year: "",
         },
     });
@@ -819,10 +815,9 @@ export default function RegistrationClass6() {
                             <option value="Hinduism">Hinduism</option>
                             <option value="Christianity">Christianity</option>
                             <option value="Buddhism">Buddhism</option>
-                            <option value="Other">Other</option>
                         </select>
                     </FieldRow>
-                    <FieldRow label="Student's Name (English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
+                    <FieldRow label="Student's Name (in English)" isRequired={isRequired("student_name_en")} error={errors.student_name_en}
                         instruction="(According to Primary/Birth Registration Card)"
                         tooltip="Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
                         <input {...register("student_name_en")}
@@ -836,7 +831,7 @@ export default function RegistrationClass6() {
 
 
 
-                    <FieldRow label="ছাত্রের নাম (বাংলা)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
+                    <FieldRow label="ছাত্রের নাম (বাংলায়)" isRequired={isRequired("student_name_bn")} error={errors.student_name_bn}
                         instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
                         tooltip="Enter your name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
                         <input {...register("student_name_bn")}
@@ -845,17 +840,6 @@ export default function RegistrationClass6() {
                                 target.value = filterBanglaInput(e);
                             }}
                             placeholder="ছাত্রের নাম (বাংলায়)"
-                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
-                    </FieldRow>
-
-                    <FieldRow label="ডাকনাম (বাংলা)" isRequired={isRequired("student_nick_name_bn")} error={errors.student_nick_name_bn}
-                        tooltip="Enter your nickname in Bengali, use only one word">
-                        <input {...register("student_nick_name_bn")}
-                            onInput={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                target.value = filterBanglaInput(e);
-                            }}
-                            placeholder="ডাকনাম (এক শব্দে/বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
 
@@ -925,7 +909,7 @@ export default function RegistrationClass6() {
 
 
 
-                    <FieldRow label="Father's Name (English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
+                    <FieldRow label="Father's Name (in English)" isRequired={isRequired("father_name_en")} error={errors.father_name_en}
                         instruction="(According to Primary/Birth Registration Card)"
                         tooltip="Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
                         <input {...register("father_name_en")}
@@ -936,7 +920,7 @@ export default function RegistrationClass6() {
                             placeholder="Father's Name (in English)"
                             className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="পিতার নাম (বাংলা)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
+                    <FieldRow label="পিতার নাম (বাংলায়)" isRequired={isRequired("father_name_bn")} error={errors.father_name_bn}
                         instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
                         tooltip="Enter father's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
                         <input {...register("father_name_bn")}
@@ -969,7 +953,7 @@ export default function RegistrationClass6() {
                     </FieldRow>
 
 
-                    <FieldRow label="Mother's Name (English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
+                    <FieldRow label="Mother's Name (in English)" isRequired={isRequired("mother_name_en")} error={errors.mother_name_en}
                         instruction="(According to Primary/Birth Registration Card)"
                         tooltip="Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in English capital letters">
                         <input {...register("mother_name_en")}
@@ -980,7 +964,7 @@ export default function RegistrationClass6() {
                             placeholder="Mother's Name (in English)"
                             className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="মাতার নাম (বাংলা)" isRequired={isRequired("mother_name_bn")} error={errors.mother_name_bn}
+                    <FieldRow label="মাতার নাম (বাংলায়)" isRequired={isRequired("mother_name_bn")} error={errors.mother_name_bn}
                         instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ (BRC) অনুযায়ী)"
                         tooltip="Enter mother's name exactly as it appears in your Primary/Birth Registration (BRC) document in Bengali">
                         <input {...register("mother_name_bn")}
@@ -1010,12 +994,6 @@ export default function RegistrationClass6() {
                             }}
                             placeholder="01XXXXXXXXX"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
-                    </FieldRow>
-                    <FieldRow label="Blood Group" isRequired={isRequired("blood_group")} error={errors.blood_group}>
-                        <select {...register("blood_group")} className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300">
-                            <option value="">Select Blood Group</option>
-                            {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                        </select>
                     </FieldRow>
 
                     <FieldRow label="Email" isRequired={false} error={errors.email}

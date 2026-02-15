@@ -22,7 +22,6 @@ import { cdn } from "@/lib/backend";
 interface Registration {
     id: string;
     student_name_bn: string;
-    student_nick_name_bn?: string;
     student_name_en: string;
     section: string;
     roll: string;
@@ -31,7 +30,6 @@ interface Registration {
     birth_reg_no: string;
     birth_date: string;
     religion?: string;
-    blood_group?: string;
     email?: string;
     father_name_bn: string;
     father_name_en: string;
@@ -286,10 +284,14 @@ const Class6RegForm = () => {
         try {
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) return dateStr;
-            const d = String(date.getDate()).padStart(2, '0');
-            const m = date.toLocaleString('en-GB', { month: 'short' });
-            const y = date.getFullYear();
-            return `${d} ${m} ${y}`;
+            return date.toLocaleString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            });
         } catch {
             return dateStr;
         }
@@ -712,10 +714,6 @@ const Class6RegForm = () => {
                                                     </td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 w-1/3 bg-gray-50/30 dark:bg-gray-800/30">Student Name (BN)</td>
-                                                    <td className="px-4 py-2.5 font-medium">{selectedReg.student_name_bn} {selectedReg.student_nick_name_bn && `(${selectedReg.student_nick_name_bn})`}</td>
-                                                </tr>
-                                                <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Student Name (EN)</td>
                                                     <td className="px-4 py-2.5 font-bold text-blue-700 dark:text-blue-400 uppercase">{selectedReg.student_name_en}</td>
                                                 </tr>
@@ -726,10 +724,6 @@ const Class6RegForm = () => {
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Date of Birth</td>
                                                     <td className="px-4 py-2.5">{formatDate(selectedReg.birth_date)}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Blood Group</td>
-                                                    <td className="px-4 py-2.5 font-semibold text-red-600 dark:text-red-400">{selectedReg.blood_group || "Not Set"}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Contact Info</td>
@@ -748,16 +742,16 @@ const Class6RegForm = () => {
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Father's Info</td>
                                                     <td className="px-4 py-2.5">
-                                                        <p className="font-semibold">{selectedReg.father_name_bn}</p>
-                                                        <p className="text-xs uppercase text-gray-500">{selectedReg.father_name_en}</p>
+                                                        <p><strong>Father's Name (BN):</strong> {selectedReg.father_name_bn}</p>
+                                                        <p><strong>Father's Name (EN):</strong> {selectedReg.father_name_en}</p>
                                                         <p className="text-xs">NID: {selectedReg.father_nid || "-"}</p>
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Mother's Info</td>
-                                                    <td className="px-4 py-2.5">
-                                                        <p className="font-semibold">{selectedReg.mother_name_bn}</p>
-                                                        <p className="text-xs uppercase text-gray-500">{selectedReg.mother_name_en}</p>
+                                                    <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 text-lg">
+                                                        {selectedReg.student_name_bn}
+                                                        <span className="block text-sm font-normal text-gray-500 uppercase mt-1">{selectedReg.student_name_en}</span>
                                                         <p className="text-xs">NID: {selectedReg.mother_nid || "-"}</p>
                                                     </td>
                                                 </tr>

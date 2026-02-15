@@ -9,7 +9,6 @@ type ConfirmationClass6_Props = {
     id?: string;
     // Personal Information
     student_name_bn?: string | null;
-    student_nick_name_bn?: string | null;
     student_name_en?: string | null;
     birth_reg_no?: string | null;
     registration_no?: string | null;
@@ -28,7 +27,6 @@ type ConfirmationClass6_Props = {
     birth_year?: string | null;
     birth_month?: string | null;
     birth_day?: string | null;
-    blood_group?: string | null;
     email?: string | null;
     religion?: string | null;
 
@@ -545,9 +543,7 @@ function Class6RegConfirmation() {
                         {registration.religion ? (
                             <span>Religion: {registration.religion}</span>
                         ) : null}
-                        {registration.blood_group ? (
-                            <span>Blood Group: {registration.blood_group}</span>
-                        ) : null}
+            
                     </div>
 
                     <div className="grid gap-8">
@@ -647,11 +643,6 @@ function Class6RegConfirmation() {
                                         {renderOptionalRow(
                                             "Mother's Mobile Number:",
                                             registration.mother_phone,
-                                        )}
-                                        {renderOptionalRow("Blood Group:", registration.blood_group)}
-                                        {renderOptionalRow(
-                                            "Student Nickname (BN):",
-                                            registration.student_nick_name_bn,
                                         )}
                                         {renderOptionalRow(
                                             "Nearby Student Info:",

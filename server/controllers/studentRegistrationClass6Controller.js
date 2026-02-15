@@ -1156,7 +1156,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         <div class="web en">${schoolWeb}</div>
       </div>
       <div class="title-row en">
-        Student's Information for Admission of Class Six ${class6Year}
+        Student's Information for Registration of Class Six ${class6Year}
       </div>
       <div class="section-row en">
         Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span>

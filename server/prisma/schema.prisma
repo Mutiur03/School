@@ -596,7 +596,6 @@ model student_registration_class6 {
   roll                 String @db.VarChar(20)
   religion             String @db.VarChar(50)
   student_name_bn      String @db.VarChar(100)
-  student_nick_name_bn String @db.VarChar(50)
   student_name_en      String @db.VarChar(100)
   birth_reg_no         String @db.VarChar(17)
 
@@ -615,7 +614,6 @@ model student_registration_class6 {
   birth_year  String @db.VarChar(4)
   birth_month String @db.VarChar(2)
   birth_day   String @db.VarChar(2)
-  blood_group String? @db.VarChar(10)
   email       String? @db.VarChar(100)
 
   // Address Information
