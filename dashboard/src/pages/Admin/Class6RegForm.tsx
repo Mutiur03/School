@@ -81,6 +81,7 @@ interface Class6RegSettings {
     instruction_for_b: string;
     attachment_instruction: string;
     notice: string | null;
+    classmates: string;
 }
 
 const Class6RegForm = () => {
@@ -94,7 +95,8 @@ const Class6RegForm = () => {
         instruction_for_a: "",
         instruction_for_b: "",
         attachment_instruction: "",
-        notice: null
+        notice: null,
+        classmates: ""
     });
     const [loading, setLoading] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
@@ -412,6 +414,16 @@ const Class6RegForm = () => {
                                         onChange={(e) => setSettings({ ...settings, instruction_for_b: e.target.value })}
                                         className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
+                                    <textarea
+                                        value={settings.classmates || ""}
+                                        onChange={(e) => setSettings({ ...settings, classmates: e.target.value })}
+                                        placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>

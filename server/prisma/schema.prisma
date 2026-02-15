@@ -585,6 +585,7 @@ model class6_reg {
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
+  classmates             String?
 }
 
 model student_registration_class6 {
