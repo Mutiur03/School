@@ -922,7 +922,7 @@ export default function RegistrationClass6() {
                             placeholder="Father's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="Father's NID" isRequired={isRequired("father_nid")} error={errors.father_nid}
+                    <FieldRow label="Father's NID Number" isRequired={isRequired("father_nid")} error={errors.father_nid}
                         tooltip="Enter father's National ID number (10-17 digits)">
                         <input {...register("father_nid")}
                             onInput={(e) => {
@@ -966,7 +966,7 @@ export default function RegistrationClass6() {
                             placeholder="Mother's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
-                    <FieldRow label="Mother's NID" isRequired={isRequired("mother_nid")} error={errors.mother_nid}
+                    <FieldRow label="Mother's NID Number" isRequired={isRequired("mother_nid")} error={errors.mother_nid}
                         tooltip="Enter mother's National ID number (10-17 digits)">
                         <input {...register("mother_nid")}
                             onInput={(e) => {
@@ -1231,7 +1231,7 @@ export default function RegistrationClass6() {
                                     />
                                 </FieldRow>
                                 <FieldRow
-                                    label="Guardian's NID:"
+                                    label="Guardian's NID Number:"
                                     isRequired={guardian_is_not_father}
                                     error={errors.guardian_nid}
                                     tooltip="Enter guardian's National ID number (10-17 digits)"
@@ -1247,7 +1247,7 @@ export default function RegistrationClass6() {
                                             target.value = filterNumericInput(e);
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                                        placeholder="Guardian's NID"
+                                        placeholder="10 Digits/ 13 Digits/ 17 Digits"
                                         aria-invalid={!!errors.guardian_nid}
                                     />
                                 </FieldRow>
