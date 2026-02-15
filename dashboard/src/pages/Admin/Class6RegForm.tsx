@@ -868,7 +868,7 @@ const Class6RegForm = () => {
                                             a.click();
                                             a.remove();
                                             window.URL.revokeObjectURL(url);
-                                            toast.success("PDF Downloaded successfully");
+                                            // toast.success("PDF Downloaded successfully");
                                         } catch (err) {
                                             console.error(err);
                                             toast.error("Failed to download PDF");
