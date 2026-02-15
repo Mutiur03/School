@@ -260,77 +260,13 @@ function Class6RegConfirmation() {
             .replace(/(\w+)\s(\d{4})/, "$1, $2");
     };
 
-    const formatMobileNumbers = () => {
-        const nums = [
-            registration?.father_phone ?? "",
-            registration?.mother_phone ?? "",
-        ]
-            .filter(Boolean)
-            .join(", ");
-        return nums || null;
-    };
 
-    const formatPreviousSchool = () => {
-        return (
-            [
-                registration?.prev_school_name,
-                registration?.prev_school_upazila,
-                registration?.prev_school_district,
-            ]
-                .filter(Boolean)
-                .join(", ") || null
-        );
-    };
 
-    const formatPreviousSchoolMeta = () => {
-        if (!registration) return null;
-        const parts: string[] = [];
-        if (
-            registration.section_in_prev_school &&
-            String(registration.section_in_prev_school).trim() !== ""
-        ) {
-            parts.push(`Section: ${registration.section_in_prev_school}`);
-        }
-        if (
-            registration.roll_in_prev_school &&
-            String(registration.roll_in_prev_school).trim() !== ""
-        ) {
-            parts.push(`Roll: ${registration.roll_in_prev_school}`);
-        }
-        if (
-            registration.prev_school_passing_year &&
-            String(registration.prev_school_passing_year).trim() !== ""
-        ) {
-            parts.push(`Year: ${registration.prev_school_passing_year}`);
-        }
-        return parts.length > 0 ? parts.join(" / ") : null;
-    };
 
-    const formatGuardianInfo = () => {
-        if (!registration) return null;
-        if (
-            !registration.guardian_name &&
-            !registration.guardian_phone &&
-            !registration.guardian_relation &&
-            !registration.guardian_nid
-        ) {
-            return null;
-        }
-        return (
-            [
-                registration?.guardian_name ? `Name: ${registration?.guardian_name}` : "",
-                registration?.guardian_relation
-                    ? `Relation: ${registration?.guardian_relation}`
-                    : "",
-                registration?.guardian_phone
-                    ? `Phone: ${registration?.guardian_phone}`
-                    : "",
-                registration?.guardian_nid ? `NID: ${registration?.guardian_nid}` : "",
-            ]
-                .filter(Boolean)
-                .join(", ") || null
-        );
-    };
+
+
+
+
 
     const formatGuardianAddress = () => {
         if (!registration) return null;
@@ -543,7 +479,7 @@ function Class6RegConfirmation() {
                         {registration.religion ? (
                             <span>Religion: {registration.religion}</span>
                         ) : null}
-            
+
                     </div>
 
                     <div className="grid gap-8">
@@ -554,51 +490,71 @@ function Class6RegConfirmation() {
                                     style={{ minWidth: "600px" }}
                                 >
                                     <tbody>
+                                        {/* Personal Information */}
+                                        <tr className="bg-gray-100 border-b border-gray-200">
+                                            <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
+                                                Personal Information
+                                            </td>
+                                        </tr>
+                                        {renderOptionalRow("Section:", registration.section)}
+                                        {renderOptionalRow("Roll:", registration.roll)}
+                                        {renderOptionalRow("Religion:", registration.religion)}
                                         {renderOptionalRow(
-                                            "ছাত্রের নাম:",
+                                            "ছাত্রের নাম (বাংলায়):",
                                             registration.student_name_bn,
                                         )}
                                         {renderOptionalRow(
-                                            "Student's Name:",
+                                            "Student's Name (in English):",
                                             registration.student_name_en
                                                 ? registration.student_name_en.toUpperCase()
                                                 : undefined,
                                         )}
                                         {renderOptionalRow(
-                                            "Birth Registration Number:",
+                                            "Birth Registration No:",
                                             registration.birth_reg_no,
                                         )}
                                         {renderOptionalRow(
                                             "Date of Birth:",
                                             formatDateLong(registration.birth_date),
                                         )}
-                                        {renderOptionalRow("Email Address:", registration.email)}
+                                        {renderOptionalRow("Email:", registration.email)}
+                                        {renderOptionalRow("পিতার নাম (বাংলায়):", registration.father_name_bn)}
                                         {renderOptionalRow(
-                                            "Mobile Numbers:",
-                                            formatMobileNumbers(),
-                                        )}
-                                        {renderOptionalRow("পিতার নাম:", registration.father_name_bn)}
-                                        {renderOptionalRow(
-                                            "Father's Name:",
+                                            "Father's Name (in English):",
                                             registration.father_name_en
                                                 ? registration.father_name_en.toUpperCase()
                                                 : undefined,
                                         )}
                                         {renderOptionalRow(
-                                            "Father's National ID Number:",
+                                            "Father's NID:",
                                             registration.father_nid,
                                         )}
-                                        {renderOptionalRow("মাতার নাম:", registration.mother_name_bn)}
                                         {renderOptionalRow(
-                                            "Mother's Name:",
+                                            "Father's Mobile Number:",
+                                            registration.father_phone,
+                                        )}
+                                        {renderOptionalRow("মাতার নাম (বাংলায়):", registration.mother_name_bn)}
+                                        {renderOptionalRow(
+                                            "Mother's Name (in English):",
                                             registration.mother_name_en
                                                 ? registration.mother_name_en.toUpperCase()
                                                 : undefined,
                                         )}
                                         {renderOptionalRow(
-                                            "Mother's National ID Number:",
+                                            "Mother's NID:",
                                             registration.mother_nid,
                                         )}
+                                        {renderOptionalRow(
+                                            "Mother's Mobile Number:",
+                                            registration.mother_phone,
+                                        )}
+
+                                        {/* Address Information */}
+                                        <tr className="bg-gray-100 border-b border-gray-200">
+                                            <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
+                                                Address Information
+                                            </td>
+                                        </tr>
                                         {renderOptionalRow(
                                             "Permanent Address:",
                                             joinAddr(
@@ -619,33 +575,65 @@ function Class6RegConfirmation() {
                                                 registration.present_district,
                                             ),
                                         )}
+
+                                        {/* Guardian Information */}
+                                        {(registration.guardian_name || registration.guardian_phone) && (
+                                            <>
+                                                <tr className="bg-gray-100 border-b border-gray-200">
+                                                    <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
+                                                        Guardian Information
+                                                    </td>
+                                                </tr>
+                                                {renderOptionalRow("Guardian's Name:", registration.guardian_name)}
+                                                {renderOptionalRow("Guardian's NID:", registration.guardian_nid)}
+                                                {renderOptionalRow("Guardian's Mobile Number:", registration.guardian_phone)}
+                                                {renderOptionalRow("Relationship with Guardian:", registration.guardian_relation)}
+                                                {renderOptionalRow(
+                                                    "Guardian's Address:",
+                                                    formatGuardianAddress(),
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Previous School Information */}
+                                        <tr className="bg-gray-100 border-b border-gray-200">
+                                            <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
+                                                Previous School Information (Class 5)
+                                            </td>
+                                        </tr>
                                         {renderOptionalRow(
-                                            "Guardian's Name:",
-                                            formatGuardianInfo(),
+                                            "Name of Previous School:",
+                                            registration.prev_school_name,
                                         )}
                                         {renderOptionalRow(
-                                            "Guardian's Address:",
-                                            formatGuardianAddress(),
+                                            "Passing Year:",
+                                            registration.prev_school_passing_year,
                                         )}
                                         {renderOptionalRow(
-                                            "Previous School Name & Address:",
-                                            formatPreviousSchool(),
+                                            "Section:",
+                                            registration.section_in_prev_school,
                                         )}
                                         {renderOptionalRow(
-                                            "Previous School Acadmic Info:",
-                                            formatPreviousSchoolMeta(),
-                                        )}
-                                        
-                                        {renderOptionalRow(
-                                            "Father's Mobile Number:",
-                                            registration.father_phone,
+                                            "Roll:",
+                                            registration.roll_in_prev_school,
                                         )}
                                         {renderOptionalRow(
-                                            "Mother's Mobile Number:",
-                                            registration.mother_phone,
+                                            "District:",
+                                            registration.prev_school_district,
                                         )}
                                         {renderOptionalRow(
-                                            "Nearby Student Info:",
+                                            "Upazila/Thana:",
+                                            registration.prev_school_upazila,
+                                        )}
+
+                                        {/* Reference */}
+                                        <tr className="bg-gray-100 border-b border-gray-200">
+                                            <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
+                                                Student Information Reference
+                                            </td>
+                                        </tr>
+                                        {renderOptionalRow(
+                                            "বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
                                             registration.nearby_student_info,
                                         )}
                                     </tbody>

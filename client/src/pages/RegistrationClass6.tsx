@@ -837,7 +837,7 @@ export default function RegistrationClass6() {
                                 target.value = filterEnglishInput(e).toUpperCase();
                             }}
                             placeholder="Student Name (in English)"
-                            className="w-full border p-2 rounded uppercase focus:ring-2 focus:ring-blue-300" />
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
                     </FieldRow>
 
 
