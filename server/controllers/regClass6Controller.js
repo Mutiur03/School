@@ -1,5 +1,4 @@
 import { prisma } from "../config/prisma.js";
-import fs from "fs";
 import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 import path from "path";
 
@@ -14,6 +13,7 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       instruction_for_b,
       attachment_instruction,
       notice_key,
+      classmates,
     } = req.body;
 
     let updateData = {
@@ -27,6 +27,7 @@ export const createOrUpdateClass6Reg = async (req, res) => {
         instruction_for_b || "Please follow the instructions carefully",
       attachment_instruction:
         attachment_instruction || "Please attach all required documents",
+      classmates: classmates || null,
     };
     if (notice_key) {
       const existingRecord = await prisma.class6_reg.findFirst();
