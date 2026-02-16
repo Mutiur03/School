@@ -15,7 +15,7 @@ const authRouter = express.Router();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: process.env.NODE_ENV === "development" ? 500 : 50,
   message: {
     message: "Too many login attempts, please try again after 15 minutes",
   },
