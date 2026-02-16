@@ -1,6 +1,5 @@
 import express from "express";
 import "dotenv/config";
-import helmet from "helmet";
 
 process.env.TZ = "Asia/Dhaka";
 
@@ -43,12 +42,6 @@ const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    contentSecurityPolicy: false,
-  }),
-); // Set security headers
 
 const PORT = process.env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
