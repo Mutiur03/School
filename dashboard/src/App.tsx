@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Toaster } from "react-hot-toast";
@@ -61,7 +61,7 @@ function App() {
       setSidebarExpanded(window.innerWidth >= 768);
     }
   }, []);
-  const location = useLocation();
+
 
   useEffect(() => {
     if (user?.role) {
@@ -93,14 +93,12 @@ function App() {
       <div className=" flex flex-col h-screen">
         <div className="">
           <Routes>
-            {!loading && !user && location.pathname.startsWith("/admin") && location.pathname !== "/admin/login" && (
-              (window.location.href = `http://${window.location.host.replace("admin", "")}/admin/login`)
-            )}
-            {!loading && !user && location.pathname.startsWith("/teacher") && location.pathname != "/teacher/login" && (
-              (window.location.href = `http://${window.location.host.replace("teacher", "")}/teacher/login`)
-            )}
-            {!loading && !user && location.pathname.startsWith("/student") && location.pathname != "/student/login" && (
-              (window.location.href = `http://${window.location.host.replace("student", "")}/student/login`)
+            {!loading && !user && (
+              <>
+                <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
+                <Route path="/teacher/*" element={<Navigate to="/teacher/login" replace />} />
+                <Route path="/student/*" element={<Navigate to="/student/login" replace />} />
+              </>
             )}
             {role === "admin" && <Route path="/admin/login" element={<Login />} />}
             {role === "teacher" && <Route path="/teacher/login" element={<Login />} />}

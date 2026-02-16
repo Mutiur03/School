@@ -17,7 +17,7 @@ import {
     AlertCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { cdn, getFileUrl } from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 
 interface Registration {
     id: string;
