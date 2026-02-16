@@ -212,7 +212,7 @@ const SectionHeader: React.FC<{ title: string, children: React.ReactNode }> = ({
 
 export default function RegistrationClass6() {
     useEffect(() => {
-        document.title = "Class Six Registration | " + schoolConfig.name.en;
+        document.title = "Class Six Registration Form";
     }, []);
     const navigate = useNavigate();
     const { id } = useParams();
