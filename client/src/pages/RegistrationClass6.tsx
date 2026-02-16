@@ -24,7 +24,6 @@ import {
 
 import { guardianRelations } from "@/lib/guardian";
 import { getFileUrl } from "@/lib/backend";
-import { schoolConfig } from "@/lib/info";
 
 const registrationSchema = z.object({
     student_name_bn: z.string().min(1, "Student Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
