@@ -75,7 +75,7 @@ type ConfirmationClass6_Props = {
 
 function Class6RegConfirmation() {
     useEffect(() => {
-        document.title = "Class 6 Registration Confirmation";
+        document.title = "Class Six Registration Confirmation";
     }, []);
     const { id } = useParams<{ id: string }>();
     const [registration, setRegistration] =

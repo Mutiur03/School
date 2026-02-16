@@ -134,8 +134,6 @@ const Class6RegForm = () => {
             return res.data.success ? res.data.data : [];
         },
         staleTime: 30000,
-        refetchOnReconnect: true,
-        refetchOnWindowFocus: true,
     });
 
     const registrations = useMemo(() => {
