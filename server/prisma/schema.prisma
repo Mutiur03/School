@@ -13,6 +13,7 @@ model admin {
   username String @unique
   password String
   role     String @default("admin")
+  tokenVersion Int @default(0)
 }
 
 model students {
@@ -31,6 +32,7 @@ model students {
   image        String?
   password     String?  @db.VarChar(100)
   available    Boolean  @default(true)
+  tokenVersion Int      @default(0)
   created_at   DateTime @default(now())
 
   enrollments student_enrollments[]
@@ -114,6 +116,7 @@ model teachers {
   image       String?
   address     String?
   available   Boolean  @default(true)
+  tokenVersion Int      @default(0)
   created_at  DateTime @default(now())
 
   levels    levels[]

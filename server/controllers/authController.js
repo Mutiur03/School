@@ -1,26 +1,42 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
-export const authenticateAdmin = async (req, res, next) => {
-  const token = req.cookies?.admin_token;
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+      username: user.username,
+      email: user.email,
+      login_id: user.login_id,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" },
+  );
+  const refreshToken = jwt.sign(
+    { id: user.id, role: user.role, version: user.tokenVersion || 0 }, 
+    process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+  return { accessToken, refreshToken };
+};
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    if (!req.user.id) return res.status(401).json({ message: "Unauthorized" });
-    if (req.user.role !== "admin")
-      return res.status(401).json({ message: "Unauthorized" });
-    const check = await prisma.admin.findUnique({
-      where: { id: req.user.id },
-    });
-    if (!check) return res.status(401).json({ message: "Unauthorized" });
-    req.admin = check;
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: "Invalid Token" });
-  }
+const sendRefreshToken = (res, token) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
+
+  res.cookie("refreshToken", token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "Lax" : "Lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    domain: cookieDomain,
+    // Partitioned cookies must be Secure. Only enable in production/secure mode.
+    partitioned: isProduction,
+  });
 };
 
 export const login = async (req, res) => {
@@ -46,19 +62,20 @@ export const login = async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role, username: user.username },
-      process.env.JWT_SECRET
-    );
-    res.cookie("admin_token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      maxAge: 3600000,
-      partitioned: true,
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: "admin",
     });
-    res.json({ success: true, message: "Login successful" });
+    sendRefreshToken(res, refreshToken);
+
+    // Legacy cookie removed.
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      accessToken,
+      user: { id: user.id, role: "admin", username: user.username },
+    });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
   }
@@ -98,59 +115,27 @@ export const student_login = async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
-    const token = jwt.sign(
-      {
-        id: student.id,
-        role: "student",
-        login_id: student.login_id,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    res.cookie("student_token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      maxAge: 3600000,
-      partitioned: true,
+    // Generate new tokens
+    const { accessToken, refreshToken } = generateTokens({
+      ...student,
+      role: "student",
     });
+    // We can send refresh token, but student app might ignore it.
+    // sendRefreshToken(res, refreshToken); // Check if this breaks anything? Probably safe to send.
 
-    res.json({ success: true, message: "Login successful" });
+    // Legacy cookie removed.
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      accessToken,
+      user: { id: student.id, role: "student", login_id: student.login_id },
+    });
   } catch (error) {
     console.error("Login error:", error);
     return res
       .status(500)
       .json({ message: "Error during login", error: error.message });
-  }
-};
-
-export const authenticateStudent = async (req, res, next) => {
-  const token = req.cookies?.student_token;
-
-  if (!token) {
-    res.clearCookie("student_token");
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const check = await prisma.students.findUnique({
-      where: { id: decoded.id },
-    });
-    if (!check) {
-      res.clearCookie("student_token");
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    req.user = decoded;
-    if (req.user.password) {
-      delete req.user.password;
-    }
-    req.user.role = "student";
-    if (!check) return res.status(401).json({ message: "Unauthorized" });
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: "Invalid Token" });
   }
 };
 
@@ -178,26 +163,125 @@ export const teacher_login = async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: "teacher", email: user.email },
-      process.env.JWT_SECRET
-    );
-    const cookieDomain =
-      process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost";
-
-    res.cookie("teacher_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "Lax" : "Lax",
-      path: "/",
-      maxAge: 3600000,
-      domain: cookieDomain,
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: "teacher",
     });
+    sendRefreshToken(res, refreshToken);
 
-    res.json({ success: true, message: "Login successful" });
+    // Legacy cookie removed.
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      accessToken,
+      user: { id: user.id, role: "teacher", email: user.email },
+    });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
   }
+};
+
+export const refresh_token = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) {
+    return res.json({ success: false, accessToken: "" });
+  }
+
+  try {
+    const payload = jwt.verify(
+      token,
+      process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    );
+
+    // Check if user exists based on role
+    let user = null;
+    if (payload.role === "admin") {
+      user = await prisma.admin.findUnique({ where: { id: payload.id } });
+    } else if (payload.role === "student") {
+      user = await prisma.students.findUnique({ where: { id: payload.id } });
+    } else if (payload.role === "teacher") {
+      user = await prisma.teachers.findUnique({ where: { id: payload.id } });
+    }
+
+    if (!user) {
+      return res.json({ success: false, accessToken: "" });
+    }
+
+    // Check token version for revocation
+    const tokenVersion = payload.version || 0;
+    const userVersion = user.tokenVersion || 0;
+
+    if (tokenVersion !== userVersion) {
+      console.log(
+        `Token version mismatch for user ${user.id}: in-token=${tokenVersion}, in-db=${userVersion}`,
+      );
+      return res.json({ success: false, accessToken: "" });
+    }
+
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: payload.role,
+    });
+    sendRefreshToken(res, refreshToken); // Rotate refresh token
+
+    return res.json({
+      success: true,
+      accessToken,
+      user: {
+        id: user.id,
+        role: payload.role,
+        username: user.username,
+        email: user.email,
+        login_id: user.login_id,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({ success: false, accessToken: "" });
+  }
+};
+
+export const logout = async (req, res) => {
+  const token = req.cookies?.refreshToken;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(
+        token,
+        process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+      );
+
+      // Increment token version to revoke all sessions for this user
+      if (decoded.role === "admin") {
+        await prisma.admin.update({
+          where: { id: decoded.id },
+          data: { tokenVersion: { increment: 1 } },
+        });
+      } else if (decoded.role === "student") {
+        await prisma.students.update({
+          where: { id: decoded.id },
+          data: { tokenVersion: { increment: 1 } },
+        });
+      } else if (decoded.role === "teacher") {
+        await prisma.teachers.update({
+          where: { id: decoded.id },
+          data: { tokenVersion: { increment: 1 } },
+        });
+      }
+    } catch (error) {
+      // Token might be expired or invalid, just proceed to clear cookies
+      console.log(
+        "Logout: Token invalid or expired, skipping version increment.",
+      );
+    }
+  }
+
+  res.clearCookie("refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Logged out successfully"));
 };
 
 export const checkAdminExists = async (req, res) => {
@@ -229,7 +313,7 @@ export const addAdmin = async (req, res) => {
 
     // If admins exist, require authentication
     if (adminCount > 0) {
-      const token = req.cookies?.admin_token;
+      const token = req.headers.authorization?.split(" ")[1];
       if (!token) {
         return res.status(401).json({
           message: "Admin authentication required to create additional admins",

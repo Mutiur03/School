@@ -5,12 +5,29 @@ import {
   deleteSmsLogsController,
   getSmsStatsController,
 } from "../controllers/smsController.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 
 const smsRouter = router.Router();
 
-smsRouter.get("/sms-logs", getSmsLogsController);
-smsRouter.post("/retry-sms", retrySmsController);
-smsRouter.delete("/sms-logs", deleteSmsLogsController);
-smsRouter.get("/sms-stats", getSmsStatsController);
+smsRouter.get(
+  "/sms-logs",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  getSmsLogsController,
+);
+smsRouter.post(
+  "/retry-sms",
+  AuthMiddleware.authenticate(["admin"]),
+  retrySmsController,
+);
+smsRouter.delete(
+  "/sms-logs",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteSmsLogsController,
+);
+smsRouter.get(
+  "/sms-stats",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  getSmsStatsController,
+);
 
 export default smsRouter;

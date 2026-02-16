@@ -23,7 +23,7 @@ import {
 } from "@/lib/regex";
 
 import { guardianRelations } from "@/lib/guardian";
-import { cdn } from "@/lib/backend";
+import { cdn, getFileUrl } from "@/lib/backend";
 import { schoolConfig } from "@/lib/info";
 
 const registrationSchema = z.object({
@@ -394,8 +394,7 @@ export default function RegistrationClass6() {
 
                         // Photo photoPreview
                         if (data.photo) {
-                            const url = `${cdn}/${data.photo}`;
-                            setPhotoPreview(url);
+                            setPhotoPreview(getFileUrl(data.photo));
                         }
                     } else {
                         // Registration not found or error

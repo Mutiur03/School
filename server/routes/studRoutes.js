@@ -15,6 +15,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 const studRouter = express.Router();
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -30,10 +31,22 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage: storage });
-studRouter.get("/getStudents/:year", getStudentsController);
-studRouter.get("/getStudentsByClass/:year/:level", getClassStudentsController);
+studRouter.get(
+  "/getStudents/:year",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  getStudentsController,
+);
+studRouter.get(
+  "/getStudentsByClass/:year/:level",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  getClassStudentsController,
+);
 studRouter.get("/getAlumni", getAlumniController);
-studRouter.get("/getStudent", getStudentController);
+studRouter.get(
+  "/getStudent",
+  AuthMiddleware.authenticate(["student"]),
+  getStudentController,
+);
 studRouter.post("/addStudents", addStudentController);
 studRouter.post(
   "/updateStudentImage/:id",
@@ -42,7 +55,7 @@ studRouter.post(
     targetLocation: "uploads/students",
     targetSizeKB: 200,
   }),
-  updateStudentImageController
+  updateStudentImageController,
 );
 studRouter.put("/updateStudent/:id", updateStudentController);
 studRouter.put("/updateacademic/:enrollment_id", updateAcademicInfoController);

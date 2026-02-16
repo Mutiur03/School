@@ -24,7 +24,7 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
           "Content-Type": "application/json",
         },
         timeout: 30000, // 30 second timeout
-      }
+      },
     );
 
     console.log("SMS API Response received:", {
@@ -48,40 +48,18 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
 };
 
 export const getAttendenceController = async (req, res) => {
-  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  if (req.cookies.admin_token) {
-    const token = req.cookies.admin_token;
+  // Auth handled by middleware
+  if (req.user.role === "admin") {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      const admin = await prisma.admin.findUnique({
-        where: { id: req.user.id },
-      });
-      if (!admin) {
-        res.clearCookie("admin_token");
-        return res.status(404).json({ message: "Admin not found" });
-      }
+      const admin = req.user;
       const attendenceRecords = await prisma.attendence.findMany();
       res.status(200).json(attendenceRecords);
     } catch (error) {
-      res.clearCookie("admin_token");
-      return res.status(401).json({ message: "Invalid Admin Token" });
+      return res.status(401).json({ message: "Unauthorized" });
     }
-  } else if (req.cookies.teacher_token) {
-    const token = req.cookies.teacher_token;
+  } else if (req.user.role === "teacher") {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      const teacher = await prisma.teachers.findUnique({
-        where: { id: req.user.id },
-        include: { levels: true },
-      });
-      if (!teacher) {
-        res.clearCookie("teacher_token");
-        return res.status(404).json({ message: "Teacher not found" });
-      }
+      const teacher = req.user; // User already attached by middleware
 
       if (!teacher.levels || teacher.levels.length === 0) {
         return res.status(200).json([]);
@@ -129,16 +107,13 @@ export const getAttendenceController = async (req, res) => {
       res.status(200).json(attendenceRecords);
     } catch (error) {
       console.error("Teacher attendance fetch error:", error);
-      res.clearCookie("teacher_token");
       return res.status(401).json({ message: "Invalid Teacher Token" });
     }
   }
 };
 
 export const addAttendenceController = async (req, res) => {
-  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  // Auth handled by middleware
 
   // Use Bangladesh timezone for today's date
   const today = new Date().toLocaleDateString("en-CA", {
@@ -159,19 +134,8 @@ export const addAttendenceController = async (req, res) => {
 
     let allowedStudentIds = null;
 
-    if (req.cookies.teacher_token && !req.cookies.admin_token) {
-      const token = req.cookies.teacher_token;
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      const teacher = await prisma.teachers.findUnique({
-        where: { id: decoded.id },
-        include: { levels: true },
-      });
-
-      if (!teacher) {
-        res.clearCookie("teacher_token");
-        return res.status(404).json({ message: "Teacher not found" });
-      }
+    if (req.user.role === "teacher") {
+      const teacher = req.user;
 
       if (teacher.levels && teacher.levels.length > 0) {
         const levelConditions = teacher.levels.map((level) => ({
@@ -317,7 +281,7 @@ export const addAttendenceController = async (req, res) => {
                   stack: smsLogError.stack,
                   studentId,
                   phone: parent_phone,
-                }
+                },
               );
               // Continue processing other students even if SMS log creation fails
             }
@@ -326,7 +290,7 @@ export const addAttendenceController = async (req, res) => {
       } catch (recordError) {
         console.error(
           `Error processing record for student ${studentId}:`,
-          recordError
+          recordError,
         );
         errors.push({
           studentId,
@@ -344,10 +308,10 @@ export const addAttendenceController = async (req, res) => {
           if (!SENDER_ID) missingConfig.push("SENDER_ID");
 
           console.error(
-            `SMS configuration missing: ${missingConfig.join(", ")}`
+            `SMS configuration missing: ${missingConfig.join(", ")}`,
           );
           console.warn(
-            "SMS API key/sender ID not configured, marking all SMS as failed"
+            "SMS API key/sender ID not configured, marking all SMS as failed",
           );
 
           for (const [phoneNumber, smsDataArray] of smsLogMap) {
@@ -361,7 +325,7 @@ export const addAttendenceController = async (req, res) => {
                   data: {
                     status: "failed",
                     error_reason: `SMS configuration missing: ${missingConfig.join(
-                      ", "
+                      ", ",
                     )}`,
                   },
                 });
@@ -369,7 +333,7 @@ export const addAttendenceController = async (req, res) => {
             } catch (updateError) {
               console.error(
                 `Failed to update SMS logs for ${phoneNumber}:`,
-                updateError.message
+                updateError.message,
               );
             }
           }
@@ -377,7 +341,7 @@ export const addAttendenceController = async (req, res) => {
           const bulkSmsResponse = await sendBulkSMS(
             smsMessages,
             API_KEY,
-            SENDER_ID
+            SENDER_ID,
           );
 
           console.log("Bulk SMS API Response:", {
@@ -420,7 +384,7 @@ export const addAttendenceController = async (req, res) => {
                           error: updateError.message,
                           smsLogId: smsData.smsLogId,
                           studentId: smsData.studentId,
-                        }
+                        },
                       );
                       // Don't increment smsFailedCount here as SMS was sent successfully
                     }
@@ -444,7 +408,7 @@ export const addAttendenceController = async (req, res) => {
                     } catch (updateError) {
                       console.error(
                         `Failed to update failed SMS log for student ${smsData.studentId}:`,
-                        updateError.message
+                        updateError.message,
                       );
                     }
                   }
@@ -491,7 +455,7 @@ export const addAttendenceController = async (req, res) => {
           } catch (updateError) {
             console.error(
               `Failed to update SMS logs for ${phoneNumber}:`,
-              updateError.message
+              updateError.message,
             );
           }
         }

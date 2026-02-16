@@ -1,4 +1,5 @@
 import { Router } from "express";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -57,41 +58,93 @@ const upload = multer({
   // },
 });
 
-galleryRouter.post("/upload", upload.array("images"), addGalleryController);
+galleryRouter.post(
+  "/upload",
+  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  upload.array("images"),
+  addGalleryController,
+);
 galleryRouter.get("/getGalleries", getGalleryController);
 galleryRouter.put(
   "/updateGallery/:id",
   upload.single("images"),
-  updateGalleryController
+  updateGalleryController,
 );
-galleryRouter.delete("/deleteGallery/:id", deleteGalleryController);
-galleryRouter.delete("/deleteEventGallery/:id", deleteEventGalleryController);
+galleryRouter.delete(
+  "/deleteGallery/:id",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteGalleryController,
+);
+galleryRouter.delete(
+  "/deleteEventGallery/:id",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteEventGalleryController,
+);
 galleryRouter.delete(
   "/deleteCategoryGallery/:id",
-  deleteCategoryGalleryController
+  AuthMiddleware.authenticate(["admin"]),
+  deleteCategoryGalleryController,
 );
 galleryRouter.get("/getCategories", getCategoriesController);
-galleryRouter.get("/pending", getPendingGalleriesController);
-galleryRouter.patch("/approve/:id", approveGalleryController);
-galleryRouter.patch("/reject/:id", rejectGalleryController);
-galleryRouter.post("/rejectMultiple", rejectMultipleGalleryController);
-galleryRouter.get("/rejected", getRejectedGalleriesController);
-galleryRouter.post("/deleteMultiple", deleteMultipleGalleryController);
+galleryRouter.get(
+  "/pending",
+  AuthMiddleware.authenticate(["admin"]),
+  getPendingGalleriesController,
+);
+galleryRouter.patch(
+  "/approve/:id",
+  AuthMiddleware.authenticate(["admin"]),
+  approveGalleryController,
+);
+galleryRouter.patch(
+  "/reject/:id",
+  AuthMiddleware.authenticate(["admin"]),
+  rejectGalleryController,
+);
+galleryRouter.post(
+  "/rejectMultiple",
+  AuthMiddleware.authenticate(["admin"]),
+  rejectMultipleGalleryController,
+);
+galleryRouter.get(
+  "/rejected",
+  AuthMiddleware.authenticate(["admin"]),
+  getRejectedGalleriesController,
+);
+galleryRouter.post(
+  "/deleteMultiple",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteMultipleGalleryController,
+);
 
-galleryRouter.get("/approvedStudents", getApprovedStudentGalleryController);
-galleryRouter.get("/pendingStudents", getPendingStudentGalleriesController);
-galleryRouter.get("/rejectedStudents", getRejectedStudentGalleriesController);
+galleryRouter.get(
+  "/approvedStudents",
+  AuthMiddleware.authenticate(["student"]),
+  getApprovedStudentGalleryController,
+);
+galleryRouter.get(
+  "/pendingStudents",
+  AuthMiddleware.authenticate(["student"]),
+  getPendingStudentGalleriesController,
+);
+galleryRouter.get(
+  "/rejectedStudents",
+  AuthMiddleware.authenticate(["student"]),
+  getRejectedStudentGalleriesController,
+);
 
 galleryRouter.get("/getGalleries/event/:id", getGalleriesByEventId);
 galleryRouter.get("/getGalleries/campus/:id", getGalleriesByCategoryId);
 
 galleryRouter.put(
   "/setCategoryThumbnail/:category_id/:image_id",
-  updateCategoryThumbnailController
+  AuthMiddleware.authenticate(["admin"]),
+  updateCategoryThumbnailController,
 );
 galleryRouter.put(
   "/setEventThumbnail/:event_id/:image_id",
-  updateEventThumbnailController
+  AuthMiddleware.authenticate(["admin"]),
+  updateEventThumbnailController,
 );
 
 export default galleryRouter;

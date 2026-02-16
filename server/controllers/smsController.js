@@ -18,7 +18,7 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     console.log("Bulk SMS API Response:", response.data);
@@ -30,9 +30,7 @@ const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
 };
 
 export const getSmsLogsController = async (req, res) => {
-  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  // Auth handled by middleware
 
   try {
     const { status, date, page = 1, limit = 50 } = req.query;
@@ -50,19 +48,8 @@ export const getSmsLogsController = async (req, res) => {
 
     let allowedStudentIds = null;
 
-    if (req.cookies.teacher_token && !req.cookies.admin_token) {
-      const token = req.cookies.teacher_token;
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      const teacher = await prisma.teachers.findUnique({
-        where: { id: decoded.id },
-        include: { levels: true },
-      });
-
-      if (!teacher) {
-        res.clearCookie("teacher_token");
-        return res.status(404).json({ message: "Teacher not found" });
-      }
+    if (req.user.role === "teacher") {
+      const teacher = req.user;
 
       if (teacher.levels && teacher.levels.length > 0) {
         const levelConditions = teacher.levels.map((level) => ({
@@ -142,9 +129,7 @@ export const getSmsLogsController = async (req, res) => {
 };
 
 export const retrySmsController = async (req, res) => {
-  if (!req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  // Auth handled by middleware
 
   try {
     const { smsLogIds } = req.body;
@@ -226,7 +211,7 @@ export const retrySmsController = async (req, res) => {
       } catch (error) {
         console.error(
           `Failed to prepare SMS retry for log ${smsLogId}:`,
-          error.message
+          error.message,
         );
         results.push({
           smsLogId,
@@ -241,12 +226,12 @@ export const retrySmsController = async (req, res) => {
     if (smsMessages.length > 0) {
       try {
         console.log(
-          `Sending bulk SMS retry for ${smsMessages.length} messages`
+          `Sending bulk SMS retry for ${smsMessages.length} messages`,
         );
         const bulkSmsResponse = await sendBulkSMS(
           smsMessages,
           API_KEY,
-          SENDER_ID
+          SENDER_ID,
         );
 
         if (bulkSmsResponse && bulkSmsResponse.results) {
@@ -315,7 +300,7 @@ export const retrySmsController = async (req, res) => {
                   });
                 }
                 console.log(
-                  `SMS retry failed for ${result.to}: ${result.code}`
+                  `SMS retry failed for ${result.to}: ${result.code}`,
                 );
               }
             }
@@ -393,9 +378,7 @@ export const retrySmsController = async (req, res) => {
 };
 
 export const deleteSmsLogsController = async (req, res) => {
-  if (!req.cookies.admin_token) {
-    return res.status(401).json({ error: "Admin access required" });
-  }
+  // Auth handled by middleware
 
   try {
     const { smsLogIds } = req.body;
@@ -425,9 +408,7 @@ export const deleteSmsLogsController = async (req, res) => {
 };
 
 export const getSmsStatsController = async (req, res) => {
-  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  // Auth handled by middleware
 
   try {
     const { startDate, endDate } = req.query;
@@ -441,19 +422,8 @@ export const getSmsStatsController = async (req, res) => {
       };
     }
 
-    if (req.cookies.teacher_token && !req.cookies.admin_token) {
-      const token = req.cookies.teacher_token;
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      const teacher = await prisma.teachers.findUnique({
-        where: { id: decoded.id },
-        include: { levels: true },
-      });
-
-      if (!teacher) {
-        res.clearCookie("teacher_token");
-        return res.status(404).json({ message: "Teacher not found" });
-      }
+    if (req.user.role === "teacher") {
+      const teacher = req.user;
 
       if (teacher.levels && teacher.levels.length > 0) {
         const levelConditions = teacher.levels.map((level) => ({

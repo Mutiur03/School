@@ -17,7 +17,7 @@ import {
     AlertCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { cdn } from "@/lib/backend";
+import { cdn, getFileUrl } from "@/lib/backend";
 
 interface Registration {
     id: string;
@@ -389,7 +389,7 @@ const Class6RegForm = () => {
                                     />
                                     {settings.notice && (
                                         <a
-                                            href={`${cdn}/${settings.notice}`}
+                                            href={getFileUrl(settings.notice)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
@@ -578,7 +578,7 @@ const Class6RegForm = () => {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         {reg.photo ? (
-                                                            <img src={`${cdn}/${reg.photo}`} className="w-10 h-10 rounded-full object-cover border" alt="" />
+                                                            <img src={getFileUrl(reg.photo)} className="w-10 h-10 rounded-full object-cover border" alt="" />
                                                         ) : (
                                                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center"><Users size={18} /></div>
                                                         )}
@@ -663,7 +663,7 @@ const Class6RegForm = () => {
                                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Student Photo</h4>
                                         {selectedReg.photo ? (
                                             <img
-                                                src={`${cdn}/${selectedReg.photo}`}
+                                                src={getFileUrl(selectedReg.photo)}
                                                 className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
                                                 alt="Student"
                                                 onError={(e) => {

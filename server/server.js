@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+import helmet from "helmet";
 
 process.env.TZ = "Asia/Dhaka";
 
@@ -42,6 +43,8 @@ const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
+app.use(helmet()); // Set security headers
+
 const PORT = process.env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
@@ -141,15 +144,16 @@ app.use("*", (req, res) => {
   });
 });
 app.use((error, req, res, next) => {
-  console.error("Server error:", error);
+  // console.error("Server error:", error); // Optional: keep logging
 
-  res.status(500).json({
+  const statusCode = error.statusCode || 500;
+  const message = error.message || "Internal server error";
+
+  res.status(statusCode).json({
     success: false,
-    message: "Internal server error",
-    error:
-      process.env.NODE_ENV === "development"
-        ? error.message
-        : "Something went wrong",
+    message: message,
+    errors: error.errors || [],
+    error: process.env.NODE_ENV === "development" ? error.stack : undefined,
   });
 });
 
