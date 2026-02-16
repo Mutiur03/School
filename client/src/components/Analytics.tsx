@@ -10,9 +10,17 @@ export default function Analytics() {
     const location = useLocation();
 
     useEffect(() => {
-        if (window.gtag) {
-            window.gtag('config', 'G-KTFSVX10C3', { page_path: location.pathname });
-        }
+        // Small delay to ensure the page component's useEffect has updated the document.title
+        const timer = setTimeout(() => {
+            if (window.gtag) {
+                window.gtag('config', 'G-KTFSVX10C3', {
+                    page_path: location.pathname + location.search,
+                    page_title: document.title
+                });
+            }
+        }, 100);
+
+        return () => clearTimeout(timer);
     }, [location]);
 
     return null;
