@@ -33,7 +33,7 @@ const sendRefreshToken = (res, token) => {
     sameSite: isProduction ? "Lax" : "Lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    domain: cookieDomain,
+    // domain: cookieDomain,
     // Partitioned cookies must be Secure. Only enable in production/secure mode.
     partitioned: isProduction,
   });
