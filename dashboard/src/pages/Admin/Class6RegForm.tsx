@@ -174,8 +174,7 @@ const Class6RegForm = () => {
                 if (urlData.success) {
                     // 2. Upload to R2
                     await axios.put(urlData.url, selectedNotice, {
-                        headers: { "Content-Type": selectedNotice.type },
-                        withCredentials: false
+                        headers: { "Content-Type": selectedNotice.type }
                     });
                     notice_key = urlData.key;
                 }
