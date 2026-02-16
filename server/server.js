@@ -43,11 +43,12 @@ const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
-// app.use(
-//   helmet({
-//     crossOriginResourcePolicy: false,
-//   }),
-// ); // Set security headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: false,
+  }),
+); // Set security headers
 
 const PORT = process.env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
@@ -104,7 +105,15 @@ app.options("*", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders: (res) => {
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+      res.set("Access-Control-Allow-Origin", "*");
+    },
+  }),
+);
 app.get("/api", (req, res) => {
   res.send("Hello World");
 });
