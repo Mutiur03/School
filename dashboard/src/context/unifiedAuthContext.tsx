@@ -3,6 +3,7 @@ import axios from "axios";
 import { createContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
+import backend from "@/lib/backend";
 
 export type UserRole = "admin" | "teacher" | "student";
 
@@ -101,14 +102,19 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     );
     const [accessToken, setAccessToken] = useState<string | null>(null);
 
-    // Configure Axios Interceptors
     useEffect(() => {
         const requestInterceptor = axios.interceptors.request.use(
             (config) => {
-                if (accessToken) {
+                const isExternal = config.url?.startsWith("http");
+                const isBackend = !isExternal || config.url?.startsWith(backend);
+
+                if (accessToken && isBackend) {
                     config.headers.Authorization = `Bearer ${accessToken}`;
                 }
-                config.withCredentials = true; // Still needed for refreshToken cookie
+
+                if (isBackend) {
+                    config.withCredentials = true; // Still needed for refreshToken cookie
+                }
                 return config;
             },
             (error) => Promise.reject(error)
