@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
     Plus,
@@ -126,11 +126,10 @@ const Class6RegForm = () => {
     }, [settingsData]);
 
     const { data: registrationsData, isLoading: registrationsLoading } = useQuery({
-        queryKey: ["class6Registrations", filters],
+        queryKey: ["class6Registrations", filters.year],
         queryFn: async () => {
-            const { status, section, year, search } = filters;
             const res = await axios.get(`/api/reg/class-6/form`, {
-                params: { status, section, class6_year: year, search }
+                params: { class6_year: filters.year }
             });
             return res.data.success ? res.data.data : [];
         },
@@ -139,13 +138,35 @@ const Class6RegForm = () => {
         refetchOnWindowFocus: true,
     });
 
-    const registrations: Registration[] = registrationsData || [];
+    const registrations = useMemo(() => {
+        let data: Registration[] = registrationsData || [];
+        if (filters.status !== "all") {
+            data = data.filter(r => r.status === filters.status);
+        }
+        if (filters.section) {
+            data = data.filter(r => r.section === filters.section);
+        }
+        if (filters.search) {
+            const searchLower = filters.search.toLowerCase();
+            data = data.filter((reg: Registration) =>
+                reg.student_name_bn?.toLowerCase().includes(searchLower) ||
+                reg.student_name_en?.toLowerCase().includes(searchLower) ||
+                reg.roll?.toString().includes(searchLower) ||
+                reg.birth_reg_no?.toLowerCase().includes(searchLower)
+            );
+        }
 
-    const stats = {
-        total: registrations.length,
-        pending: registrations.filter((r: Registration) => r.status === "pending").length,
-        approved: registrations.filter((r: Registration) => r.status === "approved").length
-    };
+        return data;
+    }, [registrationsData, filters.status, filters.section, filters.search]);
+
+    const stats = useMemo(() => {
+        const data: Registration[] = registrationsData || [];
+        return {
+            total: data.length,
+            pending: data.filter((r: Registration) => r.status === "pending").length,
+            approved: data.filter((r: Registration) => r.status === "approved").length
+        };
+    }, [registrationsData]);
 
 
     useEffect(() => {

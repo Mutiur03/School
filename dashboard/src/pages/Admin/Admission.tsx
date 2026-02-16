@@ -626,7 +626,7 @@ function Admission() {
               </svg>
               <input
                 type="text"
-                placeholder="Search by name, roll, birth admission..."
+                placeholder="Search by name, roll, birth reg, admission..."
                 value={filters.search}
                 onChange={(e) => {
                   const v = e.target.value;
