@@ -14,7 +14,7 @@ const saveImageLocally = async (file, section, roll, sscBatch) => {
   const uploadDir = path.join(
     "uploads",
     "student-photos",
-    sscBatch || "unknown"
+    sscBatch || "unknown",
   );
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -27,7 +27,8 @@ const saveImageLocally = async (file, section, roll, sscBatch) => {
   const finalPath = path.join(uploadDir, filename);
 
   fs.renameSync(file.path, finalPath);
-  return finalPath;
+  // Normalize path for URL (replace backslashes with forward slashes)
+  return finalPath.replace(/\\/g, "/");
 };
 
 const checkForDuplicates = async (formData, excludeId = null) => {
@@ -146,7 +147,7 @@ const parseExcelDate = (dateValue) => {
     // Excel date serial number (days since January 1, 1900)
     const excelEpoch = new Date(1900, 0, 1);
     const date = new Date(
-      excelEpoch.getTime() + (dateValue - 1) * 24 * 60 * 60 * 1000
+      excelEpoch.getTime() + (dateValue - 1) * 24 * 60 * 60 * 1000,
     );
     return date;
   }
@@ -192,7 +193,7 @@ export const createRegistration = async (req, res) => {
           req.file,
           formData.section,
           formData.roll,
-          sscBatch
+          sscBatch,
         );
       } catch (uploadError) {
         if (req.file && fs.existsSync(req.file.path)) {
@@ -425,7 +426,7 @@ export const updateRegistration = async (req, res) => {
           req.file,
           formData.section || existingRegistration.section,
           formData.roll || existingRegistration.roll,
-          existingRegistration.ssc_batch
+          existingRegistration.ssc_batch,
         );
       } catch (uploadError) {
         if (req.file && fs.existsSync(req.file.path)) {
@@ -852,7 +853,7 @@ export const exportImages = async (req, res) => {
 
     // Filter only existing photo files
     const photosWithFiles = registrations.filter(
-      (reg) => reg.photo_path && fs.existsSync(reg.photo_path)
+      (reg) => reg.photo_path && fs.existsSync(reg.photo_path),
     );
 
     if (photosWithFiles.length === 0) {
@@ -890,7 +891,7 @@ export const exportImages = async (req, res) => {
       } catch (copyError) {
         console.error(
           `Failed to copy photo for ${reg.section}-${reg.roll}:`,
-          copyError
+          copyError,
         );
       }
     });
@@ -992,7 +993,7 @@ export const exportImages = async (req, res) => {
       } catch (archiveError) {
         console.error(
           `Failed to add photo to archive for ${reg.section}-${reg.roll}:`,
-          archiveError
+          archiveError,
         );
       }
     });
@@ -1076,8 +1077,8 @@ export const downloadRegistrationPDF = async (req, res) => {
           logoExtension === ".png"
             ? "image/png"
             : logoExtension === ".jpg" || logoExtension === ".jpeg"
-            ? "image/jpeg"
-            : "image/png";
+              ? "image/jpeg"
+              : "image/png";
         logoBase64 = `data:${mimeType};base64,${logoBuffer.toString("base64")}`;
       } catch (logoError) {
         console.warn("Failed to load logo:", logoError);
@@ -1133,7 +1134,7 @@ export const downloadRegistrationPDF = async (req, res) => {
           if (bn) return `<span >${bn}</span>`;
           if (nonBn) return `<span class="en">${nonBn}</span>`;
           return _;
-        }
+        },
       );
 
       return normalizedText;
@@ -1151,7 +1152,7 @@ export const downloadRegistrationPDF = async (req, res) => {
           if (bn) return `<span class="bn">${bn}</span>`;
           if (nonBn) return `<span class="en">${nonBn}</span>`;
           return match;
-        }
+        },
       );
     }
 
@@ -1196,7 +1197,7 @@ export const downloadRegistrationPDF = async (req, res) => {
             `${registration.mother_phone}` || "",
           ]
             .filter(Boolean)
-            .join(", ") || "No"
+            .join(", ") || "No",
         ),
       ],
       [
@@ -1232,7 +1233,7 @@ export const downloadRegistrationPDF = async (req, res) => {
               : "",
           ]
             .filter(Boolean)
-            .join(", ")
+            .join(", "),
         ),
       ],
       [
@@ -1243,8 +1244,8 @@ export const downloadRegistrationPDF = async (req, res) => {
             registration.guardian_post_office,
             registration.guardian_post_code,
             registration.guardian_upazila,
-            registration.guardian_district
-          ) || "Not Applicable"
+            registration.guardian_district,
+          ) || "Not Applicable",
         ),
       ],
       [
@@ -1255,8 +1256,8 @@ export const downloadRegistrationPDF = async (req, res) => {
             registration.permanent_post_office,
             registration.permanent_post_code,
             registration.permanent_upazila,
-            registration.permanent_district
-          )
+            registration.permanent_district,
+          ),
         ),
       ],
       [
@@ -1267,8 +1268,8 @@ export const downloadRegistrationPDF = async (req, res) => {
             registration.present_post_office,
             registration.present_post_code,
             registration.present_upazila,
-            registration.present_district
-          )
+            registration.present_district,
+          ),
         ),
       ],
       [
@@ -1280,7 +1281,7 @@ export const downloadRegistrationPDF = async (req, res) => {
             registration.prev_school_district,
           ]
             .filter(Boolean)
-            .join(", ")
+            .join(", "),
         ),
       ],
       [
@@ -1296,7 +1297,7 @@ export const downloadRegistrationPDF = async (req, res) => {
               : "Roll No- N/A",
           ]
             .filter(Boolean)
-            .join(", ")
+            .join(", "),
         ),
       ],
       [
@@ -1311,7 +1312,7 @@ export const downloadRegistrationPDF = async (req, res) => {
           ]
             .map((s) => s.trim())
             .filter(Boolean)
-            .join(" ")
+            .join(" "),
         ),
       ],
       [
@@ -1323,7 +1324,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         wrapBnEn(
           `Section: ${registration.section_in_class_8 || "N/A"}, Roll: ${
             registration.roll_in_class_8 || "N/A"
-          }`
+          }`,
         ),
       ],
     ];
@@ -1345,7 +1346,7 @@ export const downloadRegistrationPDF = async (req, res) => {
 
     // Get current date and time
     const currentDateTime = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" })
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
     ).toLocaleString("en-GB", {
       day: "2-digit",
       month: "2-digit",
@@ -1781,7 +1782,7 @@ export const downloadRegistrationPDF = async (req, res) => {
 
     // Set user agent and locale for Bengali
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     );
 
     // Enable UTF-8 encoding and Bengali locale
@@ -1801,7 +1802,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         document.body,
         NodeFilter.SHOW_TEXT,
         null,
-        false
+        false,
       );
 
       let node;
@@ -1839,7 +1840,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       "Content-Disposition",
       `attachment; filename="SSC_Registration_${
         registration.student_name_en || registration.roll
-      }.pdf"`
+      }.pdf"`,
     );
     res.end(pdfBuffer);
   } catch (error) {
@@ -1868,7 +1869,7 @@ export const importRegistrationsFromExcel = async (req, res) => {
     }
 
     console.log(
-      `Processing file: ${req.file.originalname}, Size: ${req.file.size} bytes`
+      `Processing file: ${req.file.originalname}, Size: ${req.file.size} bytes`,
     );
 
     // Validate file exists
