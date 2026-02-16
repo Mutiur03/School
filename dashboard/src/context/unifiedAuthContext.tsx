@@ -1,6 +1,6 @@
 import envPreferredRole from "@/lib/role";
 import axios from "axios";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
@@ -100,7 +100,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     const [preferredRole, setPreferredRole] = useState<UserRole | null>(
         envPreferredRole
     );
-    const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [accessToken, setAccessTokenState] = useState<string | null>(null);
+    const tokenRef = useRef<string | null>(null);
+
+    const setAccessToken = (token: string | null) => {
+        tokenRef.current = token;
+        setAccessTokenState(token);
+    };
 
     useEffect(() => {
         const requestInterceptor = axios.interceptors.request.use(
@@ -108,8 +114,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 const isExternal = config.url?.startsWith("http");
                 const isBackend = !isExternal || config.url?.startsWith(backend);
 
-                if (accessToken && isBackend) {
-                    config.headers.Authorization = `Bearer ${accessToken}`;
+                if (tokenRef.current && isBackend) {
+                    config.headers.Authorization = `Bearer ${tokenRef.current}`;
                 }
 
                 if (isBackend) {
@@ -148,7 +154,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             axios.interceptors.request.eject(requestInterceptor);
             axios.interceptors.response.eject(responseInterceptor);
         };
-    }, [accessToken]);
+    }, []);
 
     useEffect(() => {
         checkAuth();
