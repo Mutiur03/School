@@ -43,11 +43,11 @@ const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-  }),
-); // Set security headers
+// app.use(
+//   helmet({
+//     crossOriginResourcePolicy: false,
+//   }),
+// ); // Set security headers
 
 const PORT = process.env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
