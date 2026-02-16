@@ -12,24 +12,24 @@ import {
   downloadRegistrationPDF,
   getClassMates,
 } from "../controllers/studentRegistrationClass6Controller.js";
-import { authenticateAdmin } from "../middlewares/auth.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 
 const studentRegistrationClass6Router = router.Router();
 
 studentRegistrationClass6Router.post("/", createRegistration);
 studentRegistrationClass6Router.get(
   "/",
-  authenticateAdmin,
+  AuthMiddleware.authenticate(["admin"]),
   getAllRegistrations,
 );
 studentRegistrationClass6Router.get(
   "/export",
-  authenticateAdmin,
+  AuthMiddleware.authenticate(["admin"]),
   exportRegistrations,
 );
 studentRegistrationClass6Router.get(
   "/export-photos",
-  authenticateAdmin,
+  AuthMiddleware.authenticate(["admin"]),
   exportRegistrationPhotos,
 );
 studentRegistrationClass6Router.post(
@@ -43,7 +43,7 @@ studentRegistrationClass6Router.put("/:id/status", updateRegistrationStatus);
 studentRegistrationClass6Router.put("/:id", updateRegistration);
 studentRegistrationClass6Router.delete(
   "/:id",
-  authenticateAdmin,
+  AuthMiddleware.authenticate(["admin"]),
   deleteRegistration,
 );
 

@@ -55,18 +55,9 @@ export const addGalleryController = async (req, res) => {
   const { caption, eventId, category, status } = req.body;
   console.log(req.files);
 
-  const token = req.cookies?.admin_token;
-  if (!token) {
-    return res.status(401).json({ message: "Unauthorized: token missing" });
-  }
-  let user;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-  const uploaderId = user.id;
-  const uploaderType = user.role;
+  // Auth handled by middleware
+  const uploaderId = req.user.id;
+  const uploaderType = req.user.role;
 
   try {
     const insertPromises = req.files.map((file) => {
@@ -382,21 +373,9 @@ export const deleteMultipleGalleryController = async (req, res) => {
 
 export const getApprovedStudentGalleryController = async (req, res) => {
   try {
-    const token = req.cookies?.student_token;
-    if (!token) {
-      return res.status(401).json({ message: "Unauthorized: token missing" });
-    }
-    let user;
-    try {
-      user = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-    const studentId = user.id;
-    const studentRole = user.role;
-    if (studentRole !== "student") {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    // Auth handled by middleware
+    const studentId = req.user.id;
+    // Role check handled by middleware
     const images = await prisma.gallery.findMany({
       where: {
         status: "approved",
@@ -448,21 +427,9 @@ export const getApprovedStudentGalleryController = async (req, res) => {
 
 export const getPendingStudentGalleriesController = async (req, res) => {
   try {
-    const token = req.cookies?.student_token;
-    if (!token) {
-      return res.status(401).json({ message: "Unauthorized: token missing" });
-    }
-    let user;
-    try {
-      user = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-    const studentId = user.id;
-    const studentRole = user.role;
-    if (studentRole !== "student") {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    // Auth handled by middleware
+    const studentId = req.user.id;
+    // Role check handled by middleware
     const images = await prisma.gallery.findMany({
       where: {
         status: "pending",
@@ -521,21 +488,9 @@ export const getPendingStudentGalleriesController = async (req, res) => {
 
 export const getRejectedStudentGalleriesController = async (req, res) => {
   try {
-    const token = req.cookies?.student_token;
-    if (!token) {
-      return res.status(401).json({ message: "Unauthorized: token missing" });
-    }
-    let user;
-    try {
-      user = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-    const studentId = user.id;
-    const studentRole = user.role;
-    if (studentRole !== "student") {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    // Auth handled by middleware
+    const studentId = req.user.id;
+    // Role check handled by middleware
     const images = await prisma.gallery.findMany({
       where: {
         status: "rejected",
@@ -671,7 +626,7 @@ export const updateEventThumbnailController = async (req, res) => {
     if (!exist) {
       return res.status(404).json({ error: "Image not found" });
     }
-    const filePath = fixUrl(exist.image_path); 
+    const filePath = fixUrl(exist.image_path);
     const result = await prisma.events.update({
       where: { id: parseInt(event_id) },
       data: { thumbnail: filePath, image: filePath },

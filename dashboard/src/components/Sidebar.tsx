@@ -512,7 +512,7 @@ const Sidebar = ({
                                         to={subItem.link}
                                         className={({ isActive }: { isActive: boolean }) =>
                                           `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isActive
-                                            ? "bg-accent text-accent-foreground"
+                                            ? "bg-primary/20 text-primary"
                                             : "hover:inset-1 hover:inset-ring"
                                           }`
                                         }

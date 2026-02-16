@@ -7,14 +7,13 @@ import {
   UpdateTeacherImage,
   changePassword,
   head_msg_update,
-  get_head_msg, // add this import
+  get_head_msg,
 } from "../controllers/teacherController.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { teacher_me } from "../middlewares/auth.js";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
-import { authenticateAdmin } from "../controllers/authController.js";
 const routerTeacher = express.Router();
 
 const __dirname = path.resolve();
@@ -39,7 +38,11 @@ routerTeacher.post("/addTeacher", addTeacher);
 routerTeacher.get("/getTeachers", getTeachers);
 routerTeacher.put("/updateTeacher/:id", updateTeacher);
 routerTeacher.delete("/deleteTeacher/:id", deleteTeacher);
-routerTeacher.put("/update_head_msg",authenticateAdmin, head_msg_update);
+routerTeacher.put(
+  "/update_head_msg",
+  AuthMiddleware.authenticate(["admin"]),
+  head_msg_update,
+);
 routerTeacher.get("/get_head_msg", get_head_msg);
 routerTeacher.post(
   "/uploadImage/:id",
@@ -48,9 +51,13 @@ routerTeacher.post(
     targetLocation: "uploads/teacher",
     targetSizeKB: 200,
   }),
-  UpdateTeacherImage
+  UpdateTeacherImage,
 );
 
-routerTeacher.post("/change-password", teacher_me, changePassword);
+routerTeacher.post(
+  "/change-password",
+  AuthMiddleware.authenticate(["teacher"]),
+  changePassword,
+);
 
 export default routerTeacher;

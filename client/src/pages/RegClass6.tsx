@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { cdn } from '@/lib/backend'
+import { getFileUrl } from '@/lib/backend'
 
 interface Class6RegData {
     id: number
@@ -77,8 +77,7 @@ function RegClass6() {
         )
     }
 
-    const noticeUrl = regData?.notice ? (regData.notice.startsWith('http') ? regData.notice : `${cdn}/${regData.notice}`) : null;
-
+    const noticeUrl = regData?.notice ? getFileUrl(regData.notice) : null;
     return (
         <div className="min-h-screen bg-gray-50 py-8">
             <div className="max-w-4xl mx-auto px-4">

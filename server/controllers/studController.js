@@ -20,7 +20,7 @@ export const initGoogleSheets = async () => {
 
     if (missingVars.length > 0) {
       throw new Error(
-        `Missing required environment variables: ${missingVars.join(", ")}`
+        `Missing required environment variables: ${missingVars.join(", ")}`,
       );
     }
 
@@ -37,7 +37,7 @@ export const initGoogleSheets = async () => {
     return { sheets, spreadsheetId };
   } catch (error) {
     throw new Error(
-      `Google Sheets API initialization failed: ${error.message}`
+      `Google Sheets API initialization failed: ${error.message}`,
     );
   }
 };
@@ -58,9 +58,7 @@ export const getAlumniController = async (_req, res) => {
 };
 
 export const getStudentsController = async (req, res) => {
-  if (!req.cookies.teacher_token && !req.cookies.admin_token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  // Auth handled by middleware
 
   try {
     const { year } = req.params;
@@ -88,18 +86,8 @@ export const getStudentsController = async (req, res) => {
 
     let result;
 
-    if (req.cookies.admin_token) {
-      const token = req.cookies.admin_token;
+    if (req.user.role === "admin") {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const admin = await prisma.admin.findUnique({
-          where: { id: decoded.id },
-        });
-        if (!admin) {
-          res.clearCookie("admin_token");
-          return res.status(404).json({ message: "Admin not found" });
-        }
-
         result = await prisma.students.findMany({
           include: {
             enrollments: {
@@ -109,22 +97,11 @@ export const getStudentsController = async (req, res) => {
           },
         });
       } catch (error) {
-        res.clearCookie("admin_token");
         return res.status(401).json({ message: "Invalid Admin Token" });
       }
-    }
-    else if (req.cookies.teacher_token) {
-      const token = req.cookies.teacher_token;
+    } else if (req.user.role === "teacher") {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const teacher = await prisma.teachers.findUnique({
-          where: { id: decoded.id },
-          include: { levels: true },
-        });
-        if (!teacher) {
-          res.clearCookie("teacher_token");
-          return res.status(404).json({ message: "Teacher not found" });
-        }
+        const teacher = req.user; // User already attached by middleware
 
         if (!teacher.levels || teacher.levels.length === 0) {
           return res.status(200).json({ success: true, data: [] });
@@ -155,7 +132,7 @@ export const getStudentsController = async (req, res) => {
         });
       } catch (error) {
         console.error("Teacher authentication error:", error);
-        res.clearCookie("teacher_token");
+        // res.clearCookie("teacher_token"); // Cookies no longer used
         return res.status(401).json({ message: "Invalid Teacher Token" });
       }
     }
@@ -174,7 +151,7 @@ export const getStudentsController = async (req, res) => {
         ...student,
         ...enrollment,
         enrollment_id: enrollment.id,
-      }))
+      })),
     );
 
     console.log(`Formatted ${formattedResult.length} student enrollments`);
@@ -208,15 +185,8 @@ export const getStudentsController = async (req, res) => {
 
 export const getStudentController = async (req, res) => {
   try {
-    const token = req.cookies?.student_token;
-    if (!token) {
-      res.clearCookie("student_token");
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const studentId = decoded.id;
-    // console.log(decoded);
+    const studentId = req.user.id;
+    // console.log(req.user);
 
     const result = await prisma.students.findUnique({
       where: { id: studentId },
@@ -286,7 +256,7 @@ export const addStudentController = async (req, res) => {
 
         if (student.parent_phone) {
           const cleanParentPhone = removeNonNumber(
-            String(student.parent_phone)
+            String(student.parent_phone),
           );
           student.parent_phone =
             cleanParentPhone.length >= 10
@@ -310,7 +280,7 @@ export const addStudentController = async (req, res) => {
         const classNum = Number(removeInitialZeros(String(student.class || 1)));
         if (classNum < 1 || classNum > 12) {
           throw new Error(
-            `Student at index ${i}: Invalid class number: ${classNum}`
+            `Student at index ${i}: Invalid class number: ${classNum}`,
           );
         }
 
@@ -406,7 +376,7 @@ export const addStudentController = async (req, res) => {
       } catch (error) {
         console.error(
           `Error inserting student "${student.name}":`,
-          error.message
+          error.message,
         );
         return res.status(500).json({
           success: false,
@@ -440,7 +410,7 @@ export const addStudentController = async (req, res) => {
     }
 
     console.log(
-      `Successfully inserted ${insertedStudents.length} students and ${insertedEnrollments.length} enrollments`
+      `Successfully inserted ${insertedStudents.length} students and ${insertedEnrollments.length} enrollments`,
     );
 
     res.status(201).json({
@@ -679,7 +649,7 @@ export const updateAcademicInfoController = async (req, res) => {
 
     console.log(
       `Updating academic info for enrollment_id: ${enrollment_id}`,
-      processedUpdates
+      processedUpdates,
     );
 
     // Use transaction for data consistency
@@ -781,7 +751,7 @@ export const updateAcademicInfoController = async (req, res) => {
       } catch (sheetError) {
         console.error(
           "Google Sheets update failed (non-blocking):",
-          sheetError.message
+          sheetError.message,
         );
       }
     }
@@ -892,7 +862,7 @@ export const changePasswordController = async (req, res) => {
 
     const rows = sheetData.data.values || [];
     const rowIndex = rows.findIndex(
-      (row) => row[0] === String(student.login_id)
+      (row) => row[0] === String(student.login_id),
     );
 
     if (rowIndex !== -1) {

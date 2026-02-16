@@ -432,10 +432,6 @@ function Class6RegConfirmation() {
         );
     }
 
-    const photoSrc =
-        typeof registration.photo === "string" && registration.photo
-            ? registration.photo
-            : registration.photo_path;
 
     return (
         <div className="w-full min-h-screen bg-gray-100 py-8 px-4">
@@ -451,13 +447,13 @@ function Class6RegConfirmation() {
                     </p>
                 </div>
 
-                {photoSrc && (
+                {registration.photo && (
                     <div className="bg-white p-6 border-b border-gray-200 flex flex-col items-center">
                         <h3 className="text-base font-semibold mb-2 text-gray-700">
                             Student's Photo
                         </h3>
                         <img
-                            src={getFileUrl(photoSrc)}
+                            src={getFileUrl(registration.photo)}
                             alt="Student Photo"
                             className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
                             onError={(e) => {
