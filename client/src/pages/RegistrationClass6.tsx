@@ -23,7 +23,7 @@ import {
 } from "@/lib/regex";
 
 import { guardianRelations } from "@/lib/guardian";
-import { cdn, getFileUrl } from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 import { schoolConfig } from "@/lib/info";
 
 const registrationSchema = z.object({
