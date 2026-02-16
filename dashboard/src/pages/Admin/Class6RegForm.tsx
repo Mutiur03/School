@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
     Plus,
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Registration {
     id: string;
@@ -83,9 +84,21 @@ interface Class6RegSettings {
 }
 
 const Class6RegForm = () => {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<"registrations" | "settings">("registrations");
-    const [registrations, setRegistrations] = useState<Registration[]>([]);
-    const [settings, setSettings] = useState<Class6RegSettings>({
+    const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
+    const [filters, setFilters] = useState({
+        status: "all",
+        section: "",
+        year: new Date().getFullYear().toString(),
+        search: ""
+    });
+    const [showDetails, setShowDetails] = useState(false);
+    const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editFormData, setEditFormData] = useState<{ id: string; status: string } | null>(null);
+    const [pdfDownloading, setPdfDownloading] = useState(false);
+    const [settingsForm, setSettingsForm] = useState<Class6RegSettings>({
         a_sec_roll: "",
         b_sec_roll: "",
         class6_year: new Date().getFullYear().toString(),
@@ -96,83 +109,63 @@ const Class6RegForm = () => {
         notice: null,
         classmates: ""
     });
-    const [loading, setLoading] = useState(false);
-    const [formLoading, setFormLoading] = useState(false);
-    const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
-    const [filters, setFilters] = useState({
-        status: "all",
-        section: "",
-        year: new Date().getFullYear().toString(),
-        search: ""
-    });
-    const [showDetails, setShowDetails] = useState(false);
-    const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
-    const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editFormData, setEditFormData] = useState<{ id: string; status: string } | null>(null);
-    const [pdfDownloading, setPdfDownloading] = useState(false);
 
-    const fetchSettings = async () => {
-        try {
+
+    const { data: settingsData, isLoading: settingsLoading } = useQuery({
+        queryKey: ["class6RegSettings"],
+        queryFn: async () => {
             const res = await axios.get(`/api/reg/class-6`);
-            if (res.data.success) {
-                setSettings(res.data.data);
-                // Update filter year to match setting if not already set
-                if (res.data.data.class6_year) {
-                    setFilters(prev => ({ ...prev, year: res.data.data.class6_year.toString() }));
-                }
-            }
-        } catch (error) {
-            console.error("Fetch settings error:", error);
-        }
-    };
+            return res.data.success ? res.data.data : null;
+        },
+    });
 
-    const fetchRegistrations = useCallback(async () => {
-        setLoading(true);
-        try {
+    useEffect(() => {
+        if (settingsData) {
+            setSettingsForm(settingsData);
+        }
+    }, [settingsData]);
+
+    const { data: registrationsData, isLoading: registrationsLoading } = useQuery({
+        queryKey: ["class6Registrations", filters],
+        queryFn: async () => {
             const { status, section, year, search } = filters;
             const res = await axios.get(`/api/reg/class-6/form`, {
                 params: { status, section, class6_year: year, search }
             });
-            if (res.data.success) {
-                setRegistrations(res.data.data);
-                const data = res.data.data;
-                setStats({
-                    total: data.length,
-                    pending: data.filter((r: Registration) => r.status === "pending").length,
-                    approved: data.filter((r: Registration) => r.status === "approved").length
-                });
-            }
-        } catch (error) {
-            toast.error("Failed to fetch registrations");
-        } finally {
-            setLoading(false);
+            return res.data.success ? res.data.data : [];
+        },
+        staleTime: 30000,
+        refetchOnReconnect: true,
+        refetchOnWindowFocus: true,
+    });
+
+    const registrations: Registration[] = registrationsData || [];
+
+    const stats = {
+        total: registrations.length,
+        pending: registrations.filter((r: Registration) => r.status === "pending").length,
+        approved: registrations.filter((r: Registration) => r.status === "approved").length
+    };
+
+
+    useEffect(() => {
+        if (settingsData?.class6_year) {
+            setFilters(prev => ({ ...prev, year: settingsData.class6_year.toString() }));
         }
-    }, [filters]);
+    }, [settingsData?.class6_year]);
 
-    useEffect(() => {
-        fetchSettings();
-    }, []);
 
-    useEffect(() => {
-        fetchRegistrations();
-    }, [fetchRegistrations]);
-
-    const handleSettingsSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setFormLoading(true);
-        try {
-            let notice_key = settings.notice;
+    const settingsMutation = useMutation({
+        mutationFn: async (updatedSettings: Class6RegSettings) => {
+            let notice_key = updatedSettings.notice;
 
             if (selectedNotice) {
-                // 1. Get upload URL
                 const { data: urlData } = await axios.post(`/api/reg/class-6/upload-url`, {
                     filename: selectedNotice.name,
                     filetype: selectedNotice.type
                 });
 
                 if (urlData.success) {
-                    // 2. Upload to R2
                     await axios.put(urlData.url, selectedNotice, {
                         headers: { "Content-Type": selectedNotice.type }
                     });
@@ -181,50 +174,67 @@ const Class6RegForm = () => {
             }
 
             const payload = {
-                ...settings,
+                ...updatedSettings,
                 notice_key,
-                reg_open: settings.reg_open.toString()
+                reg_open: updatedSettings.reg_open.toString()
             };
 
             const res = await axios.post(`/api/reg/class-6`, payload);
-            if (res.data.success) {
-                toast.success("Settings updated successfully");
-                fetchSettings();
-                setSelectedNotice(null);
-            }
-        } catch (error) {
-            toast.error("Failed to update settings");
-        } finally {
-            setFormLoading(false);
+            return res.data;
+        },
+        onSuccess: () => {
+            toast.success("Settings updated successfully");
+            queryClient.invalidateQueries({ queryKey: ["class6RegSettings"] });
+            setSelectedNotice(null);
             const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
             if (fileInput) fileInput.value = "";
+        },
+        onError: () => {
+            toast.error("Failed to update settings");
         }
+    });
+
+    const statusMutation = useMutation({
+        mutationFn: async ({ id, status }: { id: string, status: string }) => {
+            const res = await axios.put(`/api/reg/class-6/form/${id}/status`, { status });
+            return res.data;
+        },
+        onSuccess: (_, variables) => {
+            toast.success(`Registration ${variables.status}`);
+            queryClient.invalidateQueries({ queryKey: ["class6Registrations"] });
+        },
+        onError: () => {
+            toast.error("Failed to update status");
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await axios.delete(`/api/reg/class-6/form/${id}`);
+            return res.data;
+        },
+        onSuccess: () => {
+            toast.success("Registration deleted");
+            queryClient.invalidateQueries({ queryKey: ["class6Registrations"] });
+            setShowDetails(false);
+        },
+        onError: () => {
+            toast.error("Failed to delete registration");
+        }
+    });
+
+    const handleSettingsSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        settingsMutation.mutate(settingsForm);
     };
 
     const handleStatusUpdate = async (id: string, status: string) => {
-        try {
-            const res = await axios.put(`/api/reg/class-6/form/${id}/status`, { status });
-            if (res.data.success) {
-                toast.success(`Registration ${status}`);
-                fetchRegistrations();
-            }
-        } catch (error) {
-            toast.error("Failed to update status");
-        }
+        statusMutation.mutate({ id, status });
     };
 
     const handleDeleteDetails = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this registration?")) return;
-        try {
-            const res = await axios.delete(`/api/reg/class-6/form/${id}`);
-            if (res.data.success) {
-                toast.success("Registration deleted");
-                fetchRegistrations();
-                setShowDetails(false);
-            }
-        } catch (error) {
-            toast.error("Failed to delete registration");
-        }
+        deleteMutation.mutate(id);
     };
 
     const handleExport = async (type: "sheet" | "photos") => {
@@ -250,7 +260,7 @@ const Class6RegForm = () => {
             console.error(`Export ${type} error:`, error);
             let message = `Failed to export ${type}`;
             if (error.response && error.response.data instanceof Blob) {
-                // Try to read the error message from the blob
+
                 const reader = new FileReader();
                 reader.onload = () => {
                     try {
@@ -333,120 +343,126 @@ const Class6RegForm = () => {
                             <Settings size={20} className="text-blue-500" />
                             Registration Settings
                         </h3>
-                        <form onSubmit={handleSettingsSubmit} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
-                                    <input
-                                        type="text"
-                                        value={settings.a_sec_roll || ""}
-                                        onChange={(e) => setSettings({ ...settings, a_sec_roll: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                        placeholder="01-50"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
-                                    <input
-                                        type="text"
-                                        value={settings.b_sec_roll || ""}
-                                        onChange={(e) => setSettings({ ...settings, b_sec_roll: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                        placeholder="51-100"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
-                                    <input
-                                        type="text"
-                                        value={settings.class6_year || ""}
-                                        onChange={(e) => setSettings({ ...settings, class6_year: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                </div>
-                                <div className="flex items-end">
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 dark:bg-gray-700 rounded-lg w-full">
+                        {settingsLoading ? (
+                            <div className="py-20 flex justify-center">
+                                <Loader2 size={40} className="animate-spin text-blue-500" />
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSettingsSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
                                         <input
-                                            type="checkbox"
-                                            checked={settings.reg_open}
-                                            onChange={(e) => setSettings({ ...settings, reg_open: e.target.checked })}
-                                            className="w-4 h-4 text-blue-600"
+                                            type="text"
+                                            value={settingsForm.a_sec_roll || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, a_sec_roll: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                            placeholder="01-50"
                                         />
-                                        <span className="text-sm font-medium">Registration Open</span>
-                                    </label>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
+                                        <input
+                                            type="text"
+                                            value={settingsForm.b_sec_roll || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, b_sec_roll: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                            placeholder="51-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
+                                        <input
+                                            type="text"
+                                            value={settingsForm.class6_year || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, class6_year: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <label className="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 dark:bg-gray-700 rounded-lg w-full">
+                                            <input
+                                                type="checkbox"
+                                                checked={settingsForm.reg_open}
+                                                onChange={(e) => setSettingsForm({ ...settingsForm, reg_open: e.target.checked })}
+                                                className="w-4 h-4 text-blue-600"
+                                            />
+                                            <span className="text-sm font-medium">Registration Open</span>
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notice File (PDF)</label>
-                                <div className="mt-1 flex items-center gap-4">
-                                    <input
-                                        type="file"
-                                        accept=".pdf"
-                                        onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
-                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                    />
-                                    {settings.notice && (
-                                        <a
-                                            href={getFileUrl(settings.notice)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
-                                        >
-                                            <FileText size={16} /> Current Notice
-                                        </a>
-                                    )}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notice File (PDF)</label>
+                                    <div className="mt-1 flex items-center gap-4">
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
+                                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                        />
+                                        {settingsForm.notice && (
+                                            <a
+                                                href={getFileUrl(settingsForm.notice)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
+                                            >
+                                                <FileText size={16} /> Current Notice
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
-                                    <textarea
-                                        value={settings.instruction_for_a || ""}
-                                        onChange={(e) => setSettings({ ...settings, instruction_for_a: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                    />
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
+                                        <textarea
+                                            value={settingsForm.instruction_for_a || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
+                                        <textarea
+                                            value={settingsForm.instruction_for_b || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
+                                        <textarea
+                                            value={settingsForm.classmates || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
+                                            placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
+                                        <textarea
+                                            value={settingsForm.attachment_instruction || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
-                                    <textarea
-                                        value={settings.instruction_for_b || ""}
-                                        onChange={(e) => setSettings({ ...settings, instruction_for_b: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
-                                    <textarea
-                                        value={settings.classmates || ""}
-                                        onChange={(e) => setSettings({ ...settings, classmates: e.target.value })}
-                                        placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                    />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
-                                    <textarea
-                                        value={settings.attachment_instruction || ""}
-                                        onChange={(e) => setSettings({ ...settings, attachment_instruction: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="flex justify-end pt-4">
-                                <button
-                                    type="submit"
-                                    disabled={formLoading}
-                                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                >
-                                    {formLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                                    Save Settings
-                                </button>
-                            </div>
-                        </form>
+                                <div className="flex justify-end pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={settingsMutation.isPending}
+                                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {settingsMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                                        Save Settings
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -516,9 +532,9 @@ const Class6RegForm = () => {
                                         const currentYear = new Date().getFullYear();
                                         const years = [];
                                         for (let i = 0; i < 5; i++) years.push(currentYear - i);
-                                        // Include settings year if not in range
-                                        const settingsYear = parseInt(settings.class6_year);
-                                        if (settings.class6_year && !isNaN(settingsYear) && !years.includes(settingsYear)) {
+
+                                        const settingsYear = parseInt(settingsForm.class6_year);
+                                        if (settingsForm.class6_year && !isNaN(settingsYear) && !years.includes(settingsYear)) {
                                             years.push(settingsYear);
                                             years.sort((a, b) => b - a);
                                         }
@@ -561,9 +577,9 @@ const Class6RegForm = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {loading ? (
+                                    {registrationsLoading ? (
                                         <tr>
-                                            <td colSpan={5} className="py-12 text-center">
+                                            <td colSpan={6} className="py-12 text-center">
                                                 <Loader2 className="animate-spin mx-auto text-blue-500" size={32} />
                                             </td>
                                         </tr>
@@ -867,7 +883,7 @@ const Class6RegForm = () => {
                                             a.click();
                                             a.remove();
                                             window.URL.revokeObjectURL(url);
-                                            // toast.success("PDF Downloaded successfully");
+
                                         } catch (err) {
                                             console.error(err);
                                             toast.error("Failed to download PDF");
