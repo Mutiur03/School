@@ -798,7 +798,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         ),
       ],
       [
-        "বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
+        "বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
         wrapBnEn(registration.nearby_student_info || "Not Applicable"),
       ],
       // [
