@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import LogoutConfirmation from "@/components/LogOutConfirmation";
 import { Menu } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
-import { fixURL } from "@/lib/fixURL";
+import backend from "@/lib/backend";
+import { getInitials } from "@/lib/utils";
+import envPreferredRole from "@/lib/role";
 
 interface NavbarProps {
   onBurgerClick?: () => void;
@@ -16,9 +18,8 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
   const navigate = useNavigate();
   const handleLogout = async () => {
     try {
-      const role = user?.role;
       await logout();
-      navigate(`/${role}/login`);
+      navigate(`/${envPreferredRole ? envPreferredRole : user?.role}/login`);
       console.log("Logged out");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -60,7 +61,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           user?.image ? (
             <div className="w-10 h-10 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
               <img
-                src={fixURL(user.image)}
+                src={`${backend}/${user.image}`}
                 alt="Profile"
                 width={40}
                 height={40}
@@ -68,14 +69,8 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
               />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xl">
-              {user?.name
-                && user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-              }
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 border-2 border-gray-300">
+              {getInitials(user?.name)}
             </div>
           )
         )}

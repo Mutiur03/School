@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Toaster } from "react-hot-toast";
@@ -47,14 +47,15 @@ import Login from "./pages/Common/Login.tsx";
 import { TeacherSettings } from "./pages/Teachers/index.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
+import envPreferredRole from "./lib/role.ts";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
   );
   const { user, loading } = useAuth();
-  const role = import.meta.env.VITE_DEFAULT_ROLE;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navbarRef = useRef<HTMLElement>(null);
+  const location = useLocation();
   axios.defaults.baseURL = backend;
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -64,6 +65,11 @@ function App() {
 
 
   useEffect(() => {
+    // If we are on a login page, let Login.tsx handle the title
+    if (location.pathname.includes('/login')) {
+      return;
+    }
+
     if (user?.role) {
       switch (user.role) {
         case 'admin':
@@ -81,7 +87,7 @@ function App() {
     } else {
       document.title = 'Panchbibi Lal Bihari Pilot Govt. High School';
     }
-  }, [user?.role]);
+  }, [user?.role, location.pathname]);
 
   return (
     <>
@@ -93,22 +99,59 @@ function App() {
       <div className=" flex flex-col h-screen">
         <div className="">
           <Routes>
-            {!loading && !user && (
+            {/* CASE 1: envPreferredRole IS PRESENT (e.g., 'teacher') */}
+            {envPreferredRole && (
               <>
-                <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
-                <Route path="/teacher/*" element={<Navigate to="/teacher/login" replace />} />
-                <Route path="/student/*" element={<Navigate to="/student/login" replace />} />
+                {/* Specific Login Route for the preferred role */}
+                <Route path={`/${envPreferredRole}/login`} element={<Login />} />
+
+                {/* Redirects for Unauthenticated users */}
+                {!loading && !user && (
+                  <Route path="*" element={<Navigate to={`/${envPreferredRole}/login`} replace />} />
+                )}
+
+                {/* Redirects for Authenticated users based on role alignment */}
+                {!loading && user && (
+                  <Route
+                    path="*"
+                    element={
+                      user.role === envPreferredRole ? (
+                        <Navigate to={`/${envPreferredRole}/dashboard`} replace />
+                      ) : (
+                        <Navigate to={`/${envPreferredRole}/login`} replace />
+                      )
+                    }
+                  />
+                )}
               </>
             )}
-            {role === "admin" && <Route path="/admin/login" element={<Login />} />}
-            {role === "teacher" && <Route path="/teacher/login" element={<Login />} />}
-            {role === "student" && <Route path="/student/login" element={<Login />} />}
-            {!role && <>
-              <Route path="/admin/login" element={<Login />} />
-              <Route path="/teacher/login" element={<Login />} />
-              <Route path="/student/login" element={<Login />} />
-            </>}
-            {user?.role === "teacher" && (
+
+            {/* CASE 2: envPreferredRole IS NOT PRESENT (Multi-Role Portal) */}
+            {!envPreferredRole && (
+              <>
+                {/* All Login Routes are available */}
+                <Route path="/admin/login" element={<Login />} />
+                <Route path="/teacher/login" element={<Login />} />
+                <Route path="/student/login" element={<Login />} />
+
+                {/* Unauthenticated access to role subpaths redirects to respective login */}
+                {!loading && !user && (
+                  <>
+                    <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
+                    <Route path="/teacher/*" element={<Navigate to="/teacher/login" replace />} />
+                    <Route path="/student/*" element={<Navigate to="/student/login" replace />} />
+                    {/* Catch-all for unauthenticated visits to root or other paths */}
+                    <Route path="*" element={<NotFound />} />
+                  </>
+                )}
+
+                {/* Authenticated users at root or unknown paths redirect to their dashboard */}
+                {user && (
+                  <Route path="*" element={<Navigate to={`/${user.role}/dashboard`} replace />} />
+                )}
+              </>
+            )}
+            {user?.role === "teacher" && (!envPreferredRole || envPreferredRole === 'teacher') && (
               <Route
                 path="/teacher/*"
                 element={
@@ -149,7 +192,7 @@ function App() {
               />
             )}
 
-            {user?.role === "student" && (
+            {user?.role === "student" && (!envPreferredRole || envPreferredRole === 'student') && (
               <Route
                 path="/student/*"
                 element={
@@ -187,7 +230,7 @@ function App() {
               />
             )}
 
-            {user?.role === "admin" && (
+            {user?.role === "admin" && (!envPreferredRole || envPreferredRole === 'admin') && (
               <Route
                 path="/admin/*"
                 element={
@@ -347,12 +390,7 @@ function App() {
                 }
               />
             )}
-            {!loading && !user && role != undefined &&
-              <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
-            {!loading && user && role != undefined &&
-              <Route path="*" element={<Navigate to={`/${role}/login`} />} />}
-            {!loading && !user && role === undefined &&
-              <Route path="*" element={<NotFound />} />}
+
           </Routes>
         </div>
       </div>

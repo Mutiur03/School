@@ -1,9 +1,9 @@
-import { useUnifiedAuth } from "@/context/useUnifiedAuth";
+import { useAuth } from "@/context/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 function StudentDashboard() {
-    const { user } = useUnifiedAuth();
+    const { user } = useAuth();
     const student = user && user.role === "student" ? user : null;
 
     return (

@@ -1,9 +1,9 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
-import { useUnifiedAuth } from "@/context/useUnifiedAuth";
+import { useAuth } from "@/context/useAuth";
 
 const TeacherRoute = ({ element }: { element: ReactNode }) => {
-    const { user, loading, isTeacher } = useUnifiedAuth();
+    const { user, loading, isTeacher } = useAuth();
 
     if (loading) {
         return (

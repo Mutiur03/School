@@ -1,7 +1,8 @@
 
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/context/useAuth";
-import { fixURL } from "@/lib/fixURL";
+import backend from "@/lib/backend";
+import { getInitials } from "@/lib/utils";
 export default function TeacherProfile() {
     const { user } = useAuth();
     return (
@@ -11,12 +12,14 @@ export default function TeacherProfile() {
                     <div className="h-56 w-56 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
                         {user?.image ? (
                             <img
-                                src={fixURL(user.image)}
+                                src={`${backend}/${user.image}`}
                                 alt="Profile"
                                 className="w-full h-full object-cover object-top"
                             />
                         ) : (
-                            <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center text-4xl">👤</div>
+                            <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-600">
+                                {getInitials(user?.name)}
+                            </div>
                         )}
                     </div>
                     <div className="flex-1 space-y-4">
