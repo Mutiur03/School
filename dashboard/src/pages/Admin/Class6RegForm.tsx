@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import {
     Plus,
     Search,
@@ -275,23 +275,25 @@ const Class6RegForm = () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(downloadUrl);
             toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`, { id: "export" });
-        } catch (error: any) {
-            console.error(`Export ${type} error:`, error);
-            let message = `Failed to export ${type}`;
-            if (error.response && error.response.data instanceof Blob) {
+        } catch (error) {
+            if (isAxiosError(error) && error.response && error.response.status === 404) {
+                console.error(`Export ${type} error:`, error);
+                const message = `Failed to export ${type}`;
+                if (error.response && error.response.data instanceof Blob) {
 
-                const reader = new FileReader();
-                reader.onload = () => {
-                    try {
-                        const errData = JSON.parse(reader.result as string);
-                        toast.error(errData.message || message, { id: "export" });
-                    } catch {
-                        toast.error(message, { id: "export" });
-                    }
-                };
-                reader.readAsText(error.response.data);
-            } else {
-                toast.error(message, { id: "export" });
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const errData = JSON.parse(reader.result as string);
+                            toast.error(errData.message || message, { id: "export" });
+                        } catch {
+                            toast.error(message, { id: "export" });
+                        }
+                    };
+                    reader.readAsText(error.response.data);
+                } else {
+                    toast.error(message, { id: "export" });
+                }
             }
         }
     };
@@ -616,8 +618,11 @@ const Class6RegForm = () => {
                                                         ) : (
                                                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center"><Users size={18} /></div>
                                                         )}
-                                                        <div>
-                                                            <p className="font-medium">{reg.student_name_en}</p>
+                                                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                            {reg.student_name_en}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                            {reg.student_name_bn}
                                                         </div>
                                                     </div>
                                                 </td>
