@@ -22,7 +22,7 @@ import {
   TreePalm,
   ChevronDown,
 } from "lucide-react";
-import { useUnifiedAuth } from "@/context/useUnifiedAuth";
+import { useAuth } from "@/context/useAuth";
 
 interface SidebarProps {
   sidebarExpanded: boolean;
@@ -339,7 +339,7 @@ const Sidebar = ({
 }: SidebarProps) => {
   const location = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const { user } = useUnifiedAuth();
+  const { user } = useAuth();
 
   const sidebarItems = user ? getRoutesByRole(user.role) : [];
 

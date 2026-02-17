@@ -3,12 +3,13 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useUnifiedAuth } from "@/context/useUnifiedAuth";
+import { useAuth } from "@/context/useAuth";
+import envPreferredRole from "@/lib/role";
 
 type UserRole = "admin" | "teacher" | "student";
 
 function Login() {
-  const { loginAdmin, user, loading, isAdmin, isTeacher, isStudent, loginStudent, loginTeacher } = useUnifiedAuth();
+  const { loginAdmin, user, loading, isAdmin, isTeacher, isStudent, loginStudent, loginTeacher } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [username, setUsername] = useState("");
@@ -19,15 +20,22 @@ function Login() {
 
   useEffect(() => {
     if (user) {
-      if (isAdmin()) navigate("/admin/dashboard");
-      else if (isTeacher()) navigate("/teacher/dashboard");
-      else if (isStudent()) navigate("/student/dashboard");
+      if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) navigate("/admin/dashboard");
+      else if (isTeacher() && (!envPreferredRole || envPreferredRole === 'teacher')) navigate("/teacher/dashboard");
+      else if (isStudent() && (!envPreferredRole || envPreferredRole === 'student')) navigate("/student/dashboard");
       return;
     }
   }, [user, isAdmin, isTeacher, isStudent, navigate]);
 
+  useEffect(() => {
+    document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
+  }, [role]);
+
   if (user) {
-    return null;
+    // Only return null (hididng the login page) if the current user is allowed to be here
+    if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) return null;
+    if (isTeacher() && (!envPreferredRole || envPreferredRole === 'teacher')) return null;
+    if (isStudent() && (!envPreferredRole || envPreferredRole === 'student')) return null;
   }
 
   if (loading) {

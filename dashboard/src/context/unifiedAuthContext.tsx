@@ -182,56 +182,15 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         try {
-            axios.defaults.withCredentials = true;
-            // Fallback: try fetching profile directly if we somehow have a token or cookie (legacy)
-            // But with token auth, the interceptor needs accessToken. 
-            // If refresh failed, we likely have no access.
-            // We'll keep the existing logic as a backup or for cookie-based fallback if needed
-
-            switch (preferredRole) {
-                case "admin": {
-                    try {
-                        const adminRes = await axios.get("/api/auth/protected");
-                        if (adminRes.data.user) {
-                            setUser(adminRes.data.user as AdminUser);
-                            setLoading(false);
-                            return;
-                        }
-                    } catch {
-                        void 0;
-                    }
-                    break;
+            const meRes = await axios.get("/api/auth/me");
+            if (meRes.data.success && meRes.data.user) {
+                const userData = meRes.data.user;
+                setUser(userData);
+                if (userData?.role) {
+                    setPreferredRole(userData.role as UserRole);
                 }
-                case "teacher": {
-                    try {
-                        const teacherRes = await axios.get("/api/auth/teacher_me");
-                        if (teacherRes.data.user) {
-                            setUser(teacherRes.data.user as TeacherUser);
-                            setLoading(false);
-                            return;
-                        }
-                    } catch {
-                        void 0;
-                    }
-                    break;
-                }
-                case "student": {
-                    try {
-                        const studentRes = await axios.get("/api/auth/student-protected");
-                        if (studentRes.data.user) {
-                            setUser(studentRes.data.user as StudentUser);
-                            setLoading(false);
-                            return;
-                        }
-                    } catch {
-                        void 0;
-                    }
-                    break;
-                }
-                default: {
-                    // Try all if no preferred role ??
-                    // Existing logic...
-                }
+                setLoading(false);
+                return;
             }
             // If we reach here, we aren't auth'd
             setUser(null);

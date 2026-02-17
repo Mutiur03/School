@@ -16,7 +16,7 @@ const generateTokens = (user) => {
     { expiresIn: "15m" },
   );
   const refreshToken = jwt.sign(
-    { id: user.id, role: user.role, version: user.tokenVersion || 0 }, 
+    { id: user.id, role: user.role, version: user.tokenVersion || 0 },
     process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
     { expiresIn: "7d" },
   );
@@ -129,7 +129,16 @@ export const student_login = async (req, res) => {
       success: true,
       message: "Login successful",
       accessToken,
-      user: { id: student.id, role: "student", login_id: student.login_id },
+      user: {
+        id: student.id,
+        role: "student",
+        name: student.name,
+        login_id: student.login_id,
+        email: student.email,
+        phone: student.phone,
+        address: student.address,
+        image: student.image,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -175,7 +184,16 @@ export const teacher_login = async (req, res) => {
       success: true,
       message: "Login successful",
       accessToken,
-      user: { id: user.id, role: "teacher", email: user.email },
+      user: {
+        id: user.id,
+        role: "teacher",
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        designation: user.designation,
+        address: user.address,
+        image: user.image,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: "Error logging in" });
@@ -225,16 +243,32 @@ export const refresh_token = async (req, res) => {
     });
     sendRefreshToken(res, refreshToken); // Rotate refresh token
 
+    // Prepare user object based on role
+    let responseUser = {
+      id: user.id,
+      role: payload.role,
+      name: user.name, // Common for teacher/student
+      email: user.email,
+    };
+
+    if (payload.role === "admin") {
+      responseUser.username = user.username;
+    } else if (payload.role === "teacher") {
+      responseUser.phone = user.phone;
+      responseUser.designation = user.designation;
+      responseUser.address = user.address;
+      responseUser.image = user.image;
+    } else if (payload.role === "student") {
+      responseUser.login_id = user.login_id;
+      responseUser.phone = user.phone;
+      responseUser.address = user.address;
+      responseUser.image = user.image;
+    }
+
     return res.json({
       success: true,
       accessToken,
-      user: {
-        id: user.id,
-        role: payload.role,
-        username: user.username,
-        email: user.email,
-        login_id: user.login_id,
-      },
+      user: responseUser,
     });
   } catch (err) {
     console.log(err);

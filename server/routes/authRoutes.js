@@ -26,45 +26,15 @@ const authLimiter = rateLimit({
 authRouter.use(authLimiter);
 
 authRouter.post("/login", login);
-authRouter.get(
-  "/protected",
-  AuthMiddleware.authenticate(["admin"]),
-  (req, res) => {
-    res
-      .status(200)
-      .json(
-        new ApiResponse(200, "success", "You are authenticated!", req.user),
-      );
-  },
-);
 authRouter.get("/logout", logout);
 authRouter.post("/refresh", refresh_token);
 authRouter.post("/student_login", student_login);
 authRouter.post("/teacher_login", teacher_login);
-authRouter.get(
-  "/teacher_me",
-  AuthMiddleware.authenticate(["teacher"]),
-  (req, res) => {
-    console.log("Authenticated Teacher:", req.user);
-
-    res
-      .status(200)
-      .json(
-        new ApiResponse(200, "success", "You are authenticated!", req.user),
-      );
-  },
-);
-authRouter.get(
-  "/student-protected",
-  AuthMiddleware.authenticate(["student"]),
-  (req, res) => {
-    res
-      .status(200)
-      .json(
-        new ApiResponse(200, "success", "You are authenticated!", req.user),
-      );
-  },
-);
+authRouter.get("/me", AuthMiddleware.authenticate(), (req, res) => {
+  res
+    .status(200)
+    .json(new ApiResponse(200, "success", "You are authenticated!", req.user));
+});
 authRouter.post("/add-admin", addAdmin);
 
 export default authRouter;
