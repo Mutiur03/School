@@ -852,7 +852,7 @@ export const downloadRegistrationPDF = async (req, res) => {
   <title>Class 6 Registration Info</title>
   <style>
     @page {
-      size: legal;
+      size: A4;
       margin: 24px;
     }
     
@@ -890,7 +890,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       padding: 0;
       page-break-inside: avoid;
       page-break-after: avoid;
-      font-size: 1rem;
+      font-size: 13px;
     }
     .page-container {
       position: relative;
@@ -910,11 +910,11 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     .content-area {
       box-sizing: border-box;
-      padding: 0 0 140px 0;
+      padding: 0 0 110px 0;
       min-height: 0;
-      height: calc(100vh - 140px);
+      height: calc(100vh - 110px);
       overflow: hidden;
-      font-size: 1rem;
+      font-size: 13px;
     }
     
     /* Enhanced Bangla font rendering with better fallbacks */
@@ -997,10 +997,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       border-radius: 50%;
     }
     .header .school { 
-      font-size: 1.25rem; 
+      font-size: 14px; 
       font-weight: bold; 
-      margin-bottom: 6px;
-      line-height: 1.3;
+      margin-bottom: 4px;
+      line-height: 1.2;
       color: #1e3a8a;
     }
     .header .addr { 
@@ -1087,17 +1087,17 @@ export const downloadRegistrationPDF = async (req, res) => {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 40px;
+      bottom: 30px;
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       gap: 8px;
-      padding-bottom: 18px;
+      padding-bottom: 12px;
       background: white;
-      height: 110px;
+      height: 85px;
       box-sizing: border-box;
-      font-size: 1rem;
+      font-size: 13px;
     }
     .signature-cell {
       flex: 1 1 0;
@@ -1277,7 +1277,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     });
 
     const pdfBuffer = await page.pdf({
-      format: "legal",
+      format: "a4",
       printBackground: true,
       margin: { top: 24, bottom: 24, left: 24, right: 24 },
       preferCSSPageSize: true,
