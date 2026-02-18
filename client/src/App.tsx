@@ -58,10 +58,10 @@ function App() {
           <Route path="/registration/class-6/confirm/:id" element={<ConfirmationClass6 />} />
           <Route path="/admission/notice" element={<Admission />} />
           <Route path="/admission" element={<AdmissionFormNotice />} />
-          <Route path="/admission/form" element={<AdmissionForm />} />
-          <Route path="/admission/form/:id" element={<AdmissionForm />} />
-          <Route path="/admission/test" element={<AdmissionFormNew />} />
-          <Route path="/admission/test/:id" element={<AdmissionFormNew />} />
+          <Route path="/admission/form" element={<AdmissionFormNew />} />
+          <Route path="/admission/form/:id" element={<AdmissionFormNew />} />
+          <Route path="/admission/test" element={<AdmissionForm />} />
+          <Route path="/admission/test/:id" element={<AdmissionForm />} />
 
           <Route path="/admission/form/confirm/:id" element={<ConfirmationAdmission />} />
           <Route path="/admission/results" element={<AdmissionResultList />} />

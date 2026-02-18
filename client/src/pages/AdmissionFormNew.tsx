@@ -9,6 +9,18 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
+import {
+  BANGLA_ONLY,
+  ENGLISH_ONLY,
+  PHONE_NUMBER,
+  NID,
+  BIRTH_REG_NO,
+  POST_CODE,
+  REGISTRATION_NO,
+  filterNumericInput,
+  filterEnglishInput,
+  filterBanglaInput,
+} from "@/lib/regex";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { schoolConfig } from "@/lib/info";
@@ -19,25 +31,25 @@ const admissionSchema = z
       .string()
       .min(1, "Student Name in Bangla is required")
       .max(100)
-      .regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed")
+      .regex(BANGLA_ONLY, "Only Bangla characters are allowed")
       .default(""),
     student_nick_name_bn: z
       .string()
       .min(1, "Student Nickname in Bangla is required")
       .max(50)
-      .regex(/^[\u0980-\u09FF\s]*$/, "Only Bangla characters are allowed")
+      .regex(BANGLA_ONLY, "Only Bangla characters are allowed")
       .default(""),
     student_name_en: z
       .string()
       .min(1, "Student Name in English is required")
       .max(100)
-      .regex(/^[A-Za-z\s]+$/, "Only English characters are allowed")
+      .regex(ENGLISH_ONLY, "Only English characters are allowed")
       .default(""),
     birth_reg_no: z
       .string()
       .min(1, "Birth Registration Number is required")
       .max(17, "Birth Registration Number must be 17 characters")
-      .regex(/^\d{17}$/, "Birth Registration Number must be 17 digits")
+      .regex(BIRTH_REG_NO, "Birth Registration Number must be 17 digits")
       .default(""),
     registration_no: z.string().default(""),
 
@@ -45,48 +57,48 @@ const admissionSchema = z
       .string()
       .min(1, "Father's Name in Bangla is required")
       .max(100)
-      .regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed")
+      .regex(BANGLA_ONLY, "Only Bangla characters are allowed")
       .default(""),
     father_name_en: z
       .string()
       .min(1, "Father's Name in English is required")
       .max(100)
-      .regex(/^[A-Za-z\s]+$/, "Only English characters are allowed")
+      .regex(ENGLISH_ONLY, "Only English characters are allowed")
       .default(""),
     father_nid: z
       .string()
-      .min(10, "Father's NID is required")
+      .min(1, "Father's NID is required")
       .max(17)
-      .regex(/^\d{10,17}$/, "Father's NID must be 10 to 17 digits")
+      .regex(NID, "Father's NID must be 10, 13 or 17 digits")
       .default(""),
     father_phone: z
       .string()
-      .length(11, "Phone number must be 11 digits")
-      .regex(/^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
+      .min(1, "Father's Phone is required")
+      .regex(PHONE_NUMBER, "Invalid Bangladeshi phone number")
       .default(""),
 
     mother_name_bn: z
       .string()
       .min(1, "Mother's Name in Bangla is required")
       .max(100)
-      .regex(/^[\u0980-\u09FF\s]+$/, "Only Bangla characters are allowed")
+      .regex(BANGLA_ONLY, "Only Bangla characters are allowed")
       .default(""),
     mother_name_en: z
       .string()
       .min(1, "Mother's Name in English is required")
       .max(100)
-      .regex(/^[A-Za-z\s]+$/, "Only English characters are allowed")
+      .regex(ENGLISH_ONLY, "Only English characters are allowed")
       .default(""),
     mother_nid: z
       .string()
-      .min(10, "Mother's NID is required")
+      .min(1, "Mother's NID is required")
       .max(17)
-      .regex(/^\d{10,17}$/, "Mother's NID must be 10 to 17 digits")
+      .regex(NID, "Mother's NID must be 10, 13 or 17 digits")
       .default(""),
     mother_phone: z
       .string()
-      .length(11, "Phone number must be 11 digits")
-      .regex(/^01[3-9][0-9]{8}$/, "Invalid Bangladeshi phone number")
+      .min(1, "Mother's Phone is required")
+      .regex(PHONE_NUMBER, "Invalid Bangladeshi phone number")
       .default(""),
 
     birth_date: z.string().max(10).default(""),
@@ -144,9 +156,9 @@ const admissionSchema = z
       .default(""),
     present_post_code: z
       .string()
-      .min(4, "Present Post Code is required")
+      .min(1, "Present Post Code is required")
       .max(4)
-      .regex(/^\d{4}$/, "Post code must be 4 digits")
+      .regex(POST_CODE, "Post code must be 4 digits")
       .default(""),
     present_village_road: z
       .string()
@@ -171,9 +183,9 @@ const admissionSchema = z
       .default(""),
     permanent_post_code: z
       .string()
-      .min(4, "Permanent Post Code is required")
+      .min(1, "Permanent Post Code is required")
       .max(4)
-      .regex(/^\d{4}$/, "Post code must be 4 digits")
+      .regex(POST_CODE, "Post code must be 4 digits")
       .default(""),
     permanent_village_road: z
       .string()
@@ -203,7 +215,7 @@ const admissionSchema = z
       z
         .string()
         .max(17)
-        .regex(/^$|^\d{10,17}$/, "Guardian NID must be 10 to 17 digits")
+        .regex(/^$|^(?:\d{10}|\d{13}|\d{17})$/, "Guardian NID must be 10, 13 or 17 digits")
         .default(""),
     ),
     guardian_address_same_as_permanent: z.boolean().default(false),
@@ -405,14 +417,12 @@ const admissionSchema = z
         cls.includes("9") ||
         cls.includes("nine");
       if (isEightOrNine) {
-        if (!data.registration_no || !/^\d{10}$/.test(data.registration_no)) {
-          if (!data.registration_no || !/^\d{10}$/.test(data.registration_no)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Registration Number must be 10 digits",
-              path: ["registration_no"],
-            });
-          }
+        if (!data.registration_no || !REGISTRATION_NO.test(data.registration_no)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Registration Number must be 10 digits",
+            path: ["registration_no"],
+          });
         }
       }
     }
@@ -1219,19 +1229,7 @@ function Form() {
     listTypeOptions,
     userIdOptions,
   ]);
-  function filterEnglishInput(e: React.FormEvent<HTMLInputElement>) {
-    const target = e.target as HTMLInputElement;
-    return target.value.replace(/[^A-Za-z.()\s]/g, "");
-  }
 
-  function filterBanglaInput(e: React.FormEvent<HTMLInputElement>) {
-    const target = e.target as HTMLInputElement;
-    return target.value.replace(/[^\u0980-\u09FF.()\s]/g, "");
-  }
-  function filterNumericInput(e: React.FormEvent<HTMLInputElement>) {
-    const target = e.target as HTMLInputElement;
-    return target.value.replace(/[^\d]/g, "");
-  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { files } = e.target;
@@ -1565,7 +1563,7 @@ function Form() {
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-4 sm:space-y-6"
       >
-        {Object.keys(errors).length > 0 && (
+        {/* {Object.keys(errors).length > 0 && (
           <div
             style={{
               background: "#fff3cd",
@@ -1591,7 +1589,7 @@ function Form() {
               })}
             </ul>
           </div>
-        )}
+        )} */}
 
         <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
           <legend>
@@ -1728,7 +1726,6 @@ function Form() {
               <option value="Hinduism">Hinduism</option>
               <option value="Christianity">Christianity</option>
               <option value="Buddhism">Buddhism</option>
-              <option value="Other">Other</option>
             </select>
           </FieldRow>
           <FieldRow
@@ -1795,7 +1792,7 @@ function Form() {
               {...register("student_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e);
+                target.value = filterEnglishInput(e).toUpperCase();
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Student Name (in English)"
@@ -1920,7 +1917,7 @@ function Form() {
               {...register("father_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e);
+                target.value = filterEnglishInput(e).toUpperCase();
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Father's Name (in English)"
@@ -2016,7 +2013,7 @@ function Form() {
               {...register("mother_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e);
+                target.value = filterEnglishInput(e).toUpperCase()
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Mother's Name (in English)"
