@@ -120,9 +120,10 @@ const admissionSchema = z
       .max(2)
       .regex(/^(0[1-9]|[12]\d|3[01])$/, "Day must be 01-31")
       .default(""),
-    blood_group: z
-      .enum(bloodGroups)
-      .default("").optional(),
+    blood_group: z.preprocess(
+      (v) => (v === "" || v === null ? undefined : v),
+      z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const).optional(),
+    ),
     email: z.preprocess(
       (v) => (v === null ? "" : v),
       z
