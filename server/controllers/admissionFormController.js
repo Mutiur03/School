@@ -12,6 +12,7 @@ import {
   r2Client,
 } from "../config/r2.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import fs from "fs";
 const formatQuota = (q) => {
   if (!q) return null;
   const key = String(q).trim();
