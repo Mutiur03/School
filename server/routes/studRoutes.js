@@ -38,7 +38,7 @@ studRouter.get(
 );
 studRouter.get(
   "/getStudentsByClass/:year/:level",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  // AuthMiddleware.authenticate(["admin", "teacher"]),
   getClassStudentsController,
 );
 studRouter.get("/getAlumni", getAlumniController);
