@@ -418,7 +418,7 @@ const admissionSchema = z
         cls.includes("9") ||
         cls.includes("nine");
       if (isEightOrNine) {
-        if (!data.registration_no || !REGISTRATION_NO.test(data.registration_no)) {
+        if (data.registration_no && !REGISTRATION_NO.test(data.registration_no)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Registration Number must be 10 digits",
@@ -2562,7 +2562,7 @@ function Form() {
               label="Registration Number:"
               isRequired={isRequired("registration_no")}
               error={errors.registration_no}
-              tooltip="Enter your Registration Number from the registration card (required for Class 8 & 9)"
+              tooltip="Enter your Registration Number from the registration card"
             >
               <input
                 {...register("registration_no")}
