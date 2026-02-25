@@ -31,7 +31,7 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
   const { data: headMasterMsgFromApi } = useHeadMasterMsg();
   const resolvedHeadMasterMsg = headMasterMsg ?? (headMasterMsgFromApi as any);
   const resolvedBackendBaseUrl =
-    String(backendBaseUrl || (school as any).backendBaseUrl  || "").trim();
+    String(backendBaseUrl || (school as any).backendBaseUrl || "").trim();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [imgLoading, setImgLoading] = React.useState(true);
@@ -170,6 +170,7 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
                     position: "relative",
                     overflow: "hidden",
                     borderRadius: 8,
+                    backgroundColor: "#f0f0f0",
                   }}
                 />
               ) : (
