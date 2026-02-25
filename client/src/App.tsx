@@ -22,7 +22,7 @@ import ConfirmationAdmission from "./pages/ConfirmationAdmission";
 import AdmissionResult from "./pages/AdmissionResult";
 import AdmissionResultList from "./pages/AdmissionResultList";
 import AdmissionFormNotice from "./pages/AdmissionFormNotice";
-import MainLayout from "./components/MainLayout";
+import { AppLayout } from "@school/client-ui";
 import AdmissionFormNew from "./pages/AdmissionFormNew";
 import RegistrationClass6 from "./pages/RegistrationClass6";
 import RegClass6 from "./pages/RegClass6";
@@ -37,7 +37,7 @@ function App() {
       <Routes>
         {/* <Route path="/pdf/*" element={<PDF />} /> */}
 
-        <Route element={<MainLayout />}>
+        <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/notices" element={<Notice />} />
           <Route path="/events" element={<Event />} />
