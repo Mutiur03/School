@@ -6,8 +6,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build:client": "npm run build -w @school/client-ui && npm run build -w client",
-    "build:client:prod": "npm install --include=optional --ignore-scripts=false --no-audit --no-fund && npm run build:client",
+    "build:client:core": "npm run build -w @school/client-ui && npm run build -w client",
+    "build:client": "npm install --include=optional --ignore-scripts=false --no-audit --no-fund && npm run build:client:core",
+    "build:client:prod": "npm run build:client",
     "dev:client": "npm run dev -w client",
     "build:client:ui": "npm run build -w @school/client-ui",
     "dev:client:ui": "npm run dev -w @school/client-ui"
