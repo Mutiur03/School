@@ -10,7 +10,7 @@ export async function uploadPDFToCloudinary(file) {
   try {
     const result = await cloudinary.uploader.upload(file.path, {
       folder: "Random",
-      resource_type: "raw", 
+      resource_type: "raw",
       use_filename: true,
       unique_filename: false,
     });
@@ -29,7 +29,7 @@ export async function uploadPDFToCloudinary(file) {
     console.log("Error uploading to Cloudinary:", error);
 
     console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    throw new Error("Cloudinary upload failed", { cause: error });
   }
 }
 
@@ -104,9 +104,9 @@ fileUploadRouter.post(
           });
         }
       } else {
-            return res.status(400).json({ error: "Invalid document type" });
+        return res.status(400).json({ error: "Invalid document type" });
       }
-      const key=`citizen_charter`;
+      const key = `citizen_charter`;
       await redis.del(key);
       res.status(200).json({
         message: "Document uploaded successfully",
@@ -123,7 +123,7 @@ fileUploadRouter.post(
 );
 
 fileUploadRouter.get("/citizen-charter", async (req, res) => {
-  const key=`citizen_charter`;
+  const key = `citizen_charter`;
   const cachedCharter = await redis.get(key);
   if (cachedCharter) {
     return res.status(200).json(JSON.parse(cachedCharter));

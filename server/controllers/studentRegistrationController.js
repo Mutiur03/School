@@ -1,7 +1,7 @@
 import { prisma } from "../config/prisma.js";
 import fs from "fs";
 import path from "path";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import { createWriteStream } from "fs";
 import puppeteer from "puppeteer";
 
@@ -21,9 +21,8 @@ const saveImageLocally = async (file, section, roll, sscBatch) => {
   }
 
   const fileExtension = path.extname(file.originalname);
-  const filename = `${section || "unknown"}-${
-    roll || "unknown"
-  }${fileExtension}`;
+  const filename = `${section || "unknown"}-${roll || "unknown"
+    }${fileExtension}`;
   const finalPath = path.join(uploadDir, filename);
 
   fs.renameSync(file.path, finalPath);
@@ -1159,12 +1158,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     // Remove number column from row
     const row = (label, value, rowIndex = 0) => `
       <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
-        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
-        };font-weight:500;">${wrapBnEn(label)}</td>
-        <td style="border:1px solid #bbb;padding:4px 8px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
-        };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
+      };font-weight:500;">${wrapBnEn(label)}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
+      };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
       </tr>
     `;
     const joinAddr = (v, po, pc, upz, dist) =>
@@ -1322,8 +1319,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       [
         "Class Eight Information:",
         wrapBnEn(
-          `Section: ${registration.section_in_class_8 || "N/A"}, Roll: ${
-            registration.roll_in_class_8 || "N/A"
+          `Section: ${registration.section_in_class_8 || "N/A"}, Roll: ${registration.roll_in_class_8 || "N/A"
           }`,
         ),
       ],
@@ -1370,8 +1366,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin: 24px;
     }
     
-    ${
-      solaimanLipiBase64
+    ${solaimanLipiBase64
         ? `
     @font-face {
       font-family: 'SolaimanLipi';
@@ -1382,10 +1377,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0980-U+09FF, U+0964-U+096F;
     }`
         : ""
-    }
+      }
     
-    ${
-      timesNewRomanBase64
+    ${timesNewRomanBase64
         ? `
     @font-face {
       font-family: 'TimesNewRoman';
@@ -1396,7 +1390,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0020-U+007F, U+00A0-U+00FF;
     }`
         : ""
-    }
+      }
     
     body, html {
       height: 100%;
@@ -1412,10 +1406,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif;
       background: #fff;
       page-break-inside: avoid;
@@ -1433,10 +1426,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Enhanced Bangla font rendering with better fallbacks */
     .bn, .bn * {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
       font-weight: 400 !important;
       font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
@@ -1448,10 +1440,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
     }
     .en, .en * {
-      font-family: ${
-        timesNewRomanBase64
-          ? "'TimesNewRoman', 'Times New Roman'"
-          : "'Times New Roman'"
+      font-family: ${timesNewRomanBase64
+        ? "'TimesNewRoman', 'Times New Roman'"
+        : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
       font-size: 1rem;
@@ -1466,10 +1457,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Special handling for Bengali punctuation */
     .bn::before, .bn::after {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -1487,9 +1477,8 @@ export const downloadRegistrationPDF = async (req, res) => {
       top: 8px;
       width: 80px;
       height: 80px;
-      ${
-        !logoBase64
-          ? `
+      ${!logoBase64
+        ? `
         background: #f0f0f0;
         border: 2px solid #ccc;
         border-radius: 50%;
@@ -1501,7 +1490,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         text-align: center;
         line-height: 1.2;
       `
-          : ""
+        : ""
       }
     }
     .monogram img {
@@ -1587,17 +1576,15 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
     }
     .footer .note .bn {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
-      font-family: ${
-        timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
+      font-family: ${timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
       }, serif !important;
       font-size: 1rem;
     }
@@ -1611,10 +1598,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
       line-height: 1;
       white-space: pre;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
     .signature-row {
@@ -1654,10 +1640,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       white-space: nowrap;
     }
@@ -1680,11 +1665,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     <div class="content-area">
       <div class="header">
         <div class="monogram">
-          ${
-            logoBase64
-              ? `<img src="${logoBase64}" alt="School Logo" />`
-              : "School<br>Logo"
-          }
+          ${logoBase64
+        ? `<img src="${logoBase64}" alt="School Logo" />`
+        : "School<br>Logo"
+      }
         </div>
         <div class="school en">${schoolName}</div>
         <div class="addr en">${schoolAddr}</div>
@@ -1702,33 +1686,31 @@ export const downloadRegistrationPDF = async (req, res) => {
         </tbody>
       </table>
       <br />
-      ${
-        sectionInstructions
-          ? `
+      ${sectionInstructions
+        ? `
       <div class="instructions-section">
         <div class="instructions-content">${wrapBnEn(sectionInstructions)}</div>
       </div>
       `
-          : ""
+        : ""
       }
       <div class="footer">
         <div class="note">
           <div class="document-list">
             <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
-            ${
-              attachmentInstructions
-                ? attachmentInstructions
-                    .split(/\r?\n|\r/)
-                    .map((line) => {
-                      if (line) {
-                        return `<span class="bn">${handleList(line)}</span>`;
-                      }
-                      return "";
-                    })
-                    .filter(Boolean)
-                    .join("")
-                : ""
+            ${attachmentInstructions
+        ? attachmentInstructions
+          .split(/\r?\n|\r/)
+          .map((line) => {
+            if (line) {
+              return `<span class="bn">${handleList(line)}</span>`;
             }
+            return "";
+          })
+          .filter(Boolean)
+          .join("")
+        : ""
+      }
           </div>
         </div>
       </div>
@@ -1797,6 +1779,7 @@ export const downloadRegistrationPDF = async (req, res) => {
 
     // Force font loading and Unicode normalization
     await page.evaluate(() => {
+      /* global document, NodeFilter */
       // Normalize all text content
       const walker = document.createTreeWalker(
         document.body,
@@ -1838,8 +1821,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="SSC_Registration_${
-        registration.student_name_en || registration.roll
+      `attachment; filename="SSC_Registration_${registration.student_name_en || registration.roll
       }.pdf"`,
     );
     res.end(pdfBuffer);

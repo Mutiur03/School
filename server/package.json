@@ -9,7 +9,9 @@
     "build:docker": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
     "db:seed": "npx prisma db seed",
-    "dev": "nodemon server.js",
+    "lint": "eslint .",
+    "dev": "nodemon",
+    "prestart": "npm run lint",
     "start": "node server.js",
     "postinstall": "npx prisma generate"
   },
@@ -52,7 +54,12 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.1",
+    "eslint": "^10.0.1",
+    "eslint-import-resolver-node": "^0.3.9",
+    "eslint-plugin-import": "^2.32.0",
+    "globals": "^17.3.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }

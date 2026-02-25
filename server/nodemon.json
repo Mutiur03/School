@@ -1,0 +1,9 @@
+{
+  "exec": "npm run lint && node server.js",
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/",
+    "uploads/",
+    "prisma/migrations/"
+  ]
+}

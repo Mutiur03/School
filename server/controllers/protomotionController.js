@@ -35,7 +35,7 @@ export const passStatusController = async (req, res) => {
     for (const student of students) {
       const {
         id: enrollmentId,
-        student_id,
+        student_id: _student_id,
         class: studentClass,
         student: studentData,
       } = student;

@@ -1,7 +1,5 @@
 import router from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import {
   createRegistration,
   getAllRegistrations,
@@ -41,7 +39,7 @@ const uploadExcel = multer({
     console.log("File received:", file.originalname, file.mimetype);
     if (
       file.mimetype ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       file.mimetype === "application/vnd.ms-excel" ||
       file.mimetype === "application/octet-stream" || // Sometimes Excel files are detected as this
       file.originalname.endsWith(".xlsx") ||

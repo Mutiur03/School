@@ -143,7 +143,7 @@ export const addSubController = async (req, res) => {
     }));
 
     try {
-      const result = await prisma.subjects.createMany({
+      await prisma.subjects.createMany({
         data: subjectData,
       });
 

@@ -28,7 +28,7 @@ async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    throw new Error("Cloudinary upload failed", { cause: error });
   }
 }
 
@@ -38,7 +38,7 @@ export const getClassSlots = async (req, res) => {
       orderBy: { id: "asc" },
     });
     res.json(slots);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch class slots" });
   }
 };
@@ -59,7 +59,7 @@ export const createClassSlot = async (req, res) => {
       data: { start_time, end_time },
     });
     res.status(201).json(slot);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to create class slot" });
   }
 };
@@ -82,7 +82,7 @@ export const updateClassSlot = async (req, res) => {
       data: { start_time, end_time },
     });
     res.json(slot);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to update class slot" });
   }
 };
@@ -92,7 +92,7 @@ export const deleteClassSlot = async (req, res) => {
   try {
     await prisma.class_slot_time.delete({ where: { id: Number(id) } });
     res.json({ success: true });
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to delete class slot" });
   }
 };
@@ -110,7 +110,7 @@ export const getRoutines = async (req, res) => {
       include: { slot: true },
     });
     res.json(routines);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch routines" });
   }
 };
@@ -124,7 +124,7 @@ export const createRoutine = async (req, res) => {
       data: { class: Number(classNum), slot_id: Number(slot_id), day, subject },
     });
     res.status(201).json(routine);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to create routine" });
   }
 };
@@ -140,7 +140,7 @@ export const updateRoutine = async (req, res) => {
       data: { class: Number(classNum), slot_id: Number(slot_id), day, subject },
     });
     res.json(routine);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to update routine" });
   }
 };
@@ -150,7 +150,7 @@ export const deleteRoutine = async (req, res) => {
   try {
     await prisma.class_routine.delete({ where: { id: Number(id) } });
     res.json({ success: true });
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to delete routine" });
   }
 };
@@ -174,8 +174,7 @@ export const uploadClassRoutinePDF = async (req, res) => {
     await redis.del(key);
     res.status(201).json(pdf);
   } catch (err) {
-    console.log(err);
-
+    console.error(err);
     res.status(500).json({ error: "Failed to upload PDF" });
   }
 };
@@ -194,7 +193,7 @@ export const getClassRoutinePDFs = async (req, res) => {
     });
     await redis.set(key, JSON.stringify(pdfs), "EX", LONG_TERM_CACHE_TTL);
     res.json(pdfs);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch PDFs" });
   }
 };
@@ -211,7 +210,7 @@ export const deleteClassRoutinePDF = async (req, res) => {
     const key = `class_routine_pdfs`;
     await redis.del(key);
     res.json({ success: true });
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to delete PDF" });
   }
 };
@@ -244,7 +243,7 @@ export const updateClassRoutinePDF = async (req, res) => {
     const key = `class_routine_pdfs`;
     await redis.del(key);
     res.json(updated);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: "Failed to update PDF" });
   }
 };

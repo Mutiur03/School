@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.js";
 import axios from "axios";
-import jwt from "jsonwebtoken";
 const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
   const bulkSmsPayload = {
     api_key: API_KEY,
@@ -51,10 +50,9 @@ export const getAttendenceController = async (req, res) => {
   // Auth handled by middleware
   if (req.user.role === "admin") {
     try {
-      const admin = req.user;
       const attendenceRecords = await prisma.attendence.findMany();
       res.status(200).json(attendenceRecords);
-    } catch (error) {
+    } catch {
       return res.status(401).json({ message: "Unauthorized" });
     }
   } else if (req.user.role === "teacher") {
@@ -400,9 +398,8 @@ export const addAttendenceController = async (req, res) => {
                         where: { id: smsData.smsLogId },
                         data: {
                           status: "failed",
-                          error_reason: `API Error: ${
-                            result.code || "Unknown error"
-                          }`,
+                          error_reason: `API Error: ${result.code || "Unknown error"
+                            }`,
                         },
                       });
                     } catch (updateError) {
@@ -416,7 +413,7 @@ export const addAttendenceController = async (req, res) => {
               }
             }
           } else {
-            for (const [phoneNumber, smsDataArray] of smsLogMap) {
+            for (const [smsDataArray] of smsLogMap) {
               // Count only one failure per phone number
               smsFailedCount++;
 

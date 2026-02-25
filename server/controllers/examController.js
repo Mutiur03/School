@@ -28,7 +28,7 @@ export const addExamController = async (req, res) => {
       }
     }
 
-    const insertedExams = await prisma.exams.createMany({
+    await prisma.exams.createMany({
       data: exams.map((exam) => ({
         exam_name: exam.exam_name || null,
         exam_year: exam.exam_year || null,
@@ -52,7 +52,10 @@ export const addExamController = async (req, res) => {
       message: "Exam added successfully",
     });
   } catch (error) {
-    return handleDatabaseError(error, res, "adding exams");
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Error adding exams",
+    });
   }
 };
 
@@ -250,7 +253,7 @@ async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    throw new Error("Cloudinary upload failed", { cause: error });
   }
 }
 
@@ -315,7 +318,10 @@ export const removeExamRoutinePDFController = async (req, res) => {
         if (match) {
           public_id = match[1];
         }
-      } catch (e) {}
+      } catch (err) {
+        // If there's an error extracting public_id, continue without it
+        console.error("Error extracting public_id from routine URL:", err.message);
+      }
     }
 
     // Remove from Cloudinary if possible

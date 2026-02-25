@@ -2,13 +2,12 @@ import { prisma } from "../config/prisma.js";
 import path from "path";
 import puppeteer from "puppeteer";
 import archiver from "archiver";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import { redis } from "../config/redis.js";
 import { pdfQueue } from "../utils/pdfQueue.js";
 import {
   getUploadUrl,
   deleteFromR2,
-  getDownloadUrl,
   r2Client,
 } from "../config/r2.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
@@ -114,8 +113,8 @@ export const getAdmissionUploadUrl = async (req, res) => {
       .toLowerCase();
     const admissionClassSafe = admissionClass
       ? String(admissionClass)
-          .trim()
-          .replace(/[^a-zA-Z0-9-_]+/g, "_")
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]+/g, "_")
       : "unknown_class";
 
     const ext = path.extname(filename);
@@ -220,7 +219,7 @@ export const createForm = async (req, res) => {
 
 export const getForms = async (req, res) => {
   try {
-    const [items, total] = await Promise.all([
+    const [items] = await Promise.all([
       prisma.admission_form.findMany({
         orderBy: { created_at: "desc" },
       }),
@@ -267,7 +266,6 @@ export const updateForm = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Form not found" });
-    const settings = await prisma.admission.findFirst();
     const payload = { ...req.body };
 
     delete payload.guardian_is_not_father;
@@ -531,12 +529,10 @@ export const generateAdmissionPDF = async (admission) => {
 
     const row = (label, value, rowIndex = 0) => `
       <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
-        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
-        };font-weight:500;">${wrapBnEn(label)}</td>
-        <td style="border:1px solid #bbb;padding:4px 8px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
-        };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
+      };font-weight:500;">${wrapBnEn(label)}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
+      };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
       </tr>
     `;
     const joinAddr = (v, po, pc, upz, dist) =>
@@ -685,32 +681,6 @@ export const generateAdmissionPDF = async (admission) => {
     const schoolWeb = "www.lbphs.gov.bd";
     const admission_year = admission.admission_year || "";
 
-    // Process student photo
-    let studentPhotoUrl = "";
-    if (admission.photo_path) {
-      if (admission.photo_path.startsWith("http")) {
-        studentPhotoUrl = admission.photo_path;
-      } else if (admission.photo_path.startsWith("uploads/")) {
-        // Legacy local file
-        const p = path.join(process.cwd(), admission.photo_path);
-        if (fs.existsSync(p)) {
-          try {
-            const b = fs.readFileSync(p);
-            studentPhotoUrl = `data:image/jpeg;base64,${b.toString("base64")}`;
-          } catch (e) {
-            console.warn("Failed to read local photo", e);
-          }
-        }
-      } else {
-        // R2 Key
-        try {
-          studentPhotoUrl = await getDownloadUrl(admission.photo_path);
-        } catch (e) {
-          console.warn("Failed to sign R2 url", e);
-        }
-      }
-    }
-
     // prepare display strings for title: use list_type, admission_class and admission_year
     const admission_class_raw = admission.admission_class || "";
     const list_type_raw = admission.list_type || "";
@@ -736,11 +706,9 @@ export const generateAdmissionPDF = async (admission) => {
       .trim()
       .replace(/(^|\s)\S/g, (s) => s.toUpperCase());
 
-    const titleLabel = `Student's Information for Admission ${
-      list_type_display ? `(${list_type_display})` : ""
-    }${admission_class_display ? ` in Class ${admission_class_display}` : ""}${
-      admission_year ? ` ${admission_year}` : ""
-    }`;
+    const titleLabel = `Student's Information for Admission ${list_type_display ? `(${list_type_display})` : ""
+      }${admission_class_display ? ` in Class ${admission_class_display}` : ""}${admission_year ? ` ${admission_year}` : ""
+      }`;
     // formatQuota is defined at module scope for reuse across PDF/Excel generators
 
     const slNoRaw = admission.serial_no || "";
@@ -780,8 +748,7 @@ export const generateAdmissionPDF = async (admission) => {
       margin: 24px;
     }
     
-    ${
-      solaimanLipiBase64
+    ${solaimanLipiBase64
         ? `
     @font-face {
       font-family: 'SolaimanLipi';
@@ -792,10 +759,9 @@ export const generateAdmissionPDF = async (admission) => {
       unicode-range: U+0980-U+09FF, U+0964-U+096F;
     }`
         : ""
-    }
+      }
     
-    ${
-      timesNewRomanBase64
+    ${timesNewRomanBase64
         ? `
     @font-face {
       font-family: 'TimesNewRoman';
@@ -806,7 +772,7 @@ export const generateAdmissionPDF = async (admission) => {
       unicode-range: U+0020-U+007F, U+00A0-U+00FF;
     }`
         : ""
-    }
+      }
     
     body, html {
       height: 100%;
@@ -822,10 +788,9 @@ export const generateAdmissionPDF = async (admission) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif;
       background: #fff;
       page-break-inside: avoid;
@@ -842,10 +807,9 @@ export const generateAdmissionPDF = async (admission) => {
     }
     
     .bn, .bn * {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
       font-weight: 400 !important;
       font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
@@ -857,10 +821,9 @@ export const generateAdmissionPDF = async (admission) => {
       font-size: 0.95rem;
     }
     .en, .en * {
-      font-family: ${
-        timesNewRomanBase64
-          ? "'TimesNewRoman', 'Times New Roman'"
-          : "'Times New Roman'"
+      font-family: ${timesNewRomanBase64
+        ? "'TimesNewRoman', 'Times New Roman'"
+        : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
       font-size: .95rem;
@@ -873,10 +836,9 @@ export const generateAdmissionPDF = async (admission) => {
     }
     
     .bn::before, .bn::after {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -894,9 +856,8 @@ export const generateAdmissionPDF = async (admission) => {
       top: 8px;
       width: 80px;
       height: 80px;
-      ${
-        !logoBase64
-          ? `
+      ${!logoBase64
+        ? `
         background: #f0f0f0;
         border: 2px solid #ccc;
         border-radius: 50%;
@@ -908,7 +869,7 @@ export const generateAdmissionPDF = async (admission) => {
         text-align: center;
         line-height: 1.2;
       `
-          : ""
+        : ""
       }
     }
     .monogram img {
@@ -994,17 +955,15 @@ export const generateAdmissionPDF = async (admission) => {
       font-size: 1rem;
     }
     .footer .note .bn {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
       white-space: pre-wrap;
     }
     .footer .note .en {
-      font-family: ${
-        timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
+      font-family: ${timesNewRomanBase64 ? "'TimesNewRoman'" : "'Times New Roman'"
       }, serif !important;
       font-size: 1rem;
     }
@@ -1019,10 +978,9 @@ export const generateAdmissionPDF = async (admission) => {
       line-height: 1.02;
       white-space: pre-line;
       margin-bottom: 3px;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
     .document-list .bn.document-list-title,
@@ -1032,10 +990,9 @@ export const generateAdmissionPDF = async (admission) => {
       font-size: 0.9rem !important;
       display: block !important;
       margin-bottom: 1px !important;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
     }
     .footer .note p {
@@ -1086,10 +1043,9 @@ export const generateAdmissionPDF = async (admission) => {
       font-size: 1rem;
       font-weight: 500;
       margin-top: 0px;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       white-space: nowrap;
     }
@@ -1112,11 +1068,10 @@ export const generateAdmissionPDF = async (admission) => {
     <div class="content-area">
       <div class="header">
         <div class="monogram">
-          ${
-            logoBase64
-              ? `<img src="${logoBase64}" alt="School Logo" />`
-              : "School<br>Logo"
-          }
+          ${logoBase64
+        ? `<img src="${logoBase64}" alt="School Logo" />`
+        : "School<br>Logo"
+      }
         </div>
         <div class="school en">${schoolName}</div>
         <div class="addr en">${schoolAddr}</div>
@@ -1127,11 +1082,10 @@ export const generateAdmissionPDF = async (admission) => {
       </div>
       <div class="section-row"> 
   <span class="en">SL No:</span> <span class="en">${slNoDisplay}</span>,
-  ${
-    registrationDisplay
-      ? `<span class="en"> Reg No:</span> <span class="en">${registrationDisplay}</span>,`
-      : ""
-  }
+  ${registrationDisplay
+        ? `<span class="en"> Reg No:</span> <span class="en">${registrationDisplay}</span>,`
+        : ""
+      }
   <span class="en"> User ID:</span> <span class="en">${admissionUserIdDisplay}</span>,
         <span class="en"> Quota:</span> ${quotaDisplay},
         <span class="en"> Religion:</span> ${wrapBnEn(religionDisplay)}
@@ -1141,33 +1095,31 @@ export const generateAdmissionPDF = async (admission) => {
           ${tableRows}
         </tbody>
       </table>
-      ${
-        sectionInstructions
-          ? `
+      ${sectionInstructions
+        ? `
       <div class="instructions-section">
         <div class="instructions-content">${wrapBnEn(sectionInstructions)}</div>
       </div>
       `
-          : ""
+        : ""
       }
       <div class="footer">
         <div class="note">
           <div class="document-list">
             <span class="bn document-list-title">* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</span>
-            ${
-              attachmentInstructions
-                ? attachmentInstructions
-                    .split(/\r?\n|\r/)
-                    .map((line) => {
-                      if (line) {
-                        return `<span class="bn">${handleList(line)}</span>`;
-                      }
-                      return "";
-                    })
-                    .filter(Boolean)
-                    .join("")
-                : ""
+            ${attachmentInstructions
+        ? attachmentInstructions
+          .split(/\r?\n|\r/)
+          .map((line) => {
+            if (line) {
+              return `<span class="bn">${handleList(line)}</span>`;
             }
+            return "";
+          })
+          .filter(Boolean)
+          .join("")
+        : ""
+      }
           </div>
           <p style="font-size:1rem; margin-top:8px;">
           * পূর্ববর্তী বিদ্যালয়ের মূল ছাড়পত্র ভর্তির সময় দিতে না পারলে পরীক্ষার ফল প্রকাশের পর অবশ্যই জমা দিতে হবে। অন্যথায় ভর্তি বাতিল হবে।
@@ -1176,15 +1128,14 @@ export const generateAdmissionPDF = async (admission) => {
           </p>
           <div style="margin-top:8px;">
             <div class="bn" style="font-weight:700 !important; font-size:1.05rem; text-align:center; display:block;">ছাত্রের অঙ্গীকারনামা</div>
-            ${
-              ongikar
-                ? `
+            ${ongikar
+        ? `
               <div class="instructions-section">
                 <div class="instructions-content">${wrapBnEn(ongikar)}</div>
               </div>
               `
-                : ""
-            }
+        : ""
+      }
           </div>
         </div>
       </div>
@@ -1237,7 +1188,6 @@ export const generateAdmissionPDF = async (admission) => {
       : process.env.PUPPETEER_EXECUTABLE_PATH;
     launchOptions.executablePath = chromePath;
     let browser = null;
-    const page = null;
     // keys to record worker-side status/errors when called directly or from worker
     const statusKey = `pdf:${admission.id}:status`;
     const errorKey = `pdf:${admission.id}:error`;
@@ -1254,8 +1204,7 @@ export const generateAdmissionPDF = async (admission) => {
           await redis.set(statusKey, "failed");
           await redis.set(
             errorKey,
-            `launch error: ${
-              launchErr && launchErr.stack ? launchErr.stack : launchErr
+            `launch error: ${launchErr && launchErr.stack ? launchErr.stack : launchErr
             }`,
           );
         } catch (rErr) {
@@ -1280,6 +1229,7 @@ export const generateAdmissionPDF = async (admission) => {
         waitUntil: ["networkidle0", "domcontentloaded"],
       });
       await page.evaluate(() => {
+        /* global document, NodeFilter */
         const walker = document.createTreeWalker(
           document.body,
           NodeFilter.SHOW_TEXT,

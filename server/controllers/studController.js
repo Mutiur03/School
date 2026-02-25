@@ -15,7 +15,7 @@ export const initGoogleSheets = async () => {
     };
 
     const missingVars = Object.entries(requiredEnvVars)
-      .filter(([key, value]) => !value)
+      .filter(([_key, value]) => !value)
       .map(([key]) => key);
 
     if (missingVars.length > 0) {
@@ -38,6 +38,7 @@ export const initGoogleSheets = async () => {
   } catch (error) {
     throw new Error(
       `Google Sheets API initialization failed: ${error.message}`,
+      { cause: error },
     );
   }
 };
@@ -52,7 +53,7 @@ export const getAlumniController = async (_req, res) => {
   try {
     const students = await prisma.students.findMany();
     res.status(200).json(students);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Error fetching students" });
   }
 };
@@ -76,9 +77,8 @@ export const getStudentsController = async (req, res) => {
     if (parsedYear < 2000 || parsedYear > currentYear + 5) {
       return res.status(400).json({
         success: false,
-        message: `Invalid year. Year must be between 2000 and ${
-          currentYear + 5
-        }.`,
+        message: `Invalid year. Year must be between 2000 and ${currentYear + 5
+          }.`,
       });
     }
 
@@ -96,7 +96,7 @@ export const getStudentsController = async (req, res) => {
             },
           },
         });
-      } catch (error) {
+      } catch {
         return res.status(401).json({ message: "Invalid Admin Token" });
       }
     } else if (req.user.role === "teacher") {
@@ -211,7 +211,7 @@ export const getStudentController = async (req, res) => {
     };
 
     res.status(200).json({ success: true, data: responseData });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Error fetching student" });
   }
 };
@@ -428,9 +428,8 @@ export const addStudentController = async (req, res) => {
       const target = error.meta?.target;
       return res.status(409).json({
         success: false,
-        error: `Duplicate entry detected${
-          target ? ` for ${target.join(", ")}` : ""
-        }`,
+        error: `Duplicate entry detected${target ? ` for ${target.join(", ")}` : ""
+          }`,
         details: "A student with this login_id or phone number already exists",
       });
     }
@@ -521,7 +520,7 @@ export const updateStudentController = async (req, res) => {
     }
 
     res.status(200).json(result);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Error updating student" });
   }
 };
@@ -573,7 +572,7 @@ export const deleteStudentController = async (req, res) => {
     }
 
     res.status(200).json({ message: "Student deleted successfully" });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Error deleting student" });
   }
 };
@@ -818,7 +817,7 @@ export const updateStudentImageController = async (req, res) => {
       message: "Student image updated successfully",
       data: result,
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -885,7 +884,7 @@ export const changePasswordController = async (req, res) => {
     res
       .status(200)
       .json({ success: true, message: "Password changed successfully" });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -910,9 +909,8 @@ export const getClassStudentsController = async (_req, res) => {
     if (parsedYear < 2000 || parsedYear > currentYear + 5) {
       return res.status(400).json({
         success: false,
-        message: `Invalid year. Year must be between 2000 and ${
-          currentYear + 5
-        }.`,
+        message: `Invalid year. Year must be between 2000 and ${currentYear + 5
+          }.`,
       });
     }
 
@@ -937,7 +935,7 @@ export const getClassStudentsController = async (_req, res) => {
     }
 
     const formattedResult = result.flatMap((student) => {
-      const { password, ...studentWithoutPassword } = student;
+      const { password: _password, ...studentWithoutPassword } = student;
       return student.enrollments.map((enrollment) => ({
         ...studentWithoutPassword,
         ...enrollment,

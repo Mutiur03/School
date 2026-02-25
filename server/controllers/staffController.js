@@ -86,12 +86,12 @@ export const addStaff = async (req, res) => {
     const createdStaffs = emails.length
       ? await prisma.staffs.findMany({ where: { email: { in: emails } } })
       : await prisma.staffs.findMany({
-          where: {
-            OR: staffData
-              .filter((s) => s.phone)
-              .map((s) => ({ phone: s.phone })),
-          },
-        });
+        where: {
+          OR: staffData
+            .filter((s) => s.phone)
+            .map((s) => ({ phone: s.phone })),
+        },
+      });
 
     res.status(201).json({
       success: true,
@@ -119,16 +119,12 @@ export const updateStaff = async (req, res) => {
   const { name, email, phone, address, designation } = req.body;
 
   try {
-    const prevStaff = await prisma.staffs.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    const rawData = { 
+    const rawData = {
       name: name || null,
       email: email || null,
       phone: phone ? "0" + removeNonNumber(String(phone)).slice(-10) : null,
       address: address || null,
-      designation: designation?.trim() || null, 
+      designation: designation?.trim() || null,
     };
 
     const validatedData = validateFieldLengths(rawData);
