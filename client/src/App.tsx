@@ -28,7 +28,8 @@ import RegistrationClass6 from "./pages/RegistrationClass6";
 import RegClass6 from "./pages/RegClass6";
 import ConfirmationClass6 from "./pages/ConfirmationClass6";
 function App() {
-  axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+  const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
+  axios.defaults.baseURL = backendBaseUrl;
 
   return (
     <>
