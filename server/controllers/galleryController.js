@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
 import { fixUrl } from "../utils/fixURL.js";
@@ -46,7 +45,7 @@ export const getGalleryController = async (req, res) => {
       }
     });
     res.json(grouped);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -61,7 +60,6 @@ export const addGalleryController = async (req, res) => {
 
   try {
     const insertPromises = req.files.map((file) => {
-      const imagePath = fixUrl(file.filename);
       return prisma.gallery.create({
         data: {
           event_id: eventId && eventId !== "" ? parseInt(eventId) : null,
@@ -77,7 +75,7 @@ export const addGalleryController = async (req, res) => {
     await Promise.all(insertPromises);
     res.json({ message: "Images uploaded successfully" });
   } catch (err) {
-    console.error("Error in addGalleryController:", err);
+    console.error("Error in addGalleryController:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

@@ -68,9 +68,7 @@ export const compressImageToLocation = ({
             quality > 10 &&
             compressOptions[format]
           ) {
-            outputBuffer = await sharp(fileBuffer)
-              [format](compressOptions[format])
-              .toBuffer();
+            outputBuffer = await sharp(fileBuffer)[format](compressOptions[format]).toBuffer();
             sizeKB = outputBuffer.length / 1024;
             console.log(
               `${format.toUpperCase()} at quality ${quality}: ${sizeKB.toFixed(
@@ -96,16 +94,15 @@ export const compressImageToLocation = ({
             await sharp(outputBuffer).metadata();
             console.log("Output image is valid");
           } catch (error) {
-            throw new Error("Failed to create valid image after compression");
+            throw new Error("Failed to create valid image after compression", { cause: error });
           }
 
           // Generate filename and paths
           const uniqueSuffix =
             Date.now() + "-" + Math.round(Math.random() * 1e9);
           const ext = file.originalname.split(".").pop();
-          const filename = `${uniqueSuffix}-${
-            file.originalname.split(".")[0]
-          }.${ext}`;
+          const filename = `${uniqueSuffix}-${file.originalname.split(".")[0]
+            }.${ext}`;
           const outputPath = path.join(absoluteTargetPath, filename);
           const relativePath = path
             .join(targetLocation, filename)

@@ -61,8 +61,8 @@ export const addTeacher = async (req, res) => {
       })
     );
 
-    const result = await prisma.teachers.createMany({
-      data: teacherData.map(({ originalPassword, ...data }) => data),
+    await prisma.teachers.createMany({
+      data: teacherData.map(({ originalPassword: _originalPassword, ...data }) => data),
     });
 
     const createdTeachers = await prisma.teachers.findMany({
@@ -167,7 +167,7 @@ export const updateTeacher = async (req, res) => {
                 name?.trim() || "",
                 email?.trim() || "",
                 "0" + removeNonNumber(phone).slice(-10),
-                subject?.trim() || "",
+                designation?.trim() || "",
               ],
             ],
           },

@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
-import path from "path";
 import { redis } from "../config/redis.js";
 import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
 export async function uploadPDFToCloudinary(file) {
@@ -24,8 +23,6 @@ export async function uploadPDFToCloudinary(file) {
 
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
 
-    const ext = path.extname(file.originalname);
-
     return {
       previewUrl: result.secure_url,
       downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
@@ -33,7 +30,7 @@ export async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    throw new Error("Cloudinary upload failed", { cause: error });
   }
 }
 

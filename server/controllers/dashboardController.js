@@ -14,7 +14,6 @@ export const getAllDashboardData = async (req, res) => {
     // Execute queries with individual error handling
     let studentCount = 0;
     let teacherCount = 0;
-    let eventCount = 0;
     let announcements = [];
     let attendanceData = [];
     let events = [];
@@ -36,11 +35,7 @@ export const getAllDashboardData = async (req, res) => {
       console.warn("Error fetching teacher count:", error.message);
     }
 
-    try {
-      eventCount = await prisma.events.count();
-    } catch (error) {
-      console.warn("Error fetching event count:", error.message);
-    }
+
 
     try {
       announcements = await prisma.notices.findMany({
@@ -112,7 +107,7 @@ export const getAllDashboardData = async (req, res) => {
           if (!event.date) return false;
           const eventDate = parseEventDate(event.date);
           return eventDate >= currentDate;
-        } catch (error) {
+        } catch {
           console.error("Error parsing event date:", event.date);
           return false;
         }
@@ -125,7 +120,7 @@ export const getAllDashboardData = async (req, res) => {
         if (!event.date) return false;
         const eventDate = parseEventDate(event.date);
         return eventDate >= currentDate;
-      } catch (error) {
+      } catch {
         return false;
       }
     }).length;
@@ -160,8 +155,8 @@ export const getAllDashboardData = async (req, res) => {
       data: allData,
       message:
         allData.announcements.length === 0 &&
-        allData.events.length === 0 &&
-        allData.examSchedule.length === 0
+          allData.events.length === 0 &&
+          allData.examSchedule.length === 0
           ? "Dashboard data retrieved successfully (no announcements, events, or exams found)"
           : "All dashboard data retrieved successfully",
     });

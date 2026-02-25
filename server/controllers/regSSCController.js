@@ -34,7 +34,7 @@ export async function uploadPDFToCloudinary(file) {
     };
   } catch (error) {
     console.error("Cloudinary upload failed:", error);
-    throw new Error("Cloudinary upload failed: " + error.message);
+    throw new Error("Cloudinary upload failed: " + error.message, { cause: error });
   }
 }
 
@@ -82,7 +82,7 @@ export const createOrUpdateSSCReg = async (req, res) => {
         ) {
           try {
             const publicIdMatch =
-              existingRecord.notice.match(/\/notices\/([^\/]+)$/);
+              existingRecord.notice.match(/\/notices\/([^/]+)$/);
             const publicId = publicIdMatch
               ? `notices/${publicIdMatch[1]}`
               : null;
@@ -110,7 +110,7 @@ export const createOrUpdateSSCReg = async (req, res) => {
             console.error("Error cleaning up file:", cleanupError);
           }
         }
-        throw new Error("Failed to upload notice PDF: " + uploadError.message);
+        throw new Error("Failed to upload notice PDF: " + uploadError.message, { cause: uploadError });
       }
     }
 
@@ -187,7 +187,7 @@ export const deleteSSCRegNotice = async (req, res) => {
     // Delete from Cloudinary if it's a cloudinary URL
     if (sscReg.notice.includes("cloudinary")) {
       try {
-        const publicIdMatch = sscReg.notice.match(/\/notices\/([^\/]+)$/);
+        const publicIdMatch = sscReg.notice.match(/\/notices\/([^/]+)$/);
         const publicId = publicIdMatch ? `notices/${publicIdMatch[1]}` : null;
 
         if (publicId) {

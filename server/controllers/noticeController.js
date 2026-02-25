@@ -27,7 +27,7 @@ export async function uploadPDFToCloudinary(file) {
   } catch (error) {
     console.log("Error uploading to Cloudinary:", error);
     console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed");
+    throw new Error("Cloudinary upload failed", { cause: error });
   }
 }
 

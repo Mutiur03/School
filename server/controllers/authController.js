@@ -34,7 +34,6 @@ const sendRefreshToken = (res, token) => {
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     domain: cookieDomain,
-    // Partitioned cookies must be Secure. Only enable in production/secure mode.
     partitioned: isProduction,
   });
 };
@@ -76,7 +75,7 @@ export const login = async (req, res) => {
       accessToken,
       user: { id: user.id, role: "admin", username: user.username },
     });
-  } catch (err) {
+  } catch {
     return res.status(500).json({ success: false, error: "Error logging in" });
   }
 };
@@ -120,11 +119,7 @@ export const student_login = async (req, res) => {
       ...student,
       role: "student",
     });
-    // We can send refresh token, but student app might ignore it.
-    // sendRefreshToken(res, refreshToken); // Check if this breaks anything? Probably safe to send.
-
-    // Legacy cookie removed.
-
+    sendRefreshToken(res, refreshToken);
     res.json({
       success: true,
       message: "Login successful",
@@ -177,9 +172,6 @@ export const teacher_login = async (req, res) => {
       role: "teacher",
     });
     sendRefreshToken(res, refreshToken);
-
-    // Legacy cookie removed.
-
     res.json({
       success: true,
       message: "Login successful",
@@ -195,7 +187,7 @@ export const teacher_login = async (req, res) => {
         image: user.image,
       },
     });
-  } catch (err) {
+  } catch {
     return res.status(500).json({ success: false, error: "Error logging in" });
   }
 };
@@ -211,8 +203,6 @@ export const refresh_token = async (req, res) => {
       token,
       process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
     );
-
-    // Check if user exists based on role
     let user = null;
     if (payload.role === "admin") {
       user = await prisma.admin.findUnique({ where: { id: payload.id } });
@@ -303,7 +293,7 @@ export const logout = async (req, res) => {
           data: { tokenVersion: { increment: 1 } },
         });
       }
-    } catch (error) {
+    } catch {
       // Token might be expired or invalid, just proceed to clear cookies
       console.log(
         "Logout: Token invalid or expired, skipping version increment.",
@@ -372,7 +362,7 @@ export const addAdmin = async (req, res) => {
               "Admin authentication required to create additional admins",
           });
         }
-      } catch (error) {
+      } catch {
         return res.status(401).json({
           message: "Invalid admin token",
         });

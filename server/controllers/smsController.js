@@ -1,5 +1,4 @@
 import axios from "axios";
-import jwt from "jsonwebtoken";
 import { prisma } from "../config/prisma.js";
 
 const sendBulkSMS = async (messageParameters, API_KEY, SENDER_ID) => {
@@ -285,9 +284,8 @@ export const retrySmsController = async (req, res) => {
                     where: { id: smsLogId },
                     data: {
                       status: "failed",
-                      error_reason: `API Error: ${
-                        result.code || "Unknown error"
-                      }`,
+                      error_reason: `API Error: ${result.code || "Unknown error"
+                        }`,
                       updated_at: new Date(),
                     },
                   });
@@ -306,7 +304,7 @@ export const retrySmsController = async (req, res) => {
             }
           }
         } else {
-          for (const [phoneNumber, smsDataArray] of smsLogMap) {
+          for (const [_phoneNumber, smsDataArray] of smsLogMap) {
             // Count only one failure per phone number
             failedCount++;
 
@@ -332,7 +330,7 @@ export const retrySmsController = async (req, res) => {
         }
       } catch (smsError) {
         console.error("Bulk SMS Retry Error:", smsError.message);
-        for (const [phoneNumber, smsDataArray] of smsLogMap) {
+        for (const [_phoneNumber, smsDataArray] of smsLogMap) {
           // Count only one failure per phone number
           failedCount++;
 

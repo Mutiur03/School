@@ -6,7 +6,7 @@ import {
   getFileBuffer,
 } from "../config/r2.js";
 import path from "path";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import archiver from "archiver";
 import fs from "fs";
 import puppeteer from "puppeteer";
@@ -143,10 +143,10 @@ export const createRegistration = async (req, res) => {
     // Remove frontend-only fields that don't exist in database schema
     // and remove photo_path since mapped to photo
     const {
-      same_as_permanent,
-      guardian_address_same_as_permanent,
-      guardian_is_not_father,
-      photo_path,
+      same_as_permanent: _same_as_permanent,
+      guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
+      guardian_is_not_father: _guardian_is_not_father,
+      photo_path: _photo_path,
       ...dbData
     } = data;
 
@@ -304,10 +304,10 @@ export const updateRegistration = async (req, res) => {
 
     // Remove frontend-only fields that don't exist in database schema
     const {
-      same_as_permanent,
-      guardian_address_same_as_permanent,
-      guardian_is_not_father,
-      photo_path,
+      same_as_permanent: _same_as_permanent,
+      guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
+      guardian_is_not_father: _guardian_is_not_father,
+      photo_path: _photo_path,
       ...dbData
     } = data;
 
@@ -398,7 +398,7 @@ export const deleteRegistration = async (req, res) => {
 
 export const getRegistrationPhotoUploadUrl = async (req, res) => {
   try {
-    const { filename, filetype, name, roll, year, section } = req.body;
+    const { filename, filetype, name: _name, roll, year: _year, section } = req.body;
     if (!filename || !filetype) {
       return res.status(400).json({
         success: false,
@@ -595,7 +595,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       : "";
 
     // Helper: Signature of student photo (fetch from R2 and convert to base64)
-    let studentPhotoBase64 = "";
+    let _studentPhotoBase64 = "";
     if (registration.photo_path) {
       try {
         const photoUrl = await getDownloadUrl(registration.photo_path);
@@ -604,7 +604,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         });
         const contentType = response.headers["content-type"];
         const buffer = Buffer.from(response.data, "binary");
-        studentPhotoBase64 = `data:${contentType};base64,${buffer.toString(
+        _studentPhotoBase64 = `data:${contentType};base64,${buffer.toString(
           "base64",
         )}`;
       } catch (photoError) {
@@ -665,12 +665,10 @@ export const downloadRegistrationPDF = async (req, res) => {
 
     const row = (label, value, rowIndex = 0) => `
       <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
-        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
-        };font-weight:500;">${wrapBnEn(label)}</td>
-        <td style="border:1px solid #bbb;padding:4px 8px;background:${
-          rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
-        };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
+      };font-weight:500;">${wrapBnEn(label)}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
+      };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
       </tr>
     `;
 
@@ -856,8 +854,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin: 24px;
     }
     
-    ${
-      solaimanLipiBase64
+    ${solaimanLipiBase64
         ? `
     @font-face {
       font-family: 'SolaimanLipi';
@@ -868,10 +865,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0980-U+09FF, U+0964-U+096F;
     }`
         : ""
-    }
+      }
     
-    ${
-      timesNewRomanBase64
+    ${timesNewRomanBase64
         ? `
     @font-face {
       font-family: 'TimesNewRoman';
@@ -882,7 +878,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0020-U+007F, U+00A0-U+00FF;
     }`
         : ""
-    }
+      }
     
     body, html {
       height: 100%;
@@ -898,10 +894,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif;
       background: #fff;
       page-break-inside: avoid;
@@ -919,10 +914,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Enhanced Bangla font rendering with better fallbacks */
     .bn, .bn * {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
       font-weight: 400 !important;
       font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
@@ -934,10 +928,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
     }
     .en, .en * {
-      font-family: ${
-        timesNewRomanBase64
-          ? "'TimesNewRoman', 'Times New Roman'"
-          : "'Times New Roman'"
+      font-family: ${timesNewRomanBase64
+        ? "'TimesNewRoman', 'Times New Roman'"
+        : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
       font-size: 1rem;
@@ -952,10 +945,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Special handling for Bengali punctuation */
     .bn::before, .bn::after {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -973,9 +965,8 @@ export const downloadRegistrationPDF = async (req, res) => {
       top: 8px;
       width: 80px;
       height: 80px;
-      ${
-        !logoBase64
-          ? `
+      ${!logoBase64
+        ? `
         background: #f0f0f0;
         border: 2px solid #ccc;
         border-radius: 50%;
@@ -987,7 +978,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         text-align: center;
         line-height: 1.2;
       `
-          : ""
+        : ""
       }
     }
     .monogram img {
@@ -1062,10 +1053,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       background: #f3f6fa; 
     }
     .footer .note .bn {
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -1077,10 +1067,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       display: block;
       font-size: 1rem;
       line-height: 1.2;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
     .signature-row {
@@ -1119,10 +1108,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: ${
-        solaimanLipiBase64
-          ? "'SolaimanLipi', 'Noto Sans Bengali'"
-          : "'Noto Sans Bengali'"
+      font-family: ${solaimanLipiBase64
+        ? "'SolaimanLipi', 'Noto Sans Bengali'"
+        : "'Noto Sans Bengali'"
       }, sans-serif !important;
       white-space: nowrap;
     }
@@ -1145,11 +1133,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     <div class="content-area">
       <div class="header">
         <div class="monogram">
-          ${
-            logoBase64
-              ? `<img src="${logoBase64}" alt="School Logo" />`
-              : "School<br>Logo"
-          }
+          ${logoBase64
+        ? `<img src="${logoBase64}" alt="School Logo" />`
+        : "School<br>Logo"
+      }
         </div>
         <div class="school en">${schoolName}</div>
         <div class="addr en">${schoolAddr}</div>
@@ -1167,33 +1154,31 @@ export const downloadRegistrationPDF = async (req, res) => {
         </tbody>
       </table>
       <br />
-      ${
-        sectionInstructions
-          ? `
+      ${sectionInstructions
+        ? `
       <div class="instructions-section">
         <div class="instructions-content">${wrapBnEn(sectionInstructions)}</div>
       </div>
       `
-          : ""
+        : ""
       }
       <div class="footer">
         <div class="note">
           <div class="document-list">
             <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
-            ${
-              attachmentInstructions
-                ? attachmentInstructions
-                    .split(/\r?\n|\r/)
-                    .map((line) => {
-                      if (line) {
-                        return `<span class="bn">${handleList(line)}</span>`;
-                      }
-                      return "";
-                    })
-                    .filter(Boolean)
-                    .join("")
-                : ""
+            ${attachmentInstructions
+        ? attachmentInstructions
+          .split(/\r?\n|\r/)
+          .map((line) => {
+            if (line) {
+              return `<span class="bn">${handleList(line)}</span>`;
             }
+            return "";
+          })
+          .filter(Boolean)
+          .join("")
+        : ""
+      }
           </div>
         </div>
       </div>
@@ -1257,6 +1242,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     });
 
     await page.evaluate(() => {
+      /* global document, NodeFilter */
       const walker = document.createTreeWalker(
         document.body,
         NodeFilter.SHOW_TEXT,
