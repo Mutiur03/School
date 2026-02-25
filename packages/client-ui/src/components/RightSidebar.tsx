@@ -31,7 +31,7 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
   const { data: headMasterMsgFromApi } = useHeadMasterMsg();
   const resolvedHeadMasterMsg = headMasterMsg ?? (headMasterMsgFromApi as any);
   const resolvedBackendBaseUrl =
-    backendBaseUrl || String((school as any).backendBaseUrl ?? "");
+    String(backendBaseUrl || (school as any).backendBaseUrl  || "").trim();
 
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [imgLoading, setImgLoading] = React.useState(true);
@@ -131,8 +131,21 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
   const calendarData = getCalendarData(currentDate);
 
   const teacherImage = resolvedHeadMasterMsg?.teacher?.image;
+  const resolveImageUrl = (baseUrl: string, imagePath: string) => {
+    if (!imagePath) return "";
+    if (/^(?:https?:)?\/\//i.test(imagePath) || imagePath.startsWith("data:") || imagePath.startsWith("blob:")) {
+      return imagePath;
+    }
+
+    const normalizedBase = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+    const normalizedPath = imagePath.replace(/\\/g, "/").replace(/^\/+/, "");
+
+    if (!normalizedBase) return `/${normalizedPath}`;
+    return `${normalizedBase}/${normalizedPath}`;
+  };
+
   const teacherImgSrc = teacherImage
-    ? `${resolvedBackendBaseUrl}/${teacherImage}`.replace(/\/+/g, "/")
+    ? resolveImageUrl(resolvedBackendBaseUrl, teacherImage)
     : "";
 
   return (
@@ -157,7 +170,6 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
                     position: "relative",
                     overflow: "hidden",
                     borderRadius: 8,
-                    backgroundColor: "#f0f0f0",
                   }}
                 />
               ) : (

@@ -9,6 +9,8 @@ import { schoolConfig } from "@/lib/info";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -22,7 +24,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <SchoolProvider config={schoolConfig}>
+        <SchoolProvider config={{ ...schoolConfig, backendBaseUrl }}>
           <Analytics measurementId="G-KTFSVX10C3" />
           <App />
         </SchoolProvider>
