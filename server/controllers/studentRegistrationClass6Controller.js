@@ -432,6 +432,26 @@ export const getRegistrationPhotoUploadUrl = async (req, res) => {
 };
 
 export const exportRegistrations = async (req, res) => {
+  function formatDateLong(dateStr) {
+    if (!dateStr) return "";
+    let d, m, y;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+      [d, m, y] = dateStr.split("/");
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      [y, m, d] = dateStr.split("-");
+    } else {
+      return dateStr;
+    }
+    const dateObj = new Date(`${y}-${m}-${d}`);
+    if (isNaN(dateObj)) return dateStr;
+    return dateObj
+      .toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+      .replace(/(\w+)\s(\d{4})/, "$1, $2");
+  }
   try {
     const { class6_year, section, status } = req.query;
     console.log("Exporting registrations sheet:", {
@@ -450,7 +470,24 @@ export const exportRegistrations = async (req, res) => {
       orderBy: { roll: "asc" },
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(registrations);
+    const registrationsForExport = registrations.map((registration) => {
+      const orderedRegistration = {};
+
+      Object.entries(registration).forEach(([key, value]) => {
+        orderedRegistration[key] = value;
+        if (key === "birth_date") {
+          orderedRegistration.birth_date_formatted = formatDateLong(value);
+        }
+      });
+
+      if (!Object.hasOwn(orderedRegistration, "birth_date_formatted")) {
+        orderedRegistration.birth_date_formatted = "";
+      }
+
+      return orderedRegistration;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(registrationsForExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
 
@@ -688,17 +725,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
       [
         "Date of Birth:",
-        wrapBnEn(formatDateLong(registration.birth_date) || ""),
+        wrapBnEn(registration.birth_date ? `${registration.birth_date} (${formatDateLong(registration.birth_date)})` : ""),
       ],
       ["Email Address:", wrapBnEn(registration.email || "No")],
-      [
-        "Mobile Numbers:",
-        wrapBnEn(
-          [registration.father_phone || "", registration.mother_phone || ""]
-            .filter(Boolean)
-            .join(", ") || "No",
-        ),
-      ],
+
       ["পিতার নাম:", wrapBnEn(registration.father_name_bn || "")],
       [
         "Father's Name:",
@@ -711,6 +741,14 @@ export const downloadRegistrationPDF = async (req, res) => {
         wrapBnEn(registration.mother_name_en.toUpperCase() || ""),
       ],
       ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || "")],
+      [
+        "Mobile Numbers:",
+        wrapBnEn(
+          [registration.father_phone || "", registration.mother_phone || ""]
+            .filter(Boolean)
+            .join(", ") || "No",
+        ),
+      ],
       [
         "Permanent Address:",
         wrapBnEn(
@@ -1011,14 +1049,20 @@ export const downloadRegistrationPDF = async (req, res) => {
       padding: 8px 0; 
       margin-top: 8px;
     }
-    .section-row { 
+    .section-row {
       background: #f1f5f9; 
-      font-size: 1rem; 
+      font-size: 1.5rem; 
       font-weight: 500; 
       text-align: center; 
       border: 1px solid #bbb; 
       padding: 6px 0; 
     }
+    .section-row .en,
+    .section-row .en * {
+      font-size: 1.5rem !important;
+      font-weight: 500 !important;
+    }
+    
     .instructions-section {
       border: 1px solid #000;
       border-radius: 4px;
