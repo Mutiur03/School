@@ -764,7 +764,7 @@ const Class6RegForm = () => {
                                                 </tr>
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Date of Birth</td>
-                                                    <td className="px-4 py-2.5">{formatDate(selectedReg.birth_date)}</td>
+                                                    <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Contact Info</td>
@@ -791,8 +791,8 @@ const Class6RegForm = () => {
                                                 <tr>
                                                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Mother's Info</td>
                                                     <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 text-lg">
-                                                        {selectedReg.student_name_bn}
-                                                        <span className="block text-sm font-normal text-gray-500 uppercase mt-1">{selectedReg.student_name_en}</span>
+                                                        {selectedReg.mother_name_bn}
+                                                        <span className="block text-sm font-normal text-gray-500 uppercase mt-1">{selectedReg.mother_name_en}</span>
                                                         <p className="text-xs">NID: {selectedReg.mother_nid || "-"}</p>
                                                     </td>
                                                 </tr>
