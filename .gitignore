@@ -145,3 +145,6 @@ dist
 
 uploads
 uploads/*
+
+
+package-lock.json
