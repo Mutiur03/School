@@ -22,7 +22,6 @@ export default defineConfig({
     preserveSymlinks: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@school/shared-schemas": path.resolve(__dirname, "../packages/shared-schemas/index.ts"),
     },
   },
 });
