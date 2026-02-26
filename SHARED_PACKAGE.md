@@ -132,8 +132,8 @@ So the consuming app must ensure:
 Currently, the active consumer is `client`:
 
 - `client/src/main.tsx` imports CSS + `SchoolProvider` + `Analytics`
-- `client/src/App.tsx` uses `AppLayout`
-- `client/src/pages/Home.tsx` uses `HomePage`
+- `client/src/App.tsx` uses `AppLayout` and imports route pages from `@school/client-ui`
+- Page logic and route components now live in `packages/client-ui/src/pages/`
 
 No active `dashboard` imports from `@school/client-ui` were found.
 

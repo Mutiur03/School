@@ -1,4 +1,6 @@
-export const schoolConfig = {
+import type { SchoolConfig } from "@school/client-ui";
+
+export const schoolConfig: SchoolConfig = {
   name: {
     en: "Panchbibi Lal Bihari Pilot Govt. High School",
     bn: "পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়",

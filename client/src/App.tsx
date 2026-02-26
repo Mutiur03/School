@@ -2,31 +2,32 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import axios from "axios";
 
-
-import Home from "./pages/Home";
-import Notice from "./pages/Notice";
-import Event from "./pages/Event";
-import HeadMsg from "./pages/HeadMsg";
-import TeacherList from "./pages/TeacherList";
-import StaffList from "./pages/StaffList";
-import ExamRoutinePage from "./pages/ExamRoutine";
-import At_a_glance from "./pages/At_a_glance";
-import Gallery from "./pages/Gallery";
-import Images from "./pages/Images";
-import Registration from "./pages/Registration";
-import ConfirmationReg from "./pages/ConfirmationReg";
-import RegSSC from "./pages/RegSSC";
-import Admission from "./pages/admission";
-import AdmissionForm from "./pages/AdmissionForm";
-import ConfirmationAdmission from "./pages/ConfirmationAdmission";
-import AdmissionResult from "./pages/AdmissionResult";
-import AdmissionResultList from "./pages/AdmissionResultList";
-import AdmissionFormNotice from "./pages/AdmissionFormNotice";
-import { AppLayout } from "@school/client-ui";
-import AdmissionFormNew from "./pages/AdmissionFormNew";
-import RegistrationClass6 from "./pages/RegistrationClass6";
-import RegClass6 from "./pages/RegClass6";
-import ConfirmationClass6 from "./pages/ConfirmationClass6";
+import {
+  Admission,
+  AdmissionForm,
+  AdmissionFormNew,
+  AdmissionFormNotice,
+  AdmissionResult,
+  AdmissionResultList,
+  AppLayout,
+  AtAGlance,
+  ConfirmationAdmission,
+  ConfirmationClass6,
+  ConfirmationReg,
+  Event,
+  ExamRoutinePage,
+  Gallery,
+  HeadMsg,
+  Home,
+  Images,
+  Notice,
+  RegClass6,
+  RegSSC,
+  Registration,
+  RegistrationClass6,
+  StaffList,
+  TeacherList,
+} from "@school/client-ui";
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
   axios.defaults.baseURL = backendBaseUrl;
@@ -46,7 +47,7 @@ function App() {
           <Route path="/teacher-list" element={<TeacherList />} />
           <Route path="/staff-list" element={<StaffList />} />
           <Route path="/exam-routine" element={<ExamRoutinePage />} />
-          <Route path="/at-a-glance" element={<At_a_glance />} />
+          <Route path="/at-a-glance" element={<AtAGlance />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/gallery/:type/:id" element={<Images />} />
           <Route path="/reg/ssc" element={<RegSSC />} />

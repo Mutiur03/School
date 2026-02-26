@@ -8,6 +8,12 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "declaration": true,

@@ -1,41 +1,7 @@
 import * as React from "react";
-
-type SchoolAssets = {
-  logo?: string;
-  headerLogo?: string;
-  governmentLogo?: string;
-  banners?: string[];
-};
-
-type SchoolMap = {
-  embedUrl?: string;
-};
-
-type SchoolName = {
-  en?: string;
-  bn?: string;
-  shortEn?: string;
-};
-
-export type SchoolConfig = {
-  name?: SchoolName;
-  assets?: SchoolAssets;
-  map?: SchoolMap;
-  backendBaseUrl?: string;
-  links?: {
-    results?: string;
-    teacherLogin?: string;
-    studentLogin?: string;
-  };
-  [key: string]: unknown;
-};
+import type { SchoolConfig, SchoolProviderProps } from "@/types";
 
 const SchoolConfigContext = React.createContext<SchoolConfig | null>(null);
-
-export type SchoolProviderProps = {
-  config: SchoolConfig;
-  children: React.ReactNode;
-};
 
 export function SchoolProvider({ config, children }: SchoolProviderProps) {
   return (

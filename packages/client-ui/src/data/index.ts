@@ -1,24 +1,6 @@
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-
-export type NoticeItem = {
-  title: string;
-  file?: string;
-};
-
-export type Syllabus = {
-  class: number;
-  year: number;
-  pdf_url: string;
-};
-
-export type Head = {
-  head_message?: string;
-  teacher?: {
-    name?: string;
-    image?: string;
-  };
-};
+import type { Head, NoticeItem, Syllabus } from "@/types";
 
 export const useRoutinePDF = (queryClient: QueryClient) => {
   return queryClient.fetchQuery({
