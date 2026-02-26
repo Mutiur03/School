@@ -7,18 +7,28 @@ import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "@/components/Loading";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  studentFormSchema,
+  VALID_DEPARTMENTS,
+  type StudentFormSchemaData,
+} from "@school/shared-schemas";
 
 interface Student {
   id: number;
+  login_id: number;
   name: string;
   father_name: string;
   mother_name: string;
-  phone: string;
-  parent_phone: string;
-  blood_group: string;
+  father_phone?: string;
+  mother_phone?: string;
+  village?: string;
+  post_office?: string;
+  upazila?: string;
+  district?: string;
   roll: number;
   section: string;
-  address: string;
   dob: string;
   class: number;
   department: string;
@@ -28,26 +38,100 @@ interface Student {
   enrollment_id: number;
 }
 
-interface StudentFormData {
-  name: string;
-  father_name: string;
-  mother_name: string;
-  phone: string;
-  parent_phone: string;
-  blood_group: string;
-  roll: string;
-  section: string;
-  address: string;
-  dob: string;
-  class: string;
-  department: string;
-  has_stipend: boolean;
-  available: boolean;
-  image?: string;
-}
+type StudentFormData = StudentFormSchemaData;
+
+const defaultFormValues: StudentFormData = {
+  name: "",
+  father_name: "",
+  mother_name: "",
+  father_phone: "",
+  mother_phone: "",
+  roll: "",
+  section: "",
+  village: "",
+  post_office: "",
+  upazila: "",
+  district: "",
+  dob: "",
+  class: "",
+  department: "",
+  has_stipend: false,
+  available: true,
+};
+
+const excelRequiredHeaders = [
+  "name",
+  "father_name",
+  "mother_name",
+  "father_phone",
+  "dob",
+  "class",
+  "roll",
+  "section",
+];
+
+const toExcelString = (value: unknown) => (value == null ? "" : String(value).trim());
+
+const normalizeExcelDate = (value: unknown) => {
+  if (value == null || value === "") return "";
+
+  const toIso = (year: number, month: number, day: number) => {
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return "";
+    }
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+
+  if (!Number.isNaN(Number(value))) {
+    const excelDate = new Date((Number(value) - 25569) * 86400 * 1000);
+    return excelDate.toISOString().split("T")[0];
+  }
+
+  const raw = String(value).trim();
+  const dateToken = raw.match(/\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}/)?.[0] || raw;
+  const normalized = dateToken
+    .replace(/[^0-9/.-]/g, "")
+    .replace(/[.]/g, "/")
+    .replace(/\/{2,}/g, "/")
+    .replace(/-{2,}/g, "-");
+
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(normalized)) {
+    const [day, month, year] = normalized.split(/[/-]/).map(Number);
+    return toIso(year, month, day) || raw;
+  }
+
+  if (/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(normalized)) {
+    const [year, month, day] = normalized.split(/[/-]/).map(Number);
+    return toIso(year, month, day) || raw;
+  }
+
+  return raw;
+};
+
+const formatDobForDateInput = (value: string | null | undefined) => {
+  if (!value) return "";
+  const raw = String(value).split("T")[0].trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(raw)) {
+    const [day, month, year] = raw.split(/[/-]/);
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return raw;
+};
 
 function StudentList() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
@@ -65,22 +149,6 @@ function StudentList() {
     student: null,
   });
   const [showForm, setShowForm] = useState(false);
-  const [data, setData] = useState<StudentFormData>({
-    name: "",
-    father_name: "",
-    mother_name: "",
-    phone: "",
-    parent_phone: "",
-    blood_group: "",
-    roll: "",
-    section: "",
-    address: "",
-    dob: "",
-    class: "",
-    department: "",
-    has_stipend: false,
-    available: true,
-  });
   const [isExcelUpload, setIsExcelUpload] = useState(false);
   const [jsonData, setJsonData] = useState<Record<string, unknown>[] | null>(null);
   const [fileUploaded, setFileUploaded] = useState(false);
@@ -93,6 +161,27 @@ function StudentList() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
+
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<StudentFormData>({
+    defaultValues: defaultFormValues,
+    resolver: zodResolver(studentFormSchema),
+    criteriaMode: "firstError",
+  });
+
+  const watchedClass = Number(watch("class") || "0");
+
+  useEffect(() => {
+    if (watchedClass !== 9 && watchedClass !== 10) {
+      setValue("department", "");
+    }
+  }, [watchedClass, setValue]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,10 +243,23 @@ function StudentList() {
     if (isExcelUpload) setIsExcelUpload(false);
     setIsEditing(true);
     setSelectedStudent(student);
-    setData({
-      ...student,
+    reset({
+      name: student.name,
+      father_name: student.father_name,
+      mother_name: student.mother_name,
+      father_phone: student.father_phone || "",
+      mother_phone: student.mother_phone || "",
+      village: student.village || "",
+      post_office: student.post_office || "",
+      upazila: student.upazila || "",
+      district: student.district || "",
+      dob: formatDobForDateInput(student.dob),
       class: student.class.toString(),
       roll: student.roll.toString(),
+      section: student.section,
+      department: student.department || "",
+      has_stipend: Boolean(student.has_stipend),
+      available: student.available,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -170,6 +272,7 @@ function StudentList() {
       );
       if (response.status === 200) {
         toast.success("Student deleted successfully.");
+        setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
       }
     } catch {
       toast.error("Failed to delete student. Please try again.");
@@ -189,7 +292,8 @@ function StudentList() {
     .filter((student) =>
       searchQuery
         ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.phone?.toString().includes(searchQuery)
+        student.father_phone?.toString().includes(searchQuery) ||
+        student.mother_phone?.toString().includes(searchQuery)
         : true
     )
     .filter((student) =>
@@ -207,56 +311,142 @@ function StudentList() {
     ...new Set(students.map((student) => student.section)),
   ];
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+  const visibleStudentIds = filteredStudents.map((student) => student.id);
+  const hasSelectedStudents = selectedStudentIds.length > 0;
+  const selectedVisibleCount = selectedStudentIds.filter((id) =>
+    visibleStudentIds.includes(id)
+  ).length;
+  const allVisibleSelected =
+    visibleStudentIds.length > 0 && selectedVisibleCount === visibleStudentIds.length;
+
+  const handleRowSelect = (studentId: number) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
   };
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+
+  const handleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedStudentIds((prev) =>
+        prev.filter((id) => !visibleStudentIds.includes(id))
+      );
+      return;
+    }
+
+    setSelectedStudentIds((prev) => [
+      ...new Set([...prev, ...visibleStudentIds]),
+    ]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStudentIds.length === 0) {
+      toast.error("Please select at least one student.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedStudentIds.length} selected student(s)?`
+    );
+
+    if (!confirmed) return;
+
     setIsSubmitting(true);
     try {
-      const formData = new FormData(e.currentTarget);
-      const students: Record<string, FormDataEntryValue> = {};
-      formData.forEach((value, key) => {
-        students[key] = value;
+      const response = await axios.delete("/api/students/deleteStudentsBulk", {
+        data: { studentIds: selectedStudentIds },
       });
 
+      toast.success(
+        response.data?.message || "Selected students deleted successfully."
+      );
+      setSelectedStudentIds([]);
+      await getStudentList();
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(
+        err.response?.data?.error ||
+        "Failed to delete selected students. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    setSelectedStudentIds((prev) =>
+      prev.filter((id) => students.some((student) => student.id === id))
+    );
+  }, [students]);
+
+  const onSubmit = async (formValues: StudentFormData) => {
+    setIsSubmitting(true);
+    try {
+      const parsedForm = studentFormSchema.safeParse(formValues);
+      if (!parsedForm.success) {
+        console.error("[Student Form Validation Failed]", {
+          input: formValues,
+          issues: parsedForm.error.issues,
+        });
+        toast.error(parsedForm.error.issues[0]?.message || "Invalid form data");
+        return;
+      }
+
+      const parsedValues = parsedForm.data as StudentFormData;
       const imageFormData = new FormData();
       if (image) {
         imageFormData.append("image", image);
       }
 
-      const basicDeatils: Record<string, FormDataEntryValue | boolean> = {};
-      basicDeatils.name = students.name || "";
-      basicDeatils.father_name = students.father_name || "";
-      basicDeatils.mother_name = students.mother_name || "";
-      basicDeatils.parent_phone = students.parent_phone || "";
-      basicDeatils.phone = students.phone || "";
-      basicDeatils.blood_group = students.blood_group || "";
-      basicDeatils.has_stipend = students.has_stipend || false;
-      basicDeatils.dob = students.dob || "";
-      basicDeatils.address = students.address || "";
-      basicDeatils.available = students.available ? true : false;
+      const basicDeatils: Record<string, string | boolean> = {};
+      basicDeatils.name = parsedValues.name || "";
+      basicDeatils.father_name = parsedValues.father_name || "";
+      basicDeatils.mother_name = parsedValues.mother_name || "";
+      basicDeatils.father_phone = parsedValues.father_phone || "";
+      basicDeatils.mother_phone = parsedValues.mother_phone || "";
+      basicDeatils.village = parsedValues.village || "";
+      basicDeatils.post_office = parsedValues.post_office || "";
+      basicDeatils.upazila = parsedValues.upazila || "";
+      basicDeatils.district = parsedValues.district || "";
+      basicDeatils.dob = parsedValues.dob || "";
+      basicDeatils.available = Boolean(parsedValues.available);
+      basicDeatils.has_stipend = Boolean(parsedValues.has_stipend);
 
-      const academicDetails: Record<string, FormDataEntryValue> = {};
-      academicDetails.roll = students.roll || "";
-      academicDetails.class = students.class || "";
-      academicDetails.section = students.section || "";
-      academicDetails.department = students.department || "";
-      const studentsArray = [students];
+      const academicDetails: Record<string, string> = {};
+      academicDetails.roll = parsedValues.roll || "";
+      academicDetails.class = parsedValues.class || "";
+      academicDetails.section = parsedValues.section || "";
+      const classNumber = Number(parsedValues.class);
+      const requiresDepartment = classNumber === 9 || classNumber === 10;
+      academicDetails.department = requiresDepartment ? parsedValues.department || "" : "";
 
-      let response;
+      const studentsArray = [
+        {
+          name: parsedValues.name,
+          father_name: parsedValues.father_name,
+          mother_name: parsedValues.mother_name,
+          father_phone: parsedValues.father_phone,
+          mother_phone: parsedValues.mother_phone,
+          village: parsedValues.village,
+          post_office: parsedValues.post_office,
+          upazila: parsedValues.upazila,
+          district: parsedValues.district,
+          dob: parsedValues.dob,
+          class: parsedValues.class,
+          roll: parsedValues.roll,
+          section: parsedValues.section,
+          department: requiresDepartment ? parsedValues.department : "",
+          has_stipend: Boolean(parsedValues.has_stipend),
+        },
+      ];
+
       if (isEditing && selectedStudent) {
-        response = await axios.put(
+        await axios.put(
           `/api/students/updateStudent/${selectedStudent.id}`,
           basicDeatils
         );
-        response = await axios.put(
+        await axios.put(
           `/api/students/updateacademic/${selectedStudent.enrollment_id}`,
           academicDetails
         );
@@ -271,8 +461,12 @@ function StudentList() {
             }
           );
         }
+
+        handleCancel();
+        toast.success("Student updated successfully.");
+        return;
       } else {
-        response = await axios.post("/api/students/addStudents", {
+        const response = await axios.post("/api/students/addStudents", {
           students: studentsArray,
         });
         if (image) {
@@ -286,11 +480,12 @@ function StudentList() {
             }
           );
         }
-      }
-      if (response.data.success === false) {
-        toast.error(response.data.message);
-        return;
-      } else {
+
+        if (response.data.success === false) {
+          toast.error(response.data.message);
+          return;
+        }
+
         handleCancel();
         toast.success(response.data.message);
       }
@@ -324,58 +519,12 @@ function StudentList() {
         String(header).toLowerCase().trim()
       );
 
-      // Check for simplified format (only name, section, class, roll)
-      const simplifiedRequiredFields = ["name", "section", "class", "roll"];
-      const hasSimplifiedFormat = simplifiedRequiredFields.every(field =>
-        headers.includes(field)
-      );
-
-      // Full format required fields
-      const fullRequiredFields = [
-        "name",
-        "father_name",
-        "mother_name",
-        "phone",
-        "parent_phone",
-        "blood_group",
-        "has_stipend",
-        "address",
-        "dob",
-        "class",
-        "roll",
-        "section",
-        "department",
-      ];
-
-      const hasFullFormat = fullRequiredFields.every(field =>
-        headers.includes(field)
-      );
-
-      // If neither format is complete, check which one is closer
-      if (!hasSimplifiedFormat && !hasFullFormat) {
-        const missingSimplified = simplifiedRequiredFields.filter(
-          (field) => !headers.includes(field)
-        );
-        const missingFull = fullRequiredFields.filter(
-          (field) => !headers.includes(field)
-        );
-
-        // Show error for whichever format has fewer missing fields
-        if (missingSimplified.length <= missingFull.length) {
-          toast.error(
-            `Missing required fields for simplified format: ${missingSimplified.join(
-              ", "
-            )}. Required: name, section, class, roll`
-          );
-        } else {
-          toast.error(
-            `Missing required fields: ${missingFull.join(
-              ", "
-            )}. Please check your file.`
-          );
-        }
+      const missingHeaders = excelRequiredHeaders.filter((field) => !headers.includes(field));
+      if (missingHeaders.length > 0) {
+        toast.error(`Missing required columns: ${missingHeaders.join(", ")}`);
         setFileUploaded(false);
         setexcelfile(null);
+        setJsonData(null);
         return;
       }
 
@@ -385,36 +534,65 @@ function StudentList() {
           student[header] = row[index];
         });
 
-        if (student.dob && !isNaN(Number(student.dob))) {
-          const excelDate = new Date((Number(student.dob) - 25569) * 86400 * 1000);
-          student.dob = excelDate.toISOString().split("T")[0];
-        }
-
-        const toString = (val: unknown) => (val != null ? String(val) : null);
-        const toTrim = (val: unknown) => toString(val)?.trim() || null;
-
         return {
-          name: toTrim(student.name),
-          father_name: toTrim(student.father_name),
-          mother_name: toTrim(student.mother_name),
-          phone: toString(student.phone)?.replace(/\D/g, "").slice(-10) || null,
-          parent_phone: toString(student.parent_phone)?.replace(/\D/g, "").slice(-10) || null,
-          blood_group: toTrim(student.blood_group),
-          has_stipend: toString(student.has_stipend)?.toLowerCase() === "yes" || false,
-          address: toTrim(student.address),
-          dob: student.dob || null,
-          class: parseInt(toString(student.class) || "0", 10) || null,
-          roll: parseInt(toString(student.roll) || "0", 10) || null,
-          section: toTrim(student.section),
-          department: toTrim(student.department),
+          name: toExcelString(student.name),
+          father_name: toExcelString(student.father_name),
+          mother_name: toExcelString(student.mother_name),
+          father_phone: toExcelString(student.father_phone),
+          mother_phone: toExcelString(student.mother_phone),
+          village: toExcelString(student.village),
+          post_office: toExcelString(student.post_office),
+          upazila: toExcelString(student.upazila),
+          district: toExcelString(student.district),
+          dob: normalizeExcelDate(student.dob),
+          class: toExcelString(student.class),
+          roll: toExcelString(student.roll),
+          section: toExcelString(student.section).toUpperCase(),
+          department: toExcelString(student.department),
+          has_stipend: toExcelString(student.has_stipend).toLowerCase() === "yes",
+          available: true,
         };
       });
 
-      setJsonData(formattedData);
+      const validationErrors: string[] = [];
+      formattedData.forEach((row, index) => {
+        const parsed = studentFormSchema.safeParse(row);
 
-      if (hasSimplifiedFormat && !hasFullFormat) {
-        toast.success(`Loaded ${formattedData.length} students in simplified format. Missing fields will be left blank.`);
+        if (!parsed.success) {
+          const issueText = parsed.error.issues
+            .map((issue) => `${issue.path.join(".") || "row"}: ${issue.message}`)
+            .join(" | ");
+          console.error("[Excel Row Validation Failed]", {
+            rowNumber: index + 2,
+            input: row,
+            issues: parsed.error.issues,
+          });
+          validationErrors.push(
+            `Row ${index + 2}: ${issueText || "Invalid data"}`
+          );
+        }
+
+        const classNum = Number((row.class as string) || 0);
+        if ((classNum === 9 || classNum === 10) && !(row.department as string)?.trim()) {
+          console.error("[Excel Row Validation Failed]", {
+            rowNumber: index + 2,
+            input: row,
+            issues: [{ path: ["department"], message: "Department is required for class 9-10" }],
+          });
+          validationErrors.push(`Row ${index + 2}: Department is required for class 9-10`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        toast.error(validationErrors[0]);
+        setJsonData(null);
+        setFileUploaded(false);
+        setexcelfile(null);
+        return;
       }
+
+      setJsonData(formattedData);
+      toast.success(`Loaded ${formattedData.length} students successfully.`);
     };
     reader.onerror = () => {
       toast.error("Error reading the file. Please try again.");
@@ -428,6 +606,22 @@ function StudentList() {
         toast.error("No data to upload. Please check your Excel file.");
         return;
       }
+
+      const failedRow = jsonData.findIndex((row) => !studentFormSchema.safeParse(row).success);
+
+      if (failedRow !== -1) {
+        const failed = studentFormSchema.safeParse(jsonData[failedRow]);
+        if (!failed.success) {
+          console.error("[Excel Submit Validation Failed]", {
+            rowNumber: failedRow + 2,
+            input: jsonData[failedRow],
+            issues: failed.error.issues,
+          });
+        }
+        toast.error(`Row ${failedRow + 2}: Invalid data. Please fix and upload again.`);
+        return;
+      }
+
       const response = await axios.post("/api/students/addStudents", {
         students: jsonData,
       });
@@ -457,22 +651,7 @@ function StudentList() {
   const handleCancel = () => {
     setFileUploaded(false);
     if (isExcelUpload) setJsonData(null);
-    setData({
-      name: "",
-      father_name: "",
-      mother_name: "",
-      parent_phone: "",
-      phone: "",
-      blood_group: "",
-      has_stipend: false,
-      roll: "",
-      section: "",
-      address: "",
-      dob: "",
-      class: "",
-      department: "",
-      available: true,
-    });
+    reset(defaultFormValues);
     setSelectedStudent(null);
     if (isExcelUpload && fileref.current) {
       fileref.current.value = "";
@@ -501,7 +680,14 @@ function StudentList() {
       );
       if (response.data.success) {
         toast.success("Image removed successfully.");
-        setData({ ...data, image: undefined });
+        setSelectedStudent((prev) =>
+          prev
+            ? {
+              ...prev,
+              image: undefined,
+            }
+            : prev
+        );
         setShowForm(false);
       } else {
         toast.error(response.data.error || "Failed to remove image.");
@@ -525,15 +711,15 @@ function StudentList() {
           <Button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
-            className="px-4 py-2 rounded-md bg-primary text-white hover:bg-opacity-90"
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             + Add Student
           </Button>
         )}
       </div>
       {showForm && (
-        <div className="flex flex-col items-center bg-card rounded-lg mb-4 relative max-w-full">
-          <div className="w-full p-4 sm:p-6 rounded-lg shadow-md">
+        <div className="flex flex-col items-center bg-card rounded-md mb-4 relative max-w-full">
+          <div className="w-full p-4 sm:p-6 rounded-md shadow-md">
             <h2 className="text-lg sm:text-2xl font-semibold text-center mb-4">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
@@ -543,8 +729,8 @@ function StudentList() {
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
                   className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${!isExcelUpload
-                    ? "bg-sky-500 text-white shadow-lg"
-                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-accent text-accent-foreground hover:bg-accent/80"
                     }`}
                 >
                   Form
@@ -553,8 +739,8 @@ function StudentList() {
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
                   className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${isExcelUpload
-                    ? "bg-sky-500 text-white shadow-lg"
-                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-accent text-accent-foreground hover:bg-accent/80"
                     }`}
                 >
                   Excel Upload
@@ -563,214 +749,271 @@ function StudentList() {
             )}
             <div className="space-y-4 sm:space-y-6">
               {!isExcelUpload ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="flex justify-center flex-col items-center mb-4">
-                    <label className="w-24 h-24 sm:w-32 sm:h-32 dark:bg-accent border border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden">
-                      {preview ? (
-                        <img
-                          src={preview}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
+                <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
+                  <div className="rounded-md border border-border bg-muted/20 p-4">
+                    <div className="flex justify-center flex-col items-center">
+                      <p className="text-sm font-medium mb-2">Student Image</p>
+                      <label className="w-24 h-24 sm:w-32 sm:h-32 bg-card border border-border rounded-md flex items-center justify-center cursor-pointer overflow-hidden hover:border-primary transition-colors">
+                        {preview ? (
+                          <img
+                            src={preview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : isEditing && selectedStudent?.image ? (
+                          <img
+                            src={`${host}/${selectedStudent.image}`}
+                            alt="Student"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs sm:text-sm text-center">
+                            Click to upload
+                          </span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
                         />
-                      ) : isEditing && data?.image ? (
-                        <img
-                          src={`${host}/${data.image}`}
-                          alt="Student"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-500 text-xs sm:text-sm text-center">
-                          Click to upload
-                        </span>
+                      </label>
+                      {isEditing && selectedStudent?.image && (
+                        <button
+                          onClick={removeImage}
+                          type="button"
+                          className="mt-2 flex items-center justify-center hover:underline hover:cursor-pointer gap-2 text-sm text-destructive"
+                        >
+                          Remove Image
+                        </button>
                       )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    {isEditing && data?.image && (
-                      <button
-                        onClick={removeImage}
-                        type="button"
-                        className="flex items-center justify-center hover:underline hover:cursor-pointer gap-2 text-sm text-red-500"
-                      >
-                        Remove Image
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="Full Name"
-                      value={data.name}
-                      onChange={handleChange}
-                      className="w-full p-2 sm:p-3 border border-gray-300 dark:bg-accent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                      required
-                    />
-                    <input
-                      type="text"
-                      name="phone"
-                      placeholder="Phone"
-                      maxLength={11}
-                      value={data.phone}
-                      onChange={handleChange}
-                      className="w-full p-2 sm:p-3 border border-gray-300 dark:bg-accent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="father_name"
-                      placeholder="Father's Name"
-                      value={data.father_name}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                    <input
-                      type="text"
-                      name="mother_name"
-                      placeholder="Mother's Name"
-                      value={data.mother_name}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="parent_phone"
-                      placeholder="Parent's Phone"
-                      value={data.parent_phone}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                    <input
-                      type="text"
-                      name="blood_group"
-                      placeholder="Blood Group"
-                      value={data.blood_group}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="class"
-                      placeholder="Class"
-                      value={data.class}
-                      onChange={handleChange}
-                      required
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                    <input
-                      type="text"
-                      name="roll"
-                      placeholder="Roll"
-                      value={data.roll}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      name="section"
-                      placeholder="Section"
-                      value={data.section}
-                      required
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                    <input
-                      type="text"
-                      name="address"
-                      placeholder="Address"
-                      value={data.address}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="date"
-                      name="dob"
-                      placeholder="Date of Birth"
-                      value={data.dob || ""}
-                      onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                    />
-                    {Number(data.class) >= 9 && (
-                      <select
-                        name="department"
-                        onChange={handleChange}
-                        disabled={Number(data.class) < 9}
-                        required={Number(data.class) >= 9}
-                        value={data.department}
-                        className="w-full p-3 border border-gray-300 rounded-lg dark:bg-accent dark:text-accent-foreground text-input focus:ring-2 focus:ring-sky-500 focus:outline-none "
-                      >
-                        <option value="">Select Department</option>
-                        {["Science", "Commerce", "Arts"].map((department) => (
-                          <option key={department} value={department}>
-                            {department}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-1 text-sm sm:text-base font-semibold">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <label className="flex items-center space-x-2">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Name <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          {...register("name")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.name && (
+                          <p className="text-destructive text-xs">{errors.name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Father Name <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Father's Name"
+                          {...register("father_name")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.father_name && (
+                          <p className="text-destructive text-xs">{errors.father_name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Mother Name <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Mother's Name"
+                          {...register("mother_name")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.mother_name && (
+                          <p className="text-destructive text-xs">{errors.mother_name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Date of Birth <span className="text-destructive">*</span></label>
+                        <input
+                          type="date"
+                          lang="en-GB"
+                          placeholder="dd/mm/yyyy"
+                          {...register("dob")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.dob && (
+                          <p className="text-destructive text-xs">{errors.dob.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Father Phone <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Father's Phone"
+                          maxLength={11}
+                          {...register("father_phone")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.father_phone && (
+                          <p className="text-destructive text-xs">{errors.father_phone.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Mother Phone</label>
+                        <input
+                          type="text"
+                          placeholder="Mother's Phone"
+                          maxLength={11}
+                          {...register("mother_phone")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.mother_phone && (
+                          <p className="text-destructive text-xs">{errors.mother_phone.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-1 text-sm sm:text-base font-semibold">Academic Information</legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Class <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Class"
+                          {...register("class")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.class && (
+                          <p className="text-destructive text-xs">{errors.class.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Roll <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Roll"
+                          {...register("roll")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.roll && (
+                          <p className="text-destructive text-xs">{errors.roll.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Section <span className="text-destructive">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Section"
+                          {...register("section")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.section && (
+                          <p className="text-destructive text-xs">{errors.section.message}</p>
+                        )}
+                      </div>
+                      {(watchedClass === 9 || watchedClass === 10) && (
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-medium">Department <span className="text-destructive">*</span></label>
+                          <select
+                            {...register("department")}
+                            disabled={!(watchedClass === 9 || watchedClass === 10)}
+                            className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                          >
+                            <option value="">Select Department</option>
+                            {VALID_DEPARTMENTS.map((department) => (
+                              <option key={department} value={department}>
+                                {department}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.department && (
+                            <p className="text-destructive text-xs">{errors.department.message}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-1 text-sm sm:text-base font-semibold">Address Information</legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Village</label>
+                        <input
+                          type="text"
+                          placeholder="Village"
+                          {...register("village")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.village && <p className="text-destructive text-xs">{errors.village.message}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Post Office</label>
+                        <input
+                          type="text"
+                          placeholder="Post Office"
+                          {...register("post_office")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.post_office && <p className="text-destructive text-xs">{errors.post_office.message}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Upazila</label>
+                        <input
+                          type="text"
+                          placeholder="Upazila"
+                          {...register("upazila")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.upazila && <p className="text-destructive text-xs">{errors.upazila.message}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">District</label>
+                        <input
+                          type="text"
+                          placeholder="District"
+                          {...register("district")}
+                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                        />
+                        {errors.district && <p className="text-destructive text-xs">{errors.district.message}</p>}
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  <div className="rounded-md border border-border bg-muted/20 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are mandatory.</p>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
+                      <label className="flex items-center space-x-2 text-sm font-medium">
                         <input
                           type="checkbox"
-                          name="has_stipend"
-                          checked={data.has_stipend}
-                          onChange={(e) =>
-                            setData((prevData) => ({
-                              ...prevData,
-                              has_stipend: e.target.checked,
-                            }))
-                          }
+                          {...register("has_stipend")}
                           className="w-4 h-4"
                         />
                         <span>Has Stipend</span>
                       </label>
-                    </div>
-                    {isEditing && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="flex items-center space-x-2">
+                      {isEditing && (
+                        <label className="flex items-center space-x-2 text-sm font-medium">
                           <input
                             type="checkbox"
-                            name="available"
-                            checked={data.available}
-                            onChange={(e) =>
-                              setData((prevData) => ({
-                                ...prevData,
-                                available: e.target.checked,
-                              }))
-                            }
+                            {...register("available")}
                             className="w-4 h-4"
                           />
                           <span>Active Student</span>
                         </label>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
+
+                  <div className="sticky bottom-0 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70 border-t border-border pt-4 flex justify-between">
                     <Button
                       variant="outline"
                       onClick={handleCancel}
                       type="button"
+                      className="min-w-24"
                     >
                       Cancel
                     </Button>
-                    <Button type="submit">
-                      {isEditing ? "Update" : "Add Student"}
+                    <Button type="submit" disabled={isSubmitting} className="min-w-28">
+                      {isSubmitting ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update" : "Add Student")}
                     </Button>
                   </div>
                 </form>
@@ -781,7 +1024,7 @@ function StudentList() {
                     <button
                       type="button"
                       onClick={() => setShowFormatInfo(true)}
-                      className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                      className="w-6 h-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold transition-colors"
                       title="View Excel format requirements"
                     >
                       i
@@ -809,12 +1052,12 @@ function StudentList() {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-sky-500"
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-primary"
                     >
-                      <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mb-4">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
                           <svg
-                            className="w-8 h-8 text-green-500"
+                            className="w-8 h-8 text-primary"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -828,7 +1071,7 @@ function StudentList() {
                           </svg>
                         ) : (
                           <svg
-                            className="w-8 h-8 text-sky-500"
+                            className="w-8 h-8 text-primary"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -842,13 +1085,13 @@ function StudentList() {
                           </svg>
                         )}
                       </div>
-                      <span className="text-gray-400 font-medium">
+                      <span className="text-muted-foreground font-medium">
                         {fileUploaded
                           ? `File Uploaded: ${excelfile?.name}`
                           : "Upload Excel File"}
                       </span>
                       {!fileUploaded && (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           .xlsx or .xls files only
                         </span>
                       )}
@@ -875,17 +1118,17 @@ function StudentList() {
           </div>
         </div>
       )}
-      <div className="p-4 rounded-lg shadow-md mb-4 md:mb-6">
+      <div className="p-4 rounded-md shadow-md mb-4 md:mb-6">
         <input
           type="text"
           placeholder="Search by name or phone..."
-          className="border border-gray-300 dark:bg-accent text-accent-foreground rounded-lg px-4 py-2 mb-4 w-full"
+          className="border border-border bg-background text-foreground rounded-md px-4 py-2 mb-4 w-full"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
           <select
-            className="border border-gray-300 dark:bg-accent rounded-lg px-3 py-2 w-full"
+            className="border border-border bg-background rounded-md px-3 py-2 w-full"
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
           >
@@ -897,7 +1140,7 @@ function StudentList() {
             ))}
           </select>
           <select
-            className="border border-gray-300 dark:bg-accent rounded-lg px-3 py-2 w-full"
+            className="border border-border bg-background rounded-md px-3 py-2 w-full"
             value={sectionFilter}
             onChange={(e) => setSectionFilter(e.target.value)}
           >
@@ -911,7 +1154,7 @@ function StudentList() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="border border-gray-300 dark:bg-accent rounded-lg px-3 py-2 w-full"
+            className="border border-border bg-background rounded-md px-3 py-2 w-full"
           >
             {Array.from({ length: 3 }, (_, i) => (
               <option key={i} value={currentYear - 1 + i}>
@@ -921,15 +1164,39 @@ function StudentList() {
           </select>
         </div>
       </div>
-      <div className="rounded-lg  shadow-md overflow-hidden flex-grow">
-        <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="rounded-md  shadow-md overflow-hidden flex-grow">
+        {hasSelectedStudents && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 px-2 py-2  bg-muted/30">
+            <p className="text-sm font-medium text-foreground">
+              {selectedStudentIds.length} student(s) selected
+            </p>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting ? "Deleting..." : "Delete Selected"}
+            </Button>
+          </div>
+        )}
+        <div className="rounded-md shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 ">
+            <table className="min-w-full divide-y divide-border ">
               <thead className="bg-popover sticky top-0">
                 <tr>
+                  <th className="w-12 px-2 py-2 sm:px-4 sm:py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={handleSelectAllVisible}
+                      aria-label="Select all students"
+                      className="h-4 w-4"
+                    />
+                  </th>
                   {[
                     "Name",
-                    "Phone",
                     "Roll",
                     "Class",
                     "Section",
@@ -947,10 +1214,10 @@ function StudentList() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 overflow-y-auto">
+              <tbody className="divide-y divide-border overflow-y-auto">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-2">
+                    <td colSpan={9} className="py-2">
                       <div className="flex justify-center items-center w-full h-full">
                         <Loading />
                       </div>
@@ -958,12 +1225,21 @@ function StudentList() {
                   </tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
-                    <tr key={student.id}>
+                    <tr
+                      key={student.id}
+                      className={selectedStudentIds.includes(student.id) ? "bg-muted/20" : ""}
+                    >
+                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.includes(student.id)}
+                          onChange={() => handleRowSelect(student.id)}
+                          aria-label={`Select ${student.name}`}
+                          className="h-4 w-4"
+                        />
+                      </td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm font-medium">
                         {student.name}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.phone}
                       </td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
                         {student.roll}
@@ -1011,14 +1287,14 @@ function StudentList() {
                                 student,
                               })
                             }
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-primary hover:text-primary/80"
                             aria-label="View"
                           >
                             <Eye size={16} className="sm:w-4 sm:h-4 w-3 h-3" />
                           </button>
                           <button
                             onClick={() => handleEdit(student)}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-foreground hover:text-primary"
                             aria-label="Edit"
                           >
                             <Pencil
@@ -1038,8 +1314,8 @@ function StudentList() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={8}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
+                      colSpan={9}
+                      className="px-4 py-6 text-center text-sm text-muted-foreground"
                     >
                       {errorMessage ||
                         "No students found matching your criteria."}
@@ -1053,7 +1329,7 @@ function StudentList() {
       </div>
       {popup.visible && popup.student && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-md sm:max-w-lg rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-card w-full max-w-md sm:max-w-lg rounded-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:px-6">
               {popup.type === "view" && (
                 <>
@@ -1070,17 +1346,20 @@ function StudentList() {
                     )}
                     {Object.entries({
                       Name: popup.student.name,
+                      "Login ID": popup.student.login_id,
                       "Father's Name": popup.student.father_name,
                       "Mother's Name": popup.student.mother_name,
-                      Phone: popup.student.phone,
-                      "Parent's Phone": popup.student.parent_phone,
-                      "Blood Group": popup.student.blood_group || "N/A",
+                      "Father's Phone": popup.student.father_phone || "N/A",
+                      "Mother's Phone": popup.student.mother_phone || "N/A",
                       "Has Stipend": popup.student.has_stipend ? "Yes" : "No",
                       Class: popup.student.class,
                       Section: popup.student.section,
                       Roll: popup.student.roll,
                       Department: popup.student.department || "N/A",
-                      Address: popup.student.address,
+                      Village: popup.student.village || "N/A",
+                      "Post Office": popup.student.post_office || "N/A",
+                      Upazila: popup.student.upazila || "N/A",
+                      District: popup.student.district || "N/A",
                       "Date of Birth": format(
                         new Date(popup.student.dob),
                         "dd MMM yyyy"
@@ -1095,7 +1374,7 @@ function StudentList() {
                   <div className="mt-6 flex justify-end">
                     <button
                       onClick={closePopup}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
                     >
                       Close
                     </button>
@@ -1109,7 +1388,7 @@ function StudentList() {
 
       {showFormatInfo && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-card w-full max-w-2xl rounded-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">
@@ -1117,40 +1396,21 @@ function StudentList() {
                 </h2>
                 <button
                   onClick={() => setShowFormatInfo(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-muted-foreground hover:text-foreground text-2xl"
                 >
                   ×
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  You can use either the <strong>Simplified Format</strong> (recommended for quick bulk uploads) or the <strong>Full Format</strong> (for complete student information).
+                <p className="text-sm text-muted-foreground">
+                  Use one standard format with required columns. Each row is validated before upload.
                 </p>
 
-                {/* Simplified Format */}
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <h3 className="font-medium text-green-800 dark:text-green-200 mb-2">
-                    ✅ Simplified Format (Recommended)
-                  </h3>
-                  <p className="text-sm text-green-700 dark:text-green-300 mb-2">
-                    Only 4 columns required. Missing fields will be left blank.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-sm bg-white dark:bg-gray-800 rounded p-3">
-                    <div className="font-medium">Required Columns:</div>
-                    <div></div>
-                    <div>• name</div>
-                    <div>• section</div>
-                    <div>• class</div>
-                    <div>• roll</div>
-                  </div>
-                </div>
-
-                {/* Full Format */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-medium mb-2">Full Format (All Details)</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                    Use this format if you have complete student information:
+                <div className="bg-muted/40 border border-border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Required Excel Format</h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Required columns for every upload:
                   </p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="font-medium">Required Columns:</div>
@@ -1160,15 +1420,18 @@ function StudentList() {
                     <div>• father_name</div>
 
                     <div>• mother_name</div>
-                    <div>• phone</div>
+                    <div>• father_phone</div>
 
-                    <div>• parent_phone</div>
-                    <div>• blood_group</div>
+                    <div>• has_stipend (optional)</div>
+                    <div>• village</div>
 
-                    <div>• has_stipend</div>
-                    <div>• address</div>
+                    <div>• mother_phone (optional)</div>
+                    <div>• post_office</div>
+                    <div>• upazila</div>
 
+                    <div>• district</div>
                     <div>• dob</div>
+
                     <div>• class</div>
 
                     <div>• roll</div>
@@ -1181,21 +1444,21 @@ function StudentList() {
 
                 <div className="space-y-2">
                   <h3 className="font-medium">Important Notes:</h3>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-gray-600 dark:text-gray-300">
+                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
                     <li>
-                      <strong>Simplified Format:</strong> Missing fields will be left blank (null) - you can update them later individually
+                      <strong>Date Format:</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)
                     </li>
                     <li>
-                      <strong>Date Format (Full):</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)
+                      <strong>Father Phone:</strong> Mandatory and should be 11 digits in Bangladesh format (e.g., 01XXXXXXXXX)
                     </li>
                     <li>
-                      <strong>Phone Numbers (Full):</strong> Enter without country code (10 digits)
+                      <strong>Mother Phone:</strong> Optional and should be 10 digits (without country code)
                     </li>
                     <li>
-                      <strong>has_stipend (Full):</strong> Use "Yes" or "No"
+                      <strong>has_stipend:</strong> Use "Yes" or "No"
                     </li>
                     <li>
-                      <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Arts)
+                      <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
                     </li>
                     <li>
                       <strong>File Format:</strong> Only .xlsx or .xls files are accepted
@@ -1204,9 +1467,9 @@ function StudentList() {
                   </ul>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>💡 Quick Start:</strong> For bulk uploads, use the simplified format with just name, section, class, and roll. You can update other details later individually.
+                <div className="bg-muted/40 border border-border rounded-md p-3">
+                  <p className="text-sm text-foreground">
+                    <strong>💡 Tip:</strong> Keep column names exactly as shown above and ensure required fields are filled for every row.
                   </p>
                 </div>
               </div>
@@ -1214,7 +1477,7 @@ function StudentList() {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowFormatInfo(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
                 >
                   Got it
                 </button>

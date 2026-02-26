@@ -5,6 +5,7 @@ import {
   addStudentController,
   updateStudentController,
   deleteStudentController,
+  deleteStudentsBulkController,
   getAlumniController,
   updateAcademicInfoController,
   updateStudentImageController,
@@ -38,7 +39,7 @@ studRouter.get(
 );
 studRouter.get(
   "/getStudentsByClass/:year/:level",
-  // AuthMiddleware.authenticate(["admin", "teacher"]),
+  AuthMiddleware.authenticate(["admin", "teacher"]),
   getClassStudentsController,
 );
 studRouter.get("/getAlumni", getAlumniController);
@@ -47,9 +48,13 @@ studRouter.get(
   AuthMiddleware.authenticate(["student"]),
   getStudentController,
 );
-studRouter.post("/addStudents", addStudentController);
+studRouter.post("/addStudents", AuthMiddleware.authenticate(["admin"]),
+  addStudentController);
 studRouter.post(
   "/updateStudentImage/:id",
+
+  AuthMiddleware.authenticate(["admin"]),
+
   upload.single("image"),
   compressImageToLocation({
     targetLocation: "uploads/students",
@@ -57,9 +62,17 @@ studRouter.post(
   }),
   updateStudentImageController,
 );
-studRouter.put("/updateStudent/:id", updateStudentController);
-studRouter.put("/updateacademic/:enrollment_id", updateAcademicInfoController);
-studRouter.delete("/deleteStudent/:id", deleteStudentController);
+studRouter.put("/updateStudent/:id", AuthMiddleware.authenticate(["admin"]),
+  updateStudentController);
+studRouter.put("/updateacademic/:enrollment_id", AuthMiddleware.authenticate(["admin"]),
+  updateAcademicInfoController);
+studRouter.delete("/deleteStudent/:id", AuthMiddleware.authenticate(["admin"]),
+  deleteStudentController);
+studRouter.delete(
+  "/deleteStudentsBulk",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteStudentsBulkController,
+);
 studRouter.post("/change-password/", changePasswordController);
 
 export default studRouter;

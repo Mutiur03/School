@@ -120,6 +120,16 @@ export const student_login = async (req, res) => {
       role: "student",
     });
     sendRefreshToken(res, refreshToken);
+
+    const studentAddress = [
+      student.village,
+      student.post_office,
+      student.upazila,
+      student.district,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
     res.json({
       success: true,
       message: "Login successful",
@@ -130,8 +140,14 @@ export const student_login = async (req, res) => {
         name: student.name,
         login_id: student.login_id,
         email: student.email,
-        phone: student.phone,
-        address: student.address,
+        phone: student.father_phone,
+        father_phone: student.father_phone,
+        mother_phone: student.mother_phone,
+        village: student.village,
+        post_office: student.post_office,
+        upazila: student.upazila,
+        district: student.district,
+        address: studentAddress,
         image: student.image,
       },
     });
@@ -249,9 +265,24 @@ export const refresh_token = async (req, res) => {
       responseUser.address = user.address;
       responseUser.image = user.image;
     } else if (payload.role === "student") {
+      const studentAddress = [
+        user.village,
+        user.post_office,
+        user.upazila,
+        user.district,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
       responseUser.login_id = user.login_id;
-      responseUser.phone = user.phone;
-      responseUser.address = user.address;
+      responseUser.phone = user.father_phone;
+      responseUser.father_phone = user.father_phone;
+      responseUser.mother_phone = user.mother_phone;
+      responseUser.village = user.village;
+      responseUser.post_office = user.post_office;
+      responseUser.upazila = user.upazila;
+      responseUser.district = user.district;
+      responseUser.address = studentAddress;
       responseUser.image = user.image;
     }
 

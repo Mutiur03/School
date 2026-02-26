@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "dev": "nodemon",
     "prestart": "npm run lint",
-    "start": "node server.js",
+    "start": "node --import tsx server.js",
     "postinstall": "npx prisma generate"
   },
   "prisma": {
@@ -23,6 +23,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@school/shared-schemas": "file:../packages/shared-schemas",
     "@aws-sdk/client-s3": "^3.972.0",
     "@aws-sdk/lib-storage": "^3.972.0",
     "@aws-sdk/s3-request-presigner": "^3.972.0",
@@ -50,8 +51,10 @@
     "puppeteer": "^24.33.0",
     "sanitize-html": "^2.12.0",
     "sharp": "^0.34.4",
+    "tsx": "^4.20.6",
     "validator": "^13.12.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -60,7 +63,6 @@
     "eslint-import-resolver-node": "^0.3.9",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.3.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
 }

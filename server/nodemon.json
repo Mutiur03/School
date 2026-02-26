@@ -1,6 +1,10 @@
 {
-  "exec": "npm run lint && node server.js",
-  "ext": "js,json",
+  "exec": "npm run lint && node --import tsx server.js",
+  "ext": "js,ts,json",
+  "watch": [
+    "./",
+    "../packages/shared-schemas"
+  ],
   "ignore": [
     "node_modules/",
     "uploads/",

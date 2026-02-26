@@ -5,6 +5,16 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import { prisma } from "../config/prisma.js";
 import { fixUrl } from "../utils/fixURL.js";
+import {
+  VALID_DEPARTMENTS,
+  addStudentsRequestSchema,
+  updateStudentSchema,
+  updateAcademicSchema,
+  deleteStudentsBulkRequestSchema,
+  enrollmentIdParamSchema,
+  yearParamSchema,
+  classStudentsParamSchema,
+} from "@school/shared-schemas";
 
 export const initGoogleSheets = async () => {
   try {
@@ -45,14 +55,17 @@ export const initGoogleSheets = async () => {
 
 const { sheets, spreadsheetId } = await initGoogleSheets();
 
-const removeNonNumber = (str) => str.replace(/\D/g, "");
 const removeInitialZeros = (str) => str.replace(/^0+/, "");
 const current_year = new Date().getFullYear();
+const sanitizeStudent = (student) => {
+  const { password: _password, ...rest } = student;
+  return rest;
+};
 
 export const getAlumniController = async (_req, res) => {
   try {
     const students = await prisma.students.findMany();
-    res.status(200).json(students);
+    res.status(200).json(students.map(sanitizeStudent));
   } catch {
     res.status(500).json({ error: "Error fetching students" });
   }
@@ -62,16 +75,15 @@ export const getStudentsController = async (req, res) => {
   // Auth handled by middleware
 
   try {
-    const { year } = req.params;
-
-    if (!year || isNaN(parseInt(year))) {
+    const parsedParams = yearParamSchema.safeParse(req.params);
+    if (!parsedParams.success) {
       return res.status(400).json({
         success: false,
         message: "Invalid year parameter. Year must be a valid number.",
       });
     }
 
-    const parsedYear = parseInt(year);
+    const { year: parsedYear } = parsedParams.data;
 
     const currentYear = new Date().getFullYear();
     if (parsedYear < 2000 || parsedYear > currentYear + 5) {
@@ -146,13 +158,15 @@ export const getStudentsController = async (req, res) => {
     //   });
     // }
 
-    const formattedResult = result.flatMap((student) =>
-      student.enrollments.map((enrollment) => ({
-        ...student,
+    const formattedResult = result.flatMap((student) => {
+      const studentWithoutPassword = sanitizeStudent(student);
+      return student.enrollments.map((enrollment) => ({
         ...enrollment,
+        ...studentWithoutPassword,
+        id: studentWithoutPassword.id,
         enrollment_id: enrollment.id,
-      })),
-    );
+      }));
+    });
 
     console.log(`Formatted ${formattedResult.length} student enrollments`);
 
@@ -204,9 +218,12 @@ export const getStudentController = async (req, res) => {
       return res.status(404).json({ error: "Student not found" });
     }
 
+    const studentWithoutPassword = sanitizeStudent(result);
+
     const responseData = {
-      ...result,
       ...result.enrollments[0],
+      ...studentWithoutPassword,
+      id: studentWithoutPassword.id,
       enrollment_id: result.enrollments[0].id,
     };
 
@@ -218,58 +235,25 @@ export const getStudentController = async (req, res) => {
 
 export const addStudentController = async (req, res) => {
   try {
-    const { students } = req.body;
-
-    if (!Array.isArray(students) || students.length === 0) {
+    const parsedRequest = addStudentsRequestSchema.safeParse(req.body);
+    if (!parsedRequest.success) {
       return res.status(400).json({
         success: false,
-        error: "Students must be an array with at least one element.",
+        error: parsedRequest.error.issues[0]?.message || "Invalid request payload",
       });
     }
+
+    const { students } = parsedRequest.data;
 
     console.log(`Processing ${students.length} students`);
 
     const batchLoginIdMap = {};
+    const usedLoginIds = new Set();
     const processedStudents = [];
 
     for (let i = 0; i < students.length; i++) {
       try {
-        const student = students[i];
-
-        // Basic validation
-        if (!student.name || !student.name.trim()) {
-          throw new Error(`Student at index ${i}: Name is required`);
-        }
-
-        student.name = student.name?.trim();
-        student.father_name = student.father_name?.trim() || null;
-        student.mother_name = student.mother_name?.trim() || null;
-
-        // Fix phone number processing
-        if (student.phone) {
-          const cleanPhone = removeNonNumber(String(student.phone));
-          student.phone =
-            cleanPhone.length >= 10 ? "0" + cleanPhone.slice(-10) : null;
-        } else {
-          student.phone = null;
-        }
-
-        if (student.parent_phone) {
-          const cleanParentPhone = removeNonNumber(
-            String(student.parent_phone),
-          );
-          student.parent_phone =
-            cleanParentPhone.length >= 10
-              ? "0" + cleanParentPhone.slice(-10)
-              : null;
-        } else {
-          student.parent_phone = null;
-        }
-
-        student.address = student.address?.trim() || null;
-        student.dob = student.dob ? student.dob.replace("/", "-") : null;
-        student.has_stipend = Boolean(student.has_stipend);
-        student.blood_group = student.blood_group?.trim() || null;
+        const student = { ...students[i] };
 
         // Generate and hash password
         let password = generatePassword();
@@ -278,11 +262,6 @@ export const addStudentController = async (req, res) => {
 
         // Process academic data
         const classNum = Number(removeInitialZeros(String(student.class || 1)));
-        if (classNum < 1 || classNum > 12) {
-          throw new Error(
-            `Student at index ${i}: Invalid class number: ${classNum}`,
-          );
-        }
 
         student.class = classNum;
         student.section = (student.section?.trim() || "A").toUpperCase();
@@ -294,6 +273,14 @@ export const addStudentController = async (req, res) => {
 
         student.department =
           classNum >= 9 ? student.department?.trim() || null : null;
+
+        if ((classNum === 9 || classNum === 10) && !VALID_DEPARTMENTS.includes(student.department || "")) {
+          throw new Error(`Student at index ${i}: Department is required for class 9-10`);
+        }
+
+        if (classNum < 9) {
+          student.department = null;
+        }
         student.year = student.year || current_year;
 
         // Generate login_id
@@ -311,7 +298,19 @@ export const addStudentController = async (req, res) => {
         }
 
         student.login_id = batchLoginIdMap[student.batch];
-        batchLoginIdMap[student.batch] += 1;
+
+        while (
+          usedLoginIds.has(student.login_id) ||
+          (await prisma.students.findUnique({
+            where: { login_id: student.login_id },
+            select: { id: true },
+          }))
+        ) {
+          student.login_id += 1;
+        }
+
+        usedLoginIds.add(student.login_id);
+        batchLoginIdMap[student.batch] = student.login_id + 1;
 
         processedStudents.push(student);
         console.log(`Processed student ${i + 1}:`, {
@@ -344,12 +343,14 @@ export const addStudentController = async (req, res) => {
               name: student.name,
               father_name: student.father_name,
               mother_name: student.mother_name,
-              phone: student.phone,
-              parent_phone: student.parent_phone,
+              father_phone: student.father_phone,
+              mother_phone: student.mother_phone,
               batch: student.batch,
-              address: student.address,
+              village: student.village,
+              post_office: student.post_office,
+              upazila: student.upazila,
+              district: student.district,
               dob: student.dob,
-              blood_group: student.blood_group,
               has_stipend: student.has_stipend,
               password: student.password,
             },
@@ -390,7 +391,7 @@ export const addStudentController = async (req, res) => {
       const sheetData = processedStudents.map((student) => [
         student.login_id,
         student.name,
-        student.phone || "",
+        student.father_phone || "",
         student.originalPassword,
         student.batch,
       ]);
@@ -430,7 +431,7 @@ export const addStudentController = async (req, res) => {
         success: false,
         error: `Duplicate entry detected${target ? ` for ${target.join(", ")}` : ""
           }`,
-        details: "A student with this login_id or phone number already exists",
+        details: "A student with this login_id or father phone already exists",
       });
     }
 
@@ -456,7 +457,7 @@ export const addStudentController = async (req, res) => {
 const columnMapping = {
   login_id: 0,
   name: 1,
-  phone: 2,
+  father_phone: 2,
   originalPassword: 3,
   batch: 4,
 };
@@ -467,26 +468,20 @@ const getColumnIndex = (field) => {
 
 export const updateStudentController = async (req, res) => {
   try {
-    if (req.body.phone) {
-      req.body.phone = "0" + removeNonNumber(String(req.body.phone)).slice(-10);
-    }
-    if (req.body.parent_phone) {
-      req.body.parent_phone =
-        "0" + removeNonNumber(String(req.body.parent_phone)).slice(-10);
-    }
-    if (req.body.dob) {
-      req.body.dob = new Date(req.body.dob).toISOString().split("T")[0];
+    const parsedUpdates = updateStudentSchema.safeParse(req.body);
+    if (!parsedUpdates.success) {
+      return res.status(400).json({ error: parsedUpdates.error.issues[0]?.message || "Invalid student update data" });
     }
 
-    const { id } = req.params;
-    const updates = req.body;
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: "No valid fields to update" });
+    const parsedId = enrollmentIdParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: "Invalid student id" });
     }
+
+    const updates = parsedUpdates.data;
 
     const result = await prisma.students.update({
-      where: { id: parseInt(id) },
+      where: { id: parsedId.data },
       data: updates,
     });
 
@@ -519,8 +514,13 @@ export const updateStudentController = async (req, res) => {
       });
     }
 
-    res.status(200).json(result);
-  } catch {
+    res.status(200).json(sanitizeStudent(result));
+  } catch (error) {
+    if (error?.code === "P2025") {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    console.error("Error updating student:", error);
     res.status(500).json({ error: "Error updating student" });
   }
 };
@@ -577,84 +577,136 @@ export const deleteStudentController = async (req, res) => {
   }
 };
 
+export const deleteStudentsBulkController = async (req, res) => {
+  try {
+    const parsedRequest = deleteStudentsBulkRequestSchema.safeParse(req.body);
+    if (!parsedRequest.success) {
+      return res.status(400).json({
+        success: false,
+        error:
+          parsedRequest.error.issues[0]?.message ||
+          "Invalid bulk delete payload",
+      });
+    }
+
+    const studentIds = [...new Set(parsedRequest.data.studentIds)];
+
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+      select: { id: true, login_id: true },
+    });
+
+    if (students.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No matching students found",
+      });
+    }
+
+    await prisma.students.deleteMany({
+      where: { id: { in: students.map((student) => student.id) } },
+    });
+
+    const sheetData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "students!A1:Z",
+    });
+
+    const rows = sheetData.data.values || [];
+    const loginIdSet = new Set(students.map((student) => String(student.login_id)));
+    const rowIndexes = rows
+      .map((row, index) => (loginIdSet.has(String(row[0])) ? index : -1))
+      .filter((index) => index !== -1)
+      .sort((a, b) => b - a);
+
+    if (rowIndexes.length > 0) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: rowIndexes.map((rowIndex) => ({
+            deleteDimension: {
+              range: {
+                sheetId: 0,
+                dimension: "ROWS",
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1,
+              },
+            },
+          })),
+        },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Deleted ${students.length} students successfully`,
+      deletedCount: students.length,
+    });
+  } catch (error) {
+    console.error("Error deleting students in bulk:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Error deleting students in bulk",
+    });
+  }
+};
+
 export const updateAcademicInfoController = async (req, res) => {
   try {
-    const { enrollment_id } = req.params;
-    const updates = req.body;
-
-    // Validate enrollment_id
-    if (!enrollment_id || isNaN(parseInt(enrollment_id))) {
+    const parsedEnrollmentId = enrollmentIdParamSchema.safeParse(
+      req.params.enrollment_id,
+    );
+    if (!parsedEnrollmentId.success) {
       return res.status(400).json({
         success: false,
         error: "Invalid enrollment_id parameter",
       });
     }
 
-    if (Object.keys(updates).length === 0) {
+    const enrollmentId = parsedEnrollmentId.data;
+    const updates = req.body;
+
+    const parsedAcademicUpdates = updateAcademicSchema.safeParse(updates);
+    if (!parsedAcademicUpdates.success) {
       return res.status(400).json({
         success: false,
-        error: "No valid academic fields provided",
+        error: parsedAcademicUpdates.error.issues[0]?.message || "Invalid academic update data",
       });
     }
 
-    // Validate and convert data types
-    const processedUpdates = {};
+    const processedUpdates = parsedAcademicUpdates.data;
 
-    if (updates.class !== undefined) {
-      const classNum = parseInt(updates.class);
-      if (isNaN(classNum) || classNum < 1 || classNum > 12) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid class number. Must be between 1 and 12.",
-        });
-      }
-      processedUpdates.class = classNum;
+    const classForValidation =
+      processedUpdates.class ??
+      (await prisma.student_enrollments.findUnique({
+        where: { id: enrollmentId },
+        select: { class: true },
+      }))?.class;
+
+    if (
+      (classForValidation === 9 || classForValidation === 10) &&
+      (!processedUpdates.department ||
+        !VALID_DEPARTMENTS.includes(processedUpdates.department))
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Department is required for class 9-10 and must be valid.",
+      });
     }
 
-    if (updates.roll !== undefined) {
-      const rollNum = parseInt(updates.roll);
-      if (isNaN(rollNum) || rollNum < 1) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid roll number. Must be a positive integer.",
-        });
-      }
-      processedUpdates.roll = rollNum;
-    }
-
-    if (updates.section !== undefined) {
-      processedUpdates.section = updates.section
-        .toString()
-        .trim()
-        .toUpperCase();
-    }
-
-    if (updates.department !== undefined) {
-      processedUpdates.department = updates.department
-        ? updates.department.toString().trim()
-        : null;
-    }
-
-    if (updates.year !== undefined) {
-      const yearNum = parseInt(updates.year);
-      if (isNaN(yearNum)) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid year. Must be a valid number.",
-        });
-      }
-      processedUpdates.year = yearNum;
+    if (classForValidation !== 9 && classForValidation !== 10) {
+      processedUpdates.department = null;
     }
 
     console.log(
-      `Updating academic info for enrollment_id: ${enrollment_id}`,
+      `Updating academic info for enrollment_id: ${enrollmentId}`,
       processedUpdates,
     );
 
     // Use transaction for data consistency
     const result = await prisma.$transaction(async (tx) => {
       const enrollment = await tx.student_enrollments.update({
-        where: { id: parseInt(enrollment_id) },
+        where: { id: enrollmentId },
         data: processedUpdates,
       });
 
@@ -891,18 +943,15 @@ export const changePasswordController = async (req, res) => {
 
 export const getClassStudentsController = async (_req, res) => {
   try {
-    const { year, level } = _req.params;
-
-    // Validate year parameter
-    if (!year || isNaN(parseInt(year)) || !level || isNaN(parseInt(level))) {
+    const parsedParams = classStudentsParamSchema.safeParse(_req.params);
+    if (!parsedParams.success) {
       return res.status(400).json({
         success: false,
         message: "Invalid year parameter. Year must be a valid number.",
       });
     }
 
-    const parsedYear = parseInt(year);
-    const parsedLevel = parseInt(level);
+    const { year: parsedYear, level: parsedLevel } = parsedParams.data;
 
     // Validate year range (optional but recommended)
     const currentYear = new Date().getFullYear();
@@ -937,8 +986,9 @@ export const getClassStudentsController = async (_req, res) => {
     const formattedResult = result.flatMap((student) => {
       const { password: _password, ...studentWithoutPassword } = student;
       return student.enrollments.map((enrollment) => ({
-        ...studentWithoutPassword,
         ...enrollment,
+        ...studentWithoutPassword,
+        id: studentWithoutPassword.id,
         enrollment_id: enrollment.id,
       }));
     });

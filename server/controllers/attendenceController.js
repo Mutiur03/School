@@ -226,7 +226,12 @@ export const addAttendenceController = async (req, res) => {
             continue;
           }
 
-          const parent_phone = student.parent_phone;
+          const parent_phone = student.father_phone;
+
+          if (!parent_phone) {
+            console.warn(`No father phone found for student ID: ${studentId}`);
+            continue;
+          }
 
           const sent = await prisma.attendence.findFirst({
             where: {
