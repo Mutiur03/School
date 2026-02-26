@@ -560,7 +560,7 @@ function StudentList() {
 
         if (!parsed.success) {
           const issueText = parsed.error.issues
-            .map((issue) => `${issue.path.join(".") || "row"}: ${issue.message}`)
+            .map((issue: { path: PropertyKey[]; message: string }) => `${issue.path.join(".") || "row"}: ${issue.message}`)
             .join(" | ");
           console.error("[Excel Row Validation Failed]", {
             rowNumber: index + 2,
