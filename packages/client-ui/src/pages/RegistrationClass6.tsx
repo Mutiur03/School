@@ -753,7 +753,7 @@ export default function RegistrationClass6() {
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
                 <h2 className="text-xl sm:text-2xl lg:text-3xl text-center font-bold text-blue-700 tracking-tight underline underline-offset-4 mb-1 sm:mb-2">
                     {isEditMode
-                        ? "Edit Admission"
+                        ? `Edit Your Information for Class Six Registration ${settings?.class6_year}`
                         : `Student's Information for Registration of Class Six ${settings?.class6_year}`}
                 </h2>
                 <span className="text-xs sm:text-sm text-gray-600 text-center px-2">
