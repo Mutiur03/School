@@ -1,7 +1,7 @@
 # ---------------- BASE IMAGE ----------------
 FROM node:22-bookworm-slim
 
-# Set working directory
+# Monorepo root in container
 WORKDIR /app
 
 # Install minimal dependencies for Playwright Chromium and system utilities
@@ -29,19 +29,24 @@ RUN apt-get update && apt-get install -y \
 # Install pnpm globally for smaller node_modules
 RUN npm install -g pnpm
 
-# Copy package files for caching
-COPY package*.json ./
+# Copy server package manifest + shared package for dependency resolution
+# IMPORTANT: Build context must be repository root (School/)
+COPY server/package*.json /app/server/
+COPY packages/shared-schemas /app/packages/shared-schemas
 
-# Install production dependencies only
+# Install production dependencies for server only
+WORKDIR /app/server
 RUN pnpm install --prod --ignore-scripts
 
+# Install PM2 globally
 RUN npm install pm2 -g
 
-# Copy the rest of the app
-COPY . .
+# Copy server source after deps for better cache use
+COPY server /app/server
 
 # Make the startup script executable
 RUN chmod +x setup-network.sh
+
 # Build application (Prisma client generation)
 RUN npx prisma generate
 
@@ -52,4 +57,4 @@ RUN pnpm prune --prod
 ENTRYPOINT []
 
 # Start the application directly
-CMD ["node", "server.js"]
+CMD ["node", "--import", "tsx", "server.js"]
