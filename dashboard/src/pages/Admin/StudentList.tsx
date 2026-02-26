@@ -70,6 +70,24 @@ const excelRequiredHeaders = [
   "section",
 ];
 
+const demoExcelColumns = [
+  "name",
+  "father_name",
+  "mother_name",
+  "father_phone",
+  "mother_phone",
+  "village",
+  "post_office",
+  "upazila",
+  "district",
+  "dob",
+  "class",
+  "roll",
+  "section",
+  "department",
+  "has_stipend",
+];
+
 const toExcelString = (value: unknown) => (value == null ? "" : String(value).trim());
 
 const normalizeExcelDate = (value: unknown) => {
@@ -130,6 +148,7 @@ const formatDobForDateInput = (value: string | null | undefined) => {
 };
 
 function StudentList() {
+  type SubmitAction = "none" | "form" | "excelUpload" | "bulkDelete";
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,6 +178,7 @@ function StudentList() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAction, setSubmitAction] = useState<SubmitAction>("none");
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const host = import.meta.env.VITE_BACKEND_URL;
 
@@ -176,6 +196,9 @@ function StudentList() {
   });
 
   const watchedClass = Number(watch("class") || "0");
+  const isFormSubmitting = isSubmitting && submitAction === "form";
+  const isExcelSubmitting = isSubmitting && submitAction === "excelUpload";
+  const isBulkDeleting = isSubmitting && submitAction === "bulkDelete";
 
   useEffect(() => {
     if (watchedClass !== 9 && watchedClass !== 10) {
@@ -215,6 +238,7 @@ function StudentList() {
     getStudentList();
   };
   const getStudentList = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`/api/students/getStudents/${year}`);
       const filteredStudents = (response.data.data || []).filter(
@@ -352,6 +376,7 @@ function StudentList() {
 
     if (!confirmed) return;
 
+    setSubmitAction("bulkDelete");
     setIsSubmitting(true);
     try {
       const response = await axios.delete("/api/students/deleteStudentsBulk", {
@@ -371,6 +396,7 @@ function StudentList() {
       );
     } finally {
       setIsSubmitting(false);
+      setSubmitAction("none");
     }
   };
 
@@ -381,6 +407,7 @@ function StudentList() {
   }, [students]);
 
   const onSubmit = async (formValues: StudentFormData) => {
+    setSubmitAction("form");
     setIsSubmitting(true);
     try {
       const parsedForm = studentFormSchema.safeParse(formValues);
@@ -493,8 +520,9 @@ function StudentList() {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
       toast.error(error.response?.data?.error || error.message || 'An error occurred');
     } finally {
-      getStudentList();
+      await getStudentList();
       setIsSubmitting(false);
+      setSubmitAction("none");
     }
   };
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -598,8 +626,57 @@ function StudentList() {
       toast.error("Error reading the file. Please try again.");
     };
   };
+
+  const handleDownloadDemoExcel = () => {
+    const demoData = [
+      {
+        name: "Rahim Uddin",
+        father_name: "Karim Uddin",
+        mother_name: "Ayesha Begum",
+        father_phone: "01712345678",
+        mother_phone: "01812345678",
+        village: "Shantinagar",
+        post_office: "Sadar",
+        upazila: "Sadar",
+        district: "Dhaka",
+        dob: "15/08/2008",
+        class: "8",
+        roll: "12",
+        section: "A",
+        department: "",
+        has_stipend: "No",
+      },
+      {
+        name: "Nusrat Jahan",
+        father_name: "Mizanur Rahman",
+        mother_name: "Shirin Akter",
+        father_phone: "01912345678",
+        mother_phone: "01612345678",
+        village: "Uttar Para",
+        post_office: "Town",
+        upazila: "Kotwali",
+        district: "Chattogram",
+        dob: "20/01/2007",
+        class: "9",
+        roll: "5",
+        section: "B",
+        department: "Science",
+        has_stipend: "Yes",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(demoData, {
+      header: demoExcelColumns,
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+    XLSX.writeFile(workbook, "student_upload_demo.xlsx");
+    toast.success("Demo Excel downloaded.");
+  };
+
   const sendToBackend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitAction("excelUpload");
     setIsSubmitting(true);
     try {
       if (!jsonData || jsonData.length === 0) {
@@ -644,8 +721,9 @@ function StudentList() {
       toast.error("Error adding student");
       toast.error(error.response?.data?.message || "Failed to upload students.");
     } finally {
-      getStudentList();
+      await getStudentList();
       setIsSubmitting(false);
+      setSubmitAction("none");
     }
   };
   const handleCancel = () => {
@@ -711,9 +789,10 @@ function StudentList() {
           <Button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
+            disabled={loading}
             className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            + Add Student
+            {loading ? "Loading students..." : "+ Add Student"}
           </Button>
         )}
       </div>
@@ -1008,12 +1087,15 @@ function StudentList() {
                       variant="outline"
                       onClick={handleCancel}
                       type="button"
+                      disabled={isFormSubmitting}
                       className="min-w-24"
                     >
                       Cancel
                     </Button>
                     <Button type="submit" disabled={isSubmitting} className="min-w-28">
-                      {isSubmitting ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update" : "Add Student")}
+                      {isFormSubmitting
+                        ? (isEditing ? "Updating Student..." : "Adding Student...")
+                        : (isEditing ? "Update" : "Add Student")}
                     </Button>
                   </div>
                 </form>
@@ -1021,14 +1103,24 @@ function StudentList() {
                 <form onSubmit={sendToBackend} className="space-y-4">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium">Excel File Upload</h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowFormatInfo(true)}
-                      className="w-6 h-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold transition-colors"
-                      title="View Excel format requirements"
-                    >
-                      i
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDownloadDemoExcel}
+                        className="h-8 px-3"
+                      >
+                        Download Demo Excel
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setShowFormatInfo(true)}
+                        className="w-6 h-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                        title="View Excel format requirements"
+                      >
+                        i
+                      </button>
+                    </div>
                   </div>
                   <div className="relative">
                     <input
@@ -1102,6 +1194,7 @@ function StudentList() {
                       variant="outline"
                       type="button"
                       onClick={handleCancel}
+                      disabled={isExcelSubmitting}
                     >
                       Cancel
                     </Button>
@@ -1109,7 +1202,7 @@ function StudentList() {
                       type="submit"
                       disabled={!fileUploaded || isSubmitting}
                     >
-                      Upload
+                      {isExcelSubmitting ? "Uploading Students..." : "Upload"}
                     </Button>
                   </div>
                 </form>
@@ -1177,7 +1270,7 @@ function StudentList() {
               disabled={isSubmitting}
               className="w-full sm:w-auto"
             >
-              {isSubmitting ? "Deleting..." : "Delete Selected"}
+              {isBulkDeleting ? "Deleting Selected..." : "Delete Selected"}
             </Button>
           </div>
         )}
@@ -1218,8 +1311,9 @@ function StudentList() {
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="py-2">
-                      <div className="flex justify-center items-center w-full h-full">
+                      <div className="flex flex-col justify-center items-center gap-2 w-full h-full py-4">
                         <Loading />
+                        <p className="text-sm text-muted-foreground">Loading students...</p>
                       </div>
                     </td>
                   </tr>

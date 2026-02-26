@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import type { ForwardedRef } from "react";
 import {
   FaHome,
@@ -341,9 +341,14 @@ const Sidebar = ({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
-  const sidebarItems = user ? getRoutesByRole(user.role) : [];
+  const sidebarItems = useMemo(() => (user ? getRoutesByRole(user.role) : []), [user]);
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const isPathActive = (path?: string) => {
+    if (!path) return false;
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
   useEffect(() => {
     const updateSize = () => {
@@ -379,7 +384,7 @@ const Sidebar = ({
         if (foundActive) break;
       }
     }
-  }, [location.pathname]);
+  }, [location.pathname, sidebarItems]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target;
@@ -433,9 +438,9 @@ const Sidebar = ({
                       {!item.dropdown ? (
                         <NavLink
                           to={item.link as string}
-                          className={({ isActive }: { isActive: boolean }) =>
-                            `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isActive
-                              ? "bg-accent text-accent-foreground"
+                          className={() =>
+                            `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isPathActive(item.link)
+                              ? "bg-primary/20 text-primary"
                               : "hover:inset-1 hover:inset-ring"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
