@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useHeadMasterMsg } from "../data";
 import { useSchoolConfig } from "../context/school";
+import backend from "@/lib/backend";
 
 type SidebarLink = {
   title: string;
@@ -131,22 +132,22 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
   const calendarData = getCalendarData(currentDate);
 
   const teacherImage = resolvedHeadMasterMsg?.teacher?.image;
-  const resolveImageUrl = (baseUrl: string, imagePath: string) => {
-    if (!imagePath) return "";
-    if (/^(?:https?:)?\/\//i.test(imagePath) || imagePath.startsWith("data:") || imagePath.startsWith("blob:")) {
-      return imagePath;
-    }
+  // const resolveImageUrl = (baseUrl: string, imagePath: string) => {
+  //   if (!imagePath) return "";
+  //   if (/^(?:https?:)?\/\//i.test(imagePath) || imagePath.startsWith("data:") || imagePath.startsWith("blob:")) {
+  //     return imagePath;
+  //   }
 
-    const normalizedBase = String(baseUrl ?? "").trim().replace(/\/+$/, "");
-    const normalizedPath = imagePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  //   const normalizedBase = String(baseUrl ?? "").trim().replace(/\/+$/, "");
+  //   const normalizedPath = imagePath.replace(/\\/g, "/").replace(/^\/+/, "");
 
-    if (!normalizedBase) return `/${normalizedPath}`;
-    return `${normalizedBase}/${normalizedPath}`;
-  };
+  //   if (!normalizedBase) return `/${normalizedPath}`;
+  //   return `${normalizedBase}/${normalizedPath}`;
+  // };
 
-  const teacherImgSrc = teacherImage
-    ? resolveImageUrl(resolvedBackendBaseUrl, teacherImage)
-    : "";
+  // const teacherImgSrc = teacherImage
+  //   ? resolveImageUrl(resolvedBackendBaseUrl, teacherImage)
+  //   : "";
 
   return (
     <div className="content-right">
@@ -188,7 +189,7 @@ export function RightSidebar({ headMasterMsg, backendBaseUrl = "" }: RightSideba
                 >
                   <img
                     alt="image"
-                    src={teacherImgSrc}
+                    src={`${backend}/${teacherImage}`}
                     onLoad={() => setImgLoading(false)}
                     onError={() => {
                       setImgError(true);
