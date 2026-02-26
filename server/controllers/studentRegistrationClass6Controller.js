@@ -430,28 +430,28 @@ export const getRegistrationPhotoUploadUrl = async (req, res) => {
       .json({ success: false, message: "Failed to generate upload URL" });
   }
 };
-
-export const exportRegistrations = async (req, res) => {
-  function formatDateLong(dateStr) {
-    if (!dateStr) return "";
-    let d, m, y;
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-      [d, m, y] = dateStr.split("/");
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      [y, m, d] = dateStr.split("-");
-    } else {
-      return dateStr;
-    }
-    const dateObj = new Date(`${y}-${m}-${d}`);
-    if (isNaN(dateObj)) return dateStr;
-    return dateObj
-      .toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-      .replace(/(\w+)\s(\d{4})/, "$1, $2");
+function formatDateLong(dateStr) {
+  if (!dateStr) return "";
+  let d, m, y;
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    [d, m, y] = dateStr.split("/");
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    [y, m, d] = dateStr.split("-");
+  } else {
+    return dateStr;
   }
+  const dateObj = new Date(`${y}-${m}-${d}`);
+  if (isNaN(dateObj)) return dateStr;
+  return dateObj
+    .toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+    .replace(/(\w+)\s(\d{4})/, "$1, $2");
+}
+export const exportRegistrations = async (req, res) => {
+
   try {
     const { class6_year, section, status } = req.query;
     console.log("Exporting registrations sheet:", {
@@ -649,26 +649,26 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     }
 
-    function formatDateLong(dateStr) {
-      if (!dateStr) return "";
-      let d, m, y;
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-        [d, m, y] = dateStr.split("/");
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        [y, m, d] = dateStr.split("-");
-      } else {
-        return dateStr;
-      }
-      const dateObj = new Date(`${y}-${m}-${d}`);
-      if (isNaN(dateObj)) return dateStr;
-      return dateObj
-        .toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })
-        .replace(/(\w+)\s(\d{4})/, "$1, $2");
-    }
+    // function formatDateLong(dateStr) {
+    //   if (!dateStr) return "";
+    //   let d, m, y;
+    //   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    //     [d, m, y] = dateStr.split("/");
+    //   } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    //     [y, m, d] = dateStr.split("-");
+    //   } else {
+    //     return dateStr;
+    //   }
+    //   const dateObj = new Date(`${y}-${m}-${d}`);
+    //   if (isNaN(dateObj)) return dateStr;
+    //   return dateObj
+    //     .toLocaleDateString("en-GB", {
+    //       day: "numeric",
+    //       month: "long",
+    //       year: "numeric",
+    //     })
+    //     .replace(/(\w+)\s(\d{4})/, "$1, $2");
+    // }
 
     function normalizeUnicode(text) {
       return text ? text.normalize("NFC") : "";
