@@ -9,11 +9,11 @@ datasource db {
 }
 
 model admin {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  password String
-  role     String @default("admin")
-  tokenVersion Int @default(0)
+  id           Int    @id @default(autoincrement())
+  username     String @unique
+  password     String
+  role         String @default("admin")
+  tokenVersion Int    @default(0)
 }
 
 model students {
@@ -22,12 +22,14 @@ model students {
   name         String   @db.VarChar(100)
   father_name  String?  @db.VarChar(100)
   mother_name  String?  @db.VarChar(100)
-  phone        String?  @db.Char(11)
-  parent_phone String?  @db.Char(11)
-  batch        String   @db.Char(4)
-  address      String?
+  father_phone String?  @db.VarChar(11)
+  mother_phone String?  @db.VarChar(11)
+  batch        String   @db.VarChar(4)
+  village      String?  @db.VarChar(100)
+  post_office  String?  @db.VarChar(100)
+  upazila      String?  @db.VarChar(100)
+  district     String?  @db.VarChar(100)
   dob          String?  @db.VarChar(10)
-  blood_group  String?  @db.VarChar(10)
   has_stipend  Boolean  @default(false)
   image        String?
   password     String?  @db.VarChar(100)
@@ -41,8 +43,6 @@ model students {
   sms_logs    sms_logs[]
 
   galleries gallery[] @relation("StudentGalleryUploader")
-
-  @@unique([login_id, phone])
 }
 
 model student_enrollments {
@@ -107,17 +107,17 @@ model holidays {
 }
 
 model teachers {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  email       String   @unique @db.VarChar(100)
-  phone       String   @db.VarChar(11)
-  designation String?  @db.VarChar(100)
-  password    String
-  image       String?
-  address     String?
-  available   Boolean  @default(true)
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(100)
+  phone        String   @db.VarChar(11)
+  designation  String?  @db.VarChar(100)
+  password     String
+  image        String?
+  address      String?
+  available    Boolean  @default(true)
   tokenVersion Int      @default(0)
-  created_at  DateTime @default(now())
+  created_at   DateTime @default(now())
 
   levels    levels[]
   subjects  subjects[]
@@ -578,6 +578,7 @@ model sms_logs {
   @@index([attendance_date])
   @@index([student_id])
 }
+
 model class6_reg {
   id                     Int      @id @default(autoincrement())
   reg_open               Boolean? @default(false)
@@ -592,31 +593,31 @@ model class6_reg {
 }
 
 model student_registration_class6 {
-  id                   String  @id @default(uuid())
-  class6_year         Int
+  id              String @id @default(uuid())
+  class6_year     Int
   // Personal Information
-  section              String @db.VarChar(10)
-  roll                 String @db.VarChar(20)
-  religion             String @db.VarChar(50)
-  student_name_bn      String @db.VarChar(100)
-  student_name_en      String @db.VarChar(100)
-  birth_reg_no         String @db.VarChar(17)
+  section         String @db.VarChar(10)
+  roll            String @db.VarChar(20)
+  religion        String @db.VarChar(50)
+  student_name_bn String @db.VarChar(100)
+  student_name_en String @db.VarChar(100)
+  birth_reg_no    String @db.VarChar(17)
 
   // Parents Information
-  father_name_bn String @db.VarChar(100)
-  father_name_en String @db.VarChar(100)
+  father_name_bn String  @db.VarChar(100)
+  father_name_en String  @db.VarChar(100)
   father_nid     String? @db.VarChar(17)
   father_phone   String? @db.VarChar(11)
-  mother_name_bn String @db.VarChar(100)
-  mother_name_en String @db.VarChar(100)
+  mother_name_bn String  @db.VarChar(100)
+  mother_name_en String  @db.VarChar(100)
   mother_nid     String? @db.VarChar(17)
   mother_phone   String? @db.VarChar(11)
 
   // Birth Information
-  birth_date  String @db.VarChar(10)
-  birth_year  String @db.VarChar(4)
-  birth_month String @db.VarChar(2)
-  birth_day   String @db.VarChar(2)
+  birth_date  String  @db.VarChar(10)
+  birth_year  String  @db.VarChar(4)
+  birth_month String  @db.VarChar(2)
+  birth_day   String  @db.VarChar(2)
   email       String? @db.VarChar(100)
 
   // Address Information
@@ -644,11 +645,11 @@ model student_registration_class6 {
   guardian_village_road String? @db.VarChar(200)
 
   // Previous School Information
-  prev_school_name     String @db.VarChar(200)
-  prev_school_district String @db.VarChar(50)
-  prev_school_upazila  String @db.VarChar(50)
-  section_in_prev_school String @db.VarChar(10)
-  roll_in_prev_school    String @db.VarChar(20)
+  prev_school_name         String @db.VarChar(200)
+  prev_school_district     String @db.VarChar(50)
+  prev_school_upazila      String @db.VarChar(50)
+  section_in_prev_school   String @db.VarChar(10)
+  roll_in_prev_school      String @db.VarChar(20)
   prev_school_passing_year String @db.VarChar(4)
 
   // Photo Information
@@ -661,8 +662,8 @@ model student_registration_class6 {
   status          String   @default("pending") @db.VarChar(20) // pending, approved, rejected
   submission_date DateTime @default(now())
 
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([birth_reg_no])
   @@index([father_nid])
