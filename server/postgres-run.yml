@@ -1,6 +1,6 @@
 services:
   postgres_school:
-    image: postgres:17
+    image: postgres:17-alpine
     restart: unless-stopped     
     ports:
       - "${POSTGRES_PORT}:5432"  
