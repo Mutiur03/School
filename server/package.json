@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "dev": "nodemon",
     "prestart": "npm run lint",
-    "start": "node --import tsx server.js",
+    "start": "npm run lint && node --import tsx server.js",
     "postinstall": "npx prisma generate"
   },
   "prisma": {

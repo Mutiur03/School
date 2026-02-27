@@ -1,5 +1,6 @@
 {
-  "exec": "npm run lint && node --import tsx server.js",
+  "_exec": "npm run lint && node --import tsx server.js",
+  "exec": "node --import tsx server.js",
   "ext": "js,ts,json",
   "watch": [
     "./",
@@ -11,3 +12,4 @@
     "prisma/migrations/"
   ]
 }
+
