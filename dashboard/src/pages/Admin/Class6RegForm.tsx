@@ -134,6 +134,7 @@ const Class6RegForm = () => {
             return res.data.success ? res.data.data : [];
         },
         staleTime: 30000,
+        refetchOnWindowFocus: true ,
     });
 
     const registrations = useMemo(() => {
@@ -158,13 +159,28 @@ const Class6RegForm = () => {
     }, [registrationsData, filters.status, filters.section, filters.search]);
 
     const stats = useMemo(() => {
-        const data: Registration[] = registrationsData || [];
+        const allData: Registration[] = registrationsData || [];
+        const filteredData: Registration[] = registrations || [];
         return {
-            total: data.length,
-            pending: data.filter((r: Registration) => r.status === "pending").length,
-            approved: data.filter((r: Registration) => r.status === "approved").length
+            total: {
+                filtered: filteredData.length,
+                all: allData.length,
+            },
+            pending: {
+                filtered: filteredData.filter((r: Registration) => r.status === "pending").length,
+                all: allData.filter((r: Registration) => r.status === "pending").length,
+            },
+            approved: {
+                filtered: filteredData.filter((r: Registration) => r.status === "approved").length,
+                all: allData.filter((r: Registration) => r.status === "approved").length,
+            }
         };
-    }, [registrationsData]);
+    }, [registrationsData, registrations]);
+
+    const renderCount = (filtered: number, total: number) => {
+        if (filtered === total) return total;
+        return `${filtered} / ${total}`;
+    };
 
 
     useEffect(() => {
@@ -491,15 +507,15 @@ const Class6RegForm = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                             <p className="text-sm text-gray-500 mb-1">Total Registrations</p>
-                            <h4 className="text-2xl font-bold">{stats.total}</h4>
+                            <h4 className="text-2xl font-bold">{renderCount(stats.total.filtered, stats.total.all)}</h4>
                         </div>
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                             <p className="text-sm text-amber-500 mb-1">Pending</p>
-                            <h4 className="text-2xl font-bold text-amber-600">{stats.pending}</h4>
+                            <h4 className="text-2xl font-bold text-amber-600">{renderCount(stats.pending.filtered, stats.pending.all)}</h4>
                         </div>
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                             <p className="text-sm text-emerald-500 mb-1">Approved</p>
-                            <h4 className="text-2xl font-bold text-emerald-600">{stats.approved}</h4>
+                            <h4 className="text-2xl font-bold text-emerald-600">{renderCount(stats.approved.filtered, stats.approved.all)}</h4>
                         </div>
                     </div>
 

@@ -9,8 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: true, // Re-fetches data when you switch browser tabs and come back
-      staleTime: 300000, // Data is considered stale after 5 minutes, allowing prompt background refetching
+      staleTime: 300000, 
       refetchOnReconnect: true,
     },
   },
