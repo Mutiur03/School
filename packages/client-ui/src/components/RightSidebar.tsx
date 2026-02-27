@@ -129,7 +129,31 @@ export function RightSidebar({ headMasterMsg }: RightSidebarProps) {
   const calendarData = getCalendarData(currentDate);
 
   const teacherImage = resolvedHeadMasterMsg?.teacher?.image;
-  const teacherImgSrc = `${backend}/${teacherImage ?? ""}`;
+  const resolvedBackendBaseUrl = String((school as any).backendBaseUrl || backend || "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  const teacherImgSrc = React.useMemo(() => {
+    if (!teacherImage) return "";
+    if (
+      /^(?:https?:)?\/\//i.test(teacherImage) ||
+      teacherImage.startsWith("data:") ||
+      teacherImage.startsWith("blob:")
+    ) {
+      return teacherImage;
+    }
+
+    const normalizedPath = teacherImage.replace(/\\/g, "/").replace(/^\/+/, "");
+    if (resolvedBackendBaseUrl) {
+      return `${resolvedBackendBaseUrl}/${normalizedPath}`;
+    }
+    return `/${normalizedPath}`;
+  }, [teacherImage, resolvedBackendBaseUrl]);
+
+  React.useEffect(() => {
+    setImgError(false);
+    setImgLoading(Boolean(teacherImgSrc));
+  }, [teacherImgSrc]);
 
   return (
     <div className="content-right">
