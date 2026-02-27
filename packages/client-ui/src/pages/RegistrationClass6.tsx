@@ -237,7 +237,7 @@ export default function RegistrationClass6() {
         reset,
         formState: { errors },
     } = useForm<RegistrationFormData>({
-        resolver: zodResolver(registrationSchema) as Resolver<RegistrationFormData>,
+        resolver: zodResolver(registrationSchema as any) as Resolver<RegistrationFormData>,
         mode: "onBlur",
         reValidateMode: "onChange",
         defaultValues: {
