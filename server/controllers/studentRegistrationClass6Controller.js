@@ -11,6 +11,20 @@ import archiver from "archiver";
 import fs from "fs";
 import puppeteer from "puppeteer";
 import axios from "axios";
+import QRCode from "qrcode";
+
+export const resolveClass6Preview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    return res.redirect(302, `/api/reg/class-6/form/${id}/pdf?preview=1`);
+  } catch (error) {
+    console.error("resolveClass6Preview error:", error);
+    return res.status(400).json({
+      success: false,
+      message: "Invalid preview link",
+    });
+  }
+};
 
 export const getClassMates = async (req, res) => {
   try {
@@ -640,9 +654,11 @@ export const downloadRegistrationPDF = async (req, res) => {
 
     // Helper: Signature of student photo (fetch from R2 and convert to base64)
     let _studentPhotoBase64 = "";
-    if (registration.photo_path) {
+    
+    if (registration.photo) {
       try {
-        const photoUrl = await getDownloadUrl(registration.photo_path);
+        const photoUrl = await getDownloadUrl(registration.photo);
+        // return res.json({ photoUrl });
         const response = await axios.get(photoUrl, {
           responseType: "arraybuffer",
         });
@@ -654,6 +670,44 @@ export const downloadRegistrationPDF = async (req, res) => {
       } catch (photoError) {
         console.warn("Failed to fetch student photo for PDF:", photoError);
       }
+    }
+
+    const ownDomain =
+      `${req.protocol}://${req.get("host")}`;
+    const frontendDomain = String(
+        process.env.PUBLIC_FRONTEND_URL ||
+        ownDomain,
+    )
+      .trim()
+      .replace(/\/$/, "");
+    console.log(ownDomain);
+    
+    let qrCodeBase64 = "";
+    try {
+      const qrPayload = JSON.stringify({
+        registration_id: registration.id,
+        student_name: registration.student_name_en || registration.student_name_bn || "",
+        section: registration.section || "",
+        roll: registration.roll || "",
+        class6_year: registration.class6_year || "",
+      });
+
+      const qrData =
+        isInlinePreview || isHtmlPreview
+          ? `${frontendDomain}/preview/class6/${registration.id}`
+          : qrPayload;
+
+      qrCodeBase64 = await QRCode.toDataURL(qrData, {
+        errorCorrectionLevel: "H",
+        margin: 1,
+        width: 600,
+        color: {
+          dark: "#111111",
+          light: "#FFFFFF",
+        },
+      });
+    } catch (qrError) {
+      console.warn("Failed to generate QR code for PDF:", qrError);
     }
 
 
@@ -1003,27 +1057,82 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
     }
     
-    .header { 
+    .header {
       position: relative;
-      text-align: center; 
+      text-align: center;
       margin-bottom: 12px;
       padding: 12px 0 8px 0;
       font-size: 1rem;
     }
+    .header-top {
+      display: grid;
+      grid-template-columns: 100px 1fr 95px;
+      align-items: start;
+      gap: 12px;
+      width: 100%;
+    }
+    .passport-photo {
+      width: 90px;
+      height: 110px;
+      border: 1px solid #bbb;
+      border-radius: 3px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .passport-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .passport-placeholder,
+    .qr-placeholder {
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.2;
+      padding: 4px;
+    }
+    .header-center {
+      text-align: center;
+      padding-top: 2px;
+    }
+    .qr-code {
+      width: 90px;
+      height: 90px;
+      border: 1px solid #bbb;
+      border-radius: 3px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      margin-left: auto;
+    }
+    .qr-code img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: crisp-edges;
+    }
     .header .school { 
-      font-size: 14px; 
+      font-size: 20px; 
       font-weight: bold; 
       margin-bottom: 4px;
       line-height: 1.2;
       color: #1e3a8a;
     }
     .header .addr { 
-      font-size: 1rem; 
+      font-size: 1.3rem; 
       margin-bottom: 4px;
       font-weight: 500;
     }
     .header .web { 
-      font-size: 1rem; 
+      font-size: 1.3rem; 
     }
     .title-row { 
       background: #e3f0fa; 
@@ -1167,9 +1276,25 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     <div class="content-area">
       <div class="header">
-        <div class="school en">${schoolName}</div>
-        <div class="addr en">${schoolAddr}</div>
-        <div class="web en">${schoolWeb}</div>
+        <div class="header-top">
+          <div class="passport-photo">
+            ${_studentPhotoBase64
+        ? `<img src="${_studentPhotoBase64}" alt="Student Photo" />`
+        : '<div class="passport-placeholder">Student<br/>Photo</div>'
+      }
+          </div>
+          <div class="header-center">
+            <div class="school en">${schoolName}</div>
+            <div class="addr en">${schoolAddr}</div>
+            <div class="web en">${schoolWeb}</div>
+          </div>
+          <div class="qr-code">
+            ${qrCodeBase64
+        ? `<img src="${qrCodeBase64}" alt="QR Code" />`
+        : '<div class="qr-placeholder">QR<br/>Unavailable</div>'
+      }
+          </div>
+        </div>
       </div>
       <div class="title-row en">
         Student's Information for Registration of Class Six ${class6Year}

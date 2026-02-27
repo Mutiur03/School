@@ -14,6 +14,7 @@ import {
   ConfirmationAdmission,
   ConfirmationClass6,
   ConfirmationReg,
+  Class6PdfPreview,
   Event,
   ExamRoutinePage,
   Gallery,
@@ -28,6 +29,7 @@ import {
   StaffList,
   TeacherList,
 } from "@school/client-ui";
+
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
   axios.defaults.baseURL = backendBaseUrl;
@@ -37,7 +39,12 @@ function App() {
       <Toaster position="top-right" toastOptions={{ style: { marginTop: "50px" } }} />
 
       <Routes>
-        {/* <Route path="/pdf/*" element={<PDF />} /> */}
+        {/* <Route path="/pdf/submission/*" element={<PDF />} /> */}
+
+        <Route
+          path="/preview/class6/:id"
+          element={<Class6PdfPreview />}
+        />
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
