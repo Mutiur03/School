@@ -6,7 +6,7 @@ services:
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     volumes:
-      - ./uploads:/app/uploads
+      - ./uploads:/app/server/uploads
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - VIRTUAL_PORT=${PORT:-3001}
