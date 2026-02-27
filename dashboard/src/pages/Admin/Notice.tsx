@@ -40,6 +40,11 @@ interface NoticeStore {
 }
 
 const NoticeUploadPage = () => {
+  const truncateTitle = (title: string, max = 60) => {
+    if (!title) return "";
+    return title.length > max ? `${title.slice(0, max)}...` : title;
+  };
+
   const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
@@ -265,8 +270,14 @@ const NoticeUploadPage = () => {
               ) : (
                 notices.map((notice: Notice) => (
                   <tr key={notice.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {notice.title}
+                    <td className="px-6 py-4 text-sm font-medium max-w-[360px]">
+                      <span
+                        className="block truncate"
+                        title={notice.title}
+                        aria-label={notice.title}
+                      >
+                        {truncateTitle(notice.title)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center whitespace-nowrap text-sm font-medium">
                       {notice.created_at.split("T")[0]}
@@ -316,7 +327,8 @@ const NoticeUploadPage = () => {
                 <h2 className="text-xl font-bold mb-4">Notice Details</h2>
                 <div className="space-y-2">
                   <div>
-                    <strong>Title:</strong> {popup.notice.title}
+                    <strong>Title:</strong>{" "}
+                    <span className="break-words">{popup.notice.title}</span>
                   </div>
                   <div>
                     <a
@@ -354,7 +366,7 @@ const NoticeUploadPage = () => {
                 <h2 className="text-xl font-bold text-red-600 mb-4">Confirm Delete</h2>
                 <p>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold">{popup.notice.title}</span>? This action cannot be undone.
+                  <span className="font-semibold break-words">{popup.notice.title}</span>? This action cannot be undone.
                 </p>
                 <div className="flex justify-end gap-3 pt-4">
                   <button
