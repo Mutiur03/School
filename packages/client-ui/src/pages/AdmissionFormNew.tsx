@@ -556,7 +556,7 @@ function Form() {
     setFocus,
     control,
   } = useForm<AdmissionFormData>({
-    resolver: zodResolver(admissionSchema) as Resolver<AdmissionFormData>,
+    resolver: zodResolver(admissionSchema as any) as Resolver<AdmissionFormData>,
     mode: "onBlur",
     reValidateMode: "onChange",
     defaultValues: admissionSchema.parse({}),
