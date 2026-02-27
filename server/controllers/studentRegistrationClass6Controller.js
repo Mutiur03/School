@@ -581,6 +581,13 @@ export const exportRegistrationPhotos = async (req, res) => {
 export const downloadRegistrationPDF = async (req, res) => {
   try {
     const { id } = req.params;
+    const previewParam = String(req.query.preview || "").toLowerCase();
+    const isInlinePreview =
+      previewParam === "1" ||
+      previewParam === "true" ||
+      previewParam === "inline";
+    const isHtmlPreview = previewParam === "html";
+
     const registration = await prisma.student_registration_class6.findUnique({
       where: { id },
     });
@@ -649,26 +656,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     }
 
-    // function formatDateLong(dateStr) {
-    //   if (!dateStr) return "";
-    //   let d, m, y;
-    //   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-    //     [d, m, y] = dateStr.split("/");
-    //   } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    //     [y, m, d] = dateStr.split("-");
-    //   } else {
-    //     return dateStr;
-    //   }
-    //   const dateObj = new Date(`${y}-${m}-${d}`);
-    //   if (isNaN(dateObj)) return dateStr;
-    //   return dateObj
-    //     .toLocaleDateString("en-GB", {
-    //       day: "numeric",
-    //       month: "long",
-    //       year: "numeric",
-    //     })
-    //     .replace(/(\w+)\s(\d{4})/, "$1, $2");
-    // }
 
     function normalizeUnicode(text) {
       return text ? text.normalize("NFC") : "";
@@ -700,14 +687,20 @@ export const downloadRegistrationPDF = async (req, res) => {
       );
     }
 
-    const row = (label, value, rowIndex = 0) => `
-      <tr style="background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"};">
-        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "#f9fafb"
-      };font-weight:500;">${wrapBnEn(label)}</td>
-        <td style="border:1px solid #bbb;padding:4px 8px;background:${rowIndex % 2 === 1 ? "#e0e7ef" : "inherit"
-      };">${value || '<span style="color:#aaa;">N/A</span>'}</td>
+    const row = (label, value, rowIndex = 0) => {
+      const oddBg = "rgba(224, 231, 239, 0.45)";
+      const evenLabelBg = "rgba(249, 250, 251, 0.35)";
+      const rowBg = rowIndex % 2 === 1 ? oddBg : "transparent";
+      const labelBg = rowIndex % 2 === 1 ? oddBg : evenLabelBg;
+      const valueBg = rowIndex % 2 === 1 ? oddBg : "transparent";
+
+      return `
+      <tr style="background:${rowBg};">
+        <td style="border:1px solid #bbb;padding:4px 8px;width:270px;background:${labelBg};font-weight:500;">${wrapBnEn(label)}</td>
+        <td style="border:1px solid #bbb;padding:4px 8px;background:${valueBg};">${value || '<span style="color:#aaa;">N/A</span>'}</td>
       </tr>
     `;
+    };
 
     const joinAddr = (v, po, pc, upz, dist) =>
       [v, po ? (pc ? `${po} (${pc})` : po) : "", upz, dist]
@@ -941,7 +934,27 @@ export const downloadRegistrationPDF = async (req, res) => {
       page-break-after: avoid;
       font-size: 1rem;
     }
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 450px;
+      height: 450px;
+      opacity: 0.08;
+      z-index: 2;
+      pointer-events: none;
+      user-select: none;
+    }
+    .watermark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: grayscale(100%) contrast(85%) brightness(145%);
+    }
     .content-area {
+      position: relative;
+      z-index: 3;
       box-sizing: border-box;
       padding: 0 0 110px 0;
       min-height: 0;
@@ -996,34 +1009,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin-bottom: 12px;
       padding: 12px 0 8px 0;
       font-size: 1rem;
-    }
-    .monogram {
-      position: absolute;
-      left: 0;
-      top: 8px;
-      width: 80px;
-      height: 80px;
-      ${!logoBase64
-        ? `
-        background: #f0f0f0;
-        border: 2px solid #ccc;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        color: #666;
-        text-align: center;
-        line-height: 1.2;
-      `
-        : ""
-      }
-    }
-    .monogram img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      border-radius: 50%;
     }
     .header .school { 
       font-size: 14px; 
@@ -1128,6 +1113,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       gap: 8px;
       padding-bottom: 12px;
       background: white;
+      z-index: 3;
       height: 85px;
       box-sizing: border-box;
       font-size: 13px;
@@ -1168,20 +1154,19 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
       color: #555;
       background: white;
+      z-index: 3;
       padding: 4px 0;
     }
   </style>
 </head>
 <body>
   <div class="page-container">
+    ${logoBase64
+        ? `<div class="watermark"><img src="${logoBase64}" alt="School Watermark" /></div>`
+        : ""
+      }
     <div class="content-area">
       <div class="header">
-        <div class="monogram">
-          ${logoBase64
-        ? `<img src="${logoBase64}" alt="School Logo" />`
-        : "School<br>Logo"
-      }
-        </div>
         <div class="school en">${schoolName}</div>
         <div class="addr en">${schoolAddr}</div>
         <div class="web en">${schoolWeb}</div>
@@ -1249,6 +1234,11 @@ export const downloadRegistrationPDF = async (req, res) => {
 </html>
     `;
 
+    if (isHtmlPreview) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(html);
+    }
+
     const browser = await puppeteer.launch({
       headless: "new",
       args: [
@@ -1282,10 +1272,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     });
 
     await page.setContent(html, {
-      waitUntil: ["networkidle0", "domcontentloaded"],
+      waitUntil: isInlinePreview ? ["domcontentloaded"] : ["networkidle0", "domcontentloaded"],
     });
 
-    await page.evaluate(() => {
+    await page.evaluate((quickPreview) => {
       /* global document, NodeFilter */
       const walker = document.createTreeWalker(
         document.body,
@@ -1298,13 +1288,15 @@ export const downloadRegistrationPDF = async (req, res) => {
         if (node.nodeValue) node.nodeValue = node.nodeValue.normalize("NFC");
       }
       return new Promise((resolve) => {
+        const fallbackDelay = quickPreview ? 80 : 1000;
+        const fontDelay = quickPreview ? 120 : 500;
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(() => setTimeout(resolve, 500));
+          document.fonts.ready.then(() => setTimeout(resolve, fontDelay));
         } else {
-          setTimeout(resolve, 1000);
+          setTimeout(resolve, fallbackDelay);
         }
       });
-    });
+    }, isInlinePreview);
 
     const pdfBuffer = await page.pdf({
       format: "a4",
@@ -1317,12 +1309,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     await browser.close();
 
     res.setHeader("Content-Type", "application/pdf");
+    const fileName = `Class6_Reg_${registration.student_name_en.replace(/\s+/g, "_")}.pdf`;
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="Class6_Reg_${registration.student_name_en.replace(
-        /\s+/g,
-        "_",
-      )}.pdf"`,
+      `${isInlinePreview ? "inline" : "attachment"}; filename="${fileName}"`,
     );
     res.end(pdfBuffer);
   } catch (error) {
