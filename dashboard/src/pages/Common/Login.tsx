@@ -59,15 +59,20 @@ function Login() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (location.pathname.includes("/teacher")) {
-                    await loginTeacher(email, password);
-                  } else if (location.pathname.includes("/student")) {
-                    await loginStudent(loginID, password);
-                  } else
-                    await loginAdmin(username, password);
-                  if (role === "admin") navigate("/admin/dashboard");
-                  else if (role === "teacher") navigate("/teacher/dashboard");
-                  else if (role === "student") navigate("/student/dashboard");
+                  try {
+                    if (location.pathname.includes("/teacher")) {
+                      await loginTeacher(email, password);
+                    } else if (location.pathname.includes("/student")) {
+                      await loginStudent(loginID, password);
+                    } else {
+                      await loginAdmin(username, password);
+                    }
+                    if (role === "admin") navigate("/admin/dashboard");
+                    else if (role === "teacher") navigate("/teacher/dashboard");
+                    else if (role === "student") navigate("/student/dashboard");
+                  } catch {
+                    // Error is already toasted inside the login functions
+                  }
                 }}
                 className="space-y-4"
               >
@@ -114,7 +119,6 @@ function Login() {
                     placeholder="Enter your password"
                     name="password"
                     required
-                    
                   />
                 </div>
                 <Button className="w-full">Login</Button>

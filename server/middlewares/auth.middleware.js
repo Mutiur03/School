@@ -22,8 +22,9 @@ class AuthMiddleware {
           user = await prisma.admin.findUnique({
             where: { id: req.user.id },
           });
+          if (user && user.password) delete user.password;
         } else if (decoded.role === "teacher") {
-          user = await prisma.teachers.findUnique({
+          user = await prisma.teachers.findFirst({
             where: { id: req.user.id, available: true },
             include: {
               levels: true,

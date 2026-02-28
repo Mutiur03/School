@@ -30,16 +30,22 @@ const sendRefreshToken = (res, token) => {
   res.cookie("refreshToken", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "Lax" : "Lax",
+    sameSite: isProduction ? "None" : "Lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    domain: cookieDomain,
+    domain: cookieDomain || undefined,
     partitioned: isProduction,
   });
 };
 
 export const login = async (req, res) => {
   const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Username and password are required" });
+  }
 
   try {
     const user = await prisma.admin.findUnique({
@@ -51,6 +57,15 @@ export const login = async (req, res) => {
       return res
         .status(401)
         .json({ success: false, message: "Admin not found" });
+    }
+
+    if (!user.password) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message: "Invalid credentials (no password set)",
+        });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -75,8 +90,13 @@ export const login = async (req, res) => {
       accessToken,
       user: { id: user.id, role: "admin", username: user.username },
     });
-  } catch {
-    return res.status(500).json({ success: false, error: "Error logging in" });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Error logging in",
+      details: error.message,
+    });
   }
 };
 
@@ -162,8 +182,14 @@ export const student_login = async (req, res) => {
 export const teacher_login = async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Email and password are required" });
+  }
+
   try {
-    const user = await prisma.teachers.findUnique({
+    const user = await prisma.teachers.findFirst({
       where: {
         email: email,
         available: true,
@@ -203,8 +229,15 @@ export const teacher_login = async (req, res) => {
         image: user.image,
       },
     });
-  } catch {
-    return res.status(500).json({ success: false, error: "Error logging in" });
+  } catch (error) {
+    console.error("Teacher login error:", error);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        error: "Error logging in",
+        details: error.message,
+      });
   }
 };
 
