@@ -39,13 +39,22 @@ const sendRefreshToken = (res, token) => {
 };
 
 export const login = async (req, res) => {
+
+  console.log("[Admin Login] Request received");
+  console.log(req);
+  
+  console.log("[Admin Login] Body:", { username: req.body.username, password: req.body.password ? "***provided***" : "***missing***" });
+
   const { username, password } = req.body;
 
   if (!username || !password) {
+    console.log("[Admin Login] FAILED — Missing username or password");
     return res
       .status(400)
       .json({ success: false, message: "Username and password are required" });
   }
+
+  console.log(`[Admin Login] Looking up admin with username: "${username}"`);
 
   try {
     const user = await prisma.admin.findUnique({
@@ -53,13 +62,18 @@ export const login = async (req, res) => {
         username: username,
       },
     });
+
     if (!user) {
+      console.log(`[Admin Login] FAILED — No admin found with username: "${username}"`);
       return res
         .status(401)
         .json({ success: false, message: "Admin not found" });
     }
 
+    console.log(`[Admin Login] Admin found — id: ${user.id}, username: "${user.username}"`);
+
     if (!user.password) {
+      console.log("[Admin Login] FAILED — Admin account has no password set");
       return res
         .status(401)
         .json({
@@ -68,22 +82,26 @@ export const login = async (req, res) => {
         });
     }
 
+    console.log("[Admin Login] Comparing provided password with stored hash...");
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log("[Admin Login] Password valid:", isValidPassword);
 
     if (!isValidPassword) {
+      console.log("[Admin Login] FAILED — Password mismatch");
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
 
+    console.log("[Admin Login] Password OK — generating tokens...");
     const { accessToken, refreshToken } = generateTokens({
       ...user,
       role: "admin",
     });
+    console.log("[Admin Login] Tokens generated — setting refresh token cookie");
     sendRefreshToken(res, refreshToken);
 
-    // Legacy cookie removed.
-
+    console.log("[Admin Login] SUCCESS — responding with access token");
     res.json({
       success: true,
       message: "Login successful",
@@ -91,7 +109,7 @@ export const login = async (req, res) => {
       user: { id: user.id, role: "admin", username: user.username },
     });
   } catch (error) {
-    console.error("Admin login error:", error);
+    console.error("[Admin Login] ERROR —", error);
     return res.status(500).json({
       success: false,
       error: "Error logging in",
