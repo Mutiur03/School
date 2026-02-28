@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { getFileUrl } from '@/lib/backend';
 
 function TeacherList() {
     useEffect(() => {
@@ -20,7 +21,6 @@ function TeacherList() {
 
     const [teachers, setTeachers] = useState<Teacher[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const host = import.meta.env?.VITE_BACKEND_URL;
 
     useEffect(() => {
         const fetchTeachers = async () => {
@@ -76,7 +76,7 @@ function TeacherList() {
                                     <td className="px-4 py-3 text-sm w-32 align-top">
                                         {t.image ? (
                                             <img
-                                                src={t.image.startsWith('http') ? t.image : `${host}/${t.image}`}
+                                                src={getFileUrl(t.image) || '/placeholder.svg'}
                                                 alt={t.name}
                                                 className="w-20 h-20 object-cover object-top rounded border border-gray-200"
                                             />
@@ -127,7 +127,7 @@ function TeacherList() {
                                     <div className="shrink-0 self-center sm:self-start">
                                         {t.image ? (
                                             <img
-                                                src={t.image.startsWith('http') ? t.image : `${host}/${t.image}`}
+                                                src={getFileUrl(t.image) || '/placeholder.svg'}
                                                 alt={t.name}
                                                 className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded border border-gray-200"
                                             />
