@@ -40,9 +40,7 @@ const sendRefreshToken = (res, token) => {
 
 export const login = async (req, res) => {
 
-  console.log("[Admin Login] Request received");
-  console.log(req);
-  
+  console.log("[Admin Login] Request received");  
   console.log("[Admin Login] Body:", { username: req.body.username, password: req.body.password ? "***provided***" : "***missing***" });
 
   const { username, password } = req.body;

@@ -43,3 +43,17 @@ export const teacherFormSchema = z.object({
 
 export type TeacherFormSchemaData = z.infer<typeof teacherFormSchema>;
 
+export const teacherLoginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Enter a valid email address"),
+
+  password: z
+    .string()
+    .min(1, "Password is required"),
+});
+
+export type TeacherLoginData = z.infer<typeof teacherLoginSchema>;
+

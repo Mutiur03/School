@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+export const studentLoginSchema = z.object({
+  login_id: z
+    .union([z.string(), z.number()])
+    .transform((val) => String(val))
+    .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
+    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
+      message: "Login ID must be a valid number",
+    }),
+
+  password: z
+    .string()
+    .min(1, "Password is required"),
+});
+
+export type StudentLoginData = z.infer<typeof studentLoginSchema>;
+
 export const GLOBAL_REGEX = {
   NAME: /^[A-Za-z][A-Za-z .'-]{1,98}[A-Za-z.]$/,
   PHONE_BD: /^01\d{9}$/,
