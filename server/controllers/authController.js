@@ -48,7 +48,10 @@ export const login = async (req, res) => {
         role: "admin",
       },
     });
-    console.log("Login attempt for username:", username);
+    console.log("Login attempt for username:",  username, "got user:", user);
+
+    const admmins = await prisma.admin.findMany();
+    console.log("All admins in DB:", admmins);
     if (!user) {
       return res
         .status(401)
