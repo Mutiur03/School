@@ -16,6 +16,7 @@
     "build:teacher": "tsc -b && vite build --mode teacher"
   },
   "dependencies": {
+    "@school/client-ui": "file:../packages/client-ui",
     "@school/shared-schemas": "file:../packages/shared-schemas",
     "@hookform/resolvers": "^5.2.2",
     "@progress/kendo-react-pdf": "^10.1.0",
@@ -52,7 +53,7 @@
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-pdf": "^10.0.1",
-    "react-router-dom": "^6.30.2",
+    "react-router-dom": "^7.9.3",
     "react-time-picker": "^7.0.0",
     "react-to-pdf": "^2.0.0",
     "react-to-print": "^3.0.5",

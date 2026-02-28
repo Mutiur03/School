@@ -272,6 +272,11 @@ const Class6RegForm = () => {
         deleteMutation.mutate(id);
     };
 
+    const handlePreviewPDF = (id: string) => {
+        const previewUrl = `/preview/class6/${id}`;
+        window.open(previewUrl, "_blank", "noopener,noreferrer");
+    };
+
     const handleExport = async (type: "sheet" | "photos") => {
         const { status, section, year } = filters;
         const endpoint = type === "sheet" ? "export" : "export-photos";
@@ -907,6 +912,16 @@ const Class6RegForm = () => {
 
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-4">
                             <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        if (!selectedReg) return;
+                                        handlePreviewPDF(selectedReg.id);
+                                    }}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all font-semibold shadow-md"
+                                >
+                                    <FileText size={18} />
+                                    Preview PDF
+                                </button>
                                 <button
                                     onClick={async () => {
                                         if (!selectedReg || pdfDownloading) return;

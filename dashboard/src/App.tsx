@@ -39,6 +39,7 @@ import {
   SSCRegForm,
   Class6RegForm,
 } from "./pages/Admin/index.ts"
+import { Class6PdfPreview } from "@school/client-ui";
 
 import backend from "./lib/backend.ts";
 import StudentDashboard from "./pages/Students/StudentDashboard.tsx";
@@ -99,6 +100,7 @@ function App() {
       <div className=" flex flex-col h-screen">
         <div className="">
           <Routes>
+            <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
             {/* CASE 1: envPreferredRole IS PRESENT (e.g., 'teacher') */}
             {envPreferredRole && (
               <>
