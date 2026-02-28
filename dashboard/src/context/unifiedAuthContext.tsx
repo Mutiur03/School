@@ -142,9 +142,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                         }
                     } catch (refreshError) {
                         console.error("Token refresh failed:", refreshError);
-                        setUser(null);
-                        setAccessToken(null);
                     }
+                    // Refresh failed or returned success:false — clear auth state
+                    setUser(null);
+                    setAccessToken(null);
                 }
                 return Promise.reject(error);
             }
@@ -177,25 +178,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
         } catch (error) {
-            // failed to refresh, proceed to try fetching profile or just fail
+            // failed to refresh — no active session
             console.log("No active refresh session found");
-        }
-
-        try {
-            const meRes = await axios.get("/api/auth/me");
-            if (meRes.data.success && meRes.data.user) {
-                const userData = meRes.data.user;
-                setUser(userData);
-                if (userData?.role) {
-                    setPreferredRole(userData.role as UserRole);
-                }
-                setLoading(false);
-                return;
-            }
-            // If we reach here, we aren't auth'd
-            setUser(null);
-        } catch (error) {
-            console.error("Error checking authentication:", error);
             setUser(null);
         } finally {
             setLoading(false);

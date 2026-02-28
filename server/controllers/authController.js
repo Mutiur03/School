@@ -332,7 +332,17 @@ export const logout = async (req, res) => {
     }
   }
 
-  res.clearCookie("refreshToken");
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "Lax",
+    path: "/",
+    domain: cookieDomain,
+    partitioned: isProduction,
+  });
 
   return res
     .status(200)
