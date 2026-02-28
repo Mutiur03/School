@@ -652,7 +652,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       : "";
 
     let _studentPhotoBase64 = "";
-    
+
     if (registration.photo) {
       try {
         const photoUrl = await getDownloadUrl(registration.photo);
@@ -673,16 +673,16 @@ export const downloadRegistrationPDF = async (req, res) => {
     const ownDomain =
       `${req.protocol}://${req.get("host")}`;
     const frontendDomain = String(
-        process.env.PUBLIC_FRONTEND_URL ||
-        ownDomain,
+      process.env.PUBLIC_FRONTEND_URL ||
+      ownDomain,
     )
       .trim()
       .replace(/\/$/, "");
-    
+
     let qrCodeBase64 = "";
     try {
       const qrData =
-          `${frontendDomain}/preview/class6/${registration.id}`
+        `${frontendDomain}/preview/class6/${registration.id}`
 
       qrCodeBase64 = await QRCode.toDataURL(qrData, {
         errorCorrectionLevel: "H",
@@ -899,6 +899,8 @@ export const downloadRegistrationPDF = async (req, res) => {
     const section = registration.section || "";
     const roll = registration.roll || "";
     const religion = registration.religion || "";
+    const isPendingStatus =
+      String(registration.status || "").trim().toLowerCase() === "pending";
 
     // Get current date and time
     const currentDateTime = new Date(
@@ -983,7 +985,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       width: 450px;
       height: 450px;
       opacity: 0.08;
-      z-index: 2;
+      z-index: 5;
       pointer-events: none;
       user-select: none;
     }
@@ -992,6 +994,36 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100%;
       object-fit: contain;
       filter: grayscale(100%) contrast(85%) brightness(145%);
+    }
+    .pending-watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-26deg);
+      z-index: 5;
+      pointer-events: none;
+      user-select: none;
+      opacity: 0.42;
+      width: 76%;
+      border: 8px solid #facc15;
+      padding: 10px 18px;
+      box-sizing: border-box;
+      background: transparent;
+      text-align: center;
+    }
+    .pending-watermark-text {
+      display: block;
+      color: #facc15;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      white-space: nowrap;
+      font-family: ${timesNewRomanBase64
+        ? "'TimesNewRoman', 'Times New Roman'"
+        : "'Times New Roman'"
+      }, serif;
+      font-size: 92px;
+      font-weight: 700;
     }
     .content-area {
       position: relative;
@@ -1123,7 +1155,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     .title-row { 
       background: #e3f0fa; 
-      font-size: 1rem; 
+      font-size: 1.3rem; 
       font-weight: bold; 
       text-align: center; 
       border: 1px solid #bbb; 
@@ -1261,6 +1293,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         ? `<div class="watermark"><img src="${logoBase64}" alt="School Watermark" /></div>`
         : ""
       }
+    ${isPendingStatus ? '<div class="pending-watermark"><span class="pending-watermark-text">PENDING</span></div>' : ""}
     <div class="content-area">
       <div class="header">
         <div class="header-top">
