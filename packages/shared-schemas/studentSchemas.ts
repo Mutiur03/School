@@ -7,6 +7,7 @@ export const GLOBAL_REGEX = {
   SECTION: /^[A-Z]$/,
   ROLL_NUM: /^\d{1,3}$/,
   ADDRESS_TEXT: /^[A-Za-z0-9 .,'()/-]{2,100}$/,
+  DESIGNATION: /^[A-Za-z][A-Za-z0-9 .'-]{1,48}[A-Za-z0-9.]$/,
 } as const;
 
 export const VALID_DEPARTMENTS = ["Science", "Commerce", "Humanities"] as const;
@@ -75,11 +76,7 @@ const normalizeOptionalText = (value: unknown) => {
   return normalized.length ? normalized : null;
 };
 
-const normalizePhone = (value: unknown) => {
-  if (value === undefined || value === null || String(value).trim() === "") return null;
-  const clean = String(value).replace(/\D/g, "");
-  return clean.length >= 10 ? `0${clean.slice(-10)}` : String(value).trim();
-};
+
 
 const normalizeDob = (value: unknown) => {
   const raw = String(value || "").trim();
@@ -87,89 +84,56 @@ const normalizeDob = (value: unknown) => {
   return parsed ? toIsoDate(parsed) : raw;
 };
 
-const requiredField = (label: string) =>
-  z
-    .string()
-    .trim()
-    .min(1, `${label} is required`);
 
 export const studentFormSchema = z
   .object({
-    name: requiredField("Name").pipe(
-      z
-        .string()
-        .min(2, "Name must be at least 2 characters")
-        .regex(GLOBAL_REGEX.NAME, "Enter a valid name (letters and basic punctuation only)"),
-    ),
-    father_name: requiredField("Father name").pipe(
-      z
-        .string()
-        .min(2, "Father name must be at least 2 characters")
-        .regex(GLOBAL_REGEX.NAME, "Enter a valid father name"),
-    ),
-    mother_name: requiredField("Mother name").pipe(
-      z
-        .string()
-        .min(2, "Mother name must be at least 2 characters")
-        .regex(GLOBAL_REGEX.NAME, "Enter a valid mother name"),
-    ),
-    father_phone: requiredField("Father phone").pipe(
-      z
-        .string()
-        .regex(GLOBAL_REGEX.PHONE_BD, "Father phone must be 11 digits and start with 01"),
-    ),
-    mother_phone: z
-      .string()
-      .trim()
+    name: z.string().trim()
+      .min(1, "Name is required")
+      .min(2, "Name must be at least 2 characters")
+      .regex(GLOBAL_REGEX.NAME, "Enter a valid name (letters and basic punctuation only)"),
+    father_name: z.string().trim()
+      .min(1, "Father name is required")
+      .min(2, "Father name must be at least 2 characters")
+      .regex(GLOBAL_REGEX.NAME, "Enter a valid father name"),
+    mother_name: z.string().trim()
+      .min(1, "Mother name is required")
+      .min(2, "Mother name must be at least 2 characters")
+      .regex(GLOBAL_REGEX.NAME, "Enter a valid mother name"),
+    father_phone: z.string().trim()
+      .min(1, "Father phone is required")
+      .regex(GLOBAL_REGEX.PHONE_BD, "Father phone must be 11 digits and start with 01"),
+    mother_phone: z.string().trim()
       .refine((value) => !value || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
-    roll: requiredField("Roll").pipe(
-      z
-        .string()
-        .regex(GLOBAL_REGEX.ROLL_NUM, "Roll must be numeric (up to 3 digits)")
-        .refine((value) => Number(value) > 0, "Roll must be greater than 0"),
-    ),
-    section: requiredField("Section").pipe(
-      z
-        .string()
-        .toUpperCase()
-        .regex(/^[A-Z]$/, "Section must be a single letter (A-Z)"),
-    ),
-    village: z
-      .string()
-      .trim()
+    roll: z.string().trim()
+      .min(1, "Roll is required")
+      .regex(/^[1-9]\d{0,2}$/, "Roll must be a number between 1 and 999"),
+    section: z.string().trim()
+      .min(1, "Section is required")
+      .regex(/^[A-Za-z]$/, "Section must be a single letter (A-Z)"),
+    village: z.string().trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid village",
       }),
-    post_office: z
-      .string()
-      .trim()
+    post_office: z.string().trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid post office",
       }),
-    upazila: z
-      .string()
-      .trim()
+    upazila: z.string().trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid upazila",
       }),
-    district: z
-      .string()
-      .trim()
+    district: z.string().trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid district",
       }),
-    dob: requiredField("Date of birth").pipe(
-      z
-        .string()
-        .refine((value) => isValidDob(value), "Invalid date of birth"),
-    ),
-    class: requiredField("Class").pipe(
-      z
-        .string()
-        .regex(GLOBAL_REGEX.CLASS_NUM, "Class must be between 1 and 10"),
-    ),
+    dob: z.string().trim()
+      .min(1, "Date of birth is required")
+      .refine(isValidDob, "Invalid date of birth"),
+    class: z.string().trim()
+      .min(1, "Class is required")
+      .regex(GLOBAL_REGEX.CLASS_NUM, "Class must be between 1 and 10"),
     department: z.string().trim(),
     has_stipend: z.boolean(),
     available: z.boolean(),
@@ -201,13 +165,11 @@ export const addStudentInputSchema = z
     }),
     father_phone: z
       .any()
-      .transform(normalizePhone)
       .refine((value) => typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Father phone must be 11 digits and start with 01",
       }),
     mother_phone: z
       .any()
-      .transform(normalizePhone)
       .refine((value) => value === null || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
@@ -280,13 +242,11 @@ export const updateStudentSchema = z
     }),
     father_phone: z
       .any()
-      .transform(normalizePhone)
       .refine((value) => typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Invalid father phone",
       }),
     mother_phone: z
       .any()
-      .transform(normalizePhone)
       .refine((value) => value === null || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Invalid mother phone",
       }),

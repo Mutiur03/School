@@ -3,34 +3,11 @@ import bcrypt from "bcryptjs";
 import fs from "fs";
 import { initGoogleSheets } from "./studController.js";
 import { fixUrl } from "../utils/fixURL.js"; // Add this import
-const removeNonNumber = (str) => str.replace(/\D/g, "");
+import { teacherFormSchema } from "@school/shared-schemas";
 const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
 import { redis } from "../config/redis.js";
 import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
-
-const validateFieldLengths = (data) => {
-  const limits = {
-    name: 100,
-    email: 100,
-    subject: 50,
-    phone: 15,
-    academic_qualification: 200,
-    designation: 50,
-    address: 255,
-    blood_group: 5,
-  };
-
-  const validated = { ...data };
-
-  Object.keys(limits).forEach((field) => {
-    if (validated[field] && validated[field].length > limits[field]) {
-      validated[field] = validated[field].substring(0, limits[field]);
-    }
-  });
-
-  return validated;
-};
 
 export const addTeacher = async (req, res) => {
   try {
@@ -43,21 +20,35 @@ export const addTeacher = async (req, res) => {
     }
     console.log(teachers);
 
+    // Validate all entries upfront before any async work
+    for (let i = 0; i < teachers.length; i++) {
+      const parsed = teacherFormSchema.safeParse(teachers[i]);
+      if (!parsed.success) {
+        const msg = parsed.error.errors[0]?.message || "Invalid teacher data";
+        return res.status(400).json({
+          success: false,
+          error: `Teacher ${i + 1}: ${msg}`,
+          details: parsed.error.flatten(),
+        });
+      }
+    }
+
     const teacherData = await Promise.all(
-      teachers.map(async ({ name, email, phone, address, designation }) => {
+      teachers.map(async (entry) => {
+        const { data } = teacherFormSchema.safeParse(entry);
+        const { name, email, phone, designation, address } = data;
         const originalPassword = generatePassword();
         const hashedPassword = await bcrypt.hash(originalPassword, 10);
         const rawData = {
-          name: name?.trim() || null,
-          email: email?.trim() || null,
-          phone: "0" + removeNonNumber(String(phone)).slice(-10) || null,
-          designation: designation?.trim() || null,
-          address: address?.trim() || null,
-          password: hashedPassword || null,
+          name,
+          email,
+          phone,
+          designation,
+          address: address || null,
+          password: hashedPassword,
           originalPassword,
         };
-
-        return validateFieldLengths(rawData);
+        return rawData;
       })
     );
 
@@ -83,7 +74,7 @@ export const addTeacher = async (req, res) => {
           teacher.name,
           teacher.email,
           teacher.phone,
-          teacher.subject,
+          teacher.designation,
           teacherData[index].originalPassword,
         ]),
       },
@@ -115,8 +106,16 @@ export const getTeachers = async (_, res) => {
 
 export const updateTeacher = async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, address, designation } = req.body;
-  console.log(req.body);
+  const parsed = teacherFormSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: parsed.error.errors[0]?.message || "Invalid teacher data",
+      details: parsed.error.flatten(),
+    });
+  }
+  const { name, email, phone, designation, address } = parsed.data;
+  console.log(parsed.data);
 
   try {
     // Fetch previous teacher info to get the old email
@@ -125,18 +124,16 @@ export const updateTeacher = async (req, res) => {
     });
 
     const rawData = {
-      name: name || null,
-      email: email || null,
-      phone: "0" + removeNonNumber(phone).slice(-10) || null,
+      name,
+      email,
+      phone,
       address: address || null,
-      designation: designation?.trim() || null,
+      designation,
     };
-
-    const validatedData = validateFieldLengths(rawData);
 
     const result = await prisma.teachers.update({
       where: { id: parseInt(id) },
-      data: validatedData,
+      data: rawData,
     });
 
     try {
@@ -158,16 +155,17 @@ export const updateTeacher = async (req, res) => {
       if (rowIndex > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `teachers!A${rowIndex}:E${rowIndex}`,
+          range: `teachers!A${rowIndex}:F${rowIndex}`,
           valueInputOption: "USER_ENTERED",
           resource: {
             values: [
               [
                 id,
-                name?.trim() || "",
-                email?.trim() || "",
-                "0" + removeNonNumber(phone).slice(-10),
-                designation?.trim() || "",
+                name,
+                email,
+                phone,
+                designation,
+                prevTeacher.originalPassword || null,
               ],
             ],
           },

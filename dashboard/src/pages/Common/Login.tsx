@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/useAuth";
 import envPreferredRole from "@/lib/role";
+import { Input } from "@/components/ui/input";
 
 type UserRole = "admin" | "teacher" | "student";
 
@@ -46,7 +47,7 @@ function Login() {
       <div
         className="w-full max-w-md"
       >
-        <Card className="shadow-2xl  relative rounded-2xl">
+        <Card className="shadow-2xl">
           {/* <ThemeChange vars={"top-0 absolute right-0"} /> */}
 
           <div>
@@ -77,27 +78,24 @@ function Login() {
                   >
                     {location.pathname.includes("/teacher") ? "Email" : location.pathname.includes("/student") ? "Login ID" : "Username"}
                   </label>
-                  {location.pathname.includes("/teacher") ? (<input
+                  {location.pathname.includes("/teacher") ? (<Input
                     type="email"
                     placeholder="Enter your Email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2 border border-border rounded-lg bg-popover text-popover-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent "
-                  />) : location.pathname.includes("/student") ? (<input
+                  />) : location.pathname.includes("/student") ? (<Input
                     type="number"
                     placeholder="Enter your Login ID"
                     required
                     value={loginID}
                     onChange={(e) => setLoginID(e.target.value)}
-                    className="w-full px-4 py-2 border border-border rounded-lg bg-popover text-popover-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent "
-                  />) : (<input
+                  />) : (<Input
                     type="text"
                     placeholder="Enter your Username"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-2 border border-border rounded-lg bg-popover text-popover-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent "
                   />)}
 
                 </div>
@@ -108,7 +106,7 @@ function Login() {
                   >
                     Password
                   </label>
-                  <input
+                  <Input
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -116,7 +114,7 @@ function Login() {
                     placeholder="Enter your password"
                     name="password"
                     required
-                    className="w-full px-4 py-2 border border-border rounded-lg bg-popover text-popover-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    
                   />
                 </div>
                 <Button className="w-full">Login</Button>
