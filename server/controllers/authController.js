@@ -42,26 +42,18 @@ export const login = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const user = await prisma.admin.findFirst({
+    const user = await prisma.admin.findUnique({
       where: {
         username: username,
-        role: "admin",
       },
     });
-    console.log("Login attempt for username:",  username, "got user:", user);
-
-    const admmins = await prisma.admin.findMany();
-    console.log("All admins in DB:", admmins);
     if (!user) {
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
-    console.log("User found for", user);
-    
+
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log("Pass", isValidPassword);
-    
 
     if (!isValidPassword) {
       return res
