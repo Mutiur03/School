@@ -72,8 +72,6 @@ export const getAlumniController = async (_req, res) => {
 };
 
 export const getStudentsController = async (req, res) => {
-  // Auth handled by middleware
-
   try {
     const parsedParams = yearParamSchema.safeParse(req.params);
     if (!parsedParams.success) {
@@ -84,15 +82,6 @@ export const getStudentsController = async (req, res) => {
     }
 
     const { year: parsedYear } = parsedParams.data;
-
-    const currentYear = new Date().getFullYear();
-    if (parsedYear < 2000 || parsedYear > currentYear + 5) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid year. Year must be between 2000 and ${currentYear + 5
-          }.`,
-      });
-    }
 
     console.log(`Fetching students for year: ${parsedYear}`);
 
@@ -113,7 +102,7 @@ export const getStudentsController = async (req, res) => {
       }
     } else if (req.user.role === "teacher") {
       try {
-        const teacher = req.user; // User already attached by middleware
+        const teacher = req.user; 
 
         if (!teacher.levels || teacher.levels.length === 0) {
           return res.status(200).json({ success: true, data: [] });
@@ -144,19 +133,11 @@ export const getStudentsController = async (req, res) => {
         });
       } catch (error) {
         console.error("Teacher authentication error:", error);
-        // res.clearCookie("teacher_token"); // Cookies no longer used
         return res.status(401).json({ message: "Invalid Teacher Token" });
       }
     }
 
     console.log(`Found ${result.length} students`);
-
-    // if (result.length === 0) {
-    //   return res.status(200).json({
-    //     success: true,
-    //     message: "No students found for the specified year",
-    //   });
-    // }
 
     const formattedResult = result.flatMap((student) => {
       const studentWithoutPassword = sanitizeStudent(student);
@@ -200,8 +181,6 @@ export const getStudentsController = async (req, res) => {
 export const getStudentController = async (req, res) => {
   try {
     const studentId = req.user.id;
-    // console.log(req.user);
-
     const result = await prisma.students.findUnique({
       where: { id: studentId },
       include: {
