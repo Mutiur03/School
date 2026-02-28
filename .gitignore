@@ -148,3 +148,5 @@ uploads/*
 
 
 package-lock.json
+
+stats.html
