@@ -8,30 +8,13 @@ import {
   deleteStudentsBulkController,
   getAlumniController,
   updateAcademicInfoController,
-  updateStudentImageController,
+  getStudentImageUploadUrlController,
+  saveStudentImageController,
   changePasswordController,
   getClassStudentsController,
 } from "../controllers/studController.js";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { compressImageToLocation } from "../middlewares/compressImageToLocation.js";
 import AuthMiddleware from "../middlewares/auth.middleware.js";
 const studRouter = express.Router();
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join("uploads", "students");
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
-  },
-});
-const upload = multer({ storage: storage });
 studRouter.get(
   "/getStudents/:year",
   AuthMiddleware.authenticate(["admin", "teacher"]),
@@ -51,16 +34,14 @@ studRouter.get(
 studRouter.post("/addStudents", AuthMiddleware.authenticate(["admin"]),
   addStudentController);
 studRouter.post(
-  "/updateStudentImage/:id",
-
+  "/get-image-url",
   AuthMiddleware.authenticate(["admin"]),
-
-  upload.single("image"),
-  compressImageToLocation({
-    targetLocation: "uploads/students",
-    targetSizeKB: 200,
-  }),
-  updateStudentImageController,
+  getStudentImageUploadUrlController,
+);
+studRouter.put(
+  "/updateStudentImage/:id",
+  AuthMiddleware.authenticate(["admin"]),
+  saveStudentImageController,
 );
 studRouter.put("/updateStudent/:id", AuthMiddleware.authenticate(["admin"]),
   updateStudentController);
