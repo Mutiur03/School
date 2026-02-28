@@ -14,7 +14,6 @@ import {
   ConfirmationAdmission,
   ConfirmationClass6,
   ConfirmationReg,
-  Class6PdfPreview,
   Event,
   ExamRoutinePage,
   Gallery,
@@ -29,6 +28,7 @@ import {
   StaffList,
   TeacherList,
 } from "@school/client-ui";
+import { Class6PdfPreview } from "@school/common-ui";
 
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();

@@ -39,7 +39,7 @@ import {
   SSCRegForm,
   Class6RegForm,
 } from "./pages/Admin/index.ts"
-import { Class6PdfPreview } from "@school/client-ui";
+import { Class6PdfPreview } from "@school/common-ui";
 
 import backend from "./lib/backend.ts";
 import StudentDashboard from "./pages/Students/StudentDashboard.tsx";
