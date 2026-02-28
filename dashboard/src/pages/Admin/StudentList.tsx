@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { Eye, Upload, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
 } from "@school/shared-schemas";
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/ErrorMessage";
+import { getFileUrl } from "@/lib/backend";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Student {
   id: number;
@@ -150,15 +152,12 @@ const formatDobForDateInput = (value: string | null | undefined) => {
 };
 
 function StudentList() {
-  type SubmitAction = "none" | "form" | "excelUpload" | "bulkDelete";
-  const [students, setStudents] = useState<Student[]>([]);
+  const queryClient = useQueryClient();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const currentYear = new Date().getFullYear();
   const [popup, setPopup] = useState<{
     visible: boolean;
@@ -179,10 +178,7 @@ function StudentList() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitAction, setSubmitAction] = useState<SubmitAction>("none");
   const [showFormatInfo, setShowFormatInfo] = useState(false);
-  const host = import.meta.env.VITE_BACKEND_URL;
 
   const {
     register,
@@ -199,9 +195,6 @@ function StudentList() {
   });
 
   const watchedClass = Number(watch("class") || "0");
-  const isFormSubmitting = isSubmitting && submitAction === "form";
-  const isExcelSubmitting = isSubmitting && submitAction === "excelUpload";
-  const isBulkDeleting = isSubmitting && submitAction === "bulkDelete";
 
   useEffect(() => {
     if (watchedClass !== 9 && watchedClass !== 10) {
@@ -219,51 +212,54 @@ function StudentList() {
     }
   };
 
-  const handleIndivisualImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    student: Student
-  ) => {
+  const invalidateStudents = () =>
+    queryClient.invalidateQueries({ queryKey: ["students", year] });
+
+  const { data: studentsData, isLoading: loading, error: studentsError } = useQuery({
+    queryKey: ["students", year],
+    queryFn: async () => {
+      const response = await axios.get(`/api/students/getStudents/${year}`);
+      return (response.data.data || []).filter(
+        (student: Student) => student.class >= 1 && student.class <= 10
+      ) as Student[];
+    },
+  });
+  const students = useMemo(() => studentsData ?? [], [studentsData]);
+  const errorMessage = studentsError
+    ? ((studentsError as { response?: { status?: number } }).response?.status === 404
+      ? "No students found for the selected year."
+      : "An error occurred while fetching students.")
+    : "";
+
+  const uploadImageToR2 = async (file: File, studentId: number) => {
+    const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    const { data } = await axios.post("/api/students/get-image-url", {
+      id: studentId,
+      key,
+      contentType: file.type,
+    });
+    await fetch(data.uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type },
+    });
+    await axios.put(`/api/students/updateStudentImage/${studentId}`, {
+      key: data.key,
+    });
+  };
+
+  const imageUploadMutation = useMutation({
+    mutationFn: async ({ file, student }: { file: File; student: Student }) => {
+      await uploadImageToR2(file, student.id);
+    },
+    onSuccess: () => invalidateStudents(),
+    onError: () => toast.error("Failed to upload image."),
+  });
+
+  const handleIndivisualImageUpload = (e: React.ChangeEvent<HTMLInputElement>, student: Student) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const imageFormData = new FormData();
-    imageFormData.append("image", file);
-
-    await axios.post(
-      `/api/students/updateStudentImage/${student.id}`,
-      imageFormData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-    getStudentList();
-  };
-  const getStudentList = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`/api/students/getStudents/${year}`);
-      const filteredStudents = (response.data.data || []).filter(
-        (student: Student) => student.class >= 1 && student.class <= 10
-      );
-      setStudents(filteredStudents);
-      setErrorMessage("");
-    } catch (error) {
-      setStudents([]);
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number } };
-        if (axiosError.response?.status === 404) {
-          setErrorMessage("No students found for the selected year.");
-        } else {
-          setErrorMessage("An error occurred while fetching students.");
-        }
-      } else {
-        setErrorMessage("An error occurred while fetching students.");
-      }
-    } finally {
-      setLoading(false);
-    }
+    imageUploadMutation.mutate({ file, student });
   };
 
   const handleEdit = (student: Student) => {
@@ -292,28 +288,21 @@ function StudentList() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (student: Student) => {
-    try {
-      const response = await axios.delete(
-        `/api/students/deleteStudent/${student.id}`
-      );
-      if (response.status === 200) {
-        toast.success("Student deleted successfully.");
-        setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
-      }
-    } catch {
-      toast.error("Failed to delete student. Please try again.");
-    }
-    getStudentList();
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (student: Student) =>
+      axios.delete(`/api/students/deleteStudent/${student.id}`),
+    onSuccess: (_, student) => {
+      toast.success("Student deleted successfully.");
+      setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
+      invalidateStudents();
+    },
+    onError: () => toast.error("Failed to delete student. Please try again."),
+  });
+
+  const handleDelete = (student: Student) => deleteMutation.mutate(student);
 
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
-
-  useEffect(() => {
-    getStudentList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year]);
 
   const filteredStudents = students
     .filter((student) =>
@@ -367,40 +356,30 @@ function StudentList() {
     ]);
   };
 
-  const handleBulkDelete = async () => {
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (studentIds: number[]) =>
+      axios.delete("/api/students/deleteStudentsBulk", { data: { studentIds } }),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Selected students deleted successfully.");
+      setSelectedStudentIds([]);
+      invalidateStudents();
+    },
+    onError: (error) => {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to delete selected students. Please try again.");
+    },
+  });
+
+  const handleBulkDelete = () => {
     if (selectedStudentIds.length === 0) {
       toast.error("Please select at least one student.");
       return;
     }
-
     const confirmed = window.confirm(
       `Are you sure you want to delete ${selectedStudentIds.length} selected student(s)?`
     );
-
     if (!confirmed) return;
-
-    setSubmitAction("bulkDelete");
-    setIsSubmitting(true);
-    try {
-      const response = await axios.delete("/api/students/deleteStudentsBulk", {
-        data: { studentIds: selectedStudentIds },
-      });
-
-      toast.success(
-        response.data?.message || "Selected students deleted successfully."
-      );
-      setSelectedStudentIds([]);
-      await getStudentList();
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(
-        err.response?.data?.error ||
-        "Failed to delete selected students. Please try again."
-      );
-    } finally {
-      setIsSubmitting(false);
-      setSubmitAction("none");
-    }
+    bulkDeleteMutation.mutate(selectedStudentIds);
   };
 
   useEffect(() => {
@@ -409,125 +388,70 @@ function StudentList() {
     );
   }, [students]);
 
-  const onSubmit = async (formValues: StudentFormData) => {
-    setSubmitAction("form");
-    setIsSubmitting(true);
-    try {
+  const formMutation = useMutation({
+    mutationFn: async (formValues: StudentFormData) => {
       const parsedForm = studentFormSchema.safeParse(formValues);
       if (!parsedForm.success) {
-        console.error("[Student Form Validation Failed]", {
-          input: formValues,
-          issues: parsedForm.error.issues,
-        });
-        toast.error(parsedForm.error.issues[0]?.message || "Invalid form data");
-        return;
+        console.error("[Student Form Validation Failed]", { input: formValues, issues: parsedForm.error.issues });
+        throw new Error(parsedForm.error.issues[0]?.message || "Invalid form data");
       }
-
       const parsedValues = parsedForm.data as StudentFormData;
-      const imageFormData = new FormData();
-      if (image) {
-        imageFormData.append("image", image);
-      }
-
-      const basicDeatils: Record<string, string | boolean> = {};
-      basicDeatils.name = parsedValues.name || "";
-      basicDeatils.father_name = parsedValues.father_name || "";
-      basicDeatils.mother_name = parsedValues.mother_name || "";
-      basicDeatils.father_phone = parsedValues.father_phone || "";
-      basicDeatils.mother_phone = parsedValues.mother_phone || "";
-      basicDeatils.village = parsedValues.village || "";
-      basicDeatils.post_office = parsedValues.post_office || "";
-      basicDeatils.upazila = parsedValues.upazila || "";
-      basicDeatils.district = parsedValues.district || "";
-      basicDeatils.dob = parsedValues.dob || "";
-      basicDeatils.available = Boolean(parsedValues.available);
-      basicDeatils.has_stipend = Boolean(parsedValues.has_stipend);
-
-      const academicDetails: Record<string, string> = {};
-      academicDetails.roll = parsedValues.roll || "";
-      academicDetails.class = parsedValues.class || "";
-      academicDetails.section = parsedValues.section || "";
       const classNumber = Number(parsedValues.class);
       const requiresDepartment = classNumber === 9 || classNumber === 10;
-      academicDetails.department = requiresDepartment ? parsedValues.department || "" : "";
 
-      const studentsArray = [
-        {
-          name: parsedValues.name,
-          father_name: parsedValues.father_name,
-          mother_name: parsedValues.mother_name,
-          father_phone: parsedValues.father_phone,
-          mother_phone: parsedValues.mother_phone,
-          village: parsedValues.village,
-          post_office: parsedValues.post_office,
-          upazila: parsedValues.upazila,
-          district: parsedValues.district,
-          dob: parsedValues.dob,
-          class: parsedValues.class,
-          roll: parsedValues.roll,
-          section: parsedValues.section,
-          department: requiresDepartment ? parsedValues.department : "",
-          has_stipend: Boolean(parsedValues.has_stipend),
-        },
-      ];
+      const basicDeatils: Record<string, string | boolean> = {
+        name: parsedValues.name || "",
+        father_name: parsedValues.father_name || "",
+        mother_name: parsedValues.mother_name || "",
+        father_phone: parsedValues.father_phone || "",
+        mother_phone: parsedValues.mother_phone || "",
+        village: parsedValues.village || "",
+        post_office: parsedValues.post_office || "",
+        upazila: parsedValues.upazila || "",
+        district: parsedValues.district || "",
+        dob: parsedValues.dob || "",
+        available: Boolean(parsedValues.available),
+        has_stipend: Boolean(parsedValues.has_stipend),
+      };
+      const academicDetails: Record<string, string> = {
+        roll: parsedValues.roll || "",
+        class: parsedValues.class || "",
+        section: parsedValues.section || "",
+        department: requiresDepartment ? parsedValues.department || "" : "",
+      };
 
       if (isEditing && selectedStudent) {
-        await axios.put(
-          `/api/students/updateStudent/${selectedStudent.id}`,
-          basicDeatils
-        );
-        await axios.put(
-          `/api/students/updateacademic/${selectedStudent.enrollment_id}`,
-          academicDetails
-        );
-        if (image) {
-          await axios.post(
-            `/api/students/updateStudentImage/${selectedStudent.id}`,
-            imageFormData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-        }
-
-        handleCancel();
-        toast.success("Student updated successfully.");
-        return;
+        await axios.put(`/api/students/updateStudent/${selectedStudent.id}`, basicDeatils);
+        await axios.put(`/api/students/updateacademic/${selectedStudent.enrollment_id}`, academicDetails);
+        if (image) await uploadImageToR2(image, selectedStudent.id);
+        return { message: "Student updated successfully." };
       } else {
         const response = await axios.post("/api/students/addStudents", {
-          students: studentsArray,
+          students: [{
+            ...basicDeatils,
+            roll: parsedValues.roll,
+            class: parsedValues.class,
+            section: parsedValues.section,
+            department: requiresDepartment ? parsedValues.department : "",
+          }],
         });
-        if (image) {
-          await axios.post(
-            `/api/students/updateStudentImage/${response.data.data[0].id}`,
-            imageFormData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-        }
-
-        if (response.data.success === false) {
-          toast.error(response.data.message);
-          return;
-        }
-
-        handleCancel();
-        toast.success(response.data.message);
+        if (response.data.success === false) throw new Error(response.data.message);
+        if (image) await uploadImageToR2(image, response.data.data[0].id);
+        return { message: response.data.message };
       }
-    } catch (err) {
+    },
+    onSuccess: ({ message }) => {
+      handleCancel();
+      toast.success(message);
+      invalidateStudents();
+    },
+    onError: (err) => {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
-      toast.error(error.response?.data?.error || error.message || 'An error occurred');
-    } finally {
-      await getStudentList();
-      setIsSubmitting(false);
-      setSubmitAction("none");
-    }
-  };
+      toast.error(error.response?.data?.error || error.message || "An error occurred");
+    },
+  });
+
+  const onSubmit = (formValues: StudentFormData) => formMutation.mutate(formValues);
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -677,57 +601,49 @@ function StudentList() {
     toast.success("Demo Excel downloaded.");
   };
 
-  const sendToBackend = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSubmitAction("excelUpload");
-    setIsSubmitting(true);
-    try {
-      if (!jsonData || jsonData.length === 0) {
-        toast.error("No data to upload. Please check your Excel file.");
-        return;
-      }
-
-      const failedRow = jsonData.findIndex((row) => !studentFormSchema.safeParse(row).success);
-
-      if (failedRow !== -1) {
-        const failed = studentFormSchema.safeParse(jsonData[failedRow]);
-        if (!failed.success) {
-          console.error("[Excel Submit Validation Failed]", {
-            rowNumber: failedRow + 2,
-            input: jsonData[failedRow],
-            issues: failed.error.issues,
-          });
-        }
-        toast.error(`Row ${failedRow + 2}: Invalid data. Please fix and upload again.`);
-        return;
-      }
-
-      const response = await axios.post("/api/students/addStudents", {
-        students: jsonData,
-      });
-      if (response.data.success === false) {
-        toast.error(response.data.message);
-        return;
-      }
-      toast.success(response.data.message);
+  const excelMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>[]) => {
+      const response = await axios.post("/api/students/addStudents", { students: data });
+      if (response.data.success === false) throw new Error(response.data.message);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
       setJsonData(null);
       setFileUploaded(false);
       setexcelfile(null);
       setIsExcelUpload(false);
       setShowForm(false);
-      const excelInput = document.querySelector(
-        'input[name="excelFile"]'
-      ) as HTMLInputElement;
+      const excelInput = document.querySelector('input[name="excelFile"]') as HTMLInputElement;
       if (excelInput) excelInput.value = "";
-    } catch (err) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error("Error adding student");
-      toast.error(error.response?.data?.message || "Failed to upload students.");
-    } finally {
-      await getStudentList();
-      setIsSubmitting(false);
-      setSubmitAction("none");
+      invalidateStudents();
+    },
+    onError: (err) => {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(error.response?.data?.message || error.message || "Failed to upload students.");
+    },
+  });
+
+  const sendToBackend = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!jsonData || jsonData.length === 0) {
+      toast.error("No data to upload. Please check your Excel file.");
+      return;
     }
+    const failedRow = jsonData.findIndex((row) => !studentFormSchema.safeParse(row).success);
+    if (failedRow !== -1) {
+      const failed = studentFormSchema.safeParse(jsonData[failedRow]);
+      if (!failed.success) {
+        console.error("[Excel Submit Validation Failed]", {
+          rowNumber: failedRow + 2,
+          input: jsonData[failedRow],
+          issues: failed.error.issues,
+        });
+      }
+      toast.error(`Row ${failedRow + 2}: Invalid data. Please fix and upload again.`);
+      return;
+    }
+    excelMutation.mutate(jsonData);
   };
   const handleCancel = () => {
     setFileUploaded(false);
@@ -745,42 +661,30 @@ function StudentList() {
     if (isEditing) setIsEditing(false);
   };
 
-  const removeImage = async () => {
-    if (!selectedStudent) return;
-    try {
-      setImage(null);
-      setPreview(null);
-      const response = await axios.post(
-        `/api/students/updateStudentImage/${selectedStudent.id}`,
-        {},
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+  const removeImageMutation = useMutation({
+    mutationFn: (studentId: number) =>
+      axios.put(`/api/students/updateStudentImage/${studentId}`, { key: null }),
+    onSuccess: (response) => {
       if (response.data.success) {
         toast.success("Image removed successfully.");
-        setSelectedStudent((prev) =>
-          prev
-            ? {
-              ...prev,
-              image: undefined,
-            }
-            : prev
-        );
+        setSelectedStudent((prev) => prev ? { ...prev, image: undefined } : prev);
         setShowForm(false);
+        invalidateStudents();
       } else {
         toast.error(response.data.error || "Failed to remove image.");
       }
-    } catch (error) {
+    },
+    onError: (error) => {
       const err = error as { response?: { data?: { error?: string } } };
-      toast.error(
-        err.response?.data?.error ||
-        "An error occurred while removing the image."
-      );
-    }
-    getStudentList();
+      toast.error(err.response?.data?.error || "An error occurred while removing the image.");
+    },
+  });
+
+  const removeImage = () => {
+    if (!selectedStudent) return;
+    setImage(null);
+    setPreview(null);
+    removeImageMutation.mutate(selectedStudent.id);
   };
   return (
     <div className="max-w-6xl  mx-auto mt-10 px-4 sm:px-6 lg:px-8">
@@ -843,7 +747,7 @@ function StudentList() {
                           />
                         ) : isEditing && selectedStudent?.image ? (
                           <img
-                            src={`${host}/${selectedStudent.image}`}
+                            src={getFileUrl(selectedStudent.image)}
                             alt="Student"
                             className="w-full h-full object-cover"
                           />
@@ -1056,13 +960,13 @@ function StudentList() {
                       variant="outline"
                       onClick={handleCancel}
                       type="button"
-                      disabled={isFormSubmitting}
+                      disabled={formMutation.isPending}
                       className="min-w-24"
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={isSubmitting} className="min-w-28">
-                      {isFormSubmitting
+                    <Button type="submit" disabled={formMutation.isPending} className="min-w-28">
+                      {formMutation.isPending
                         ? (isEditing ? "Updating Student..." : "Adding Student...")
                         : (isEditing ? "Update" : "Add Student")}
                     </Button>
@@ -1163,15 +1067,15 @@ function StudentList() {
                       variant="outline"
                       type="button"
                       onClick={handleCancel}
-                      disabled={isExcelSubmitting}
+                      disabled={excelMutation.isPending}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
-                      disabled={!fileUploaded || isSubmitting}
+                      disabled={!fileUploaded || excelMutation.isPending}
                     >
-                      {isExcelSubmitting ? "Uploading Students..." : "Upload"}
+                      {excelMutation.isPending ? "Uploading Students..." : "Upload"}
                     </Button>
                   </div>
                 </form>
@@ -1236,10 +1140,10 @@ function StudentList() {
               type="button"
               variant="destructive"
               onClick={handleBulkDelete}
-              disabled={isSubmitting}
+              disabled={bulkDeleteMutation.isPending}
               className="w-full sm:w-auto"
             >
-              {isBulkDeleting ? "Deleting Selected..." : "Delete Selected"}
+              {bulkDeleteMutation.isPending ? "Deleting Selected..." : "Delete Selected"}
             </Button>
           </div>
         )}
@@ -1319,7 +1223,7 @@ function StudentList() {
                       <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
                         {student.image && (
                           <img
-                            src={`${host}/${student.image}`}
+                            src={getFileUrl(student.image)}
                             alt="Student"
                             className="w-10 h-10 rounded-xs object-cover"
                           />
@@ -1411,7 +1315,7 @@ function StudentList() {
                 <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
                   {popup.student.image ? (
                     <img
-                      src={`${host}/${popup.student.image}`}
+                      src={getFileUrl(popup.student.image)}
                       alt="Student"
                       className="w-20  sm:w-24 aspect-[7/9] object-cover rounded-sm border border-border shadow"
                     />

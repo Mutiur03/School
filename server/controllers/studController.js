@@ -2,9 +2,8 @@ import { google } from "googleapis";
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import fs from "fs";
 import { prisma } from "../config/prisma.js";
-import { fixUrl } from "../utils/fixURL.js";
+import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 import {
   VALID_DEPARTMENTS,
   addStudentsRequestSchema,
@@ -102,7 +101,7 @@ export const getStudentsController = async (req, res) => {
       }
     } else if (req.user.role === "teacher") {
       try {
-        const teacher = req.user; 
+        const teacher = req.user;
 
         if (!teacher.levels || teacher.levels.length === 0) {
           return res.status(200).json({ success: true, data: [] });
@@ -818,38 +817,43 @@ export const updateAcademicInfoController = async (req, res) => {
   }
 };
 
-export const updateStudentImageController = async (req, res) => {
+export const getStudentImageUploadUrlController = async (req, res) => {
+  try {
+    const { id, key, contentType } = req.body;
+    if (!id || !key || !contentType) {
+      return res.status(400).json({ success: false, message: "id, key, and contentType are required" });
+    }
+    const student = await prisma.students.findUnique({ where: { id: parseInt(id) } });
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+    const r2Key = `students/${key}`;
+    const uploadUrl = await getUploadUrl(r2Key, contentType);
+    res.json({ success: true, uploadUrl, key: r2Key });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to generate upload URL", error: error.message });
+  }
+};
+
+export const saveStudentImageController = async (req, res) => {
   try {
     const { id } = req.params;
-    const filePath = req.file ? fixUrl(req.file.path) : null;
-
-    const existingStudent = await prisma.students.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (existingStudent?.image) {
-      const oldFilePath = existingStudent.image;
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
-      }
+    const { key } = req.body;
+    const existingStudent = await prisma.students.findUnique({ where: { id: parseInt(id) } });
+    if (!existingStudent) {
+      return res.status(404).json({ success: false, message: "Student not found" });
     }
-
+    // Delete old image from R2 if present
+    if (existingStudent.image) {
+      await deleteFromR2(existingStudent.image);
+    }
     const result = await prisma.students.update({
       where: { id: parseInt(id) },
-      data: { image: filePath },
+      data: { image: key || null },
     });
-
-    if (!result) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Student image updated successfully",
-      data: result,
-    });
-  } catch {
-    res.status(500).json({ error: "Internal server error" });
+    res.json({ success: true, message: "Student image updated successfully", data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
   }
 };
 
