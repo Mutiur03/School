@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import ErrorMessage from "@/components/ErrorMessage";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { teacherFormSchema, type TeacherFormSchemaData } from "@school/shared-schemas";
-import backend from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Teacher {
   id: number;
@@ -30,10 +31,25 @@ interface PopupState {
   teacher: Teacher | null;
 }
 
+const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => {
+  const key = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+  const { data } = await axios.post("/api/teachers/get-image-url", {
+    id: teacherId,
+    key,
+    contentType: file.type,
+  });
+  const { uploadUrl, key: r2Key } = data.data;
+  await fetch(uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  await axios.put(`/api/teachers/updateTeacherImage/${teacherId}`, { key: r2Key });
+};
+
 const TeacherList = () => {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
@@ -59,23 +75,109 @@ const TeacherList = () => {
   });
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isloading, setIsLoading] = useState(false);
   const [image, setImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fetchTeachers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get("/api/teachers/getTeachers");
-      setTeachers(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
-    }
-    setIsLoading(false);
-  };
 
-  useEffect(() => {
-    fetchTeachers();
-  }, []);
+  const invalidateTeachers = () =>
+    queryClient.invalidateQueries({ queryKey: ["teachers"] });
+
+  const { data: teachers = [], isLoading } = useQuery<Teacher[]>({
+    queryKey: ["teachers"],
+    queryFn: async () => {
+      const response = await axios.get("/api/teachers/getTeachers");
+      return response.data.data || [];
+    },
+    staleTime: 300000,
+    refetchOnReconnect: true,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async ({
+      formValues,
+      imageFile,
+    }: {
+      formValues: TeacherFormSchemaData;
+      imageFile: File | null;
+    }) => {
+      const response = await axios.post("/api/teachers/addTeacher", {
+        teachers: [formValues],
+      });
+      const newTeacher = response.data.data[0];
+      if (imageFile) {
+        await uploadImageToR2(imageFile, newTeacher.id);
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Teacher added successfully.");
+      reset(defaultValues);
+      setImage(null);
+      setShowForm(false);
+      invalidateTeachers();
+    },
+    onError: (error: { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || "An error occurred while adding the teacher.");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      teacher,
+      formValues,
+      imageFile,
+    }: {
+      teacher: Teacher;
+      formValues: TeacherFormSchemaData;
+      imageFile: File | null;
+    }) => {
+      const response = await axios.put(
+        `/api/teachers/updateTeacher/${teacher.id}`,
+        formValues
+      );
+      if (imageFile) {
+        await uploadImageToR2(imageFile, teacher.id);
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Teacher updated successfully.");
+      reset(defaultValues);
+      setImage(null);
+      setIsEditing(false);
+      setShowForm(false);
+      setPopup({ visible: false, type: "", teacher: null });
+      invalidateTeachers();
+    },
+    onError: (error: { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || "An error occurred while updating the teacher.");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (teacher: Teacher) => {
+      await axios.delete(`/api/teachers/deleteTeacher/${teacher.id}`);
+    },
+    onSuccess: () => {
+      toast.success("Teacher deleted successfully.");
+      invalidateTeachers();
+    },
+    onError: () => {
+      toast.error("Failed to delete teacher.");
+    },
+  });
+
+  const removeImageMutation = useMutation({
+    mutationFn: async (teacherId: number) => {
+      await axios.delete(`/api/teachers/removeTeacherImage/${teacherId}`);
+    },
+    onSuccess: () => {
+      toast.success("Image removed.");
+      invalidateTeachers();
+    },
+    onError: () => {
+      toast.error("Failed to remove image.");
+    },
+  });
 
   const handleEdit = (teacher: Teacher) => {
     reset({
@@ -90,15 +192,8 @@ const TeacherList = () => {
     setPopup({ visible: false, type: "", teacher });
   };
 
-  const handleDelete = async (teacher: Teacher) => {
-    try {
-      await axios.delete(`/api/teachers/deleteTeacher/${teacher.id}`);
-      toast.success("Teacher deleted successfully.");
-      fetchTeachers();
-    } catch (error) {
-      console.error("Error deleting teacher:", error);
-      toast.error("Failed to delete teacher.");
-    }
+  const handleDelete = (teacher: Teacher) => {
+    deleteMutation.mutate(teacher);
   };
 
   const closePopup = () => {
@@ -110,7 +205,7 @@ const TeacherList = () => {
     .filter(
       (teacher) =>
         teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        teacher.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         teacher.email.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => a.id - b.id);
@@ -122,67 +217,13 @@ const TeacherList = () => {
     }
   };
 
+  const isSubmitting = addMutation.isPending || updateMutation.isPending;
+
   const onValidSubmit = async (formValues: TeacherFormSchemaData) => {
-    setIsSubmitting(true);
-    try {
-      const teacherData = { ...formValues };
-      let response;
-
-      if (isEditing && popup.teacher) {
-        response = await axios.put(
-          `/api/teachers/updateTeacher/${popup.teacher.id}`,
-          teacherData
-        );
-        if (image) {
-          const imageFormData = new FormData();
-          imageFormData.append("image", image);
-          await axios.post(
-            `/api/teachers/uploadImage/${popup.teacher.id}`,
-            imageFormData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-        }
-      } else {
-        response = await axios.post("/api/teachers/addTeacher", {
-          teachers: [teacherData],
-        });
-        if (image) {
-          const imageFormData = new FormData();
-          imageFormData.append("image", image);
-          await axios.post(
-            `/api/teachers/uploadImage/${response.data.data[0].id}`,
-            imageFormData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-        }
-      }
-
-      const data = response.data;
-      if (data.success || response.status === 200) {
-        toast.success(data.message || "Teacher saved successfully.");
-        reset(defaultValues);
-        setImage(null);
-        setIsEditing(false);
-        setShowForm(false);
-      } else {
-        toast.error(data.error || "Something went wrong.");
-      }
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      const msg = axiosError.response?.data?.error || "An error occurred while submitting the form.";
-      toast.error(msg);
-      console.error("Error submitting form:", error);
-    } finally {
-      fetchTeachers();
-      setIsSubmitting(false);
+    if (isEditing && popup.teacher) {
+      updateMutation.mutate({ teacher: popup.teacher, formValues, imageFile: image });
+    } else {
+      addMutation.mutate({ formValues, imageFile: image });
     }
   };
 
@@ -226,7 +267,7 @@ const TeacherList = () => {
                     {image ? (
                       <img src={URL.createObjectURL(image)} alt="Preview" className="w-full h-full object-cover" />
                     ) : isEditing && popup.teacher?.image ? (
-                      <img src={`${backend}/${popup.teacher.image}`} alt="Teacher" className="w-full h-full object-cover" />
+                      <img src={getFileUrl(popup.teacher.image)} alt="Teacher" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-muted-foreground text-xs sm:text-sm text-center px-1">Click to upload</span>
                     )}
@@ -238,6 +279,15 @@ const TeacherList = () => {
                       className="mt-2 text-sm text-destructive hover:underline"
                     >
                       Remove Image
+                    </button>
+                  )}
+                  {!image && isEditing && popup.teacher?.image && (
+                    <button
+                      type="button"
+                      onClick={() => removeImageMutation.mutate(popup.teacher!.id)}
+                      className="mt-2 text-sm text-destructive hover:underline"
+                    >
+                      Remove Current Image
                     </button>
                   )}
                 </div>
@@ -329,7 +379,7 @@ const TeacherList = () => {
         />
       </div>
 
-      <div className="rounded-sm shadow-md overflow-hidden flex-grow">
+      <div className="rounded-sm mb-6 sm:mb-8 shadow-md overflow-hidden flex-grow">
         <div className="rounded-sm shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-border">
@@ -347,7 +397,7 @@ const TeacherList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {isloading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan={4} className="py-2">
                       <div className="flex flex-col justify-center items-center gap-2 w-full h-full py-4">
@@ -426,7 +476,7 @@ const TeacherList = () => {
                 <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
                   {popup.teacher.image ? (
                     <img
-                      src={`${backend}/${popup.teacher.image}`}
+                      src={getFileUrl(popup.teacher.image)}
                       alt="Profile"
                       className="w-20 aspect-[7/9] object-cover rounded-sm border border-border shadow"
                     />
