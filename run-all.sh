@@ -6,6 +6,7 @@ declare -A SERVERS=(
   ["client"]="npm run dev:client"
   ["client-ui"]="npm run dev:client:ui"
 )
+PORTS=(3001 5173 5174 5175 5176 5177 5178 5179 5180)
 # ────────────────────────────────────────────────────────────────────────────
 
 PIDS=()
@@ -17,24 +18,50 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# Detect if running in WSL
+is_wsl() {
+  grep -qi microsoft /proc/version 2>/dev/null
+}
+
+kill_all() {
+  if is_wsl; then
+    # ── WSL: use taskkill + netstat to kill Windows processes ──
+    for PORT in "${PORTS[@]}"; do
+      PID=$(cmd.exe /c "netstat -ano | findstr :${PORT}" 2>/dev/null \
+            | awk '{print $5}' | head -1 | tr -d '\r')
+      if [[ -n "$PID" && "$PID" != "0" ]]; then
+        echo -e "  ${RED}Killing${NC} PID $PID on port $PORT"
+        taskkill.exe /PID "$PID" /F /T 2>/dev/null
+      fi
+    done
+    taskkill.exe /IM node.exe /F 2>/dev/null
+    taskkill.exe /IM nodemon.exe /F 2>/dev/null
+  else
+    # ── Linux: kill process tree recursively ──
+    kill_tree() {
+      local PID=$1
+      for CHILD in $(pgrep -P "$PID" 2>/dev/null); do
+        kill_tree "$CHILD"
+      done
+      kill -KILL "$PID" 2>/dev/null
+    }
+
+    for i in "${!PIDS[@]}"; do
+      echo -e "  ${RED}Stopping${NC} ${NAMES[$i]} (PID: ${PIDS[$i]})"
+      kill_tree "${PIDS[$i]}"
+    done
+
+    # Also free ports just in case
+    for PORT in "${PORTS[@]}"; do
+      PID=$(lsof -ti :"$PORT" 2>/dev/null)
+      [[ -n "$PID" ]] && kill -KILL "$PID" 2>/dev/null
+    done
+  fi
+}
+
 cleanup() {
   echo -e "\n${YELLOW}Shutting down all servers...${NC}"
-
-  # Kill by port (most reliable for Windows Node processes)
-  echo -e "  ${RED}Killing processes on ports 3001, 5173-5180...${NC}"
-  for PORT in 3001 5173 5174 5175 5176 5177 5178 5179 5180; do
-    PID=$(cmd.exe /c "netstat -ano | findstr :${PORT}" 2>/dev/null | awk '{print $5}' | head -1 | tr -d '\r')
-    if [[ -n "$PID" && "$PID" != "0" ]]; then
-      echo -e "  ${RED}Killing${NC} PID $PID on port $PORT"
-      taskkill.exe /PID "$PID" /F /T 2>/dev/null
-    fi
-  done
-
-  # Also kill by name to catch anything missed
-  echo -e "  ${RED}Killing${NC} remaining node/nodemon processes..."
-  taskkill.exe /IM node.exe /F 2>/dev/null
-  taskkill.exe /IM nodemon.exe /F 2>/dev/null
-
+  kill_all
   echo -e "${GREEN}All servers stopped.${NC}"
   exit 0
 }
