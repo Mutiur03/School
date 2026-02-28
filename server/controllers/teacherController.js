@@ -1,9 +1,8 @@
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
-import fs from "fs";
 import { initGoogleSheets } from "./studController.js";
-import { fixUrl } from "../utils/fixURL.js"; // Add this import
 import { teacherFormSchema } from "@school/shared-schemas";
+import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
 import { redis } from "../config/redis.js";
@@ -208,48 +207,99 @@ export const deleteTeacher = async (req, res) => {
   }
 };
 
-export const UpdateTeacherImage = async (req, res) => {
+export const getTeacherImageUploadUrlController = async (req, res) => {
   try {
-    const { id } = req.params;
-    const image = req.file;
-    console.log(req.file);
-
-    if (!image) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Image is required" });
+    const { id, key, contentType } = req.body;
+    if (!id || !key || !contentType) {
+      return res.status(400).json({ success: false, error: "id, key, and contentType are required" });
     }
 
-    const exists = await prisma.teachers.findUnique({
+    const teacher = await prisma.teachers.findUnique({
       where: { id: parseInt(id) },
     });
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
 
-    if (exists?.image) {
-      const oldImage = exists.image;
-      if (fs.existsSync(oldImage)) {
-        fs.unlinkSync(oldImage);
-      }
+    const r2Key = `teachers/${key}`;
+    const uploadUrl = await getUploadUrl(r2Key, contentType);
+
+    res.status(200).json({
+      success: true,
+      data: { uploadUrl, key: r2Key },
+    });
+  } catch (error) {
+    console.error("Error getting teacher image upload URL:", error.message);
+    res.status(500).json({ success: false, error: "Error getting upload URL" });
+  }
+};
+
+export const saveTeacherImageController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { key } = req.body;
+
+    const existingTeacher = await prisma.teachers.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!existingTeacher) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
+
+    if (existingTeacher.image) {
+      await deleteFromR2(existingTeacher.image);
     }
 
     const result = await prisma.teachers.update({
       where: { id: parseInt(id) },
-      data: { image: fixUrl(image.path) }, // Fix here
+      data: { image: key || null },
     });
-    const key = "head_msg_cache";
-    await redis.del(key);
+
+    const cacheKey = "head_msg_cache";
+    await redis.del(cacheKey);
+
     res.status(200).json({
       success: true,
-      data: {
-        ...result,
-        image: fixUrl(result.image), // Fix here for response
-      },
+      data: result,
       message: "Teacher image updated successfully",
     });
   } catch (error) {
-    console.error("Error updating teacher image:", error.message);
-    res
-      .status(500)
-      .json({ success: false, error: "Error updating teacher image" });
+    console.error("Error saving teacher image:", error.message);
+    res.status(500).json({ success: false, error: "Error saving teacher image" });
+  }
+};
+
+export const removeTeacherImageController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingTeacher = await prisma.teachers.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!existingTeacher) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
+
+    if (existingTeacher.image) {
+      await deleteFromR2(existingTeacher.image);
+    }
+
+    const result = await prisma.teachers.update({
+      where: { id: parseInt(id) },
+      data: { image: null },
+    });
+
+    const cacheKey = "head_msg_cache";
+    await redis.del(cacheKey);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: "Teacher image removed successfully",
+    });
+  } catch (error) {
+    console.error("Error removing teacher image:", error.message);
+    res.status(500).json({ success: false, error: "Error removing teacher image" });
   }
 };
 

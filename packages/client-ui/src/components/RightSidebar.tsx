@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useHeadMasterMsg } from "../data";
 import { useSchoolConfig } from "../context/school";
-import backend from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 
 type SidebarLink = {
   title: string;
@@ -129,26 +129,8 @@ export function RightSidebar({ headMasterMsg }: RightSidebarProps) {
   const calendarData = getCalendarData(currentDate);
 
   const teacherImage = resolvedHeadMasterMsg?.teacher?.image;
-  const resolvedBackendBaseUrl = String((school as any).backendBaseUrl || backend || "")
-    .trim()
-    .replace(/\/+$/, "");
 
-  const teacherImgSrc = React.useMemo(() => {
-    if (!teacherImage) return "";
-    if (
-      /^(?:https?:)?\/\//i.test(teacherImage) ||
-      teacherImage.startsWith("data:") ||
-      teacherImage.startsWith("blob:")
-    ) {
-      return teacherImage;
-    }
-
-    const normalizedPath = teacherImage.replace(/\\/g, "/").replace(/^\/+/, "");
-    if (resolvedBackendBaseUrl) {
-      return `${resolvedBackendBaseUrl}/${normalizedPath}`;
-    }
-    return `/${normalizedPath}`;
-  }, [teacherImage, resolvedBackendBaseUrl]);
+  const teacherImgSrc = getFileUrl(teacherImage ?? null);
 
   React.useEffect(() => {
     setImgError(false);

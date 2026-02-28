@@ -1,7 +1,7 @@
 
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/context/useAuth";
-import backend from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 import { getInitials } from "@/lib/utils";
 export default function TeacherProfile() {
     const { user } = useAuth();
@@ -12,7 +12,7 @@ export default function TeacherProfile() {
                     <div className="h-56 w-56 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
                         {user?.image ? (
                             <img
-                                src={`${backend}/${user.image}`}
+                                src={getFileUrl(user.image)}
                                 alt="Profile"
                                 className="w-full h-full object-cover object-top"
                             />

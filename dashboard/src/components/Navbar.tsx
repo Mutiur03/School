@@ -5,9 +5,9 @@ import { useNavigate } from "react-router-dom";
 import LogoutConfirmation from "@/components/LogOutConfirmation";
 import { Menu } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
-import backend from "@/lib/backend";
 import { getInitials } from "@/lib/utils";
 import envPreferredRole from "@/lib/role";
+import { getFileUrl } from "@/lib/backend";
 
 interface NavbarProps {
   onBurgerClick?: () => void;
@@ -61,7 +61,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           user?.image ? (
             <div className="w-10 h-10 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
               <img
-                src={`${backend}/${user.image}`}
+                src={getFileUrl(user.image)}
                 alt="Profile"
                 width={40}
                 height={40}

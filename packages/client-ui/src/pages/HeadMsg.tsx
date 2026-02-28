@@ -1,5 +1,5 @@
 import { useHeadMasterMsg } from "@/hooks/useSchoolData";
-import backend from "@/lib/backend";
+import { getFileUrl } from "@/lib/backend";
 import { useEffect } from "react";
 
 function HeadMsg() {
@@ -15,11 +15,7 @@ function HeadMsg() {
           <div className="w-42 h-42 mb-5 bg-gray-300 animate-pulse shadow-2xl"></div>
         ) : (
           <img
-            src={
-              head?.teacher.image
-                ? `${backend}/${head.teacher.image}`
-                : "/placeholder.svg"
-            }
+            src={getFileUrl(head?.teacher.image ?? null) || "/placeholder.svg"}
             alt="Head Image"
             className="w-42 h-42 object-cover object-top "
           />
