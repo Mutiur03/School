@@ -642,7 +642,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       ? `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString("base64")}`
       : "";
 
-    // Load font files as base64
     const solaimanLipiPath = path.join("public", "fonts", "SolaimanLipi.woff2");
     const timesNewRomanPath = path.join("public", "fonts", "times.ttf");
     const solaimanLipiBase64 = fs.existsSync(solaimanLipiPath)
@@ -652,7 +651,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       ? fs.readFileSync(timesNewRomanPath).toString("base64")
       : "";
 
-    // Helper: Signature of student photo (fetch from R2 and convert to base64)
     let _studentPhotoBase64 = "";
     
     if (registration.photo) {
@@ -680,22 +678,11 @@ export const downloadRegistrationPDF = async (req, res) => {
     )
       .trim()
       .replace(/\/$/, "");
-    console.log(ownDomain);
     
     let qrCodeBase64 = "";
     try {
-      const qrPayload = JSON.stringify({
-        registration_id: registration.id,
-        student_name: registration.student_name_en || registration.student_name_bn || "",
-        section: registration.section || "",
-        roll: registration.roll || "",
-        class6_year: registration.class6_year || "",
-      });
-
       const qrData =
-        isInlinePreview || isHtmlPreview
-          ? `${frontendDomain}/preview/class6/${registration.id}`
-          : qrPayload;
+          `${frontendDomain}/preview/class6/${registration.id}`
 
       qrCodeBase64 = await QRCode.toDataURL(qrData, {
         errorCorrectionLevel: "H",
