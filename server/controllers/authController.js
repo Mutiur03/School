@@ -48,13 +48,18 @@ export const login = async (req, res) => {
         role: "admin",
       },
     });
+    console.log("Login attempt for username:", username);
     if (!user) {
       return res
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
-
+    console.log("User found for", user);
+    
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log("Pass", isValidPassword);
+    
+
     if (!isValidPassword) {
       return res
         .status(401)
