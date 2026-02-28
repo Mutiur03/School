@@ -5,7 +5,8 @@ process.env.TZ = "Asia/Dhaka";
 
 export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
-import morgan from "morgan";
+import { morganMiddleware, detailedRequestLogger } from "./middlewares/requestLogger.js";
+import logger from "./utils/logger.js";
 import studRouter from "./routes/studRoutes.js";
 import examRouter from "./routes/examRoutes.js";
 import subRouter from "./routes/subRoutes.js";
@@ -59,44 +60,11 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-} else {
-  // const colors = {
-  //   reset: "\x1b[0m",
-  //   red: "\x1b[31m",
-  //   green: "\x1b[32m",
-  //   yellow: "\x1b[33m",
-  //   blue: "\x1b[34m",
-  //   magenta: "\x1b[35m",
-  //   cyan: "\x1b[36m",
-  //   gray: "\x1b[90m",
-  // };
-
-  // const colorStatus = (status) => {
-  //   const s = Number(status);
-  //   if (s >= 500) return `${colors.red}${status}${colors.reset}`;
-  //   if (s >= 400) return `${colors.yellow}${status}${colors.reset}`;
-  //   if (s >= 300) return `${colors.cyan}${status}${colors.reset}`;
-  //   return `${colors.green}${status}${colors.reset}`;
-  // };
-
-  app.use(
-    // morgan((tokens, req, res) => {
-    //   const method = tokens.method(req, res);
-    //   const url = tokens.url(req, res);
-    //   const status = tokens.status(req, res) || "-";
-    //   const responseTime = tokens["response-time"](req, res) || "-";
-    //   const remote = tokens["remote-addr"](req, res) || "-";
-    //   return `${colors.magenta}${method}${colors.reset} ${colors.reset}${url}${
-    //     colors.reset
-    //   } ${colorStatus(status)} ${colors.gray}-${
-    //     colors.reset
-    //   } ${responseTime} ms ${colors.gray}${remote}${colors.reset}`;
-    // })
-    morgan("combined"),
-  );
-}
+// Request logging: morgan pipes to winston, then detailed logger captures
+// structured JSON (method, url, status, duration, ip, redacted body) into
+// logs/access-YYYY-MM-DD.log + logs/combined-YYYY-MM-DD.log
+app.use(morganMiddleware);
+app.use(detailedRequestLogger);
 app.options("*", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -154,10 +122,19 @@ app.use("*", (req, res) => {
   });
 });
 app.use((error, req, res, _next) => {
-  // console.error("Server error:", error); // Optional: keep logging
-
   const statusCode = error.statusCode || 500;
   const message = error.message || "Internal server error";
+
+  logger.error("Unhandled server error", {
+    status: statusCode,
+    message,
+    stack: error.stack,
+    url: req.originalUrl,
+    method: req.method,
+    ip:
+      (req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+      req.socket?.remoteAddress,
+  });
 
   res.status(statusCode).json({
     success: false,
@@ -170,16 +147,16 @@ app.use((error, req, res, _next) => {
 app.listen(PORT, () => {
   fs.mkdir(storagePath, { recursive: true }, (err) => {
     if (err) {
-      console.error("Error creating uploads directory:", err);
+      logger.error("Error creating uploads directory", { error: err.message });
     } else {
-      console.log("Uploads directory created successfully");
+      logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  console.log(
-    `Server running on port ${PORT} in ${
-      process.env.NODE_ENV === "production" ? "production" : "dev"
-    } mode`,
-  );
+  const mode = process.env.NODE_ENV === "production" ? "production" : "development";
+  logger.info(`Server started`, {
+    port: PORT,
+    mode,
+    health: `http://localhost:${PORT}/api/health`,
+  });
   check();
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
 });

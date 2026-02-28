@@ -14,6 +14,8 @@ import {
   VALID_DEPARTMENTS,
   type StudentFormSchemaData,
 } from "@school/shared-schemas";
+import { Input } from "@/components/ui/input";
+import ErrorMessage from "@/components/ErrorMessage";
 
 interface Student {
   id: number;
@@ -193,6 +195,7 @@ function StudentList() {
     defaultValues: defaultFormValues,
     resolver: zodResolver(studentFormSchema),
     criteriaMode: "firstError",
+    mode: "onBlur",
   });
 
   const watchedClass = Number(watch("class") || "0");
@@ -790,15 +793,14 @@ function StudentList() {
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
             disabled={loading}
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {loading ? "Loading students..." : "+ Add Student"}
           </Button>
         )}
       </div>
       {showForm && (
-        <div className="flex flex-col items-center bg-card rounded-md mb-4 relative max-w-full">
-          <div className="w-full p-4 sm:p-6 rounded-md shadow-md">
+        <div className="flex flex-col items-center bg-card rounded-sm mb-4 relative max-w-full">
+          <div className="w-full p-4 sm:p-6 rounded-sm shadow-md">
             <h2 className="text-lg sm:text-2xl font-semibold text-center mb-4">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
@@ -807,7 +809,7 @@ function StudentList() {
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
-                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${!isExcelUpload
+                  className={`px-4 sm:px-6 py-2 rounded-l-sm font-semibold transition-all duration-300 ${!isExcelUpload
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "bg-accent text-accent-foreground hover:bg-accent/80"
                     }`}
@@ -817,7 +819,7 @@ function StudentList() {
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
-                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${isExcelUpload
+                  className={`px-4 sm:px-6 py-2 rounded-r-sm font-semibold transition-all duration-300 ${isExcelUpload
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "bg-accent text-accent-foreground hover:bg-accent/80"
                     }`}
@@ -829,10 +831,10 @@ function StudentList() {
             <div className="space-y-4 sm:space-y-6">
               {!isExcelUpload ? (
                 <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-                  <div className="rounded-md border border-border bg-muted/20 p-4">
+                  <div className="rounded-sm border border-border bg-muted/20 p-4">
                     <div className="flex justify-center flex-col items-center">
                       <p className="text-sm font-medium mb-2">Student Image</p>
-                      <label className="w-24 h-24 sm:w-32 sm:h-32 bg-card border border-border rounded-md flex items-center justify-center cursor-pointer overflow-hidden hover:border-primary transition-colors">
+                      <label className="w-24 sm:w-32 aspect-[7/9] bg-card border border-border rounded-sm flex items-center justify-center cursor-pointer overflow-hidden hover:border-primary transition-colors">
                         {preview ? (
                           <img
                             src={preview}
@@ -850,7 +852,7 @@ function StudentList() {
                             Click to upload
                           </span>
                         )}
-                        <input
+                        <Input
                           type="file"
                           accept="image/*"
                           onChange={handleImageUpload}
@@ -869,125 +871,98 @@ function StudentList() {
                     </div>
                   </div>
 
-                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Name <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Full Name"
                           {...register("name")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.name && (
-                          <p className="text-destructive text-xs">{errors.name.message}</p>
-                        )}
+                        {errors.name && <ErrorMessage message={errors.name.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Father Name <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Father's Name"
                           {...register("father_name")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.father_name && (
-                          <p className="text-destructive text-xs">{errors.father_name.message}</p>
-                        )}
+                        {errors.father_name && <ErrorMessage message={errors.father_name.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Mother Name <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Mother's Name"
                           {...register("mother_name")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.mother_name && (
-                          <p className="text-destructive text-xs">{errors.mother_name.message}</p>
-                        )}
+                        {errors.mother_name && <ErrorMessage message={errors.mother_name.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Date of Birth <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="date"
                           lang="en-GB"
                           placeholder="dd/mm/yyyy"
                           {...register("dob")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.dob && (
-                          <p className="text-destructive text-xs">{errors.dob.message}</p>
-                        )}
+                        {errors.dob && <ErrorMessage message={errors.dob.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Father Phone <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Father's Phone"
                           maxLength={11}
                           {...register("father_phone")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.father_phone && (
-                          <p className="text-destructive text-xs">{errors.father_phone.message}</p>
-                        )}
+                        {errors.father_phone && <ErrorMessage message={errors.father_phone.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Mother Phone</label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Mother's Phone"
                           maxLength={11}
                           {...register("mother_phone")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.mother_phone && (
-                          <p className="text-destructive text-xs">{errors.mother_phone.message}</p>
-                        )}
+                        {errors.mother_phone && <ErrorMessage message={errors.mother_phone.message} />}
                       </div>
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Academic Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Class <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Class"
                           {...register("class")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.class && (
-                          <p className="text-destructive text-xs">{errors.class.message}</p>
-                        )}
+                        {errors.class && <ErrorMessage message={errors.class.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Roll <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Roll"
                           {...register("roll")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.roll && (
-                          <p className="text-destructive text-xs">{errors.roll.message}</p>
-                        )}
+                        {errors.roll && <ErrorMessage message={errors.roll.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Section <span className="text-destructive">*</span></label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Section"
                           {...register("section")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.section && (
-                          <p className="text-destructive text-xs">{errors.section.message}</p>
-                        )}
+                        {errors.section && <ErrorMessage message={errors.section.message} />}
                       </div>
                       {(watchedClass === 9 || watchedClass === 10) && (
                         <div className="space-y-1.5">
@@ -995,7 +970,7 @@ function StudentList() {
                           <select
                             {...register("department")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
-                            className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
+                            className="w-full min-w-0 px-4 py-2 border border-border rounded-sm bg-popover text-popover-foreground text-base shadow-xs outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                           >
                             <option value="">Select Department</option>
                             {VALID_DEPARTMENTS.map((department) => (
@@ -1004,61 +979,55 @@ function StudentList() {
                               </option>
                             ))}
                           </select>
-                          {errors.department && (
-                            <p className="text-destructive text-xs">{errors.department.message}</p>
-                          )}
+                          {errors.department && <ErrorMessage message={errors.department.message} />}
                         </div>
                       )}
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-md border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Address Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Village</label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Village"
                           {...register("village")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.village && <p className="text-destructive text-xs">{errors.village.message}</p>}
+                        {errors.village && <ErrorMessage message={errors.village.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Post Office</label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Post Office"
                           {...register("post_office")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.post_office && <p className="text-destructive text-xs">{errors.post_office.message}</p>}
+                        {errors.post_office && <ErrorMessage message={errors.post_office.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Upazila</label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="Upazila"
                           {...register("upazila")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.upazila && <p className="text-destructive text-xs">{errors.upazila.message}</p>}
+                        {errors.upazila && <ErrorMessage message={errors.upazila.message} />}
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">District</label>
-                        <input
+                        <Input
                           type="text"
                           placeholder="District"
                           {...register("district")}
-                          className="w-full px-2.5 sm:px-3 py-2 border border-border bg-background rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none"
                         />
-                        {errors.district && <p className="text-destructive text-xs">{errors.district.message}</p>}
+                        {errors.district && <ErrorMessage message={errors.district.message} />}
                       </div>
                     </div>
                   </fieldset>
 
-                  <div className="rounded-md border border-border bg-muted/20 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="rounded-sm border border-border bg-muted/20 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are mandatory.</p>
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
                       <label className="flex items-center space-x-2 text-sm font-medium">
@@ -1144,7 +1113,7 @@ function StudentList() {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-primary"
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-sm cursor-pointer hover:border-primary"
                     >
                       <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
@@ -1211,17 +1180,17 @@ function StudentList() {
           </div>
         </div>
       )}
-      <div className="p-4 rounded-md shadow-md mb-4 md:mb-6">
+      <div className="p-4 rounded-sm shadow-md mb-4 md:mb-6">
         <input
           type="text"
           placeholder="Search by name or phone..."
-          className="border border-border bg-background text-foreground rounded-md px-4 py-2 mb-4 w-full"
+          className="border border-border bg-background text-foreground rounded-sm px-4 py-2 mb-4 w-full"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
           <select
-            className="border border-border bg-background rounded-md px-3 py-2 w-full"
+            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
           >
@@ -1233,7 +1202,7 @@ function StudentList() {
             ))}
           </select>
           <select
-            className="border border-border bg-background rounded-md px-3 py-2 w-full"
+            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
             value={sectionFilter}
             onChange={(e) => setSectionFilter(e.target.value)}
           >
@@ -1247,7 +1216,7 @@ function StudentList() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="border border-border bg-background rounded-md px-3 py-2 w-full"
+            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
           >
             {Array.from({ length: 3 }, (_, i) => (
               <option key={i} value={currentYear - 1 + i}>
@@ -1257,7 +1226,7 @@ function StudentList() {
           </select>
         </div>
       </div>
-      <div className="rounded-md  shadow-md overflow-hidden flex-grow">
+      <div className="rounded-sm mb-6 sm:mb-8 shadow-md overflow-hidden flex-grow">
         {hasSelectedStudents && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 px-2 py-2  bg-muted/30">
             <p className="text-sm font-medium text-foreground">
@@ -1274,7 +1243,7 @@ function StudentList() {
             </Button>
           </div>
         )}
-        <div className="rounded-md shadow-sm border border-border overflow-hidden">
+        <div className="rounded-sm shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-border ">
               <thead className="bg-popover sticky top-0">
@@ -1422,67 +1391,123 @@ function StudentList() {
         </div>
       </div>
       {popup.visible && popup.student && (
-        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-md sm:max-w-lg rounded-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:px-6">
-              {popup.type === "view" && (
-                <>
-                  <h2 className="text-xl font-bold">Student Details</h2>
-                  <div className="space-y-3">
-                    {popup.student.image && (
-                      <div className="flex justify-center mb-4">
-                        <img
-                          src={`${host}/${popup.student.image}`}
-                          alt="Student"
-                          className="w-32 h-32 object-cover rounded-full"
-                        />
-                      </div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closePopup}>
+          <div className="bg-card w-full max-w-md rounded-sm shadow-2xl max-h-[90vh] overflow-y-auto border border-border" onClick={(e) => e.stopPropagation()}>
+            {popup.type === "view" && (
+              <>
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <h2 className="text-base font-semibold">Student Details</h2>
+                  <button
+                    onClick={closePopup}
+                    className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Profile */}
+                <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
+                  {popup.student.image ? (
+                    <img
+                      src={`${host}/${popup.student.image}`}
+                      alt="Student"
+                      className="w-20  sm:w-24 aspect-[7/9] object-cover rounded-sm border border-border shadow"
+                    />
+                  ) : (
+                    <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
+                      {popup.student.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="font-semibold text-base">{popup.student.name}</p>
+                    <p className="text-xs text-muted-foreground">Login ID: {popup.student.login_id}</p>
+                  </div>
+                  <div className="flex gap-2 mt-1 flex-wrap justify-center">
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
+                    {popup.student.department && (
+                      <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.department}</span>
                     )}
-                    {Object.entries({
-                      Name: popup.student.name,
-                      "Login ID": popup.student.login_id,
-                      "Father's Name": popup.student.father_name,
-                      "Mother's Name": popup.student.mother_name,
-                      "Father's Phone": popup.student.father_phone || "N/A",
-                      "Mother's Phone": popup.student.mother_phone || "N/A",
-                      "Has Stipend": popup.student.has_stipend ? "Yes" : "No",
-                      Class: popup.student.class,
-                      Section: popup.student.section,
-                      Roll: popup.student.roll,
-                      Department: popup.student.department || "N/A",
-                      Village: popup.student.village || "N/A",
-                      "Post Office": popup.student.post_office || "N/A",
-                      Upazila: popup.student.upazila || "N/A",
-                      District: popup.student.district || "N/A",
-                      "Date of Birth": format(
-                        new Date(popup.student.dob),
-                        "dd MMM yyyy"
-                      ),
-                    }).map(([key, value]) => (
-                      <div key={key} className="flex flex-wrap">
-                        <span className="font-medium w-1/3">{key}:</span>
-                        <span className="flex-1">{value}</span>
+                    {popup.student.has_stipend && (
+                      <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info sections */}
+                <div className="px-5 py-4 space-y-4">
+                  {/* Personal */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "Date of Birth", value: format(new Date(popup.student.dob), "dd MMM yyyy") },
+                        { label: "Father's Name", value: popup.student.father_name },
+                        { label: "Mother's Name", value: popup.student.mother_name },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex text-sm">
+                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                          <span className="font-medium">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contact */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "Father's Phone", value: popup.student.father_phone || "N/A" },
+                        { label: "Mother's Phone", value: popup.student.mother_phone || "N/A" },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex text-sm">
+                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                          <span className="font-medium">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  {(popup.student.village || popup.student.post_office || popup.student.upazila || popup.student.district) && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Address</p>
+                      <div className="space-y-1.5">
+                        {[
+                          { label: "Village", value: popup.student.village },
+                          { label: "Post Office", value: popup.student.post_office },
+                          { label: "Upazila", value: popup.student.upazila },
+                          { label: "District", value: popup.student.district },
+                        ].filter(({ value }) => value).map(({ label, value }) => (
+                          <div key={label} className="flex text-sm">
+                            <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                            <span className="font-medium">{value}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={closePopup}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 py-3 border-t border-border flex justify-end">
+                  <Button onClick={closePopup} variant="outline" type="button">
+                    Close
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {showFormatInfo && (
         <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-md shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-card w-full max-w-2xl rounded-sm shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">
@@ -1501,7 +1526,7 @@ function StudentList() {
                   Use one standard format with required columns. Each row is validated before upload.
                 </p>
 
-                <div className="bg-muted/40 border border-border rounded-md p-4">
+                <div className="bg-muted/40 border border-border rounded-sm p-4">
                   <h3 className="font-medium mb-2">Required Excel Format</h3>
                   <p className="text-sm text-muted-foreground mb-2">
                     Required columns for every upload:
@@ -1561,7 +1586,7 @@ function StudentList() {
                   </ul>
                 </div>
 
-                <div className="bg-muted/40 border border-border rounded-md p-3">
+                <div className="bg-muted/40 border border-border rounded-sm p-3">
                   <p className="text-sm text-foreground">
                     <strong>💡 Tip:</strong> Keep column names exactly as shown above and ensure required fields are filled for every row.
                   </p>
@@ -1571,7 +1596,7 @@ function StudentList() {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowFormatInfo(false)}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-sm hover:bg-primary/90 transition"
                 >
                   Got it
                 </button>

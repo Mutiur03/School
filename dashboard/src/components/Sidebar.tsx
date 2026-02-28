@@ -439,7 +439,7 @@ const Sidebar = ({
                         <NavLink
                           to={item.link as string}
                           className={() =>
-                            `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isPathActive(item.link)
+                            `flex items-center w-full px-3 py-2 rounded-sm transition-all duration-200 ${isPathActive(item.link)
                               ? "bg-primary/20 text-primary"
                               : "hover:inset-1 hover:inset-ring"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
@@ -465,7 +465,7 @@ const Sidebar = ({
                       ) : (
                         <div>
                           <button
-                            className={`flex items-center w-full p-3 rounded-md transition-all duration-200 ${sidebarExpanded
+                            className={`flex items-center w-full p-3 rounded-sm transition-all duration-200 ${sidebarExpanded
                               ? "justify-between gap-3"
                               : "justify-center"
                               }`}
@@ -516,7 +516,7 @@ const Sidebar = ({
                                       <NavLink
                                         to={subItem.link}
                                         className={({ isActive }: { isActive: boolean }) =>
-                                          `flex items-center w-full px-3 py-2 rounded-md transition-all duration-200 ${isActive
+                                          `flex items-center w-full px-3 py-2 rounded-sm transition-all duration-200 ${isActive
                                             ? "bg-primary/20 text-primary"
                                             : "hover:inset-1 hover:inset-ring"
                                           }`

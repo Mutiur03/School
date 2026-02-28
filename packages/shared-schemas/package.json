@@ -9,7 +9,6 @@
     "zod": "^4.3.6"
   },
   "exports": {
-    ".": "./index.ts",
-    "./studentSchemas": "./studentSchemas.ts"
+    ".": "./index.ts"
   }
 }
