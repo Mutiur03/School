@@ -10,7 +10,9 @@
     "build:client": "npm install --include=optional --ignore-scripts=false --no-audit --no-fund && npm run build:client:core",
     "dev:client": "npm run dev -w client",
     "build:client:ui": "npm run build -w @school/client-ui",
-    "dev:client:ui": "npm run dev -w @school/client-ui"
+    "dev:client:ui": "npm run dev -w @school/client-ui",
+    "build:common:ui": "npm run build -w @school/common-ui",
+    "dev:common:ui": "npm run dev -w @school/common-ui"
   },
   "dependencies": {
     "zod": "^4.3.6"

@@ -198,3 +198,24 @@ Think of `@school/client-ui` as a reusable theme/layout + shared feature blocks 
 - **Backend target** comes from app-level `axios.defaults.baseURL`
 
 That separation is what makes one package reusable across multiple school frontends.
+
+---
+
+## 12) Additional package for cross-project components
+
+There is now a second package:
+
+- `@school/common-ui` in `packages/common-ui`
+
+Purpose:
+
+- Store generic shared components (`Button`, `Card`, `Input`, `Badge`)
+- Reuse in any React project in this monorepo (not only school-client pages)
+- Use with minimal setup (styles are loaded automatically from package entry)
+
+Build and dev commands:
+
+```bash
+npm run build:common:ui
+npm run dev:common:ui
+```
