@@ -177,7 +177,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 setLoading(false);
                 return;
             }
-        } catch (error) {
+        } catch {
             // failed to refresh — no active session
             console.log("No active refresh session found");
             setUser(null);
@@ -198,10 +198,16 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 toast.success(res.data.message);
                 setAccessToken(res.data.accessToken);
                 setUser(res.data.user);
+            } else {
+                toast.error(res.data.message || "Invalid Credentials");
+                throw new Error(res.data.message || "Login failed");
             }
         } catch (error) {
             console.error("Error logging in:", error);
-            toast.error("Invalid Credentials");
+            if (axios.isAxiosError(error)) {
+                // Network/HTTP error — not already toasted above
+                toast.error("Invalid Credentials");
+            }
             throw error;
         }
     };
