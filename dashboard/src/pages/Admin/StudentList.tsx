@@ -1,12 +1,14 @@
 import axios from "axios";
 import React, { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Eye, Upload, Pencil } from "lucide-react";
+import { Eye, Upload, Pencil, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "@/components/Loading";
+import { PageHeader, SectionCard, StatsCard } from "@/components";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
+import DeletePopup from "@/components/DeletePopup";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -179,6 +181,7 @@ function StudentList() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [showFormatInfo, setShowFormatInfo] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const {
     register,
@@ -375,11 +378,7 @@ function StudentList() {
       toast.error("Please select at least one student.");
       return;
     }
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedStudentIds.length} selected student(s)?`
-    );
-    if (!confirmed) return;
-    bulkDeleteMutation.mutate(selectedStudentIds);
+    setBulkDeleteOpen(true);
   };
 
   useEffect(() => {
@@ -687,35 +686,35 @@ function StudentList() {
     removeImageMutation.mutate(selectedStudent.id);
   };
   return (
-    <div className="max-w-6xl  mx-auto mt-10 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-        <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-0">
-          Student List
-        </h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title="Student List"
+        description="Manage student records, add new students or upload via Excel."
+      >
         {!showForm && (
           <Button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
             disabled={loading}
           >
-            {loading ? "Loading students..." : "+ Add Student"}
+            {loading ? "Loading..." : "+ Add Student"}
           </Button>
         )}
-      </div>
+      </PageHeader>
       {showForm && (
-        <div className="flex flex-col items-center bg-card rounded-sm mb-4 relative max-w-full">
-          <div className="w-full p-4 sm:p-6 rounded-sm shadow-md">
-            <h2 className="text-lg sm:text-2xl font-semibold text-center mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
+          <div className="w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
             {!isEditing && (
-              <div className="flex justify-center mb-4">
+              <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
-                  className={`px-4 sm:px-6 py-2 rounded-l-sm font-semibold transition-all duration-300 ${!isExcelUpload
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-accent text-accent-foreground hover:bg-accent/80"
+                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${!isExcelUpload
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
                     }`}
                 >
                   Form
@@ -723,9 +722,9 @@ function StudentList() {
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
-                  className={`px-4 sm:px-6 py-2 rounded-r-sm font-semibold transition-all duration-300 ${isExcelUpload
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-accent text-accent-foreground hover:bg-accent/80"
+                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${isExcelUpload
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
                     }`}
                 >
                   Excel Upload
@@ -735,10 +734,10 @@ function StudentList() {
             <div className="space-y-4 sm:space-y-6">
               {!isExcelUpload ? (
                 <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-                  <div className="rounded-sm border border-border bg-muted/20 p-4">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
                     <div className="flex justify-center flex-col items-center">
                       <p className="text-sm font-medium mb-2">Student Image</p>
-                      <label className="w-24 sm:w-32 aspect-[7/9] bg-card border border-border rounded-sm flex items-center justify-center cursor-pointer overflow-hidden hover:border-primary transition-colors">
+                      <label className="w-24 sm:w-32 aspect-[7/9] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
                         {preview ? (
                           <img
                             src={preview}
@@ -775,7 +774,7 @@ function StudentList() {
                     </div>
                   </div>
 
-                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -838,7 +837,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Academic Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -874,7 +873,7 @@ function StudentList() {
                           <select
                             {...register("department")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
-                            className="w-full min-w-0 px-4 py-2 border border-border rounded-sm bg-popover text-popover-foreground text-base shadow-xs outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="">Select Department</option>
                             {VALID_DEPARTMENTS.map((department) => (
@@ -889,7 +888,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-sm border border-border bg-card p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Address Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -931,7 +930,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <div className="rounded-sm border border-border bg-muted/20 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are mandatory.</p>
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
                       <label className="flex items-center space-x-2 text-sm font-medium">
@@ -1017,7 +1016,7 @@ function StudentList() {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-sm cursor-pointer hover:border-primary"
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
                     >
                       <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
@@ -1084,56 +1083,80 @@ function StudentList() {
           </div>
         </div>
       )}
-      <div className="p-4 rounded-sm shadow-md mb-4 md:mb-6">
-        <input
-          type="text"
-          placeholder="Search by name or phone..."
-          className="border border-border bg-background text-foreground rounded-sm px-4 py-2 mb-4 w-full"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <StatsCard label="Total Students" value={students.length} />
+        <StatsCard
+          label="Showing"
+          value={filteredStudents.length !== students.length ? `${filteredStudents.length} / ${students.length}` : students.length}
+          color="blue"
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
-          <select
-            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-          >
-            <option value="">All Classes</option>
-            {uniqueClasses.map((classNum) => (
-              <option key={classNum} value={classNum}>
-                Class {classNum}
-              </option>
-            ))}
-          </select>
-          <select
-            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-          >
-            <option value="">All Sections</option>
-            {uniqueSections.map((section) => (
-              <option key={section} value={section}>
-                Section {section}
-              </option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="border border-border bg-background rounded-sm px-3 py-2 w-full"
-          >
-            {Array.from({ length: 3 }, (_, i) => (
-              <option key={i} value={currentYear - 1 + i}>
-                {currentYear - 1 + i}
-              </option>
-            ))}
-          </select>
-        </div>
+        <StatsCard label="With Stipend" value={filteredStudents.filter(s => s.has_stipend).length} color="emerald" />
       </div>
-      <div className="rounded-sm mb-6 sm:mb-8 shadow-md overflow-hidden flex-grow">
+      <SectionCard className="mb-6">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[240px]">
+            <label className="block text-sm font-medium mb-1">Search</label>
+            <div className="relative">
+              <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by name or phone..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Class</label>
+            <select
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+            >
+              <option value="">All Classes</option>
+              {uniqueClasses.map((classNum) => (
+                <option key={classNum} value={classNum}>
+                  Class {classNum}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Section</label>
+            <select
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={sectionFilter}
+              onChange={(e) => setSectionFilter(e.target.value)}
+            >
+              <option value="">All Sections</option>
+              {uniqueSections.map((section) => (
+                <option key={section} value={section}>
+                  Section {section}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Year</label>
+            <select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {Array.from({ length: 3 }, (_, i) => (
+                <option key={i} value={currentYear - 1 + i}>
+                  {currentYear - 1 + i}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </SectionCard>
+      <SectionCard noPadding className="mb-6">
         {hasSelectedStudents && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 px-2 py-2  bg-muted/30">
-            <p className="text-sm font-medium text-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/10 border-b border-red-200 dark:border-red-900/20">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
               {selectedStudentIds.length} student(s) selected
             </p>
             <Button
@@ -1143,157 +1166,159 @@ function StudentList() {
               disabled={bulkDeleteMutation.isPending}
               className="w-full sm:w-auto"
             >
-              {bulkDeleteMutation.isPending ? "Deleting Selected..." : "Delete Selected"}
+              {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedStudentIds.length} Selected`}
             </Button>
+            <DeletePopup
+              open={bulkDeleteOpen}
+              onOpenChange={setBulkDeleteOpen}
+              onDelete={() => { setBulkDeleteOpen(false); bulkDeleteMutation.mutate(selectedStudentIds); }}
+              msg={`This will permanently delete ${selectedStudentIds.length} selected student(s). This action cannot be undone.`}
+            />
           </div>
         )}
-        <div className="rounded-sm shadow-sm border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border ">
-              <thead className="bg-popover sticky top-0">
-                <tr>
-                  <th className="w-12 px-2 py-2 sm:px-4 sm:py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={handleSelectAllVisible}
-                      aria-label="Select all students"
-                      className="h-4 w-4"
-                    />
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleSelectAllVisible}
+                    aria-label="Select all students"
+                    className="h-4 w-4"
+                  />
+                </th>
+                {[
+                  "Student",
+                  "Roll",
+                  "Class",
+                  "Section",
+                  "Department",
+                  "Image",
+                  "Actions",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    className={`px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider ${header === "Actions" ? "text-right" : "text-center sm:text-left"}`}
+                  >
+                    {header}
                   </th>
-                  {[
-                    "Name",
-                    "Roll",
-                    "Class",
-                    "Section",
-                    "Department",
-                    "",
-                    "Actions",
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      className={`px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold uppercase tracking-wider ${header === "Actions" ? "text-right" : "text-left"
-                        }`}
-                    >
-                      {header}
-                    </th>
-                  ))}
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="flex flex-col justify-center items-center gap-2">
+                      <Loading />
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border overflow-y-auto">
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="py-2">
-                      <div className="flex flex-col justify-center items-center gap-2 w-full h-full py-4">
-                        <Loading />
-                        <p className="text-sm text-muted-foreground">Loading students...</p>
+              ) : filteredStudents.length > 0 ? (
+                filteredStudents.map((student) => (
+                  <tr
+                    key={student.id}
+                    className={selectedStudentIds.includes(student.id) ? "bg-muted/20" : ""}
+                  >
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(student.id)}
+                        onChange={() => handleRowSelect(student.id)}
+                        aria-label={`Select ${student.name}`}
+                        className="h-4 w-4"
+                      />
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm font-medium">
+                      {student.name}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+                      {student.roll}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+                      {student.class}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+                      {student.section}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+                      {student.department || ""}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+                      {student.image && (
+                        <img
+                          src={getFileUrl(student.image)}
+                          alt="Student"
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      )}
+                    </td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
+                      <div className="flex justify-end space-x-1 sm:space-x-2">
+                        <label htmlFor={`file-upload-${student.id}`}>
+                          <Upload
+                            size={16}
+                            className="sm:w-4 sm:h-4 w-3 h-3"
+                          />
+                        </label>
+                        <input
+                          type="file"
+                          id={`file-upload-${student.id}`}
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleIndivisualImageUpload(e, student)
+                          }
+                        />
+                        <button
+                          onClick={() =>
+                            setPopup({
+                              visible: true,
+                              type: "view",
+                              student,
+                            })
+                          }
+                          className="text-primary hover:text-primary/80"
+                          aria-label="View"
+                        >
+                          <Eye size={16} className="sm:w-4 sm:h-4 w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(student)}
+                          className="text-foreground hover:text-primary"
+                          aria-label="Edit"
+                        >
+                          <Pencil
+                            size={16}
+                            className="sm:w-4 sm:h-4 w-3 h-3"
+                          />
+                        </button>
+
+                        <DeleteConfirmationIcon
+                          onDelete={() => handleDelete(student)}
+                          msg={`Are you sure you want to delete ${student.name}?`}
+                        />
                       </div>
                     </td>
                   </tr>
-                ) : filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
-                    <tr
-                      key={student.id}
-                      className={selectedStudentIds.includes(student.id) ? "bg-muted/20" : ""}
-                    >
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedStudentIds.includes(student.id)}
-                          onChange={() => handleRowSelect(student.id)}
-                          aria-label={`Select ${student.name}`}
-                          className="h-4 w-4"
-                        />
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm font-medium">
-                        {student.name}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.roll}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.class}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.section}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.department || ""}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                        {student.image && (
-                          <img
-                            src={getFileUrl(student.image)}
-                            alt="Student"
-                            className="w-10 h-10 rounded-xs object-cover"
-                          />
-                        )}
-                      </td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
-                        <div className="flex justify-end space-x-1 sm:space-x-2">
-                          <label htmlFor={`file-upload-${student.id}`}>
-                            <Upload
-                              size={16}
-                              className="sm:w-4 sm:h-4 w-3 h-3"
-                            />
-                          </label>
-                          <input
-                            type="file"
-                            id={`file-upload-${student.id}`}
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) =>
-                              handleIndivisualImageUpload(e, student)
-                            }
-                          />
-                          <button
-                            onClick={() =>
-                              setPopup({
-                                visible: true,
-                                type: "view",
-                                student,
-                              })
-                            }
-                            className="text-primary hover:text-primary/80"
-                            aria-label="View"
-                          >
-                            <Eye size={16} className="sm:w-4 sm:h-4 w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(student)}
-                            className="text-foreground hover:text-primary"
-                            aria-label="Edit"
-                          >
-                            <Pencil
-                              size={16}
-                              className="sm:w-4 sm:h-4 w-3 h-3"
-                            />
-                          </button>
-
-                          <DeleteConfirmationIcon
-                            onDelete={() => handleDelete(student)}
-                            msg={`Are you sure you want to delete ${student.name}?`}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="px-4 py-6 text-center text-sm text-muted-foreground"
-                    >
-                      {errorMessage ||
-                        "No students found matching your criteria."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    {errorMessage ||
+                      "No students found matching your criteria."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </SectionCard>
       {popup.visible && popup.student && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closePopup}>
           <div className="bg-card w-full max-w-md rounded-sm shadow-2xl max-h-[90vh] overflow-y-auto border border-border" onClick={(e) => e.stopPropagation()}>
@@ -1357,6 +1382,14 @@ function StudentList() {
                           <span className="font-medium">{value}</span>
                         </div>
                       ))}
+                      <div className="flex text-sm items-center">
+                        <span className="w-36 text-muted-foreground shrink-0">Stipend</span>
+                        {popup.student.has_stipend ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Yes</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">No</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

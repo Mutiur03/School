@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 
-const DeleteConfirmation = ({ onDelete }: { onDelete: () => void }) => {
+const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: string }) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -26,8 +26,7 @@ const DeleteConfirmation = ({ onDelete }: { onDelete: () => void }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the item
-            from your database.
+            {msg || "This action cannot be undone. This will permanently delete the item from your database."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
