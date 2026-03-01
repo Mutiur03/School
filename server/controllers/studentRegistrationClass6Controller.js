@@ -982,9 +982,9 @@ export const downloadRegistrationPDF = async (req, res) => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 450px;
-      height: 450px;
-      opacity: 0.08;
+      width: 500px;
+      height: 500px;
+      opacity: 0.14;
       z-index: 5;
       pointer-events: none;
       user-select: none;
@@ -1000,10 +1000,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%) rotate(-26deg);
-      z-index: 5;
+      z-index: 6;
       pointer-events: none;
       user-select: none;
-      opacity: 0.42;
+      opacity: 0.65;
       width: 76%;
       border: 8px solid #facc15;
       padding: 10px 18px;
@@ -1022,7 +1022,7 @@ export const downloadRegistrationPDF = async (req, res) => {
         ? "'TimesNewRoman', 'Times New Roman'"
         : "'Times New Roman'"
       }, serif;
-      font-size: 92px;
+      font-size: 100px;
       font-weight: 700;
     }
     .content-area {
@@ -1297,21 +1297,16 @@ export const downloadRegistrationPDF = async (req, res) => {
     <div class="content-area">
       <div class="header">
         <div class="header-top">
-          <div class="passport-photo">
-            ${_studentPhotoBase64
-        ? `<img src="${_studentPhotoBase64}" alt="Student Photo" />`
-        : '<div class="passport-placeholder">Student<br/>Photo</div>'
-      }
-          </div>
+          <div style="width: 90px;"></div>
           <div class="header-center">
             <div class="school en">${schoolName}</div>
             <div class="addr en">${schoolAddr}</div>
             <div class="web en">${schoolWeb}</div>
           </div>
-          <div class="qr-code">
-            ${qrCodeBase64
-        ? `<img src="${qrCodeBase64}" alt="QR Code" />`
-        : '<div class="qr-placeholder">QR<br/>Unavailable</div>'
+          <div class="passport-photo">
+            ${_studentPhotoBase64
+        ? `<img src="${_studentPhotoBase64}" alt="Student Photo" />`
+        : '<div class="passport-placeholder">Student<br/>Photo</div>'
       }
           </div>
         </div>
@@ -1337,8 +1332,8 @@ export const downloadRegistrationPDF = async (req, res) => {
         : ""
       }
       <div class="footer">
-        <div class="note">
-          <div class="document-list">
+        <div class="note" style="display: flex; align-items: flex-start; gap: 12px;">
+          <div class="document-list" style="flex: 1;">
             <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
             ${attachmentInstructions
         ? attachmentInstructions
@@ -1352,6 +1347,12 @@ export const downloadRegistrationPDF = async (req, res) => {
           .filter(Boolean)
           .join("")
         : ""
+      }
+          </div>
+          <div class="qr-code" style="flex-shrink: 0; margin-top: 0;">
+            ${qrCodeBase64
+        ? `<img src="${qrCodeBase64}" alt="QR Code" />`
+        : '<div class="qr-placeholder">QR<br/>Unavailable</div>'
       }
           </div>
         </div>
