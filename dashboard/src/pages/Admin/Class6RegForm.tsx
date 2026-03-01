@@ -4,8 +4,6 @@ import { useSearchParams, useLocation } from "react-router-dom";
 import {
     Plus,
     Search,
-    Edit,
-    Eye,
     Download,
     Image as ImageIcon,
     FileText,
@@ -19,11 +17,13 @@ import {
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard } from "@/components";
+import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup } from "@/components";
 import type { TabItem } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import ActionButton from "@/components/ActionButton";
+import { formatDateWithTime } from "@/lib/utils";
 
 interface Registration {
     id: string;
@@ -350,23 +350,7 @@ const Class6RegForm = () => {
 
     // StatusBadge is now handled by the <StatusBadge> component from @/components
 
-    const formatDate = (dateStr: string | undefined) => {
-        if (!dateStr) return "-";
-        try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return dateStr;
-            return date.toLocaleString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: 'numeric',
-                minute: 'numeric',
-                hour12: true
-            });
-        } catch {
-            return dateStr;
-        }
-    };
+
 
     const tabs: TabItem[] = [
         { id: "registrations", label: "Registrations", icon: <Users size={16} />, href: `${location.pathname}?tab=registrations` },
@@ -610,7 +594,7 @@ const Class6RegForm = () => {
                         </div>
                     </SectionCard>
 
-                    <SectionCard noPadding>
+                    <SectionCard noPadding className="mb-6">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
@@ -664,37 +648,24 @@ const Class6RegForm = () => {
                                                 </td>
                                                 <td className="px-6 py-4"><StatusBadge status={reg.status} /></td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                    {formatDate(reg.created_at)}
+                                                    {formatDateWithTime(reg.created_at)}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex justify-end gap-2">
-                                                        <button
+                                                        <ActionButton
+                                                            action="view"
                                                             onClick={() => {
                                                                 setSelectedReg(reg);
                                                                 setShowDetails(true);
                                                             }}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
-                                                            title="View"
-                                                        >
-                                                            <Eye size={14} /> View
-                                                        </button>
-                                                        <button
+                                                        />
+                                                        <ActionButton
+                                                            action="edit"
                                                             onClick={() => {
                                                                 setEditFormData({ id: reg.id, status: reg.status });
                                                                 setShowEditModal(true);
                                                             }}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 rounded hover:bg-emerald-200 transition-colors dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit size={14} /> Edit
-                                                        </button>
-                                                        {/* <button
-                                                            onClick={() => handleDeleteDetails(reg.id)}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={14} /> Delete
-                                                        </button> */}
+                                                        />
                                                         <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
                                                     </div>
                                                 </td>
@@ -709,334 +680,330 @@ const Class6RegForm = () => {
             )}
 
             {showDetails && selectedReg && (
-                <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white text-black dark:bg-gray-800 dark:text-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-300 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-xl">
-                            <div>
-                                <h3 className="text-xl font-bold">Registration Details</h3>
-                                <p className="text-sm opacity-90 mt-1">Full student information preview</p>
-                            </div>
-                            <button
-                                onClick={() => setShowDetails(false)}
-                                className="text-white hover:text-gray-200 transition-colors p-2"
-                            >
-                                <XCircle size={24} />
-                            </button>
+                <Popup open onOpenChange={(o) => !o && setShowDetails(false)}>
+                    <div className="flex justify-between items-center p-6 border-b border-gray-300 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-xl">
+                        <div>
+                            <h3 className="text-xl font-bold">Registration Details</h3>
+                            <p className="text-sm opacity-90 mt-1">Full student information preview</p>
                         </div>
+                        <button
+                            onClick={() => setShowDetails(false)}
+                            className="text-white hover:text-gray-200 transition-colors p-2"
+                        >
+                            <XCircle size={24} />
+                        </button>
+                    </div>
 
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                                <div className="md:col-span-1">
-                                    <div className="bg-gray-50 sticky top-20 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col items-center">
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Student Photo</h4>
-                                        {selectedReg.photo ? (
-                                            <img
-                                                src={getFileUrl(selectedReg.photo)}
-                                                className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
-                                                alt="Student"
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    target.src = "/placeholder-student.png";
-                                                }}
-                                            />
-                                        ) : (
-                                            <div className="w-full aspect-[3/4] bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
-                                                <Users size={48} className="text-gray-400" />
-                                            </div>
-                                        )}
-                                        <div className="mt-4 w-full">
-                                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                                                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Status</p>
-                                                <div className="flex justify-center"><StatusBadge status={selectedReg.status} /></div>
-                                            </div>
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                            <div className="md:col-span-1">
+                                <div className="bg-gray-50 sticky top-20 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col items-center">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Student Photo</h4>
+                                    {selectedReg.photo ? (
+                                        <img
+                                            src={getFileUrl(selectedReg.photo)}
+                                            className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
+                                            alt="Student"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = "/placeholder-student.png";
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-full aspect-[3/4] bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+                                            <Users size={48} className="text-gray-400" />
+                                        </div>
+                                    )}
+                                    <div className="mt-4 w-full">
+                                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+                                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Status</p>
+                                            <div className="flex justify-center"><StatusBadge status={selectedReg.status} /></div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="md:col-span-3 space-y-6">
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/20">
-                                        <div>
-                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Section</p>
-                                            <p className="font-semibold">{selectedReg.section || "-"}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Roll No</p>
-                                            <p className="font-semibold">{selectedReg.roll || "-"}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Academic Year</p>
-                                            <p className="font-semibold">{selectedReg.class6_year}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Religion</p>
-                                            <p className="font-semibold">{selectedReg.religion || "-"}</p>
-                                        </div>
+                            <div className="md:col-span-3 space-y-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/20">
+                                    <div>
+                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Section</p>
+                                        <p className="font-semibold">{selectedReg.section || "-"}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Roll No</p>
+                                        <p className="font-semibold">{selectedReg.roll || "-"}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Academic Year</p>
+                                        <p className="font-semibold">{selectedReg.class6_year}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">Religion</p>
+                                        <p className="font-semibold">{selectedReg.religion || "-"}</p>
+                                    </div>
+                                </div>
 
-                                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
-                                        <table className="w-full text-sm">
-                                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                                <tr>
-                                                    <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
-                                                        Personal Information (ব্যক্তিগত তথ্য)
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Student Name (EN)</td>
-                                                    <td className="px-4 py-2.5 font-bold text-blue-700 dark:text-blue-400 uppercase">{selectedReg.student_name_en}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Birth Reg. No</td>
-                                                    <td className="px-4 py-2.5 font-mono">{selectedReg.birth_reg_no}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Date of Birth</td>
-                                                    <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Contact Info</td>
-                                                    <td className="px-4 py-2.5">
-                                                        <p>Email: {selectedReg.email || "-"}</p>
-                                                        <p>Father Ph: {selectedReg.father_phone || "-"}</p>
-                                                        <p>Mother Ph: {selectedReg.mother_phone || "-"}</p>
-                                                    </td>
-                                                </tr>
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                                    <table className="w-full text-sm">
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                            <tr>
+                                                <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Personal Information (ব্যক্তিগত তথ্য)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Student Name (EN)</td>
+                                                <td className="px-4 py-2.5 font-bold text-blue-700 dark:text-blue-400 uppercase">{selectedReg.student_name_en}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Birth Reg. No</td>
+                                                <td className="px-4 py-2.5 font-mono">{selectedReg.birth_reg_no}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Date of Birth</td>
+                                                <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Contact Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p>Email: {selectedReg.email || "-"}</p>
+                                                    <p>Father Ph: {selectedReg.father_phone || "-"}</p>
+                                                    <p>Mother Ph: {selectedReg.mother_phone || "-"}</p>
+                                                </td>
+                                            </tr>
 
-                                                <tr>
-                                                    <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
-                                                        Parent Information (পিতা-মাতার তথ্য)
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Father's Info</td>
-                                                    <td className="px-4 py-2.5">
-                                                        <p><strong>Father's Name (BN):</strong> {selectedReg.father_name_bn}</p>
-                                                        <p><strong>Father's Name (EN):</strong> {selectedReg.father_name_en}</p>
-                                                        <p className="text-xs">NID: {selectedReg.father_nid || "-"}</p>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Mother's Info</td>
-                                                    <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 text-lg">
-                                                        {selectedReg.mother_name_bn}
-                                                        <span className="block text-sm font-normal text-gray-500 uppercase mt-1">{selectedReg.mother_name_en}</span>
-                                                        <p className="text-xs">NID: {selectedReg.mother_nid || "-"}</p>
-                                                    </td>
-                                                </tr>
+                                            <tr>
+                                                <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Parent Information (পিতা-মাতার তথ্য)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Father's Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p><strong>Father's Name (BN):</strong> {selectedReg.father_name_bn}</p>
+                                                    <p><strong>Father's Name (EN):</strong> {selectedReg.father_name_en}</p>
+                                                    <p className="text-xs">NID: {selectedReg.father_nid || "-"}</p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">Mother's Info</td>
+                                                <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 text-lg">
+                                                    {selectedReg.mother_name_bn}
+                                                    <span className="block text-sm font-normal text-gray-500 uppercase mt-1">{selectedReg.mother_name_en}</span>
+                                                    <p className="text-xs">NID: {selectedReg.mother_nid || "-"}</p>
+                                                </td>
+                                            </tr>
 
-                                                <tr>
-                                                    <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
-                                                        Address Details (ঠিকানা)
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Present Address</td>
-                                                    <td className="px-4 py-2.5 leading-relaxed">
-                                                        {selectedReg.present_village_road}, {selectedReg.present_post_office}-{selectedReg.present_post_code}, {selectedReg.present_upazila}, {selectedReg.present_district}
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Permanent Address</td>
-                                                    <td className="px-4 py-2.5 leading-relaxed">
-                                                        {selectedReg.permanent_village_road}, {selectedReg.permanent_post_office}-{selectedReg.permanent_post_code}, {selectedReg.permanent_upazila}, {selectedReg.permanent_district}
-                                                    </td>
-                                                </tr>
+                                            <tr>
+                                                <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Address Details (ঠিকানা)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Present Address</td>
+                                                <td className="px-4 py-2.5 leading-relaxed">
+                                                    {selectedReg.present_village_road}, {selectedReg.present_post_office}-{selectedReg.present_post_code}, {selectedReg.present_upazila}, {selectedReg.present_district}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Permanent Address</td>
+                                                <td className="px-4 py-2.5 leading-relaxed">
+                                                    {selectedReg.permanent_village_road}, {selectedReg.permanent_post_office}-{selectedReg.permanent_post_code}, {selectedReg.permanent_upazila}, {selectedReg.permanent_district}
+                                                </td>
+                                            </tr>
 
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Nearby Student Info</td>
-                                                    <td className="px-4 py-2.5">
-                                                        {selectedReg.nearby_student_info || "Not Applicable"}
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
-                                                        Guardian Info (অভিভাবক)
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Prev. School</td>
-                                                    <td className="px-4 py-2.5">
-                                                        <p className="font-bold text-gray-800 dark:text-gray-200 uppercase text-xs">{selectedReg.prev_school_name}</p>
-                                                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                            {selectedReg.prev_school_upazila}, {selectedReg.prev_school_district}
-                                                        </p>
-                                                        <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                                            <div>
-                                                                <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Section</p>
-                                                                <p className="text-xs font-semibold">{selectedReg.section_in_prev_school || "-"}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Roll</p>
-                                                                <p className="text-xs font-semibold">{selectedReg.roll_in_prev_school || "-"}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Year</p>
-                                                                <p className="text-xs font-semibold">{selectedReg.prev_school_passing_year || "-"}</p>
-                                                            </div>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Nearby Student Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    {selectedReg.nearby_student_info || "Not Applicable"}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan={2} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Guardian Info (অভিভাবক)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Prev. School</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p className="font-bold text-gray-800 dark:text-gray-200 uppercase text-xs">{selectedReg.prev_school_name}</p>
+                                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                        {selectedReg.prev_school_upazila}, {selectedReg.prev_school_district}
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                                        <div>
+                                                            <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Section</p>
+                                                            <p className="text-xs font-semibold">{selectedReg.section_in_prev_school || "-"}</p>
                                                         </div>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Guardian</td>
-                                                    <td className="px-4 py-2.5">
-                                                        {selectedReg.guardian_name ? (
-                                                            <div className="space-y-1.5">
-                                                                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                                                                    {selectedReg.guardian_name} <span className="text-xs font-normal text-gray-500">({selectedReg.guardian_relation})</span>
-                                                                </p>
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                                                    <p><span className="text-gray-400">Phone:</span> {selectedReg.guardian_phone || "-"}</p>
-                                                                    <p><span className="text-gray-400">NID:</span> {selectedReg.guardian_nid || "-"}</p>
-                                                                </div>
-                                                                {(selectedReg.guardian_village_road || selectedReg.guardian_district) && (
-                                                                    <div className="pt-1 mt-1 border-t border-gray-100 dark:border-gray-700/50">
-                                                                        <p className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Guardian Address</p>
-                                                                        <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                                                                            {selectedReg.guardian_village_road}, {selectedReg.guardian_post_office}-{selectedReg.guardian_post_code}, {selectedReg.guardian_upazila}, {selectedReg.guardian_district}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
+                                                        <div>
+                                                            <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Roll</p>
+                                                            <p className="text-xs font-semibold">{selectedReg.roll_in_prev_school || "-"}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] uppercase font-bold text-gray-400 leading-none">Year</p>
+                                                            <p className="text-xs font-semibold">{selectedReg.prev_school_passing_year || "-"}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30 align-top">Guardian</td>
+                                                <td className="px-4 py-2.5">
+                                                    {selectedReg.guardian_name ? (
+                                                        <div className="space-y-1.5">
+                                                            <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                                                {selectedReg.guardian_name} <span className="text-xs font-normal text-gray-500">({selectedReg.guardian_relation})</span>
+                                                            </p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                                                <p><span className="text-gray-400">Phone:</span> {selectedReg.guardian_phone || "-"}</p>
+                                                                <p><span className="text-gray-400">NID:</span> {selectedReg.guardian_nid || "-"}</p>
                                                             </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 italic">Parent (No separate guardian specified)</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">System Info</td>
-                                                    <td className="px-4 py-2.5 text-[10px] text-gray-500">
-                                                        <p>ID: {selectedReg.id}</p>
-                                                        <p>Submitted: {formatDate(selectedReg.created_at)}</p>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                            {(selectedReg.guardian_village_road || selectedReg.guardian_district) && (
+                                                                <div className="pt-1 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                                                                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Guardian Address</p>
+                                                                    <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                                                        {selectedReg.guardian_village_road}, {selectedReg.guardian_post_office}-{selectedReg.guardian_post_code}, {selectedReg.guardian_upazila}, {selectedReg.guardian_district}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic">Parent (No separate guardian specified)</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/30">System Info</td>
+                                                <td className="px-4 py-2.5 text-[10px] text-gray-500">
+                                                    <p>ID: {selectedReg.id}</p>
+                                                    <p>Submitted: {formatDateWithTime(selectedReg.created_at)}</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex gap-2">
+                    <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    if (!selectedReg) return;
+                                    handlePreviewPDF(selectedReg.id);
+                                }}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all font-semibold shadow-md"
+                            >
+                                <FileText size={18} />
+                                Preview PDF
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!selectedReg || pdfDownloading) return;
+                                    setPdfDownloading(true);
+                                    try {
+                                        const response = await axios.get(
+                                            `/api/reg/class-6/form/${selectedReg.id}/pdf`,
+                                            { responseType: "blob" }
+                                        );
+                                        const blob = new Blob([response.data], { type: "application/pdf" });
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `Class6_Registration_${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                        window.URL.revokeObjectURL(url);
+
+                                    } catch (err) {
+                                        console.error(err);
+                                        toast.error("Failed to download PDF");
+                                    } finally {
+                                        setPdfDownloading(false);
+                                    }
+                                }}
+                                disabled={pdfDownloading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-semibold shadow-md disabled:opacity-50"
+                            >
+                                {pdfDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                                {pdfDownloading ? "Generating PDF..." : "Download PDF"}
+                            </button>
+                            {selectedReg.status === "pending" && (
                                 <button
                                     onClick={() => {
-                                        if (!selectedReg) return;
-                                        handlePreviewPDF(selectedReg.id);
+                                        handleStatusUpdate(selectedReg.id, "approved");
+                                        setShowDetails(false);
                                     }}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all font-semibold shadow-md"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-md"
                                 >
-                                    <FileText size={18} />
-                                    Preview PDF
+                                    <CheckCircle2 size={18} />
+                                    Approve Now
                                 </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!selectedReg || pdfDownloading) return;
-                                        setPdfDownloading(true);
-                                        try {
-                                            const response = await axios.get(
-                                                `/api/reg/class-6/form/${selectedReg.id}/pdf`,
-                                                { responseType: "blob" }
-                                            );
-                                            const blob = new Blob([response.data], { type: "application/pdf" });
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement("a");
-                                            a.href = url;
-                                            a.download = `Class6_Registration_${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`;
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            a.remove();
-                                            window.URL.revokeObjectURL(url);
-
-                                        } catch (err) {
-                                            console.error(err);
-                                            toast.error("Failed to download PDF");
-                                        } finally {
-                                            setPdfDownloading(false);
-                                        }
-                                    }}
-                                    disabled={pdfDownloading}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-semibold shadow-md disabled:opacity-50"
-                                >
-                                    {pdfDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                                    {pdfDownloading ? "Generating PDF..." : "Download PDF"}
-                                </button>
-                                {selectedReg.status === "pending" && (
-                                    <button
-                                        onClick={() => {
-                                            handleStatusUpdate(selectedReg.id, "approved");
-                                            setShowDetails(false);
-                                        }}
-                                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-md"
-                                    >
-                                        <CheckCircle2 size={18} />
-                                        Approve Now
-                                    </button>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => setShowDetails(false)}
-                                className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-semibold"
-                            >
-                                Close Preview
-                            </button>
+                            )}
                         </div>
+                        <button
+                            onClick={() => setShowDetails(false)}
+                            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-semibold"
+                        >
+                            Close Preview
+                        </button>
                     </div>
-                </div>
+                </Popup>
             )}
             {showEditModal && editFormData && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                            <h3 className="text-xl font-bold">Update Registration Status</h3>
-                            <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                                <XCircle size={24} className="text-gray-500" />
+                <Popup open onOpenChange={(o) => !o && setShowEditModal(false)} size="md">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-xl font-bold">Update Registration Status</h3>
+                        <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                            <XCircle size={24} className="text-gray-500" />
+                        </button>
+                    </div>
+                    <div className="p-6 space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Status</label>
+                            <div className="grid grid-cols-1 gap-3">
+                                {["pending", "approved"].map((s) => (
+                                    <button
+                                        key={s}
+                                        onClick={() => setEditFormData({ ...editFormData, status: s })}
+                                        className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${editFormData.status === s
+                                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                                            : "border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-full ${s === "approved" ? "bg-emerald-100 text-emerald-600" : s === "rejected" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
+                                                {s === "approved" ? <CheckCircle2 size={20} /> : s === "rejected" ? <XCircle size={20} /> : <AlertCircle size={20} />}
+                                            </div>
+                                            <span className="font-semibold capitalize text-gray-900 dark:text-white">{s}</span>
+                                        </div>
+                                        {editFormData.status === s && <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 justify-end pt-4">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await handleStatusUpdate(editFormData.id, editFormData.status);
+                                    setShowEditModal(false);
+                                }}
+                                className="px-6 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                            >
+                                Update Status
                             </button>
                         </div>
-                        <div className="p-6 space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Status</label>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {["pending", "approved"].map((s) => (
-                                        <button
-                                            key={s}
-                                            onClick={() => setEditFormData({ ...editFormData, status: s })}
-                                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${editFormData.status === s
-                                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                                : "border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-full ${s === "approved" ? "bg-emerald-100 text-emerald-600" : s === "rejected" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
-                                                    {s === "approved" ? <CheckCircle2 size={20} /> : s === "rejected" ? <XCircle size={20} /> : <AlertCircle size={20} />}
-                                                </div>
-                                                <span className="font-semibold capitalize text-gray-900 dark:text-white">{s}</span>
-                                            </div>
-                                            {editFormData.status === s && <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 justify-end pt-4">
-                                <button
-                                    onClick={() => setShowEditModal(false)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleStatusUpdate(editFormData.id, editFormData.status);
-                                        setShowEditModal(false);
-                                    }}
-                                    className="px-6 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                                >
-                                    Update Status
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                </div>
+                </Popup>
             )}
         </div>
     );

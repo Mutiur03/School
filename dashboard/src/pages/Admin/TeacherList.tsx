@@ -1,18 +1,19 @@
 import axios from "axios";
 import React, { useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { Pencil, Eye, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Loading from "@/components/Loading";
 import ErrorMessage from "@/components/ErrorMessage";
-import { PageHeader, SectionCard, StatsCard } from "@/components";
+import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { teacherFormSchema, type TeacherFormSchemaData } from "@school/shared-schemas";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmation from "@/components/DeleteConfimation";
+import ActionButton from "@/components/ActionButton";
 
 interface Teacher {
   id: number;
@@ -435,34 +436,14 @@ const TeacherList = () => {
                     <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{teacher.designation}</td>
                     <td className="px-4 py-4">
                       <div className="flex justify-end gap-2">
-                        {/* <label
-                          htmlFor={`teacher-img-${teacher.id}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                        >
-                          <Upload size={14} /> Photo
-                        </label>
-                        <input
-                          type="file"
-                          id={`teacher-img-${teacher.id}`}
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) uploadImageToR2(file, teacher.id).then(() => queryClient.invalidateQueries({ queryKey: ["teachers"] })).catch(() => toast.error("Failed to upload image."));
-                          }}
-                        /> */}
-                        <button
+                        <ActionButton
+                          action="view"
                           onClick={() => setPopup({ visible: true, type: "view", teacher })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
-                        >
-                          <Eye size={14} /> View
-                        </button>
-                        <button
+                        />
+                        <ActionButton
+                          action="edit"
                           onClick={() => handleEdit(teacher)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-lg hover:bg-emerald-200 transition-colors dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
-                        >
-                          <Pencil size={14} /> Edit
-                        </button>
+                        />
                         <DeleteConfirmation
                           onDelete={() => handleDelete(teacher)}
                           msg={`Are you sure you want to delete ${teacher.name}?`}
@@ -483,78 +464,70 @@ const TeacherList = () => {
         </div>
       </SectionCard>
 
-     {popup.visible && popup.teacher && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={closePopup}
-        >
-          <div
-            className="bg-card w-full max-w-md rounded-sm shadow-2xl max-h-[90vh] overflow-y-auto border border-border"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {popup.type === "view" && (
-              <>
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                  <h2 className="text-base font-semibold">Teacher Details</h2>
-                  <button
-                    onClick={closePopup}
-                    className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-                </div>
+      {popup.visible && popup.teacher && (
+        <Popup open onOpenChange={(o) => !o && closePopup()} size="md">
+          {popup.type === "view" && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <h2 className="text-base font-semibold">Teacher Details</h2>
+                <button
+                  onClick={closePopup}
+                  className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
 
-                {/* Profile */}
-                <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
-                  {popup.teacher.image ? (
-                    <img
-                      src={getFileUrl(popup.teacher.image)}
-                      alt="Profile"
-                      className="w-20 aspect-[7/9] object-cover rounded-sm border border-border shadow"
-                    />
-                  ) : (
-                    <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
-                      {popup.teacher.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="text-center">
-                    <p className="font-semibold text-base">{popup.teacher.name}</p>
-                    <p className="text-xs text-muted-foreground">{popup.teacher.designation}</p>
+              {/* Profile */}
+              <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
+                {popup.teacher.image ? (
+                  <img
+                    src={getFileUrl(popup.teacher.image)}
+                    alt="Profile"
+                    className="w-20 aspect-[7/9] object-cover rounded-sm border border-border shadow"
+                  />
+                ) : (
+                  <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
+                    {popup.teacher.name.charAt(0).toUpperCase()}
                   </div>
-                  {popup.teacher.subject && (
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">
-                      {popup.teacher.subject}
-                    </span>
-                  )}
+                )}
+                <div className="text-center">
+                  <p className="font-semibold text-base">{popup.teacher.name}</p>
+                  <p className="text-xs text-muted-foreground">{popup.teacher.designation}</p>
                 </div>
+                {popup.teacher.subject && (
+                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">
+                    {popup.teacher.subject}
+                  </span>
+                )}
+              </div>
 
-                {/* Info */}
-                <div className="px-5 py-4 space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact & Details</p>
-                  {[
-                    { label: "Email", value: popup.teacher.email },
-                    { label: "Phone", value: popup.teacher.phone },
-                    { label: "Home Town", value: popup.teacher.address },
-                  ].filter(({ value }) => value).map(({ label, value }) => (
-                    <div key={label} className="flex text-sm">
-                      <span className="w-28 text-muted-foreground shrink-0">{label}</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Info */}
+              <div className="px-5 py-4 space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact & Details</p>
+                {[
+                  { label: "Email", value: popup.teacher.email },
+                  { label: "Phone", value: popup.teacher.phone },
+                  { label: "Home Town", value: popup.teacher.address },
+                ].filter(({ value }) => value).map(({ label, value }) => (
+                  <div key={label} className="flex text-sm">
+                    <span className="w-28 text-muted-foreground shrink-0">{label}</span>
+                    <span className="font-medium">{value}</span>
+                  </div>
+                ))}
+              </div>
 
-                {/* Footer */}
-                <div className="px-5 py-3 border-t border-border flex justify-end">
-                  <Button onClick={closePopup} variant="outline" type="button">
-                    Close
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-border flex justify-end">
+                <Button onClick={closePopup} variant="outline" type="button">
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </Popup>
       )}
     </div>
   );
