@@ -304,7 +304,7 @@ export default function RegistrationClass6() {
                 let currentSettings = null;
                 if (settingsRes.data.success) {
                     if (!settingsRes.data.data.reg_open) {
-                        navigate("/registration/class-6");
+                        navigate("/", { replace: true });
                         return;
                     }
                     currentSettings = settingsRes.data.data;

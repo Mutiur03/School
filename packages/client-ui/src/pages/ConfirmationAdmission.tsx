@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
@@ -87,6 +87,7 @@ function ConfirmationAdmission() {
   useEffect(() => {
     document.title = "Admission Confirmation";
   }, []);
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [admission, setAdmission] =
     useState<ConfirmationAdmission_Props | null>(null);
@@ -105,12 +106,23 @@ function ConfirmationAdmission() {
   const fetchAdmissionData = async (admissionId: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/admission/form/${admissionId}`);
+      const [response, admissionStatusRes] = await Promise.all([
+        axios.get(`/api/admission/form/${admissionId}`),
+        axios.get("/api/admission"),
+      ]);
       console.log(response);
 
+      const admissionOpen = admissionStatusRes.data?.admission_open ?? true;
+
       if (response.data) {
-        setAdmission(response.data.data);
-        if (response.data.data.status === "approved") {
+        const data = response.data.data;
+        // If admission is closed and the record is not approved, redirect to homepage
+        if (!admissionOpen && data.status !== "approved") {
+          navigate("/", { replace: true });
+          return;
+        }
+        setAdmission(data);
+        if (data.status === "approved") {
           setIsConfirmed(true);
           setShowInstructions(true);
         }
@@ -480,8 +492,8 @@ function ConfirmationAdmission() {
                   onClick={handleDownloadPDF}
                   disabled={downloadingPDF}
                   className={`px-8 py-4 rounded font-semibold text-lg transition-all duration-300 shadow ${downloadingPDF
-                      ? "bg-gray-300 cursor-not-allowed text-gray-500"
-                      : "bg-gray-700 text-white hover:bg-gray-800"
+                    ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                    : "bg-gray-700 text-white hover:bg-gray-800"
                     }`}
                 >
                   {downloadingPDF ? (
@@ -765,8 +777,8 @@ function ConfirmationAdmission() {
                   onClick={handleConfirmadmission}
                   disabled={confirming}
                   className={`px-8 py-3 rounded font-medium transition-all duration-200 ${confirming
-                      ? "bg-gray-300 cursor-not-allowed text-gray-500"
-                      : "bg-green-600 hover:bg-green-700 text-white"
+                    ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                    : "bg-green-600 hover:bg-green-700 text-white"
                     } text-lg focus:outline-none flex items-center justify-center`}
                 >
                   {confirming ? (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
@@ -93,13 +93,25 @@ function Class6RegConfirmation() {
         }
     }, [id]);
     const schuleConfig = useSchoolConfig();
+    const navigate = useNavigate();
     const fetchRegistrationData = async (regId: string) => {
         try {
             setLoading(true);
-            const response = await axios.get(`/api/reg/class-6/form/${regId}`);
+            const [response, regStatusRes] = await Promise.all([
+                axios.get(`/api/reg/class-6/form/${regId}`),
+                axios.get("/api/reg/class-6"),
+            ]);
+
+            const regOpen = regStatusRes.data?.data?.reg_open ?? true;
+
             if (response.data.success) {
-                setRegistration(response.data.data);
-                if (response.data.data.status === "approved") {
+                const data = response.data.data;
+                if (!regOpen && data.status !== "approved") {
+                    navigate("/", { replace: true });
+                    return;
+                }
+                setRegistration(data);
+                if (data.status === "approved") {
                     setIsConfirmed(true);
                     setShowInstructions(true);
                 }
