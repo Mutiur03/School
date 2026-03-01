@@ -1,2 +1,8 @@
 export {default as Loading} from './Loading';
 export {default as ErrorMessage} from './ErrorMessage';
+export {default as PageHeader} from './PageHeader';
+export {default as StatsCard} from './StatsCard';
+export {default as StatusBadge} from './StatusBadge';
+export {default as TabNav} from './TabNav';
+export {default as SectionCard} from './SectionCard';
+export type {TabItem} from './TabNav';
