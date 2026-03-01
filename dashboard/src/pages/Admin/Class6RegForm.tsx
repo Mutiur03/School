@@ -24,56 +24,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import ActionButton from "@/components/ActionButton";
 import { formatDateWithTime } from "@/lib/utils";
+import type { Class6RegistrationRecord } from "@school/shared-schemas";
 
-interface Registration {
-    id: string;
-    student_name_bn: string;
-    student_name_en: string;
-    section: string;
-    roll: string;
-    status: string;
-    photo?: string;
-    birth_reg_no: string;
-    birth_date: string;
-    religion?: string;
-    email?: string;
-    father_name_bn: string;
-    father_name_en: string;
-    father_phone?: string;
-    father_nid?: string;
-    mother_name_bn: string;
-    mother_name_en: string;
-    mother_phone?: string;
-    mother_nid?: string;
-    present_village_road: string;
-    present_post_office: string;
-    present_post_code: string;
-    present_upazila: string;
-    present_district: string;
-    permanent_village_road: string;
-    permanent_post_office: string;
-    permanent_post_code: string;
-    permanent_upazila: string;
-    permanent_district: string;
-    prev_school_name: string;
-    prev_school_district: string;
-    prev_school_upazila: string;
-    section_in_prev_school?: string;
-    roll_in_prev_school?: string;
-    prev_school_passing_year?: string;
-    guardian_name?: string;
-    guardian_relation?: string;
-    guardian_phone?: string;
-    guardian_nid?: string;
-    guardian_village_road?: string;
-    guardian_post_office?: string;
-    guardian_post_code?: string;
-    guardian_upazila?: string;
-    guardian_district?: string;
+/** Full DB record as returned by the admin API — all server-managed fields are non-nullable here. */
+type Registration = Omit<Class6RegistrationRecord, "class6_year" | "birth_date" | "created_at" | "status"> & {
     class6_year: number;
-    nearby_student_info?: string;
+    birth_date: string;
     created_at: string;
-}
+    status: string;
+};
 
 interface Class6RegSettings {
     id?: number;

@@ -3,85 +3,29 @@ import { z } from "zod";
 import {
     useForm,
     useWatch,
-    type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    BANGLA_ONLY,
-    ENGLISH_ONLY,
-    PHONE_NUMBER,
-    NID,
-    BIRTH_REG_NO,
-    POST_CODE,
-    ROLL_NUMBER,
     filterNumericInput,
     filterEnglishInput,
     filterBanglaInput,
 } from "@/lib/regex";
+import {
+    class6RegistrationServerShape,
+    CLASS6_REGEX,
+} from "@school/shared-schemas";
 
 import { guardianRelations } from "@/lib/guardian";
 import { getFileUrl } from "@/lib/backend";
 
-const registrationSchemaBase = z.object({
-    student_name_bn: z.string().min(1, "Student Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
-    student_name_en: z.string().min(1, "Student Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
-    birth_reg_no: z.string().min(1, "Birth Registration Number is required").regex(BIRTH_REG_NO, "Must be 17 digits"),
-    birth_year: z.string().min(1, "Year is required"),
-    birth_month: z.string().min(1, "Month is required"),
-    birth_day: z.string().min(1, "Day is required"),
-    email: z.preprocess((v) => (v === null ? "" : v), z.string().default("")
-        .refine((val) => !val || /^[\x00-\x7F]+$/.test(val), "Email must contain only English characters",)
-        .refine((val) => !val || z.string().email().safeParse(val).success, "Invalid email format",),
-    ),
-    religion: z.string().min(1, "Religion is required").max(50).default(""),
-
-    father_name_bn: z.string().min(1, "Father's Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
-    father_name_en: z.string().min(1, "Father's Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
-    father_nid: z.string().min(1, "Father's NID is required").regex(NID, "Must be 10, 13 or 17 digits"),
-    father_phone: z.string().min(1, "Father's Phone is required").regex(PHONE_NUMBER, "Invalid phone number"),
-
-    mother_name_bn: z.string().min(1, "Mother's Name in Bangla is required").regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
-    mother_name_en: z.string().min(1, "Mother's Name in English is required").regex(ENGLISH_ONLY, "Only English characters are allowed"),
-    mother_nid: z.string().min(1, "Mother's NID is required").regex(NID, "Must be 10, 13 or 17 digits"),
-    mother_phone: z.string().min(1, "Mother's Phone is required").regex(PHONE_NUMBER, "Invalid phone number"),
-
-    permanent_district: z.string().min(1, "District is required"),
-    permanent_upazila: z.string().min(1, "Upazila is required"),
-    permanent_post_office: z.string().min(1, "Post Office is required"),
-    permanent_post_code: z.string().min(1, "Post Code is required").regex(POST_CODE, "Must be 4 digits"),
-    permanent_village_road: z.string().min(1, "Village/Road is required"),
-
-    present_district: z.string().min(1, "District is required"),
-    present_upazila: z.string().min(1, "Upazila is required"),
-    present_post_office: z.string().min(1, "Post Office is required"),
-    present_post_code: z.string().min(1, "Post Code is required").regex(POST_CODE, "Must be 4 digits"),
-    present_village_road: z.string().min(1, "Village/Road is required"),
+// Extend the server shape (minus photo_path) with UI-only fields and the frontend photo type
+const registrationSchemaBase = class6RegistrationServerShape.omit({ photo_path: true }).extend({
     same_as_permanent: z.boolean().default(false),
     guardian_is_not_father: z.boolean().default(false),
-    guardian_name: z.string().optional(),
-    guardian_phone: z.string().optional(),
-    guardian_relation: z.string().optional(),
-    guardian_nid: z.string().optional(),
     guardian_address_same_as_permanent: z.boolean().default(false),
-    guardian_district: z.string().optional(),
-    guardian_upazila: z.string().optional(),
-    guardian_post_office: z.string().optional(),
-    guardian_post_code: z.string().optional(),
-    guardian_village_road: z.string().optional(),
-
-    section: z.string().min(1, "Section is required"),
-    roll: z.string().min(1, "Roll is required").regex(ROLL_NUMBER, "Invalid roll"),
-
-    prev_school_name: z.string().min(1, "Previous School Name is required"),
-    prev_school_passing_year: z.string().min(1, "Previous School Passing Year is required"),
-    section_in_prev_school: z.string().min(1, "Section in previous school is required"),
-    roll_in_prev_school: z.string().min(1, "Roll in previous school is required").regex(ROLL_NUMBER, "Roll must be numeric"),
-    prev_school_district: z.string().min(1, "Previous School District is required"),
-    prev_school_upazila: z.string().min(1, "Previous School Upazila is required"),
-    nearby_student_info: z.string().min(1, "Nearby student information is required"),
     photo: z.custom<File | string>((val) => {
         if (val instanceof File) return true;
         if (typeof val === "string" && val.length > 0) return true;
@@ -89,27 +33,28 @@ const registrationSchemaBase = z.object({
     }, "Student photo is required"),
 });
 
-const registrationSchema = registrationSchemaBase.superRefine((data, ctx) => {
+const registrationSchema = registrationSchemaBase.check((ctx) => {
+    const data = ctx.value;
     if (data.guardian_is_not_father) {
-        if (!data.guardian_name) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian name is required", path: ["guardian_name"] });
+        if (!data.guardian_name) ctx.issues.push({ code: "custom", message: "Guardian name is required", path: ["guardian_name"], input: data });
         if (!data.guardian_phone) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian phone is required", path: ["guardian_phone"] });
-        } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian Phone Number", path: ["guardian_phone"] });
+            ctx.issues.push({ code: "custom", message: "Guardian phone is required", path: ["guardian_phone"], input: data });
+        } else if (!CLASS6_REGEX.PHONE_NUMBER.test(data.guardian_phone)) {
+            ctx.issues.push({ code: "custom", message: "Invalid Guardian Phone Number", path: ["guardian_phone"], input: data });
         }
-        if (!data.guardian_relation) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian relation is required", path: ["guardian_relation"] });
+        if (!data.guardian_relation) ctx.issues.push({ code: "custom", message: "Guardian relation is required", path: ["guardian_relation"], input: data });
         if (!data.guardian_nid) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian NID is required", path: ["guardian_nid"] });
-        } else if (!NID.test(data.guardian_nid)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)", path: ["guardian_nid"] });
+            ctx.issues.push({ code: "custom", message: "Guardian NID is required", path: ["guardian_nid"], input: data });
+        } else if (!CLASS6_REGEX.NID.test(data.guardian_nid)) {
+            ctx.issues.push({ code: "custom", message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)", path: ["guardian_nid"], input: data });
         }
 
         if (!data.guardian_address_same_as_permanent) {
-            if (!data.guardian_district) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian district is required", path: ["guardian_district"] });
-            if (!data.guardian_upazila) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian upazila is required", path: ["guardian_upazila"] });
-            if (!data.guardian_post_office) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian post office is required", path: ["guardian_post_office"] });
-            if (!data.guardian_post_code || !POST_CODE.test(data.guardian_post_code)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Guardian Post Code", path: ["guardian_post_code"] });
-            if (!data.guardian_village_road) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Guardian village/road is required", path: ["guardian_village_road"] });
+            if (!data.guardian_district) ctx.issues.push({ code: "custom", message: "Guardian district is required", path: ["guardian_district"], input: data });
+            if (!data.guardian_upazila) ctx.issues.push({ code: "custom", message: "Guardian upazila is required", path: ["guardian_upazila"], input: data });
+            if (!data.guardian_post_office) ctx.issues.push({ code: "custom", message: "Guardian post office is required", path: ["guardian_post_office"], input: data });
+            if (!data.guardian_post_code || !CLASS6_REGEX.POST_CODE.test(data.guardian_post_code)) ctx.issues.push({ code: "custom", message: "Invalid Guardian Post Code", path: ["guardian_post_code"], input: data });
+            if (!data.guardian_village_road) ctx.issues.push({ code: "custom", message: "Guardian village/road is required", path: ["guardian_village_road"], input: data });
         }
     }
 });
@@ -237,7 +182,8 @@ export default function RegistrationClass6() {
         reset,
         formState: { errors },
     } = useForm<RegistrationFormData>({
-        resolver: zodResolver(registrationSchema as any) as Resolver<RegistrationFormData>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        resolver: zodResolver(registrationSchema) as any,
         mode: "onBlur",
         reValidateMode: "onChange",
         defaultValues: {
@@ -740,10 +686,9 @@ export default function RegistrationClass6() {
     const isRequired = (
         fieldName: keyof RegistrationFormData
     ) => {
-        const field = registrationSchemaBase.shape[fieldName];
-        if (field instanceof z.ZodOptional) return false;
-
-        return true;
+        const field = registrationSchemaBase.shape[fieldName as keyof typeof registrationSchemaBase.shape];
+        if (!field) return false;
+        return !field.isOptional();
     };
 
 
