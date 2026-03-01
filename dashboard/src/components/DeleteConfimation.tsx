@@ -9,18 +9,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import ActionButton from "@/components/ActionButton";
 
 const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: string }) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <button
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
-          title="Delete"
-        >
-          <Trash2 size={14} /> Delete
-        </button>
+        <ActionButton action="delete" />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

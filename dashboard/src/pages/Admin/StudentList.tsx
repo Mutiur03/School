@@ -1,13 +1,14 @@
 import axios from "axios";
 import React, { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Eye, Upload, Pencil, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "@/components/Loading";
-import { PageHeader, SectionCard, StatsCard } from "@/components";
-import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
+import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
+import DeleteConfirmation from "@/components/DeleteConfimation";
+import ActionButton from "@/components/ActionButton";
 import DeletePopup from "@/components/DeletePopup";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1195,12 +1196,11 @@ function StudentList() {
                   "Class",
                   "Section",
                   "Department",
-                  "Image",
                   "Actions",
                 ].map((header) => (
                   <th
                     key={header}
-                    className={`px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider ${header === "Actions" ? "text-right" : "text-center sm:text-left"}`}
+                    className={`px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider ${header === "Actions" ? "text-center" : "text-center sm:text-left"}`}
                   >
                     {header}
                   </th>
@@ -1231,7 +1231,18 @@ function StudentList() {
                         className="h-4 w-4"
                       />
                     </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm font-medium">
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-3 whitespace-nowrap text-sm font-medium">
+                      {student.image ? (
+                        <img
+                          src={getFileUrl(student.image)}
+                          alt="Student"
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                          {student.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       {student.name}
                     </td>
                     <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
@@ -1246,23 +1257,14 @@ function StudentList() {
                     <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
                       {student.department || ""}
                     </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                      {student.image && (
-                        <img
-                          src={getFileUrl(student.image)}
-                          alt="Student"
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      )}
-                    </td>
+
                     <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
-                      <div className="flex justify-end space-x-1 sm:space-x-2">
-                        <label htmlFor={`file-upload-${student.id}`}>
-                          <Upload
-                            size={16}
-                            className="sm:w-4 sm:h-4 w-3 h-3"
-                          />
-                        </label>
+                      <div className="flex justify-end flex-wrap gap-1.5">
+                        <ActionButton
+                          action="photo"
+                          asLabel
+                          htmlFor={`file-upload-${student.id}`}
+                        />
                         <input
                           type="file"
                           id={`file-upload-${student.id}`}
@@ -1272,7 +1274,8 @@ function StudentList() {
                             handleIndivisualImageUpload(e, student)
                           }
                         />
-                        <button
+                        <ActionButton
+                          action="view"
                           onClick={() =>
                             setPopup({
                               visible: true,
@@ -1280,23 +1283,12 @@ function StudentList() {
                               student,
                             })
                           }
-                          className="text-primary hover:text-primary/80"
-                          aria-label="View"
-                        >
-                          <Eye size={16} className="sm:w-4 sm:h-4 w-3 h-3" />
-                        </button>
-                        <button
+                        />
+                        <ActionButton
+                          action="edit"
                           onClick={() => handleEdit(student)}
-                          className="text-foreground hover:text-primary"
-                          aria-label="Edit"
-                        >
-                          <Pencil
-                            size={16}
-                            className="sm:w-4 sm:h-4 w-3 h-3"
-                          />
-                        </button>
-
-                        <DeleteConfirmationIcon
+                        />
+                        <DeleteConfirmation
                           onDelete={() => handleDelete(student)}
                           msg={`Are you sure you want to delete ${student.name}?`}
                         />
@@ -1320,227 +1312,223 @@ function StudentList() {
         </div>
       </SectionCard>
       {popup.visible && popup.student && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closePopup}>
-          <div className="bg-card w-full max-w-md rounded-sm shadow-2xl max-h-[90vh] overflow-y-auto border border-border" onClick={(e) => e.stopPropagation()}>
-            {popup.type === "view" && (
-              <>
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                  <h2 className="text-base font-semibold">Student Details</h2>
-                  <button
-                    onClick={closePopup}
-                    className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                {/* Profile */}
-                <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
-                  {popup.student.image ? (
-                    <img
-                      src={getFileUrl(popup.student.image)}
-                      alt="Student"
-                      className="w-20  sm:w-24 aspect-[7/9] object-cover rounded-sm border border-border shadow"
-                    />
-                  ) : (
-                    <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
-                      {popup.student.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="text-center">
-                    <p className="font-semibold text-base">{popup.student.name}</p>
-                    <p className="text-xs text-muted-foreground">Login ID: {popup.student.login_id}</p>
-                  </div>
-                  <div className="flex gap-2 mt-1 flex-wrap justify-center">
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
-                    {popup.student.department && (
-                      <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.department}</span>
-                    )}
-                    {popup.student.has_stipend && (
-                      <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Info sections */}
-                <div className="px-5 py-4 space-y-4">
-                  {/* Personal */}
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: "Date of Birth", value: format(new Date(popup.student.dob), "dd MMM yyyy") },
-                        { label: "Father's Name", value: popup.student.father_name },
-                        { label: "Mother's Name", value: popup.student.mother_name },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex text-sm">
-                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                          <span className="font-medium">{value}</span>
-                        </div>
-                      ))}
-                      <div className="flex text-sm items-center">
-                        <span className="w-36 text-muted-foreground shrink-0">Stipend</span>
-                        {popup.student.has_stipend ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Yes</span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">No</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact */}
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: "Father's Phone", value: popup.student.father_phone || "N/A" },
-                        { label: "Mother's Phone", value: popup.student.mother_phone || "N/A" },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex text-sm">
-                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                          <span className="font-medium">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Address */}
-                  {(popup.student.village || popup.student.post_office || popup.student.upazila || popup.student.district) && (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Address</p>
-                      <div className="space-y-1.5">
-                        {[
-                          { label: "Village", value: popup.student.village },
-                          { label: "Post Office", value: popup.student.post_office },
-                          { label: "Upazila", value: popup.student.upazila },
-                          { label: "District", value: popup.student.district },
-                        ].filter(({ value }) => value).map(({ label, value }) => (
-                          <div key={label} className="flex text-sm">
-                            <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                            <span className="font-medium">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="px-5 py-3 border-t border-border flex justify-end">
-                  <Button onClick={closePopup} variant="outline" type="button">
-                    Close
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showFormatInfo && (
-        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-sm shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">
-                  Excel File Format Requirements
-                </h2>
+        <Popup open onOpenChange={(o) => !o && closePopup()} size="md">
+          {popup.type === "view" && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <h2 className="text-base font-semibold">Student Details</h2>
                 <button
-                  onClick={() => setShowFormatInfo(false)}
-                  className="text-muted-foreground hover:text-foreground text-2xl"
+                  onClick={closePopup}
+                  className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+                  aria-label="Close"
                 >
                   ×
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Use one standard format with required columns. Each row is validated before upload.
-                </p>
+              {/* Profile */}
+              <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
+                {popup.student.image ? (
+                  <img
+                    src={getFileUrl(popup.student.image)}
+                    alt="Student"
+                    className="w-20  sm:w-24 aspect-[7/9] object-cover rounded-sm border border-border shadow"
+                  />
+                ) : (
+                  <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
+                    {popup.student.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="text-center">
+                  <p className="font-semibold text-base">{popup.student.name}</p>
+                  <p className="text-xs text-muted-foreground">Login ID: {popup.student.login_id}</p>
+                </div>
+                <div className="flex gap-2 mt-1 flex-wrap justify-center">
+                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
+                  {popup.student.department && (
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.department}</span>
+                  )}
+                  {popup.student.has_stipend && (
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
+                  )}
+                </div>
+              </div>
 
-                <div className="bg-muted/40 border border-border rounded-sm p-4">
-                  <h3 className="font-medium mb-2">Required Excel Format</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Required columns for every upload:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="font-medium">Required Columns:</div>
-                    <div></div>
-
-                    <div>• name</div>
-                    <div>• father_name</div>
-
-                    <div>• mother_name</div>
-                    <div>• father_phone</div>
-
-                    <div>• has_stipend (optional)</div>
-                    <div>• village</div>
-
-                    <div>• mother_phone (optional)</div>
-                    <div>• post_office</div>
-                    <div>• upazila</div>
-
-                    <div>• district</div>
-                    <div>• dob</div>
-
-                    <div>• class</div>
-
-                    <div>• roll</div>
-                    <div>• section</div>
-
-                    <div>• department</div>
-                    <div></div>
+              {/* Info sections */}
+              <div className="px-5 py-4 space-y-4">
+                {/* Personal */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: "Date of Birth", value: format(new Date(popup.student.dob), "dd MMM yyyy") },
+                      { label: "Father's Name", value: popup.student.father_name },
+                      { label: "Mother's Name", value: popup.student.mother_name },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex text-sm">
+                        <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                        <span className="font-medium">{value}</span>
+                      </div>
+                    ))}
+                    <div className="flex text-sm items-center">
+                      <span className="w-36 text-muted-foreground shrink-0">Stipend</span>
+                      {popup.student.has_stipend ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Yes</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">No</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-medium">Important Notes:</h3>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                    <li>
-                      <strong>Date Format:</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)
-                    </li>
-                    <li>
-                      <strong>Father Phone:</strong> Mandatory and should be 11 digits in Bangladesh format (e.g., 01XXXXXXXXX)
-                    </li>
-                    <li>
-                      <strong>Mother Phone:</strong> Optional and should be 10 digits (without country code)
-                    </li>
-                    <li>
-                      <strong>has_stipend:</strong> Use "Yes" or "No"
-                    </li>
-                    <li>
-                      <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
-                    </li>
-                    <li>
-                      <strong>File Format:</strong> Only .xlsx or .xls files are accepted
-                    </li>
-                    <li>First row should contain column headers (case-insensitive)</li>
-                  </ul>
+                {/* Contact */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: "Father's Phone", value: popup.student.father_phone || "N/A" },
+                      { label: "Mother's Phone", value: popup.student.mother_phone || "N/A" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex text-sm">
+                        <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                        <span className="font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-muted/40 border border-border rounded-sm p-3">
-                  <p className="text-sm text-foreground">
-                    <strong>💡 Tip:</strong> Keep column names exactly as shown above and ensure required fields are filled for every row.
-                  </p>
+                {/* Address */}
+                {(popup.student.village || popup.student.post_office || popup.student.upazila || popup.student.district) && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Address</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "Village", value: popup.student.village },
+                        { label: "Post Office", value: popup.student.post_office },
+                        { label: "Upazila", value: popup.student.upazila },
+                        { label: "District", value: popup.student.district },
+                      ].filter(({ value }) => value).map(({ label, value }) => (
+                        <div key={label} className="flex text-sm">
+                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
+                          <span className="font-medium">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-border flex justify-end">
+                <Button onClick={closePopup} variant="outline" type="button">
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </Popup>
+      )}
+
+      {showFormatInfo && (
+        <Popup open onOpenChange={(o) => !o && setShowFormatInfo(false)} size="2xl">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                Excel File Format Requirements
+              </h2>
+              <button
+                onClick={() => setShowFormatInfo(false)}
+                className="text-muted-foreground hover:text-foreground text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Use one standard format with required columns. Each row is validated before upload.
+              </p>
+
+              <div className="bg-muted/40 border border-border rounded-sm p-4">
+                <h3 className="font-medium mb-2">Required Excel Format</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Required columns for every upload:
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="font-medium">Required Columns:</div>
+                  <div></div>
+
+                  <div>• name</div>
+                  <div>• father_name</div>
+
+                  <div>• mother_name</div>
+                  <div>• father_phone</div>
+
+                  <div>• has_stipend (optional)</div>
+                  <div>• village</div>
+
+                  <div>• mother_phone (optional)</div>
+                  <div>• post_office</div>
+                  <div>• upazila</div>
+
+                  <div>• district</div>
+                  <div>• dob</div>
+
+                  <div>• class</div>
+
+                  <div>• roll</div>
+                  <div>• section</div>
+
+                  <div>• department</div>
+                  <div></div>
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowFormatInfo(false)}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-sm hover:bg-primary/90 transition"
-                >
-                  Got it
-                </button>
+              <div className="space-y-2">
+                <h3 className="font-medium">Important Notes:</h3>
+                <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                  <li>
+                    <strong>Date Format:</strong> Use DD/MM/YYYY format for date of birth (e.g., 15/08/2005)
+                  </li>
+                  <li>
+                    <strong>Father Phone:</strong> Mandatory and should be 11 digits in Bangladesh format (e.g., 01XXXXXXXXX)
+                  </li>
+                  <li>
+                    <strong>Mother Phone:</strong> Optional and should be 10 digits (without country code)
+                  </li>
+                  <li>
+                    <strong>has_stipend:</strong> Use "Yes" or "No"
+                  </li>
+                  <li>
+                    <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
+                  </li>
+                  <li>
+                    <strong>File Format:</strong> Only .xlsx or .xls files are accepted
+                  </li>
+                  <li>First row should contain column headers (case-insensitive)</li>
+                </ul>
+              </div>
+
+              <div className="bg-muted/40 border border-border rounded-sm p-3">
+                <p className="text-sm text-foreground">
+                  <strong>💡 Tip:</strong> Keep column names exactly as shown above and ensure required fields are filled for every row.
+                </p>
               </div>
             </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowFormatInfo(false)}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-sm hover:bg-primary/90 transition"
+              >
+                Got it
+              </button>
+            </div>
           </div>
-        </div>
+        </Popup>
       )}
     </div>
   );
