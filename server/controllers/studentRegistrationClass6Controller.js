@@ -1139,19 +1139,19 @@ export const downloadRegistrationPDF = async (req, res) => {
       image-rendering: crisp-edges;
     }
     .header .school { 
-      font-size: 20px; 
+      font-size: 1.9rem; 
       font-weight: bold; 
       margin-bottom: 4px;
       line-height: 1.2;
       color: #1e3a8a;
     }
     .header .addr { 
-      font-size: 1.3rem; 
+      font-size: 1.5rem; 
       margin-bottom: 4px;
       font-weight: 500;
     }
     .header .web { 
-      font-size: 1.3rem; 
+      font-size: 1.5rem; 
     }
     .title-row { 
       background: #e3f0fa; 
@@ -1233,14 +1233,14 @@ export const downloadRegistrationPDF = async (req, res) => {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 30px;
+      bottom: 10px;
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       gap: 8px;
-      padding-bottom: 12px;
-      background: white;
+      // padding-bottom: 12px;
+      // background: black;
       z-index: 3;
       height: 85px;
       box-sizing: border-box;
@@ -1276,10 +1276,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: -4px;
+      bottom: -5px;
       width: 100%;
       text-align: center;
-      font-size: 1rem;
+      font-size: 0.9rem;
       color: #555;
       background: white;
       z-index: 3;
