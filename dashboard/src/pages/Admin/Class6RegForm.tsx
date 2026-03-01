@@ -22,6 +22,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard } from "@/components";
 import type { TabItem } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Registration {
     id: string;
@@ -112,7 +114,7 @@ const Class6RegForm = () => {
             setActiveTab("registrations");
             setSearchParams({ tab: "registrations" }, { replace: true });
         }
-    }, [searchParams]);
+    }, [searchParams, setSearchParams]);
     const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
     const [filters, setFilters] = useState({
         status: "all",
@@ -399,31 +401,28 @@ const Class6RegForm = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={settingsForm.a_sec_roll || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, a_sec_roll: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
                                         placeholder="01-50"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={settingsForm.b_sec_roll || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, b_sec_roll: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
                                         placeholder="51-100"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={settingsForm.class6_year || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, class6_year: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
                                     />
                                 </div>
                                 <div className="flex items-end">
@@ -464,36 +463,36 @@ const Class6RegForm = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
-                                    <textarea
+                                    <Textarea
                                         value={settingsForm.instruction_for_a || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        className="h-24"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
-                                    <textarea
+                                    <Textarea
                                         value={settingsForm.instruction_for_b || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        className="h-24"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
-                                    <textarea
+                                    <Textarea
                                         value={settingsForm.classmates || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
                                         placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        className="h-24"
                                     />
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
-                                    <textarea
+                                    <Textarea
                                         value={settingsForm.attachment_instruction || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                        className="h-24"
                                     />
                                 </div>
                             </div>
@@ -536,12 +535,12 @@ const Class6RegForm = () => {
                                 <label className="block text-sm font-medium mb-1">Search</label>
                                 <div className="relative">
                                     <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                                    <input
+                                    <Input
                                         type="text"
                                         value={filters.search}
                                         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                                         placeholder="Search by name, roll, birth reg..."
-                                        className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                        className="pl-10"
                                     />
                                 </div>
                             </div>
@@ -550,7 +549,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.status}
                                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                    className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="all">All Status</option>
                                     <option value="pending">Pending</option>
@@ -562,7 +561,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.section}
                                     onChange={(e) => setFilters({ ...filters, section: e.target.value })}
-                                    className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="">All Sections</option>
                                     <option value="A">A</option>
@@ -574,7 +573,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.year}
                                     onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                                    className="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     {(() => {
                                         const currentYear = new Date().getFullYear();
