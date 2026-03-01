@@ -4,74 +4,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "@/context/school";
+import type { Class6RegistrationRecord } from "@school/shared-schemas";
 
-type ConfirmationClass6_Props = {
-    id?: string;
-    // Personal Information
-    student_name_bn?: string | null;
-    student_name_en?: string | null;
-    birth_reg_no?: string | null;
-    registration_no?: string | null;
-
-    father_name_bn?: string | null;
-    father_name_en?: string | null;
-    father_nid?: string | null;
-    father_phone?: string | null;
-
-    mother_name_bn?: string | null;
-    mother_name_en?: string | null;
-    mother_nid?: string | null;
-    mother_phone?: string | null;
-
-    birth_date?: string | null;
-    birth_year?: string | null;
-    birth_month?: string | null;
-    birth_day?: string | null;
-    email?: string | null;
-    religion?: string | null;
-
-    // Address
-    present_district?: string | null;
-    present_upazila?: string | null;
-    present_post_office?: string | null;
-    present_post_code?: string | null;
-    present_village_road?: string | null;
-
-    permanent_district?: string | null;
-    permanent_upazila?: string | null;
-    permanent_post_office?: string | null;
-    permanent_post_code?: string | null;
-    permanent_village_road?: string | null;
-
-    // Guardian
-    guardian_name?: string | null;
-    guardian_phone?: string | null;
-    guardian_relation?: string | null;
-    guardian_nid?: string | null;
-    guardian_district?: string | null;
-    guardian_upazila?: string | null;
-    guardian_post_office?: string | null;
-    guardian_post_code?: string | null;
-    guardian_village_road?: string | null;
-
-    // Previous school
-    prev_school_name?: string | null;
-    prev_school_district?: string | null;
-    prev_school_upazila?: string | null;
-    section_in_prev_school?: string | null;
-    roll_in_prev_school?: string | null;
-    prev_school_passing_year?: string | null;
-
-    // Class 6 Specific Meta
-    section?: string | null;
-    roll?: string | null;
-    class6_year?: number | null;
-    status?: string | null;
-    nearby_student_info?: string | null;
-    photo_path?: string | null;
-    photo?: string | null;
-    [key: string]: unknown;
-};
+type ConfirmationClass6_Props = Partial<Class6RegistrationRecord> & { [key: string]: unknown };
 
 function Class6RegConfirmation() {
     useEffect(() => {

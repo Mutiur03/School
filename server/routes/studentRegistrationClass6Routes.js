@@ -13,10 +13,19 @@ import {
   getClassMates,
 } from "../controllers/studentRegistrationClass6Controller.js";
 import AuthMiddleware from "../middlewares/auth.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import {
+  class6RegistrationServerSchema,
+  class6RegistrationStatusSchema,
+} from "@school/shared-schemas";
 
 const studentRegistrationClass6Router = router.Router();
 
-studentRegistrationClass6Router.post("/", createRegistration);
+studentRegistrationClass6Router.post(
+  "/",
+  validate(class6RegistrationServerSchema),
+  createRegistration,
+);
 studentRegistrationClass6Router.get(
   "/",
   AuthMiddleware.authenticate(["admin"]),
@@ -39,8 +48,16 @@ studentRegistrationClass6Router.post(
 studentRegistrationClass6Router.get("/getclassmates", getClassMates);
 studentRegistrationClass6Router.get("/:id", getRegistrationById);
 studentRegistrationClass6Router.get("/:id/pdf", downloadRegistrationPDF);
-studentRegistrationClass6Router.put("/:id/status", updateRegistrationStatus);
-studentRegistrationClass6Router.put("/:id", updateRegistration);
+studentRegistrationClass6Router.put(
+  "/:id/status",
+  validate(class6RegistrationStatusSchema),
+  updateRegistrationStatus,
+);
+studentRegistrationClass6Router.put(
+  "/:id",
+  validate(class6RegistrationServerSchema),
+  updateRegistration,
+);
 studentRegistrationClass6Router.delete(
   "/:id",
   AuthMiddleware.authenticate(["admin"]),
