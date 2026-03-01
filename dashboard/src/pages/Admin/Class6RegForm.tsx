@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios, { isAxiosError } from "axios";
+import { useSearchParams, useLocation } from "react-router-dom";
 import {
     Plus,
     Search,
     Edit,
-    Trash2,
     Eye,
     Download,
     Image as ImageIcon,
@@ -19,6 +19,9 @@ import {
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard } from "@/components";
+import type { TabItem } from "@/components";
+import DeleteConfirmation from "@/components/DeleteConfimation";
 
 interface Registration {
     id: string;
@@ -85,7 +88,31 @@ interface Class6RegSettings {
 
 const Class6RegForm = () => {
     const queryClient = useQueryClient();
-    const [activeTab, setActiveTab] = useState<"registrations" | "settings">("registrations");
+    const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get("tab");
+    const [activeTab, setActiveTab] = useState<"registrations" | "settings">(
+        tabParam === "settings" ? "settings" : "registrations"
+    );
+
+    // Keep URL in sync when tab changes programmatically
+    const handleTabChange = (id: string) => {
+        const next = id as "registrations" | "settings";
+        setActiveTab(next);
+        setSearchParams({ tab: next }, { replace: true });
+    };
+
+    // Sync tab state when URL changes (e.g. browser back/forward or direct link)
+    // When no tab param is present, default to "registrations" and write it into the URL
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab === "settings" || tab === "registrations") {
+            setActiveTab(tab);
+        } else {
+            setActiveTab("registrations");
+            setSearchParams({ tab: "registrations" }, { replace: true });
+        }
+    }, [searchParams]);
     const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
     const [filters, setFilters] = useState({
         status: "all",
@@ -134,7 +161,7 @@ const Class6RegForm = () => {
             return res.data.success ? res.data.data : [];
         },
         staleTime: 30000,
-        refetchOnWindowFocus: true ,
+        refetchOnWindowFocus: true,
     });
 
     const registrations = useMemo(() => {
@@ -268,7 +295,7 @@ const Class6RegForm = () => {
     };
 
     const handleDeleteDetails = async (id: string) => {
-        if (!window.confirm("Are you sure you want to delete this registration?")) return;
+        // if (!window.confirm("Are you sure you want to delete this registration?")) return;
         deleteMutation.mutate(id);
     };
 
@@ -319,16 +346,7 @@ const Class6RegForm = () => {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case "approved":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"><CheckCircle2 size={12} /> Approved</span>;
-            case "rejected":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"><XCircle size={12} /> Rejected</span>;
-            default:
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"><AlertCircle size={12} /> Pending</span>;
-        }
-    };
+    // StatusBadge is now handled by the <StatusBadge> component from @/components
 
     const formatDate = (dateStr: string | undefined) => {
         if (!dateStr) return "-";
@@ -348,183 +366,171 @@ const Class6RegForm = () => {
         }
     };
 
+    const tabs: TabItem[] = [
+        { id: "registrations", label: "Registrations", icon: <Users size={16} />, href: `${location.pathname}?tab=registrations` },
+        { id: "settings", label: "Settings", icon: <Settings size={16} />, href: `${location.pathname}?tab=settings` },
+    ];
+
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Class Six Registration Management</h1>
-                <p className="text-gray-600 dark:text-gray-400">Manage student registrations and notification settings for Class Six.</p>
-            </div>
+            <PageHeader
+                title="Class Six Registration Management"
+                description="Manage student registrations and notification settings for Class Six."
+            />
 
-            <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-                <button
-                    onClick={() => setActiveTab("registrations")}
-                    className={`pb-2 px-1 text-sm font-medium transition-colors relative ${activeTab === "registrations" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                        }`}
-                >
-                    <div className="flex items-center gap-2">
-                        <Users size={16} />
-                        Registrations
-                    </div>
-                </button>
-                <button
-                    onClick={() => setActiveTab("settings")}
-                    className={`pb-2 px-1 text-sm font-medium transition-colors relative ${activeTab === "settings" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                        }`}
-                >
-                    <div className="flex items-center gap-2">
-                        <Settings size={16} />
-                        Settings
-                    </div>
-                </button>
-            </div>
+            <TabNav
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                className="mb-6"
+            />
 
             {activeTab === "settings" ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="p-6">
-                        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                            <Settings size={20} className="text-blue-500" />
-                            Registration Settings
-                        </h3>
-                        {settingsLoading ? (
-                            <div className="py-20 flex justify-center">
-                                <Loader2 size={40} className="animate-spin text-blue-500" />
-                            </div>
-                        ) : (
-                            <form onSubmit={handleSettingsSubmit} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
-                                        <input
-                                            type="text"
-                                            value={settingsForm.a_sec_roll || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, a_sec_roll: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                            placeholder="01-50"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
-                                        <input
-                                            type="text"
-                                            value={settingsForm.b_sec_roll || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, b_sec_roll: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                            placeholder="51-100"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
-                                        <input
-                                            type="text"
-                                            value={settingsForm.class6_year || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, class6_year: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                    </div>
-                                    <div className="flex items-end">
-                                        <label className="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 dark:bg-gray-700 rounded-lg w-full">
-                                            <input
-                                                type="checkbox"
-                                                checked={settingsForm.reg_open}
-                                                onChange={(e) => setSettingsForm({ ...settingsForm, reg_open: e.target.checked })}
-                                                className="w-4 h-4 text-blue-600"
-                                            />
-                                            <span className="text-sm font-medium">Registration Open</span>
-                                        </label>
-                                    </div>
-                                </div>
-
+                <SectionCard
+                    title="Registration Settings"
+                    icon={<Settings size={20} />}
+                >
+                    {settingsLoading ? (
+                        <div className="py-20 flex justify-center">
+                            <Loader2 size={40} className="animate-spin text-blue-500" />
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSettingsSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notice File (PDF)</label>
-                                    <div className="mt-1 flex items-center gap-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
+                                    <input
+                                        type="text"
+                                        value={settingsForm.a_sec_roll || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, a_sec_roll: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                        placeholder="01-50"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
+                                    <input
+                                        type="text"
+                                        value={settingsForm.b_sec_roll || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, b_sec_roll: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                        placeholder="51-100"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
+                                    <input
+                                        type="text"
+                                        value={settingsForm.class6_year || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, class6_year: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                                    />
+                                </div>
+                                <div className="flex items-end">
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 dark:bg-gray-700 rounded-lg w-full">
                                         <input
-                                            type="file"
-                                            accept=".pdf"
-                                            onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
-                                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                            type="checkbox"
+                                            checked={settingsForm.reg_open}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, reg_open: e.target.checked })}
+                                            className="w-4 h-4 text-blue-600"
                                         />
-                                        {settingsForm.notice && (
-                                            <a
-                                                href={getFileUrl(settingsForm.notice)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
-                                            >
-                                                <FileText size={16} /> Current Notice
-                                            </a>
-                                        )}
-                                    </div>
+                                        <span className="text-sm font-medium">Registration Open</span>
+                                    </label>
                                 </div>
+                            </div>
 
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
-                                        <textarea
-                                            value={settingsForm.instruction_for_a || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
-                                        <textarea
-                                            value={settingsForm.instruction_for_b || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
-                                        <textarea
-                                            value={settingsForm.classmates || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
-                                            placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                        />
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
-                                        <textarea
-                                            value={settingsForm.attachment_instruction || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
-                                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
-                                        />
-                                    </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notice File (PDF)</label>
+                                <div className="mt-1 flex items-center gap-4">
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    />
+                                    {settingsForm.notice && (
+                                        <a
+                                            href={getFileUrl(settingsForm.notice)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
+                                        >
+                                            <FileText size={16} /> Current Notice
+                                        </a>
+                                    )}
                                 </div>
+                            </div>
 
-                                <div className="flex justify-end pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={settingsMutation.isPending}
-                                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                    >
-                                        {settingsMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                                        Save Settings
-                                    </button>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
+                                    <textarea
+                                        value={settingsForm.instruction_for_a || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                    />
                                 </div>
-                            </form>
-                        )}
-                    </div>
-                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
+                                    <textarea
+                                        value={settingsForm.instruction_for_b || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
+                                    <textarea
+                                        value={settingsForm.classmates || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
+                                        placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
+                                    <textarea
+                                        value={settingsForm.attachment_instruction || ""}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 h-24"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={settingsMutation.isPending}
+                                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                >
+                                    {settingsMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                                    Save Settings
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </SectionCard>
             ) : (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <p className="text-sm text-gray-500 mb-1">Total Registrations</p>
-                            <h4 className="text-2xl font-bold">{renderCount(stats.total.filtered, stats.total.all)}</h4>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <p className="text-sm text-amber-500 mb-1">Pending</p>
-                            <h4 className="text-2xl font-bold text-amber-600">{renderCount(stats.pending.filtered, stats.pending.all)}</h4>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <p className="text-sm text-emerald-500 mb-1">Approved</p>
-                            <h4 className="text-2xl font-bold text-emerald-600">{renderCount(stats.approved.filtered, stats.approved.all)}</h4>
-                        </div>
+                        <StatsCard
+                            label="Total Registrations"
+                            value={renderCount(stats.total.filtered, stats.total.all)}
+                        />
+                        <StatsCard
+                            label="Pending"
+                            value={renderCount(stats.pending.filtered, stats.pending.all)}
+                            color="amber"
+                        />
+                        <StatsCard
+                            label="Approved"
+                            value={renderCount(stats.approved.filtered, stats.approved.all)}
+                            color="emerald"
+                        />
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                    <SectionCard>
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[240px]">
                                 <label className="block text-sm font-medium mb-1">Search</label>
@@ -603,9 +609,9 @@ const Class6RegForm = () => {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </SectionCard>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <SectionCard noPadding>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
@@ -657,7 +663,7 @@ const Class6RegForm = () => {
                                                 <td className="px-6 py-4 text-center font-mono font-medium text-gray-600 dark:text-gray-400">
                                                     {reg.roll || "-"}
                                                 </td>
-                                                <td className="px-6 py-4">{getStatusBadge(reg.status)}</td>
+                                                <td className="px-6 py-4"><StatusBadge status={reg.status} /></td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                                     {formatDate(reg.created_at)}
                                                 </td>
@@ -683,13 +689,14 @@ const Class6RegForm = () => {
                                                         >
                                                             <Edit size={14} /> Edit
                                                         </button>
-                                                        <button
+                                                        {/* <button
                                                             onClick={() => handleDeleteDetails(reg.id)}
                                                             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
                                                             title="Delete"
                                                         >
                                                             <Trash2 size={14} /> Delete
-                                                        </button>
+                                                        </button> */}
+                                                        <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -698,7 +705,7 @@ const Class6RegForm = () => {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </SectionCard>
                 </div>
             )}
 
@@ -741,7 +748,7 @@ const Class6RegForm = () => {
                                         <div className="mt-4 w-full">
                                             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                                 <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Status</p>
-                                                <div className="flex justify-center">{getStatusBadge(selectedReg.status)}</div>
+                                                <div className="flex justify-center"><StatusBadge status={selectedReg.status} /></div>
                                             </div>
                                         </div>
                                     </div>
