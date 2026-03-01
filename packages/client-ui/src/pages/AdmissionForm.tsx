@@ -312,7 +312,7 @@ function AdmissionForm() {
     document.title = "Admission Form | " + schoolConfig.name.en;
   }, []);
   const navigate = useNavigate();
-  const { id } = useParams(); 
+  const { id } = useParams();
   const isEditMode = Boolean(id);
 
   const [form, dispatch] = useReducer(formReducer, initialFormState);
@@ -337,7 +337,6 @@ function AdmissionForm() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [shouldNavigate, setShouldNavigate] = useState(false);
-  const [admissionClosed, setAdmissionClosed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [admission_year, set_admission_year] = useState("");
 
@@ -415,8 +414,7 @@ function AdmissionForm() {
           if (uidList.length) setUserIdOptions(uidList);
           if (serialList.length) setSerialNoOptions(serialList);
           if (!admission_open) {
-            setAdmissionClosed(true);
-            setInitialLoading(false);
+            navigate("/", { replace: true });
             return;
           }
         } else {
@@ -641,15 +639,15 @@ function AdmissionForm() {
     if (cls === "6" || cls.includes("6") || cls.includes("six")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class6") ??
-          getSetting("listTypeClass6") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass6") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class6") ??
-          getSetting("serialNoClass6") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass6") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -658,15 +656,15 @@ function AdmissionForm() {
     } else if (cls === "7" || cls.includes("7") || cls.includes("seven")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class7") ??
-          getSetting("listTypeClass7") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass7") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class7") ??
-          getSetting("serialNoClass7") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass7") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -675,15 +673,15 @@ function AdmissionForm() {
     } else if (cls === "8" || cls.includes("8") || cls.includes("eight")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class8") ??
-          getSetting("listTypeClass8") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass8") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class8") ??
-          getSetting("serialNoClass8") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass8") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -692,15 +690,15 @@ function AdmissionForm() {
     } else if (cls === "9" || cls.includes("9") || cls.includes("nine")) {
       listTypeTokens = parseCsvString(
         getSetting("list_type_class9") ??
-          getSetting("listTypeClass9") ??
-          getSetting("list_type") ??
-          getSetting("listType"),
+        getSetting("listTypeClass9") ??
+        getSetting("list_type") ??
+        getSetting("listType"),
       );
       serialRawTokens = parseCsvString(
         getSetting("serial_no_class9") ??
-          getSetting("serialNoClass9") ??
-          getSetting("serial_no") ??
-          getSetting("serialNo"),
+        getSetting("serialNoClass9") ??
+        getSetting("serial_no") ??
+        getSetting("serialNo"),
       );
       user_id_list = getUserIdListFromSettings(
         admissionSettings,
@@ -1762,48 +1760,6 @@ function AdmissionForm() {
     );
   }
 
-  if (admissionClosed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-xl w-full bg-white border border-gray-200 rounded-lg p-6 text-center shadow">
-          <svg
-            className="mx-auto mb-4 w-12 h-12 text-yellow-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-            />
-          </svg>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            Admissions are currently closed
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Admission is not open at the moment. Please check back later or
-            contact the school administration for updates.
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={() => navigate("/")}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Go to Homepage
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 border rounded"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">

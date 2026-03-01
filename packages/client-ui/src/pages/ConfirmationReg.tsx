@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useSchoolConfig } from "@/context/school";
@@ -76,6 +76,7 @@ function ConfirmationReg() {
   useEffect(() => {
     document.title = "Registration Confirmation";
   }, []);
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [registration, setRegistration] = useState<RegistrationData | null>(
     null,
@@ -97,11 +98,21 @@ function ConfirmationReg() {
   const fetchRegistrationData = async (registrationId: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/reg/ssc/form/${registrationId}`);
+      const [response, regStatusRes] = await Promise.all([
+        axios.get(`/api/reg/ssc/form/${registrationId}`),
+        axios.get("/api/reg/ssc"),
+      ]);
+
+      const regOpen = regStatusRes.data?.data?.reg_open ?? true;
 
       if (response.data.success) {
-        setRegistration(response.data.data);
-        if (response.data.data.status === "approved") {
+        const data = response.data.data;
+        if (!regOpen && data.status !== "approved") {
+          navigate("/", { replace: true });
+          return;
+        }
+        setRegistration(data);
+        if (data.status === "approved") {
           setIsConfirmed(true);
           setShowInstructions(true);
         }

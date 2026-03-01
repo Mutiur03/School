@@ -728,7 +728,6 @@ function Form() {
     useState<AdmissionSettings | null>(null);
   const [userIdOptions, setUserIdOptions] = useState<string[]>([]);
   const [serialNoOptions, setSerialNoOptions] = useState<string[]>([]);
-  const [admissionClosed, setAdmissionClosed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
   const [shouldNavigate, setShouldNavigate] = useState(false);
@@ -1002,8 +1001,7 @@ function Form() {
           );
           if (clsList.length) setClassListOptions(clsList);
           if (!admission_open) {
-            setAdmissionClosed(true);
-            setInitialLoading(false);
+            navigate("/", { replace: true });
             return;
           }
           if (!isEditMode) {
@@ -1491,48 +1489,6 @@ function Form() {
     );
   }
 
-  if (admissionClosed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-xl w-full bg-white border border-gray-200 rounded-lg p-6 text-center shadow">
-          <svg
-            className="mx-auto mb-4 w-12 h-12 text-yellow-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-            />
-          </svg>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            Admissions are currently closed
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Admission is not open at the moment. Please check back later or
-            contact the school administration for updates.
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={() => navigate("/")}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Go to Homepage
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 border rounded"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 mb-4 py-2 sm:py-3 px-3 sm:px-4 rounded-t shadow-sm flex flex-col items-center">
