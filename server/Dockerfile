@@ -31,31 +31,30 @@ RUN npm install -g pnpm
 
 # Copy server package manifest + shared package for dependency resolution
 # IMPORTANT: Build context must be repository root (School/)
-COPY package.json /app/
 COPY server/package*.json /app/server/
-COPY server/prisma /app/server/prisma
 COPY packages/shared-schemas /app/packages/shared-schemas
 
-# Install production dependencies for server only (run from workspace root so pnpm resolves local packages correctly)
-WORKDIR /app
-RUN pnpm install
-RUN echo "THIS IS THE CORRECT DOCKERFILE"
+# Install production dependencies for server only
+WORKDIR /app/server
+RUN pnpm install --prod --ignore-scripts
+
 # Install PM2 globally
-RUN npm install -g pm2
+RUN npm install pm2 -g
 
 # Copy server source after deps for better cache use
 COPY server /app/server
-
-WORKDIR /app/server
 
 # Make the startup script executable
 RUN chmod +x setup-network.sh
 
 # Build application (Prisma client generation)
-RUN /app/node_modules/.bin/prisma generate --schema=/app/server/prisma/schema.prisma
+RUN npx prisma generate
+
 # Final cleanup
 RUN pnpm prune --prod
 
+# Clear any entrypoint from the base image
+ENTRYPOINT []
 
 # Start the application directly
 CMD ["node", "--import", "tsx", "server.js"]

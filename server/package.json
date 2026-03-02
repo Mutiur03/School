@@ -27,7 +27,7 @@
     "@aws-sdk/lib-storage": "^3.972.0",
     "@aws-sdk/s3-request-presigner": "^3.972.0",
     "@prisma/client": "^6.12.0",
-    "@school/shared-schemas": "*",
+    "@school/shared-schemas": "file:../packages/shared-schemas",
     "archiver": "^7.0.1",
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
