@@ -20,3 +20,6 @@ export function filterNumericInput(e: React.FormEvent<HTMLInputElement>) {
   const target = e.target as HTMLInputElement;
   return target.value.replace(/[^\d]/g, "");
 }
+
+export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
