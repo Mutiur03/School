@@ -49,6 +49,7 @@ import { TeacherSettings } from "./pages/Teachers/index.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
 import envPreferredRole from "./lib/role.ts";
+import Loading from "./components/Loading.tsx";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -89,6 +90,14 @@ function App() {
       document.title = 'Panchbibi Lal Bihari Pilot Govt. High School';
     }
   }, [user?.role, location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loading />
+      </div>
+    );
+  }
 
   return (
     <>

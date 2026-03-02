@@ -1,4 +1,5 @@
 import React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type StatColor = "default" | "amber" | "emerald" | "red" | "blue" | "violet" | "indigo";
 
@@ -8,6 +9,7 @@ interface StatsCardProps {
     color?: StatColor;
     icon?: React.ReactNode;
     className?: string;
+    loading: boolean;
 }
 
 const colorMap: Record<StatColor, { label: string; value: string }> = {
@@ -57,6 +59,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
     color = "default",
     icon,
     className = "",
+    loading ,
 }) => {
     const colors = colorMap[color];
 
@@ -67,7 +70,11 @@ const StatsCard: React.FC<StatsCardProps> = ({
             <div className="flex items-start justify-between">
                 <div>
                     <p className={`text-sm mb-1 font-medium ${colors.label}`}>{label}</p>
-                    <h4 className={`text-2xl font-bold ${colors.value}`}>{value}</h4>
+                    {loading ? (
+                        <Skeleton className="h-8 w-15 mt-1" />
+                    ) : (
+                        <h4 className={`text-2xl font-bold ${colors.value}`}>{value}</h4>
+                    )}
                 </div>
                 {icon && (
                     <div className={`p-2 rounded-lg bg-gray-50 dark:bg-gray-700 ${colors.label}`}>

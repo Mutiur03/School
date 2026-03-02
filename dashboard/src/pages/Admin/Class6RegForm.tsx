@@ -17,7 +17,7 @@ import {
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup } from "@/components";
+import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup, Loading } from "@/components";
 import type { TabItem } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { Input } from "@/components/ui/input";
@@ -459,22 +459,25 @@ const Class6RegForm = () => {
                         <StatsCard
                             label="Total Registrations"
                             value={renderCount(stats.total.filtered, stats.total.all)}
+                            loading={registrationsLoading}
                         />
                         <StatsCard
                             label="Pending"
                             value={renderCount(stats.pending.filtered, stats.pending.all)}
                             color="amber"
+                            loading={registrationsLoading}
                         />
                         <StatsCard
                             label="Approved"
                             value={renderCount(stats.approved.filtered, stats.approved.all)}
                             color="emerald"
+                            loading={registrationsLoading}
                         />
                     </div>
 
                     <SectionCard>
                         <div className="flex flex-wrap items-end gap-4">
-                            <div className="flex-1 min-w-[240px]">
+                            <div className="flex-1 min-w-60">
                                 <label className="block text-sm font-medium mb-1">Search</label>
                                 <div className="relative">
                                     <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
@@ -570,7 +573,7 @@ const Class6RegForm = () => {
                                     {registrationsLoading ? (
                                         <tr>
                                             <td colSpan={6} className="py-12 text-center">
-                                                <Loader2 className="animate-spin mx-auto text-blue-500" size={32} />
+                                                <Loading />
                                             </td>
                                         </tr>
                                     ) : registrations.length === 0 ? (
@@ -640,7 +643,7 @@ const Class6RegForm = () => {
 
             {showDetails && selectedReg && (
                 <Popup open onOpenChange={(o) => !o && setShowDetails(false)}>
-                    <div className="flex justify-between items-center p-6 border-b border-gray-300 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-xl">
+                    <div className="flex justify-between items-center p-6 border-b border-gray-300 dark:border-gray-700 bg-linear-to-r from-blue-600 to-blue-500 text-white rounded-t-xl">
                         <div>
                             <h3 className="text-xl font-bold">Registration Details</h3>
                             <p className="text-sm opacity-90 mt-1">Full student information preview</p>
@@ -661,7 +664,7 @@ const Class6RegForm = () => {
                                     {selectedReg.photo ? (
                                         <img
                                             src={getFileUrl(selectedReg.photo)}
-                                            className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
+                                            className="w-full aspect-3/4 object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
                                             alt="Student"
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
@@ -669,7 +672,7 @@ const Class6RegForm = () => {
                                             }}
                                         />
                                     ) : (
-                                        <div className="w-full aspect-[3/4] bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+                                        <div className="w-full aspect-3/4 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
                                             <Users size={48} className="text-gray-400" />
                                         </div>
                                     )}

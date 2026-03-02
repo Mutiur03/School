@@ -15,22 +15,9 @@ import {
   teacherLoginSchema,
   studentLoginSchema,
 } from "@school/shared-schemas";
-import rateLimit from "express-rate-limit";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const authRouter = express.Router();
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 500 : 50,
-  message: {
-    message: "Too many login attempts, please try again after 15 minutes",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-authRouter.use(authLimiter);
 
 authRouter.post("/login", validate(adminLoginSchema), login);
 authRouter.get("/logout", logout);
