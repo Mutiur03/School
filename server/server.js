@@ -5,7 +5,7 @@ process.env.TZ = "Asia/Dhaka";
 
 export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
-import { morganMiddleware, detailedRequestLogger } from "./middlewares/requestLogger.js";
+import { detailedRequestLogger } from "./middlewares/requestLogger.js";
 import logger from "./utils/logger.js";
 import studRouter from "./routes/studRoutes.js";
 import examRouter from "./routes/examRoutes.js";
@@ -60,10 +60,8 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-// Request logging: morgan pipes to winston, then detailed logger captures
-// structured JSON (method, url, status, duration, ip, redacted body) into
-// logs/access-YYYY-MM-DD.log + logs/combined-YYYY-MM-DD.log
-app.use(morganMiddleware);
+// Structured JSON request logging (method, url, status, duration, ip, redacted body)
+// → logs/access-YYYY-MM-DD.log + logs/combined-YYYY-MM-DD.log
 app.use(detailedRequestLogger);
 app.options("*", cors());
 app.use(express.json());
