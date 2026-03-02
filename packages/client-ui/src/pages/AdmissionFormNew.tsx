@@ -20,7 +20,7 @@ import {
   filterNumericInput,
   filterEnglishInput,
   filterBanglaInput,
-} from "@school/common-ui";
+} from "@school/shared-schemas";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "..";
