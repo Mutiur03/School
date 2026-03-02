@@ -32,9 +32,8 @@ RUN npm install -g pnpm
 # Copy server package manifest + shared package for dependency resolution
 # IMPORTANT: Build context must be repository root (School/)
 COPY package.json /app/
-COPY pnpm-workspace.yaml /app/
-COPY .npmrc /app/
 COPY server/package*.json /app/server/
+COPY server/prisma /app/server/prisma
 COPY packages/shared-schemas /app/packages/shared-schemas
 
 # Install production dependencies for server only (run from workspace root so pnpm resolves local packages correctly)
@@ -53,8 +52,7 @@ WORKDIR /app/server
 RUN chmod +x setup-network.sh
 
 # Build application (Prisma client generation)
-RUN pnpm prisma generate
-
+RUN /app/node_modules/.bin/prisma generate --schema=/app/server/prisma/schema.prisma
 # Final cleanup
 RUN pnpm prune --prod
 
