@@ -6,8 +6,7 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "dependencies": {
-    "zod": "^4.3.6",
-    "@school/common-ui": "*"
+    "zod": "^4.3.6"
   },
   "exports": {
     ".": "./index.ts"
