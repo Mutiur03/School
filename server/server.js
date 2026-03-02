@@ -79,6 +79,7 @@ app.use(
   }),
 );
 const limitStore = new MemoryStore();
+const authStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: process.env.NODE_ENV === "development" ? 5000 : 500,
@@ -97,7 +98,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  store: limitStore,
+  store: authStore,
 });
 app.use(LimitReq);
 app.get("/api/resetLimit", AuthMiddleware.authenticate(["admin"]), (req, res) => {
