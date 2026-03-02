@@ -5,15 +5,15 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx prisma generate && npx prisma migrate deploy && npx prisma db seed",
-    "build:docker": "npx prisma generate",
-    "migrate:deploy": "npx prisma migrate deploy",
-    "db:seed": "npx prisma db seed",
+    "build": "prisma generate && prisma migrate deploy && prisma db seed",
+    "build:docker": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "lint": "eslint .",
     "dev": "nodemon",
     "prestart": "npm run lint",
     "start": "npm run lint && node --import tsx server.js",
-    "postinstall": "npx prisma generate"
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
