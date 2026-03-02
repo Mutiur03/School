@@ -1032,7 +1032,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       padding: 0 0 110px 0;
       min-height: 0;
       height: calc(100vh - 110px);
-      overflow: hidden;
+      // overflow: hidden;
       font-size: 13px;
     }
     
@@ -1183,7 +1183,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       border-radius: 4px;
       padding: 12px;
       margin: 8px 0;
-      font-size: 1rem;
+      font-size: 1.2rem;
       line-height: 1;
       text-align: justify;
     }
@@ -1191,13 +1191,13 @@ export const downloadRegistrationPDF = async (req, res) => {
       white-space: pre-line;
       text-align: justify;
       line-height: 1;
-      font-size: 1rem;
+      font-size: 1.2rem;
     }
     table { 
       border-collapse: collapse; 
       width: 100%; 
       margin-top: 0.5rem; 
-      font-size: 1rem; 
+      font-size: 1.2rem; 
       page-break-inside: avoid;
     }
     tr {
@@ -1206,7 +1206,7 @@ export const downloadRegistrationPDF = async (req, res) => {
     th, td { 
       border: 1px solid #bbb; 
       padding: 4px 8px;
-      font-size: 1rem;
+      font-size: 1.2rem;
     }
     th { 
       background: #f3f6fa; 
@@ -1220,11 +1220,11 @@ export const downloadRegistrationPDF = async (req, res) => {
     }
     .document-list {
       margin-top: 8px;
-      font-size: 1rem;
+      font-size: 1.2rem;
     }
     .document-list .bn {
       display: block;
-      font-size: 1rem;
+      font-size: 1.2rem;
       line-height: 1.2;
       font-family: ${solaimanLipiBase64
         ? "'SolaimanLipi', 'Noto Sans Bengali'"

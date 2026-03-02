@@ -92,7 +92,7 @@ const LimitReq = rateLimit({
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 500 : 50,
+  max: process.env.NODE_ENV === "development" ? 500 : 100,
   message: {
     message: "Too many attempts, please try again after 15 minutes",
   },
