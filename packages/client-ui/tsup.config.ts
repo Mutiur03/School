@@ -22,5 +22,6 @@ export default defineConfig({
     "axios",
     "@tanstack/react-query",
     "@school/common-ui",
+    "@school/shared-schemas",
   ],
 });
