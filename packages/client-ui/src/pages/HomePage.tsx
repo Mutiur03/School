@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { useCitizenCharter, useNotices, useRoutinePDF, useSyllabuses } from "../data";
 import { ExtraHome } from "@/components/ExtraHome";
 import { NoticeBoard } from "@/components/NoticeBoard";
 import { Chart } from "@/components/Chart";
 import { useSchoolConfig } from "@/context/school";
+import { useCitizenCharter, useNotices, useRoutinePDF, useSyllabuses } from "@/hooks/useSchoolData";
 
 export type HomePageProps = {
   noticesLimit?: number;
@@ -51,7 +51,7 @@ export function Home({ noticesLimit = 5 }: HomePageProps) {
 
   return (
     <>
-      <NoticeBoard notices={notices} isLoading={isLoading} />
+      <NoticeBoard />
       <Chart
         onRoutineClick={openRootineInNewTab}
         onSyllabusClick={getLatestSyllabusForClass}

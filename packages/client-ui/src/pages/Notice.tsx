@@ -1,5 +1,5 @@
+import { useNotices } from "@/hooks/useSchoolData";
 import { useEffect, useMemo, useState } from "react";
-import { useAllNotices } from "@/hooks/useSchoolData";
 
 function formatDate(iso?: string) {
   if (!iso) return "";
@@ -16,7 +16,7 @@ function Notice() {
   useEffect(() => {
     document.title = "Notices";
   }, []);
-  const { data: Notices = [], isLoading } = useAllNotices();
+  const { data: Notices = [], isLoading } = useNotices();
   const [pageSize, setPageSize] = useState<number>(20);
   const [query, setQuery] = useState<string>("");
   const [page, setPage] = useState<number>(1);

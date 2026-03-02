@@ -20,22 +20,13 @@ export type {
   SchoolProviderProps,
 } from "./types";
 export { TopBanner } from "./components/TopBanner";
-export type { TopBannerProps, TopBannerNotice } from "./components/TopBanner";
 export { RightSidebar } from "./components/RightSidebar";
 export type { RightSidebarProps } from "./components/RightSidebar";
 export { NoticeBoard } from "./components/NoticeBoard";
-export type { NoticeBoardProps, NoticeBoardNotice } from "./components/NoticeBoard";
 export { ExtraHome } from "./components/ExtraHome";
 export type { ExtraHomeProps } from "./components/ExtraHome";
 export { Chart } from "./components/Chart";
 export type { ChartProps } from "./components/Chart";
-export {
-  useCitizenCharter,
-  useHeadMasterMsg,
-  useNotices,
-  useRoutinePDF,
-  useSyllabuses,
-} from "./data";
 export { SchoolProvider, useSchoolConfig } from "./context/school";
 export { Analytics } from "./components/Analytics";
 export type { AnalyticsProps } from "./components/Analytics";

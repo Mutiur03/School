@@ -2,9 +2,9 @@ import * as React from "react";
 import "./RightSidebar.css";
 import { Link, useLocation } from "react-router-dom";
 
-import { useHeadMasterMsg } from "../data";
 import { useSchoolConfig } from "../context/school";
 import { getFileUrl } from "@/lib/backend";
+import { useHeadMasterMsg } from "@/hooks/useSchoolData";
 
 type SidebarLink = {
   title: string;

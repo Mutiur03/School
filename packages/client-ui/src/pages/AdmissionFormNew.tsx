@@ -20,7 +20,7 @@ import {
   filterNumericInput,
   filterEnglishInput,
   filterBanglaInput,
-} from "@/lib/regex";
+} from "@school/common-ui";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "..";

@@ -58,27 +58,15 @@ export const useHeadMasterMsg = () => {
   });
 };
 
-export const useNotices = (limit = 5) => {
-  return useQuery<NoticeItem[]>({
-    queryKey: ["notices", limit],
-    queryFn: async () => {
-      try {
-        const response = await axios.get(
-          `/api/notices/getNotices?limit=${limit}`,
-        );
-        return response.data;
-      } catch {
-        return [];
-      }
-    },
-  });
-};
 
-export const useAllNotices = () => {
+export const useNotices = (limit?: number) => {
   return useQuery<NoticeItem[]>({
-    queryKey: ["notices", "all"],
+    queryKey: limit !== undefined ? ["notices", "limited", limit] : ["notices", "all"],
     queryFn: async () => {
-      const response = await axios.get("/api/notices/getNotices");
+      const url = limit !== undefined
+        ? `/api/notices/getNotices?limit=${limit}`
+        : "/api/notices/getNotices";
+      const response = await axios.get(url);
       return response.data;
     },
   });
