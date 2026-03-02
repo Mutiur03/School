@@ -16,9 +16,9 @@
     "build:teacher": "tsc -b && vite build --mode teacher"
   },
   "dependencies": {
-    "@school/common-ui": "file:../packages/common-ui",
-    "@school/client-ui": "file:../packages/client-ui",
-    "@school/shared-schemas": "file:../packages/shared-schemas",
+    "@school/common-ui": "*",
+    "@school/client-ui": "*",
+    "@school/shared-schemas": "*",
     "@hookform/resolvers": "^5.2.2",
     "@progress/kendo-react-pdf": "^10.1.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",

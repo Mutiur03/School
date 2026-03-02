@@ -12,6 +12,12 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "@school/common-ui": [
+        "../common-ui/src/index.ts"
+      ],
+      "@school/shared-schemas": [
+        "../shared-schemas/index.ts"
       ]
     },
     "jsx": "react-jsx",
