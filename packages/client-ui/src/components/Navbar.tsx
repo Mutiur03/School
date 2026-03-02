@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useSchoolConfig } from "../context/school";
 import type { MenuItem } from "../types";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRoutinePDF } from "../data";
+import { useRoutinePDF } from "@/hooks/useSchoolData";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];

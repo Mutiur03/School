@@ -21,5 +21,6 @@ export default defineConfig({
     "framer-motion",
     "axios",
     "@tanstack/react-query",
+    "@school/common-ui",
   ],
 });

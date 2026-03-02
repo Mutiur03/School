@@ -1,18 +1,19 @@
+import { BANGLA_ONLY, BIRTH_REG_NO, ENGLISH_ONLY, NID, PHONE_NUMBER, POST_CODE, ROLL_NUMBER } from "@school/common-ui";
 import { z } from "zod";
 
 /**
  * Regex patterns used in Class 6 registration validation.
  * Exported so frontend/backend can reuse them in custom UI logic.
  */
-export const CLASS6_REGEX = {
-  BANGLA_ONLY: /^[\u0980-\u09FF\s.:]+$/,
-  ENGLISH_ONLY: /^[A-Za-z\s.:]+$/,
-  PHONE_NUMBER: /^01[3-9][0-9]{8}$/,
-  NID: /^(?:\d{10}|\d{13}|\d{17})$/,
-  BIRTH_REG_NO: /^\d{17}$/,
-  POST_CODE: /^\d{4}$/,
-  ROLL_NUMBER: /^\d{1,6}$/,
-} as const;
+// export const = {
+//   BANGLA_ONLY: /^[\u0980-\u09FF\s.:]+$/,
+//   ENGLISH_ONLY: /^[A-Za-z\s.:]+$/,
+//   PHONE_NUMBER: /^01[3-9][0-9]{8}$/,
+//   NID: /^(?:\d{10}|\d{13}|\d{17})$/,
+//   BIRTH_REG_NO: /^\d{17}$/,
+//   POST_CODE: /^\d{4}$/,
+//   ROLL_NUMBER: /^\d{1,6}$/,
+// } as const;
 
 /**
  * Internal base fields (no photo, no UI-only booleans).
@@ -24,15 +25,15 @@ const class6RegistrationFieldsSchema = z.object({
   student_name_bn: z
     .string()
     .min(1, "Student Name in Bangla is required")
-    .regex(CLASS6_REGEX.BANGLA_ONLY, "Only Bangla characters are allowed"),
+    .regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
   student_name_en: z
     .string()
     .min(1, "Student Name in English is required")
-    .regex(CLASS6_REGEX.ENGLISH_ONLY, "Only English characters are allowed"),
+    .regex(ENGLISH_ONLY, "Only English characters are allowed"),
   birth_reg_no: z
     .string()
     .min(1, "Birth Registration Number is required")
-    .regex(CLASS6_REGEX.BIRTH_REG_NO, "Must be 17 digits"),
+    .regex(BIRTH_REG_NO, "Must be 17 digits"),
   birth_year: z.string().min(1, "Year is required"),
   birth_month: z.string().min(1, "Month is required"),
   birth_day: z.string().min(1, "Day is required"),
@@ -53,36 +54,36 @@ const class6RegistrationFieldsSchema = z.object({
   father_name_bn: z
     .string()
     .min(1, "Father's Name in Bangla is required")
-    .regex(CLASS6_REGEX.BANGLA_ONLY, "Only Bangla characters are allowed"),
+    .regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
   father_name_en: z
     .string()
     .min(1, "Father's Name in English is required")
-    .regex(CLASS6_REGEX.ENGLISH_ONLY, "Only English characters are allowed"),
+    .regex(ENGLISH_ONLY, "Only English characters are allowed"),
   father_nid: z
     .string()
     .min(1, "Father's NID is required")
-    .regex(CLASS6_REGEX.NID, "Must be 10, 13 or 17 digits"),
+    .regex(NID, "Must be 10, 13 or 17 digits"),
   father_phone: z
     .string()
     .min(1, "Father's Phone is required")
-    .regex(CLASS6_REGEX.PHONE_NUMBER, "Invalid phone number"),
+    .regex(PHONE_NUMBER, "Invalid phone number"),
 
   mother_name_bn: z
     .string()
     .min(1, "Mother's Name in Bangla is required")
-    .regex(CLASS6_REGEX.BANGLA_ONLY, "Only Bangla characters are allowed"),
+    .regex(BANGLA_ONLY, "Only Bangla characters are allowed"),
   mother_name_en: z
     .string()
     .min(1, "Mother's Name in English is required")
-    .regex(CLASS6_REGEX.ENGLISH_ONLY, "Only English characters are allowed"),
+    .regex(ENGLISH_ONLY, "Only English characters are allowed"),
   mother_nid: z
     .string()
     .min(1, "Mother's NID is required")
-    .regex(CLASS6_REGEX.NID, "Must be 10, 13 or 17 digits"),
+    .regex(NID, "Must be 10, 13 or 17 digits"),
   mother_phone: z
     .string()
     .min(1, "Mother's Phone is required")
-    .regex(CLASS6_REGEX.PHONE_NUMBER, "Invalid phone number"),
+    .regex(PHONE_NUMBER, "Invalid phone number"),
 
   // Permanent Address
   permanent_district: z.string().min(1, "District is required"),
@@ -91,7 +92,7 @@ const class6RegistrationFieldsSchema = z.object({
   permanent_post_code: z
     .string()
     .min(1, "Post Code is required")
-    .regex(CLASS6_REGEX.POST_CODE, "Must be 4 digits"),
+    .regex(POST_CODE, "Must be 4 digits"),
   permanent_village_road: z.string().min(1, "Village/Road is required"),
 
   // Present Address
@@ -101,7 +102,7 @@ const class6RegistrationFieldsSchema = z.object({
   present_post_code: z
     .string()
     .min(1, "Post Code is required")
-    .regex(CLASS6_REGEX.POST_CODE, "Must be 4 digits"),
+    .regex(POST_CODE, "Must be 4 digits"),
   present_village_road: z.string().min(1, "Village/Road is required"),
 
   // Guardian Information (all optional at field level; cross-field rules via superRefine)
@@ -120,7 +121,7 @@ const class6RegistrationFieldsSchema = z.object({
   roll: z
     .string()
     .min(1, "Roll is required")
-    .regex(CLASS6_REGEX.ROLL_NUMBER, "Invalid roll"),
+    .regex(ROLL_NUMBER, "Invalid roll"),
 
   // Previous School Information
   prev_school_name: z.string().min(1, "Previous School Name is required"),
@@ -133,7 +134,7 @@ const class6RegistrationFieldsSchema = z.object({
   roll_in_prev_school: z
     .string()
     .min(1, "Roll in previous school is required")
-    .regex(CLASS6_REGEX.ROLL_NUMBER, "Roll must be numeric"),
+    .regex(ROLL_NUMBER, "Roll must be numeric"),
   prev_school_district: z
     .string()
     .min(1, "Previous School District is required"),
@@ -172,7 +173,7 @@ export const class6RegistrationServerSchema =
             path: ["guardian_phone"],
             input: data,
           });
-        } else if (!CLASS6_REGEX.PHONE_NUMBER.test(data.guardian_phone)) {
+        } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
           ctx.issues.push({
             code: "custom",
             message: "Invalid Guardian Phone Number",
@@ -197,7 +198,7 @@ export const class6RegistrationServerSchema =
             path: ["guardian_nid"],
             input: data,
           });
-        } else if (!CLASS6_REGEX.NID.test(data.guardian_nid)) {
+        } else if (!NID.test(data.guardian_nid)) {
           ctx.issues.push({
             code: "custom",
             message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)",
@@ -232,7 +233,7 @@ export const class6RegistrationServerSchema =
         }
         if (
           !data.guardian_post_code ||
-          !CLASS6_REGEX.POST_CODE.test(data.guardian_post_code)
+          !POST_CODE.test(data.guardian_post_code)
         ) {
           ctx.issues.push({
             code: "custom",

@@ -1,38 +1,20 @@
-import * as React from "react";
+import { useNotices } from "@/hooks/useSchoolData";
 import "./NoticeBoard.css";
 import { Link } from "react-router-dom";
 
-export type NoticeBoardNotice = {
-  title: string;
-  file?: string;
-};
-
-export type NoticeBoardProps = {
-  notices: NoticeBoardNotice[];
-  isLoading?: boolean;
-  viewAllPath?: string;
-  title?: string;
-  loadingText?: string;
-};
-
-export function NoticeBoard({
-  notices,
-  isLoading = false,
-  viewAllPath = "/notices",
-  title = "Notice Board",
-  loadingText = "Loading notices...",
-}: NoticeBoardProps) {
+export function NoticeBoard() {
+    const {data, isLoading} = useNotices(5);
   return (
     <div className="front-notices-area ">
       <div className="notices-front">
         <div className="notices-front-board">
           <div className="notices-items">
-            <h2>{title}</h2>
+            <h2>Notice Board</h2>
             {isLoading ? (
-              <p>{loadingText}</p>
+              <p>Loading notices...</p>
             ) : (
               <ul className="notices_front_list">
-                {(notices ?? []).map((notice, index) => (
+                {(data ?? []).map((notice, index) => (
                   <li key={index} className="notice-item text-left">
                     <div className="notice-title">
                       <h5>
@@ -50,7 +32,7 @@ export function NoticeBoard({
               </ul>
             )}
             <h4 className="text-right">
-              <Link to={viewAllPath}>View All</Link>
+              <Link to={"/notices"}>View All</Link>
             </h4>
           </div>
         </div>

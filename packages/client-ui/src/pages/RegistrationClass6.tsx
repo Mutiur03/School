@@ -9,19 +9,16 @@ import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    filterNumericInput,
-    filterEnglishInput,
-    filterBanglaInput,
-} from "@/lib/regex";
-import {
     class6RegistrationServerShape,
-    CLASS6_REGEX,
-} from "@school/shared-schemas";
 
+} from "@school/shared-schemas";
 import { guardianRelations } from "@/lib/guardian";
 import { getFileUrl } from "@/lib/backend";
+import DuplicateWarning, { Duplicate } from "@/components/Form/DupliacteWarning";
+import SectionHeader from "@/components/Form/SectionHeader";
+import FieldRow, { Instruction } from "@/components/Form/FieldRow";
+import { filterEnglishInput, filterBanglaInput, filterNumericInput, PHONE_NUMBER,NID,POST_CODE } from "@school/common-ui";
 
-// Extend the server shape (minus photo_path) with UI-only fields and the frontend photo type
 const registrationSchemaBase = class6RegistrationServerShape.omit({ photo_path: true }).extend({
     same_as_permanent: z.boolean().default(false),
     guardian_is_not_father: z.boolean().default(false),
@@ -39,13 +36,13 @@ const registrationSchema = registrationSchemaBase.check((ctx) => {
         if (!data.guardian_name) ctx.issues.push({ code: "custom", message: "Guardian name is required", path: ["guardian_name"], input: data });
         if (!data.guardian_phone) {
             ctx.issues.push({ code: "custom", message: "Guardian phone is required", path: ["guardian_phone"], input: data });
-        } else if (!CLASS6_REGEX.PHONE_NUMBER.test(data.guardian_phone)) {
+        } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
             ctx.issues.push({ code: "custom", message: "Invalid Guardian Phone Number", path: ["guardian_phone"], input: data });
         }
         if (!data.guardian_relation) ctx.issues.push({ code: "custom", message: "Guardian relation is required", path: ["guardian_relation"], input: data });
         if (!data.guardian_nid) {
             ctx.issues.push({ code: "custom", message: "Guardian NID is required", path: ["guardian_nid"], input: data });
-        } else if (!CLASS6_REGEX.NID.test(data.guardian_nid)) {
+        } else if (!NID.test(data.guardian_nid)) {
             ctx.issues.push({ code: "custom", message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)", path: ["guardian_nid"], input: data });
         }
 
@@ -53,7 +50,7 @@ const registrationSchema = registrationSchemaBase.check((ctx) => {
             if (!data.guardian_district) ctx.issues.push({ code: "custom", message: "Guardian district is required", path: ["guardian_district"], input: data });
             if (!data.guardian_upazila) ctx.issues.push({ code: "custom", message: "Guardian upazila is required", path: ["guardian_upazila"], input: data });
             if (!data.guardian_post_office) ctx.issues.push({ code: "custom", message: "Guardian post office is required", path: ["guardian_post_office"], input: data });
-            if (!data.guardian_post_code || !CLASS6_REGEX.POST_CODE.test(data.guardian_post_code)) ctx.issues.push({ code: "custom", message: "Invalid Guardian Post Code", path: ["guardian_post_code"], input: data });
+            if (!data.guardian_post_code || !POST_CODE.test(data.guardian_post_code)) ctx.issues.push({ code: "custom", message: "Invalid Guardian Post Code", path: ["guardian_post_code"], input: data });
             if (!data.guardian_village_road) ctx.issues.push({ code: "custom", message: "Guardian village/road is required", path: ["guardian_village_road"], input: data });
         }
     }
@@ -61,100 +58,6 @@ const registrationSchema = registrationSchemaBase.check((ctx) => {
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
 export type { RegistrationFormData };
-const Instruction: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <p className="text-sm text-gray-900">{children}</p>
-);
-const Error: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="text-red-600 text-sm">{children}</div>
-);
-
-type Duplicate = {
-    message: string;
-    existingRecord?: {
-        id?: string | number;
-    };
-};
-const DuplicateWarning: React.FC<{ duplicates: Duplicate[] }> = ({
-    duplicates,
-}) => (
-    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="flex items-start gap-2">
-            <svg
-                className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-            >
-                <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                />
-            </svg>
-            <div className="flex-1">
-                <h3 className="text-yellow-800 font-semibold mb-2">
-                    Duplicate Information Detected
-                </h3>
-                <div className="space-y-2">
-                    {duplicates.map((duplicate, index) => (
-                        <div key={index} className="text-yellow-700 text-sm">
-                            <p className="font-medium">{duplicate.message}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    </div>
-);
-
-
-
-const FieldRow: React.FC<{
-    label: React.ReactNode;
-    isRequired: boolean;
-    instruction?: React.ReactNode;
-    error: any;
-    tooltip?: string;
-    children: React.ReactNode;
-}> = ({ label, isRequired, instruction, error, tooltip, children }) => (
-    <div className="flex flex-col lg:flex-row items-start gap-1 lg:gap-4 py-2 w-full">
-        <div className="w-full lg:w-60 text-left text-sm font-medium select-none mb-1 lg:mb-0 shrink-0">
-            <span className="flex items-center gap-1">
-                <span>
-                    {label}
-                    {isRequired && (
-                        <span className="text-red-600 ml-1" aria-hidden="true">
-                            *
-                        </span>
-                    )}
-                </span>
-                {tooltip && (
-                    <span className="cursor-pointer group relative inline-block align-middle">
-                        <div className="w-4 h-4 bg-blue-500 border border-blue-400 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-blue-700 transition-colors">
-                            ?
-                        </div>
-                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs px-2 py-1 rounded bg-gray-800 text-white text-sm opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none z-20 transition-opacity duration-200">
-                            {tooltip}
-                        </span>
-                    </span>
-                )}
-            </span>
-        </div>
-        <div className="flex-1 w-full min-w-0">
-            {children}
-            {instruction && <Instruction>{instruction}</Instruction>}
-            {error && <Error>{error.message}</Error>}
-        </div>
-    </div>
-);
-
-const SectionHeader: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
-    <fieldset className="border border-gray-300 rounded-sm p-4 sm:p-6">
-        <legend>
-            <strong>{title}</strong>
-        </legend>
-        {children}
-    </fieldset>
-);
 
 export default function RegistrationClass6() {
     useEffect(() => {

@@ -1143,7 +1143,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-weight: bold; 
       margin-bottom: 4px;
       line-height: 1.2;
-      color: #1e3a8a;
+      // color: #1e3a8a;
     }
     .header .addr { 
       font-size: 1.5rem; 
@@ -1154,13 +1154,15 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1.5rem; 
     }
     .title-row { 
-      background: #e3f0fa; 
-      font-size: 1.3rem; 
-      font-weight: bold; 
+      // background: #e3f0fa; 
+      font-size: 1.5rem; 
+      font-weight: 600; 
       text-align: center; 
-      border: 1px solid #bbb; 
-      padding: 8px 0; 
-      margin-top: 8px;
+      // border: 1px solid #bbb; 
+      // padding: 5px 0; 
+      margin-top: 5px;
+      // border-top: 1px solid #bbb;
+      // border-bottom: 1px solid #bbb;
     }
     .section-row {
       background: #f1f5f9; 
@@ -1302,6 +1304,9 @@ export const downloadRegistrationPDF = async (req, res) => {
             <div class="school en">${schoolName}</div>
             <div class="addr en">${schoolAddr}</div>
             <div class="web en">${schoolWeb}</div>
+            <div class="title-row en">
+              Student's Information for Registration of Class Six ${class6Year}
+            </div>
           </div>
           <div class="passport-photo">
             ${_studentPhotoBase64
@@ -1310,9 +1315,6 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
           </div>
         </div>
-      </div>
-      <div class="title-row en">
-        Student's Information for Registration of Class Six ${class6Year}
       </div>
       <div class="section-row en">
         Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span>
