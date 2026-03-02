@@ -20,11 +20,11 @@ import {
   filterNumericInput,
   filterEnglishInput,
   filterBanglaInput,
+  bloodGroups,
 } from "@school/shared-schemas";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "..";
-export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const admissionSchema = z
   .object({
     student_name_bn: z
