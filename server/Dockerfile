@@ -31,6 +31,7 @@ RUN npm install -g pnpm
 
 # Copy server package manifest + shared package for dependency resolution
 # IMPORTANT: Build context must be repository root (School/)
+COPY package.json /app/
 COPY server/package*.json /app/server/
 COPY packages/shared-schemas /app/packages/shared-schemas
 
