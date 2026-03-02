@@ -17,7 +17,7 @@ import { getFileUrl } from "@/lib/backend";
 import DuplicateWarning, { Duplicate } from "@/components/Form/DupliacteWarning";
 import SectionHeader from "@/components/Form/SectionHeader";
 import FieldRow, { Instruction } from "@/components/Form/FieldRow";
-import { filterEnglishInput, filterBanglaInput, filterNumericInput, PHONE_NUMBER,NID,POST_CODE } from "@school/common-ui";
+import { filterEnglishInput, filterBanglaInput, filterNumericInput, PHONE_NUMBER,NID,POST_CODE } from "@school/shared-schemas";
 
 const registrationSchemaBase = class6RegistrationServerShape.omit({ photo_path: true }).extend({
     same_as_permanent: z.boolean().default(false),

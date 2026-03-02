@@ -1,4 +1,4 @@
-import { BANGLA_ONLY, BIRTH_REG_NO, ENGLISH_ONLY, NID, PHONE_NUMBER, POST_CODE, ROLL_NUMBER } from "@school/common-ui";
+import { BANGLA_ONLY, BIRTH_REG_NO, ENGLISH_ONLY, NID, PHONE_NUMBER, POST_CODE, ROLL_NUMBER } from "./regex.ts";
 import { z } from "zod";
 
 /**
