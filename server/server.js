@@ -41,6 +41,9 @@ import {
   resolveClass6Preview,
 } from "./controllers/studentRegistrationClass6Controller.js";
 import { check } from "./config/redis.js";
+import rateLimit from "express-rate-limit";
+import { MemoryStore } from "express-rate-limit";
+import AuthMiddleware from "./middlewares/auth.middleware.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
@@ -60,8 +63,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-// Structured JSON request logging (method, url, status, duration, ip, redacted body)
-// → logs/access-YYYY-MM-DD.log + logs/combined-YYYY-MM-DD.log
+
 app.use(detailedRequestLogger);
 app.options("*", cors());
 app.use(express.json());
@@ -76,6 +78,35 @@ app.use(
     },
   }),
 );
+const limitStore = new MemoryStore();
+const LimitReq = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: process.env.NODE_ENV === "development" ? 5000 : 500,
+  message: {
+    message: "Too many requests, please try again after an hour",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: limitStore,
+});
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "development" ? 500 : 50,
+  message: {
+    message: "Too many attempts, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: limitStore,
+});
+app.use(LimitReq);
+app.get("/api/resetLimit", AuthMiddleware.authenticate(["admin"]), (req, res) => {
+  limitStore.resetAll();
+  res.json({
+    success: true,
+    message: "Rate limit reset successfully",
+  });
+});
 app.get("/api", (req, res) => {
   res.send("Hello World");
 });
@@ -86,7 +117,7 @@ app.use("/api/marks", marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use("/api/teachers", routerTeacher);
 app.use("/api/staffs", routerStaff);
-app.use("/api/auth", authRouter);
+app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/level", levelRouter);
 app.use("/api/attendance", attendenceRouter);
 app.use("/api/notices", noticeRouter);

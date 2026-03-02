@@ -738,7 +738,7 @@ function StudentList() {
                   <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
                     <div className="flex justify-center flex-col items-center">
                       <p className="text-sm font-medium mb-2">Student Image</p>
-                      <label className="w-24 sm:w-32 aspect-[7/9] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
+                      <label className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
                         {preview ? (
                           <img
                             src={preview}
@@ -955,7 +955,7 @@ function StudentList() {
                     </div>
                   </div>
 
-                  <div className="sticky bottom-0 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70 border-t border-border pt-4 flex justify-between">
+                  <div className="sticky bottom-0 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/70 border-t border-border pt-4 flex justify-between">
                     <Button
                       variant="outline"
                       onClick={handleCancel}
@@ -1085,17 +1085,18 @@ function StudentList() {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Students" value={students.length} />
+        <StatsCard label="Total Students" value={students.length} loading={loading} />
         <StatsCard
           label="Showing"
           value={filteredStudents.length !== students.length ? `${filteredStudents.length} / ${students.length}` : students.length}
           color="blue"
+          loading={loading}
         />
-        <StatsCard label="With Stipend" value={filteredStudents.filter(s => s.has_stipend).length} color="emerald" />
+        <StatsCard label="With Stipend" value={filteredStudents.filter(s => s.has_stipend).length} color="emerald" loading={loading} />
       </div>
       <SectionCard className="mb-6">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[240px]">
+          <div className="flex-1 min-w-60">
             <label className="block text-sm font-medium mb-1">Search</label>
             <div className="relative">
               <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
@@ -1211,9 +1212,7 @@ function StudentList() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center">
-                    <div className="flex flex-col justify-center items-center gap-2">
-                      <Loading />
-                    </div>
+                    <Loading />
                   </td>
                 </tr>
               ) : filteredStudents.length > 0 ? (
@@ -1333,10 +1332,10 @@ function StudentList() {
                   <img
                     src={getFileUrl(popup.student.image)}
                     alt="Student"
-                    className="w-20  sm:w-24 aspect-[7/9] object-cover rounded-sm border border-border shadow"
+                    className="w-20  sm:w-24 aspect-7/9 object-cover rounded-sm border border-border shadow"
                   />
                 ) : (
-                  <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
+                  <div className="w-20 aspect-7/9 rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
                     {popup.student.name.charAt(0).toUpperCase()}
                   </div>
                 )}

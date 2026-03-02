@@ -266,7 +266,7 @@ const TeacherList = () => {
                   />
                   <label
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-24 sm:w-32 aspect-[7/9] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors"
+                    className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors"
                   >
                     {image ? (
                       <img src={URL.createObjectURL(image)} alt="Preview" className="w-full h-full object-cover" />
@@ -350,7 +350,7 @@ const TeacherList = () => {
                 </div>
               </fieldset>
 
-              <div className="sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between">
+              <div className="sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur supports-backdrop-filter:bg-white/70 border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between">
                 <Button
                   type="button"
                   variant="outline"
@@ -375,8 +375,8 @@ const TeacherList = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Teachers" value={teachers.filter(t => t.available).length} />
-        <StatsCard label="Filtered" value={filteredTeachers.length !== teachers.filter(t => t.available).length ? `${filteredTeachers.length} / ${teachers.filter(t => t.available).length}` : filteredTeachers.length} color="blue" />
+        <StatsCard label="Total Teachers" value={teachers.filter(t => t.available).length} loading={isLoading} />
+        <StatsCard label="Filtered" value={filteredTeachers.length !== teachers.filter(t => t.available).length ? `${filteredTeachers.length} / ${teachers.filter(t => t.available).length}` : filteredTeachers.length} color="blue" loading={isLoading} />
       </div>
 
       <SectionCard className="mb-6">

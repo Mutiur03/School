@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "@/context/useAuth";
+import Loading from "./Loading";
 
 const TeacherRoute = ({ element }: { element: ReactNode }) => {
     const { user, loading, isTeacher } = useAuth();
@@ -8,7 +9,7 @@ const TeacherRoute = ({ element }: { element: ReactNode }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <div className="text-lg">Loading...</div>
+                <Loading />
             </div>
         );
     }
