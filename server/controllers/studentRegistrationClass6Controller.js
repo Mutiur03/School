@@ -630,7 +630,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     }
 
-    if(!process.env.PUBLIC_FRONTEND_URL) {
+    if (!process.env.PUBLIC_FRONTEND_URL) {
       return res.status(500).json({
         success: false,
         message: "Frontend URL not configured",
@@ -1420,6 +1420,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     await browser.close();
 
     res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const fileName = `Class6_Reg_${registration.student_name_en.replace(/\s+/g, "_")}.pdf`;
     res.setHeader(
       "Content-Disposition",
