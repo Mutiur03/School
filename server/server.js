@@ -37,9 +37,6 @@ import admissionResultRouter from "./routes/admissionResultRoutes.js";
 import smsRouter from "./routes/smsRoutes.js";
 import regClass6Router from "./routes/regClass6Routes.js";
 import studentRegistrationClass6Router from "./routes/studentRegistrationClass6Routes.js";
-import {
-  resolveClass6Preview,
-} from "./controllers/studentRegistrationClass6Controller.js";
 import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
@@ -137,7 +134,6 @@ app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 app.use("/api/sms", smsRouter);
-app.get("/preview/class6/:id", resolveClass6Preview);
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
