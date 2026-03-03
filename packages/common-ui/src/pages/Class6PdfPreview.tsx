@@ -8,7 +8,7 @@ function Class6PdfPreview() {
   if (!id) return <Navigate to="/" replace />;
 
   const base = String(backend || "").trim().replace(/\/$/, "");
-  const previewUrl = `${base}/api/reg/class-6/form/${id}/pdf?preview=1`;
+  const previewUrl = `${base}/api/reg/class-6/form/${id}/pdf?preview=1&t=${Date.now()}`;
 
   return (
     <div style={{ width: "100%", height: "100vh", background: "#fff", position: "relative" }}>
