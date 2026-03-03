@@ -15,7 +15,7 @@ import {
 import AuthMiddleware from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
-  class6RegistrationServerSchema,
+  registrationSchema,
   class6RegistrationStatusSchema,
 } from "@school/shared-schemas";
 
@@ -23,7 +23,7 @@ const studentRegistrationClass6Router = router.Router();
 
 studentRegistrationClass6Router.post(
   "/",
-  validate(class6RegistrationServerSchema),
+  validate(registrationSchema),
   createRegistration,
 );
 studentRegistrationClass6Router.get(
@@ -55,7 +55,7 @@ studentRegistrationClass6Router.put(
 );
 studentRegistrationClass6Router.put(
   "/:id",
-  validate(class6RegistrationServerSchema),
+  validate(registrationSchema),
   updateRegistration,
 );
 studentRegistrationClass6Router.delete(

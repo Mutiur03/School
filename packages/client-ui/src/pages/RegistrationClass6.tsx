@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { z } from "zod";
 import {
     useForm,
     useWatch,
@@ -9,55 +8,18 @@ import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    class6RegistrationServerShape,
-
+    Class6Registration,
+    registrationSchema,
+    registrationDefaultValues,
 } from "@school/shared-schemas";
 import { guardianRelations } from "@/lib/guardian";
 import { getFileUrl } from "@/lib/backend";
 import DuplicateWarning, { Duplicate } from "@/components/Form/DupliacteWarning";
 import SectionHeader from "@/components/Form/SectionHeader";
 import FieldRow, { Instruction } from "@/components/Form/FieldRow";
-import { filterEnglishInput, filterBanglaInput, filterNumericInput, PHONE_NUMBER,NID,POST_CODE } from "@school/shared-schemas";
+import { filterEnglishInput, filterBanglaInput, filterNumericInput } from "@school/shared-schemas";
 
-const registrationSchemaBase = class6RegistrationServerShape.omit({ photo_path: true }).extend({
-    same_as_permanent: z.boolean().default(false),
-    guardian_is_not_father: z.boolean().default(false),
-    guardian_address_same_as_permanent: z.boolean().default(false),
-    photo: z.custom<File | string>((val) => {
-        if (val instanceof File) return true;
-        if (typeof val === "string" && val.length > 0) return true;
-        return false;
-    }, "Student photo is required"),
-});
-
-const registrationSchema = registrationSchemaBase.check((ctx) => {
-    const data = ctx.value;
-    if (data.guardian_is_not_father) {
-        if (!data.guardian_name) ctx.issues.push({ code: "custom", message: "Guardian name is required", path: ["guardian_name"], input: data });
-        if (!data.guardian_phone) {
-            ctx.issues.push({ code: "custom", message: "Guardian phone is required", path: ["guardian_phone"], input: data });
-        } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
-            ctx.issues.push({ code: "custom", message: "Invalid Guardian Phone Number", path: ["guardian_phone"], input: data });
-        }
-        if (!data.guardian_relation) ctx.issues.push({ code: "custom", message: "Guardian relation is required", path: ["guardian_relation"], input: data });
-        if (!data.guardian_nid) {
-            ctx.issues.push({ code: "custom", message: "Guardian NID is required", path: ["guardian_nid"], input: data });
-        } else if (!NID.test(data.guardian_nid)) {
-            ctx.issues.push({ code: "custom", message: "Invalid Guardian NID (Must be 10, 13 or 17 digits)", path: ["guardian_nid"], input: data });
-        }
-
-        if (!data.guardian_address_same_as_permanent) {
-            if (!data.guardian_district) ctx.issues.push({ code: "custom", message: "Guardian district is required", path: ["guardian_district"], input: data });
-            if (!data.guardian_upazila) ctx.issues.push({ code: "custom", message: "Guardian upazila is required", path: ["guardian_upazila"], input: data });
-            if (!data.guardian_post_office) ctx.issues.push({ code: "custom", message: "Guardian post office is required", path: ["guardian_post_office"], input: data });
-            if (!data.guardian_post_code || !POST_CODE.test(data.guardian_post_code)) ctx.issues.push({ code: "custom", message: "Invalid Guardian Post Code", path: ["guardian_post_code"], input: data });
-            if (!data.guardian_village_road) ctx.issues.push({ code: "custom", message: "Guardian village/road is required", path: ["guardian_village_road"], input: data });
-        }
-    }
-});
-
-type RegistrationFormData = z.infer<typeof registrationSchema>;
-export type { RegistrationFormData };
+const registrationSchemaBase = registrationSchema;
 
 export default function RegistrationClass6() {
     useEffect(() => {
@@ -74,9 +36,7 @@ export default function RegistrationClass6() {
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<any[]>([]);
     const [settings, setSettings] = useState<any>(null);
     const [availableRolls, setAvailableRolls] = useState<string[]>([]);
-
     const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
-
     const {
         register,
         handleSubmit,
@@ -84,16 +44,12 @@ export default function RegistrationClass6() {
         control,
         reset,
         formState: { errors },
-    } = useForm<RegistrationFormData>({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        resolver: zodResolver(registrationSchema) as any,
-        mode: "onBlur",
+    } = useForm<Class6Registration>({
+        resolver: zodResolver(registrationSchemaBase) as any,
+        mode: "onSubmit",
         reValidateMode: "onChange",
-        defaultValues: {
-            guardian_is_not_father: false,
-            guardian_address_same_as_permanent: false,
-            birth_year: "",
-        },
+        shouldUnregister: false,
+        defaultValues: registrationDefaultValues,
     });
 
     const permanent_district = useWatch({ control, name: "permanent_district" });
@@ -260,7 +216,7 @@ export default function RegistrationClass6() {
         };
 
         initializeData();
-    }, [isEditMode, id, navigate, reset, setValue]);
+    }, [isEditMode, id, navigate, reset]);
 
     // Parse roll range from string like "01-50", "1,10,12-50", or "1,5,10-20,25"
     const parseRollRange = (rollRange: string | null): string[] => {
@@ -318,9 +274,9 @@ export default function RegistrationClass6() {
         setPermanentUpazilas(upazilas);
         // Only clear the upazila value if it's missing or not present in the new options
         if (!permanent_upazila || !upazilas.some((u: any) => String(u.id) === String(permanent_upazila))) {
-            setValue("permanent_upazila", "", { shouldValidate: true });
+            setValue("permanent_upazila", "");
         }
-    }, [permanent_district, permanent_upazila, setValue]);
+    }, [permanent_district, permanent_upazila]);
     useEffect(() => {
         const selectedDistrictId = present_district;
         if (!selectedDistrictId) {
@@ -330,9 +286,9 @@ export default function RegistrationClass6() {
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPresentUpazilas(upazilas);
         if (!present_upazila || !upazilas.some((u: any) => String(u.id) === String(present_upazila))) {
-            setValue("present_upazila", "", { shouldValidate: true });
+            setValue("present_upazila", "");
         }
-    }, [present_district, present_upazila, setValue]);
+    }, [present_district, present_upazila]);
     useEffect(() => {
         if (!guardian_is_not_father) {
             setGuardianUpazilas([]);
@@ -347,7 +303,7 @@ export default function RegistrationClass6() {
         setGuardianUpazilas(upazilas);
         const expectedUpazila = guardian_address_same_as_permanent ? permanent_upazila : guardian_upazila;
         if (!expectedUpazila || !upazilas.some((u: any) => String(u.id) === String(expectedUpazila))) {
-            setValue("guardian_upazila", "", { shouldValidate: true });
+            setValue("guardian_upazila", "");
         }
     }, [
         guardian_is_not_father,
@@ -356,7 +312,6 @@ export default function RegistrationClass6() {
         permanent_district,
         permanent_upazila,
         guardian_upazila,
-        setValue,
     ]);
     useEffect(() => {
         if (sameAsPermanent) {
@@ -381,7 +336,6 @@ export default function RegistrationClass6() {
         permanent_post_office,
         permanent_post_code,
         permanent_village_road,
-        setValue,
     ]);
 
     useEffect(() => {
@@ -407,7 +361,6 @@ export default function RegistrationClass6() {
         permanent_post_office,
         permanent_post_code,
         permanent_village_road,
-        setValue,
     ]);
 
     useEffect(() => {
@@ -423,7 +376,7 @@ export default function RegistrationClass6() {
             setValue("guardian_post_code", "");
             setValue("guardian_village_road", "");
         }
-    }, [guardian_is_not_father, setValue]);
+    }, [guardian_is_not_father]);
     useEffect(() => {
         const selectedDistrictId = prev_school_district;
         if (!selectedDistrictId) {
@@ -432,11 +385,10 @@ export default function RegistrationClass6() {
         }
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPrevSchoolUpazilas(upazilas);
-        // Only clear the upazila value if it's missing or not present in the new options
         if (!prev_school_upazila || !upazilas.some((u: any) => String(u.id) === String(prev_school_upazila))) {
-            setValue("prev_school_upazila", "", { shouldValidate: true });
+            setValue("prev_school_upazila", "");
         }
-    }, [prev_school_district, prev_school_upazila, setValue]);
+    }, [prev_school_district, prev_school_upazila]);
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -507,12 +459,12 @@ export default function RegistrationClass6() {
         } else if (birth_year !== "") {
             setValue("birth_year", "", { shouldValidate: true });
         }
-    }, [birth_reg_no, currentYear, birth_year, setValue]);
-    const onSubmit = async (data: RegistrationFormData) => {
+    }, [birth_reg_no]);
+    const onSubmit = async (data: Class6Registration) => {
         setLoading(true);
         setDuplicates([]);
         try {
-            let photo_path = "";
+            let photo = "";
 
             // Handle Photo Upload
             if (data.photo instanceof File) {
@@ -531,19 +483,19 @@ export default function RegistrationClass6() {
                     await axios.put(uploadData.url, data.photo, {
                         headers: { "Content-Type": data.photo.type },
                     });
-                    photo_path = uploadData.key;
+                    photo = uploadData.key;
                 }
             } else if (typeof data.photo === "string") {
-                photo_path = data.photo;
+                photo = data.photo;
             }
 
             // 3. Submit Registration
             const submissionData = {
                 ...data,
-                photo_path,
+                photo,
             };
             // @ts-ignore
-            delete submissionData.photo;
+            // delete submissionData.photo;
 
             const endpoint = isEditMode ? `/api/reg/class-6/form/${id}` : "/api/reg/class-6/form";
             const method = isEditMode ? "put" : "post";
@@ -586,13 +538,46 @@ export default function RegistrationClass6() {
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
-    const isRequired = (
-        fieldName: keyof RegistrationFormData
-    ) => {
-        const field = registrationSchemaBase.shape[fieldName as keyof typeof registrationSchemaBase.shape];
-        if (!field) return false;
-        return !field.isOptional();
-    };
+    const REQUIRED_FIELDS: ReadonlyArray<keyof Class6Registration> = [
+        "student_name_bn",
+        "student_name_en",
+        "birth_reg_no",
+        "birth_year",
+        "birth_month",
+        "birth_day",
+        "religion",
+        "father_name_bn",
+        "father_name_en",
+        "father_nid",
+        "father_phone",
+        "mother_name_bn",
+        "mother_name_en",
+        "mother_nid",
+        "mother_phone",
+        "permanent_district",
+        "permanent_upazila",
+        "permanent_post_office",
+        "permanent_post_code",
+        "permanent_village_road",
+        "present_district",
+        "present_upazila",
+        "present_post_office",
+        "present_post_code",
+        "present_village_road",
+        "section",
+        "roll",
+        "prev_school_name",
+        "prev_school_passing_year",
+        "section_in_prev_school",
+        "roll_in_prev_school",
+        "prev_school_district",
+        "prev_school_upazila",
+        "nearby_student_info",
+        "photo",
+    ] as const;
+
+    const isRequired = (fieldName: keyof Class6Registration) =>
+        REQUIRED_FIELDS.includes(fieldName);
 
 
 
@@ -1049,7 +1034,9 @@ export default function RegistrationClass6() {
                             <input
                                 type="checkbox"
                                 id="guardianIsNotFather"
-                                {...register("guardian_is_not_father")}
+                                {...register("guardian_is_not_father", {
+                                    setValueAs: (v) => !!v,
+                                })}
                                 className="w-4 h-4 cursor-pointer"
                             />
                             <span className="text-sm leading-relaxed">
@@ -1363,7 +1350,7 @@ export default function RegistrationClass6() {
                 <SectionHeader title="Student Information Reference">
                     <FieldRow
                         label="বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
-                        isRequired={true}
+                        isRequired={isRequired("nearby_student_info")}
                         error={errors.nearby_student_info}
                         tooltip="Select a classmate name from the list"
                     >
@@ -1392,7 +1379,7 @@ export default function RegistrationClass6() {
                                 {/* {!isEditMode && <span className="text-red-600 ml-1" aria-hidden="true">*</span>} */}
                             </span>
                         }
-                        isRequired={true}
+                        isRequired={isRequired("photo")}
                         tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
                         error={errors.photo}
                     >
