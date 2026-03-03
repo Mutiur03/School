@@ -2,8 +2,8 @@ import { prisma } from "../config/prisma.js";
 import {
   getUploadUrl,
   deleteFromR2,
-  getDownloadUrl,
   getFileBuffer,
+  getDownloadUrl,
 } from "../config/r2.js";
 import path from "path";
 import * as XLSX from "xlsx";
@@ -132,11 +132,6 @@ export const createRegistration = async (req, res) => {
     // Ensure class6_year is Int
     data.class6_year = parseInt(data.class6_year);
 
-    // Map photo_path to photo
-    if (data.photo_path && !data.photo) {
-      data.photo = data.photo_path;
-    }
-
     // Validate that photo is uploaded
     if (!data.photo) {
       return res.status(400).json({
@@ -155,12 +150,10 @@ export const createRegistration = async (req, res) => {
     }
 
     // Remove frontend-only fields that don't exist in database schema
-    // and remove photo_path since mapped to photo
     const {
       same_as_permanent: _same_as_permanent,
       guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
       guardian_is_not_father: _guardian_is_not_father,
-      photo_path: _photo_path,
       ...dbData
     } = data;
 
@@ -209,9 +202,6 @@ export const getAllRegistrations = async (req, res) => {
 
     const registrationsWithUrls = await Promise.all(
       registrations.map(async (reg) => {
-        if (reg.photo_path) {
-          reg.photo_path = await getDownloadUrl(reg.photo_path);
-        }
         return reg;
       }),
     );
@@ -243,7 +233,6 @@ export const getRegistrationById = async (req, res) => {
         message: "Registration not found",
       });
     }
-
     res.status(200).json({
       success: true,
       data: registration,
@@ -283,45 +272,33 @@ export const updateRegistration = async (req, res) => {
       });
     }
 
-    // Validate that photo is not being removed
-    if (data.photo === "") {
-      return res.status(400).json({
-        success: false,
-        message: "Student photo is required",
-      });
+    // Handle photo: if no new photo provided, keep existing photo
+    if (!data.photo) {
+      data.photo = existing.photo;
     }
 
     // Handle photo deletion if changed
     // Check against existing.photo
     if (
-      data.photo_path &&
+      data.photo &&
       existing.photo &&
-      data.photo_path !== existing.photo
+      data.photo !== existing.photo
     ) {
       await deleteFromR2(existing.photo);
     }
 
-    // Construct birth_date if fields present
     if (data.birth_day && data.birth_month && data.birth_year) {
       data.birth_date = `${data.birth_day}/${data.birth_month}/${data.birth_year}`;
     }
 
-    // Map photo_path to photo
-    if (data.photo_path) {
-      data.photo = data.photo_path;
-    }
-
-    // Ensure class6_year is Int if updated
     if (data.class6_year) {
       data.class6_year = parseInt(data.class6_year);
     }
 
-    // Remove frontend-only fields that don't exist in database schema
     const {
       same_as_permanent: _same_as_permanent,
       guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
       guardian_is_not_father: _guardian_is_not_father,
-      photo_path: _photo_path,
       ...dbData
     } = data;
 
@@ -329,10 +306,6 @@ export const updateRegistration = async (req, res) => {
       where: { id },
       data: dbData,
     });
-
-    if (updated.photo) {
-      updated.photo_path = await getDownloadUrl(updated.photo);
-    }
 
     res.status(200).json({
       success: true,
