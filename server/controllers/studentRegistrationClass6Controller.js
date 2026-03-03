@@ -13,19 +13,6 @@ import puppeteer from "puppeteer";
 import axios from "axios";
 import QRCode from "qrcode";
 
-export const resolveClass6Preview = async (req, res) => {
-  try {
-    const { id } = req.params;
-    return res.redirect(302, `/api/reg/class-6/form/${id}/pdf?preview=1`);
-  } catch (error) {
-    console.error("resolveClass6Preview error:", error);
-    return res.status(400).json({
-      success: false,
-      message: "Invalid preview link",
-    });
-  }
-};
-
 export const getClassMates = async (req, res) => {
   try {
     const settings = await prisma.class6_reg.findFirst();
@@ -643,11 +630,14 @@ export const downloadRegistrationPDF = async (req, res) => {
       }
     }
 
-    const ownDomain =
-      `${req.protocol}://${req.get("host")}`;
+    if(!process.env.PUBLIC_FRONTEND_URL) {
+      return res.status(500).json({
+        success: false,
+        message: "Frontend URL not configured",
+      });
+    }
     const frontendDomain = String(
-      process.env.PUBLIC_FRONTEND_URL ||
-      ownDomain,
+      process.env.PUBLIC_FRONTEND_URL
     )
       .trim()
       .replace(/\/$/, "");
