@@ -37,7 +37,7 @@ export function TopBanner() {
           ) : (
             <div
               className="marquee-track text-sm leading-6"
-              style={{ animationDuration: `${duration}s` }}
+              style={{ animationDuration: `${duration}s`, animationDelay: '5s' }}
             >
               {data.map((notice, i) => (
                 <a
