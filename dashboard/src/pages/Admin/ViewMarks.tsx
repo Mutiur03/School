@@ -196,8 +196,8 @@ const ViewMarks = () => {
           onChange={(e) => setYear(e.target.value)}
         >
           {Array.from({ length: 5 }, (_, i) => (
-            <option key={i} value={2025 - i}>
-              {2025 - i}
+            <option key={i} value={new Date().getFullYear() - i}>
+              {new Date().getFullYear() - i}
             </option>
           ))}
         </select>
