@@ -266,11 +266,7 @@ export const updateRegistration = async (req, res) => {
 
     // Handle photo deletion if changed
     // Check against existing.photo
-    if (
-      data.photo &&
-      existing.photo &&
-      data.photo !== existing.photo
-    ) {
+    if (data.photo && existing.photo && data.photo !== existing.photo) {
       await deleteFromR2(existing.photo);
     }
 
@@ -372,7 +368,14 @@ export const deleteRegistration = async (req, res) => {
 
 export const getRegistrationPhotoUploadUrl = async (req, res) => {
   try {
-    const { filename, filetype, name: _name, roll, year: _year, section } = req.body;
+    const {
+      filename,
+      filetype,
+      name: _name,
+      roll,
+      year: _year,
+      section,
+    } = req.body;
     if (!filename || !filetype) {
       return res.status(400).json({
         success: false,
@@ -425,7 +428,6 @@ function formatDateLong(dateStr) {
     .replace(/(\w+)\s(\d{4})/, "$1, $2");
 }
 export const exportRegistrations = async (req, res) => {
-
   try {
     const { class6_year, section, status } = req.query;
     console.log("Exporting registrations sheet:", {
@@ -461,9 +463,31 @@ export const exportRegistrations = async (req, res) => {
       return orderedRegistration;
     });
 
+    // Sheet 2: Main Student Import Format
+    const importFormatData = registrations.map((reg) => ({
+      name: reg.student_name_en,
+      father_name: reg.father_name_en,
+      mother_name: reg.mother_name_en,
+      father_phone: reg.father_phone,
+      mother_phone: reg.mother_phone,
+      village: reg.permanent_village_road,
+      post_office: reg.permanent_post_office,
+      upazila: reg.permanent_upazila,
+      district: reg.permanent_district,
+      dob: reg.birth_date,
+      class: 6,
+      roll: reg.roll ? String(reg.roll).replace(/^0+/, "") : "",
+      section: reg.section,
+      department: "",
+      has_stipend: "No",
+    }));
+
     const worksheet = XLSX.utils.json_to_sheet(registrationsForExport);
+    const importWorksheet = XLSX.utils.json_to_sheet(importFormatData);
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
+    XLSX.utils.book_append_sheet(workbook, importWorksheet, "Student List");
 
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
@@ -636,16 +660,13 @@ export const downloadRegistrationPDF = async (req, res) => {
         message: "Frontend URL not configured",
       });
     }
-    const frontendDomain = String(
-      process.env.PUBLIC_FRONTEND_URL
-    )
+    const frontendDomain = String(process.env.PUBLIC_FRONTEND_URL)
       .trim()
       .replace(/\/$/, "");
 
     let qrCodeBase64 = "";
     try {
-      const qrData =
-        `${frontendDomain}/preview/class6/${registration.id}`
+      const qrData = `${frontendDomain}/preview/class6/${registration.id}`;
 
       qrCodeBase64 = await QRCode.toDataURL(qrData, {
         errorCorrectionLevel: "H",
@@ -659,7 +680,6 @@ export const downloadRegistrationPDF = async (req, res) => {
     } catch (qrError) {
       console.warn("Failed to generate QR code for PDF:", qrError);
     }
-
 
     function normalizeUnicode(text) {
       return text ? text.normalize("NFC") : "";
@@ -722,7 +742,11 @@ export const downloadRegistrationPDF = async (req, res) => {
       ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
       [
         "Date of Birth:",
-        wrapBnEn(registration.birth_date ? `${registration.birth_date} (${formatDateLong(registration.birth_date)})` : ""),
+        wrapBnEn(
+          registration.birth_date
+            ? `${registration.birth_date} (${formatDateLong(registration.birth_date)})`
+            : "",
+        ),
       ],
       ["Email Address:", wrapBnEn(registration.email || "No")],
 
@@ -863,7 +887,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     const roll = registration.roll || "";
     const religion = registration.religion || "";
     const isPendingStatus =
-      String(registration.status || "").trim().toLowerCase() === "pending";
+      String(registration.status || "")
+        .trim()
+        .toLowerCase() === "pending";
 
     // Get current date and time
     const currentDateTime = new Date(
@@ -891,7 +917,8 @@ export const downloadRegistrationPDF = async (req, res) => {
       margin: 24px;
     }
     
-    ${solaimanLipiBase64
+    ${
+      solaimanLipiBase64
         ? `
     @font-face {
       font-family: 'SolaimanLipi';
@@ -902,9 +929,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0980-U+09FF, U+0964-U+096F;
     }`
         : ""
-      }
+    }
     
-    ${timesNewRomanBase64
+    ${
+      timesNewRomanBase64
         ? `
     @font-face {
       font-family: 'TimesNewRoman';
@@ -915,7 +943,7 @@ export const downloadRegistrationPDF = async (req, res) => {
       unicode-range: U+0020-U+007F, U+00A0-U+00FF;
     }`
         : ""
-      }
+    }
     
     body, html {
       height: 100%;
@@ -931,9 +959,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif;
       background: #fff;
       page-break-inside: avoid;
@@ -981,9 +1010,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       letter-spacing: 0.08em;
       line-height: 1;
       white-space: nowrap;
-      font-family: ${timesNewRomanBase64
-        ? "'TimesNewRoman', 'Times New Roman'"
-        : "'Times New Roman'"
+      font-family: ${
+        timesNewRomanBase64
+          ? "'TimesNewRoman', 'Times New Roman'"
+          : "'Times New Roman'"
       }, serif;
       font-size: 100px;
       font-weight: 700;
@@ -1001,9 +1031,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Enhanced Bangla font rendering with better fallbacks */
     .bn, .bn * {
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
-        : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
+          : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"
       }, sans-serif !important;
       font-weight: 400 !important;
       font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
@@ -1015,9 +1046,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
     }
     .en, .en * {
-      font-family: ${timesNewRomanBase64
-        ? "'TimesNewRoman', 'Times New Roman'"
-        : "'Times New Roman'"
+      font-family: ${
+        timesNewRomanBase64
+          ? "'TimesNewRoman', 'Times New Roman'"
+          : "'Times New Roman'"
       }, serif !important;
       letter-spacing: 0.02em;
       font-size: 1rem;
@@ -1032,9 +1064,10 @@ export const downloadRegistrationPDF = async (req, res) => {
     
     /* Special handling for Bengali punctuation */
     .bn::before, .bn::after {
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali'"
-        : "'Noto Sans Bengali'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -1175,9 +1208,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       background: #f3f6fa; 
     }
     .footer .note .bn {
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali'"
-        : "'Noto Sans Bengali'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
       }, sans-serif !important;
       font-size: 1rem;
     }
@@ -1189,9 +1223,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       display: block;
       font-size: 1.2rem;
       line-height: 1.2;
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali'"
-        : "'Noto Sans Bengali'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
       }, sans-serif !important;
     }
     .signature-row {
@@ -1231,9 +1266,10 @@ export const downloadRegistrationPDF = async (req, res) => {
       font-size: 1rem;
       font-weight: 500;
       margin-top: 1px;
-      font-family: ${solaimanLipiBase64
-        ? "'SolaimanLipi', 'Noto Sans Bengali'"
-        : "'Noto Sans Bengali'"
+      font-family: ${
+        solaimanLipiBase64
+          ? "'SolaimanLipi', 'Noto Sans Bengali'"
+          : "'Noto Sans Bengali'"
       }, sans-serif !important;
       white-space: nowrap;
     }
@@ -1254,10 +1290,11 @@ export const downloadRegistrationPDF = async (req, res) => {
 </head>
 <body>
   <div class="page-container">
-    ${logoBase64
+    ${
+      logoBase64
         ? `<div class="watermark"><img src="${logoBase64}" alt="School Watermark" /></div>`
         : ""
-      }
+    }
     ${isPendingStatus ? '<div class="pending-watermark"><span class="pending-watermark-text">PENDING</span></div>' : ""}
     <div class="content-area">
       <div class="header">
@@ -1272,10 +1309,11 @@ export const downloadRegistrationPDF = async (req, res) => {
             </div>
           </div>
           <div class="passport-photo">
-            ${_studentPhotoBase64
-        ? `<img src="${_studentPhotoBase64}" alt="Student Photo" />`
-        : '<div class="passport-placeholder">Student<br/>Photo</div>'
-      }
+            ${
+              _studentPhotoBase64
+                ? `<img src="${_studentPhotoBase64}" alt="Student Photo" />`
+                : '<div class="passport-placeholder">Student<br/>Photo</div>'
+            }
           </div>
         </div>
       </div>
@@ -1288,37 +1326,40 @@ export const downloadRegistrationPDF = async (req, res) => {
         </tbody>
       </table>
       <br />
-      ${sectionInstructions
-        ? `
+      ${
+        sectionInstructions
+          ? `
       <div class="instructions-section">
         <div class="instructions-content">${wrapBnEn(sectionInstructions)}</div>
       </div>
       `
-        : ""
+          : ""
       }
       <div class="footer">
         <div class="note" style="display: flex; align-items: flex-start; gap: 12px;">
           <div class="document-list" style="flex: 1;">
             <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
-            ${attachmentInstructions
-        ? attachmentInstructions
-          .split(/\r?\n|\r/)
-          .map((line) => {
-            if (line) {
-              return `<span class="bn">${handleList(line)}</span>`;
+            ${
+              attachmentInstructions
+                ? attachmentInstructions
+                    .split(/\r?\n|\r/)
+                    .map((line) => {
+                      if (line) {
+                        return `<span class="bn">${handleList(line)}</span>`;
+                      }
+                      return "";
+                    })
+                    .filter(Boolean)
+                    .join("")
+                : ""
             }
-            return "";
-          })
-          .filter(Boolean)
-          .join("")
-        : ""
-      }
           </div>
           <div class="qr-code" style="flex-shrink: 0; margin-top: 0;">
-            ${qrCodeBase64
-        ? `<img src="${qrCodeBase64}" alt="QR Code" />`
-        : '<div class="qr-placeholder">QR<br/>Unavailable</div>'
-      }
+            ${
+              qrCodeBase64
+                ? `<img src="${qrCodeBase64}" alt="QR Code" />`
+                : '<div class="qr-placeholder">QR<br/>Unavailable</div>'
+            }
           </div>
         </div>
       </div>
@@ -1383,7 +1424,9 @@ export const downloadRegistrationPDF = async (req, res) => {
     });
 
     await page.setContent(html, {
-      waitUntil: isInlinePreview ? ["domcontentloaded"] : ["networkidle0", "domcontentloaded"],
+      waitUntil: isInlinePreview
+        ? ["domcontentloaded"]
+        : ["networkidle0", "domcontentloaded"],
     });
 
     await page.evaluate((quickPreview) => {

@@ -105,7 +105,7 @@ export const getClass6Reg = async (req, res) => {
         .map((en) => {
           const name = en.student.name;
           const section = en.section || "";
-          const roll = en.roll || "";
+          const roll = en.roll ? String(en.roll).replace(/^0+/, "") : "";
           return section && roll ? `${name}/${section}-${roll}` : name;
         })
         .join(", ");

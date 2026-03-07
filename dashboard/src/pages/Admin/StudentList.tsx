@@ -453,28 +453,53 @@ function StudentList() {
         if (image) await uploadImageToR2(image, selectedStudent.id);
         return { message: "Student updated successfully." };
       } else {
-        const response = await axios.post("/api/students/addStudents", {
-          students: [{
-            ...basicDeatils,
-            roll: parsedValues.roll,
-            class: parsedValues.class,
-            section: parsedValues.section,
-            department: requiresDepartment ? parsedValues.department : "",
-          }],
-        });
-        if (response.data.success === false) throw new Error(response.data.message);
-        if (image) await uploadImageToR2(image, response.data.data[0].id);
-        return { message: response.data.message };
+        const response = await axios.post(
+          "/api/students/addStudents",
+          {
+            students: [
+              {
+                ...basicDeatils,
+                roll: parsedValues.roll,
+                class: parsedValues.class,
+                section: parsedValues.section,
+                department: requiresDepartment ? parsedValues.department : "",
+              },
+            ],
+          },
+          { responseType: "blob" }
+        );
+
+        if (image) await uploadImageToR2(image, response.data.data?.[0]?.id);
+        return response.data;
       }
     },
-    onSuccess: ({ message }) => {
+    onSuccess: (data) => {
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "students_credentials.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
       handleCancel();
-      toast.success(message);
+      toast.success("Student added successfully. Credentials downloaded.");
       invalidateStudents();
     },
-    onError: (err) => {
-      const error = err as { response?: { data?: { error?: string } }; message?: string };
-      toast.error(error.response?.data?.error || error.message || "An error occurred");
+    onError: async (err: any) => {
+      let errorMessage = "An error occurred";
+      if (err.response?.data instanceof Blob) {
+        const text = await err.response.data.text();
+        try {
+          const json = JSON.parse(text);
+          errorMessage = json.error || json.message || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+      } else {
+        errorMessage = err.response?.data?.error || err.message || errorMessage;
+      }
+      toast.error(errorMessage);
     },
   });
 
@@ -574,6 +599,15 @@ function StudentList() {
       }
 
       setJsonData(formattedData);
+
+      if (formattedData.length > 500) {
+        toast.error(`Maximum 500 students allowed per upload. Your file has ${formattedData.length}.`);
+        setJsonData(null);
+        setFileUploaded(false);
+        setexcelfile(null);
+        return;
+      }
+
       toast.success(`Loaded ${formattedData.length} students successfully.`);
     };
     reader.onerror = () => {
@@ -630,12 +664,19 @@ function StudentList() {
 
   const excelMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>[]) => {
-      const response = await axios.post("/api/students/addStudents", { students: data });
-      if (response.data.success === false) throw new Error(response.data.message);
+      const response = await axios.post("/api/students/addStudents", { students: data }, { responseType: "blob" });
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message);
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "students_credentials.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success("Students uploaded successfully. Credentials downloaded.");
       setJsonData(null);
       setFileUploaded(false);
       setexcelfile(null);
@@ -645,9 +686,20 @@ function StudentList() {
       if (excelInput) excelInput.value = "";
       invalidateStudents();
     },
-    onError: (err) => {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      toast.error(error.response?.data?.message || error.message || "Failed to upload students.");
+    onError: async (err: any) => {
+      let errorMessage = "Failed to upload students.";
+      if (err.response?.data instanceof Blob) {
+        const text = await err.response.data.text();
+        try {
+          const json = JSON.parse(text);
+          errorMessage = json.message || json.error || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+      } else {
+        errorMessage = err.response?.data?.message || err.message || errorMessage;
+      }
+      toast.error(errorMessage);
     },
   });
 
