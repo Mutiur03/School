@@ -6,6 +6,7 @@ import {
   PHONE_NUMBER,
   POST_CODE,
   ROLL_NUMBER,
+  ASCII_ONLY,
 } from "./regex.js";
 import { z } from "zod";
 
@@ -34,7 +35,7 @@ const registrationObjectShape = z.object({
       .string()
       .default("")
       .refine(
-        (val) => !val || /^[\x00-\x7F]+$/.test(val),
+        (val) => !val || ASCII_ONLY.test(val),
         "Email must contain only English characters",
       )
       .refine(

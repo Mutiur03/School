@@ -1,14 +1,10 @@
 import { z } from "zod";
+import { USERNAME } from "./regex.js";
 
 export const adminLoginSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(1, "Username is required"),
+  username: z.string().trim().min(1, "Username is required"),
 
-  password: z
-    .string()
-    .min(1, "Password is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const addAdminSchema = z.object({
@@ -18,13 +14,13 @@ export const addAdminSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(50, "Username must be at most 50 characters")
     .regex(
-      /^[A-Za-z0-9_.-@]+$/,
-      "Username may only contain letters, numbers, underscores, dots and hyphens and @"
+      USERNAME,
+      "Username may only contain letters, numbers, underscores, dots and hyphens and @",
     ),
-    // .regex(
-    //   /^[A-Za-z0-9_.-]+$/,
-    //   "Username may only contain letters, numbers, underscores, dots and hyphens"
-    // ),
+  // .regex(
+  //   /^[A-Za-z0-9_.-]+$/,
+  //   "Username may only contain letters, numbers, underscores, dots and hyphens"
+  // ),
 
   password: z
     .string()

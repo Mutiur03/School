@@ -5,14 +5,13 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";
-import { VALID_DEPARTMENTS } from "@school/shared-schemas";
+import { removeInitialZeros, VALID_DEPARTMENTS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
 import puppeteer from "puppeteer";
 import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
 
 const current_year = new Date().getFullYear();
-const removeInitialZeros = (str) => str.replace(/^0+/, "");
 
 export const sanitizeStudent = (student) => {
   const { password: _password, ...rest } = student;

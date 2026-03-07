@@ -45,6 +45,7 @@ interface Class6RegSettings {
     attachment_instruction: string;
     notice: string | null;
     classmates: string;
+    classmates_source: string;
 }
 
 const Class6RegForm = () => {
@@ -95,7 +96,8 @@ const Class6RegForm = () => {
         instruction_for_b: "",
         attachment_instruction: "",
         notice: null,
-        classmates: ""
+        classmates: "",
+        classmates_source: ""
     });
 
 

@@ -1,11 +1,19 @@
 export const BANGLA_ONLY = /^[\u0980-\u09FF\s.:]+$/;
 export const ENGLISH_ONLY = /^[A-Za-z\s.:]+$/;
-export const PHONE_NUMBER = /^01[3-9][0-9]{8}$/;
+export const PHONE_NUMBER = /^01\d{9}$/;
 export const NID = /^(?:\d{10}|\d{13}|\d{17})$/;
 export const BIRTH_REG_NO = /^\d{17}$/;
 export const POST_CODE = /^\d{4}$/;
 export const REGISTRATION_NO = /^\d{10}$/;
 export const ROLL_NUMBER = /^\d{1,6}$/;
+
+export const NAME = /^[A-Za-z][A-Za-z .'-]{1,98}[A-Za-z.]$/;
+export const CLASS_NUM = /^(?:[1-9]|10)$/;
+export const SECTION = /^[A-Za-z]$/;
+export const ADDRESS_TEXT = /^[A-Za-z0-9\s]{2,100}$/;
+export const DESIGNATION = /^[A-Za-z][A-Za-z0-9 .'-]{1,48}[A-Za-z0-9.]$/;
+export const USERNAME = /^[A-Za-z0-9_.-@]+$/;
+export const ASCII_ONLY = /^[\x00-\x7F]+$/;
 
 // Utility filters for UI (used by both frontend and shared logic)
 export function filterEnglishInput(value: string) {

@@ -1,3 +1,4 @@
+import { removeInitialZeros } from "@school/shared-schemas";
 import { prisma } from "../config/prisma.js";
 import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 import path from "path";
@@ -105,7 +106,7 @@ export const getClass6Reg = async (req, res) => {
         .map((en) => {
           const name = en.student.name;
           const section = en.section || "";
-          const roll = en.roll ? String(en.roll).replace(/^0+/, "") : "";
+          const roll = en.roll ? removeInitialZeros(String(en.roll)) : "";
           return section && roll ? `${name}/${section}-${roll}` : name;
         })
         .join(", ");
