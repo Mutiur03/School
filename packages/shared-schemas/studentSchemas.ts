@@ -9,9 +9,7 @@ export const studentLoginSchema = z.object({
       message: "Login ID must be a valid number",
     }),
 
-  password: z
-    .string()
-    .min(1, "Password is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export type StudentLoginData = z.infer<typeof studentLoginSchema>;
@@ -39,7 +37,9 @@ const parseDob = (value: string) => {
   const raw = value.trim();
   if (!raw) return null;
 
-  const datePartOnly = raw.match(/\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4}/)?.[0] || raw.split(/[T\s]/)[0];
+  const datePartOnly =
+    raw.match(/\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4}/)?.[0] ||
+    raw.split(/[T\s]/)[0];
   const normalized = datePartOnly
     .replace(/[^0-9/.-]/g, "")
     .replace(/\/{2,}/g, "/")
@@ -84,7 +84,10 @@ const isValidDob = (value: string) => {
   return dobDate <= today && dobDate.getFullYear() >= 1980;
 };
 
-const normalizeText = (value: unknown) => String(value || "").replace(/\s+/g, " ").trim();
+const normalizeText = (value: unknown) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const normalizeOptionalText = (value: unknown) => {
   if (value === undefined || value === null) return null;
@@ -92,62 +95,91 @@ const normalizeOptionalText = (value: unknown) => {
   return normalized.length ? normalized : null;
 };
 
-
-
 const normalizeDob = (value: unknown) => {
   const raw = String(value || "").trim();
   const parsed = parseDob(raw);
   return parsed ? toIsoDate(parsed) : raw;
 };
 
-
 export const studentFormSchema = z
   .object({
-    name: z.string().trim()
+    name: z
+      .string()
+      .trim()
       .min(1, "Name is required")
       .min(2, "Name must be at least 2 characters")
-      .regex(GLOBAL_REGEX.NAME, "Enter a valid name (letters and basic punctuation only)"),
-    father_name: z.string().trim()
+      .regex(
+        GLOBAL_REGEX.NAME,
+        "Enter a valid name (letters and basic punctuation only)",
+      ),
+    father_name: z
+      .string()
+      .trim()
       .min(1, "Father name is required")
       .min(2, "Father name must be at least 2 characters")
       .regex(GLOBAL_REGEX.NAME, "Enter a valid father name"),
-    mother_name: z.string().trim()
+    mother_name: z
+      .string()
+      .trim()
       .min(1, "Mother name is required")
       .min(2, "Mother name must be at least 2 characters")
       .regex(GLOBAL_REGEX.NAME, "Enter a valid mother name"),
-    father_phone: z.string().trim()
+    father_phone: z
+      .string()
+      .trim()
       .min(1, "Father phone is required")
-      .regex(GLOBAL_REGEX.PHONE_BD, "Father phone must be 11 digits and start with 01"),
-    mother_phone: z.string().trim()
+      .regex(
+        GLOBAL_REGEX.PHONE_BD,
+        "Father phone must be 11 digits and start with 01",
+      ),
+    mother_phone: z
+      .string()
+      .trim()
       .refine((value) => !value || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
-    roll: z.string().trim()
+    roll: z
+      .string()
+      .trim()
       .min(1, "Roll is required")
       .regex(/^[1-9]\d{0,2}$/, "Roll must be a number between 1 and 999"),
-    section: z.string().trim()
+    section: z
+      .string()
+      .trim()
       .min(1, "Section is required")
       .regex(/^[A-Za-z]$/, "Section must be a single letter (A-Z)"),
-    village: z.string().trim()
+    village: z
+      .string()
+      .trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid village",
       }),
-    post_office: z.string().trim()
+    post_office: z
+      .string()
+      .trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid post office",
       }),
-    upazila: z.string().trim()
+    upazila: z
+      .string()
+      .trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid upazila",
       }),
-    district: z.string().trim()
+    district: z
+      .string()
+      .trim()
       .refine((value) => !value || GLOBAL_REGEX.ADDRESS_TEXT.test(value), {
         message: "Enter a valid district",
       }),
-    dob: z.string().trim()
+    dob: z
+      .string()
+      .trim()
       .min(1, "Date of birth is required")
       .refine(isValidDob, "Invalid date of birth"),
-    class: z.string().trim()
+    class: z
+      .string()
+      .trim()
       .min(1, "Class is required")
       .regex(GLOBAL_REGEX.CLASS_NUM, "Class must be between 1 and 10"),
     department: z.string().trim(),
@@ -157,7 +189,12 @@ export const studentFormSchema = z
   })
   .superRefine((value, ctx) => {
     const classNumber = Number(value.class);
-    if ((classNumber === 9 || classNumber === 10) && !VALID_DEPARTMENTS.includes(value.department as (typeof VALID_DEPARTMENTS)[number])) {
+    if (
+      (classNumber === 9 || classNumber === 10) &&
+      !VALID_DEPARTMENTS.includes(
+        value.department as (typeof VALID_DEPARTMENTS)[number],
+      )
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["department"],
@@ -170,45 +207,80 @@ export type StudentFormSchemaData = z.infer<typeof studentFormSchema>;
 
 export const addStudentInputSchema = z
   .object({
-    name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Invalid student name format",
-    }),
-    father_name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Valid father name is required",
-    }),
-    mother_name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Valid mother name is required",
-    }),
+    name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Invalid student name format",
+      }),
+    father_name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Valid father name is required",
+      }),
+    mother_name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Valid mother name is required",
+      }),
     father_phone: z
       .any()
-      .refine((value) => typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value), {
-        message: "Father phone must be 11 digits and start with 01",
-      }),
+      .refine(
+        (value) =>
+          typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value),
+        {
+          message: "Father phone must be 11 digits and start with 01",
+        },
+      ),
     mother_phone: z
       .any()
       .refine((value) => value === null || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
-    village: z.any().optional().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid village format" },
-    ),
-    post_office: z.any().optional().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid post office format" },
-    ),
-    upazila: z.any().optional().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid upazila format" },
-    ),
-    district: z.any().optional().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid district format" },
-    ),
-    dob: z.any().transform(normalizeDob).refine((value) => isValidDob(value), {
-      message: "Valid date of birth is required",
-    }),
-    has_stipend: z.any().optional().transform((value) => Boolean(value)),
+    village: z
+      .any()
+      .optional()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid village format" },
+      ),
+    post_office: z
+      .any()
+      .optional()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid post office format" },
+      ),
+    upazila: z
+      .any()
+      .optional()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid upazila format" },
+      ),
+    district: z
+      .any()
+      .optional()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid district format" },
+      ),
+    dob: z
+      .any()
+      .transform(normalizeDob)
+      .refine((value) => isValidDob(value), {
+        message: "Valid date of birth is required",
+      }),
+    has_stipend: z
+      .any()
+      .optional()
+      .transform((value) => Boolean(value)),
     class: z.coerce.number().int().min(1).max(12),
     roll: z.coerce.number().int().min(1).max(999),
     section: z
@@ -221,7 +293,12 @@ export const addStudentInputSchema = z
     year: z.coerce.number().int().optional(),
   })
   .superRefine((value, ctx) => {
-    if ((value.class === 9 || value.class === 10) && !VALID_DEPARTMENTS.includes((value.department || "") as (typeof VALID_DEPARTMENTS)[number])) {
+    if (
+      (value.class === 9 || value.class === 10) &&
+      !VALID_DEPARTMENTS.includes(
+        (value.department || "") as (typeof VALID_DEPARTMENTS)[number],
+      )
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["department"],
@@ -245,46 +322,76 @@ export const deleteStudentsBulkRequestSchema = z.object({
     }),
 });
 
+export const rotatePasswordsBulkRequestSchema = deleteStudentsBulkRequestSchema;
+
 export const updateStudentSchema = z
   .object({
-    name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Invalid student name format",
-    }),
-    father_name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Invalid father name format",
-    }),
-    mother_name: z.string().transform(normalizeText).refine((value) => GLOBAL_REGEX.NAME.test(value), {
-      message: "Invalid mother name format",
-    }),
+    name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Invalid student name format",
+      }),
+    father_name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Invalid father name format",
+      }),
+    mother_name: z
+      .string()
+      .transform(normalizeText)
+      .refine((value) => GLOBAL_REGEX.NAME.test(value), {
+        message: "Invalid mother name format",
+      }),
     father_phone: z
       .any()
-      .refine((value) => typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value), {
-        message: "Invalid father phone",
-      }),
+      .refine(
+        (value) =>
+          typeof value === "string" && GLOBAL_REGEX.PHONE_BD.test(value),
+        {
+          message: "Invalid father phone",
+        },
+      ),
     mother_phone: z
       .any()
       .refine((value) => value === null || GLOBAL_REGEX.PHONE_BD.test(value), {
         message: "Invalid mother phone",
       }),
-    dob: z.any().transform(normalizeDob).refine((value) => isValidDob(value), {
-      message: "Invalid date of birth",
-    }),
-    village: z.any().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid village format" },
-    ),
-    post_office: z.any().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid post office format" },
-    ),
-    upazila: z.any().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid upazila format" },
-    ),
-    district: z.any().transform(normalizeOptionalText).refine(
-      (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
-      { message: "Invalid district format" },
-    ),
+    dob: z
+      .any()
+      .transform(normalizeDob)
+      .refine((value) => isValidDob(value), {
+        message: "Invalid date of birth",
+      }),
+    village: z
+      .any()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid village format" },
+      ),
+    post_office: z
+      .any()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid post office format" },
+      ),
+    upazila: z
+      .any()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid upazila format" },
+      ),
+    district: z
+      .any()
+      .transform(normalizeOptionalText)
+      .refine(
+        (value) => value === null || GLOBAL_REGEX.ADDRESS_TEXT.test(value),
+        { message: "Invalid district format" },
+      ),
     has_stipend: z.any().transform((value) => Boolean(value)),
     available: z.any().transform((value) => Boolean(value)),
   })

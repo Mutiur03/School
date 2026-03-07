@@ -70,6 +70,12 @@ router.delete(
   StudentController.deleteStudentsBulkController,
 );
 
+router.put(
+  "/rotatePasswordsBulk",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.rotatePasswordsBulkController,
+);
+
 router.post(
   "/change-password",
   AuthMiddleware.authenticate(["student"]),

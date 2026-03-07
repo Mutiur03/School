@@ -4,6 +4,7 @@ import {
   updateStudentSchema,
   updateAcademicSchema,
   deleteStudentsBulkRequestSchema,
+  rotatePasswordsBulkRequestSchema,
   enrollmentIdParamSchema,
   yearParamSchema,
   classStudentsParamSchema,
@@ -85,15 +86,17 @@ export class StudentController {
       const result = await StudentService.addStudents(
         parsedRequest.data.students,
       );
-      res
-        .status(201)
-        .json(
-          new ApiResponse(
-            201,
-            result.data,
-            `Successfully added ${result.inserted_count} students`,
-          ),
-        );
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=students_credentials.xlsx",
+      );
+
+      res.status(201).send(result.excelBuffer);
     },
   );
 
@@ -142,7 +145,6 @@ export class StudentController {
         .json(new ApiResponse(200, null, "Student deleted successfully"));
     },
   );
-
   static deleteStudentsBulkController = asyncHandler(
     async (req: Request, res: Response) => {
       const parsedRequest = deleteStudentsBulkRequestSchema.safeParse(req.body);
@@ -167,6 +169,37 @@ export class StudentController {
             `Deleted ${deletedCount} students successfully`,
           ),
         );
+    },
+  );
+
+  static rotatePasswordsBulkController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedRequest = rotatePasswordsBulkRequestSchema.safeParse(
+        req.body,
+      );
+      if (!parsedRequest.success) {
+        res.status(400).json({
+          success: false,
+          error:
+            parsedRequest.error.issues[0]?.message ||
+            "Invalid bulk rotation payload",
+        });
+        return;
+      }
+
+      const studentIds = Array.from(new Set(parsedRequest.data.studentIds));
+      const excelBuffer = await StudentService.rotatePasswordsBulk(studentIds);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=rotated_passwords.xlsx",
+      );
+
+      res.status(200).send(excelBuffer);
     },
   );
 

@@ -4,10 +4,12 @@ import generatePassword from "@/utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2 } from "@/config/r2.js";
-import { sheets, spreadsheetId } from "@/config/sheet.js";
+import * as XLSX from "xlsx";
 import { VALID_DEPARTMENTS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
 import puppeteer from "puppeteer";
+import EmailService from "@/utils/email.service.js";
+import { env } from "@/config/env.js";
 
 const current_year = new Date().getFullYear();
 const removeInitialZeros = (str) => str.replace(/^0+/, "");
@@ -15,93 +17,6 @@ const removeInitialZeros = (str) => str.replace(/^0+/, "");
 export const sanitizeStudent = (student) => {
   const { password: _password, ...rest } = student;
   return rest;
-};
-
-const columnMapping = {
-  login_id: 0,
-  name: 1,
-  father_phone: 2,
-  originalPassword: 3,
-  batch: 4,
-};
-
-const getColumnIndex = (field) => {
-  return columnMapping[field] !== undefined ? columnMapping[field] : -1;
-};
-
-const updateSheetStudentData = async (loginId, updatesObject) => {
-  try {
-    const student = await prisma.students.findUnique({
-      where: { login_id: Number(loginId) },
-      select: { id: true, sheet_row_index: true },
-    });
-
-    if (!student) return;
-
-    let targetRowIndex = -1;
-    let currentRowData = [];
-
-    if (student.sheet_row_index !== null) {
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `students!A${student.sheet_row_index + 1}:Z${student.sheet_row_index + 1}`,
-      });
-
-      const rows = sheetData.data.values || [];
-      if (
-        rows.length > 0 &&
-        String(rows[0][0]).trim() === String(loginId).trim()
-      ) {
-        targetRowIndex = student.sheet_row_index;
-        currentRowData = rows[0];
-      }
-    }
-
-    if (targetRowIndex === -1) {
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: "students!A1:Z",
-      });
-
-      const rows = sheetData.data.values || [];
-      targetRowIndex = rows.findIndex(
-        (row) => String(row[0]).trim() === String(loginId).trim(),
-      );
-
-      if (targetRowIndex !== -1) {
-        currentRowData = rows[targetRowIndex];
-        await prisma.students.update({
-          where: { id: student.id },
-          data: { sheet_row_index: targetRowIndex },
-        });
-      }
-    }
-
-    if (targetRowIndex !== -1) {
-      const updatedRow = [...currentRowData];
-      let hasChanges = false;
-      Object.keys(updatesObject).forEach((key) => {
-        const columnIndex = getColumnIndex(key);
-        if (columnIndex !== -1) {
-          updatedRow[columnIndex] = updatesObject[key];
-          hasChanges = true;
-        }
-      });
-
-      if (hasChanges) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `students!A${targetRowIndex + 1}:Z${targetRowIndex + 1}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [updatedRow],
-          },
-        });
-      }
-    }
-  } catch {
-    /* silent */
-  }
 };
 
 export class StudentService {
@@ -291,45 +206,40 @@ export class StudentService {
       return returnEnrollments;
     });
 
-    try {
-      const sheetData = processedStudents.map((student) => [
-        student.login_id,
-        student.name,
-        student.father_phone || "",
-        student.originalPassword,
-        student.batch,
-      ]);
+    const excelData = processedStudents.map((student) => ({
+      "Login ID": student.login_id,
+      Name: student.name,
+      Password: student.originalPassword,
+      Batch: student.batch,
+      Class: student.class,
+      Section: student.section,
+      Roll: student.roll,
+    }));
 
-      const sheetResponse = await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: "students!A1",
-        valueInputOption: "USER_ENTERED",
-        requestBody: {
-          values: sheetData,
-        },
-      });
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
 
-      const updatedRange = sheetResponse.data?.updates?.updatedRange;
-      if (updatedRange) {
-        const match = updatedRange.match(/!A(\d+)/);
-        if (match && match[1]) {
-          const startRowIndex = parseInt(match[1]) - 1;
-          const updatesPromises = processedStudents.map((student, idx) => {
-            return prisma.students.update({
-              where: { login_id: student.login_id },
-              data: { sheet_row_index: startRowIndex + idx },
-            });
-          });
-          await Promise.all(updatesPromises);
-        }
-      }
-    } catch {
-      /* silent */
-    }
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "buffer",
+    });
+
+    EmailService.sendEmailWithAttachment({
+      from: env.FROM_EMAIL,
+      to: "mutiur5bb@gmail.com",
+      subject: "New Students Registered - Credentials",
+      body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${processedStudents.length} newly registered students.\n\nBest regards,\nSchool Management System`,
+      attachment: {
+        filename: "students_credentials.xlsx",
+        content: excelBuffer,
+      },
+    }).catch((err) => console.error("Failed to send headmaster email:", err));
 
     return {
       data: insertedEnrollments,
       inserted_count: processedStudents.length,
+      excelBuffer,
     };
   }
 
@@ -339,7 +249,6 @@ export class StudentService {
       data: updates,
     });
 
-    await updateSheetStudentData(result.login_id, updates);
     return sanitizeStudent(result);
   }
 
@@ -352,57 +261,9 @@ export class StudentService {
       throw new ApiError(404, "Student not found");
     }
 
-    const loginId = student.login_id;
     await prisma.students.delete({
       where: { id },
     });
-
-    let targetRowIndex = -1;
-
-    if (student.sheet_row_index !== null) {
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `students!A${student.sheet_row_index + 1}:Z${student.sheet_row_index + 1}`,
-      });
-      const rows = sheetData.data.values || [];
-      if (
-        rows.length > 0 &&
-        String(rows[0][0]).trim() === String(loginId).trim()
-      ) {
-        targetRowIndex = student.sheet_row_index;
-      }
-    }
-
-    if (targetRowIndex === -1) {
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: "students!A1:Z",
-      });
-      const rows = sheetData.data.values || [];
-      targetRowIndex = rows.findIndex(
-        (row) => String(row[0]).trim() === String(loginId).trim(),
-      );
-    }
-
-    if (targetRowIndex !== -1) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              deleteDimension: {
-                range: {
-                  sheetId: 0,
-                  dimension: "ROWS",
-                  startIndex: targetRowIndex,
-                  endIndex: targetRowIndex + 1,
-                },
-              },
-            },
-          ],
-        },
-      });
-    }
   }
 
   static async deleteStudentsBulk(studentIds) {
@@ -419,39 +280,81 @@ export class StudentService {
       where: { id: { in: students.map((s) => s.id) } },
     });
 
-    const sheetData = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "students!A1:Z",
+    return students.length;
+  }
+
+  static async rotatePasswordsBulk(studentIds) {
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+      select: { id: true, login_id: true, name: true, batch: true },
     });
 
-    const rows = sheetData.data.values || [];
-    const loginIdSet = new Set(
-      students.map((student) => String(student.login_id)),
-    );
-    const rowIndexes = rows
-      .map((row, index) => (loginIdSet.has(String(row[0])) ? index : -1))
-      .filter((index) => index !== -1)
-      .sort((a, b) => b - a);
+    if (students.length === 0) {
+      throw new ApiError(404, "No matching students found");
+    }
 
-    if (rowIndexes.length > 0) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: rowIndexes.map((rowIndex) => ({
-            deleteDimension: {
-              range: {
-                sheetId: 0,
-                dimension: "ROWS",
-                startIndex: rowIndex,
-                endIndex: rowIndex + 1,
-              },
-            },
-          })),
-        },
+    const rotatedStudents = [];
+    const processedStudents = [];
+    for (const student of students) {
+      const password = generatePassword();
+      const hashedPassword = await bcrypt.hash(password, 10);
+      processedStudents.push({
+        ...student,
+        password,
+        hashedPassword,
       });
     }
 
-    return students.length;
+    await prisma.$transaction(
+      async (tx) => {
+        for (const student of processedStudents) {
+          await tx.students.update({
+            where: { id: student.id },
+            data: { password: student.hashedPassword },
+          });
+
+          rotatedStudents.push({
+            login_id: student.login_id,
+            name: student.name,
+            batch: student.batch,
+            password: student.password,
+          });
+        }
+      },
+      {
+        timeout: 20000, // 20 seconds
+      },
+    );
+
+    const excelData = rotatedStudents.map((student) => ({
+      "Login ID": student.login_id,
+      Name: student.name,
+      Batch: student.batch,
+      "New Password": student.password,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rotated Passwords");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "buffer",
+    });
+
+    // Send email to headmaster
+    EmailService.sendEmailWithAttachment({
+      from: env.FROM_EMAIL,
+      to: "mutiur5bb@gmail.com",
+      subject: "Student Passwords Rotated - New Credentials",
+      body: `Hello Headmaster,\n\nPlease find attached the new login credentials for the ${rotatedStudents.length} students whose passwords were just rotated.\n\nBest regards,\nSchool Management System`,
+      attachment: {
+        filename: "rotated_passwords.xlsx",
+        content: excelBuffer,
+      },
+    }).catch((err) => console.error("Failed to send headmaster email:", err));
+
+    return excelBuffer;
   }
 
   static async updateAcademicInfo(enrollmentId, updates) {
@@ -531,13 +434,6 @@ export class StudentService {
       };
     });
 
-    if (result.updatedStudent) {
-      await updateSheetStudentData(result.oldLoginId, {
-        login_id: result.newLoginId,
-        batch: result.updatedStudent.batch,
-      });
-    }
-
     return result.enrollment;
   }
 
@@ -573,10 +469,6 @@ export class StudentService {
     await prisma.students.update({
       where: { id: studentId },
       data: { password: hashedNewPassword },
-    });
-
-    await updateSheetStudentData(student.login_id, {
-      originalPassword: newPassword,
     });
   }
 
