@@ -1705,7 +1705,7 @@ function Form() {
               {...register("student_name_bn")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterBanglaInput(e);
+                target.value = filterBanglaInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="ছাত্রের নাম (বাংলায়)"
@@ -1724,7 +1724,7 @@ function Form() {
               {...register("student_nick_name_bn")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterBanglaInput(e);
+                target.value = filterBanglaInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="ডাকনাম (এক শব্দে/বাংলায়)"
@@ -1750,7 +1750,7 @@ function Form() {
               {...register("student_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e).toUpperCase();
+                target.value = filterEnglishInput(target.value).toUpperCase();
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Student Name (in English)"
@@ -1773,7 +1773,7 @@ function Form() {
               maxLength={17}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="20XXXXXXXXXXXXXXX"
@@ -1849,7 +1849,7 @@ function Form() {
               {...register("father_name_bn")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterBanglaInput(e);
+                target.value = filterBanglaInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="পিতার নাম (বাংলায়)"
@@ -1875,7 +1875,7 @@ function Form() {
               {...register("father_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e).toUpperCase();
+                target.value = filterEnglishInput(target.value).toUpperCase();
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Father's Name (in English)"
@@ -1897,7 +1897,7 @@ function Form() {
               maxLength={17}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="1234567890"
@@ -1919,7 +1919,7 @@ function Form() {
               minLength={11}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="01XXXXXXXXX"
@@ -1945,7 +1945,7 @@ function Form() {
               {...register("mother_name_bn")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterBanglaInput(e);
+                target.value = filterBanglaInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="মাতার নাম (বাংলায়)"
@@ -1971,7 +1971,7 @@ function Form() {
               {...register("mother_name_en")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterEnglishInput(e).toUpperCase()
+                target.value = filterEnglishInput(target.value).toUpperCase()
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Mother's Name (in English)"
@@ -1989,7 +1989,7 @@ function Form() {
               {...register("mother_nid")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               inputMode="numeric"
               minLength={10}
@@ -2011,7 +2011,7 @@ function Form() {
               {...register("mother_phone")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               inputMode="numeric"
               maxLength={11}
@@ -2069,7 +2069,7 @@ function Form() {
               maxLength={11}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-200"
               placeholder="01XXXXXXXXX"
@@ -2148,7 +2148,7 @@ function Form() {
               {...register("permanent_post_code")}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e);
+                target.value = filterNumericInput(target.value);
               }}
               type="text"
               inputMode="numeric"
@@ -2245,7 +2245,7 @@ function Form() {
                   {...register("present_post_code")}
                   onInput={(e) => {
                     const target = e.target as HTMLInputElement;
-                    target.value = filterNumericInput(e);
+                    target.value = filterNumericInput(target.value);
                   }}
                   type="text"
                   inputMode="numeric"
@@ -2323,7 +2323,7 @@ function Form() {
                     maxLength={17}
                     onInput={(e) => {
                       const target = e.target as HTMLInputElement;
-                      target.value = filterNumericInput(e);
+                      target.value = filterNumericInput(target.value);
                     }}
                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                     placeholder="Guardian's NID"
@@ -2343,7 +2343,7 @@ function Form() {
                     maxLength={11}
                     onInput={(e) => {
                       const target = e.target as HTMLInputElement;
-                      target.value = filterNumericInput(e);
+                      target.value = filterNumericInput(target.value);
                     }}
                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                     placeholder="01XXXXXXXXX"
@@ -2527,7 +2527,7 @@ function Form() {
                 maxLength={10}
                 onInput={(e) => {
                   const target = e.target as HTMLInputElement;
-                  target.value = filterNumericInput(e).slice(0, 10);
+                  target.value = filterNumericInput(target.value).slice(0, 10);
                 }}
                 className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                 placeholder="10-digit Registration Number"
@@ -2589,7 +2589,7 @@ function Form() {
               maxLength={6}
               onInput={(e) => {
                 const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(e).slice(0, 6);
+                target.value = filterNumericInput(target.value).slice(0, 6);
               }}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Roll number"

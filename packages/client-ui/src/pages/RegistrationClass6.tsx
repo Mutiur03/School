@@ -656,7 +656,7 @@ export default function RegistrationClass6() {
                         <input {...register("student_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterBanglaInput(e);
+                                target.value = filterBanglaInput(target.value);
                             }}
                             placeholder="ছাত্রের নাম (বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -667,7 +667,7 @@ export default function RegistrationClass6() {
                         <input {...register("student_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(e).toUpperCase();
+                                target.value = filterEnglishInput(target.value).toUpperCase();
                             }}
                             placeholder="Student Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -677,7 +677,7 @@ export default function RegistrationClass6() {
                         <input {...register("birth_reg_no")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 17);
+                                target.value = filterNumericInput(target.value).slice(0, 17);
                             }}
                             maxLength={17}
                             placeholder="17 Digits"
@@ -739,7 +739,7 @@ export default function RegistrationClass6() {
                         <input {...register("father_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterBanglaInput(e);
+                                target.value = filterBanglaInput(target.value);
                             }}
                             placeholder="পিতার নাম (বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -750,7 +750,7 @@ export default function RegistrationClass6() {
                         <input {...register("father_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(e).toUpperCase();
+                                target.value = filterEnglishInput(target.value).toUpperCase();
                             }}
                             placeholder="Father's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -760,7 +760,7 @@ export default function RegistrationClass6() {
                         <input {...register("father_nid")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 17);
+                                target.value = filterNumericInput(target.value).slice(0, 17);
                             }}
                             placeholder="10 Digits/13 Digits/17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -770,7 +770,7 @@ export default function RegistrationClass6() {
                         <input {...register("father_phone")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 11);
+                                target.value = filterNumericInput(target.value).slice(0, 11);
                             }}
                             placeholder="01XXXXXXXXX"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -783,7 +783,7 @@ export default function RegistrationClass6() {
                         <input {...register("mother_name_bn")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterBanglaInput(e);
+                                target.value = filterBanglaInput(target.value);
                             }}
                             placeholder="মাতার নাম (বাংলায়)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -794,7 +794,7 @@ export default function RegistrationClass6() {
                         <input {...register("mother_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(e).toUpperCase();
+                                target.value = filterEnglishInput(target.value).toUpperCase();
                             }}
                             placeholder="Mother's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -804,7 +804,7 @@ export default function RegistrationClass6() {
                         <input {...register("mother_nid")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 17);
+                                target.value = filterNumericInput(target.value).slice(0, 17);
                             }}
                             placeholder="10 Digits/13 Digits/17 Digits"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -814,7 +814,7 @@ export default function RegistrationClass6() {
                         <input {...register("mother_phone")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 11);
+                                target.value = filterNumericInput(target.value).slice(0, 11);
                             }}
                             placeholder="01XXXXXXXXX"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -900,7 +900,7 @@ export default function RegistrationClass6() {
                             {...register("permanent_post_code")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e);
+                                target.value = filterNumericInput(target.value);
                             }}
                             type="text"
                             inputMode="numeric"
@@ -997,7 +997,7 @@ export default function RegistrationClass6() {
                                     {...register("present_post_code")}
                                     onInput={(e) => {
                                         const target = e.target as HTMLInputElement;
-                                        target.value = filterNumericInput(e);
+                                        target.value = filterNumericInput(target.value);
                                     }}
                                     type="text"
                                     inputMode="numeric"
@@ -1058,7 +1058,7 @@ export default function RegistrationClass6() {
                                         {...register("guardian_name")}
                                         onInput={(e) => {
                                             const target = e.target as HTMLInputElement;
-                                            target.value = filterEnglishInput(e).toUpperCase();
+                                            target.value = filterEnglishInput(target.value).toUpperCase();
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                                         placeholder="Guardian's Name"
@@ -1079,7 +1079,7 @@ export default function RegistrationClass6() {
                                         maxLength={17}
                                         onInput={(e) => {
                                             const target = e.target as HTMLInputElement;
-                                            target.value = filterNumericInput(e);
+                                            target.value = filterNumericInput(target.value);
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                                         placeholder="10 Digits/13 Digits/17 Digits"
@@ -1099,7 +1099,7 @@ export default function RegistrationClass6() {
                                         maxLength={11}
                                         onInput={(e) => {
                                             const target = e.target as HTMLInputElement;
-                                            target.value = filterNumericInput(e);
+                                            target.value = filterNumericInput(target.value);
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                                         placeholder="01XXXXXXXXX"
@@ -1205,7 +1205,7 @@ export default function RegistrationClass6() {
                                             {...register("guardian_post_code")}
                                             onInput={(e) => {
                                                 const target = e.target as HTMLInputElement;
-                                                target.value = filterNumericInput(e).slice(0, 4);
+                                                target.value = filterNumericInput(target.value).slice(0, 4);
                                             }}
                                             type="text"
                                             inputMode="numeric"
@@ -1300,7 +1300,7 @@ export default function RegistrationClass6() {
                             maxLength={6}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterNumericInput(e).slice(0, 6);
+                                target.value = filterNumericInput(target.value).slice(0, 6);
                             }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
                             placeholder="Roll Number"
