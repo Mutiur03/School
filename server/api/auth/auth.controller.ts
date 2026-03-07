@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import { prisma } from "@/config/prisma.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
-import asyncHandler from "../../utils/asyncHandler.js";
+import asyncHandler from "@/utils/asyncHandler.js";
 
 type AuthUser = {
   id: number;
@@ -86,18 +86,16 @@ export class AuthController {
     });
     sendRefreshToken(res, refreshToken);
 
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {
-            accessToken,
-            user: { id: user.id, role: "admin", username: user.username },
-          },
-          "Login successful",
-        ),
-      );
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          accessToken,
+          user: { id: user.id, role: "admin", username: user.username },
+        },
+        "Login successful",
+      ),
+    );
   });
 
   static student_login = asyncHandler(async (req: Request, res: Response) => {

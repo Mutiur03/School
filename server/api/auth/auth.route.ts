@@ -1,5 +1,5 @@
 import express from "express";
-import { AuthController } from "./auth.controller";
+import { AuthController } from "@/api/auth/auth.controller.js";
 import AuthMiddleware from "@/middlewares/auth.middleware.js";
 import { validate } from "@/middlewares/validate.middleware.js";
 import {
