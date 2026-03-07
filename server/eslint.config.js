@@ -7,6 +7,7 @@ export default [
     // Ignore generated / third-party directories
     ignores: [
       "node_modules/**",
+      "dist/**",
       "prisma/migrations/**",
       "public/**",
       "uploads/**",

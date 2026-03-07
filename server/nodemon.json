@@ -1,15 +1,7 @@
 {
-  "exec": "npm run lint && node --import tsx server.js",
-  "_exec": "node --import tsx server.js",
+  "exec": "npm run lint && node --import tsx server.ts",
+  "_exec": "node --import tsx server.ts",
   "ext": "js,ts,json",
-  "watch": [
-    "./",
-    "../packages/shared-schemas"
-  ],
-  "ignore": [
-    "node_modules/",
-    "uploads/",
-    "prisma/migrations/"
-  ]
+  "watch": ["./", "../packages/shared-schemas"],
+  "ignore": ["node_modules/", "dist/", "uploads/", "prisma/migrations/"]
 }
-

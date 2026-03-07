@@ -6,7 +6,20 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "."
   },
-  "include": ["**/*.js", "**/*.ts", "**/*.json", "**/*.mjs"]
+  "include": ["**/*.js", "**/*.ts", "**/*.json", "**/*.mjs"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -40,7 +40,7 @@ router.post(
 router.get("/me", AuthMiddleware.authenticate(), (req, res) => {
   res
     .status(200)
-    .json(new ApiResponse(200, "success", "You are authenticated!", req.user));
+    .json(new ApiResponse(200, req.user, "You are authenticated!"));
 });
 router.post("/add-admin", validate(addAdminSchema), AuthController.addAdmin);
 
