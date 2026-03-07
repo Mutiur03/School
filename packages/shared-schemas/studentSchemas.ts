@@ -310,7 +310,8 @@ export const addStudentInputSchema = z
 export const addStudentsRequestSchema = z.object({
   students: z
     .array(addStudentInputSchema)
-    .min(1, "Students must be an array with at least one element."),
+    .min(1, "Students must be an array with at least one element.")
+    .max(500, "Maximum 500 students allowed per upload."),
 });
 
 export const deleteStudentsBulkRequestSchema = z.object({

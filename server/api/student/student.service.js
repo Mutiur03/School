@@ -321,9 +321,9 @@ export class StudentService {
           });
         }
       },
-      {
-        timeout: 20000, // 20 seconds
-      },
+      // {
+      //   timeout: 20000, // 20 seconds
+      // },
     );
 
     const excelData = rotatedStudents.map((student) => ({
