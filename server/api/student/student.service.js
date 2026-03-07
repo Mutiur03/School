@@ -99,7 +99,7 @@ const updateSheetStudentData = async (loginId, updatesObject) => {
         });
       }
     }
-  } catch (_) {
+  } catch {
     /* silent */
   }
 };
@@ -323,7 +323,7 @@ export class StudentService {
           await Promise.all(updatesPromises);
         }
       }
-    } catch (_) {
+    } catch {
       /* silent */
     }
 
