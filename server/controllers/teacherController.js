@@ -1,12 +1,11 @@
 import generatePassword from "../utils/pwgenerator.js";
 import bcrypt from "bcryptjs";
-import { initGoogleSheets } from "./studController.js";
 import { teacherFormSchema } from "@school/shared-schemas";
 import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
-const { sheets, spreadsheetId } = await initGoogleSheets();
 import { prisma } from "../config/prisma.js";
 import { redis } from "../config/redis.js";
 import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
+import { sheets, spreadsheetId } from "../config/sheet.js";
 
 export const addTeacher = async (req, res) => {
   try {
@@ -18,8 +17,6 @@ export const addTeacher = async (req, res) => {
       });
     }
     console.log(teachers);
-
-    // Validate all entries upfront before any async work
     for (let i = 0; i < teachers.length; i++) {
       const parsed = teacherFormSchema.safeParse(teachers[i]);
       if (!parsed.success) {
@@ -48,11 +45,13 @@ export const addTeacher = async (req, res) => {
           originalPassword,
         };
         return rawData;
-      })
+      }),
     );
 
     await prisma.teachers.createMany({
-      data: teacherData.map(({ originalPassword: _originalPassword, ...data }) => data),
+      data: teacherData.map(
+        ({ originalPassword: _originalPassword, ...data }) => data,
+      ),
     });
 
     const createdTeachers = await prisma.teachers.findMany({
@@ -60,7 +59,7 @@ export const addTeacher = async (req, res) => {
         email: {
           in: teacherData.map((t) => t.email),
         },
-      },
+      }, 
     });
 
     sheets.spreadsheets.values.append({
@@ -211,14 +210,21 @@ export const getTeacherImageUploadUrlController = async (req, res) => {
   try {
     const { id, key, contentType } = req.body;
     if (!id || !key || !contentType) {
-      return res.status(400).json({ success: false, error: "id, key, and contentType are required" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "id, key, and contentType are required",
+        });
     }
 
     const teacher = await prisma.teachers.findUnique({
       where: { id: parseInt(id) },
     });
     if (!teacher) {
-      return res.status(404).json({ success: false, error: "Teacher not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Teacher not found" });
     }
 
     const r2Key = `teachers/${key}`;
@@ -243,7 +249,9 @@ export const saveTeacherImageController = async (req, res) => {
       where: { id: parseInt(id) },
     });
     if (!existingTeacher) {
-      return res.status(404).json({ success: false, error: "Teacher not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Teacher not found" });
     }
 
     if (existingTeacher.image) {
@@ -265,7 +273,9 @@ export const saveTeacherImageController = async (req, res) => {
     });
   } catch (error) {
     console.error("Error saving teacher image:", error.message);
-    res.status(500).json({ success: false, error: "Error saving teacher image" });
+    res
+      .status(500)
+      .json({ success: false, error: "Error saving teacher image" });
   }
 };
 
@@ -277,7 +287,9 @@ export const removeTeacherImageController = async (req, res) => {
       where: { id: parseInt(id) },
     });
     if (!existingTeacher) {
-      return res.status(404).json({ success: false, error: "Teacher not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Teacher not found" });
     }
 
     if (existingTeacher.image) {
@@ -299,7 +311,9 @@ export const removeTeacherImageController = async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing teacher image:", error.message);
-    res.status(500).json({ success: false, error: "Error removing teacher image" });
+    res
+      .status(500)
+      .json({ success: false, error: "Error removing teacher image" });
   }
 };
 
@@ -365,7 +379,7 @@ export const changePassword = async (req, res) => {
     } catch (sheetError) {
       console.error(
         "Error updating password in Google Sheet:",
-        sheetError.message
+        sheetError.message,
       );
     }
 
