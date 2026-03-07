@@ -12,7 +12,7 @@ import subRouter from "./routes/subRoutes.js";
 import marksRouter from "./routes/marksRoutes.js";
 import promotionRouter from "./routes/promotionRoutes.js";
 import routerTeacher from "./routes/teacherRoutes.js";
-import authRouter from "./api/auth/auth.route";
+import authRouter from "./api/auth/auth.route.js";
 import cookieParser from "cookie-parser";
 import levelRouter from "./routes/levelRoutes.js";
 import attendenceRouter from "./routes/attendenceRoutes.js";

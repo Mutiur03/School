@@ -5,7 +5,7 @@
   "main": "server.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy && prisma db seed",
     "build:docker": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
@@ -72,6 +72,7 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.3.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.8.3"
   }
 }
