@@ -8,6 +8,11 @@ RUN npm install -g pnpm
 COPY server/package*.json /app/server/
 COPY packages/shared-schemas /app/packages/shared-schemas
 
+# Build the shared-schemas package first (compile .ts → .js)
+WORKDIR /app/packages/shared-schemas
+RUN npm install
+RUN npm run build
+
 # Install all dependencies for building
 WORKDIR /app/server
 RUN pnpm install --ignore-scripts
@@ -16,7 +21,12 @@ RUN pnpm install --ignore-scripts
 COPY server /app/server
 COPY packages/shared-schemas /app/packages/shared-schemas
 
+# Rebuild shared-schemas with the final source (in case COPY above overwrote dist/)
+WORKDIR /app/packages/shared-schemas
+RUN npm run build
+
 # Generate Prisma client and compile TypeScript
+WORKDIR /app/server
 RUN npx prisma generate
 RUN npm run build
 
