@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GLOBAL_REGEX } from "./studentSchemas";
+import { GLOBAL_REGEX } from "./studentSchemas.js";
 
 export const teacherFormSchema = z.object({
   name: z
