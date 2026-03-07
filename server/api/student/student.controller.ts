@@ -8,8 +8,8 @@ import {
   yearParamSchema,
   classStudentsParamSchema,
 } from "@school/shared-schemas";
-import asyncHandler from "../../utils/asyncHandler.js";
-import { StudentService } from "./student.service.js";
+import asyncHandler from "@/utils/asyncHandler.js";
+import { StudentService } from "@/api/student/student.service.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { Request, Response } from "express";
 

@@ -59,6 +59,7 @@ COPY --from=builder /app/packages/shared-schemas /app/packages/shared-schemas
 
 # Install only production dependencies
 RUN pnpm install --prod --ignore-scripts
+RUN npx prisma generate
 
 # Make startup script executable and set launch command
 RUN chmod +x setup-network.sh

@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { Request, Response } from "express";
 import { prisma } from "@/config/prisma.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
+import { ApiError } from "@/utils/ApiError.js";
+import asyncHandler from "../../utils/asyncHandler.js";
 
 type AuthUser = {
   id: number;
@@ -47,135 +49,233 @@ const sendRefreshToken = (res: Response, token: string) => {
     partitioned: isProduction,
   });
 };
-export class AuthController {
-  static login = async (req: Request, res: Response) => {
-    console.log("[Admin Login] Request received");
-    console.log("[Admin Login] Body:", {
-      username: req.body.username,
-      password: req.body.password ? "***provided***" : "***missing***",
-    });
 
+export class AuthController {
+  static login = asyncHandler(async (req: Request, res: Response) => {
+    console.log("[Admin Login] Request received");
     const { username, password } = req.body;
 
     if (!username || !password) {
-      console.log("[Admin Login] FAILED — Missing username or password");
-      return res.status(400).json({
-        success: false,
-        message: "Username and password are required",
-      });
+      throw new ApiError(400, "Username and password are required");
     }
 
     console.log(`[Admin Login] Looking up admin with username: "${username}"`);
+    const user = await prisma.admin.findUnique({
+      where: { username: username },
+    });
 
-    try {
-      const user = await prisma.admin.findUnique({
-        where: {
-          username: username,
-        },
-      });
-
-      if (!user) {
-        console.log(
-          `[Admin Login] FAILED — No admin found with username: "${username}"`,
-        );
-        return res
-          .status(401)
-          .json({ success: false, message: "Admin not found" });
-      }
-
+    if (!user) {
       console.log(
-        `[Admin Login] Admin found — id: ${user.id}, username: "${user.username}"`,
+        `[Admin Login] FAILED — No admin found with username: "${username}"`,
       );
-
-      if (!user.password) {
-        console.log("[Admin Login] FAILED — Admin account has no password set");
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials (no password set)",
-        });
-      }
-
-      console.log(
-        "[Admin Login] Comparing provided password with stored hash...",
-      );
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      console.log("[Admin Login] Password valid:", isValidPassword);
-
-      if (!isValidPassword) {
-        console.log("[Admin Login] FAILED — Password mismatch");
-        return res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
-      }
-
-      console.log("[Admin Login] Password OK — generating tokens...");
-      const { accessToken, refreshToken } = generateTokens({
-        ...user,
-        role: "admin",
-      });
-      console.log(
-        "[Admin Login] Tokens generated — setting refresh token cookie",
-      );
-      sendRefreshToken(res, refreshToken);
-
-      console.log("[Admin Login] SUCCESS — responding with access token");
-      return res.json({
-        success: true,
-        message: "Login successful",
-        accessToken,
-        user: { id: user.id, role: "admin", username: user.username },
-      });
-    } catch (error: any) {
-      console.error("[Admin Login] ERROR —", error);
-      return res.status(500).json({
-        success: false,
-        error: "Error logging in",
-        details: error.message,
-      });
+      throw new ApiError(401, "Admin not found");
     }
-  };
 
-  static student_login = async (req: Request, res: Response) => {
+    if (!user.password) {
+      throw new ApiError(401, "Invalid credentials (no password set)");
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new ApiError(401, "Invalid credentials");
+    }
+
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: "admin",
+    });
+    sendRefreshToken(res, refreshToken);
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          {
+            accessToken,
+            user: { id: user.id, role: "admin", username: user.username },
+          },
+          "Login successful",
+        ),
+      );
+  });
+
+  static student_login = asyncHandler(async (req: Request, res: Response) => {
     const { login_id, password } = req.body;
     if (!login_id || !password) {
-      return res
-        .status(400)
-        .json({ message: "Login ID and password are required" });
+      throw new ApiError(400, "Login ID and password are required");
     }
 
-    try {
-      const loginIdInt = parseInt(login_id);
-      if (isNaN(loginIdInt)) {
-        return res.status(400).json({ message: "Invalid login ID format" });
-      }
+    const loginIdInt = parseInt(login_id);
+    if (isNaN(loginIdInt)) {
+      throw new ApiError(400, "Invalid login ID format");
+    }
 
-      const student = await prisma.students.findUnique({
-        where: { login_id: loginIdInt },
-      });
+    const student = await prisma.students.findUnique({
+      where: { login_id: loginIdInt },
+    });
 
-      if (!student) {
-        return res.status(401).json({ message: "Invalid login id" });
-      }
+    if (!student) {
+      throw new ApiError(401, "Invalid login id");
+    }
 
-      if (!student.password) {
-        console.error("No password found for student:", student.login_id);
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
+    if (!student.password) {
+      throw new ApiError(401, "Invalid credentials");
+    }
 
-      const hashedPassword = student.password;
-      const isValidPassword = await bcrypt.compare(password, hashedPassword);
+    const isValidPassword = await bcrypt.compare(password, student.password);
+    if (!isValidPassword) {
+      throw new ApiError(401, "Invalid password");
+    }
 
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid password" });
-      }
+    const { accessToken, refreshToken } = generateTokens({
+      ...student,
+      role: "student",
+    });
+    sendRefreshToken(res, refreshToken);
 
-      // Generate new tokens
-      const { accessToken, refreshToken } = generateTokens({
-        ...student,
-        role: "student",
-      });
-      sendRefreshToken(res, refreshToken);
+    const studentAddress = [
+      student.village,
+      student.post_office,
+      student.upazila,
+      student.district,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          accessToken,
+          user: {
+            id: student.id,
+            role: "student",
+            name: student.name,
+            login_id: student.login_id,
+            email: student.email,
+            phone: student.father_phone,
+            father_phone: student.father_phone,
+            mother_phone: student.mother_phone,
+            village: student.village,
+            post_office: student.post_office,
+            upazila: student.upazila,
+            district: student.district,
+            address: studentAddress,
+            image: student.image,
+          },
+        },
+        "Login successful",
+      ),
+    );
+  });
+
+  static teacher_login = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      throw new ApiError(400, "Email and password are required");
+    }
+
+    const user = await prisma.teachers.findFirst({
+      where: {
+        email: email,
+        available: true,
+      },
+    });
+
+    if (!user || !user.password) {
+      throw new ApiError(401, "Invalid credentials");
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new ApiError(401, "Invalid credentials");
+    }
+
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: "teacher",
+    });
+    sendRefreshToken(res, refreshToken);
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          accessToken,
+          user: {
+            id: user.id,
+            role: "teacher",
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            designation: user.designation,
+            address: user.address,
+            image: user.image,
+          },
+        },
+        "Login successful",
+      ),
+    );
+  });
+
+  static refresh_token = asyncHandler(async (req: Request, res: Response) => {
+    const token = req.cookies.refreshToken;
+    if (!token) {
+      res.status(200).json({ success: false, accessToken: "" });
+      return;
+    }
+
+    const payload = jwt.verify(
+      token,
+      (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
+    ) as any;
+
+    let user = null;
+    if (payload.role === "admin") {
+      user = await prisma.admin.findUnique({ where: { id: payload.id } });
+    } else if (payload.role === "student") {
+      user = await prisma.students.findUnique({ where: { id: payload.id } });
+    } else if (payload.role === "teacher") {
+      user = await prisma.teachers.findUnique({ where: { id: payload.id } });
+    }
+
+    if (!user) {
+      res.status(200).json({ success: false, accessToken: "" });
+      return;
+    }
+
+    const tokenVersion = payload.version || 0;
+    const userVersion = user.tokenVersion || 0;
+
+    if (tokenVersion !== userVersion) {
+      res.status(200).json({ success: false, accessToken: "" });
+      return;
+    }
+
+    const { accessToken, refreshToken } = generateTokens({
+      ...user,
+      role: payload.role,
+    });
+    sendRefreshToken(res, refreshToken);
+
+    let responseUser = {
+      id: user.id,
+      role: payload.role,
+      name: (user as any).name,
+      email: (user as any).email,
+    } as any;
+
+    if (payload.role === "admin") {
+      responseUser.username = (user as any).username;
+    } else if (payload.role === "teacher") {
+      responseUser.phone = (user as any).phone;
+      responseUser.designation = (user as any).designation;
+      responseUser.address = (user as any).address;
+      responseUser.image = (user as any).image;
+    } else if (payload.role === "student") {
+      const student = user as any;
       const studentAddress = [
         student.village,
         student.post_office,
@@ -185,185 +285,26 @@ export class AuthController {
         .filter(Boolean)
         .join(", ");
 
-      return res.json({
-        success: true,
-        message: "Login successful",
-        accessToken,
-        user: {
-          id: student.id,
-          role: "student",
-          name: student.name,
-          login_id: student.login_id,
-          email: student.email,
-          phone: student.father_phone,
-          father_phone: student.father_phone,
-          mother_phone: student.mother_phone,
-          village: student.village,
-          post_office: student.post_office,
-          upazila: student.upazila,
-          district: student.district,
-          address: studentAddress,
-          image: student.image,
-        },
-      });
-    } catch (error: any) {
-      console.error("Login error:", error);
-      return res
-        .status(500)
-        .json({ message: "Error during login", error: error.message });
-    }
-  };
-
-  static teacher_login = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email and password are required" });
+      responseUser.login_id = student.login_id;
+      responseUser.phone = student.father_phone;
+      responseUser.father_phone = student.father_phone;
+      responseUser.mother_phone = student.mother_phone;
+      responseUser.village = student.village;
+      responseUser.post_office = student.post_office;
+      responseUser.upazila = student.upazila;
+      responseUser.district = student.district;
+      responseUser.address = studentAddress;
+      responseUser.image = student.image;
     }
 
-    try {
-      const user = await prisma.teachers.findFirst({
-        where: {
-          email: email,
-          available: true,
-        },
-      });
+    res.status(200).json({
+      success: true,
+      accessToken,
+      user: responseUser,
+    });
+  });
 
-      if (!user || !user.password) {
-        return res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
-      }
-
-      const { accessToken, refreshToken } = generateTokens({
-        ...user,
-        role: "teacher",
-      });
-      sendRefreshToken(res, refreshToken);
-      return res.json({
-        success: true,
-        message: "Login successful",
-        accessToken,
-        user: {
-          id: user.id,
-          role: "teacher",
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          designation: user.designation,
-          address: user.address,
-          image: user.image,
-        },
-      });
-    } catch (error: any) {
-      console.error("Teacher login error:", error);
-      return res.status(500).json({
-        success: false,
-        error: "Error logging in",
-        details: error.message,
-      });
-    }
-  };
-
-  static refresh_token = async (req: Request, res: Response) => {
-    const token = req.cookies.refreshToken;
-    if (!token) {
-      return res.json({ success: false, accessToken: "" });
-    }
-
-    try {
-      const payload = jwt.verify(
-        token,
-        (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
-      ) as any;
-      let user = null;
-      if (payload.role === "admin") {
-        user = await prisma.admin.findUnique({ where: { id: payload.id } });
-      } else if (payload.role === "student") {
-        user = await prisma.students.findUnique({ where: { id: payload.id } });
-      } else if (payload.role === "teacher") {
-        user = await prisma.teachers.findUnique({ where: { id: payload.id } });
-      }
-
-      if (!user) {
-        return res.json({ success: false, accessToken: "" });
-      }
-
-      // Check token version for revocation
-      const tokenVersion = payload.version || 0;
-      const userVersion = user.tokenVersion || 0;
-
-      if (tokenVersion !== userVersion) {
-        console.log(
-          `Token version mismatch for user ${user.id}: in-token=${tokenVersion}, in-db=${userVersion}`,
-        );
-        return res.json({ success: false, accessToken: "" });
-      }
-
-      const { accessToken, refreshToken } = generateTokens({
-        ...user,
-        role: payload.role,
-      });
-      sendRefreshToken(res, refreshToken); // Rotate refresh token
-
-      // Prepare user object based on role
-      let responseUser = {
-        id: user.id,
-        role: payload.role,
-        name: user.name, // Common for teacher/student
-        email: user.email,
-      } as any;
-
-      if (payload.role === "admin") {
-        responseUser.username = user.username;
-      } else if (payload.role === "teacher") {
-        responseUser.phone = user.phone;
-        responseUser.designation = user.designation;
-        responseUser.address = user.address;
-        responseUser.image = user.image;
-      } else if (payload.role === "student") {
-        const studentAddress = [
-          user.village,
-          user.post_office,
-          user.upazila,
-          user.district,
-        ]
-          .filter(Boolean)
-          .join(", ");
-
-        responseUser.login_id = user.login_id;
-        responseUser.phone = user.father_phone;
-        responseUser.father_phone = user.father_phone;
-        responseUser.mother_phone = user.mother_phone;
-        responseUser.village = user.village;
-        responseUser.post_office = user.post_office;
-        responseUser.upazila = user.upazila;
-        responseUser.district = user.district;
-        responseUser.address = studentAddress;
-        responseUser.image = user.image;
-      }
-
-      return res.json({
-        success: true,
-        accessToken,
-        user: responseUser,
-      });
-    } catch (err) {
-      console.log(err);
-      return res.json({ success: false, accessToken: "" });
-    }
-  };
-
-  static logout = async (req: Request, res: Response) => {
+  static logout = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies?.refreshToken;
 
     if (token) {
@@ -373,7 +314,6 @@ export class AuthController {
           (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
         ) as any;
 
-        // Increment token version to revoke all sessions for this user
         if (decoded.role === "admin") {
           await prisma.admin.update({
             where: { id: decoded.id },
@@ -391,7 +331,6 @@ export class AuthController {
           });
         }
       } catch {
-        // Token might be expired or invalid, just proceed to clear cookies
         console.log(
           "Logout: Token invalid or expired, skipping version increment.",
         );
@@ -410,102 +349,56 @@ export class AuthController {
       partitioned: isProduction,
     });
 
-    return res
+    res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
+  });
+
+  checkAdminExists = asyncHandler(async (_req: Request, res: Response) => {
+    const adminCount = await prisma.admin.count();
+    res
       .status(200)
-      .json(new ApiResponse(200, {}, "Logged out successfully"));
-  };
+      .json(
+        new ApiResponse(
+          200,
+          { hasAdmins: adminCount > 0, adminCount },
+          "Admin existence checked successfully",
+        ),
+      );
+  });
 
-  checkAdminExists = async (_req: Request, res: Response) => {
-    try {
-      const adminCount = await prisma.admin.count();
-      return res.json({
-        success: true,
-        hasAdmins: adminCount > 0,
-        adminCount,
-      });
-    } catch (err) {
-      console.error("Error checking admin existence:", err);
-      return res
-        .status(500)
-        .json({ success: false, error: "Error checking admin existence" });
-    }
-  };
-
-  static addAdmin = async (req: Request, res: Response) => {
+  static addAdmin = asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
-    if (!username || !password)
-      return res
-        .status(400)
-        .json({ message: "Username and password are required" });
-
-    try {
-      // Check if any admin exists in the system
-      const adminCount = await prisma.admin.count();
-
-      // If admins exist, require authentication
-      // if (adminCount > 0) {
-      //   const token = req.headers.authorization?.split(" ")[1];
-      //   if (!token) {
-      //     return res.status(401).json({
-      //       message: "Admin authentication required to create additional admins",
-      //     });
-      //   }
-
-      //   try {
-      //     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      //     if (!decoded.id || decoded.role !== "admin") {
-      //       return res.status(401).json({
-      //         message:
-      //           "Admin authentication required to create additional admins",
-      //       });
-      //     }
-
-      //     const authenticatedAdmin = await prisma.admin.findUnique({
-      //       where: { id: decoded.id },
-      //     });
-      //     if (!authenticatedAdmin) {
-      //       return res.status(401).json({
-      //         message:
-      //           "Admin authentication required to create additional admins",
-      //       });
-      //     }
-      //   } catch {
-      //     return res.status(401).json({
-      //       message: "Invalid admin token",
-      //     });
-      //   }
-      // }
-
-      // Check if admin with this username already exists
-      const existing = await prisma.admin.findUnique({ where: { username } });
-      if (existing) {
-        return res.status(409).json({ message: "Admin already exists" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const admin = await prisma.admin.create({
-        data: {
-          username,
-          password: hashedPassword,
-          role: "admin",
-        },
-      });
-
-      const message =
-        adminCount === 0
-          ? "First admin created successfully"
-          : "Admin created successfully";
-
-      return res.json({
-        success: true,
-        message,
-        admin: { id: admin.id, username: admin.username },
-      });
-    } catch (err) {
-      console.error("Error creating admin:", err);
-      return res
-        .status(500)
-        .json({ success: false, error: "Error creating admin" });
+    if (!username || !password) {
+      throw new ApiError(400, "Username and password are required");
     }
-  };
+
+    const adminCount = await prisma.admin.count();
+    const existing = await prisma.admin.findUnique({ where: { username } });
+    if (existing) {
+      throw new ApiError(409, "Admin already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = await prisma.admin.create({
+      data: {
+        username,
+        password: hashedPassword,
+        role: "admin",
+      },
+    });
+
+    const message =
+      adminCount === 0
+        ? "First admin created successfully"
+        : "Admin created successfully";
+
+    res
+      .status(201)
+      .json(
+        new ApiResponse(
+          201,
+          { id: admin.id, username: admin.username },
+          message,
+        ),
+      );
+  });
 }
