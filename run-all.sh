@@ -6,8 +6,9 @@ declare -A SERVERS=(
   ["client"]="npm run dev:client"
   ["client-ui"]="npm run dev:client:ui"
   ["common-ui"]="npm run dev:common:ui"
+  ["shared-schemas"]="npm run dev:shared-schemas"
   ["admin"]="cd dashboard && npm run dev:admin"
-  ["teacher"]="cd dashboard && npm run dev:teacher"
+  # ["teacher"]="cd dashboard && npm run dev:teacher"
   ["student"]="cd dashboard && npm run dev:student"
 )
 PORTS=(3001 5173 5174 5175 5176 5177 5178 5179 5180)

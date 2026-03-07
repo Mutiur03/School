@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import Loading from "@/components/Loading";
-import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
+import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
-import DeletePopup from "@/components/DeletePopup";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -183,6 +182,7 @@ function StudentList() {
   const [preview, setPreview] = useState<string | null>(null);
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
   const {
     register,
@@ -371,6 +371,33 @@ function StudentList() {
     onError: (error) => {
       const err = error as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || "Failed to delete selected students. Please try again.");
+    },
+  });
+
+  const bulkRotateMutation = useMutation({
+    mutationFn: async (studentIds: number[]) => {
+      const response = await axios.put(
+        "/api/students/rotatePasswordsBulk",
+        { studentIds },
+        { responseType: "blob" }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "rotated_passwords.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Passwords rotated successfully. Excel downloaded.");
+      setSelectedStudentIds([]);
+      invalidateStudents();
+    },
+    onError: (error) => {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to rotate passwords. Please try again.");
     },
   });
 
@@ -1163,6 +1190,15 @@ function StudentList() {
             </p>
             <Button
               type="button"
+              variant="outline"
+              onClick={() => setBulkRotateOpen(true)}
+              disabled={bulkRotateMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {bulkRotateMutation.isPending ? "Rotating..." : `Rotate ${selectedStudentIds.length} Passwords`}
+            </Button>
+            <Button
+              type="button"
               variant="destructive"
               onClick={handleBulkDelete}
               disabled={bulkDeleteMutation.isPending}
@@ -1170,11 +1206,20 @@ function StudentList() {
             >
               {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedStudentIds.length} Selected`}
             </Button>
-            <DeletePopup
+            <ConfirmationPopup
               open={bulkDeleteOpen}
               onOpenChange={setBulkDeleteOpen}
-              onDelete={() => { setBulkDeleteOpen(false); bulkDeleteMutation.mutate(selectedStudentIds); }}
+              onConfirm={() => { setBulkDeleteOpen(false); bulkDeleteMutation.mutate(selectedStudentIds); }}
+              confirmLabel="Confirm Delete"
               msg={`This will permanently delete ${selectedStudentIds.length} selected student(s). This action cannot be undone.`}
+            />
+            <ConfirmationPopup
+              open={bulkRotateOpen}
+              onOpenChange={setBulkRotateOpen}
+              onConfirm={() => { setBulkRotateOpen(false); bulkRotateMutation.mutate(selectedStudentIds); }}
+              confirmLabel="Rotate Passwords"
+              variant="default"
+              msg={`This will regenerate new passwords for ${selectedStudentIds.length} selected student(s). An Excel file with new credentials will be downloaded. This action cannot be undone.`}
             />
           </div>
         )}
