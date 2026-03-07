@@ -1360,7 +1360,7 @@ export default function RegistrationClass6() {
                             aria-invalid={!!errors.nearby_student_info}
                         >
                             <option value="">Select Name</option>
-                            {settings?.classmates && settings.classmates.split(',').map((name: string, idx: number) => {
+                            {settings?.resolvedClassmates && settings.resolvedClassmates.split(',').map((name: string, idx: number) => {
                                 const trimmedName = name.trim();
                                 return trimmedName ? (
                                     <option key={idx} value={trimmedName}>
