@@ -12,6 +12,7 @@ import fs from "fs";
 import puppeteer from "puppeteer";
 import axios from "axios";
 import QRCode from "qrcode";
+import { removeInitialZeros } from "@school/shared-schemas";
 
 export const getClassMates = async (req, res) => {
   try {
@@ -476,7 +477,7 @@ export const exportRegistrations = async (req, res) => {
       district: reg.permanent_district,
       dob: reg.birth_date,
       class: 6,
-      roll: reg.roll ? String(reg.roll).replace(/^0+/, "") : "",
+      roll: reg.roll ? removeInitialZeros(String(reg.roll)) : "",
       section: reg.section,
       department: "",
       has_stipend: "No",

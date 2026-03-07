@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GLOBAL_REGEX } from "./studentSchemas.js";
+import { NAME, PHONE_NUMBER, DESIGNATION, ADDRESS_TEXT } from "./regex.js";
 
 export const teacherFormSchema = z.object({
   name: z
@@ -7,10 +7,7 @@ export const teacherFormSchema = z.object({
     .trim()
     .min(1, "Name is required")
     .min(2, "Name must be at least 2 characters")
-    .regex(
-      GLOBAL_REGEX.NAME,
-      "Enter a valid name (letters and basic punctuation only)",
-    ),
+    .regex(NAME, "Enter a valid name (letters and basic punctuation only)"),
 
   email: z
     .string()
@@ -22,7 +19,7 @@ export const teacherFormSchema = z.object({
     .string()
     .trim()
     .min(1, "Phone is required")
-    .regex(GLOBAL_REGEX.PHONE_BD, "Phone must be 11 digits and start with 01"),
+    .regex(PHONE_NUMBER, "Phone must be 11 digits and start with 01"),
 
   designation: z
     .string()
@@ -31,17 +28,16 @@ export const teacherFormSchema = z.object({
     .min(2, "Designation must be at least 2 characters")
     .max(50, "Designation must be at most 50 characters")
     .regex(
-      GLOBAL_REGEX.DESIGNATION,
+      DESIGNATION,
       "Enter a valid designation (letters, numbers and basic punctuation only)",
     ),
 
   address: z
     .string()
     .trim()
-    .regex(
-      /^([A-Za-z0-9 .,'()\/-]{2,100})?$/,
-      "Address may only contain letters, numbers and basic punctuation",
-    ),
+    .refine((value) => !value || ADDRESS_TEXT.test(value), {
+      message: "Address may only contain letters and numbers",
+    }),
 });
 
 export type TeacherFormSchemaData = z.infer<typeof teacherFormSchema>;

@@ -14,6 +14,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   studentFormSchema,
   VALID_DEPARTMENTS,
+  toExcelString,
+  normalizeExcelDate,
+  formatDobForDateInput,
   type StudentFormSchemaData,
 } from "@school/shared-schemas";
 import { Input } from "@/components/ui/input";
@@ -93,65 +96,6 @@ const demoExcelColumns = [
   "department",
   "has_stipend",
 ];
-
-const toExcelString = (value: unknown) => (value == null ? "" : String(value).trim());
-
-const normalizeExcelDate = (value: unknown) => {
-  if (value == null || value === "") return "";
-
-  const toIso = (year: number, month: number, day: number) => {
-    const date = new Date(year, month - 1, day);
-    if (
-      date.getFullYear() !== year ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day
-    ) {
-      return "";
-    }
-    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  };
-
-  if (!Number.isNaN(Number(value))) {
-    const excelDate = new Date((Number(value) - 25569) * 86400 * 1000);
-    return excelDate.toISOString().split("T")[0];
-  }
-
-  const raw = String(value).trim();
-  const dateToken = raw.match(/\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}/)?.[0] || raw;
-  const normalized = dateToken
-    .replace(/[^0-9/.-]/g, "")
-    .replace(/[.]/g, "/")
-    .replace(/\/{2,}/g, "/")
-    .replace(/-{2,}/g, "-");
-
-  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(normalized)) {
-    const [day, month, year] = normalized.split(/[/-]/).map(Number);
-    return toIso(year, month, day) || raw;
-  }
-
-  if (/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(normalized)) {
-    const [year, month, day] = normalized.split(/[/-]/).map(Number);
-    return toIso(year, month, day) || raw;
-  }
-
-  return raw;
-};
-
-const formatDobForDateInput = (value: string | null | undefined) => {
-  if (!value) return "";
-  const raw = String(value).split("T")[0].trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return raw;
-  }
-
-  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(raw)) {
-    const [day, month, year] = raw.split(/[/-]/);
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-
-  return raw;
-};
 
 function StudentList() {
   const queryClient = useQueryClient();
