@@ -421,15 +421,33 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates</label>
-                                    <Textarea
-                                        value={settingsForm.classmates || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
-                                        placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
-                                        className="h-24"
-                                    />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field</p>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates List Source</label>
+                                    <select
+                                        value={settingsForm.classmates_source || "default"}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, classmates_source: e.target.value })}
+                                        className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    >
+                                        <option value="default">Default (Current Student List)</option>
+                                        <option value="manual">Manual (Custom List)</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {settingsForm.classmates_source === "manual"
+                                            ? "Enter your own student names."
+                                            : "Automatically uses names from the Class 6 enrollment list."}
+                                    </p>
                                 </div>
+                                {settingsForm.classmates_source === "manual" && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manual Classmates List</label>
+                                        <Textarea
+                                            value={settingsForm.classmates || ""}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
+                                            placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
+                                            className="h-24"
+                                        />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field.</p>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
                                     <Textarea

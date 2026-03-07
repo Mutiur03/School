@@ -14,6 +14,7 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       attachment_instruction,
       notice_key,
       classmates,
+      classmates_source,
     } = req.body;
 
     let updateData = {
@@ -28,6 +29,7 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       attachment_instruction:
         attachment_instruction || "Please attach all required documents",
       classmates: classmates || null,
+      classmates_source: classmates_source || "default",
     };
     if (notice_key) {
       const existingRecord = await prisma.class6_reg.findFirst();
@@ -76,9 +78,45 @@ export const getClass6Reg = async (req, res) => {
       });
     }
 
+    let resolvedClassmates = class6Reg.classmates;
+
+    // If classmates_source is 'default', resolve from student enrollments
+    if (class6Reg.classmates_source === "default") {
+      const enrollments = await prisma.student_enrollments.findMany({
+        where: {
+          year: class6Reg.class6_year,
+          class: 6,
+        },
+        include: {
+          student: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          student: {
+            name: "asc",
+          },
+        },
+      });
+
+      resolvedClassmates = enrollments
+        .map((en) => {
+          const name = en.student.name;
+          const section = en.section || "";
+          const roll = en.roll || "";
+          return section && roll ? `${name}/${section}-${roll}` : name;
+        })
+        .join(", ");
+    }
+
     res.status(200).json({
       success: true,
-      data: class6Reg,
+      data: {
+        ...class6Reg,
+        resolvedClassmates,
+      },
     });
   } catch (error) {
     res.status(500).json({
