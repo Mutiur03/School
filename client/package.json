@@ -12,6 +12,7 @@
   "dependencies": {
     "@school/common-ui": "*",
     "@school/client-ui": "*",
+    "@school/shared-schemas": "*",
     "@fortawesome/fontawesome-free": "^7.0.1",
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.1.13",
@@ -51,6 +52,6 @@
     "vite": "^7.1.7"
   },
   "optionalDependencies": {
-  "lightningcss-linux-x64-gnu": "*"
-}
+    "lightningcss-linux-x64-gnu": "*"
+  }
 }

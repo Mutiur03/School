@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+import { env } from "./config/env.js";
 
 process.env.TZ = "Asia/Dhaka";
 
@@ -47,7 +48,7 @@ const storagePath = path.join(__dirname, "uploads");
 
 const app = express();
 
-const PORT = process.env.PORT || 5000;
+const PORT = env.PORT || 5000;
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
   : undefined;
