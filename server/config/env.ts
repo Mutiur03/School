@@ -5,7 +5,7 @@ const envSchema = z.object({
   PORT: z.string().default("5000"),
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(1),
-  REFRESH_TOKEN_SECRET: z.string().min(1),
+//   REFRESH_TOKEN_SECRET: z.string().min(1),
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),

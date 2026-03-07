@@ -6,7 +6,7 @@ import {
   PHONE_NUMBER,
   POST_CODE,
   ROLL_NUMBER,
-} from "./regex";
+} from "./regex.js";
 import { z } from "zod";
 
 const registrationObjectShape = z.object({
