@@ -1,9 +1,19 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { Request, Response } from "express";
 import { prisma } from "@/config/prisma.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 
-const generateTokens = (user) => {
+type AuthUser = {
+  id: number;
+  role: string;
+  username?: string | null;
+  email?: string | null;
+  login_id?: number | null;
+  tokenVersion?: number | null;
+};
+
+const generateTokens = (user: AuthUser) => {
   const accessToken = jwt.sign(
     {
       id: user.id,
@@ -12,25 +22,25 @@ const generateTokens = (user) => {
       email: user.email,
       login_id: user.login_id,
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET!,
     { expiresIn: "15m" },
   );
   const refreshToken = jwt.sign(
     { id: user.id, role: user.role, version: user.tokenVersion || 0 },
-    process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
     { expiresIn: "7d" },
   );
   return { accessToken, refreshToken };
 };
 
-const sendRefreshToken = (res, token) => {
+const sendRefreshToken = (res: Response, token: string) => {
   const isProduction = process.env.NODE_ENV === "production";
   const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
 
   res.cookie("refreshToken", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax",
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     domain: cookieDomain || undefined,
@@ -38,7 +48,7 @@ const sendRefreshToken = (res, token) => {
   });
 };
 export class AuthController {
-  static login = async (req, res) => {
+  static login = async (req: Request, res: Response) => {
     console.log("[Admin Login] Request received");
     console.log("[Admin Login] Body:", {
       username: req.body.username,
@@ -49,12 +59,10 @@ export class AuthController {
 
     if (!username || !password) {
       console.log("[Admin Login] FAILED — Missing username or password");
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Username and password are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required",
+      });
     }
 
     console.log(`[Admin Login] Looking up admin with username: "${username}"`);
@@ -111,13 +119,13 @@ export class AuthController {
       sendRefreshToken(res, refreshToken);
 
       console.log("[Admin Login] SUCCESS — responding with access token");
-      res.json({
+      return res.json({
         success: true,
         message: "Login successful",
         accessToken,
         user: { id: user.id, role: "admin", username: user.username },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Admin Login] ERROR —", error);
       return res.status(500).json({
         success: false,
@@ -127,7 +135,7 @@ export class AuthController {
     }
   };
 
-  static student_login = async (req, res) => {
+  static student_login = async (req: Request, res: Response) => {
     const { login_id, password } = req.body;
     if (!login_id || !password) {
       return res
@@ -177,7 +185,7 @@ export class AuthController {
         .filter(Boolean)
         .join(", ");
 
-      res.json({
+      return res.json({
         success: true,
         message: "Login successful",
         accessToken,
@@ -198,7 +206,7 @@ export class AuthController {
           image: student.image,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       return res
         .status(500)
@@ -206,7 +214,7 @@ export class AuthController {
     }
   };
 
-  static teacher_login = async (req, res) => {
+  static teacher_login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -241,7 +249,7 @@ export class AuthController {
         role: "teacher",
       });
       sendRefreshToken(res, refreshToken);
-      res.json({
+      return res.json({
         success: true,
         message: "Login successful",
         accessToken,
@@ -256,7 +264,7 @@ export class AuthController {
           image: user.image,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Teacher login error:", error);
       return res.status(500).json({
         success: false,
@@ -266,7 +274,7 @@ export class AuthController {
     }
   };
 
-  static refresh_token = async (req, res) => {
+  static refresh_token = async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
     if (!token) {
       return res.json({ success: false, accessToken: "" });
@@ -275,8 +283,8 @@ export class AuthController {
     try {
       const payload = jwt.verify(
         token,
-        process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
-      );
+        (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
+      ) as any;
       let user = null;
       if (payload.role === "admin") {
         user = await prisma.admin.findUnique({ where: { id: payload.id } });
@@ -313,7 +321,7 @@ export class AuthController {
         role: payload.role,
         name: user.name, // Common for teacher/student
         email: user.email,
-      };
+      } as any;
 
       if (payload.role === "admin") {
         responseUser.username = user.username;
@@ -355,15 +363,15 @@ export class AuthController {
     }
   };
 
-  static logout = async (req, res) => {
+  static logout = async (req: Request, res: Response) => {
     const token = req.cookies?.refreshToken;
 
     if (token) {
       try {
         const decoded = jwt.verify(
           token,
-          process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
-        );
+          (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
+        ) as any;
 
         // Increment token version to revoke all sessions for this user
         if (decoded.role === "admin") {
@@ -396,7 +404,7 @@ export class AuthController {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "Lax",
+      sameSite: "lax",
       path: "/",
       domain: cookieDomain,
       partitioned: isProduction,
@@ -407,23 +415,23 @@ export class AuthController {
       .json(new ApiResponse(200, {}, "Logged out successfully"));
   };
 
-  checkAdminExists = async (req, res) => {
+  checkAdminExists = async (_req: Request, res: Response) => {
     try {
       const adminCount = await prisma.admin.count();
-      res.json({
+      return res.json({
         success: true,
         hasAdmins: adminCount > 0,
         adminCount,
       });
     } catch (err) {
       console.error("Error checking admin existence:", err);
-      res
+      return res
         .status(500)
         .json({ success: false, error: "Error checking admin existence" });
     }
   };
 
-  static addAdmin = async (req, res) => {
+  static addAdmin = async (req: Request, res: Response) => {
     const { username, password } = req.body;
     if (!username || !password)
       return res
@@ -488,14 +496,16 @@ export class AuthController {
           ? "First admin created successfully"
           : "Admin created successfully";
 
-      res.json({
+      return res.json({
         success: true,
         message,
         admin: { id: admin.id, username: admin.username },
       });
     } catch (err) {
       console.error("Error creating admin:", err);
-      res.status(500).json({ success: false, error: "Error creating admin" });
+      return res
+        .status(500)
+        .json({ success: false, error: "Error creating admin" });
     }
   };
 }

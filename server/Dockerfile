@@ -1,10 +1,31 @@
-# ---------------- BASE IMAGE ----------------
+# ---------------- BUILD STAGE ----------------
+FROM node:22-bookworm-slim AS builder
+
+WORKDIR /app
+RUN npm install -g pnpm
+
+# Copy package manifests for dependency caching
+COPY server/package*.json /app/server/
+COPY packages/shared-schemas /app/packages/shared-schemas
+
+# Install all dependencies for building
+WORKDIR /app/server
+RUN pnpm install --ignore-scripts
+
+# Copy source files
+COPY server /app/server
+COPY packages/shared-schemas /app/packages/shared-schemas
+
+# Generate Prisma client and compile TypeScript
+RUN npx prisma generate
+RUN npm run build
+
+# ---------------- RUNTIME STAGE ----------------
 FROM node:22-bookworm-slim
 
-# Monorepo root in container
-WORKDIR /app
+WORKDIR /app/server
 
-# Install minimal dependencies for Playwright Chromium and system utilities
+# Install minimal dependencies for Puppeteer and system utilities
 RUN apt-get update && apt-get install -y \
     chromium \
     ca-certificates \
@@ -26,35 +47,22 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install pnpm globally for smaller node_modules
-RUN npm install -g pnpm
+# Install pnpm and pm2 for production management
+RUN npm install -g pnpm pm2
 
-# Copy server package manifest + shared package for dependency resolution
-# IMPORTANT: Build context must be repository root (School/)
-COPY server/package*.json /app/server/
-COPY packages/shared-schemas /app/packages/shared-schemas
+# Copy built assets and production manifests from the builder stage
+COPY --from=builder /app/server/package*.json ./
+COPY --from=builder /app/server/dist ./dist
+COPY --from=builder /app/server/prisma ./prisma
+COPY --from=builder /app/server/setup-network.sh ./
+COPY --from=builder /app/packages/shared-schemas /app/packages/shared-schemas
 
-# Install production dependencies for server only
-WORKDIR /app/server
+# Install only production dependencies
 RUN pnpm install --prod --ignore-scripts
 
-# Install PM2 globally
-RUN npm install pm2 -g
-
-# Copy server source after deps for better cache use
-COPY server /app/server
-
-# Make the startup script executable
+# Make startup script executable and set launch command
 RUN chmod +x setup-network.sh
-
-# Build application (Prisma client generation)
-RUN npx prisma generate
-
-# Final cleanup
-RUN pnpm prune --prod
-
-# Clear any entrypoint from the base image
 ENTRYPOINT []
 
-# Start the application directly
-CMD ["node", "--import", "tsx", "server.js"]
+# Start using the compiled output
+CMD ["node", "dist/server.js"]
