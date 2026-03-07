@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  // output   = "../generated/prisma"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -17,32 +17,31 @@ model admin {
 }
 
 model students {
-  id           Int      @id @default(autoincrement())
-  login_id     Int      @unique
-  name         String   @db.VarChar(100)
-  father_name  String?  @db.VarChar(100)
-  mother_name  String?  @db.VarChar(100)
-  father_phone String?  @db.VarChar(11)
-  mother_phone String?  @db.VarChar(11)
-  batch        String   @db.VarChar(4)
-  village      String?  @db.VarChar(100)
-  post_office  String?  @db.VarChar(100)
-  upazila      String?  @db.VarChar(100)
-  district     String?  @db.VarChar(100)
-  dob          String?  @db.VarChar(10)
-  has_stipend  Boolean  @default(false)
+  id           Int                   @id @default(autoincrement())
+  login_id     Int                   @unique
+  name         String                @db.VarChar(100)
+  father_name  String?               @db.VarChar(100)
+  mother_name  String?               @db.VarChar(100)
+  batch        String                @db.Char(4)
+  dob          String?               @db.VarChar(10)
+  has_stipend  Boolean               @default(false)
   image        String?
-  password     String?  @db.VarChar(100)
-  available    Boolean  @default(true)
-  tokenVersion Int      @default(0)
-  created_at   DateTime @default(now())
-
-  enrollments student_enrollments[]
-  attendances attendence[]
-  gpa         gpa?
-  sms_logs    sms_logs[]
-
-  galleries gallery[] @relation("StudentGalleryUploader")
+  password     String?               @db.VarChar(100)
+  available       Boolean               @default(true)
+  created_at      DateTime              @default(now())
+  tokenVersion    Int                   @default(0)
+  sheet_row_index Int?
+  father_phone    String?               @db.Char(11)
+  mother_phone String?               @db.Char(11)
+  village      String?               @db.VarChar(100)
+  post_office  String?               @db.VarChar(100)
+  upazila      String?               @db.VarChar(100)
+  district     String?               @db.VarChar(100)
+  attendances  attendence[]
+  galleries    gallery[]             @relation("StudentGalleryUploader")
+  gpa          gpa?
+  sms_logs     sms_logs[]
+  enrollments  student_enrollments[]
 }
 
 model student_enrollments {
@@ -59,9 +58,8 @@ model student_enrollments {
   next_year_roll    Int      @default(0)
   next_year_section String?  @db.Char(1)
   created_at        DateTime @default(now())
-
-  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  marks   marks[]
+  marks             marks[]
+  student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, class, year])
 }
@@ -73,26 +71,24 @@ model attendence {
   status     String
   send_msg   Boolean  @default(false)
   created_at DateTime @default(now())
-
-  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 }
 
 model exams {
-  id           Int      @id @default(autoincrement())
-  exam_name    String   @db.VarChar(100)
-  exam_year    Int
-  levels       Int[]
-  routine      String?
-  public_id    String? // Cloudinary public_id for routine PDF
-  download_url String? // Download URL for routine PDF
-  start_date   String   @db.VarChar(10)
-  end_date     String   @db.VarChar(10)
-  result_date  String   @db.VarChar(10)
-  visible      Boolean  @default(false)
-  created_at   DateTime @default(now())
-
-  marks         marks[]
+  id            Int             @id @default(autoincrement())
+  exam_name     String          @db.VarChar(100)
+  exam_year     Int
+  levels        Int[]
+  start_date    String          @db.VarChar(10)
+  end_date      String          @db.VarChar(10)
+  result_date   String          @db.VarChar(10)
+  visible       Boolean         @default(false)
+  created_at    DateTime        @default(now())
+  routine       String?
+  download_url  String?
+  public_id     String?
   exam_routines exam_routines[]
+  marks         marks[]
 
   @@unique([exam_name, exam_year, levels])
 }
@@ -107,21 +103,20 @@ model holidays {
 }
 
 model teachers {
-  id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(100)
-  email        String   @unique @db.VarChar(100)
-  phone        String   @db.VarChar(11)
-  designation  String?  @db.VarChar(100)
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(100)
+  email        String     @unique @db.VarChar(100)
+  phone        String     @db.VarChar(11)
+  designation  String?    @db.VarChar(100)
   password     String
   image        String?
   address      String?
-  available    Boolean  @default(true)
-  tokenVersion Int      @default(0)
-  created_at   DateTime @default(now())
-
-  levels    levels[]
-  subjects  subjects[]
-  head_msgs head_msg[]
+  available    Boolean    @default(true)
+  created_at   DateTime   @default(now())
+  tokenVersion Int        @default(0)
+  head_msgs    head_msg[]
+  levels       levels[]
+  subjects     subjects[]
 }
 
 model staffs {
@@ -136,53 +131,50 @@ model staffs {
 }
 
 model levels {
-  id         Int    @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   class_name Int
-  section    String @db.Char(1)
+  section    String   @db.Char(1)
   year       Int
   teacher_id Int
-
-  teacher teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+  teacher    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
 }
 
 model subjects {
-  id                  Int      @id @default(autoincrement())
-  name                String   @db.VarChar(100)
+  id                  Int       @id @default(autoincrement())
+  name                String    @db.VarChar(100)
   class               Int
-  full_mark           Int      @default(0)
-  pass_mark           Int      @default(0)
-  cq_mark             Int      @default(0)
-  mcq_mark            Int      @default(0)
-  practical_mark      Int      @default(0)
-  cq_pass_mark        Int      @default(0)
-  mcq_pass_mark       Int      @default(0)
-  practical_pass_mark Int      @default(0)
-  year                Int      @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  full_mark           Int       @default(0)
+  pass_mark           Int       @default(0)
+  cq_mark             Int       @default(0)
+  mcq_mark            Int       @default(0)
+  practical_mark      Int       @default(0)
+  cq_pass_mark        Int       @default(0)
+  mcq_pass_mark       Int       @default(0)
+  practical_pass_mark Int       @default(0)
+  year                Int       @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
   teacher_id          Int?
-  department          String?  @db.VarChar(100)
-  created_at          DateTime @default(now())
-
-  teacher teachers? @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
-  marks   marks[]
+  department          String?   @db.VarChar(100)
+  created_at          DateTime  @default(now())
+  marks               marks[]
+  teacher             teachers? @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
 
   @@unique([name, class, department, year])
 }
 
 model marks {
-  id              Int      @id @default(autoincrement())
+  id              Int                 @id @default(autoincrement())
   enrollment_id   Int
   subject_id      Int
   exam_id         Int
-  cq_marks        Int      @default(0)
-  mcq_marks       Int      @default(0)
-  practical_marks Int      @default(0)
-  marks           Int      @default(0)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @default(now()) @updatedAt
-
-  enrollment student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
-  subject    subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
-  exam       exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  cq_marks        Int                 @default(0)
+  mcq_marks       Int                 @default(0)
+  practical_marks Int                 @default(0)
+  marks           Int                 @default(0)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
+  enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
+  exam            exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  subject         subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
 
   @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
 }
@@ -194,49 +186,45 @@ model gpa {
   ssc_gpa    Float    @default(0)
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
-
-  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 }
 
 model categories {
-  id        Int     @id @default(autoincrement())
-  category  String  @unique
+  id        Int       @id @default(autoincrement())
+  category  String    @unique
   thumbnail String?
-
   galleries gallery[]
 }
 
 model events {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   title        String
   details      String?
-  date         String   @db.VarChar(10)
+  date         String    @db.VarChar(10)
   image        String?
   file         String?
-  download_url String?
-  category     String   @default("Event")
+  category     String    @default("Event")
   location     String?
   thumbnail    String?
   public_id    String?
-  created_at   DateTime @default(now())
-
-  galleries gallery[]
+  created_at   DateTime  @default(now())
+  download_url String?
+  galleries    gallery[]
 }
 
 model gallery {
-  id            Int      @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   event_id      Int?
   category_id   Int?
   image_path    String?
   caption       String?
-  status        String   @default("pending")
+  status        String      @default("pending")
   uploader_id   Int?
   uploader_type String?
-  created_at    DateTime @default(now())
-
-  uploader students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
-  event    events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
-  category categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  created_at    DateTime    @default(now())
+  category      categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  event         events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  uploader      students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
 }
 
 model notices {
@@ -253,28 +241,28 @@ model admission {
   preview_url                   String?
   download_url                  String?
   public_id                     String?
-  admission_year                Int?
+  created_at                    DateTime @default(now())
   admission_open                Boolean? @default(false)
-  instruction                   String?
-  attachment_instruction_class6 String?
-  attachment_instruction_class7 String?
-  attachment_instruction_class8 String?
-  attachment_instruction_class9 String?
+  admission_year                Int?
   class_list                    String?
-  list_type_class6              String?
-  list_type_class7              String?
-  list_type_class8              String?
-  list_type_class9              String?
+  instruction                   String?
   user_id_class6                String?
   user_id_class7                String?
   user_id_class8                String?
   user_id_class9                String?
+  ingikar                       String?
+  attachment_instruction_class6 String?
+  attachment_instruction_class7 String?
+  attachment_instruction_class8 String?
+  attachment_instruction_class9 String?
+  list_type_class6              String?
+  list_type_class7              String?
+  list_type_class8              String?
+  list_type_class9              String?
   serial_no_class6              String?
   serial_no_class7              String?
   serial_no_class8              String?
   serial_no_class9              String?
-  ingikar                       String?
-  created_at                    DateTime @default(now())
 }
 
 model syllabus {
@@ -289,21 +277,20 @@ model syllabus {
 
 model class_slot_time {
   id         Int             @id @default(autoincrement())
-  start_time String          @db.VarChar(8) // "08:00 AM"
-  end_time   String          @db.VarChar(8) // "01:00 PM"
+  start_time String          @db.VarChar(8)
+  end_time   String          @db.VarChar(8)
   created_at DateTime        @default(now())
   routines   class_routine[]
 }
 
 model class_routine {
-  id         Int      @id @default(autoincrement())
+  id         Int             @id @default(autoincrement())
   class      Int
   slot_id    Int
-  day        String   @db.VarChar(10)
-  subject    String   @db.VarChar(100)
-  created_at DateTime @default(now())
-
-  slot class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
+  day        String          @db.VarChar(10)
+  subject    String          @db.VarChar(100)
+  created_at DateTime        @default(now())
+  slot       class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
 
   @@unique([class, slot_id, day], name: "unique_class_slot_day")
 }
@@ -316,8 +303,7 @@ model exam_routines {
   day        String   @db.VarChar(10)
   subject    String   @db.VarChar(100)
   created_at DateTime @default(now())
-
-  exam exams @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam       exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
   @@index([exam_id, class])
 }
@@ -345,108 +331,84 @@ model head_msg {
   head_message String?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-
-  teacher teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
+  teacher      teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
 }
 
 model ssc_reg {
   id                     Int      @id @default(autoincrement())
-  reg_open               Boolean? @default(false)
   a_sec_roll             String?
   b_sec_roll             String?
   notice                 String?
   ssc_year               Int?
+  reg_open               Boolean? @default(false)
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
 }
 
 model student_registration_ssc {
-  id                   String  @id @default(uuid())
-  ssc_batch            String? @db.VarChar(4)
-  // Personal Information
-  section              String? @db.VarChar(10)
-  roll                 String? @db.VarChar(20)
-  religion             String? @db.VarChar(50)
-  upobritti            String? @db.VarChar(10)
-  sorkari_brirti       String? @db.VarChar(20)
-  student_name_bn      String? @db.VarChar(100)
-  student_nick_name_bn String? @db.VarChar(50)
-  student_name_en      String? @db.VarChar(100)
-  birth_reg_no         String? @db.VarChar(17)
-
-  // Parents Information
-  father_name_bn String? @db.VarChar(100)
-  father_name_en String? @db.VarChar(100)
-  father_nid     String? @db.VarChar(17)
-  father_phone   String? @db.VarChar(11)
-  mother_name_bn String? @db.VarChar(100)
-  mother_name_en String? @db.VarChar(100)
-  mother_nid     String? @db.VarChar(17)
-  mother_phone   String? @db.VarChar(11)
-
-  // Birth Information
-  birth_date  String? @db.VarChar(10)
-  birth_year  String? @db.VarChar(4)
-  birth_month String? @db.VarChar(2)
-  birth_day   String? @db.VarChar(2)
-  blood_group String? @db.VarChar(10)
-  email       String? @db.VarChar(100)
-
-  // Address Information
-  present_district     String? @db.VarChar(50)
-  present_upazila      String? @db.VarChar(50)
-  present_post_office  String? @db.VarChar(100)
-  present_post_code    String? @db.VarChar(4)
-  present_village_road String? @db.VarChar(200)
-
-  permanent_district     String? @db.VarChar(50)
-  permanent_upazila      String? @db.VarChar(50)
-  permanent_post_office  String? @db.VarChar(100)
-  permanent_post_code    String? @db.VarChar(4)
-  permanent_village_road String? @db.VarChar(200)
-
-  // Guardian Information (optional)
-  guardian_name         String? @db.VarChar(100)
-  guardian_phone        String? @db.VarChar(11)
-  guardian_relation     String? @db.VarChar(50)
-  guardian_nid          String? @db.VarChar(17)
-  guardian_district     String? @db.VarChar(50)
-  guardian_upazila      String? @db.VarChar(50)
-  guardian_post_office  String? @db.VarChar(100)
-  guardian_post_code    String? @db.VarChar(4)
-  guardian_village_road String? @db.VarChar(200)
-
-  // Previous School Information
-  prev_school_name     String? @db.VarChar(200)
-  prev_school_district String? @db.VarChar(50)
-  prev_school_upazila  String? @db.VarChar(50)
-
-  // JSC Information
-  jsc_passing_year String? @db.VarChar(4)
-  jsc_board        String? @db.VarChar(50)
-  jsc_reg_no       String? @db.VarChar(10)
-  jsc_roll_no      String? @db.VarChar(20)
-
-  // Class Nine Information
-  group_class_nine String? @db.VarChar(50)
-  main_subject     String? @db.VarChar(100)
-  fourth_subject   String? @db.VarChar(100)
-
-  // Photo Information
-  photo_path String? @db.VarChar(255)
-
-  // New field for nearby class nine student info
-  nearby_nine_student_info String? @db.VarChar(200)
-
-  // Status and Metadata
-  status          String?   @default("pending") @db.VarChar(20) // pending, approved, rejected
-  submission_date DateTime? @default(now())
-
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  section_in_class_8 String?  @db.VarChar(10) // Section in Class 8
-  roll_in_class_8    String?  @db.VarChar(20) // Roll in Class 8
+  id                       String    @id @default(uuid())
+  ssc_batch                String?   @db.VarChar(4)
+  section                  String?   @db.VarChar(10)
+  roll                     String?   @db.VarChar(20)
+  religion                 String?   @db.VarChar(50)
+  student_name_bn          String?   @db.VarChar(100)
+  student_nick_name_bn     String?   @db.VarChar(50)
+  student_name_en          String?   @db.VarChar(100)
+  birth_reg_no             String?   @db.VarChar(17)
+  father_name_bn           String?   @db.VarChar(100)
+  father_name_en           String?   @db.VarChar(100)
+  father_nid               String?   @db.VarChar(17)
+  father_phone             String?   @db.VarChar(11)
+  mother_name_bn           String?   @db.VarChar(100)
+  mother_name_en           String?   @db.VarChar(100)
+  mother_nid               String?   @db.VarChar(17)
+  mother_phone             String?   @db.VarChar(11)
+  birth_date               String?   @db.VarChar(10)
+  birth_year               String?   @db.VarChar(4)
+  birth_month              String?   @db.VarChar(2)
+  birth_day                String?   @db.VarChar(2)
+  blood_group              String?   @db.VarChar(10)
+  email                    String?   @db.VarChar(100)
+  present_district         String?   @db.VarChar(50)
+  present_upazila          String?   @db.VarChar(50)
+  present_post_office      String?   @db.VarChar(100)
+  present_post_code        String?   @db.VarChar(4)
+  present_village_road     String?   @db.VarChar(200)
+  permanent_district       String?   @db.VarChar(50)
+  permanent_upazila        String?   @db.VarChar(50)
+  permanent_post_office    String?   @db.VarChar(100)
+  permanent_post_code      String?   @db.VarChar(4)
+  permanent_village_road   String?   @db.VarChar(200)
+  guardian_name            String?   @db.VarChar(100)
+  guardian_phone           String?   @db.VarChar(11)
+  guardian_relation        String?   @db.VarChar(50)
+  guardian_nid             String?   @db.VarChar(17)
+  guardian_district        String?   @db.VarChar(50)
+  guardian_upazila         String?   @db.VarChar(50)
+  guardian_post_office     String?   @db.VarChar(100)
+  guardian_post_code       String?   @db.VarChar(4)
+  guardian_village_road    String?   @db.VarChar(200)
+  prev_school_name         String?   @db.VarChar(200)
+  prev_school_district     String?   @db.VarChar(50)
+  prev_school_upazila      String?   @db.VarChar(50)
+  jsc_passing_year         String?   @db.VarChar(4)
+  jsc_board                String?   @db.VarChar(50)
+  jsc_reg_no               String?   @db.VarChar(10)
+  jsc_roll_no              String?   @db.VarChar(20)
+  group_class_nine         String?   @db.VarChar(50)
+  main_subject             String?   @db.VarChar(100)
+  fourth_subject           String?   @db.VarChar(100)
+  photo_path               String?   @db.VarChar(255)
+  status                   String?   @default("pending") @db.VarChar(20)
+  submission_date          DateTime? @default(now())
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+  nearby_nine_student_info String?   @db.VarChar(200)
+  sorkari_brirti           String?   @db.VarChar(20)
+  upobritti                String?   @db.VarChar(10)
+  roll_in_class_8          String?   @db.VarChar(20)
+  section_in_class_8       String?   @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -456,83 +418,67 @@ model student_registration_ssc {
 }
 
 model admission_form {
-  id                   String  @id @default(uuid())
-  // Personal Information
-  student_name_bn      String? @db.VarChar(100)
-  student_nick_name_bn String? @db.VarChar(50)
-  student_name_en      String? @db.VarChar(100)
-  birth_reg_no         String? @db.VarChar(17)
-  registration_no      String? @db.VarChar(50)
-
-  father_name_bn String? @db.VarChar(100)
-  father_name_en String? @db.VarChar(100)
-  father_nid     String? @db.VarChar(17)
-  father_phone   String? @db.VarChar(11)
-
-  mother_name_bn String? @db.VarChar(100)
-  mother_name_en String? @db.VarChar(100)
-  mother_nid     String? @db.VarChar(17)
-  mother_phone   String? @db.VarChar(11)
-
-  birth_date  String? @db.VarChar(10)
-  birth_year  String? @db.VarChar(4)
-  birth_month String? @db.VarChar(2)
-  birth_day   String? @db.VarChar(2)
-  blood_group String? @db.VarChar(10)
-  email       String? @db.VarChar(100)
-  religion    String? @db.VarChar(50)
-
-  // Address
-  present_district     String? @db.VarChar(50)
-  present_upazila      String? @db.VarChar(50)
-  present_post_office  String? @db.VarChar(100)
-  present_post_code    String? @db.VarChar(4)
-  present_village_road String? @db.VarChar(200)
-
-  permanent_district     String? @db.VarChar(50)
-  permanent_upazila      String? @db.VarChar(50)
-  permanent_post_office  String? @db.VarChar(100)
-  permanent_post_code    String? @db.VarChar(4)
-  permanent_village_road String? @db.VarChar(200)
-
-  // Guardian
-  guardian_name         String? @db.VarChar(100)
-  guardian_phone        String? @db.VarChar(11)
-  guardian_relation     String? @db.VarChar(50)
-  guardian_nid          String? @db.VarChar(17)
-  guardian_district     String? @db.VarChar(50)
-  guardian_upazila      String? @db.VarChar(50)
-  guardian_post_office  String? @db.VarChar(100)
-  guardian_post_code    String? @db.VarChar(4)
-  guardian_village_road String? @db.VarChar(200)
-
-  prev_school_name         String? @db.VarChar(200)
-  prev_school_district     String? @db.VarChar(50)
-  prev_school_upazila      String? @db.VarChar(50)
-  section_in_prev_school   String? @db.VarChar(10)
-  roll_in_prev_school      String? @db.VarChar(20)
-  prev_school_passing_year String? @db.VarChar(4)
-
-  father_profession String? @db.VarChar(100)
-  mother_profession String? @db.VarChar(100)
-  parent_income     String? @db.VarChar(100)
-
-  admission_class   String? @db.VarChar(50)
-  admission_year    Int?
-  list_type         String? @db.VarChar(50)
-  admission_user_id String? @db.VarChar(50)
-  serial_no         String? @db.VarChar(50)
-  qouta             String? @db.VarChar(50)
-
-  // Photo
-  photo_path      String? @db.VarChar(255)
-  whatsapp_number String? @db.VarChar(11)
-
-  status          String?   @default("pending") @db.VarChar(20)
-  submission_date DateTime? @default(now())
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                       String    @id @default(uuid())
+  student_name_bn          String?   @db.VarChar(100)
+  student_nick_name_bn     String?   @db.VarChar(50)
+  student_name_en          String?   @db.VarChar(100)
+  birth_reg_no             String?   @db.VarChar(17)
+  father_name_bn           String?   @db.VarChar(100)
+  father_name_en           String?   @db.VarChar(100)
+  father_nid               String?   @db.VarChar(17)
+  father_phone             String?   @db.VarChar(11)
+  mother_name_bn           String?   @db.VarChar(100)
+  mother_name_en           String?   @db.VarChar(100)
+  mother_nid               String?   @db.VarChar(17)
+  mother_phone             String?   @db.VarChar(11)
+  birth_date               String?   @db.VarChar(10)
+  birth_year               String?   @db.VarChar(4)
+  birth_month              String?   @db.VarChar(2)
+  birth_day                String?   @db.VarChar(2)
+  blood_group              String?   @db.VarChar(10)
+  email                    String?   @db.VarChar(100)
+  present_district         String?   @db.VarChar(50)
+  present_upazila          String?   @db.VarChar(50)
+  present_post_office      String?   @db.VarChar(100)
+  present_post_code        String?   @db.VarChar(4)
+  present_village_road     String?   @db.VarChar(200)
+  permanent_district       String?   @db.VarChar(50)
+  permanent_upazila        String?   @db.VarChar(50)
+  permanent_post_office    String?   @db.VarChar(100)
+  permanent_post_code      String?   @db.VarChar(4)
+  permanent_village_road   String?   @db.VarChar(200)
+  guardian_name            String?   @db.VarChar(100)
+  guardian_phone           String?   @db.VarChar(11)
+  guardian_relation        String?   @db.VarChar(50)
+  guardian_nid             String?   @db.VarChar(17)
+  guardian_district        String?   @db.VarChar(50)
+  guardian_upazila         String?   @db.VarChar(50)
+  guardian_post_office     String?   @db.VarChar(100)
+  guardian_post_code       String?   @db.VarChar(4)
+  guardian_village_road    String?   @db.VarChar(200)
+  prev_school_name         String?   @db.VarChar(200)
+  prev_school_district     String?   @db.VarChar(50)
+  prev_school_upazila      String?   @db.VarChar(50)
+  section_in_prev_school   String?   @db.VarChar(10)
+  roll_in_prev_school      String?   @db.VarChar(20)
+  prev_school_passing_year String?   @db.VarChar(4)
+  father_profession        String?   @db.VarChar(100)
+  mother_profession        String?   @db.VarChar(100)
+  parent_income            String?   @db.VarChar(100)
+  admission_class          String?   @db.VarChar(50)
+  list_type                String?   @db.VarChar(50)
+  admission_user_id        String?   @db.VarChar(50)
+  serial_no                String?   @db.VarChar(50)
+  qouta                    String?   @db.VarChar(50)
+  photo_path               String?   @db.VarChar(255)
+  status                   String?   @default("pending") @db.VarChar(20)
+  submission_date          DateTime? @default(now())
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+  religion                 String?   @db.VarChar(50)
+  admission_year           Int?
+  registration_no          String?   @db.VarChar(50)
+  whatsapp_number          String?   @db.VarChar(11)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -561,18 +507,17 @@ model sms_logs {
   id              Int      @id @default(autoincrement())
   student_id      Int
   phone_number    String   @db.VarChar(15)
-  message         String   @db.Text
-  status          String   @default("pending") // pending, sent, failed
-  request_id      String?  @db.VarChar(50) // SMS API request ID
-  message_id      String?  @db.VarChar(100) // Unique message ID from bulk SMS API
-  sms_count       Int? // Number of SMS units consumed
-  error_reason    String?  @db.Text
+  message         String
+  status          String   @default("pending")
+  error_reason    String?
   attendance_date String   @db.VarChar(10)
   retry_count     Int      @default(0)
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
-
-  student students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  request_id      String?  @db.VarChar(50)
+  message_id      String?  @db.VarChar(100)
+  sms_count       Int?
+  student         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([attendance_date])
@@ -593,77 +538,58 @@ model class6_reg {
 }
 
 model student_registration_class6 {
-  id              String @id @default(uuid())
-  class6_year     Int
-  // Personal Information
-  section         String @db.VarChar(10)
-  roll            String @db.VarChar(20)
-  religion        String @db.VarChar(50)
-  student_name_bn String @db.VarChar(100)
-  student_name_en String @db.VarChar(100)
-  birth_reg_no    String @db.VarChar(17)
-
-  // Parents Information
-  father_name_bn String  @db.VarChar(100)
-  father_name_en String  @db.VarChar(100)
-  father_nid     String? @db.VarChar(17)
-  father_phone   String? @db.VarChar(11)
-  mother_name_bn String  @db.VarChar(100)
-  mother_name_en String  @db.VarChar(100)
-  mother_nid     String? @db.VarChar(17)
-  mother_phone   String? @db.VarChar(11)
-
-  // Birth Information
-  birth_date  String  @db.VarChar(10)
-  birth_year  String  @db.VarChar(4)
-  birth_month String  @db.VarChar(2)
-  birth_day   String  @db.VarChar(2)
-  email       String? @db.VarChar(100)
-
-  // Address Information
-  present_district     String @db.VarChar(50)
-  present_upazila      String @db.VarChar(50)
-  present_post_office  String @db.VarChar(100)
-  present_post_code    String @db.VarChar(4)
-  present_village_road String @db.VarChar(200)
-
-  permanent_district     String @db.VarChar(50)
-  permanent_upazila      String @db.VarChar(50)
-  permanent_post_office  String @db.VarChar(100)
-  permanent_post_code    String @db.VarChar(4)
-  permanent_village_road String @db.VarChar(200)
-
-  // Guardian Information (optional)
-  guardian_name         String? @db.VarChar(100)
-  guardian_phone        String? @db.VarChar(11)
-  guardian_relation     String? @db.VarChar(50)
-  guardian_nid          String? @db.VarChar(17)
-  guardian_district     String? @db.VarChar(50)
-  guardian_upazila      String? @db.VarChar(50)
-  guardian_post_office  String? @db.VarChar(100)
-  guardian_post_code    String? @db.VarChar(4)
-  guardian_village_road String? @db.VarChar(200)
-
-  // Previous School Information
-  prev_school_name         String @db.VarChar(200)
-  prev_school_district     String @db.VarChar(50)
-  prev_school_upazila      String @db.VarChar(50)
-  section_in_prev_school   String @db.VarChar(10)
-  roll_in_prev_school      String @db.VarChar(20)
-  prev_school_passing_year String @db.VarChar(4)
-
-  // Photo Information
-  photo String @db.VarChar(255)
-
-  // New field for nearby class nine student info
-  nearby_student_info String? @db.VarChar(200)
-
-  // Status and Metadata
-  status          String   @default("pending") @db.VarChar(20) // pending, approved, rejected
-  submission_date DateTime @default(now())
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  section                  String   @db.VarChar(10)
+  roll                     String   @db.VarChar(20)
+  religion                 String   @db.VarChar(50)
+  student_name_bn          String   @db.VarChar(100)
+  student_name_en          String   @db.VarChar(100)
+  birth_reg_no             String   @db.VarChar(17)
+  father_name_bn           String   @db.VarChar(100)
+  father_name_en           String   @db.VarChar(100)
+  father_nid               String?  @db.VarChar(17)
+  father_phone             String?  @db.VarChar(11)
+  mother_name_bn           String   @db.VarChar(100)
+  mother_name_en           String   @db.VarChar(100)
+  mother_nid               String?  @db.VarChar(17)
+  mother_phone             String?  @db.VarChar(11)
+  birth_date               String   @db.VarChar(10)
+  birth_year               String   @db.VarChar(4)
+  birth_month              String   @db.VarChar(2)
+  birth_day                String   @db.VarChar(2)
+  email                    String?  @db.VarChar(100)
+  present_district         String   @db.VarChar(50)
+  present_upazila          String   @db.VarChar(50)
+  present_post_office      String   @db.VarChar(100)
+  present_post_code        String   @db.VarChar(4)
+  present_village_road     String   @db.VarChar(200)
+  permanent_district       String   @db.VarChar(50)
+  permanent_upazila        String   @db.VarChar(50)
+  permanent_post_office    String   @db.VarChar(100)
+  permanent_post_code      String   @db.VarChar(4)
+  permanent_village_road   String   @db.VarChar(200)
+  guardian_name            String?  @db.VarChar(100)
+  guardian_phone           String?  @db.VarChar(11)
+  guardian_relation        String?  @db.VarChar(50)
+  guardian_nid             String?  @db.VarChar(17)
+  guardian_district        String?  @db.VarChar(50)
+  guardian_upazila         String?  @db.VarChar(50)
+  guardian_post_office     String?  @db.VarChar(100)
+  guardian_post_code       String?  @db.VarChar(4)
+  guardian_village_road    String?  @db.VarChar(200)
+  prev_school_name         String   @db.VarChar(200)
+  prev_school_district     String   @db.VarChar(50)
+  prev_school_upazila      String   @db.VarChar(50)
+  status                   String   @default("pending") @db.VarChar(20)
+  submission_date          DateTime @default(now())
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+  prev_school_passing_year String   @db.VarChar(4)
+  roll_in_prev_school      String   @db.VarChar(20)
+  section_in_prev_school   String   @db.VarChar(10)
+  photo                    String   @db.VarChar(255)
+  class6_year              Int
+  nearby_student_info      String?  @db.VarChar(200)
 
   @@index([birth_reg_no])
   @@index([father_nid])

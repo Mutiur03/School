@@ -192,7 +192,7 @@ const ViewMarks = () => {
       <div className="flex flex-wrap justify-center gap-4 mb-6">
         <select
           className="border p-2 dark:bg-accent rounded-md"
-          value={year}
+          value={new Date().getFullYear()}
           onChange={(e) => setYear(e.target.value)}
         >
           {Array.from({ length: 5 }, (_, i) => (

@@ -7,13 +7,12 @@ export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
 import { detailedRequestLogger } from "./middlewares/requestLogger.js";
 import logger from "./utils/logger.js";
-import studRouter from "./routes/studRoutes.js";
 import examRouter from "./routes/examRoutes.js";
 import subRouter from "./routes/subRoutes.js";
 import marksRouter from "./routes/marksRoutes.js";
 import promotionRouter from "./routes/promotionRoutes.js";
 import routerTeacher from "./routes/teacherRoutes.js";
-import authRouter from "./routes/authRoutes.js";
+import authRouter from "./api/auth/auth.route.js";
 import cookieParser from "cookie-parser";
 import levelRouter from "./routes/levelRoutes.js";
 import attendenceRouter from "./routes/attendenceRoutes.js";
@@ -41,6 +40,7 @@ import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
+import studentRouter from "./api/student/student.route.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
@@ -76,7 +76,6 @@ app.use(
   }),
 );
 const limitStore = new MemoryStore();
-const authStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: process.env.NODE_ENV === "development" ? 5000 : 500,
@@ -87,35 +86,30 @@ const LimitReq = rateLimit({
   legacyHeaders: false,
   store: limitStore,
 });
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 500 : 100,
-  message: {
-    message: "Too many attempts, please try again after 15 minutes",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: authStore,
-});
+
 app.use(LimitReq);
-app.get("/api/resetLimit", AuthMiddleware.authenticate(["admin"]), (req, res) => {
-  limitStore.resetAll();
-  res.json({
-    success: true,
-    message: "Rate limit reset successfully",
-  });
-});
+app.get(
+  "/api/resetLimit",
+  AuthMiddleware.authenticate(["admin"]),
+  (req, res) => {
+    limitStore.resetAll();
+    res.json({
+      success: true,
+      message: "Rate limit reset successfully",
+    });
+  },
+);
 app.get("/api", (req, res) => {
   res.send("Hello World");
 });
-app.use("/api/students", studRouter);
+app.use(studentRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/sub", subRouter);
 app.use("/api/marks", marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use("/api/teachers", routerTeacher);
 app.use("/api/staffs", routerStaff);
-app.use("/api/auth", authLimiter, authRouter);
+app.use(authRouter);
 app.use("/api/level", levelRouter);
 app.use("/api/attendance", attendenceRouter);
 app.use("/api/notices", noticeRouter);
@@ -178,7 +172,8 @@ app.listen(PORT, () => {
       logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  const mode = process.env.NODE_ENV === "production" ? "production" : "development";
+  const mode =
+    process.env.NODE_ENV === "production" ? "production" : "development";
   logger.info(`Server started`, {
     port: PORT,
     mode,
@@ -186,3 +181,4 @@ app.listen(PORT, () => {
   });
   check();
 });
+export default app;
