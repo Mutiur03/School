@@ -877,7 +877,7 @@ function StudentList() {
                             className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="">Select Department</option>
-                            {VALID_DEPARTMENTS.map((department) => (
+                            {(VALID_DEPARTMENTS as readonly string[]).map((department: string) => (
                               <option key={department} value={department}>
                                 {department}
                               </option>
