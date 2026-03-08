@@ -5,6 +5,9 @@ import { prisma } from "@/config/prisma.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
 import asyncHandler from "@/utils/asyncHandler.js";
+import { redis } from "@/config/redis.js";
+import EmailService from "@/utils/email.service.js";
+import { env } from "@/config/env.js";
 
 type AuthUser = {
   id: number;
@@ -391,5 +394,119 @@ export class AuthController {
           message,
         ),
       );
+  });
+
+  // Teacher password reset request
+  static requestTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ApiError(400, "Email is required");
+    }
+
+    // Check rate limiting for password reset requests
+    const rateLimitKey = `teacher_reset_rate:${email}`;
+    const existingRequests = await redis.get(rateLimitKey);
+    
+    if (existingRequests) {
+      const requestCount = parseInt(existingRequests);
+      if (requestCount >= 3) {
+        throw new ApiError(429, "Too many reset requests. Please try again after 1 hour.");
+      }
+    }
+
+    // Find teacher by email
+    const teacher = await prisma.teachers.findFirst({
+      where: {
+        email: email,
+        available: true,
+      },
+    });
+
+    if (!teacher) {
+      // Don't reveal if email exists or not for security
+      res.status(200).json(new ApiResponse(200, null, "If an account exists, a reset code will be sent."));
+      return;
+    }
+
+    // Generate 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store reset code with 15-minute expiration
+    const resetKey = `teacher_reset:${email}`;
+    await redis.set(resetKey, resetCode, "EX", 900); // 15 minutes
+
+    // Increment rate limit counter
+    await redis.incr(rateLimitKey);
+    await redis.expire(rateLimitKey, 3600); // 1 hour
+
+    // Send email with reset code
+    try {
+      await EmailService.sendEmail({
+        from: env.FROM_EMAIL,
+        to: email,
+        subject: "Password Reset Code - School Management System",
+        body: `Hello ${teacher.name},\n\nYou requested a password reset. Your 6-digit verification code is:\n\n${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nSchool Management System`,
+      });
+    } catch (emailError) {
+      console.error("Failed to send reset email:", emailError);
+      throw new ApiError(500, "Failed to send reset email. Please try again.");
+    }
+
+    res.status(200).json(new ApiResponse(200, null, "Reset code sent to your email."));
+  });
+
+  // Teacher password reset verification
+  static verifyTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      throw new ApiError(400, "Email, code, and new password are required");
+    }
+
+    if (newPassword.length < 8) {
+      throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+
+    // Verify reset code
+    const resetKey = `teacher_reset:${email}`;
+    const storedCode = await redis.get(resetKey);
+
+    if (!storedCode) {
+      throw new ApiError(400, "Reset code has expired or is invalid");
+    }
+
+    if (storedCode !== code) {
+      throw new ApiError(400, "Invalid reset code");
+    }
+
+    // Find teacher and update password
+    const teacher = await prisma.teachers.findFirst({
+      where: {
+        email: email,
+        available: true,
+      },
+    });
+
+    if (!teacher) {
+      throw new ApiError(404, "Teacher not found");
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and increment token version to invalidate existing sessions
+    await prisma.teachers.update({
+      where: { id: teacher.id },
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    // Clear reset code
+    await redis.del(resetKey);
+
+    res.status(200).json(new ApiResponse(200, null, "Password reset successfully"));
   });
 }

@@ -49,6 +49,30 @@ router.get("/me", AuthMiddleware.authenticate(), (req, res) => {
 });
 router.post("/admins", validate(addAdminSchema), AuthController.addAdmin);
 
+// Password reset endpoints with stricter rate limiting
+const passwordResetStore = new MemoryStore();
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // Maximum 15 requests per 15 minutes
+  message: {
+    message: "Too many password reset attempts, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: passwordResetStore,
+});
+
+router.post(
+  "/teacher/password-reset/request",
+  passwordResetLimiter,
+  AuthController.requestTeacherPasswordReset,
+);
+router.post(
+  "/teacher/password-reset/verify",
+  passwordResetLimiter,
+  AuthController.verifyTeacherPasswordReset,
+);
+
 const authRouter = express.Router();
 authRouter.use("/api/auth", authLimiter, router);
 

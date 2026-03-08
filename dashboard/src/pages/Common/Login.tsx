@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/useAuth";
 import envPreferredRole from "@/lib/role";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import axios from "axios";
+import backend from "@/lib/backend";
 
 type UserRole = "admin" | "teacher" | "student";
 
@@ -17,6 +20,14 @@ function Login() {
   const [password, setPassword] = useState("");
   const [loginID, setLoginID] = useState("");
   const [email, setEmail] = useState("");
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetStep, setResetStep] = useState<"request" | "verify">("request");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
   const role: UserRole = location.pathname.includes("/teacher") ? "teacher" : location.pathname.includes("/student") ? "student" : "admin";
 
   useEffect(() => {
@@ -32,6 +43,62 @@ function Login() {
     document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
   }, [role]);
 
+  const handlePasswordResetRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsResetting(true);
+    setResetError("");
+    setResetMessage("");
+
+    try {
+      const response = await axios.post("/api/auth/teacher/password-reset/request", {
+        email: resetEmail,
+      });
+
+      if (response.data.success) {
+        setResetMessage(response.data.data?.message || "Reset code sent to your email.");
+        setResetStep("verify");
+      } else {
+        setResetError(response.data.message || "Failed to send reset code");
+      }
+    } catch (error: any) {
+      setResetError(error.response?.data?.message || "Network error. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handlePasswordResetVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsResetting(true);
+    setResetError("");
+    setResetMessage("");
+
+    try {
+      const response = await axios.post(`${backend}/api/auth/teacher/password-reset/verify`, {
+        email: resetEmail,
+        code: resetCode,
+        newPassword: newPassword,
+      });
+
+      if (response.data.success) {
+        setResetMessage("Password reset successfully! You can now login with your new password.");
+        setTimeout(() => {
+          setShowPasswordReset(false);
+          setResetStep("request");
+          setResetEmail("");
+          setResetCode("");
+          setNewPassword("");
+        }, 2000);
+      } else {
+        setResetError(response.data.message || "Failed to reset password");
+      }
+    } catch (error: any) {
+      setResetError(error.response?.data?.message || "Network error. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (user) {
     // Only return null (hididng the login page) if the current user is allowed to be here
     if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) return null;
@@ -44,18 +111,119 @@ function Login() {
   }
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div
-        className="w-full max-w-md"
-      >
+      <div className="w-full max-w-md">
         <Card className="shadow-2xl">
-          {/* <ThemeChange vars={"top-0 absolute right-0"} /> */}
+          <CardContent className="p-6">
+            <h2 className="text-2xl font-semibold text-center mb-6">
+              {showPasswordReset 
+                ? "Reset Password" 
+                : `${role.charAt(0).toUpperCase() + role.slice(1)} Login`
+              }
+            </h2>
 
-          <div>
-            <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold text-center mb-6">
-                {role.charAt(0).toUpperCase() + role.slice(1)} Login
-              </h2>
+            {showPasswordReset ? (
+              // Password Reset Form
+              <div className="space-y-4">
+                {resetMessage && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <AlertDescription className="text-green-800">
+                      {resetMessage}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {resetError && (
+                  <Alert className="bg-red-50 border-red-200">
+                    <AlertDescription className="text-red-800">
+                      {resetError}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
+                {resetStep === "request" ? (
+                  <form onSubmit={handlePasswordResetRequest} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        Email
+                      </label>
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isResetting}>
+                      {isResetting ? "Sending..." : "Send Reset Code"}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handlePasswordResetVerify} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        Email
+                      </label>
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        6-Digit Code
+                      </label>
+                      <Input
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        required
+                        maxLength={6}
+                        value={resetCode}
+                        onChange={(e) => setResetCode(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        New Password
+                      </label>
+                      <Input
+                        type="password"
+                        placeholder="Enter new password (min 8 characters)"
+                        required
+                        minLength={8}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isResetting}>
+                      {isResetting ? "Resetting..." : "Reset Password"}
+                    </Button>
+                  </form>
+                )}
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordReset(false);
+                      setResetStep("request");
+                      setResetEmail("");
+                      setResetCode("");
+                      setNewPassword("");
+                      setResetMessage("");
+                      setResetError("");
+                    }}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Regular Login Form
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -77,32 +245,34 @@ function Login() {
                 className="space-y-4"
               >
                 <div className="space-y-1">
-                  <label
-                    htmlFor=""
-                    className="text-sm font-medium text-popover-foreground"
-                  >
+                  <label className="text-sm font-medium text-popover-foreground">
                     {location.pathname.includes("/teacher") ? "Email" : location.pathname.includes("/student") ? "Login ID" : "Username"}
                   </label>
-                  {location.pathname.includes("/teacher") ? (<Input
-                    type="email"
-                    placeholder="Enter your Email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />) : location.pathname.includes("/student") ? (<Input
-                    type="number"
-                    placeholder="Enter your Login ID"
-                    required
-                    value={loginID}
-                    onChange={(e) => setLoginID(e.target.value)}
-                  />) : (<Input
-                    type="text"
-                    placeholder="Enter your Username"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                  />)}
-
+                  {location.pathname.includes("/teacher") ? (
+                    <Input
+                      type="email"
+                      placeholder="Enter your Email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  ) : location.pathname.includes("/student") ? (
+                    <Input
+                      type="number"
+                      placeholder="Enter your Login ID"
+                      required
+                      value={loginID}
+                      onChange={(e) => setLoginID(e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      type="text"
+                      placeholder="Enter your Username"
+                      required
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                    />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label
@@ -121,19 +291,24 @@ function Login() {
                     required
                   />
                 </div>
+                 {!showPasswordReset && location.pathname.includes("/teacher") && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordReset(true)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
                 <Button className="w-full">Login</Button>
               </form>
-              {/* <div className="mt-4 text-center text-sm text-muted-foreground">
-                <p>Access other login pages:
-                  <a href="/admin/login" className="ml-1 hover:underline font-medium">Admin</a>
-                  {" | "}
-                  <a href="/teacher/login" className="hover:underline font-medium">Teacher</a>
-                  {" | "}
-                  <a href="/student/login" className="hover:underline font-medium">Student</a>
-                </p>
-              </div> */}
-            </CardContent>
-          </div>
+            )}
+
+            {/* Forgot Password Link - Only show for teachers when not in reset mode */}
+           
+          </CardContent>
         </Card>
       </div>
     </div>
