@@ -24,25 +24,30 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   store: authStore,
 });
-router.post("/login", validate(adminLoginSchema), AuthController.login);
-router.get("/logout", AuthController.logout);
-router.post("/refresh", AuthController.refresh_token);
+
 router.post(
-  "/student_login",
+  "/admin/sessions",
+  validate(adminLoginSchema),
+  AuthController.login,
+);
+router.post(
+  "/student/sessions",
   validate(studentLoginSchema),
   AuthController.student_login,
 );
 router.post(
-  "/teacher_login",
+  "/teacher/sessions",
   validate(teacherLoginSchema),
   AuthController.teacher_login,
 );
+router.post("/sessions/refresh", AuthController.refresh_token);
+router.delete("/sessions", AuthController.logout);
 router.get("/me", AuthMiddleware.authenticate(), (req, res) => {
   res
     .status(200)
     .json(new ApiResponse(200, req.user, "You are authenticated!"));
 });
-router.post("/add-admin", validate(addAdminSchema), AuthController.addAdmin);
+router.post("/admins", validate(addAdminSchema), AuthController.addAdmin);
 
 const authRouter = express.Router();
 authRouter.use("/api/auth", authLimiter, router);

@@ -5,90 +5,86 @@ import { StudentController } from "@/api/student/student.controller.js";
 const router = express.Router();
 
 router.get(
-  "/getStudents/:year",
+  "/",
   AuthMiddleware.authenticate(["admin", "teacher"]),
-  StudentController.getStudentsController,
+  StudentController.getStudentsQueryController,
 );
 
 router.get(
-  "/getStudentsByClass/:year/:level",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  StudentController.getClassStudentsController,
-);
-
-router.get(
-  "/getAlumni",
+  "/alumni",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.getAlumniController,
 );
 
 router.get(
-  "/getStudent",
+  "/me",
   AuthMiddleware.authenticate(["student"]),
   StudentController.getStudentController,
 );
 
 router.post(
-  "/addStudents",
+  "/bulk",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.addStudentController,
 );
 
 router.post(
-  "/get-image-url",
+  "/:id/image/upload-url",
   AuthMiddleware.authenticate(["admin"]),
-  StudentController.getStudentImageUploadUrlController,
+  StudentController.getStudentImageUploadUrlParamsController,
 );
 
 router.put(
-  "/updateStudentImage/:id",
+  "/:id/image",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.saveStudentImageController,
 );
 
 router.put(
-  "/updateStudent/:id",
+  "/:id",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.updateStudentController,
 );
 
-router.put(
-  "/updateacademic/:enrollment_id",
-  AuthMiddleware.authenticate(["admin"]),
-  StudentController.updateAcademicInfoController,
-);
-
 router.delete(
-  "/deleteStudent/:id",
+  "/:id",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.deleteStudentController,
 );
 
 router.delete(
-  "/deleteStudentsBulk",
+  "/",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.deleteStudentsBulkController,
 );
 
-router.put(
-  "/rotatePasswordsBulk",
+router.post(
+  "/password-rotations",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.rotatePasswordsBulkController,
 );
 
 router.post(
-  "/change-password",
+  "/me/password",
   AuthMiddleware.authenticate(["student"]),
   StudentController.changePasswordController,
 );
 
 router.post(
-  "/generate-testimonials/:id",
-  // AuthMiddleware.authenticate(["admin"]),
+  "/:id/testimonials",
+  AuthMiddleware.authenticate(["admin"]),
   StudentController.generateTestimonialsController,
 );
 
 const studentRouter = express.Router();
 studentRouter.use("/api/students", router);
+
+const enrollmentRouter = express.Router();
+enrollmentRouter.patch(
+  "/:enrollment_id",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.updateAcademicInfoController,
+);
+studentRouter.use("/api/enrollments", enrollmentRouter);
 
 export default studentRouter;

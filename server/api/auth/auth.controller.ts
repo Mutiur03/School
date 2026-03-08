@@ -37,7 +37,7 @@ const generateTokens = (user: AuthUser) => {
 
 const sendRefreshToken = (res: Response, token: string) => {
   const isProduction = process.env.NODE_ENV === "production";
-  const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
+  // const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
 
   res.cookie("refreshToken", token, {
     httpOnly: true,
@@ -45,7 +45,7 @@ const sendRefreshToken = (res: Response, token: string) => {
     sameSite: isProduction ? "none" : "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    domain: cookieDomain || undefined,
+    // domain: cookieDomain || undefined,
     partitioned: isProduction,
   });
 };
@@ -221,14 +221,18 @@ export class AuthController {
   static refresh_token = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
     if (!token) {
-      res.status(200).json({ success: false, accessToken: "" });
-      return;
+      throw new ApiError(401, "Unauthorized");
     }
 
-    const payload = jwt.verify(
-      token,
-      (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
-    ) as any;
+    let payload: any;
+    try {
+      payload = jwt.verify(
+        token,
+        (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
+      ) as any;
+    } catch {
+      throw new ApiError(401, "Unauthorized");
+    }
 
     let user = null;
     if (payload.role === "admin") {
@@ -240,16 +244,14 @@ export class AuthController {
     }
 
     if (!user) {
-      res.status(200).json({ success: false, accessToken: "" });
-      return;
+      throw new ApiError(401, "Unauthorized");
     }
 
     const tokenVersion = payload.version || 0;
     const userVersion = user.tokenVersion || 0;
 
     if (tokenVersion !== userVersion) {
-      res.status(200).json({ success: false, accessToken: "" });
-      return;
+      throw new ApiError(401, "Unauthorized");
     }
 
     const { accessToken, refreshToken } = generateTokens({
@@ -295,11 +297,15 @@ export class AuthController {
       responseUser.image = student.image;
     }
 
-    res.status(200).json({
-      success: true,
-      accessToken,
-      user: responseUser,
-    });
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, user: responseUser },
+          "Token refreshed successfully",
+        ),
+      );
   });
 
   static logout = asyncHandler(async (req: Request, res: Response) => {
@@ -348,19 +354,6 @@ export class AuthController {
     });
 
     res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
-  });
-
-  checkAdminExists = asyncHandler(async (_req: Request, res: Response) => {
-    const adminCount = await prisma.admin.count();
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { hasAdmins: adminCount > 0, adminCount },
-          "Admin existence checked successfully",
-        ),
-      );
   });
 
   static addAdmin = asyncHandler(async (req: Request, res: Response) => {

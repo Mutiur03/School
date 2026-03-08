@@ -133,11 +133,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
                     try {
-                        const { data } = await axios.post("/api/auth/refresh");
-                        if (data.success && data.accessToken) {
-                            setAccessToken(data.accessToken);
-                            if (data.user) setUser(data.user);
-                            originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+                        const { data } = await axios.post("/api/auth/sessions/refresh");
+                        const accessToken = data?.data?.accessToken;
+                        const refreshedUser = data?.data?.user;
+                        if (data.success && accessToken) {
+                            setAccessToken(accessToken);
+                            if (refreshedUser) setUser(refreshedUser);
+                            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                             return axios(originalRequest);
                         }
                     } catch (refreshError) {
@@ -165,11 +167,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(true);
         try {
             // Try to refresh token first to check if session exists
-            const refreshRes = await axios.post("/api/auth/refresh");
+            const refreshRes = await axios.post("/api/auth/sessions/refresh");
 
-            if (refreshRes.data.success && refreshRes.data.accessToken) {
-                setAccessToken(refreshRes.data.accessToken);
-                const userData = refreshRes.data.user;
+            const accessToken = refreshRes.data?.data?.accessToken;
+            const userData = refreshRes.data?.data?.user;
+            if (refreshRes.data.success && accessToken) {
+                setAccessToken(accessToken);
                 setUser(userData);
                 if (userData?.role) {
                     setPreferredRole(userData.role as UserRole);
@@ -190,14 +193,14 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             axios.defaults.withCredentials = true;
             setPreferredRole("admin");
-            const res = await axios.post("/api/auth/login", {
+            const res = await axios.post("/api/auth/admin/sessions", {
                 username,
                 password,
             });
             if (res.data.success) {
                 toast.success(res.data.message);
-                setAccessToken(res.data.accessToken);
-                setUser(res.data.user);
+                setAccessToken(res.data?.data?.accessToken);
+                setUser(res.data?.data?.user);
             } else {
                 toast.error(res.data.message || "Invalid Credentials");
                 throw new Error(res.data.message || "Login failed");
@@ -216,14 +219,14 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             axios.defaults.withCredentials = true;
             setPreferredRole("teacher");
-            const res = await axios.post("/api/auth/teacher_login", {
+            const res = await axios.post("/api/auth/teacher/sessions", {
                 email,
                 password,
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(res.data.accessToken);
-                setUser(res.data.user);
+                setAccessToken(res.data?.data?.accessToken);
+                setUser(res.data?.data?.user);
             }
         } catch (error) {
             console.error("Error logging in:", error);
@@ -236,13 +239,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             axios.defaults.withCredentials = true;
             setPreferredRole("student");
-            const res = await axios.post("/api/auth/student_login", {
+            const res = await axios.post("/api/auth/student/sessions", {
                 login_id,
                 password,
             });
             toast.success(res.data.message || "Login successful");
-            setAccessToken(res.data.accessToken);
-            setUser(res.data.user);
+            setAccessToken(res.data?.data?.accessToken);
+            setUser(res.data?.data?.user);
         } catch (error) {
             console.error("Error logging in:", error);
             toast.error("Invalid Credentials");
@@ -253,7 +256,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     const logout = async () => {
         axios.defaults.withCredentials = true;
         try {
-            const res = await axios.get("/api/auth/logout");
+            const res = await axios.delete("/api/auth/sessions");
             toast.success(res.data.message || "Logged out successfully");
             setUser(null);
             setAccessToken(null);

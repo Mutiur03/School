@@ -141,9 +141,9 @@ const AddMarks = () => {
 
     try {
       setLoading((prev) => ({ ...prev, students: true }));
-      const studentsRes = await axios.get(
-        `/api/students/getStudentsByClass/${year}/${level}`
-      );
+      const studentsRes = await axios.get("/api/students", {
+        params: { year, class: level },
+      });
       const studentsData = studentsRes.data?.data || [];
       setStudents(studentsData);
     } catch (error) {

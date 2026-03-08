@@ -21,7 +21,7 @@ function AlumniList() {
   useEffect(() => {
     const getStudentList = async () => {
       try {
-        const response = await axios.get("/api/students/getAlumni");
+        const response = await axios.get("/api/students/alumni");
         setStudents(response.data || []);
       } catch (error) {
         console.error("Error fetching students:", error);

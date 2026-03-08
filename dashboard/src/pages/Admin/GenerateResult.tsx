@@ -95,7 +95,9 @@ const GenerateResult = () => {
 
   const getStudentList = async () => {
     try {
-      const response = await axios.get(`/api/students/getStudents/${year}`);
+      const response = await axios.get(`/api/students`, {
+        params: { year },
+      });
       const filtered = (response.data.data || []).filter(
         (s: Student) => s.class >= 1 && s.class <= 10
       );

@@ -69,7 +69,9 @@ function Attendance() {
 
         const [studentsResponse, attendanceResponse] = await Promise.all([
           axios
-            .get(`/api/students/getStudents/${selectedYear}`)
+            .get(`/api/students`, {
+              params: { year: selectedYear },
+            })
             .catch((err) => {
               if (
                 err.response?.status === 404 ||

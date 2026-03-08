@@ -4,6 +4,8 @@
  * On failure responds 400 with structured field errors.
  * On success, req.body is replaced with the parsed (trimmed/coerced) data.
  */
+import { ApiError } from "../utils/ApiError.js";
+
 export const validate = (schema) => (req, res, next) => {
     const result = schema.safeParse(req.body);
 
@@ -15,11 +17,9 @@ export const validate = (schema) => (req, res, next) => {
             fieldErrors[field].push(issue.message);
         }
 
-        return res.status(400).json({
-            success: false,
-            message: "Validation failed",
-            errors: fieldErrors,
-        });
+        return next(
+            new ApiError(400, "Validation failed", result.error.issues)
+        );
     }
 
     req.body = result.data; // replace with parsed/trimmed data

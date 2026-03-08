@@ -26,7 +26,9 @@ function UpdateStatus() {
         setErrorMessage("Year is required to fetch students.");
         return;
       }
-      const response = await axios.get<{ data: Student[] }>(`/api/students/getStudents/${year}`);
+      const response = await axios.get<{ data: Student[] }>("/api/students", {
+        params: { year },
+      });
       const filteredStudents = (response.data.data || []).filter(
         (student) => student.class >= 1 && student.class <= 10
       );
