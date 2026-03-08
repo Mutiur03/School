@@ -1,8 +1,8 @@
 import axios from "axios";
 
 export interface SMSMessage {
-  to: string;
-  message: string;
+  Number: string;
+  Text: string;
 }
 
 export interface SMSResponse {
@@ -26,8 +26,8 @@ export class SMSService {
 
     const messageParameters: SMSMessage[] = [
       {
-        to: `88${phoneNumber}`, // Bangladesh country code
-        message: message,
+        Number: `88${phoneNumber}`, // Bangladesh country code
+        Text: message,
       },
     ];
 
@@ -70,8 +70,8 @@ export class SMSService {
     }
 
     const messageParameters = messages.map(msg => ({
-      to: msg.to.startsWith('88') ? msg.to : `88${msg.to}`,
-      message: msg.message,
+      Number: msg.Number.startsWith('88') ? msg.Number : `88${msg.Number}`,
+      Text: msg.Text,
     }));
 
     try {
