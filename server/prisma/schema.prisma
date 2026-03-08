@@ -14,6 +14,9 @@ model admin {
   password     String
   role         String @default("admin")
   tokenVersion Int    @default(0)
+
+  @@index([username])
+  @@index([role])
 }
 
 model students {
@@ -42,6 +45,14 @@ model students {
   gpa          gpa?
   sms_logs     sms_logs[]
   enrollments  student_enrollments[]
+
+  @@index([login_id])
+  @@index([batch])
+  @@index([available])
+  @@index([created_at])
+  @@index([batch, available])
+  @@index([father_phone])
+  @@index([mother_phone])
 }
 
 model student_enrollments {
@@ -62,6 +73,12 @@ model student_enrollments {
   student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, class, year])
+  @@index([student_id])
+  @@index([class, year])
+  @@index([class, section, year])
+  @@index([roll, class, section, year])
+  @@index([department])
+  @@index([status])
 }
 
 model attendence {
@@ -72,6 +89,12 @@ model attendence {
   send_msg   Boolean  @default(false)
   created_at DateTime @default(now())
   student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id])
+  @@index([date])
+  @@index([student_id, date])
+  @@index([status])
+  @@index([send_msg])
 }
 
 model exams {
@@ -116,7 +139,12 @@ model teachers {
   tokenVersion Int        @default(0)
   head_msgs    head_msg[]
   levels       levels[]
-  subjects     subjects[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([available])
+  @@index([created_at])
+  @@index([designation])
 }
 
 model staffs {
@@ -137,6 +165,10 @@ model levels {
   year       Int
   teacher_id Int
   teacher    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+
+  @@index([teacher_id])
+  @@index([class_name, year])
+  @@index([class_name, section, year])
 }
 
 model subjects {
@@ -156,9 +188,12 @@ model subjects {
   department          String?   @db.VarChar(100)
   created_at          DateTime  @default(now())
   marks               marks[]
-  teacher             teachers? @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
 
   @@unique([name, class, department, year])
+  @@index([teacher_id])
+  @@index([class, year])
+  @@index([department])
+  @@index([name])
 }
 
 model marks {
@@ -177,6 +212,10 @@ model marks {
   subject         subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
 
   @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
+  @@index([enrollment_id])
+  @@index([subject_id])
+  @@index([exam_id])
+  @@index([created_at])
 }
 
 model gpa {
