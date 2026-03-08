@@ -1,10 +1,9 @@
 import axios from "axios";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo, useDeferredValue, useCallback } from "react";
 import toast from "react-hot-toast";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Loading from "@/components/Loading";
 import ErrorMessage from "@/components/ErrorMessage";
 import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
 import { useForm } from "react-hook-form";
@@ -12,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { teacherFormSchema, type TeacherFormSchemaData } from "@school/shared-schemas";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
 
@@ -52,6 +52,9 @@ const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => 
 const TeacherList = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
@@ -83,15 +86,29 @@ const TeacherList = () => {
   const invalidateTeachers = () =>
     queryClient.invalidateQueries({ queryKey: ["teachers"] });
 
-  const { data: teachers = [], isLoading } = useQuery<Teacher[]>({
-    queryKey: ["teachers"],
+  const { data: teachersResponse, isLoading, error: teachersError } = useQuery({
+    queryKey: ["teachers", { page, limit, search: deferredSearchQuery }],
     queryFn: async () => {
-      const response = await axios.get("/api/teachers/getTeachers");
-      return response.data.data || [];
+      const response = await axios.get("/api/teachers/getTeachers", {
+        params: { 
+          page, 
+          limit, 
+          search: deferredSearchQuery.trim() || undefined 
+        },
+      });
+      return response.data.data;
     },
-    staleTime: 300000,
-    refetchOnReconnect: true,
+    placeholderData: keepPreviousData,
   });
+
+  const teachers = useMemo(() => teachersResponse?.data ?? [], [teachersResponse]);
+  const meta = teachersResponse?.meta;
+
+  const errorMessage = teachersError
+    ? ((teachersError as { response?: { status?: number } }).response?.status === 404
+      ? "No teachers found."
+      : "An error occurred while fetching teachers.")
+    : "";
 
   const addMutation = useMutation({
     mutationFn: async ({
@@ -181,7 +198,7 @@ const TeacherList = () => {
     },
   });
 
-  const handleEdit = (teacher: Teacher) => {
+  const handleEdit = useCallback((teacher: Teacher) => {
     reset({
       name: teacher.name || "",
       email: teacher.email || "",
@@ -192,42 +209,45 @@ const TeacherList = () => {
     setIsEditing(true);
     setShowForm(true);
     setPopup({ visible: false, type: "", teacher });
-  };
+  }, [reset, setIsEditing, setShowForm, setPopup]);
 
-  const handleDelete = (teacher: Teacher) => {
+  const handleDelete = useCallback((teacher: Teacher) => {
     deleteMutation.mutate(teacher);
-  };
+  }, [deleteMutation]);
 
-  const closePopup = () => {
+  const closePopup = useCallback(() => {
     setPopup({ visible: false, type: "", teacher: null });
-  };
+  }, [setPopup]);
 
-  const filteredTeachers = teachers
-    .filter((teacher) => teacher.available)
-    .filter(
-      (teacher) =>
-        teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        teacher.email.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => a.id - b.id);
+  // Reset page when search changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [deferredSearchQuery]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const isSubmitting = addMutation.isPending || updateMutation.isPending;
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, [setSearchQuery]);
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
     }
-  };
+  }, [setImage]);
 
-  const isSubmitting = addMutation.isPending || updateMutation.isPending;
-
-  const onValidSubmit = async (formValues: TeacherFormSchemaData) => {
+  const onValidSubmit = useCallback(async (formValues: TeacherFormSchemaData) => {
     if (isEditing && popup.teacher) {
       updateMutation.mutate({ teacher: popup.teacher, formValues, imageFile: image });
     } else {
       addMutation.mutate({ formValues, imageFile: image });
     }
-  };
+  }, [isEditing, popup.teacher, updateMutation, addMutation, image]);
+
+  const filteredTeachers = useMemo(
+    () => teachers.filter((teacher: Teacher) => teacher.available),
+    [teachers],
+  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -375,8 +395,14 @@ const TeacherList = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Teachers" value={teachers.filter(t => t.available).length} loading={isLoading} />
-        <StatsCard label="Filtered" value={filteredTeachers.length !== teachers.filter(t => t.available).length ? `${filteredTeachers.length} / ${teachers.filter(t => t.available).length}` : filteredTeachers.length} color="blue" loading={isLoading} />
+        <StatsCard label="Total Teachers" value={meta?.total ?? 0} loading={isLoading} />
+        <StatsCard
+          label="Showing"
+          value={`${filteredTeachers.length} / ${meta?.total ?? 0}`}
+          color="blue"
+          loading={isLoading}
+        />
+        <StatsCard label="Available" value={filteredTeachers.length} color="emerald" loading={isLoading} />
       </div>
 
       <SectionCard className="mb-6">
@@ -387,7 +413,7 @@ const TeacherList = () => {
             placeholder="Search by name, subject or email..."
             className="pl-10"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
       </SectionCard>
@@ -412,13 +438,13 @@ const TeacherList = () => {
                 <tr>
                   <td colSpan={4} className="py-12 text-center">
                     <div className="flex flex-col justify-center items-center gap-2">
-                      <Loading />
+                      <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">Loading teachers...</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredTeachers.length > 0 ? (
-                filteredTeachers.map((teacher) => (
+                filteredTeachers.map((teacher: Teacher) => (
                   <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
@@ -455,12 +481,92 @@ const TeacherList = () => {
               ) : (
                 <tr>
                   <td colSpan={4} className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No teachers found.
+                    {errorMessage || "No teachers found matching your criteria."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+      </SectionCard>
+
+      <SectionCard className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <select
+                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 50, 100].map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(() => {
+              const totalPages = meta?.totalPages ?? 0;
+              const currentPage = page;
+              const maxVisible = 7;
+              if (totalPages <= maxVisible) {
+                return Array.from({ length: totalPages }, (_, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    variant={i + 1 === currentPage ? "default" : "outline"}
+                    onClick={() => setPage(i + 1)}
+                    disabled={isLoading}
+                  >
+                    {i + 1}
+                  </Button>
+                ));
+              }
+              const pages: (number | string)[] = [];
+              const half = Math.floor(maxVisible / 2);
+              let start = Math.max(1, currentPage - half);
+              let end = Math.min(totalPages, start + maxVisible - 1);
+              if (end - start < maxVisible - 1) {
+                start = Math.max(1, end - maxVisible + 1);
+              }
+              if (start > 1) {
+                pages.push(1);
+                if (start > 2) pages.push("...");
+              }
+              for (let i = start; i <= end; i++) {
+                pages.push(i);
+              }
+              if (end < totalPages) {
+                if (end < totalPages - 1) pages.push("...");
+                pages.push(totalPages);
+              }
+              return pages.map((p, idx) =>
+                p === "..." ? (
+                  <span key={idx} className="px-2 text-muted-foreground">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={idx}
+                    type="button"
+                    variant={p === currentPage ? "default" : "outline"}
+                    onClick={() => setPage(p as number)}
+                    disabled={isLoading}
+                  >
+                    {p}
+                  </Button>
+                )
+              );
+            })()}
+          </div>
         </div>
       </SectionCard>
 

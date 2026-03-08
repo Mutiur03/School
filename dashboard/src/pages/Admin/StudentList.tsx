@@ -168,7 +168,7 @@ function StudentList() {
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(50);
   const [year, setYear] = useState(new Date().getFullYear());
   const currentYear = new Date().getFullYear();
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -340,7 +340,7 @@ function StudentList() {
     setPopup({ visible: false, type: "", student: null });
 
   const sortedUniqueClasses = useMemo(
-    () => Array.from({ length: 10 }, (_, i) => i + 1),
+    () => Array.from({ length: 5 }, (_, i) => i + 6),
     [],
   );
   const sortedUniqueSections = useMemo(
@@ -1423,7 +1423,7 @@ function StudentList() {
                   setPage(1);
                 }}
               >
-                {[10, 20, 50, 100].map((v) => (
+                {[50, 100, 200].map((v) => (
                   <option key={v} value={v}>
                     {v}
                   </option>

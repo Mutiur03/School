@@ -168,8 +168,64 @@ export const createRegistration = async (req, res) => {
 
 export const getAllRegistrations = async (req, res) => {
   try {
-    const { class6_year, section, status, search } = req.query;
+    const { class6_year, section, status, search, page, limit } = req.query;
 
+    // Check if this is a paginated request
+    const isPaginatedRequest = 
+      (typeof page === "string" && page.trim().length > 0) ||
+      (typeof limit === "string" && limit.trim().length > 0);
+
+    if (isPaginatedRequest) {
+      // Parse pagination parameters
+      const pageNum = typeof page === "string" ? parseInt(page, 10) : NaN;
+      const limitNum = typeof limit === "string" ? parseInt(limit, 10) : NaN;
+
+      const normalizedPage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+      const normalizedLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(Math.floor(limitNum), 200) : 20;
+      const skip = (normalizedPage - 1) * normalizedLimit;
+
+      // Build where clause
+      const where = {};
+      if (class6_year) where.class6_year = parseInt(class6_year);
+      if (section) where.section = section;
+      if (status && status !== "all") where.status = status;
+      if (search) {
+        where.OR = [
+          { student_name_en: { contains: search, mode: "insensitive" } },
+          { student_name_bn: { contains: search, mode: "insensitive" } },
+          { roll: { contains: search, mode: "insensitive" } },
+          { birth_reg_no: { contains: search, mode: "insensitive" } },
+        ];
+      }
+
+      // Get total count and data
+      const [total, registrations] = await prisma.$transaction([
+        prisma.student_registration_class6.count({ where }),
+        prisma.student_registration_class6.findMany({
+          where,
+          orderBy: { created_at: "desc" },
+          skip,
+          take: normalizedLimit,
+        }),
+      ]);
+
+      const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          data: registrations,
+          meta: {
+            total,
+            page: normalizedPage,
+            limit: normalizedLimit,
+            totalPages,
+          },
+        },
+      });
+    }
+
+    // Non-paginated legacy behavior
     const where = {};
     if (class6_year) where.class6_year = parseInt(class6_year);
     if (section) where.section = section;
