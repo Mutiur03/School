@@ -193,7 +193,7 @@ export class TeacherController {
   );
 
   static getHeadMessageController = asyncHandler(
-    async (req: Request, res: Response) => {
+    async (_req: Request, res: Response) => {
       const headMsg = await TeacherService.getHeadMessage();
       res
         .status(200)
