@@ -67,6 +67,9 @@ COPY --from=builder /app/server/prisma ./prisma
 COPY --from=builder /app/server/setup-network.sh ./
 COPY --from=builder /app/packages/shared-schemas /app/packages/shared-schemas
 
+# Create logs directory
+RUN mkdir -p /app/server/logs
+
 # Install only production dependencies
 RUN pnpm install --prod --ignore-scripts
 RUN npx prisma generate
