@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { keepPreviousData } from "@tanstack/react-query";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
+import { useTeacher } from "@/queries/teacher.queries";
 
 interface Teacher {
   id: number;
@@ -35,7 +36,7 @@ interface PopupState {
 
 const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => {
   const key = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-  const { data } = await axios.post("/api/teachers/get-image-url", {
+  const { data } = await axios.post("/api/teachers/image/upload-url", {
     id: teacherId,
     key,
     contentType: file.type,
@@ -46,7 +47,7 @@ const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => 
     body: file,
     headers: { "Content-Type": file.type },
   });
-  await axios.put(`/api/teachers/updateTeacherImage/${teacherId}`, { key: r2Key });
+  await axios.put(`/api/teachers/${teacherId}/image`, { key: r2Key });
 };
 
 const TeacherList = () => {
@@ -86,20 +87,7 @@ const TeacherList = () => {
   const invalidateTeachers = () =>
     queryClient.invalidateQueries({ queryKey: ["teachers"] });
 
-  const { data: teachersResponse, isLoading, error: teachersError } = useQuery({
-    queryKey: ["teachers", { page, limit, search: deferredSearchQuery }],
-    queryFn: async () => {
-      const response = await axios.get("/api/teachers/getTeachers", {
-        params: { 
-          page, 
-          limit, 
-          search: deferredSearchQuery.trim() || undefined 
-        },
-      });
-      return response.data.data;
-    },
-    placeholderData: keepPreviousData,
-  });
+  const { data: teachersResponse, isLoading, error: teachersError } = useTeacher({page, limit, search: deferredSearchQuery})
 
   const teachers = useMemo(() => teachersResponse?.data ?? [], [teachersResponse]);
   const meta = teachersResponse?.meta;
@@ -118,14 +106,18 @@ const TeacherList = () => {
       formValues: TeacherFormSchemaData;
       imageFile: File | null;
     }) => {
-      const response = await axios.post("/api/teachers/addTeacher", {
+      await axios.post("/api/teachers", {
         teachers: [formValues],
       });
-      const newTeacher = response.data.data[0];
+      // The new API returns an Excel file download, so we need to get the teacher data differently
+      // For now, we'll handle it by fetching the teachers list again
       if (imageFile) {
+        // We'll need to get the teacher ID after creation
+        const teachersResponse = await axios.get("/api/teachers");
+        const newTeacher = teachersResponse.data.data.data[teachersResponse.data.data.data.length - 1];
         await uploadImageToR2(imageFile, newTeacher.id);
       }
-      return response.data;
+      return { message: "Teacher added successfully" };
     },
     onSuccess: (data) => {
       toast.success(data.message || "Teacher added successfully.");
@@ -150,7 +142,7 @@ const TeacherList = () => {
       imageFile: File | null;
     }) => {
       const response = await axios.put(
-        `/api/teachers/updateTeacher/${teacher.id}`,
+        `/api/teachers/${teacher.id}`,
         formValues
       );
       if (imageFile) {
@@ -174,7 +166,7 @@ const TeacherList = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (teacher: Teacher) => {
-      await axios.delete(`/api/teachers/deleteTeacher/${teacher.id}`);
+      await axios.delete(`/api/teachers/${teacher.id}`);
     },
     onSuccess: () => {
       toast.success("Teacher deleted successfully.");
@@ -187,7 +179,7 @@ const TeacherList = () => {
 
   const removeImageMutation = useMutation({
     mutationFn: async (teacherId: number) => {
-      await axios.delete(`/api/teachers/removeTeacherImage/${teacherId}`);
+      await axios.delete(`/api/teachers/${teacherId}/image`);
     },
     onSuccess: () => {
       toast.success("Image removed.");

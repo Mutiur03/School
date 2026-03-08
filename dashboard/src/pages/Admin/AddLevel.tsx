@@ -48,8 +48,8 @@ function AddLevel() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/teachers/getTeachers");
-      setTeachers(res.data.data);
+      const res = await axios.get("/api/teachers");
+      setTeachers(res.data?.data?.data || res.data?.data || []);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching teachers:", err);

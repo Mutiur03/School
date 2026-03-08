@@ -26,8 +26,8 @@ function TeacherList() {
         const fetchTeachers = async () => {
             setIsLoading(true)
             try {
-                const res = await axios.get('/api/teachers/getTeachers')
-                const data = res?.data?.data || []
+                const res = await axios.get('/api/teachers')
+                const data = res?.data?.data?.data || res?.data?.data || []
                 setTeachers(Array.isArray(data) ? data : [])
             } catch (err) {
                 console.error('Failed to fetch teachers:', err)

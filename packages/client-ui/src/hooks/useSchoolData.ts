@@ -1,6 +1,7 @@
 import type { Head, NoticeItem, Syllabus } from "@/types";
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { ApiResponse } from "@school/shared-schemas";
 
 export const useRoutinePDF = (queryClient: QueryClient) => {
   return queryClient.fetchQuery({
@@ -49,8 +50,8 @@ export const useHeadMasterMsg = () => {
     queryKey: ["headMasterMsg"],
     queryFn: async () => {
       try {
-        const response = await axios.get("/api/teachers/get_head_msg");
-        return response?.data || null;
+        const response = await axios.get("/api/teachers/head-message");
+        return response?.data.data || null;
       } catch {
         return null;
       }

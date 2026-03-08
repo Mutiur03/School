@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from "react";
 import axios, { isAxiosError } from "axios";
+import type { ApiResponse } from "@school/shared-schemas";
+import { useTeacher } from "@/queries/teacher.queries";
 
 interface Teacher {
   id: string;
   name: string;
 }
 
+
 interface HeadData {
   teacher?: Teacher;
   head_message?: string;
 }
+
 
 function Head() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -18,6 +22,7 @@ function Head() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
+  const { data: teacherData } = useTeacher({});
 
   useEffect(() => {
     let isMounted = true;
@@ -28,9 +33,9 @@ function Head() {
       let fetchError = "";
 
       try {
-        const res = await axios.get("/api/teachers/getTeachers");
-        if (isMounted)
-          setTeachers(Array.isArray(res.data?.data) ? res.data.data : []);
+        if (isMounted && teacherData) {
+          setTeachers(teacherData || []);
+        }
       } catch (e) {
         if (isAxiosError(e))
           fetchError =
@@ -38,11 +43,13 @@ function Head() {
       }
 
       try {
-        const resHead = await axios.get<HeadData>("/api/teachers/get_head_msg");
-        const headData = resHead.data || {};
+        const resHead = await axios.get<ApiResponse<HeadData>>("/api/teachers/head-message");
+        const headData = resHead.data?.data || {};
+        console.log(headData);
+        
         if (isMounted) {
-          if (headData.teacher) setSelectedTeacherId(headData.teacher.id);
-          if (typeof headData.head_message === "string")
+          if (headData?.teacher) setSelectedTeacherId(headData.teacher.id);
+          if (typeof headData?.head_message === "string")
             setMessage(headData.head_message);
         }
       } catch (e) {
@@ -60,7 +67,7 @@ function Head() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [teacherData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +79,7 @@ function Head() {
       if (selectedTeacherId) payload.teacherId = selectedTeacherId;
       if (message.trim()) payload.message = message.trim();
       if (Object.keys(payload).length === 0) throw new Error("Nothing to save");
-      await axios.put("/api/teachers/update_head_msg", payload);
+      await axios.post("/api/teachers/head-message", payload);
       setSuccess("Saved");
     } catch (e) {
       if (isAxiosError(e))
