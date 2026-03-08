@@ -167,6 +167,8 @@ function StudentList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [year, setYear] = useState(new Date().getFullYear());
   const currentYear = new Date().getFullYear();
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -228,13 +230,25 @@ function StudentList() {
   const invalidateStudents = () =>
     queryClient.invalidateQueries({ queryKey: ["students", year] });
 
-  const { data: studentsData, isLoading: loading, error: studentsError } = useStudents(year);
-  const students = useMemo(() => studentsData ?? [], [studentsData]);
+  const { data: studentsResponse, isLoading: loading, error: studentsError } = useStudents({
+    year,
+    page,
+    limit,
+    level: classFilter ? Number(classFilter) : undefined,
+    section: sectionFilter || undefined,
+    search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
+  });
+  const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
+  const meta = studentsResponse?.meta;
   const errorMessage = studentsError
     ? ((studentsError as { response?: { status?: number } }).response?.status === 404
       ? "No students found for the selected year."
       : "An error occurred while fetching students.")
     : "";
+
+  useEffect(() => {
+    setPage(1);
+  }, [year, classFilter, sectionFilter, deferredSearchQuery]);
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
@@ -325,54 +339,16 @@ function StudentList() {
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
 
-  const sortedStudents = useMemo(() => {
-    const list = [...students];
-    list.sort((a, b) => {
-      if (a.class !== b.class) return a.class - b.class;
-      const sectionCmp = a.section.localeCompare(b.section);
-      if (sectionCmp !== 0) return sectionCmp;
-      return a.roll - b.roll;
-    });
-    return list;
-  }, [students]);
-
-  const filteredStudents = useMemo(() => {
-    const q = deferredSearchQuery.trim().toLowerCase();
-    const classValue = classFilter ? Number(classFilter) : null;
-    const sectionValue = sectionFilter || null;
-
-    return sortedStudents
-      .filter((student) => {
-        if (!q) return true;
-        return (
-          student.name.toLowerCase().includes(q) ||
-          student.father_phone?.toString().includes(q) ||
-          student.mother_phone?.toString().includes(q)
-        );
-      })
-      .filter((student) => (classValue ? student.class === classValue : true))
-      .filter((student) => (sectionValue ? student.section === sectionValue : true));
-  }, [sortedStudents, deferredSearchQuery, classFilter, sectionFilter]);
-
-  const uniqueClasses = useMemo(
-    () => [...new Set(students.map((student) => student.class))],
-    [students],
+  const sortedUniqueClasses = useMemo(
+    () => Array.from({ length: 10 }, (_, i) => i + 1),
+    [],
   );
-  const sortedUniqueClasses = useMemo(() => {
-    const list = [...uniqueClasses];
-    list.sort((a, b) => a - b);
-    return list;
-  }, [uniqueClasses]);
-  const uniqueSections = useMemo(
-    () => [...new Set(students.map((student) => student.section))],
-    [students],
+  const sortedUniqueSections = useMemo(
+    () => Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)),
+    [],
   );
-  const sortedUniqueSections = useMemo(() => {
-    const list = [...uniqueSections];
-    list.sort();
-    return list;
-  }, [uniqueSections]);
-  const visibleStudentIds = useMemo(() => filteredStudents.map((student) => student.id), [filteredStudents]);
+
+  const visibleStudentIds = useMemo(() => students.map((student) => student.id), [students]);
   const visibleStudentIdSet = useMemo(() => new Set(visibleStudentIds), [visibleStudentIds]);
 
   const hasSelectedStudents = selectedStudentIds.size > 0;
@@ -1236,14 +1212,14 @@ function StudentList() {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Students" value={students.length} loading={loading} />
+        <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />
         <StatsCard
           label="Showing"
-          value={filteredStudents.length !== students.length ? `${filteredStudents.length} / ${students.length}` : students.length}
+          value={`${students.length} / ${meta?.total ?? 0}`}
           color="blue"
           loading={loading}
         />
-        <StatsCard label="With Stipend" value={filteredStudents.filter(s => s.has_stipend).length} color="emerald" loading={loading} />
+        <StatsCard label="With Stipend" value={students.filter(s => s.has_stipend).length} color="emerald" loading={loading} />
       </div>
       <SectionCard className="mb-6">
         <div className="flex flex-wrap items-end gap-4">
@@ -1256,7 +1232,9 @@ function StudentList() {
                 placeholder="Search by name or phone..."
                 className="pl-10"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                }}
               />
             </div>
           </div>
@@ -1265,7 +1243,9 @@ function StudentList() {
             <select
               className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
+              onChange={(e) => {
+                setClassFilter(e.target.value);
+              }}
             >
               <option value="">All Classes</option>
               {sortedUniqueClasses.map((classNum: number) => (
@@ -1280,7 +1260,9 @@ function StudentList() {
             <select
               className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={sectionFilter}
-              onChange={(e) => setSectionFilter(e.target.value)}
+              onChange={(e) => {
+                setSectionFilter(e.target.value);
+              }}
             >
               <option value="">All Sections</option>
               {sortedUniqueSections.map((section: string) => (
@@ -1294,7 +1276,9 @@ function StudentList() {
             <label className="block text-sm font-medium mb-1">Year</label>
             <select
               value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(e) => {
+                setYear(Number(e.target.value));
+              }}
               className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {Array.from({ length: 3 }, (_, i) => (
@@ -1394,8 +1378,8 @@ function StudentList() {
                     <Loading />
                   </td>
                 </tr>
-              ) : filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
+              ) : students.length > 0 ? (
+                students.map((student) => (
                   <StudentRow
                     key={student.id}
                     student={student}
@@ -1420,6 +1404,86 @@ function StudentList() {
               )}
             </tbody>
           </table>
+        </div>
+      </SectionCard>
+
+      <SectionCard className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <select
+                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 50, 100].map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(() => {
+                const totalPages = meta?.totalPages ?? 0;
+                const currentPage = page;
+                const maxVisible = 7;
+                if (totalPages <= maxVisible) {
+                  return Array.from({ length: totalPages }, (_, i) => (
+                    <Button
+                      key={i}
+                      type="button"
+                      variant={i + 1 === currentPage ? "default" : "outline"}
+                      onClick={() => setPage(i + 1)}
+                      disabled={loading}
+                    >
+                      {i + 1}
+                    </Button>
+                  ));
+                }
+                const pages: (number | string)[] = [];
+                const half = Math.floor(maxVisible / 2);
+                let start = Math.max(1, currentPage - half);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+                if (start > 1) {
+                  pages.push(1);
+                  if (start > 2) pages.push("...");
+                }
+                for (let i = start; i <= end; i++) {
+                  pages.push(i);
+                }
+                if (end < totalPages) {
+                  if (end < totalPages - 1) pages.push("...");
+                  pages.push(totalPages);
+                }
+                return pages.map((p, idx) =>
+                  p === "..." ? (
+                    <span key={idx} className="px-2 text-muted-foreground">
+                      ...
+                    </span>
+                  ) : (
+                    <Button
+                      key={idx}
+                      type="button"
+                      variant={p === currentPage ? "default" : "outline"}
+                      onClick={() => setPage(p as number)}
+                      disabled={loading}
+                    >
+                      {p}
+                    </Button>
+                  )
+                );
+              })()}
+          </div>
         </div>
       </SectionCard>
       {popup.visible && popup.student && (

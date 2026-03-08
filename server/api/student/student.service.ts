@@ -25,6 +25,98 @@ export class StudentService {
     return students.map(sanitizeStudent);
   }
 
+  static async getStudentsPaginated(
+    params: {
+      year: number;
+      page: number;
+      limit: number;
+      level?: number;
+      section?: string;
+      search?: string;
+    },
+    userOptions: { role?: string; levels?: Array<{ class_name: number; section: string; year: number }> } = {},
+  ) {
+    const { year, page, limit, level, section, search } = params;
+
+    const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
+    const skip = (normalizedPage - 1) * normalizedLimit;
+
+    const normalizedSection = section?.trim().toUpperCase();
+    const normalizedSearch = search?.trim();
+
+    const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
+      year,
+      ...(typeof level === "number" && !Number.isNaN(level) ? { class: level } : {}),
+      ...(normalizedSection ? { section: normalizedSection } : {}),
+    };
+
+    if (userOptions.role === "teacher") {
+      if (!userOptions.levels || userOptions.levels.length === 0) {
+        return {
+          data: [],
+          meta: { total: 0, page: normalizedPage, limit: normalizedLimit, totalPages: 0 },
+        };
+      }
+
+      const teacherLevels = userOptions.levels
+        .filter((l) => l.year === year)
+        .map((l) => ({ class: l.class_name, section: l.section }));
+
+      if (teacherLevels.length === 0) {
+        return {
+          data: [],
+          meta: { total: 0, page: normalizedPage, limit: normalizedLimit, totalPages: 0 },
+        };
+      }
+
+      enrollmentWhere.OR = teacherLevels;
+    }
+
+    if (normalizedSearch) {
+      enrollmentWhere.student = {
+        OR: [
+          { name: { contains: normalizedSearch, mode: "insensitive" } },
+          { father_phone: { contains: normalizedSearch, mode: "insensitive" } },
+          { mother_phone: { contains: normalizedSearch, mode: "insensitive" } },
+        ],
+      };
+    }
+
+    const [total, enrollments] = await prisma.$transaction([
+      prisma.student_enrollments.count({ where: enrollmentWhere }),
+      prisma.student_enrollments.findMany({
+        where: enrollmentWhere,
+        include: { student: true },
+        orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
+        skip,
+        take: normalizedLimit,
+      }),
+    ]);
+
+    const data = enrollments.map((enrollment: any) => {
+      const studentWithoutPassword = sanitizeStudent(enrollment.student);
+      return {
+        ...enrollment,
+        ...studentWithoutPassword,
+        id: studentWithoutPassword.id,
+        enrollment_id: enrollment.id,
+      };
+    });
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page: normalizedPage,
+        limit: normalizedLimit,
+        totalPages,
+      },
+    };
+  }
+
   static async getStudents(year: number, userOptions: { role?: string; levels?: Array<{ class_name: number; section: string; year: number }> } = {}) {
     let result: any[] = [];
     if (userOptions.role === "admin") {
