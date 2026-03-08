@@ -41,7 +41,6 @@ export const addSubController = async (req, res) => {
         "class",
         "full_mark",
         "pass_mark",
-        "teacher_id",
         "cq_mark",
         "mcq_mark",
         "practical_mark",
@@ -138,7 +137,6 @@ export const addSubController = async (req, res) => {
       mcq_pass_mark: subject.mcq_pass_mark || 0,
       practical_pass_mark: subject.practical_pass_mark || 0,
       year: subject.year || current_year,
-      teacher_id: subject.teacher_id || null,
       department: subject.department || null,
     }));
 
@@ -175,24 +173,13 @@ export const addSubController = async (req, res) => {
 export const getSubsController = async (req, res) => {
   try {
     const subjects = await prisma.subjects.findMany({
-      include: {
-        teacher: {
-          select: {
-            name: true,
-          },
-        },
-      },
+     
       orderBy: {
         id: "asc",
       },
     });
 
-    const formattedSubjects = subjects.map((subject) => ({
-      ...subject,
-      teacher_name: subject.teacher?.name || null,
-    }));
-
-    res.status(200).json({ success: true, data: formattedSubjects });
+    res.status(200).json({ success: true, data: subjects });
   } catch (error) {
     return handleDatabaseError(error, res);
   }
@@ -230,7 +217,6 @@ export const updateSubController = async (req, res) => {
       mcq_pass_mark,
       practical_pass_mark,
       year,
-      teacher_id,
       department,
     } = req.body;
 
@@ -275,7 +261,6 @@ export const updateSubController = async (req, res) => {
         mcq_pass_mark: mcqPassMarkVal,
         practical_pass_mark: practicalPassMarkVal,
         year: year || new Date().getFullYear(),
-        teacher_id: parseNumeric(teacher_id),
         department: department || null,
       },
     });
