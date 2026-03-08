@@ -85,8 +85,8 @@ const NewSubject: React.FC = () => {
 
   const fetchTeachers = async (): Promise<void> => {
     try {
-      const response = await axios.get("/api/teachers/getTeachers");
-      setTeachers(response.data.data);
+      const response = await axios.get("/api/teachers");
+      setTeachers(response.data?.data?.data || response.data?.data || []);
     } catch {
       toast.error("Error fetching teachers");
     }

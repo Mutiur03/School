@@ -15,13 +15,13 @@ function HeadMsg() {
           <div className="w-42 h-42 mb-5 bg-gray-300 animate-pulse shadow-2xl"></div>
         ) : (
           <img
-            src={getFileUrl(head?.teacher.image ?? null) || "/placeholder.svg"}
+            src={getFileUrl(head?.teacher?.image ?? null) || "/placeholder.svg"}
             alt="Head Image"
             className="w-42 h-42 object-cover object-top "
           />
         )}
       </div>
-      <h1 className="text-2xl font-bold mb-4">{head?.teacher.name ?? ""}</h1>
+      <h1 className="text-2xl font-bold mb-4">{head?.teacher?.name ?? ""}</h1>
       <div className=" text-justify max-w-2xl w-full">
         <p>{head?.head_message ?? ""}</p>
       </div>
