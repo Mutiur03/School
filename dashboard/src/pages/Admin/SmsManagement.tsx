@@ -32,6 +32,7 @@ import {
 import { toast } from "react-hot-toast";
 import { Send, Trash2, Filter, Calendar } from "lucide-react";
 import Loading from "@/components/Loading";
+import { formatDobForDateInput as toDateInputValue } from "@school/shared-schemas";
 
 interface Enrollment {
   class: string;
@@ -71,30 +72,12 @@ interface Filters {
 }
 
 function SmsManagement() {
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  };
-
-  const formatDateOnly = (dateString: string): string => {
+  const formatIsoToDisplayDate = (dateString: string): string => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
-  };
-
-  const convertToISODate = (ddmmyyyy: string): string => {
-    if (!ddmmyyyy) return "";
-    const parts = ddmmyyyy.split("/");
-    if (parts.length !== 3) return ddmmyyyy;
-    const [day, month, year] = parts;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
@@ -106,7 +89,7 @@ function SmsManagement() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [filters, setFilters] = useState<Filters>({
     status: "all",
-    date: formatDateOnly(new Date().toISOString()),
+    date: formatIsoToDisplayDate(new Date().toISOString()),
     limit: 50,
   });
 
@@ -128,7 +111,7 @@ function SmsManagement() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: filters.limit.toString(),
-        date: convertToISODate(filters.date),
+        date: toDateInputValue(filters.date) || filters.date,
       });
 
       const response = await axios.get(`/api/sms/sms-logs?${params}`);
@@ -328,11 +311,11 @@ function SmsManagement() {
                   <Input
                     id="date-filter"
                     type="date"
-                    value={convertToISODate(filters.date)}
+                    value={toDateInputValue(filters.date)}
                     onChange={(e) => {
                       handleFilterChange(
                         "date",
-                        formatDateOnly(e.target.value)
+                        formatIsoToDisplayDate(e.target.value)
                       );
                     }}
                     className="w-full pl-10 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden"
@@ -512,7 +495,7 @@ function SmsManagement() {
                       {log.phone_number}
                     </td>
                     <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                      {formatDateOnly(log.attendance_date)}
+                      {formatIsoToDisplayDate(log.attendance_date)}
                     </td>
                     <td className="p-3">
                       <Badge
@@ -554,7 +537,7 @@ function SmsManagement() {
                       )}
                     </td>
                     <td className="p-3 text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-400">
-                      {formatDate(log.created_at)}
+                      {formatIsoToDisplayDate(log.created_at)}
                     </td>
                   </tr>
                 ))}
@@ -619,7 +602,7 @@ function SmsManagement() {
                         Date:
                       </span>
                       <span className="text-slate-900 dark:text-white">
-                        {formatDateOnly(log.attendance_date)}
+                        {formatIsoToDisplayDate(log.attendance_date)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -649,7 +632,7 @@ function SmsManagement() {
                         Created:
                       </span>
                       <span className="text-slate-900 dark:text-white">
-                        {formatDate(log.created_at)}
+                        {formatIsoToDisplayDate(log.created_at)}
                       </span>
                     </div>
                     {log.message && (
