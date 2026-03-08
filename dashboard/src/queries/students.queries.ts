@@ -4,6 +4,7 @@ import axios from "axios";
 
 export type StudentsListMeta = {
   total: number;
+  filtered: number;
   page: number;
   limit: number;
   totalPages: number;
@@ -38,6 +39,7 @@ export const useStudents = (params: {
 
       const meta: StudentsListMeta = {
         total: payload?.meta?.total ?? 0,
+        filtered: payload?.meta?.filtered ?? 0,
         page: payload?.meta?.page ?? page,
         limit: payload?.meta?.limit ?? limit,
         totalPages: payload?.meta?.totalPages ?? 0,

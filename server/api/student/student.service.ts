@@ -51,11 +51,22 @@ export class StudentService {
       ...(normalizedSection ? { section: normalizedSection } : {}),
     };
 
+    const baseWhere: Prisma.student_enrollmentsWhereInput = {
+      year,
+      student: { available: true }
+    };
+
     if (userOptions.role === "teacher") {
       if (!userOptions.levels || userOptions.levels.length === 0) {
         return {
           data: [],
-          meta: { total: 0, page: normalizedPage, limit: normalizedLimit, totalPages: 0 },
+          meta: { 
+            total: 0, 
+            filtered: 0,
+            page: normalizedPage, 
+            limit: normalizedLimit, 
+            totalPages: 0 
+          },
         };
       }
 
@@ -66,25 +77,46 @@ export class StudentService {
       if (teacherLevels.length === 0) {
         return {
           data: [],
-          meta: { total: 0, page: normalizedPage, limit: normalizedLimit, totalPages: 0 },
+          meta: { 
+            total: 0, 
+            filtered: 0,
+            page: normalizedPage, 
+            limit: normalizedLimit, 
+            totalPages: 0 
+          },
         };
       }
 
+      baseWhere.OR = teacherLevels;
       enrollmentWhere.OR = teacherLevels;
     }
 
     if (normalizedSearch) {
       enrollmentWhere.student = {
-        OR: [
-          { name: { contains: normalizedSearch, mode: "insensitive" } },
-          { father_phone: { contains: normalizedSearch, mode: "insensitive" } },
-          { mother_phone: { contains: normalizedSearch, mode: "insensitive" } },
+        AND: [
+          { available: true },
+          {
+            OR: [
+              { name: { contains: normalizedSearch, mode: "insensitive" } },
+              { father_phone: { contains: normalizedSearch, mode: "insensitive" } },
+              { mother_phone: { contains: normalizedSearch, mode: "insensitive" } },
+            ],
+          },
         ],
+      };
+    } else {
+      enrollmentWhere.student = {
+        available: true,
       };
     }
 
-    const [total, enrollments] = await prisma.$transaction([
-      prisma.student_enrollments.count({ where: enrollmentWhere }),
+    const [total, filtered, enrollments] = await prisma.$transaction([
+      prisma.student_enrollments.count({
+        where: baseWhere,
+      }),
+      prisma.student_enrollments.count({
+        where: enrollmentWhere,
+      }),
       prisma.student_enrollments.findMany({
         where: enrollmentWhere,
         include: { student: true },
@@ -104,12 +136,13 @@ export class StudentService {
       };
     });
 
-    const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+    const totalPages = filtered === 0 ? 0 : Math.ceil(filtered / normalizedLimit);
 
     return {
       data,
       meta: {
         total,
+        filtered,
         page: normalizedPage,
         limit: normalizedLimit,
         totalPages,
