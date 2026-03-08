@@ -31,11 +31,8 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_SECRET_KEY: z.string().optional(),
 
-  // Email Configuration
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.string().optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
+  // Email Configuration (Brevo)
+  BREVO_API_KEY: z.string().optional(),
   FROM_EMAIL: z.string().email().optional(),
 });
 
