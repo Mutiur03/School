@@ -53,3 +53,50 @@ export const teacherLoginSchema = z.object({
 });
 
 export type TeacherLoginData = z.infer<typeof teacherLoginSchema>;
+
+export const teacherPasswordResetRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Enter a valid email address")
+    .refine((email) => {
+      // Additional validation for common email domains and format
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return emailRegex.test(email);
+    }, "Please enter a valid email address"),
+});
+
+export const teacherPasswordResetVerifySchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Enter a valid email address")
+    .refine((email) => {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return emailRegex.test(email);
+    }, "Please enter a valid email address"),
+  
+  code: z
+    .string()
+    .length(6, "Reset code must be exactly 6 digits")
+    .regex(/^\d{6}$/, "Reset code must contain only numbers"),
+  
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(100, "Password must be at most 100 characters")
+    .refine((password) => {
+      // Password strength validation
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasNumbers = /\d/.test(password);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+      
+      return hasUpperCase && hasLowerCase && hasNumbers;
+    }, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
+});
+
+export type TeacherPasswordResetRequestData = z.infer<typeof teacherPasswordResetRequestSchema>;
+export type TeacherPasswordResetVerifyData = z.infer<typeof teacherPasswordResetVerifySchema>;

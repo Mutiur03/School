@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,12 +21,15 @@ function Login() {
   const [email, setEmail] = useState("");
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [resetCode, setResetCode] = useState("");
+  const [resetLoginID, setResetLoginID] = useState("");
+  const [resetCode, setResetCode] = useState(["", "", "", "", "", ""]);
   const [newPassword, setNewPassword] = useState("");
-  const [resetStep, setResetStep] = useState<"request" | "verify">("request");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetStep, setResetStep] = useState<"request" | "verify" | "newPassword">("request");
   const [resetMessage, setResetMessage] = useState("");
   const [resetError, setResetError] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const codeInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
   const role: UserRole = location.pathname.includes("/teacher") ? "teacher" : location.pathname.includes("/student") ? "student" : "admin";
 
   useEffect(() => {
@@ -50,12 +52,18 @@ function Login() {
     setResetMessage("");
 
     try {
-      const response = await axios.post("/api/auth/teacher/password-reset/request", {
-        email: resetEmail,
-      });
+      const endpoint = role === "student" 
+        ? "/api/auth/student/password-reset/request"
+        : "/api/auth/teacher/password-reset/request";
+      
+      const payload = role === "student" 
+        ? { login_id: resetLoginID }
+        : { email: resetEmail };
+
+      const response = await axios.post(endpoint, payload);
 
       if (response.data.success) {
-        setResetMessage(response.data.data?.message || "Reset code sent to your email.");
+        setResetMessage(response.data.data?.message || "Reset code sent to your email/phone.");
         setResetStep("verify");
       } else {
         setResetError(response.data.message || "Failed to send reset code");
@@ -67,18 +75,68 @@ function Login() {
     }
   };
 
-  const handlePasswordResetVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCodeVerify = async () => {
+    const code = resetCode.join("");
+    if (code.length !== 6) {
+      setResetError("Please enter all 6 digits");
+      return;
+    }
+
     setIsResetting(true);
     setResetError("");
     setResetMessage("");
 
     try {
-      const response = await axios.post(`${backend}/api/auth/teacher/password-reset/verify`, {
-        email: resetEmail,
-        code: resetCode,
-        newPassword: newPassword,
-      });
+      const endpoint = role === "student" 
+        ? "/api/auth/student/password-reset/verify"
+        : "/api/auth/teacher/password-reset/verify";
+      
+      const payload = role === "student" 
+        ? { login_id: resetLoginID, code: code, newPassword: "" }
+        : { email: resetEmail, code: code, newPassword: "" };
+
+      const response = await axios.post(endpoint, payload);
+
+      if (response.data.success) {
+        setResetMessage("Code verified successfully! Please set your new password.");
+        setResetStep("newPassword");
+      } else {
+        setResetError(response.data.message || "Invalid verification code");
+      }
+    } catch (error: any) {
+      setResetError(error.response?.data?.message || "Network error. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handlePasswordResetVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      setResetError("Passwords do not match");
+      return;
+    }
+    
+    if (newPassword.length < 8) {
+      setResetError("Password must be at least 8 characters long");
+      return;
+    }
+
+    setIsResetting(true);
+    setResetError("");
+    setResetMessage("");
+
+    try {
+      const endpoint = role === "student" 
+        ? `${backend}/api/auth/student/password-reset/verify`
+        : `${backend}/api/auth/teacher/password-reset/verify`;
+      
+      const payload = role === "student" 
+        ? { login_id: resetLoginID, code: resetCode.join(""), newPassword: newPassword }
+        : { email: resetEmail, code: resetCode.join(""), newPassword: newPassword };
+
+      const response = await axios.post(endpoint, payload);
 
       if (response.data.success) {
         setResetMessage("Password reset successfully! You can now login with your new password.");
@@ -86,8 +144,10 @@ function Login() {
           setShowPasswordReset(false);
           setResetStep("request");
           setResetEmail("");
-          setResetCode("");
+          setResetLoginID("");
+          setResetCode(["", "", "", "", "", "", ""]);
           setNewPassword("");
+          setConfirmPassword("");
         }, 2000);
       } else {
         setResetError(response.data.message || "Failed to reset password");
@@ -96,6 +156,23 @@ function Login() {
       setResetError(error.response?.data?.message || "Network error. Please try again.");
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleCodeChange = (index: number, value: string) => {
+    const newCode = [...resetCode];
+    newCode[index] = value;
+    setResetCode(newCode);
+    
+    // Auto-focus next input
+    if (value && index < 5) {
+      codeInputRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleCodeKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !resetCode[index] && index > 0) {
+      codeInputRefs[index - 1].current?.focus();
     }
   };
 
@@ -144,47 +221,61 @@ function Login() {
                   <form onSubmit={handlePasswordResetRequest} className="space-y-4">
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-popover-foreground">
-                        Email
+                        {role === "student" ? "Login ID" : "Email"}
                       </label>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        required
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                      />
+                      {role === "student" ? (
+                        <Input
+                          type="number"
+                          placeholder="Enter your Login ID"
+                          required
+                          value={resetLoginID}
+                          onChange={(e) => setResetLoginID(e.target.value)}
+                        />
+                      ) : (
+                        <Input
+                          type="email"
+                          placeholder="Enter your email"
+                          required
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                        />
+                      )}
                     </div>
                     <Button type="submit" className="w-full" disabled={isResetting}>
                       {isResetting ? "Sending..." : "Send Reset Code"}
                     </Button>
                   </form>
+                ) : resetStep === "verify" ? (
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        Enter 6-digit verification code
+                      </label>
+                      <div className="flex justify-center space-x-2">
+                        {resetCode.map((digit, index) => (
+                          <Input
+                            key={index}
+                            ref={codeInputRefs[index]}
+                            type="text"
+                            maxLength={1}
+                            className="w-12 h-12 text-center text-lg font-mono"
+                            value={digit}
+                            onChange={(e) => handleCodeChange(index, e.target.value)}
+                            onKeyDown={(e) => handleCodeKeyDown(index, e)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleCodeVerify} 
+                      className="w-full" 
+                      disabled={isResetting || resetCode.join("").length !== 6}
+                    >
+                      {isResetting ? "Verifying..." : "Verify Code"}
+                    </Button>
+                  </div>
                 ) : (
                   <form onSubmit={handlePasswordResetVerify} className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-popover-foreground">
-                        Email
-                      </label>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        required
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-popover-foreground">
-                        6-Digit Code
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter 6-digit code"
-                        required
-                        maxLength={6}
-                        value={resetCode}
-                        onChange={(e) => setResetCode(e.target.value)}
-                      />
-                    </div>
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-popover-foreground">
                         New Password
@@ -196,6 +287,19 @@ function Login() {
                         minLength={8}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-popover-foreground">
+                        Confirm New Password
+                      </label>
+                      <Input
+                        type="password"
+                        placeholder="Confirm new password"
+                        required
+                        minLength={8}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                       />
                     </div>
                     <Button type="submit" className="w-full" disabled={isResetting}>
@@ -211,8 +315,10 @@ function Login() {
                       setShowPasswordReset(false);
                       setResetStep("request");
                       setResetEmail("");
-                      setResetCode("");
+                      setResetLoginID("");
+                      setResetCode(["", "", "", "", "", "", ""]);
                       setNewPassword("");
+                      setConfirmPassword("");
                       setResetMessage("");
                       setResetError("");
                     }}
@@ -291,7 +397,7 @@ function Login() {
                     required
                   />
                 </div>
-                 {!showPasswordReset && location.pathname.includes("/teacher") && (
+                {!showPasswordReset && (location.pathname.includes("/teacher") || location.pathname.includes("/student")) && (
                   <div className="text-center">
                     <button
                       type="button"

@@ -344,3 +344,42 @@ export const classStudentsParamSchema = z.object({
   year: z.coerce.number().int(),
   level: z.coerce.number().int(),
 });
+
+export const studentPasswordResetRequestSchema = z.object({
+  login_id: z
+    .union([z.string(), z.number()])
+    .transform((val) => String(val))
+    .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
+    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
+      message: "Login ID must be a valid number",
+    }),
+});
+
+export const studentPasswordResetVerifySchema = z.object({
+  login_id: z
+    .union([z.string(), z.number()])
+    .transform((val) => String(val))
+    .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
+    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
+      message: "Login ID must be a valid number",
+    }),
+  code: z
+    .string()
+    .length(6, "Reset code must be exactly 6 digits")
+    .regex(/^\d{6}$/, "Reset code must contain only numbers"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(100, "Password must be at most 100 characters")
+    .refine((password) => {
+      // Password strength validation
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasNumbers = /\d/.test(password);
+      
+      return hasUpperCase && hasLowerCase && hasNumbers;
+    }, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
+});
+
+export type StudentPasswordResetRequestData = z.infer<typeof studentPasswordResetRequestSchema>;
+export type StudentPasswordResetVerifyData = z.infer<typeof studentPasswordResetVerifySchema>;
