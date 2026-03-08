@@ -166,7 +166,9 @@ function StudentList() {
   const { data: studentsData, isLoading: loading, error: studentsError } = useQuery({
     queryKey: ["students", year],
     queryFn: async () => {
-      const response = await axios.get(`/api/students/getStudents/${year}`);
+      const response = await axios.get(`/api/students`, {
+        params: { year },
+      });
       return (response.data.data || []).filter(
         (student: Student) => student.class >= 1 && student.class <= 10
       ) as Student[];
@@ -181,8 +183,7 @@ function StudentList() {
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    const { data } = await axios.post("/api/students/get-image-url", {
-      id: studentId,
+    const { data } = await axios.post(`/api/students/${studentId}/image/upload-url`, {
       key,
       contentType: file.type,
     });
@@ -191,7 +192,7 @@ function StudentList() {
       body: file,
       headers: { "Content-Type": file.type },
     });
-    await axios.put(`/api/students/updateStudentImage/${studentId}`, {
+    await axios.put(`/api/students/${studentId}/image`, {
       key: data.key,
     });
   };
@@ -238,7 +239,7 @@ function StudentList() {
 
   const deleteMutation = useMutation({
     mutationFn: (student: Student) =>
-      axios.delete(`/api/students/deleteStudent/${student.id}`),
+      axios.delete(`/api/students/${student.id}`),
     onSuccess: (_, student) => {
       toast.success("Student deleted successfully.");
       setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
@@ -306,7 +307,7 @@ function StudentList() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (studentIds: number[]) =>
-      axios.delete("/api/students/deleteStudentsBulk", { data: { studentIds } }),
+      axios.delete("/api/students", { data: { studentIds } }),
     onSuccess: (response) => {
       toast.success(response.data?.message || "Selected students deleted successfully.");
       setSelectedStudentIds([]);
@@ -320,8 +321,8 @@ function StudentList() {
 
   const bulkRotateMutation = useMutation({
     mutationFn: async (studentIds: number[]) => {
-      const response = await axios.put(
-        "/api/students/rotatePasswordsBulk",
+      const response = await axios.post(
+        "/api/students/password-rotations",
         { studentIds },
         { responseType: "blob" }
       );
@@ -392,13 +393,13 @@ function StudentList() {
       };
 
       if (isEditing && selectedStudent) {
-        await axios.put(`/api/students/updateStudent/${selectedStudent.id}`, basicDeatils);
-        await axios.put(`/api/students/updateacademic/${selectedStudent.enrollment_id}`, academicDetails);
+        await axios.put(`/api/students/${selectedStudent.id}`, basicDeatils);
+        await axios.patch(`/api/enrollments/${selectedStudent.enrollment_id}`, academicDetails);
         if (image) await uploadImageToR2(image, selectedStudent.id);
         return { message: "Student updated successfully." };
       } else {
         const response = await axios.post(
-          "/api/students/addStudents",
+          "/api/students/bulk",
           {
             students: [
               {
@@ -608,7 +609,11 @@ function StudentList() {
 
   const excelMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>[]) => {
-      const response = await axios.post("/api/students/addStudents", { students: data }, { responseType: "blob" });
+      const response = await axios.post(
+        "/api/students/bulk",
+        { students: data },
+        { responseType: "blob" },
+      );
       return response.data;
     },
     onSuccess: (data) => {
@@ -686,7 +691,7 @@ function StudentList() {
 
   const removeImageMutation = useMutation({
     mutationFn: (studentId: number) =>
-      axios.put(`/api/students/updateStudentImage/${studentId}`, { key: null }),
+      axios.put(`/api/students/${studentId}/image`, { key: null }),
     onSuccess: (response) => {
       if (response.data.success) {
         toast.success("Image removed successfully.");

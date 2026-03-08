@@ -1,7 +1,7 @@
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 import generatePassword from "@/utils/pwgenerator.js";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";
@@ -10,10 +10,11 @@ import { ApiError } from "@/utils/ApiError.js";
 import puppeteer from "puppeteer";
 import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
+import type { Prisma } from "@prisma/client";
 
 const current_year = new Date().getFullYear();
 
-export const sanitizeStudent = (student) => {
+export const sanitizeStudent = (student: any) => {
   const { password: _password, ...rest } = student;
   return rest;
 };
@@ -24,8 +25,8 @@ export class StudentService {
     return students.map(sanitizeStudent);
   }
 
-  static async getStudents(year, userOptions = {}) {
-    let result = [];
+  static async getStudents(year: number, userOptions: { role?: string; levels?: Array<{ class_name: number; section: string; year: number }> } = {}) {
+    let result: any[] = [];
     if (userOptions.role === "admin") {
       result = await prisma.students.findMany({
         include: {
@@ -64,9 +65,9 @@ export class StudentService {
       });
     }
 
-    return result.flatMap((student) => {
+    return result.flatMap((student: any) => {
       const studentWithoutPassword = sanitizeStudent(student);
-      return student.enrollments.map((enrollment) => ({
+      return student.enrollments.map((enrollment: any) => ({
         ...enrollment,
         ...studentWithoutPassword,
         id: studentWithoutPassword.id,
@@ -75,7 +76,7 @@ export class StudentService {
     });
   }
 
-  static async getStudentById(studentId) {
+  static async getStudentById(studentId: number | string) {
     const result = await prisma.students.findUnique({
       where: { id: studentId },
       include: {
@@ -100,10 +101,10 @@ export class StudentService {
     };
   }
 
-  static async addStudents(students) {
-    const batchLoginIdMap = {};
-    const usedLoginIds = new Set();
-    const processedStudents = [];
+  static async addStudents(students: any[]) {
+    const batchLoginIdMap: Record<string, number> = {};
+    const usedLoginIds = new Set<number>();
+    const processedStudents: any[] = [];
 
     for (let i = 0; i < students.length; i++) {
       const student = { ...students[i] };
@@ -160,6 +161,11 @@ export class StudentService {
 
       while (usedLoginIds.has(student.login_id) || existingRecord) {
         student.login_id += 1;
+        const existingRecord = await prisma.students.findUnique({
+          where: { login_id: student.login_id },
+          select: { id: true },
+        });
+        if (!existingRecord) break;
       }
 
       usedLoginIds.add(student.login_id);
@@ -168,8 +174,8 @@ export class StudentService {
       processedStudents.push(student);
     }
 
-    const insertedEnrollments = await prisma.$transaction(async (tx) => {
-      const returnEnrollments = [];
+    const insertedEnrollments = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const returnEnrollments: any[] = [];
       for (const student of processedStudents) {
         const insertedStudent = await tx.students.create({
           data: {
@@ -242,7 +248,7 @@ export class StudentService {
     };
   }
 
-  static async updateStudent(id, updates) {
+  static async updateStudent(id: number | string, updates: any) {
     const result = await prisma.students.update({
       where: { id },
       data: updates,
@@ -251,7 +257,7 @@ export class StudentService {
     return sanitizeStudent(result);
   }
 
-  static async deleteStudent(id) {
+  static async deleteStudent(id: number | string) {
     const student = await prisma.students.findUnique({
       where: { id },
     });
@@ -263,9 +269,11 @@ export class StudentService {
     await prisma.students.delete({
       where: { id },
     });
+
+    return { message: "Student deleted successfully" };
   }
 
-  static async deleteStudentsBulk(studentIds) {
+  static async deleteStudentsBulk(studentIds: (number | string)[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },
       select: { id: true, login_id: true },
@@ -276,13 +284,13 @@ export class StudentService {
     }
 
     await prisma.students.deleteMany({
-      where: { id: { in: students.map((s) => s.id) } },
+      where: { id: { in: students.map((s: any) => s.id) } },
     });
 
     return students.length;
   }
 
-  static async rotatePasswordsBulk(studentIds) {
+  static async rotatePasswordsBulk(studentIds: (number | string)[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },
       select: { id: true, login_id: true, name: true, batch: true },
@@ -292,8 +300,8 @@ export class StudentService {
       throw new ApiError(404, "No matching students found");
     }
 
-    const rotatedStudents = [];
-    const processedStudents = [];
+    const rotatedStudents: Array<{ login_id: number; name: string; batch: string; password: string }> = [];
+    const processedStudents: any[] = [];
     for (const student of students) {
       const password = generatePassword();
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -305,7 +313,7 @@ export class StudentService {
     }
 
     await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         for (const student of processedStudents) {
           await tx.students.update({
             where: { id: student.id },
@@ -320,12 +328,9 @@ export class StudentService {
           });
         }
       },
-      // {
-      //   timeout: 20000, // 20 seconds
-      // },
     );
 
-    const excelData = rotatedStudents.map((student) => ({
+    const excelData = rotatedStudents.map((student: { login_id: number; name: string; batch: string; password: string }) => ({
       "Login ID": student.login_id,
       Name: student.name,
       Batch: student.batch,
@@ -356,12 +361,15 @@ export class StudentService {
     return excelBuffer;
   }
 
-  static async updateAcademicInfo(enrollmentId, updates) {
+  static async updateAcademicInfo(enrollmentId: number | string, updates: any) {
+    const parsedEnrollmentId =
+      typeof enrollmentId === "string" ? parseInt(enrollmentId, 10) : enrollmentId;
+
     const classForValidation =
       updates.class ??
       (
         await prisma.student_enrollments.findUnique({
-          where: { id: enrollmentId },
+          where: { id: parsedEnrollmentId },
           select: { class: true },
         })
       )?.class;
@@ -380,9 +388,9 @@ export class StudentService {
       updates.department = null;
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const enrollment = await tx.student_enrollments.update({
-        where: { id: enrollmentId },
+        where: { id: parsedEnrollmentId },
         data: updates,
       });
 
@@ -436,7 +444,7 @@ export class StudentService {
     return result.enrollment;
   }
 
-  static async saveStudentImage(id, key) {
+  static async saveStudentImage(id: number | string, key: string | null) {
     const existingStudent = await prisma.students.findUnique({
       where: { id },
     });
@@ -452,7 +460,7 @@ export class StudentService {
     });
   }
 
-  static async changePassword(studentId, currentPassword, newPassword) {
+  static async changePassword(studentId: number | string, currentPassword: string, newPassword: string) {
     const student = await prisma.students.findUnique({
       where: { id: studentId },
     });
@@ -471,7 +479,7 @@ export class StudentService {
     });
   }
 
-  static async getClassStudents(year, level) {
+  static async getClassStudents(year: number, level: number) {
     const currentYear = new Date().getFullYear();
     if (year < 2000 || year > currentYear + 5) {
       throw new ApiError(
@@ -493,9 +501,9 @@ export class StudentService {
       throw new ApiError(404, "No students found for the specified year");
     }
 
-    return result.flatMap((student) => {
+    return result.flatMap((student: any) => {
       const studentWithoutPassword = sanitizeStudent(student);
-      return student.enrollments.map((enrollment) => ({
+      return student.enrollments.map((enrollment: any) => ({
         ...enrollment,
         ...studentWithoutPassword,
         id: studentWithoutPassword.id,
@@ -504,9 +512,9 @@ export class StudentService {
     });
   }
 
-  static async generateTestimonials(id) {
-    const student = await prisma.students.findUnique({
-      where: { id: parseInt(id) },
+  static async generateTestimonials(id: number | string) {
+    const result = await prisma.students.findUnique({
+      where: { id: typeof id === 'string' ? parseInt(id) : id },
       include: {
         enrollments: {
           orderBy: { year: "desc" },
@@ -515,7 +523,7 @@ export class StudentService {
       },
     });
 
-    if (!student) {
+    if (!result) {
       throw new ApiError(404, "Student not found");
     }
 
@@ -523,23 +531,23 @@ export class StudentService {
       school_name: "Panchbibi Lal Mohammad Pilot Govt. High School",
       school_location: "Panchbibi, Joypurhat",
       school_website: "https://panchbibilal.edu.bd",
-      name: student.name,
-      father_name: student.father_name,
-      mother_name: student.mother_name,
-      roll: student.enrollments[0]?.roll || "N/A",
-      class: student.enrollments[0]?.class || "N/A",
-      section: student.enrollments[0]?.section || "N/A",
-      session: student.enrollments[0]?.year || "N/A",
-      batch: student.batch || "N/A",
+      name: result.name,
+      father_name: result.father_name,
+      mother_name: result.mother_name,
+      roll: result.enrollments[0]?.roll || "N/A",
+      class: result.enrollments[0]?.class || "N/A",
+      section: result.enrollments[0]?.section || "N/A",
+      session: result.enrollments[0]?.year || "N/A",
+      batch: result.batch || "N/A",
     };
 
     return await generatePDF(data);
   }
 }
 
-async function generatePDF(data) {
+async function generatePDF(data: any) {
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
@@ -646,7 +654,7 @@ async function generatePDF(data) {
     </html>
   `;
 
-  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+  await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
 
   const pdfBuffer = await page.pdf({
     format: "A4",
