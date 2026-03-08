@@ -344,7 +344,7 @@ function StudentList() {
     [],
   );
   const sortedUniqueSections = useMemo(
-    () => Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)),
+    () => Array.from({ length: 2 }, (_, i) => String.fromCharCode(65 + i)),
     [],
   );
 
@@ -1214,9 +1214,8 @@ function StudentList() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />
         <StatsCard
-          label="Showing"
-          value={`${students.length} / ${meta?.total ?? 0}`}
-          color="blue"
+          label="Showing Results / Filtered Results"
+          value={`${students.length} / ${meta?.filtered ?? 0}`}
           loading={loading}
         />
         <StatsCard label="With Stipend" value={students.filter(s => s.has_stipend).length} color="emerald" loading={loading} />
