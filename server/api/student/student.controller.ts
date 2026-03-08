@@ -33,7 +33,45 @@ export class StudentController {
       }
 
       const classValue = req.query.class;
-      const level = typeof classValue === "string" ? parseInt(classValue, 10) : undefined;
+      const levelValue = req.query.level;
+      const parsedLevelRaw = typeof classValue === "string"
+        ? parseInt(classValue, 10)
+        : (typeof levelValue === "string" ? parseInt(levelValue, 10) : NaN);
+      const level = Number.isFinite(parsedLevelRaw) ? parsedLevelRaw : undefined;
+
+      const pageValue = req.query.page;
+      const limitValue = req.query.limit;
+      const searchValue = req.query.search;
+      const sectionValue = req.query.section;
+
+      const page = typeof pageValue === "string" ? parseInt(pageValue, 10) : NaN;
+      const limit = typeof limitValue === "string" ? parseInt(limitValue, 10) : NaN;
+      const search = typeof searchValue === "string" ? searchValue : undefined;
+      const section = typeof sectionValue === "string" ? sectionValue : undefined;
+
+      const isPaginatedRequest =
+        (typeof pageValue === "string" && pageValue.trim().length > 0) ||
+        (typeof limitValue === "string" && limitValue.trim().length > 0) ||
+        (typeof searchValue === "string" && searchValue.trim().length > 0) ||
+        (typeof sectionValue === "string" && sectionValue.trim().length > 0);
+
+      if (isPaginatedRequest) {
+        const result = await StudentService.getStudentsPaginated(
+          {
+            year,
+            page,
+            limit,
+            level,
+            section,
+            search,
+          },
+          req.user,
+        );
+        res
+          .status(200)
+          .json(new ApiResponse(200, result, "Students fetched successfully"));
+        return;
+      }
 
       const data = typeof level === "number" && !Number.isNaN(level)
         ? await StudentService.getClassStudents(year, level)
