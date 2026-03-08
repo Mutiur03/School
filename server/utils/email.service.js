@@ -61,6 +61,29 @@ class EmailService {
       return false;
     }
   }
+
+  static async sendEmail({ from, to, subject, body }) {
+    const transporter = this.getTransporter();
+    if (!transporter) {
+      logger.error("Could not send email: Transporter not configured.");
+      return false;
+    }
+
+    try {
+      const info = await transporter.sendMail({
+        from: from || `"School System" <${env.SMTP_USER}>`,
+        to,
+        subject,
+        text: body,
+      });
+
+      logger.info(`Email sent: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error sending email:", error);
+      return false;
+    }
+  }
 }
 
 export default EmailService;

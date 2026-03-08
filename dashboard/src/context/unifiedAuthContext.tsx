@@ -5,6 +5,14 @@ import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
 
+// Extend axios config to support custom flags
+declare module "axios" {
+    interface AxiosRequestConfig {
+        _skipAuthRefresh?: boolean;
+        _retry?: boolean;
+    }
+}
+
 export type UserRole = "admin" | "teacher" | "student";
 
 interface Level {
@@ -130,7 +138,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
-                if (error.response?.status === 401 && !originalRequest._retry) {
+                // Skip refresh logic if flagged or if already retried
+                if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh) {
                     originalRequest._retry = true;
                     try {
                         const { data } = await axios.post("/api/auth/sessions/refresh");
@@ -167,7 +176,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(true);
         try {
             // Try to refresh token first to check if session exists
-            const refreshRes = await axios.post("/api/auth/sessions/refresh");
+            // Use direct axios call to avoid interceptor recursion
+            const refreshRes = await axios.post("/api/auth/sessions/refresh", {}, {
+                _skipAuthRefresh: true // Flag to bypass interceptor refresh
+            });
 
             const accessToken = refreshRes.data?.data?.accessToken;
             const userData = refreshRes.data?.data?.user;
