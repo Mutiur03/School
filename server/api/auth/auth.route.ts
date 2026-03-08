@@ -6,7 +6,11 @@ import {
   adminLoginSchema,
   addAdminSchema,
   teacherLoginSchema,
+  teacherPasswordResetRequestSchema,
+  teacherPasswordResetVerifySchema,
   studentLoginSchema,
+  studentPasswordResetRequestSchema,
+  studentPasswordResetVerifySchema,
 } from "@school/shared-schemas";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import rateLimit from "express-rate-limit";
@@ -65,12 +69,28 @@ const passwordResetLimiter = rateLimit({
 router.post(
   "/teacher/password-reset/request",
   passwordResetLimiter,
+  validate(teacherPasswordResetRequestSchema),
   AuthController.requestTeacherPasswordReset,
 );
 router.post(
   "/teacher/password-reset/verify",
   passwordResetLimiter,
+  validate(teacherPasswordResetVerifySchema),
   AuthController.verifyTeacherPasswordReset,
+);
+
+// Student password reset endpoints
+router.post(
+  "/student/password-reset/request",
+  passwordResetLimiter,
+  validate(studentPasswordResetRequestSchema),
+  AuthController.requestStudentPasswordReset,
+);
+router.post(
+  "/student/password-reset/verify",
+  passwordResetLimiter,
+  validate(studentPasswordResetVerifySchema),
+  AuthController.verifyStudentPasswordReset,
 );
 
 const authRouter = express.Router();
