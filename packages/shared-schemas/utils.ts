@@ -1,6 +1,8 @@
+// Removes leading zeros (e.g. "0012" -> "12").
 export const removeInitialZeros = (str: string) => str.replace(/^0+/, "");
 
-export const parseDob = (value: string) => {
+// Parses a date-of-birth string into a valid Date (supports yyyy-mm-dd and dd/mm/yyyy variants). Returns null if invalid.
+export const parseDateOfBirth = (value: string) => {
   const raw = value.trim();
   if (!raw) return null;
 
@@ -44,40 +46,55 @@ export const parseDob = (value: string) => {
   return Number.isNaN(fallback.getTime()) ? null : fallback;
 };
 
-export const isValidDob = (value: string) => {
-  const dobDate = parseDob(value);
+export const parseDob = parseDateOfBirth;
+
+// Validates DOB: must be a valid date, not in the future, and year must be >= 1980.
+export const isValidDateOfBirth = (value: string) => {
+  const dobDate = parseDateOfBirth(value);
   if (!dobDate) return false;
   const today = new Date();
   return dobDate <= today && dobDate.getFullYear() >= 1980;
 };
 
-export const toIsoDate = (date: Date) => {
+export const isValidDob = isValidDateOfBirth;
+
+// Converts a Date object to an ISO date string: "YYYY-MM-DD".
+export const toIsoDateString = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
+export const toIsoDate = toIsoDateString;
+
+// Normalizes any value into a trimmed single-spaced string.
 export const normalizeText = (value: unknown) =>
   String(value || "")
     .replace(/\s+/g, " ")
     .trim();
 
+// Same as normalizeText, but returns null for null/undefined/empty-after-trim values.
 export const normalizeOptionalText = (value: unknown) => {
   if (value === undefined || value === null) return null;
   const normalized = normalizeText(value);
   return normalized.length ? normalized : null;
 };
 
-export const normalizeDob = (value: unknown) => {
+// Normalizes a DOB input: returns ISO date (YYYY-MM-DD) if parseable, otherwise returns the original trimmed string.
+export const normalizeDateOfBirth = (value: unknown) => {
   const raw = String(value || "").trim();
-  const parsed = parseDob(raw);
-  return parsed ? toIsoDate(parsed) : raw;
+  const parsed = parseDateOfBirth(raw);
+  return parsed ? toIsoDateString(parsed) : raw;
 };
 
+export const normalizeDob = normalizeDateOfBirth;
+
+// Converts an Excel cell value to a trimmed string, returning "" for null/undefined.
 export const toExcelString = (value: unknown) =>
   value == null ? "" : String(value).trim();
 
+// Normalizes an Excel date cell into ISO date (YYYY-MM-DD). Supports Excel numeric dates and common text date formats.
 export const normalizeExcelDate = (value: unknown) => {
   if (value == null || value === "") return "";
 
@@ -125,7 +142,8 @@ export const normalizeExcelDate = (value: unknown) => {
   return raw;
 };
 
-export const formatDobForDateInput = (value: string | null | undefined) => {
+// Converts a DOB string into a value suitable for an <input type="date" /> (YYYY-MM-DD). Returns "" if not convertible.
+export const toDateInputIsoValue = (value: string | null | undefined) => {
   if (!value) return "";
   const raw = String(value).split("T")[0].trim();
 
@@ -140,3 +158,5 @@ export const formatDobForDateInput = (value: string | null | undefined) => {
 
   return "";
 };
+
+export const formatDobForDateInput = toDateInputIsoValue;

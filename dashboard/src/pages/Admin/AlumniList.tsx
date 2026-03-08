@@ -22,7 +22,7 @@ function AlumniList() {
     const getStudentList = async () => {
       try {
         const response = await axios.get("/api/students/alumni");
-        setStudents(response.data || []);
+        setStudents(response.data.data || []);
       } catch (error) {
         console.error("Error fetching students:", error);
       }
@@ -31,7 +31,7 @@ function AlumniList() {
   }, []);
 
   const currentYear = new Date().getFullYear();
-  const alumniStudents = students.filter((student) => student.batch < currentYear);
+  const alumniStudents = students?.filter((student) => student.batch < currentYear);
 
   const filteredStudents = alumniStudents
     .filter(

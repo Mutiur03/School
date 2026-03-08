@@ -1,8 +1,6 @@
 import { z } from "zod";
 import {
   isValidDob,
-  parseDob,
-  toIsoDate,
   normalizeText,
   normalizeOptionalText,
   normalizeDob,
@@ -162,6 +160,8 @@ export const addStudentInputSchema = z
       ),
     mother_phone: z
       .any()
+      .optional()
+      .transform(normalizeOptionalText)
       .refine((value) => value === null || PHONE_NUMBER.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
@@ -277,6 +277,8 @@ export const updateStudentSchema = z
       ),
     mother_phone: z
       .any()
+      .optional()
+      .transform(normalizeOptionalText)
       .refine((value) => value === null || PHONE_NUMBER.test(value), {
         message: "Invalid mother phone",
       }),

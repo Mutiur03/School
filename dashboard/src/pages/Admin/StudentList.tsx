@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,32 +22,96 @@ import {
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/ErrorMessage";
 import { getFileUrl } from "@/lib/backend";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Student } from "@/types/students";
+import { useStudents } from "@/queries/students.queries";
 
-interface Student {
-  id: number;
-  login_id: number;
-  name: string;
-  father_name: string;
-  mother_name: string;
-  father_phone?: string;
-  mother_phone?: string;
-  village?: string;
-  post_office?: string;
-  upazila?: string;
-  district?: string;
-  roll: number;
-  section: string;
-  dob: string;
-  class: number;
-  department: string;
-  has_stipend: boolean;
-  available: boolean;
-  image?: string;
-  enrollment_id: number;
-}
+
 
 type StudentFormData = StudentFormSchemaData;
+
+const StudentRow = React.memo(
+  ({
+    student,
+    isSelected,
+    onToggleSelect,
+    onImageUpload,
+    onEdit,
+    onView,
+    onDelete,
+  }: {
+    student: Student;
+    isSelected: boolean;
+    onToggleSelect: (studentId: number) => void;
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, student: Student) => void;
+    onEdit: (student: Student) => void;
+    onView: (student: Student) => void;
+    onDelete: (student: Student) => void;
+  }) => {
+    return (
+      <tr key={student.id} className={isSelected ? "bg-muted/20" : ""}>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(student.id)}
+            aria-label={`Select ${student.name}`}
+            className="h-4 w-4"
+          />
+        </td>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-3 whitespace-nowrap text-sm font-medium">
+          {student.image ? (
+            <img
+              src={getFileUrl(student.image)}
+              alt="Student"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+              {student.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {student.name}
+        </td>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+          {student.roll}
+        </td>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+          {student.class}
+        </td>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+          {student.section}
+        </td>
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+          {student.department || ""}
+        </td>
+
+        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
+          <div className="flex justify-end flex-wrap gap-1.5">
+            <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
+            <input
+              type="file"
+              id={`file-upload-${student.id}`}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onImageUpload(e, student)}
+            />
+            <ActionButton action="view" onClick={() => onView(student)} />
+            <ActionButton action="edit" onClick={() => onEdit(student)} />
+            <DeleteConfirmation
+              onDelete={() => onDelete(student)}
+              msg={`Are you sure you want to delete ${student.name}?`}
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  },
+  (prev, next) =>
+    prev.isSelected === next.isSelected &&
+    prev.student === next.student &&
+    prev.onToggleSelect === next.onToggleSelect,
+);
 
 const defaultFormValues: StudentFormData = {
   name: "",
@@ -99,12 +163,13 @@ const demoExcelColumns = [
 
 function StudentList() {
   const queryClient = useQueryClient();
-  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(() => new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
   const currentYear = new Date().getFullYear();
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [popup, setPopup] = useState<{
     visible: boolean;
     type: string;
@@ -163,17 +228,7 @@ function StudentList() {
   const invalidateStudents = () =>
     queryClient.invalidateQueries({ queryKey: ["students", year] });
 
-  const { data: studentsData, isLoading: loading, error: studentsError } = useQuery({
-    queryKey: ["students", year],
-    queryFn: async () => {
-      const response = await axios.get(`/api/students`, {
-        params: { year },
-      });
-      return (response.data.data || []).filter(
-        (student: Student) => student.class >= 1 && student.class <= 10
-      ) as Student[];
-    },
-  });
+  const { data: studentsData, isLoading: loading, error: studentsError } = useStudents(year);
   const students = useMemo(() => studentsData ?? [], [studentsData]);
   const errorMessage = studentsError
     ? ((studentsError as { response?: { status?: number } }).response?.status === 404
@@ -183,17 +238,30 @@ function StudentList() {
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    const { data } = await axios.post(`/api/students/${studentId}/image/upload-url`, {
+    const response = await axios.post(`/api/students/${studentId}/image/upload-url`, {
       key,
       contentType: file.type,
     });
-    await fetch(data.uploadUrl, {
+
+    const uploadUrl = response.data?.data?.uploadUrl as string | undefined;
+    const r2Key = response.data?.data?.key as string | undefined;
+
+    if (!uploadUrl || !r2Key) {
+      throw new Error("Failed to get upload URL");
+    }
+
+    const putResult = await fetch(uploadUrl, {
       method: "PUT",
       body: file,
       headers: { "Content-Type": file.type },
     });
+
+    if (!putResult.ok) {
+      throw new Error("Failed to upload image");
+    }
+
     await axios.put(`/api/students/${studentId}/image`, {
-      key: data.key,
+      key: r2Key,
     });
   };
 
@@ -242,7 +310,11 @@ function StudentList() {
       axios.delete(`/api/students/${student.id}`),
     onSuccess: (_, student) => {
       toast.success("Student deleted successfully.");
-      setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(student.id);
+        return next;
+      });
       invalidateStudents();
     },
     onError: () => toast.error("Failed to delete student. Please try again."),
@@ -253,56 +325,100 @@ function StudentList() {
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
 
-  const filteredStudents = students
-    .filter((student) =>
-      searchQuery
-        ? student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.father_phone?.toString().includes(searchQuery) ||
-        student.mother_phone?.toString().includes(searchQuery)
-        : true
-    )
-    .filter((student) =>
-      classFilter ? student.class === Number(classFilter) : true
-    )
-    .filter((student) =>
-      sectionFilter ? student.section === sectionFilter : true
-    )
-    .sort((a, b) => a.roll - b.roll)
-    .sort((a, b) => a.section.localeCompare(b.section))
-    .sort((a, b) => a.class - b.class);
+  const sortedStudents = useMemo(() => {
+    const list = [...students];
+    list.sort((a, b) => {
+      if (a.class !== b.class) return a.class - b.class;
+      const sectionCmp = a.section.localeCompare(b.section);
+      if (sectionCmp !== 0) return sectionCmp;
+      return a.roll - b.roll;
+    });
+    return list;
+  }, [students]);
 
-  const uniqueClasses = [...new Set(students.map((student) => student.class))];
-  const uniqueSections = [
-    ...new Set(students.map((student) => student.section)),
-  ];
+  const filteredStudents = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    const classValue = classFilter ? Number(classFilter) : null;
+    const sectionValue = sectionFilter || null;
 
-  const visibleStudentIds = filteredStudents.map((student) => student.id);
-  const hasSelectedStudents = selectedStudentIds.length > 0;
-  const selectedVisibleCount = selectedStudentIds.filter((id) =>
-    visibleStudentIds.includes(id)
-  ).length;
+    return sortedStudents
+      .filter((student) => {
+        if (!q) return true;
+        return (
+          student.name.toLowerCase().includes(q) ||
+          student.father_phone?.toString().includes(q) ||
+          student.mother_phone?.toString().includes(q)
+        );
+      })
+      .filter((student) => (classValue ? student.class === classValue : true))
+      .filter((student) => (sectionValue ? student.section === sectionValue : true));
+  }, [sortedStudents, deferredSearchQuery, classFilter, sectionFilter]);
+
+  const uniqueClasses = useMemo(
+    () => [...new Set(students.map((student) => student.class))],
+    [students],
+  );
+  const sortedUniqueClasses = useMemo(() => {
+    const list = [...uniqueClasses];
+    list.sort((a, b) => a - b);
+    return list;
+  }, [uniqueClasses]);
+  const uniqueSections = useMemo(
+    () => [...new Set(students.map((student) => student.section))],
+    [students],
+  );
+  const sortedUniqueSections = useMemo(() => {
+    const list = [...uniqueSections];
+    list.sort();
+    return list;
+  }, [uniqueSections]);
+  const visibleStudentIds = useMemo(() => filteredStudents.map((student) => student.id), [filteredStudents]);
+  const visibleStudentIdSet = useMemo(() => new Set(visibleStudentIds), [visibleStudentIds]);
+
+  const hasSelectedStudents = selectedStudentIds.size > 0;
+  const selectedVisibleCount = useMemo(() => {
+    let count = 0;
+    selectedStudentIds.forEach((id) => {
+      if (visibleStudentIdSet.has(id)) count += 1;
+    });
+    return count;
+  }, [selectedStudentIds, visibleStudentIdSet]);
+
   const allVisibleSelected =
     visibleStudentIds.length > 0 && selectedVisibleCount === visibleStudentIds.length;
 
-  const handleRowSelect = (studentId: number) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(studentId)
-        ? prev.filter((id) => id !== studentId)
-        : [...prev, studentId]
-    );
-  };
+  const onToggleSelect = useCallback((studentId: number) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }, []);
+
+  const onViewStudent = useCallback((student: Student) => {
+    setPopup({
+      visible: true,
+      type: "view",
+      student,
+    });
+  }, []);
 
   const handleSelectAllVisible = () => {
     if (allVisibleSelected) {
-      setSelectedStudentIds((prev) =>
-        prev.filter((id) => !visibleStudentIds.includes(id))
-      );
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        visibleStudentIdSet.forEach((id) => next.delete(id));
+        return next;
+      });
       return;
     }
 
-    setSelectedStudentIds((prev) => [
-      ...new Set([...prev, ...visibleStudentIds]),
-    ]);
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      visibleStudentIdSet.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   const bulkDeleteMutation = useMutation({
@@ -310,7 +426,7 @@ function StudentList() {
       axios.delete("/api/students", { data: { studentIds } }),
     onSuccess: (response) => {
       toast.success(response.data?.message || "Selected students deleted successfully.");
-      setSelectedStudentIds([]);
+      setSelectedStudentIds(new Set());
       invalidateStudents();
     },
     onError: (error) => {
@@ -337,7 +453,7 @@ function StudentList() {
       link.click();
       link.remove();
       toast.success("Passwords rotated successfully. Excel downloaded.");
-      setSelectedStudentIds([]);
+      setSelectedStudentIds(new Set());
       invalidateStudents();
     },
     onError: (error) => {
@@ -347,7 +463,7 @@ function StudentList() {
   });
 
   const handleBulkDelete = () => {
-    if (selectedStudentIds.length === 0) {
+    if (selectedStudentIds.size === 0) {
       toast.error("Please select at least one student.");
       return;
     }
@@ -355,9 +471,14 @@ function StudentList() {
   };
 
   useEffect(() => {
-    setSelectedStudentIds((prev) =>
-      prev.filter((id) => students.some((student) => student.id === id))
-    );
+    setSelectedStudentIds((prev) => {
+      const existing = new Set(students.map((student) => student.id));
+      const next = new Set<number>();
+      prev.forEach((id) => {
+        if (existing.has(id)) next.add(id);
+      });
+      return next;
+    });
   }, [students]);
 
   const formMutation = useMutation({
@@ -371,12 +492,14 @@ function StudentList() {
       const classNumber = Number(parsedValues.class);
       const requiresDepartment = classNumber === 9 || classNumber === 10;
 
-      const basicDeatils: Record<string, string | boolean> = {
+      const basicDeatils: Record<string, string | boolean | null> = {
         name: parsedValues.name || "",
         father_name: parsedValues.father_name || "",
         mother_name: parsedValues.mother_name || "",
         father_phone: parsedValues.father_phone || "",
-        mother_phone: parsedValues.mother_phone || "",
+        mother_phone: parsedValues.mother_phone?.trim()
+          ? parsedValues.mother_phone
+          : null,
         village: parsedValues.village || "",
         post_office: parsedValues.post_office || "",
         upazila: parsedValues.upazila || "",
@@ -491,7 +614,7 @@ function StudentList() {
           father_name: toExcelString(student.father_name),
           mother_name: toExcelString(student.mother_name),
           father_phone: toExcelString(student.father_phone),
-          mother_phone: toExcelString(student.mother_phone),
+          mother_phone: toExcelString(student.mother_phone) || null,
           village: toExcelString(student.village),
           post_office: toExcelString(student.post_office),
           upazila: toExcelString(student.upazila),
@@ -1145,7 +1268,7 @@ function StudentList() {
               onChange={(e) => setClassFilter(e.target.value)}
             >
               <option value="">All Classes</option>
-              {uniqueClasses.map((classNum) => (
+              {sortedUniqueClasses.map((classNum: number) => (
                 <option key={classNum} value={classNum}>
                   Class {classNum}
                 </option>
@@ -1160,7 +1283,7 @@ function StudentList() {
               onChange={(e) => setSectionFilter(e.target.value)}
             >
               <option value="">All Sections</option>
-              {uniqueSections.map((section) => (
+              {sortedUniqueSections.map((section: string) => (
                 <option key={section} value={section}>
                   Section {section}
                 </option>
@@ -1187,7 +1310,7 @@ function StudentList() {
         {hasSelectedStudents && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/10 border-b border-red-200 dark:border-red-900/20">
             <p className="text-sm font-medium text-red-700 dark:text-red-400">
-              {selectedStudentIds.length} student(s) selected
+              {selectedStudentIds.size} student(s) selected
             </p>
             <Button
               type="button"
@@ -1196,7 +1319,9 @@ function StudentList() {
               disabled={bulkRotateMutation.isPending}
               className="w-full sm:w-auto"
             >
-              {bulkRotateMutation.isPending ? "Rotating..." : `Rotate ${selectedStudentIds.length} Passwords`}
+              {bulkRotateMutation.isPending
+                ? "Rotating..."
+                : `Rotate ${selectedStudentIds.size} Passwords`}
             </Button>
             <Button
               type="button"
@@ -1205,22 +1330,30 @@ function StudentList() {
               disabled={bulkDeleteMutation.isPending}
               className="w-full sm:w-auto"
             >
-              {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedStudentIds.length} Selected`}
+              {bulkDeleteMutation.isPending
+                ? "Deleting..."
+                : `Delete ${selectedStudentIds.size} Selected`}
             </Button>
             <ConfirmationPopup
               open={bulkDeleteOpen}
               onOpenChange={setBulkDeleteOpen}
-              onConfirm={() => { setBulkDeleteOpen(false); bulkDeleteMutation.mutate(selectedStudentIds); }}
+              onConfirm={() => {
+                setBulkDeleteOpen(false);
+                bulkDeleteMutation.mutate(Array.from(selectedStudentIds));
+              }}
               confirmLabel="Confirm Delete"
-              msg={`This will permanently delete ${selectedStudentIds.length} selected student(s). This action cannot be undone.`}
+              msg={`This will permanently delete ${selectedStudentIds.size} selected student(s). This action cannot be undone.`}
             />
             <ConfirmationPopup
               open={bulkRotateOpen}
               onOpenChange={setBulkRotateOpen}
-              onConfirm={() => { setBulkRotateOpen(false); bulkRotateMutation.mutate(selectedStudentIds); }}
+              onConfirm={() => {
+                setBulkRotateOpen(false);
+                bulkRotateMutation.mutate(Array.from(selectedStudentIds));
+              }}
               confirmLabel="Rotate Passwords"
               variant="default"
-              msg={`This will regenerate new passwords for ${selectedStudentIds.length} selected student(s). An Excel file with new credentials will be downloaded. This action cannot be undone.`}
+              msg={`This will regenerate new passwords for ${selectedStudentIds.size} selected student(s). An Excel file with new credentials will be downloaded. This action cannot be undone.`}
             />
           </div>
         )}
@@ -1263,83 +1396,16 @@ function StudentList() {
                 </tr>
               ) : filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
-                  <tr
+                  <StudentRow
                     key={student.id}
-                    className={selectedStudentIds.includes(student.id) ? "bg-muted/20" : ""}
-                  >
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudentIds.includes(student.id)}
-                        onChange={() => handleRowSelect(student.id)}
-                        aria-label={`Select ${student.name}`}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-3 whitespace-nowrap text-sm font-medium">
-                      {student.image ? (
-                        <img
-                          src={getFileUrl(student.image)}
-                          alt="Student"
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
-                          {student.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      {student.name}
-                    </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                      {student.roll}
-                    </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                      {student.class}
-                    </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                      {student.section}
-                    </td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-                      {student.department || ""}
-                    </td>
-
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
-                      <div className="flex justify-end flex-wrap gap-1.5">
-                        <ActionButton
-                          action="photo"
-                          asLabel
-                          htmlFor={`file-upload-${student.id}`}
-                        />
-                        <input
-                          type="file"
-                          id={`file-upload-${student.id}`}
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) =>
-                            handleIndivisualImageUpload(e, student)
-                          }
-                        />
-                        <ActionButton
-                          action="view"
-                          onClick={() =>
-                            setPopup({
-                              visible: true,
-                              type: "view",
-                              student,
-                            })
-                          }
-                        />
-                        <ActionButton
-                          action="edit"
-                          onClick={() => handleEdit(student)}
-                        />
-                        <DeleteConfirmation
-                          onDelete={() => handleDelete(student)}
-                          msg={`Are you sure you want to delete ${student.name}?`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
+                    student={student}
+                    isSelected={selectedStudentIds.has(student.id)}
+                    onToggleSelect={onToggleSelect}
+                    onImageUpload={handleIndivisualImageUpload}
+                    onView={onViewStudent}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ))
               ) : (
                 <tr>
