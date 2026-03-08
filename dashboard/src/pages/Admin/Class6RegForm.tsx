@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react";
 import axios, { isAxiosError } from "axios";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
@@ -17,11 +17,13 @@ import {
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup, Loading } from "@/components";
+import { keepPreviousData } from "@tanstack/react-query";
+import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup } from "@/components";
 import type { TabItem } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import ActionButton from "@/components/ActionButton";
 import { formatDateWithTime } from "@/lib/utils";
 import type { Class6RegistrationRecord } from "@school/shared-schemas";
@@ -82,6 +84,9 @@ const Class6RegForm = () => {
         year: new Date().getFullYear().toString(),
         search: ""
     });
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(50);
+    const deferredFilters = useDeferredValue(filters);
     const [showDetails, setShowDetails] = useState(false);
     const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -115,57 +120,57 @@ const Class6RegForm = () => {
         }
     }, [settingsData]);
 
-    const { data: registrationsData, isLoading: registrationsLoading } = useQuery({
-        queryKey: ["class6Registrations", filters.year],
+    const { data: registrationsResponse, isLoading: registrationsLoading, error: registrationsError } = useQuery({
+        queryKey: ["class6Registrations", { page, limit, ...deferredFilters }],
         queryFn: async () => {
             const res = await axios.get(`/api/reg/class-6/form`, {
-                params: { class6_year: filters.year }
+                params: { 
+                    page, 
+                    limit, 
+                    class6_year: deferredFilters.year,
+                    status: deferredFilters.status,
+                    section: deferredFilters.section,
+                    search: deferredFilters.search.trim() || undefined
+                }
             });
             return res.data.success ? res.data.data : [];
         },
-        staleTime: 30000,
+        placeholderData: keepPreviousData,
+        staleTime: 2 * 60 * 1000, // 2 minutes
         refetchOnWindowFocus: true,
     });
 
-    const registrations = useMemo(() => {
-        let data: Registration[] = registrationsData || [];
-        if (filters.status !== "all") {
-            data = data.filter(r => r.status === filters.status);
-        }
-        if (filters.section) {
-            data = data.filter(r => r.section === filters.section);
-        }
-        if (filters.search) {
-            const searchLower = filters.search.toLowerCase();
-            data = data.filter((reg: Registration) =>
-                reg.student_name_bn?.toLowerCase().includes(searchLower) ||
-                reg.student_name_en?.toLowerCase().includes(searchLower) ||
-                reg.roll?.toString().includes(searchLower) ||
-                reg.birth_reg_no?.toLowerCase().includes(searchLower)
-            );
-        }
+    const registrations = useMemo(() => registrationsResponse?.data ?? [], [registrationsResponse]);
+    const meta = registrationsResponse?.meta;
 
-        return data;
-    }, [registrationsData, filters.status, filters.section, filters.search]);
+    const errorMessage = registrationsError
+        ? ((registrationsError as { response?: { status?: number } }).response?.status === 404
+            ? "No registrations found."
+            : "An error occurred while fetching registrations.")
+        : "";
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [deferredFilters]);
 
     const stats = useMemo(() => {
-        const allData: Registration[] = registrationsData || [];
         const filteredData: Registration[] = registrations || [];
         return {
             total: {
                 filtered: filteredData.length,
-                all: allData.length,
+                all: meta?.total ?? 0,
             },
             pending: {
                 filtered: filteredData.filter((r: Registration) => r.status === "pending").length,
-                all: allData.filter((r: Registration) => r.status === "pending").length,
+                all: 0, // Backend doesn't provide this without pagination
             },
             approved: {
                 filtered: filteredData.filter((r: Registration) => r.status === "approved").length,
-                all: allData.filter((r: Registration) => r.status === "approved").length,
+                all: 0, // Backend doesn't provide this without pagination
             }
         };
-    }, [registrationsData, registrations]);
+    }, [registrations, meta]);
 
     const renderCount = (filtered: number, total: number) => {
         if (filtered === total) return total;
@@ -248,26 +253,25 @@ const Class6RegForm = () => {
         }
     });
 
-    const handleSettingsSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSettingsSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         settingsMutation.mutate(settingsForm);
-    };
+    }, [settingsMutation, settingsForm]);
 
-    const handleStatusUpdate = async (id: string, status: string) => {
+    const handleStatusUpdate = useCallback((id: string, status: string) => {
         statusMutation.mutate({ id, status });
-    };
+    }, [statusMutation]);
 
-    const handleDeleteDetails = async (id: string) => {
-        // if (!window.confirm("Are you sure you want to delete this registration?")) return;
+    const handleDeleteDetails = useCallback((id: string) => {
         deleteMutation.mutate(id);
-    };
+    }, [deleteMutation]);
 
-    const handlePreviewPDF = (id: string) => {
+    const handlePreviewPDF = useCallback((id: string) => {
         const previewUrl = `/preview/class6/${id}`;
         window.open(previewUrl, "_blank", "noopener,noreferrer");
-    };
+    }, []);
 
-    const handleExport = async (type: "sheet" | "photos") => {
+    const handleExport = useCallback(async (type: "sheet" | "photos") => {
         const { status, section, year } = filters;
         const endpoint = type === "sheet" ? "export" : "export-photos";
         const url = `/api/reg/class-6/form/${endpoint}?status=${status}&section=${section}&class6_year=${year}`;
@@ -307,7 +311,11 @@ const Class6RegForm = () => {
                 }
             }
         }
-    };
+    }, [filters]);
+
+    const handleFilterChange = useCallback((key: string, value: string) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    }, [setFilters]);
 
     // StatusBadge is now handled by the <StatusBadge> component from @/components
 
@@ -504,7 +512,7 @@ const Class6RegForm = () => {
                                     <Input
                                         type="text"
                                         value={filters.search}
-                                        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                                        onChange={(e) => handleFilterChange("search", e.target.value)}
                                         placeholder="Search by name, roll, birth reg..."
                                         className="pl-10"
                                     />
@@ -514,7 +522,7 @@ const Class6RegForm = () => {
                                 <label className="block text-sm font-medium mb-1">Status</label>
                                 <select
                                     value={filters.status}
-                                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                                    onChange={(e) => handleFilterChange("status", e.target.value)}
                                     className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="all">All Status</option>
@@ -526,7 +534,7 @@ const Class6RegForm = () => {
                                 <label className="block text-sm font-medium mb-1">Section</label>
                                 <select
                                     value={filters.section}
-                                    onChange={(e) => setFilters({ ...filters, section: e.target.value })}
+                                    onChange={(e) => handleFilterChange("section", e.target.value)}
                                     className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="">All Sections</option>
@@ -538,7 +546,7 @@ const Class6RegForm = () => {
                                 <label className="block text-sm font-medium mb-1">Academic Year</label>
                                 <select
                                     value={filters.year}
-                                    onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+                                    onChange={(e) => handleFilterChange("year", e.target.value)}
                                     className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     {(() => {
@@ -593,15 +601,20 @@ const Class6RegForm = () => {
                                     {registrationsLoading ? (
                                         <tr>
                                             <td colSpan={6} className="py-12 text-center">
-                                                <Loading />
+                                                <div className="flex flex-col justify-center items-center gap-2">
+                                                    <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading registrations...</p>
+                                                </div>
                                             </td>
                                         </tr>
                                     ) : registrations.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="py-12 text-center text-gray-500">No registrations found</td>
+                                            <td colSpan={6} className="py-12 text-center text-gray-500">
+                                                {errorMessage || "No registrations found"}
+                                            </td>
                                         </tr>
                                     ) : (
-                                        registrations.map((reg) => (
+                                        registrations.map((reg: Registration) => (
                                             <tr key={reg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
@@ -656,6 +669,86 @@ const Class6RegForm = () => {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </SectionCard>
+
+                    <SectionCard className="mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="text-sm text-muted-foreground">
+                                Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Rows</span>
+                                    <select
+                                        className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        value={limit}
+                                        onChange={(e) => {
+                                            setLimit(Number(e.target.value));
+                                            setPage(1);
+                                        }}
+                                    >
+                                        {[ 50, 100,200].map((v) => (
+                                            <option key={v} value={v}>
+                                                {v}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {(() => {
+                                    const totalPages = meta?.totalPages ?? 0;
+                                    const currentPage = page;
+                                    const maxVisible = 7;
+                                    if (totalPages <= maxVisible) {
+                                        return Array.from({ length: totalPages }, (_, i) => (
+                                            <Button
+                                                key={i}
+                                                type="button"
+                                                variant={i + 1 === currentPage ? "default" : "outline"}
+                                                onClick={() => setPage(i + 1)}
+                                                disabled={registrationsLoading}
+                                            >
+                                                {i + 1}
+                                            </Button>
+                                        ));
+                                    }
+                                    const pages: (number | string)[] = [];
+                                    const half = Math.floor(maxVisible / 2);
+                                    let start = Math.max(1, currentPage - half);
+                                    let end = Math.min(totalPages, start + maxVisible - 1);
+                                    if (end - start < maxVisible - 1) {
+                                        start = Math.max(1, end - maxVisible + 1);
+                                    }
+                                    if (start > 1) {
+                                        pages.push(1);
+                                        if (start > 2) pages.push("...");
+                                    }
+                                    for (let i = start; i <= end; i++) {
+                                        pages.push(i);
+                                    }
+                                    if (end < totalPages) {
+                                        if (end < totalPages - 1) pages.push("...");
+                                        pages.push(totalPages);
+                                    }
+                                    return pages.map((p, idx) =>
+                                        p === "..." ? (
+                                            <span key={idx} className="px-2 text-muted-foreground">
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <Button
+                                                key={idx}
+                                                type="button"
+                                                variant={p === currentPage ? "default" : "outline"}
+                                                onClick={() => setPage(p as number)}
+                                                disabled={registrationsLoading}
+                                            >
+                                                {p}
+                                            </Button>
+                                        )
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </SectionCard>
                 </div>

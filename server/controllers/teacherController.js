@@ -89,8 +89,71 @@ export const addTeacher = async (req, res) => {
   }
 };
 
-export const getTeachers = async (_, res) => {
+export const getTeachers = async (req, res) => {
   try {
+    const { page, limit, search } = req.query;
+    
+    // Check if this is a paginated request
+    const isPaginatedRequest = 
+      (typeof page === "string" && page.trim().length > 0) ||
+      (typeof limit === "string" && limit.trim().length > 0) ||
+      (typeof search === "string" && search.trim().length > 0);
+
+    if (isPaginatedRequest) {
+      // Parse pagination parameters
+      const pageNum = typeof page === "string" ? parseInt(page, 10) : NaN;
+      const limitNum = typeof limit === "string" ? parseInt(limit, 10) : NaN;
+      const searchQuery = typeof search === "string" ? search.trim() : undefined;
+
+      const normalizedPage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+      const normalizedLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(Math.floor(limitNum), 200) : 20;
+      const skip = (normalizedPage - 1) * normalizedLimit;
+
+      // Build where clause for search
+      const where = {};
+      if (searchQuery) {
+        where.OR = [
+          { name: { contains: searchQuery, mode: "insensitive" } },
+          { email: { contains: searchQuery, mode: "insensitive" } },
+          { phone: { contains: searchQuery, mode: "insensitive" } },
+          { designation: { contains: searchQuery, mode: "insensitive" } },
+          { address: { contains: searchQuery, mode: "insensitive" } },
+        ];
+      }
+
+      // Get total count and data
+      const [total, teachers] = await prisma.$transaction([
+        prisma.teachers.count({ where }),
+        prisma.teachers.findMany({
+          where,
+          orderBy: { id: "asc" },
+          skip,
+          take: normalizedLimit,
+        }),
+      ]);
+
+      // Remove passwords from results
+      teachers.forEach((teacher) => {
+        delete teacher.password;
+      });
+
+      const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          data: teachers,
+          meta: {
+            total,
+            page: normalizedPage,
+            limit: normalizedLimit,
+            totalPages,
+          },
+        },
+      });
+    }
+
+    // Non-paginated legacy behavior
     const teachers = await prisma.teachers.findMany();
     teachers.forEach((teacher) => {
       delete teacher.password;
