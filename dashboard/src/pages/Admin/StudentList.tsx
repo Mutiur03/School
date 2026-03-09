@@ -49,7 +49,7 @@ const StudentRow = React.memo(
     onDelete: (student: Student) => void;
   }) => {
     return (
-      <tr key={student.id} className={isSelected ? "bg-muted/20" : ""}>
+      <tr key={student.id} className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
           <input
             type="checkbox"
@@ -64,10 +64,10 @@ const StudentRow = React.memo(
             <img
               src={getFileUrl(student.image)}
               alt="Student"
-              className="w-10 h-10 rounded-full object-cover"
+              className="w-10 h-10 rounded-full object-cover border border-border"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground">
               {student.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -830,19 +830,19 @@ function StudentList() {
         )}
       </PageHeader>
       {showForm && (
-        <div className="bg-card rounded-xl border border-border dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border shadow-sm mb-6 overflow-hidden">
           <div className="w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className="text-xl font-bold text-foreground mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
             {!isEditing && (
-              <div className="flex gap-1 mb-6 border-b border-border dark:border-gray-700">
+              <div className="flex gap-1 mb-6 border-b border-border">
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
                   className={`pb-2 px-3 text-sm font-medium transition-colors relative ${!isExcelUpload
                     ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-gray-700 dark:text-gray-400"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   Form
@@ -852,7 +852,7 @@ function StudentList() {
                   onClick={() => setIsExcelUpload(true)}
                   className={`pb-2 px-3 text-sm font-medium transition-colors relative ${isExcelUpload
                     ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-gray-700 dark:text-gray-400"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   Excel Upload
@@ -862,7 +862,7 @@ function StudentList() {
             <div className="space-y-4 sm:space-y-6">
               {!isExcelUpload ? (
                 <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-                  <div className="rounded-lg border border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-800/50 p-4">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
                     <div className="flex justify-center flex-col items-center">
                       <p className="text-sm font-medium mb-2">Student Image</p>
                       <label className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-border dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
@@ -902,8 +902,8 @@ function StudentList() {
                     </div>
                   </div>
 
-                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
-                    <legend className="px-1 text-sm sm:text-base font-semibold">Personal Information</legend>
+                  <fieldset className="rounded-lg border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-2 text-sm sm:text-base font-semibold border-l-2 border-primary">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Name <span className="text-destructive">*</span></label>
@@ -965,8 +965,8 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
-                    <legend className="px-1 text-sm sm:text-base font-semibold">Academic Information</legend>
+                  <fieldset className="rounded-lg border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-2 text-sm sm:text-base font-semibold border-l-2 border-primary">Academic Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Class <span className="text-destructive">*</span></label>
@@ -1001,7 +1001,7 @@ function StudentList() {
                           <select
                             {...register("department")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
-                            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="">Select Department</option>
                             {(VALID_DEPARTMENTS as readonly string[]).map((department: string) => (
@@ -1016,8 +1016,8 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
-                    <legend className="px-1 text-sm sm:text-base font-semibold">Address Information</legend>
+                  <fieldset className="rounded-lg border border-border bg-card p-4 sm:p-5">
+                    <legend className="px-2 text-sm sm:text-base font-semibold border-l-2 border-primary">Address Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium">Village</label>
@@ -1058,7 +1058,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <div className="rounded-lg border border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-800/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are mandatory.</p>
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
                       <label className="flex items-center space-x-2 text-sm font-medium">
@@ -1240,7 +1240,7 @@ function StudentList() {
           <div>
             <label className="block text-sm font-medium mb-1">Class</label>
             <select
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+              className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
               value={classFilter}
               onChange={(e) => {
                 setClassFilter(e.target.value);
@@ -1257,7 +1257,7 @@ function StudentList() {
           <div>
             <label className="block text-sm font-medium mb-1">Section</label>
             <select
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+              className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
               value={sectionFilter}
               onChange={(e) => {
                 setSectionFilter(e.target.value);
@@ -1278,7 +1278,7 @@ function StudentList() {
               onChange={(e) => {
                 setYear(Number(e.target.value));
               }}
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+              className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
             >
               {Array.from({ length: 3 }, (_, i) => (
                 <option key={i} value={currentYear - 1 + i}>
@@ -1291,8 +1291,8 @@ function StudentList() {
       </SectionCard>
       <SectionCard noPadding className="mb-6">
         {hasSelectedStudents && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/10 border-b border-red-200 dark:border-red-900/20">
-            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-muted border-b border-border">
+            <p className="text-sm font-medium text-foreground">
               {selectedStudentIds.size} student(s) selected
             </p>
             <Button
@@ -1343,7 +1343,7 @@ function StudentList() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
+              <tr className="bg-muted border-b border-border">
                 <th className="w-12 px-4 py-3 text-center">
                   <input
                     type="checkbox"
@@ -1363,14 +1363,14 @@ function StudentList() {
                 ].map((header) => (
                   <th
                     key={header}
-                    className={`px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider ${header === "Actions" ? "text-center" : "text-center sm:text-left"}`}
+                    className={`px-4 py-3 text-xs font-semibold text-foreground/70 uppercase tracking-wider ${header === "Actions" ? "text-center" : "text-center sm:text-left"}`}
                   >
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center">
@@ -1415,7 +1415,7 @@ function StudentList() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Rows</span>
               <select
-                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+                className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -1430,58 +1430,58 @@ function StudentList() {
               </select>
             </div>
             {(() => {
-                const totalPages = meta?.totalPages ?? 0;
-                const currentPage = page;
-                const maxVisible = 7;
-                if (totalPages <= maxVisible) {
-                  return Array.from({ length: totalPages }, (_, i) => (
-                    <Button
-                      key={i}
-                      type="button"
-                      variant={i + 1 === currentPage ? "default" : "outline"}
-                      onClick={() => setPage(i + 1)}
-                      disabled={loading}
-                    >
-                      {i + 1}
-                    </Button>
-                  ));
-                }
-                const pages: (number | string)[] = [];
-                const half = Math.floor(maxVisible / 2);
-                let start = Math.max(1, currentPage - half);
-                let end = Math.min(totalPages, start + maxVisible - 1);
-                if (end - start < maxVisible - 1) {
-                  start = Math.max(1, end - maxVisible + 1);
-                }
-                if (start > 1) {
-                  pages.push(1);
-                  if (start > 2) pages.push("...");
-                }
-                for (let i = start; i <= end; i++) {
-                  pages.push(i);
-                }
-                if (end < totalPages) {
-                  if (end < totalPages - 1) pages.push("...");
-                  pages.push(totalPages);
-                }
-                return pages.map((p, idx) =>
-                  p === "..." ? (
-                    <span key={idx} className="px-2 text-muted-foreground">
-                      ...
-                    </span>
-                  ) : (
-                    <Button
-                      key={idx}
-                      type="button"
-                      variant={p === currentPage ? "default" : "outline"}
-                      onClick={() => setPage(p as number)}
-                      disabled={loading}
-                    >
-                      {p}
-                    </Button>
-                  )
-                );
-              })()}
+              const totalPages = meta?.totalPages ?? 0;
+              const currentPage = page;
+              const maxVisible = 7;
+              if (totalPages <= maxVisible) {
+                return Array.from({ length: totalPages }, (_, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    variant={i + 1 === currentPage ? "default" : "outline"}
+                    onClick={() => setPage(i + 1)}
+                    disabled={loading}
+                  >
+                    {i + 1}
+                  </Button>
+                ));
+              }
+              const pages: (number | string)[] = [];
+              const half = Math.floor(maxVisible / 2);
+              let start = Math.max(1, currentPage - half);
+              let end = Math.min(totalPages, start + maxVisible - 1);
+              if (end - start < maxVisible - 1) {
+                start = Math.max(1, end - maxVisible + 1);
+              }
+              if (start > 1) {
+                pages.push(1);
+                if (start > 2) pages.push("...");
+              }
+              for (let i = start; i <= end; i++) {
+                pages.push(i);
+              }
+              if (end < totalPages) {
+                if (end < totalPages - 1) pages.push("...");
+                pages.push(totalPages);
+              }
+              return pages.map((p, idx) =>
+                p === "..." ? (
+                  <span key={idx} className="px-2 text-muted-foreground">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={idx}
+                    type="button"
+                    variant={p === currentPage ? "default" : "outline"}
+                    onClick={() => setPage(p as number)}
+                    disabled={loading}
+                  >
+                    {p}
+                  </Button>
+                )
+              );
+            })()}
           </div>
         </div>
       </SectionCard>

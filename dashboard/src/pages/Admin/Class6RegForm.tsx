@@ -124,9 +124,9 @@ const Class6RegForm = () => {
         queryKey: ["class6Registrations", { page, limit, ...deferredFilters }],
         queryFn: async () => {
             const res = await axios.get(`/api/reg/class-6/form`, {
-                params: { 
-                    page, 
-                    limit, 
+                params: {
+                    page,
+                    limit,
                     class6_year: deferredFilters.year,
                     status: deferredFilters.status,
                     section: deferredFilters.section,
@@ -353,7 +353,7 @@ const Class6RegForm = () => {
                         <form onSubmit={handleSettingsSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section A Roll Range (e.g., 01-50)</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Section A Roll Range (e.g., 01-50)</label>
                                     <Input
                                         type="text"
                                         value={settingsForm.a_sec_roll || ""}
@@ -362,7 +362,7 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section B Roll Range</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Section B Roll Range</label>
                                     <Input
                                         type="text"
                                         value={settingsForm.b_sec_roll || ""}
@@ -371,7 +371,7 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Year</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Academic Year</label>
                                     <Input
                                         type="text"
                                         value={settingsForm.class6_year || ""}
@@ -379,7 +379,7 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div className="flex items-end">
-                                    <label className="flex items-center gap-2 cursor-pointer p-2 bg-muted/50 dark:bg-gray-700 rounded-lg w-full">
+                                    <label className="flex items-center gap-2 cursor-pointer p-2 bg-muted/40 rounded-lg w-full">
                                         <input
                                             type="checkbox"
                                             checked={settingsForm.reg_open}
@@ -392,7 +392,7 @@ const Class6RegForm = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notice File (PDF)</label>
+                                <label className="block text-sm font-medium text-foreground mb-1">Notice File (PDF)</label>
                                 <div className="mt-1 flex items-center gap-4">
                                     <input
                                         type="file"
@@ -415,7 +415,7 @@ const Class6RegForm = () => {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section A</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section A</label>
                                     <Textarea
                                         value={settingsForm.instruction_for_a || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
@@ -423,7 +423,7 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instruction for Section B</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section B</label>
                                     <Textarea
                                         value={settingsForm.instruction_for_b || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
@@ -431,16 +431,16 @@ const Class6RegForm = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classmates List Source</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Classmates List Source</label>
                                     <select
                                         value={settingsForm.classmates_source || "default"}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, classmates_source: e.target.value })}
-                                        className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        className="block w-full border rounded-md px-3 py-2 text-sm bg-card border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                                     >
                                         <option value="default">Default (Current Student List)</option>
                                         <option value="manual">Manual (Custom List)</option>
                                     </select>
-                                    <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                                    <p className="text-xs text-muted-foreground mt-1">
                                         {settingsForm.classmates_source === "manual"
                                             ? "Enter your own student names."
                                             : "Automatically uses names from the Class 6 enrollment list."}
@@ -448,18 +448,18 @@ const Class6RegForm = () => {
                                 </div>
                                 {settingsForm.classmates_source === "manual" && (
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manual Classmates List</label>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Manual Classmates List</label>
                                         <Textarea
                                             value={settingsForm.classmates || ""}
                                             onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
                                             placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
                                             className="h-24"
                                         />
-                                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Students will be able to select from this list in the registration form's nearby student field.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Students will be able to select from this list in the registration form's nearby student field.</p>
                                     </div>
                                 )}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachment Instructions</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Attachment Instructions</label>
                                     <Textarea
                                         value={settingsForm.attachment_instruction || ""}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
@@ -523,7 +523,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.status}
                                     onChange={(e) => handleFilterChange("status", e.target.value)}
-                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+                                    className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                                 >
                                     <option value="all">All Status</option>
                                     <option value="pending">Pending</option>
@@ -535,7 +535,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.section}
                                     onChange={(e) => handleFilterChange("section", e.target.value)}
-                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+                                    className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                                 >
                                     <option value="">All Sections</option>
                                     <option value="A">A</option>
@@ -547,7 +547,7 @@ const Class6RegForm = () => {
                                 <select
                                     value={filters.year}
                                     onChange={(e) => handleFilterChange("year", e.target.value)}
-                                    className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+                                    className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                                 >
                                     {(() => {
                                         const currentYear = new Date().getFullYear();
@@ -588,16 +588,16 @@ const Class6RegForm = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Student</th>
-                                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Section</th>
-                                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Roll</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
+                                    <tr className="bg-muted border-b border-border">
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Student</th>
+                                        <th className="px-6 py-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">Section</th>
+                                        <th className="px-6 py-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">Roll</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Date</th>
+                                        <th className="px-6 py-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="divide-y divide-border">
                                     {registrationsLoading ? (
                                         <tr>
                                             <td colSpan={6} className="py-12 text-center">
@@ -615,19 +615,19 @@ const Class6RegForm = () => {
                                         </tr>
                                     ) : (
                                         registrations.map((reg: Registration) => (
-                                            <tr key={reg.id} className="hover:bg-muted/50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <tr key={reg.id} className="hover:bg-muted/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         {reg.photo ? (
-                                                            <img src={getFileUrl(reg.photo)} className="w-10 h-10 rounded-full object-cover border" alt="" />
+                                                            <img src={getFileUrl(reg.photo)} className="w-10 h-10 rounded-full object-cover border border-border" alt="" />
                                                         ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-muted dark:bg-gray-700 flex items-center justify-center"><Users size={18} /></div>
+                                                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground"><Users size={18} /></div>
                                                         )}
                                                         <div>
-                                                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                            <div className="font-medium text-foreground">
                                                                 {reg.student_name_en}
                                                             </div>
-                                                            <div className="text-sm text-muted-foreground dark:text-gray-400">
+                                                            <div className="text-sm text-muted-foreground">
                                                                 {reg.student_name_bn}
                                                             </div>
                                                         </div>
@@ -638,11 +638,11 @@ const Class6RegForm = () => {
                                                         {reg.section || "-"}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-medium text-muted-foreground dark:text-gray-400">
+                                                <td className="px-6 py-4 text-center font-mono font-medium text-muted-foreground">
                                                     {reg.roll || "-"}
                                                 </td>
                                                 <td className="px-6 py-4"><StatusBadge status={reg.status} /></td>
-                                                <td className="px-6 py-4 text-sm text-muted-foreground dark:text-gray-400">
+                                                <td className="px-6 py-4 text-sm text-muted-foreground">
                                                     {formatDateWithTime(reg.created_at)}
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -681,14 +681,14 @@ const Class6RegForm = () => {
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">Rows</span>
                                     <select
-                                        className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
+                                        className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                                         value={limit}
                                         onChange={(e) => {
                                             setLimit(Number(e.target.value));
                                             setPage(1);
                                         }}
                                     >
-                                        {[ 50, 100,200].map((v) => (
+                                        {[50, 100, 200].map((v) => (
                                             <option key={v} value={v}>
                                                 {v}
                                             </option>
