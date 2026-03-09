@@ -3,7 +3,7 @@ import axios from "axios";
 const BASE_URL = "http://localhost:5000/api/auth";
 const TEST_EMAIL = "teacher@example.com"; // Use a known email or mock
 
-async function runTests() {
+export async function runTests() {
   console.log("--- Starting Forgot Password Regression Tests ---");
 
   try {

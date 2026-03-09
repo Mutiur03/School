@@ -61,7 +61,8 @@
 
 :root {
   --radius: 0.66rem; /* Standard rounded-md */
-  --background: #f8fafc;
+  /* --background: #f8fafc; */
+  --background: #ffffff;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -84,6 +85,7 @@
   --chart-3: #0f172a;
   --chart-4: #0f172a;
   --chart-5: #0f172a;
+  /* --sidebar: #f8fbfe; */
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
   --sidebar-primary: #0f172a;
