@@ -93,7 +93,7 @@ function UpdateStatus() {
             type="number"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="p-2 border border-gray-300 rounded-md dark:bg-accent w-full"
+            className="p-2 border border-border rounded-md dark:bg-accent w-full"
           />
         </div>
         <div>
@@ -104,7 +104,7 @@ function UpdateStatus() {
             id="selectedClass"
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-accent w-full"
+            className="p-2 border border-border rounded-md dark:bg-accent w-full"
           >
             <option value="">Select Class</option>
             {[...Array(5).keys()].map((num) => (
@@ -122,7 +122,7 @@ function UpdateStatus() {
             id="classSection"
             value={classSection}
             onChange={(e) => setClassSection(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-accent w-full"
+            className="p-2 border border-border rounded-md dark:bg-accent w-full"
             disabled={!selectedClass}
           >
             <option value="">All Sections</option>
@@ -142,7 +142,7 @@ function UpdateStatus() {
               id="department"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              className="p-2 border border-gray-300 rounded-md dark:bg-accent w-full"
+              className="p-2 border border-border rounded-md dark:bg-accent w-full"
               disabled={!selectedClass}
             >
               <option value="">All Departments</option>
@@ -200,7 +200,7 @@ function UpdateStatus() {
                         onChange={(e) =>
                           handleStatusChange(student.id, e.target.value as Student["status"])
                         }
-                        className="p-2 border border-gray-300 rounded-md dark:bg-accent"
+                        className="p-2 border border-border rounded-md dark:bg-accent"
                       >
                         <option value="">Select Status</option>
                         <option value="Passed">Passed</option>
@@ -212,7 +212,7 @@ function UpdateStatus() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="p-3 text-center text-gray-500">
+                  <td colSpan={4} className="p-3 text-center text-muted-foreground">
                     No students available.
                   </td>
                 </tr>

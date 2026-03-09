@@ -14,7 +14,7 @@ interface StatsCardProps {
 
 const colorMap: Record<StatColor, { label: string; value: string }> = {
     default: {
-        label: "text-gray-500",
+        label: "text-muted-foreground",
         value: "text-gray-900 dark:text-white",
     },
     amber: {
@@ -30,8 +30,8 @@ const colorMap: Record<StatColor, { label: string; value: string }> = {
         value: "text-red-600 dark:text-red-400",
     },
     blue: {
-        label: "text-blue-500",
-        value: "text-blue-600 dark:text-blue-400",
+        label: "text-primary",
+        value: "text-primary dark:text-primary/70",
     },
     violet: {
         label: "text-violet-500",
@@ -39,7 +39,7 @@ const colorMap: Record<StatColor, { label: string; value: string }> = {
     },
     indigo: {
         label: "text-indigo-500",
-        value: "text-indigo-600 dark:text-indigo-400",
+        value: "text-primary dark:text-indigo-400",
     },
 };
 
@@ -65,7 +65,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
 
     return (
         <div
-            className={`bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}
+            className={`bg-card p-6 rounded-xl border border-border dark:border-gray-700 shadow-sm ${className}`}
         >
             <div className="flex items-start justify-between">
                 <div>
@@ -77,7 +77,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
                     )}
                 </div>
                 {icon && (
-                    <div className={`p-2 rounded-lg bg-gray-50 dark:bg-gray-700 ${colors.label}`}>
+                    <div className={`p-2 rounded-lg bg-muted/50 dark:bg-gray-700 ${colors.label}`}>
                         {icon}
                     </div>
                 )}

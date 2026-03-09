@@ -86,35 +86,35 @@ function AlumniList() {
 
       {filteredStudents.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-300">
+          <table className="min-w-full border border-border">
             <thead className="bg-gray-200">
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">Phone</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">Roll</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">Batch</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">Section</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">Address</th>
-                <th className="border border-gray-300 px-4 py-2 text-left">DOB</th>
+                <th className="border border-border px-4 py-2 text-left">Name</th>
+                <th className="border border-border px-4 py-2 text-left">Phone</th>
+                <th className="border border-border px-4 py-2 text-left">Roll</th>
+                <th className="border border-border px-4 py-2 text-left">Batch</th>
+                <th className="border border-border px-4 py-2 text-left">Section</th>
+                <th className="border border-border px-4 py-2 text-left">Address</th>
+                <th className="border border-border px-4 py-2 text-left">DOB</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.map((student) => (
-                <tr key={student.id} className="even:bg-gray-100">
-                  <td className="border border-gray-300 px-4 py-2">{student.name}</td>
-                  <td className="border border-gray-300 px-4 py-2">{`0${student.phone}`}</td>
-                  <td className="border border-gray-300 px-4 py-2">{student.roll}</td>
-                  <td className="border border-gray-300 px-4 py-2">{student.batch}</td>
-                  <td className="border border-gray-300 px-4 py-2">{student.section}</td>
-                  <td className="border border-gray-300 px-4 py-2">{student.address}</td>
-                  <td className="border border-gray-300 px-4 py-2">{student.dob?.slice(0, 10)}</td>
+                <tr key={student.id} className="even:bg-muted">
+                  <td className="border border-border px-4 py-2">{student.name}</td>
+                  <td className="border border-border px-4 py-2">{`0${student.phone}`}</td>
+                  <td className="border border-border px-4 py-2">{student.roll}</td>
+                  <td className="border border-border px-4 py-2">{student.batch}</td>
+                  <td className="border border-border px-4 py-2">{student.section}</td>
+                  <td className="border border-border px-4 py-2">{student.address}</td>
+                  <td className="border border-border px-4 py-2">{student.dob?.slice(0, 10)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <p className="text-gray-500">No students found.</p>
+        <p className="text-muted-foreground">No students found.</p>
       )}
     </div>
   );

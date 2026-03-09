@@ -210,7 +210,7 @@ export default function PendingGalleries() {
     return (
       <div key={groupKey} className="mb-8">
         <motion.div
-          className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
+          className="flex items-center justify-between bg-muted dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
           onClick={() => toggleFoldCategory(title)}
         >
           <div className="flex items-center gap-4">
@@ -218,11 +218,11 @@ export default function PendingGalleries() {
               animate={{ rotate: isFolded ? 0 : 180 }}
               transition={{ duration: 0.2 }}
             >
-              <FiChevronDown className="text-gray-600 dark:text-gray-300" />
+              <FiChevronDown className="text-muted-foreground dark:text-gray-300" />
             </motion.div>
             <motion.h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <FiClock className="text-yellow-500" />
-              {title} <span className="text-sm text-gray-500">({images.length})</span>
+              {title} <span className="text-sm text-muted-foreground">({images.length})</span>
             </motion.h2>
           </div>
           <div className="flex items-center gap-4">
@@ -480,12 +480,12 @@ export default function PendingGalleries() {
                             className="max-h-full max-w-full object-contain rounded-lg"
                           />
                         </div>
-                        <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
+                        <div className="bg-card p-4 rounded-b-lg">
                           <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white">
                             {selectedGroup[currentIndex].caption ||
                               "No caption provided"}
                           </h3>
-                          <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
+                          <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-muted-foreground dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
                                 <span className="font-medium">

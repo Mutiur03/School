@@ -176,7 +176,7 @@ function AddLevel() {
                   value={formData.class_name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 dark:bg-accent rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">Select Class</option>
                   {["6", "7", "8", "9", "10"].map((cls) => (
@@ -194,7 +194,7 @@ function AddLevel() {
                   value={formData.section}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 dark:bg-accent rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">Select Section</option>
                   {["A", "B"].map((sec) => (
@@ -215,7 +215,7 @@ function AddLevel() {
                   value={formData.year}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 dark:bg-accent rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                   min="2000"
                   max="2100"
                 />
@@ -228,7 +228,7 @@ function AddLevel() {
                   value={formData.teacher_id}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 rounded dark:bg-accent focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded dark:bg-accent focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">Select Teacher</option>
                   {teachers.map((teacher) => (
@@ -250,7 +250,7 @@ function AddLevel() {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md"
+                className="px-4 py-2 text-sm bg-primary text-white hover:bg-primary/90 rounded-md"
                 disabled={loading}
               >
                 {loading
@@ -270,7 +270,7 @@ function AddLevel() {
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="px-3 py-1 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-1 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
           >
             {Array.from(
               { length: 3 },

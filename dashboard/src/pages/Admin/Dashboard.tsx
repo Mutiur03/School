@@ -139,7 +139,7 @@ function Dashboard() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-4 sm:space-y-6">
               <ChartSkeleton />
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-6">
+              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
                 <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
                 <div className="space-y-2 sm:space-y-3">
                   {[...Array(3)].map((_, index) => (
@@ -149,7 +149,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-6">
+              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
                 <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
                 <div className="space-y-2 sm:space-y-3">
                   {[...Array(3)].map((_, index) => (
@@ -157,13 +157,13 @@ function Dashboard() {
                   ))}
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-6">
+              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
                 <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
                 <div className="space-y-2 sm:space-y-3">
                   {[...Array(3)].map((_, index) => (
                     <div
                       key={index}
-                      className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2"
+                      className="flex justify-between border-b border-border dark:border-gray-700 pb-2"
                     >
                       <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 sm:w-24 animate-pulse"></div>
                       <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 sm:w-32 animate-pulse"></div>
@@ -180,7 +180,7 @@ function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-muted/50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="text-xl text-red-600 dark:text-red-400 text-center">
           <div className="text-6xl mb-4">⚠️</div>
           <div>Error: {error}</div>
@@ -196,7 +196,7 @@ function Dashboard() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-4 sm:space-y-6">
               {dashboardData.attendanceData && dashboardData.attendanceData.length > 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+                <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
                   <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
                     Attendance Overview
                   </h3>
@@ -231,11 +231,11 @@ function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+                <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
                   <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
                     Attendance Overview
                   </h3>
-                  <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+                  <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
                     <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📊</div>
                     <div className="text-sm sm:text-base">No attendance data available</div>
                   </div>
@@ -243,7 +243,7 @@ function Dashboard() {
               )}
             </div>
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+              <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
                   Quick Summary
                 </h3>
@@ -273,7 +273,7 @@ function Dashboard() {
         );
       case "attendance":
         return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
             <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-white">
               Attendance Trend Analysis
             </h3>
@@ -308,7 +308,7 @@ function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
                 <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📊</div>
                 <div className="text-sm sm:text-base">No attendance data available</div>
               </div>
@@ -317,14 +317,14 @@ function Dashboard() {
         );
       case "announcements":
         return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
               <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Recent Notices & Announcements
               </h3>
               <button
                 onClick={() => navigate('/notice')}
-                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>View All</span>
                 <svg
@@ -352,7 +352,7 @@ function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
                 <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📢</div>
                 <div className="text-sm sm:text-base">No announcements available</div>
               </div>
@@ -361,14 +361,14 @@ function Dashboard() {
         );
       case "events":
         return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
               <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Upcoming Events
               </h3>
               <button
                 onClick={() => navigate('/events')}
-                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>View All</span>
                 <svg
@@ -393,7 +393,7 @@ function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
                 <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📅</div>
                 <div className="text-sm sm:text-base">No upcoming events</div>
               </div>
@@ -402,7 +402,7 @@ function Dashboard() {
         );
       case "exams":
         return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
             <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-white">
               Examination Schedule
             </h3>
@@ -411,7 +411,7 @@ function Dashboard() {
                 <div className="inline-block min-w-full px-3 sm:px-0">
                   <table className="w-full text-left min-w-[500px] sm:min-w-0">
                     <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <tr className="border-b border-border dark:border-gray-700">
                         <th className="pb-2 sm:pb-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
                           Exam Name
                         </th>
@@ -432,10 +432,10 @@ function Dashboard() {
                           <td className="py-2 sm:py-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
                             {exam.name}
                           </td>
-                          <td className="py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                          <td className="py-2 sm:py-3 text-muted-foreground dark:text-gray-400 text-sm sm:text-base">
                             {new Date(exam.start_date).toLocaleDateString()}
                           </td>
-                          <td className="py-2 sm:py-3 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                          <td className="py-2 sm:py-3 text-muted-foreground dark:text-gray-400 text-sm sm:text-base">
                             {new Date(exam.end_date).toLocaleDateString()}
                           </td>
                         </tr>
@@ -445,7 +445,7 @@ function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
                 <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📝</div>
                 <div className="text-sm sm:text-base">No exams scheduled</div>
               </div>
@@ -469,7 +469,7 @@ function Dashboard() {
             title="Total Students"
             value={dashboardData.quickStats.students}
             icon="👨‍🎓"
-            color="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
+            color="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-300"
           />
           <StatCard
             title="Teachers"
@@ -492,8 +492,8 @@ function Dashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-shrink-0 text-sm sm:text-base ${activeTab === tab.id
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm"
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-card text-gray-700 dark:text-gray-300 hover:bg-muted dark:hover:bg-gray-700 shadow-sm"
                   }`}
               >
                 <span className="text-xs sm:text-sm">{tab.icon}</span>
@@ -528,18 +528,18 @@ function StatCard({ title, value, icon, color }: StatCardProps) {
 function AnnouncementCard({ announcement }: AnnouncementCardProps) {
   return (
     <div
-      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 cursor-pointer"
+      className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-card cursor-pointer"
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
           <h4 className="font-medium text-base sm:text-lg text-gray-900 dark:text-white line-clamp-2 sm:truncate">
             {announcement.title}
           </h4>
-          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+          <span className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400 flex-shrink-0">
             {new Date(announcement.date).toLocaleDateString()}
           </span>
         </div>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 line-clamp-3">
+        <p className="text-sm sm:text-base text-muted-foreground dark:text-gray-300 line-clamp-3">
           {announcement.content}
         </p>
       </div>
@@ -550,18 +550,18 @@ function AnnouncementCard({ announcement }: AnnouncementCardProps) {
 function EventCard({ event }: EventCardProps) {
   return (
     <div
-      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-white dark:bg-gray-800 cursor-pointer"
+      className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-card cursor-pointer"
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
           <h3 className="font-medium text-base sm:text-lg text-gray-900 dark:text-white line-clamp-2">
             {event.title}
           </h3>
-          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded flex-shrink-0 self-start">
+          <span className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded flex-shrink-0 self-start">
             {new Date(event.date).toLocaleDateString()}
           </span>
         </div>
-        <div className="flex items-center text-gray-600 dark:text-gray-400">
+        <div className="flex items-center text-muted-foreground dark:text-gray-400">
           <svg
             className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0"
             fill="none"
@@ -590,7 +590,7 @@ function EventCard({ event }: EventCardProps) {
 
 function StatCardSkeleton() {
   return (
-    <div className="p-3 sm:p-4 lg:p-6 rounded-lg shadow-md bg-gray-100 dark:bg-gray-800 animate-pulse">
+    <div className="p-3 sm:p-4 lg:p-6 rounded-lg shadow-md bg-muted dark:bg-gray-800 animate-pulse">
       <div className="flex justify-between items-center">
         <div>
           <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1 sm:mb-2 w-20 sm:w-24"></div>
@@ -604,9 +604,9 @@ function StatCardSkeleton() {
 
 function ChartSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-6">
+    <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
       <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
-      <div className="h-48 sm:h-64 bg-gray-100 dark:bg-gray-700 rounded animate-pulse flex items-end justify-around p-2 sm:p-4">
+      <div className="h-48 sm:h-64 bg-muted dark:bg-gray-700 rounded animate-pulse flex items-end justify-around p-2 sm:p-4">
         {[...Array(6)].map((_, index) => (
           <div
             key={index}
@@ -624,7 +624,7 @@ function ChartSkeleton() {
 
 function AnnouncementSkeleton() {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-white dark:bg-gray-800">
+    <div className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-card">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1 sm:gap-2">
         <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded w-40 sm:w-48"></div>
         <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20"></div>
@@ -639,7 +639,7 @@ function AnnouncementSkeleton() {
 
 function EventSkeleton() {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-white dark:bg-gray-800">
+    <div className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-card">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1 sm:gap-2">
         <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded w-28 sm:w-32"></div>
         <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20"></div>

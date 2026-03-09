@@ -398,238 +398,341 @@ export class AuthController {
   });
 
   // Teacher password reset request
-  static requestTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
-    const { email } = req.body;
+  static requestTeacherPasswordReset = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { email } = req.body;
 
-    if (!email) {
-      throw new ApiError(400, "Email is required");
-    }
-
-    // Check rate limiting for password reset requests
-    const rateLimitKey = `teacher_reset_rate:${email}`;
-    const existingRequests = await redis.get(rateLimitKey);
-    
-    if (existingRequests) {
-      const requestCount = parseInt(existingRequests);
-      if (requestCount >= 3) {
-        throw new ApiError(429, "Too many reset requests. Please try again after 1 hour.");
+      if (!email) {
+        throw new ApiError(400, "Email is required");
       }
-    }
 
-    // Find teacher by email
-    const teacher = await prisma.teachers.findFirst({
-      where: {
-        email: email,
-        available: true,
-      },
-    });
+      // Check rate limiting for password reset requests
+      const rateLimitKey = `teacher_reset_rate:${email}`;
+      const existingRequests = await redis.get(rateLimitKey);
 
-    if (!teacher) {
-      // Don't reveal if email exists or not for security
-      res.status(200).json(new ApiResponse(200, null, "If an account exists, a reset code will be sent."));
-      return;
-    }
+      if (existingRequests) {
+        const requestCount = parseInt(existingRequests);
+        if (requestCount >= 3) {
+          throw new ApiError(
+            429,
+            "Too many reset requests. Please try again after 1 hour.",
+          );
+        }
+      }
 
-    // Generate 6-digit code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Store reset code with 15-minute expiration
-    const resetKey = `teacher_reset:${email}`;
-    await redis.set(resetKey, resetCode, "EX", 900); // 15 minutes
-
-    // Increment rate limit counter
-    await redis.incr(rateLimitKey);
-    await redis.expire(rateLimitKey, 3600); // 1 hour
-
-    // Send email with reset code
-    try {
-      await EmailService.sendEmail({
-        from: env.FROM_EMAIL,
-        to: email,
-        subject: "Password Reset Code - School Management System",
-        body: `Hello ${teacher.name},\n\nYou requested a password reset. Your 6-digit verification code is:\n\n${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nSchool Management System`,
+      // Find teacher by email
+      const teacher = await prisma.teachers.findFirst({
+        where: {
+          email: email,
+          available: true,
+        },
       });
-    } catch (emailError) {
-      console.error("Failed to send reset email:", emailError);
-      throw new ApiError(500, "Failed to send reset email. Please try again.");
-    }
 
-    res.status(200).json(new ApiResponse(200, null, "Reset code sent to your email."));
-  });
+      if (!teacher) {
+        // Don't reveal if email exists or not for security
+        res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              null,
+              "If an account exists, a reset code will be sent.",
+            ),
+          );
+        return;
+      }
 
-  // Teacher password reset verification
-  static verifyTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
-    const { email, code, newPassword } = req.body;
+      // Generate 6-digit code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    if (!email || !code || !newPassword) {
-      throw new ApiError(400, "Email, code, and new password are required");
-    }
+      // Store reset code with 15-minute expiration
+      const resetKey = `teacher_reset:${email}`;
+      await redis.set(resetKey, resetCode, "EX", 900); // 15 minutes
 
-    if (newPassword.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
-    }
+      // Increment rate limit counter
+      await redis.incr(rateLimitKey);
+      await redis.expire(rateLimitKey, 3600); // 1 hour
 
-    // Verify reset code
-    const resetKey = `teacher_reset:${email}`;
-    const storedCode = await redis.get(resetKey);
+      // Send email with reset code
+      try {
+        await EmailService.sendEmail({
+          from: env.FROM_EMAIL,
+          to: email,
+          subject: "Password Reset Code - School Management System",
+          body: `Hello ${teacher.name},\n\nYou requested a password reset. Your 6-digit verification code is:\n\n${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nSchool Management System`,
+        });
+      } catch (emailError) {
+        console.error("Failed to send reset email:", emailError);
+        throw new ApiError(
+          500,
+          "Failed to send reset email. Please try again.",
+        );
+      }
 
-    if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
-    }
+      res
+        .status(200)
+        .json(new ApiResponse(200, null, "Reset code sent to your email."));
+    },
+  );
 
-    if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
-    }
+  // Teacher password reset code verification (Step 2: Check code only)
+  static checkTeacherPasswordResetCode = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { email, code } = req.body;
 
-    // Find teacher and update password
-    const teacher = await prisma.teachers.findFirst({
-      where: {
-        email: email,
-        available: true,
-      },
-    });
+      if (!email || !code) {
+        throw new ApiError(400, "Email and code are required");
+      }
 
-    if (!teacher) {
-      throw new ApiError(404, "Teacher not found");
-    }
+      // Verify reset code
+      const resetKey = `teacher_reset:${email}`;
+      const storedCode = await redis.get(resetKey);
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+      if (!storedCode) {
+        throw new ApiError(400, "Reset code has expired or is invalid");
+      }
 
-    // Update password and increment token version to invalidate existing sessions
-    await prisma.teachers.update({
-      where: { id: teacher.id },
-      data: {
-        password: hashedPassword,
-        tokenVersion: { increment: 1 },
-      },
-    });
+      if (storedCode !== code) {
+        throw new ApiError(400, "Invalid reset code");
+      }
 
-    // Clear reset code
-    await redis.del(resetKey);
+      res
+        .status(200)
+        .json(new ApiResponse(200, null, "Code verified successfully"));
+    },
+  );
 
-    res.status(200).json(new ApiResponse(200, null, "Password reset successfully"));
-  });
+  // Teacher password reset verification (Step 3: Update password)
+  static verifyTeacherPasswordReset = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { email, code, newPassword } = req.body;
+
+      if (!email || !code || !newPassword) {
+        throw new ApiError(400, "Email, code, and new password are required");
+      }
+
+      if (newPassword.length < 8) {
+        throw new ApiError(400, "Password must be at least 8 characters long");
+      }
+
+      // Verify reset code
+      const resetKey = `teacher_reset:${email}`;
+      const storedCode = await redis.get(resetKey);
+
+      if (!storedCode) {
+        throw new ApiError(400, "Reset code has expired or is invalid");
+      }
+
+      if (storedCode !== code) {
+        throw new ApiError(400, "Invalid reset code");
+      }
+
+      // Find teacher and update password
+      const teacher = await prisma.teachers.findFirst({
+        where: {
+          email: email,
+          available: true,
+        },
+      });
+
+      if (!teacher) {
+        throw new ApiError(404, "Teacher not found");
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password and increment token version to invalidate existing sessions
+      await prisma.teachers.update({
+        where: { id: teacher.id },
+        data: {
+          password: hashedPassword,
+          tokenVersion: { increment: 1 },
+        },
+      });
+
+      // Clear reset code
+      await redis.del(resetKey);
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, null, "Password reset successfully"));
+    },
+  );
 
   // Student password reset request
-  static requestStudentPasswordReset = asyncHandler(async (req: Request, res: Response) => {
-    const { login_id } = req.body;
+  static requestStudentPasswordReset = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { login_id } = req.body;
 
-    if (!login_id) {
-      throw new ApiError(400, "Login ID is required");
-    }
-
-    const loginIdInt = parseInt(login_id);
-    if (isNaN(loginIdInt)) {
-      throw new ApiError(400, "Invalid login ID format");
-    }
-
-    // Check rate limiting for password reset requests
-    const rateLimitKey = `student_reset_rate:${login_id}`;
-    const existingRequests = await redis.get(rateLimitKey);
-    
-    if (existingRequests) {
-      const requestCount = parseInt(existingRequests);
-      if (requestCount >= 3) {
-        throw new ApiError(429, "Too many reset requests. Please try again after 1 hour.");
+      if (!login_id) {
+        throw new ApiError(400, "Login ID is required");
       }
-    }
 
-    // Find student by login_id
-    const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt },
-    });
+      const loginIdInt = parseInt(login_id);
+      if (isNaN(loginIdInt)) {
+        throw new ApiError(400, "Invalid login ID format");
+      }
 
-    if (!student) {
-      // Don't reveal if login_id exists or not for security
-      res.status(200).json(new ApiResponse(200, null, "If an account exists, a reset code will be sent."));
-      return;
-    }
+      // Check rate limiting for password reset requests
+      const rateLimitKey = `student_reset_rate:${login_id}`;
+      const existingRequests = await redis.get(rateLimitKey);
 
-    // Check if student has a phone number for SMS
-    if (!student.father_phone) {
-      throw new ApiError(400, "No phone number associated with this account. Please contact the school administration.");
-    }
+      if (existingRequests) {
+        const requestCount = parseInt(existingRequests);
+        if (requestCount >= 3) {
+          throw new ApiError(
+            429,
+            "Too many reset requests. Please try again after 1 hour.",
+          );
+        }
+      }
 
-    // Generate 6-digit code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Store reset code with 15-minute expiration
-    const resetKey = `student_reset:${login_id}`;
-    await redis.set(resetKey, resetCode, "EX", 900); // 15 minutes
+      // Find student by login_id
+      const student = await prisma.students.findUnique({
+        where: { login_id: loginIdInt },
+      });
 
-    // Increment rate limit counter
-    await redis.incr(rateLimitKey);
-    await redis.expire(rateLimitKey, 3600); // 1 hour
+      if (!student) {
+        // Don't reveal if login_id exists or not for security
+        res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              null,
+              "If an account exists, a reset code will be sent.",
+            ),
+          );
+        return;
+      }
 
-    // Send SMS with reset code
-    try {
-      await SMSService.sendPasswordResetCode(
-        student.father_phone,
-        resetCode,
-        student.name
-      );
-    } catch (smsError) {
-      console.error("Failed to send reset SMS:", smsError);
-      throw new ApiError(500, "Failed to send reset code. Please try again.");
-    }
+      // Check if student has a phone number for SMS
+      if (!student.father_phone) {
+        throw new ApiError(
+          400,
+          "No phone number associated with this account. Please contact the school administration.",
+        );
+      }
 
-    res.status(200).json(new ApiResponse(200, null, "Reset code sent to your phone number."));
-  });
+      // Generate 6-digit code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Student password reset verification
-  static verifyStudentPasswordReset = asyncHandler(async (req: Request, res: Response) => {
-    const { login_id, code, newPassword } = req.body;
+      // Store reset code with 15-minute expiration
+      const resetKey = `student_reset:${login_id}`;
+      await redis.set(resetKey, resetCode, "EX", 900); // 15 minutes
 
-    if (!login_id || !code || !newPassword) {
-      throw new ApiError(400, "Login ID, code, and new password are required");
-    }
+      // Increment rate limit counter
+      await redis.incr(rateLimitKey);
+      await redis.expire(rateLimitKey, 3600); // 1 hour
 
-    if (newPassword.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
-    }
+      // Send SMS with reset code
+      try {
+        await SMSService.sendPasswordResetCode(
+          student.father_phone,
+          resetCode,
+          student.name,
+        );
+      } catch (smsError) {
+        console.error("Failed to send reset SMS:", smsError);
+        throw new ApiError(500, "Failed to send reset code. Please try again.");
+      }
 
-    const loginIdInt = parseInt(login_id);
-    if (isNaN(loginIdInt)) {
-      throw new ApiError(400, "Invalid login ID format");
-    }
+      res
+        .status(200)
+        .json(
+          new ApiResponse(200, null, "Reset code sent to your phone number."),
+        );
+    },
+  );
 
-    // Verify reset code
-    const resetKey = `student_reset:${login_id}`;
-    const storedCode = await redis.get(resetKey);
+  // Student password reset code verification (Step 2: Check code only)
+  static checkStudentPasswordResetCode = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { login_id, code } = req.body;
 
-    if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
-    }
+      if (!login_id || !code) {
+        throw new ApiError(400, "Login ID and code are required");
+      }
 
-    if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
-    }
+      // Verify reset code
+      const resetKey = `student_reset:${login_id}`;
+      const storedCode = await redis.get(resetKey);
 
-    // Find student and update password
-    const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt },
-    });
+      if (!storedCode) {
+        throw new ApiError(400, "Reset code has expired or is invalid");
+      }
 
-    if (!student) {
-      throw new ApiError(404, "Student not found");
-    }
+      if (storedCode !== code) {
+        throw new ApiError(400, "Invalid reset code");
+      }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+      res
+        .status(200)
+        .json(new ApiResponse(200, null, "Code verified successfully"));
+    },
+  );
 
-    // Update password and increment token version to invalidate existing sessions
-    await prisma.students.update({
-      where: { id: student.id },
-      data: {
-        password: hashedPassword,
-        tokenVersion: { increment: 1 },
-      },
-    });
+  // Student password reset verification (Step 3: Update password)
+  static verifyStudentPasswordReset = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { login_id, code, newPassword } = req.body;
 
-    // Clear reset code
-    await redis.del(resetKey);
+      if (!login_id || !code || !newPassword) {
+        throw new ApiError(
+          400,
+          "Login ID, code, and new password are required",
+        );
+      }
 
-    res.status(200).json(new ApiResponse(200, null, "Password reset successfully"));
-  });
+      if (newPassword.length < 8) {
+        throw new ApiError(400, "Password must be at least 8 characters long");
+      }
+
+      const loginIdInt = parseInt(login_id);
+      if (isNaN(loginIdInt)) {
+        throw new ApiError(400, "Invalid login ID format");
+      }
+
+      // Verify reset code
+      const resetKey = `student_reset:${login_id}`;
+      const storedCode = await redis.get(resetKey);
+
+      if (!storedCode) {
+        throw new ApiError(400, "Reset code has expired or is invalid");
+      }
+
+      if (storedCode !== code) {
+        throw new ApiError(400, "Invalid reset code");
+      }
+
+      // Find student and update password
+      const student = await prisma.students.findUnique({
+        where: { login_id: loginIdInt },
+      });
+
+      if (!student) {
+        throw new ApiError(404, "Student not found");
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password and increment token version to invalidate existing sessions
+      await prisma.students.update({
+        where: { id: student.id },
+        data: {
+          password: hashedPassword,
+          tokenVersion: { increment: 1 },
+        },
+      });
+
+      // Clear reset code
+      await redis.del(resetKey);
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, null, "Password reset successfully"));
+    },
+  );
 }

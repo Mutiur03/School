@@ -218,7 +218,7 @@ function Syllabus() {
                 const editingSyllabus = syllabuses.find((s) => s.id === editingId);
                 if (editingSyllabus && editingSyllabus.pdf_url) {
                   return (
-                    <div className="mt-1 text-xs text-gray-500">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       Current file: <span className="font-medium">{editingSyllabus.pdf_url.split("/").pop()}</span>
                     </div>
                   );
@@ -315,7 +315,7 @@ function Syllabus() {
                           href={s.pdf_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                          className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                           title="View"
                         >
                           <Eye className="w-4 h-4" />
@@ -323,14 +323,14 @@ function Syllabus() {
                         <a
                           href={s.download_url}
                           download
-                          className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                          className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                           title="Download"
                         >
                           <Download className="w-4 h-4" />
                         </a>
                         <button
                           onClick={() => handleEdit(s)}
-                          className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                          className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                           title="Edit"
                           disabled={uploading || updating || Boolean(deletingId)}
                         >
@@ -394,7 +394,7 @@ function Syllabus() {
                     href={s.pdf_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                    className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                     title="View"
                   >
                     <Eye className="w-4 h-4" />
@@ -402,14 +402,14 @@ function Syllabus() {
                   <a
                     href={s.download_url}
                     download
-                    className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                    className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                     title="Download"
                   >
                     <Download className="w-4 h-4" />
                   </a>
                   <button
                     onClick={() => handleEdit(s)}
-                    className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
+                    className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                     title="Edit"
                     disabled={uploading || updating || Boolean(deletingId)}
                   >
@@ -434,7 +434,7 @@ function Syllabus() {
               </div>
             ))
           ) : (
-            <div className="py-4 text-center text-sm text-gray-500">
+            <div className="py-4 text-center text-sm text-muted-foreground">
               No syllabuses found
             </div>
           )}

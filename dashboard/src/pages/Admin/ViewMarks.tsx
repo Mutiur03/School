@@ -343,7 +343,7 @@ const ViewMarks = () => {
                             Details
                           </button>
                           <button
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                            className="bg-primary hover:bg-primary text-white px-3 py-1 rounded text-sm flex items-center gap-1"
                             onClick={(e) =>
                               downloadMarksheet(data.student_id, e)
                             }
@@ -377,15 +377,15 @@ const ViewMarks = () => {
 
       {showDetailsPopup && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b p-4 flex justify-between items-center">
+          <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-card border-b p-4 flex justify-between items-center">
               <h3 className="text-xl font-bold">
                 Detailed Marks - {selectedStudent.name} (Roll:{" "}
                 {selectedStudent.roll})
               </h3>
               <button
                 onClick={closeDetailsPopup}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 <svg
                   className="w-6 h-6"
@@ -436,8 +436,8 @@ const ViewMarks = () => {
                   Subject-wise Marks Details
                 </h4>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border border-gray-300 rounded-lg">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                  <table className="min-w-full border border-border rounded-lg">
+                    <thead className="bg-muted/50 dark:bg-gray-700">
                       <tr>
                         <th className="border p-3 text-left">Subject</th>
                         <th className="border p-3 text-center">CQ Marks</th>
@@ -463,7 +463,7 @@ const ViewMarks = () => {
                           return (
                             <tr
                               key={index}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                              className="hover:bg-muted/50 dark:hover:bg-gray-700"
                             >
                               <td className="border p-3 font-medium">
                                 {mark.subject}
@@ -474,7 +474,7 @@ const ViewMarks = () => {
                                   ? mark.cq_marks
                                   : "N/A"}
                                 {mark.subject_info?.cq_mark && (
-                                  <span className="text-xs text-gray-500 block">
+                                  <span className="text-xs text-muted-foreground block">
                                     /{mark.subject_info.cq_mark}
                                   </span>
                                 )}
@@ -485,7 +485,7 @@ const ViewMarks = () => {
                                   ? mark.mcq_marks
                                   : "N/A"}
                                 {mark.subject_info?.mcq_mark && (
-                                  <span className="text-xs text-gray-500 block">
+                                  <span className="text-xs text-muted-foreground block">
                                     /{mark.subject_info.mcq_mark}
                                   </span>
                                 )}
@@ -496,7 +496,7 @@ const ViewMarks = () => {
                                   ? mark.practical_marks
                                   : "N/A"}
                                 {mark.subject_info?.practical_mark && (
-                                  <span className="text-xs text-gray-500 block">
+                                  <span className="text-xs text-muted-foreground block">
                                     /{mark.subject_info.practical_mark}
                                   </span>
                                 )}
@@ -536,7 +536,7 @@ const ViewMarks = () => {
                         <tr>
                           <td
                             colSpan={7}
-                            className="border p-4 text-center text-gray-500"
+                            className="border p-4 text-center text-muted-foreground"
                           >
                             No marks data available
                           </td>

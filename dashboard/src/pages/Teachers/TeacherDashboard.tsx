@@ -24,7 +24,7 @@ export default function TeacherProfile() {
     if (isLoading) {
         return (
             <div className="p-6 max-w-4xl mx-auto flex justify-center items-center">
-                <div className="text-gray-600">Loading profile...</div>
+                <div className="text-muted-foreground">Loading profile...</div>
             </div>
         );
     }
@@ -32,8 +32,8 @@ export default function TeacherProfile() {
     return (
         <div className="p-6 max-w-4xl mx-auto">
             {profile && profile.role === "teacher" && (
-                <Card className="flex flex-col md:flex-row gap-6 shadow-xl rounded-2xl p-6 border border-gray-200 transition-shadow duration-300 hover:shadow-2xl">
-                    <div className="h-56 w-56 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
+                <Card className="flex flex-col md:flex-row gap-6 shadow-xl rounded-2xl p-6 border border-border transition-shadow duration-300 hover:shadow-2xl">
+                    <div className="h-56 w-56 rounded-full border-4 border-border shadow-sm overflow-hidden">
                         {profile?.image ? (
                             <img
                                 src={getFileUrl(profile.image)}
@@ -41,7 +41,7 @@ export default function TeacherProfile() {
                                 className="w-full h-full object-cover object-top"
                             />
                         ) : (
-                            <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-600">
+                            <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-muted-foreground">
                                 {getInitials(profile?.name)}
                             </div>
                         )}

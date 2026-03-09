@@ -217,7 +217,7 @@ const Events: React.FC = () => {
                     }
                   />
                   {formValues.file && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {formValues.file instanceof File
                         ? "Selected file: " +
                         formValues.file.name.slice(0, 20) +
@@ -244,7 +244,7 @@ const Events: React.FC = () => {
                     }
                   />
                   {formValues.image && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {formValues.image instanceof File
                         ? "Selected file: " +
                         formValues.image.name.slice(0, 20) +
@@ -368,7 +368,7 @@ const Events: React.FC = () => {
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-1">{event.title}</h3>
-                  <p className="text-sm text-gray-500 mb-2">
+                  <p className="text-sm text-muted-foreground mb-2">
                     {format(new Date(event.date), "dd MMM yyyy")}
                   </p>
                   <button
@@ -381,7 +381,7 @@ const Events: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center col-span-full text-gray-500">
+            <div className="text-center col-span-full text-muted-foreground">
               No events available.
             </div>
           )}
@@ -425,7 +425,7 @@ const Events: React.FC = () => {
                         href={`${popup.event.file}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 underline"
+                        className="text-primary underline"
                       >
                         View PDF
                       </a>

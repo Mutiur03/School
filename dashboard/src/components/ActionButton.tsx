@@ -8,7 +8,7 @@ type ActionType = "view" | "edit" | "delete" | "photo";
 const variantClasses: Record<ActionVariant, string> = {
     blue: "text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:hover:bg-blue-900/30",
     emerald: "text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-300 dark:hover:bg-emerald-900/30",
-    gray: "text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600",
+    gray: "text-gray-700 bg-muted hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600",
     red: "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/10 dark:text-red-300 dark:hover:bg-red-900/30",
     amber: "text-amber-700 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:hover:bg-amber-900/30",
 };

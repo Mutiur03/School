@@ -74,7 +74,7 @@ const DatePicker = ({
           <button
             type="button"
             onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}
-            className="p-2 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-md "
+            className="p-2 border border-border dark:border-gray-600 hover:bg-muted dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-md "
           >
             <ChevronLeft size={20} />
           </button>
@@ -82,7 +82,7 @@ const DatePicker = ({
           <button
             type="button"
             onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}
-            className="p-2 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-md "
+            className="p-2 border border-border dark:border-gray-600 hover:bg-muted dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-md "
           >
             <ChevronRight size={20} />
           </button>
@@ -91,7 +91,7 @@ const DatePicker = ({
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
             <div
               key={day}
-              className="font-bold text-gray-600 dark:text-gray-300"
+              className="font-bold text-muted-foreground dark:text-gray-300"
             >
               {day}
             </div>
@@ -101,7 +101,7 @@ const DatePicker = ({
               key={index}
               onClick={() => day && handleDateClick(day)}
               className={`cursor-pointer h-8 w-8 flex items-center justify-center rounded-md ${day
-                ? "hover:bg-gray-100 text-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                ? "hover:bg-muted text-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
                 : "pointer-events-none"
                 }`}
             >

@@ -322,14 +322,14 @@ function AdmissionSettings() {
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             Admission Settings
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="text-muted-foreground dark:text-gray-400 text-sm">
             Configure admission options and notices
           </p>
         </div>
         <div>
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 transition-colors"
           >
             <RefreshCw size={16} />
             Refresh
@@ -372,7 +372,7 @@ function AdmissionSettings() {
                 Open Admission for Students
               </label>
             </div>
-            <p className="text-xs text-primary/80 mt-2 dark:text-blue-400">
+            <p className="text-xs text-primary/80 mt-2 dark:text-primary/70">
               When enabled, students can submit their admission forms
             </p>
           </div>
@@ -396,7 +396,7 @@ function AdmissionSettings() {
                 value={formData.admission_year}
                 onChange={handleInputChange}
                 placeholder="e.g. 2025"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
             </div>
 
@@ -414,7 +414,7 @@ function AdmissionSettings() {
                 onChange={handleInputChange}
                 placeholder="Enter admission instructions for applicants (what to bring, deadlines, steps)."
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
             </div>
 
@@ -438,7 +438,7 @@ function AdmissionSettings() {
                       onChange={handleInputChange}
                       placeholder="Attachment instructions for Class 6"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     />
                   </div>
 
@@ -456,7 +456,7 @@ function AdmissionSettings() {
                       onChange={handleInputChange}
                       placeholder="Attachment instructions for Class 7"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     />
                   </div>
 
@@ -474,7 +474,7 @@ function AdmissionSettings() {
                       onChange={handleInputChange}
                       placeholder="Attachment instructions for Class 8"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     />
                   </div>
 
@@ -492,7 +492,7 @@ function AdmissionSettings() {
                       onChange={handleInputChange}
                       placeholder="Attachment instructions for Class 9"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     />
                   </div>
                 </div>
@@ -512,7 +512,7 @@ function AdmissionSettings() {
                 onChange={handleInputChange}
                 placeholder="Enter the ছাত্রের অঙ্গীকারনামা text that will appear on generated admission PDFs."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
             </div>
             <div>
@@ -529,7 +529,7 @@ function AdmissionSettings() {
                 value={formData.class_list}
                 onChange={handleInputChange}
                 placeholder="e.g. Six, Seven, Eight, Nine, Ten"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
             </div>
 
@@ -547,7 +547,7 @@ function AdmissionSettings() {
                 value={formData.user_id_class6}
                 onChange={handleInputChange}
                 placeholder="Comma separated user ids for class 6"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div>
@@ -564,7 +564,7 @@ function AdmissionSettings() {
                     value={formData.list_type_class6}
                     onChange={handleInputChange}
                     placeholder="e.g. Merit-1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -581,7 +581,7 @@ function AdmissionSettings() {
                     value={formData.serial_no_class6}
                     onChange={handleInputChange}
                     placeholder="e.g. 1-100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
@@ -601,7 +601,7 @@ function AdmissionSettings() {
                 value={formData.user_id_class7}
                 onChange={handleInputChange}
                 placeholder="Comma separated user ids for class 7"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div>
@@ -618,7 +618,7 @@ function AdmissionSettings() {
                     value={formData.list_type_class7}
                     onChange={handleInputChange}
                     placeholder="e.g. Merit-1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -635,7 +635,7 @@ function AdmissionSettings() {
                     value={formData.serial_no_class7}
                     onChange={handleInputChange}
                     placeholder="e.g. 1-100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
@@ -655,7 +655,7 @@ function AdmissionSettings() {
                 value={formData.user_id_class8}
                 onChange={handleInputChange}
                 placeholder="Comma separated user ids for class 8"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div>
@@ -672,7 +672,7 @@ function AdmissionSettings() {
                     value={formData.list_type_class8}
                     onChange={handleInputChange}
                     placeholder="e.g. Merit-1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -689,7 +689,7 @@ function AdmissionSettings() {
                     value={formData.serial_no_class8}
                     onChange={handleInputChange}
                     placeholder="e.g. 1-100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
@@ -709,7 +709,7 @@ function AdmissionSettings() {
                 value={formData.user_id_class9}
                 onChange={handleInputChange}
                 placeholder="Comma separated user ids for class 9"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div>
@@ -726,7 +726,7 @@ function AdmissionSettings() {
                     value={formData.list_type_class9}
                     onChange={handleInputChange}
                     placeholder="e.g. Merit-1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -743,7 +743,7 @@ function AdmissionSettings() {
                     value={formData.serial_no_class9}
                     onChange={handleInputChange}
                     placeholder="e.g. 1-100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
@@ -755,7 +755,7 @@ function AdmissionSettings() {
               </label>
 
               {currentNotice && (
-                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-500 dark:border-gray-600">
+                <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border dark:bg-muted/500 dark:border-gray-600">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FileText size={18} className="text-red-600" />
@@ -766,7 +766,7 @@ function AdmissionSettings() {
                         href={currentNotice.url || "#"}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-700"
+                        className="text-sm text-primary hover:text-blue-700"
                       >
                         View
                       </a>
@@ -789,7 +789,7 @@ function AdmissionSettings() {
                 onChange={handleFileChange}
                 title="Upload a PDF file for the admission notice (only .pdf allowed)"
                 aria-label="Upload notice PDF file"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
               <p className="text-xs text-red-500 mt-1">
                 Only PDF files are allowed
@@ -800,7 +800,7 @@ function AdmissionSettings() {
               <button
                 type="submit"
                 disabled={formLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-600 dark:hover:bg-blue-700"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-primary dark:hover:bg-primary/90"
               >
                 {formLoading ? (
                   <>

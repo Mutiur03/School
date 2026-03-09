@@ -119,7 +119,7 @@ export function Calendar({
       <div className="flex items-center justify-between p-4">
         <button
           onClick={handlePreviousMonth}
-          className="p-1.5 text-gray-600 hover:text-gray-900 border dark:border-gray-600 border-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
+          className="p-1.5 text-muted-foreground hover:text-gray-900 border dark:border-gray-600 border-border dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
         >
           <ChevronLeft size={16} />
         </button>
@@ -129,14 +129,14 @@ export function Calendar({
         </div>
         <button
           onClick={handleNextMonth}
-          className="p-1.5 text-gray-600 hover:text-gray-900 border dark:border-gray-600 border-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
+          className="p-1.5 text-muted-foreground hover:text-gray-900 border dark:border-gray-600 border-border dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
         >
           <ChevronRight size={16} />
         </button>
       </div>
       <div className="grid grid-cols-7 text-center text-sm font-medium">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-          <div key={day} className="py-2 text-gray-400 dark:text-gray-500">
+          <div key={day} className="py-2 text-gray-400 dark:text-muted-foreground">
             {day}
           </div>
         ))}
@@ -150,7 +150,7 @@ export function Calendar({
                 className={`flex items-center justify-center h-9 rounded-lg text-sm cursor-pointer
                   ${getModifierClassNames(day.date)}
                   ${!day.isCurrentMonth
-                    ? "text-gray-400 dark:text-gray-600"
+                    ? "text-gray-400 dark:text-muted-foreground"
                     : ""
                   }
                   ${isToday(day.date) ? "bg-gray-200 dark:bg-gray-700" : ""}

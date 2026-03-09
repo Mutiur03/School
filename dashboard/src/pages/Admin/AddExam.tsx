@@ -286,7 +286,7 @@ function AddExam() {
                   value={formData.exam_name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">Select Exam</option>
                   {["Half Yearly", "Annual", "Pre Test", "Annual/Test", "Test"].map((exam) => (
@@ -305,7 +305,7 @@ function AddExam() {
                   value={formData.exam_year}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -321,7 +321,7 @@ function AddExam() {
                       value={level}
                       checked={formData.levels.includes(level)}
                       onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      className="h-4 w-4 text-primary rounded border-border focus:ring-primary/20"
                     />
                     <span className="ml-2 text-sm">Class {level}</span>
                   </label>
@@ -343,7 +343,7 @@ function AddExam() {
                   value={formData.start_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 dark:bg-accent py-2 border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 dark:bg-accent py-2 border border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
 
@@ -355,7 +355,7 @@ function AddExam() {
                   value={formData.end_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
 
@@ -367,7 +367,7 @@ function AddExam() {
                   value={formData.result_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -421,7 +421,7 @@ function AddExam() {
                           <span key={l} className="inline-flex items-center mr-2">
                             Class {l}
                             <button
-                              className="ml-1 text-xs text-blue-500 underline"
+                              className="ml-1 text-xs text-primary underline"
                               onClick={() => openRoutineSection(exam, l)}
                               title="Manage Routine"
                             >
@@ -447,7 +447,7 @@ function AddExam() {
                           {exam.visible ? <FiEye size={18} /> : <FiEyeOff size={18} />}
                         </button>
                         <span
-                          className={`ml-2 text-xs px-2 py-0.5 rounded-full ${exam.visible ? "bg-green-100 text-green-700" : "dark:bg-card bg-gray-100"
+                          className={`ml-2 text-xs px-2 py-0.5 rounded-full ${exam.visible ? "bg-green-100 text-green-700" : "dark:bg-card bg-muted"
                             }`}
                         >
                           {exam.visible ? "Published" : "Hidden"}
@@ -455,7 +455,7 @@ function AddExam() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
-                      <button onClick={() => handleEditExam(exam)} className="text-blue-600 hover:text-blue-900 mr-3">
+                      <button onClick={() => handleEditExam(exam)} className="text-primary hover:text-blue-900 mr-3">
                         <FiEdit className="sm:w-4 sm:h-4 w-3 h-3" />
                       </button>
                       <DeleteConfirmationIcon
@@ -546,7 +546,7 @@ function AddExam() {
                       <td className="border px-2 py-1">{r.subject}</td>
                       <td className="border px-2 py-1">
                         <button
-                          className="text-blue-500 mr-2"
+                          className="text-primary mr-2"
                           onClick={() => handleRoutineEdit(r)}
                         >
                           Edit

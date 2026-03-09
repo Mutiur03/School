@@ -360,7 +360,7 @@ function StaffList() {
                         </button>
                         <button
                           type="button"
-                          className="text-sm text-blue-600"
+                          className="text-sm text-primary"
                           onClick={() =>
                             fileInputRef.current && fileInputRef.current.click()
                           }
@@ -379,7 +379,7 @@ function StaffList() {
                       <div className="flex gap-2 mt-2">
                         <button
                           type="button"
-                          className="text-sm text-blue-600"
+                          className="text-sm text-primary"
                           onClick={() =>
                             fileInputRef.current && fileInputRef.current.click()
                           }
@@ -479,7 +479,7 @@ function StaffList() {
                         onClick={() =>
                           setPopup({ visible: true, type: "view", staff: item })
                         }
-                        className="hover:text-blue-500"
+                        className="hover:text-primary"
                       >
                         <Eye className="sm:w-4 sm:h-4 w-3 h-3" />
                       </button>
@@ -500,7 +500,7 @@ function StaffList() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="border px-4 py-2 text-center text-gray-500"
+                    className="border px-4 py-2 text-center text-muted-foreground"
                   >
                     No staff found.
                   </td>

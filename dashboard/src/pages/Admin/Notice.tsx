@@ -161,7 +161,7 @@ const NoticeUploadPage = () => {
                 />
                 {(formValues.file ||
                   (isEditing && typeof formValues.file === "string")) && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {formValues.file && typeof formValues.file === "object"
                         ? "Selected file: " +
                         formValues.file.name.slice(0, 20) +
@@ -243,13 +243,13 @@ const NoticeUploadPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-popover">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Title
                 </th>
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Published Date
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -262,7 +262,7 @@ const NoticeUploadPage = () => {
                       {isLoading ? (
                         <Loading />
                       ) : (
-                        <p className="text-gray-500">No notices found</p>
+                        <p className="text-muted-foreground">No notices found</p>
                       )}
                     </div>
                   </td>
@@ -284,7 +284,7 @@ const NoticeUploadPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        className="text-blue-600 mr-3"
+                        className="text-primary mr-3"
                         onClick={() => openPopup("view", notice)}
                       >
                         <FiEye size={18} />
@@ -335,7 +335,7 @@ const NoticeUploadPage = () => {
                       href={`${popup.notice.file}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 underline"
+                      className="text-primary underline"
                     >
                       View PDF
                     </a>
@@ -345,7 +345,7 @@ const NoticeUploadPage = () => {
                       href={`${popup.notice.download_url}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 underline"
+                      className="text-primary underline"
                     >
                       Download PDF
                     </a>
@@ -354,7 +354,7 @@ const NoticeUploadPage = () => {
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={closePopup}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
                   >
                     Close
                   </button>
@@ -373,7 +373,7 @@ const NoticeUploadPage = () => {
                     type="button"
                     disabled={isDeleting}
                     onClick={closePopup}
-                    className="px-4 py-2 border border-gray-300 rounded"
+                    className="px-4 py-2 border border-border rounded"
                   >
                     Cancel
                   </button>
@@ -407,7 +407,7 @@ const NoticeUploadPage = () => {
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={closePopup}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
                   >
                     Close
                   </button>

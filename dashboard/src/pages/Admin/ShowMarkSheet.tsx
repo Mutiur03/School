@@ -155,7 +155,7 @@ function ShowMarkSheet() {
                     ))}
                   </tr>
                 ))}
-                <tr className="bg-slate-50 dark:bg-slate-800 text-center font-semibold">
+                <tr className="bg-muted/50 dark:bg-slate-800 text-center font-semibold">
                   <td className="px-4 py-3">Total</td>
                   {marksheet[0]?.total_marks_per_exam &&
                     Object.keys(marksheet[0].total_marks_per_exam).map(

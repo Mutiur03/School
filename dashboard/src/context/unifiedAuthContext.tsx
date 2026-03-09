@@ -4,6 +4,7 @@ import { createContext, useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
+import { getErrorMessage } from "@/lib/utils";
 
 // Extend axios config to support custom flags
 declare module "axios" {
@@ -219,10 +220,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             }
         } catch (error) {
             console.error("Error logging in:", error);
-            if (axios.isAxiosError(error)) {
-                // Network/HTTP error — not already toasted above
-                toast.error("Invalid Credentials");
-            }
+            toast.error(getErrorMessage(error));
             throw error;
         }
     };
@@ -242,7 +240,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             }
         } catch (error) {
             console.error("Error logging in:", error);
-            toast.error("Invalid Credentials");
+            toast.error(getErrorMessage(error));
             throw error;
         }
     };
@@ -260,7 +258,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(res.data?.data?.user);
         } catch (error) {
             console.error("Error logging in:", error);
-            toast.error("Invalid Credentials");
+            toast.error(getErrorMessage(error));
             throw error;
         }
     };

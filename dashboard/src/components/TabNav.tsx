@@ -24,9 +24,9 @@ interface TabNavProps {
     className?: string;
 }
 
-const activeClass = "text-blue-600 border-b-2 border-blue-600";
+const activeClass = "text-primary border-b-2 border-primary";
 const inactiveClass =
-    "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200";
+    "text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200";
 
 /**
  * Reusable horizontal tab navigation bar.
@@ -51,7 +51,7 @@ const TabNav: React.FC<TabNavProps> = ({ tabs, activeTab, onTabChange, className
     const currentUrl = location.pathname + location.search;
 
     return (
-        <div className={`flex gap-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+        <div className={`flex gap-4 border-b border-border dark:border-gray-700 ${className}`}>
             {tabs.map((tab) => {
                 const inner = (
                     <div className="flex items-center gap-2">

@@ -441,7 +441,7 @@ const SSCRegForm = () => {
     } else if (s === "rejected") {
       classes = `${classes} bg-red-100 text-red-800`;
     } else {
-      classes = `${classes} bg-gray-100 text-gray-800`;
+      classes = `${classes} bg-muted text-gray-800`;
     }
 
     return <span className={classes}>{label}</span>;
@@ -558,7 +558,7 @@ const SSCRegForm = () => {
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
               SSC Registration Management
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-muted-foreground dark:text-gray-400 mb-4">
               Configure settings and monitor student registrations
             </p>
           </div>
@@ -566,7 +566,7 @@ const SSCRegForm = () => {
         <div className="flex justify-end mb-4 md:mt-0">
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700 dark:bg-primary dark:hover:bg-primary/90 transition-colors"
           >
             <RefreshCw size={16} />
             Refresh
@@ -577,7 +577,7 @@ const SSCRegForm = () => {
           <button
             onClick={() => setActiveTab("registrations")}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "registrations"
-              ? "bg-blue-500 text-white shadow-md"
+              ? "bg-primary text-white shadow-md"
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
           >
@@ -586,7 +586,7 @@ const SSCRegForm = () => {
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "settings"
-              ? "bg-blue-500 text-white shadow-md"
+              ? "bg-primary text-white shadow-md"
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
           >
@@ -637,7 +637,7 @@ const SSCRegForm = () => {
                     Open Registration for Students
                   </label>
                 </div>
-                <p className="text-xs text-primary/80 mt-2 dark:text-blue-400">
+                <p className="text-xs text-primary/80 mt-2 dark:text-primary/70">
                   When enabled, students can submit their SSC registration forms
                 </p>
               </div>
@@ -657,7 +657,7 @@ const SSCRegForm = () => {
                     value={formData.a_sec_roll}
                     onChange={handleInputChange}
                     placeholder="e.g., 101-150"
-                    className="w-full px-3 py-2 border text-input dark:dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border text-input dark:dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     required
                   />
                 </div>
@@ -676,7 +676,7 @@ const SSCRegForm = () => {
                     value={formData.b_sec_roll}
                     onChange={handleInputChange}
                     placeholder="e.g., 151-200"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                     required
                   />
                 </div>
@@ -697,7 +697,7 @@ const SSCRegForm = () => {
                   onChange={handleInputChange}
                   min="2020"
                   max="2030"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   required
                 />
               </div>
@@ -716,7 +716,7 @@ const SSCRegForm = () => {
                   onChange={handleInputChange}
                   rows={4}
                   placeholder="Enter instructions for Section A students..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                 />
                 <p className="text-xs text-red-500 mt-1">
                   These instructions will be shown to Section A students during
@@ -738,7 +738,7 @@ const SSCRegForm = () => {
                   onChange={handleInputChange}
                   rows={4}
                   placeholder="Enter instructions for Section B students..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                 />
                 <p className="text-xs text-red-500 mt-1">
                   These instructions will be shown to Section B students during
@@ -760,7 +760,7 @@ const SSCRegForm = () => {
                   onChange={handleInputChange}
                   rows={3}
                   placeholder="Enter instructions for document attachments..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                 />
                 <p className="text-xs text-red-500 mt-1">
                   These instructions will guide students on what documents to
@@ -777,7 +777,7 @@ const SSCRegForm = () => {
                 </label>
 
                 {currentNotice && (
-                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <FileText size={18} className="text-red-600" />
@@ -787,7 +787,7 @@ const SSCRegForm = () => {
                         <a
                           href={currentNotice.download_url}
                           target="_blank"
-                          className="text-sm text-blue-600 hover:text-blue-700"
+                          className="text-sm text-primary hover:text-blue-700"
                         >
                           View
                         </a>
@@ -808,7 +808,7 @@ const SSCRegForm = () => {
                   id="notice"
                   accept=".pdf"
                   onChange={handleFileChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                 />
                 <p className="text-xs text-red-500 mt-1">
                   Only PDF files are allowed
@@ -819,7 +819,7 @@ const SSCRegForm = () => {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-600 dark:hover:bg-blue-700"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-primary dark:hover:bg-primary/90"
                 >
                   {formLoading ? (
                     <>
@@ -841,19 +841,19 @@ const SSCRegForm = () => {
       {activeTab === "registrations" && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
               <div className="text-sm mb-1 ">Total</div>
               <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {stats.total || 0}
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
               <div className="text-sm  mb-1 ">Pending</div>
               <div className="text-2xl font-semibold text-amber-600">
                 {stats.pending || 0}
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
               <div className="text-sm  mb-1 ">Approved</div>
               <div className="text-2xl font-semibold text-emerald-600">
                 {stats.approved || 0}
@@ -861,9 +861,9 @@ const SSCRegForm = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+          <div className="bg-white rounded-xl border border-border p-6 mb-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
-              <Filter size={18} className="text-gray-500 dark:text-gray-300" />
+              <Filter size={18} className="text-muted-foreground dark:text-gray-300" />
               <h3 className="font-medium text-gray-900 dark:text-gray-100">
                 Filters
               </h3>
@@ -879,7 +879,7 @@ const SSCRegForm = () => {
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, status: e.target.value }))
                   }
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
@@ -896,7 +896,7 @@ const SSCRegForm = () => {
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, section: e.target.value }))
                   }
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">All Sections</option>
                   <option value="A">Section A</option>
@@ -917,7 +917,7 @@ const SSCRegForm = () => {
                       fetchAllRegistrations();
                     }
                   }}
-                  className="w-full px-3 py-2 border dark:bg-accent  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent  border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
                 >
                   {Array.from(
                     new Set([
@@ -957,7 +957,7 @@ const SSCRegForm = () => {
                         search: e.target.value,
                       }))
                     }
-                    className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-gray-300 rounded-lg focus:ring-2  focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-border rounded-lg focus:ring-2  focus:ring-primary/20 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -971,13 +971,13 @@ const SSCRegForm = () => {
           )}
 
           <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-            <div className="px-6 py-4 border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div className="px-6 py-4 border-b border-border bg-card dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="font-medium text-gray-900 dark:text-gray-100">
                     Registrations
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">
                     Showing {filteredRegistrations.length} of{" "}
                     {allRegistrations.length} students
                   </p>
@@ -1011,7 +1011,7 @@ const SSCRegForm = () => {
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                <thead className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
                       Student
@@ -1038,7 +1038,7 @@ const SSCRegForm = () => {
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center">
                         <div className="flex justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-300"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-blue-300"></div>
                         </div>
                       </td>
                     </tr>
@@ -1046,7 +1046,7 @@ const SSCRegForm = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
+                        className="px-6 py-12 text-center text-muted-foreground dark:text-gray-400"
                       >
                         No registrations found
                       </td>
@@ -1060,13 +1060,13 @@ const SSCRegForm = () => {
                       .map((registration) => (
                         <tr
                           key={registration.id}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                          className="hover:bg-muted/50 dark:hover:bg-gray-700"
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               {registration.photo_path && (
                                 <img
-                                  className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                                  className="h-10 w-10 rounded-full object-cover border border-border dark:border-gray-600"
                                   src={`${host}/${registration.photo_path}`}
                                   alt=""
                                 />
@@ -1075,7 +1075,7 @@ const SSCRegForm = () => {
                                 <div className="font-medium text-gray-900 dark:text-gray-100">
                                   {registration.student_name_en}
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                <div className="text-sm text-muted-foreground dark:text-gray-400">
                                   {registration.student_name_bn}
                                 </div>
                               </div>
@@ -1087,14 +1087,14 @@ const SSCRegForm = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-gray-800 dark:bg-gray-700 dark:text-gray-100">
                               {registration.roll}
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             {getStatusBadge(registration.status)}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 text-sm text-muted-foreground dark:text-gray-400">
                             {formatDate(registration.updated_at)}
                           </td>
                           <td className="px-6 py-4">
@@ -1135,7 +1135,7 @@ const SSCRegForm = () => {
           {showModal && selectedRegistration && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white text-black rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-6 border-b border-gray-300 bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
+                <div className="flex justify-between items-center p-6 border-b border-border bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
                   <div>
                     <h3 className="text-lg font-semibold">
                       Registration Details
@@ -1166,14 +1166,14 @@ const SSCRegForm = () => {
 
                 <div className="p-6">
                   {selectedRegistration.photo_path && (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center mb-6">
+                    <div className="bg-muted/50 p-4 rounded-lg border border-border flex flex-col items-center mb-6">
                       <h4 className="text-sm font-semibold mb-2 ">
                         Student's Photo
                       </h4>
                       <img
                         src={`${host}/${selectedRegistration.photo_path}`}
                         alt="Student Photo"
-                        className="w-28 h-28 object-cover border-2 border-gray-300 rounded-lg shadow"
+                        className="w-28 h-28 object-cover border-2 border-border rounded-lg shadow"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
@@ -1181,7 +1181,7 @@ const SSCRegForm = () => {
                     </div>
                   )}
 
-                  <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
+                  <div className="text-sm font-medium text-gray-800 border border-border rounded px-3 py-2 bg-muted/50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
                     <span>Section: {selectedRegistration.section || "-"}</span>
                     <span>Roll No: {selectedRegistration.roll || "-"}</span>
                     <span>
@@ -1195,7 +1195,7 @@ const SSCRegForm = () => {
                     </span>
                   </div>
 
-                  <div className="border border-gray-200 bg-white rounded-lg overflow-hidden">
+                  <div className="border border-border bg-white rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <tbody>
@@ -1208,7 +1208,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):
                             </td>
                             <td className="py-2 px-4">
@@ -1219,8 +1219,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Student's Name (In Capital Letter):
                             </td>
                             <td className="py-2 px-4">
@@ -1232,7 +1232,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Birth Registration No. (In English):
                             </td>
                             <td className="py-2 px-4">
@@ -1243,8 +1243,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Date of Birth (According to JSC/JDC):
                             </td>
                             <td className="py-2 px-4">
@@ -1285,15 +1285,15 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Email Address:
                             </td>
                             <td className="py-2 px-4">
                               {selectedRegistration.email || "No"}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Mobile No (s):
                             </td>
                             <td className="py-2 px-4">
@@ -1319,7 +1319,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):
                             </td>
                             <td className="py-2 px-4">
@@ -1330,8 +1330,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Father's Name (In Capital Letter):
                             </td>
                             <td className="py-2 px-4">
@@ -1343,7 +1343,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               National ID Number (In English):
                             </td>
                             <td className="py-2 px-4">
@@ -1364,7 +1364,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):
                             </td>
                             <td className="py-2 px-4">
@@ -1375,8 +1375,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Mother's Name (In Capital Letter):
                             </td>
                             <td className="py-2 px-4">
@@ -1388,7 +1388,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               National ID Number (In English):
                             </td>
                             <td className="py-2 px-4">
@@ -1409,7 +1409,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Guardian's Name:
                             </td>
                             <td className="py-2 px-4">
@@ -1443,8 +1443,8 @@ const SSCRegForm = () => {
                               })()}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Guardian's Address:
                             </td>
                             <td className="py-2 px-4">
@@ -1488,7 +1488,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Permanent Address:
                             </td>
                             <td className="py-2 px-4">
@@ -1527,8 +1527,8 @@ const SSCRegForm = () => {
                               })()}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Present Address:
                             </td>
                             <td className="py-2 px-4">
@@ -1577,7 +1577,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               ৮ম শ্রেণির তথ্য:
                             </td>
                             <td className="py-2 px-4">
@@ -1588,7 +1588,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Previous School Name & Address:
                             </td>
                             <td className="py-2 px-4">
@@ -1605,8 +1605,8 @@ const SSCRegForm = () => {
                                 )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               জেএসসি/জেডিসি'র তথ্য:
                             </td>
                             <td className="py-2 px-4">
@@ -1630,7 +1630,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               আবশ্যিক ও ৪র্থ বিষয়:
                             </td>
                             <td className="py-2 px-4">
@@ -1652,8 +1652,8 @@ const SSCRegForm = () => {
                                 )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Scholarship Information:
                             </td>
                             <td className="py-2 px-4">
@@ -1693,7 +1693,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের
                               তথ্য:
                             </td>
@@ -1719,7 +1719,7 @@ const SSCRegForm = () => {
                                 </tr>
                                 {selectedRegistration.student_nick_name_bn && (
                                   <tr className="border-b">
-                                    <td className="py-2 px-4 font-medium  bg-gray-50">
+                                    <td className="py-2 px-4 font-medium  bg-muted/50">
                                       ডাকনাম:
                                     </td>
                                     <td className="py-2 px-4">
@@ -1730,14 +1730,14 @@ const SSCRegForm = () => {
                                 {selectedRegistration.blood_group && (
                                   <tr
                                     className={`border-b ${selectedRegistration.student_nick_name_bn
-                                      ? "bg-gray-50"
+                                      ? "bg-muted/50"
                                       : ""
                                       }`}
                                   >
                                     <td
                                       className={`py-2 px-4 font-medium  ${selectedRegistration.student_nick_name_bn
-                                        ? "bg-gray-100"
-                                        : "bg-gray-50"
+                                        ? "bg-muted"
+                                        : "bg-muted/50"
                                         }`}
                                     >
                                       Blood Group:
@@ -1759,7 +1759,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               SSC Batch:
                             </td>
                             <td className="py-2 px-4">
@@ -1768,8 +1768,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Registration Status:
                             </td>
                             <td className="py-2 px-4">
@@ -1777,7 +1777,7 @@ const SSCRegForm = () => {
                             </td>
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 px-4 font-medium  bg-gray-50">
+                            <td className="py-2 px-4 font-medium  bg-muted/50">
                               Submission Date:
                             </td>
                             <td className="py-2 px-4">
@@ -1790,8 +1790,8 @@ const SSCRegForm = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b bg-gray-50">
-                            <td className="py-2 px-4 font-medium  bg-gray-100">
+                          <tr className="border-b bg-muted/50">
+                            <td className="py-2 px-4 font-medium  bg-muted">
                               Last Updated:
                             </td>
                             <td className="py-2 px-4">
@@ -1810,8 +1810,8 @@ const SSCRegForm = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
-                  <div className="text-sm text-gray-600">
+                <div className="flex justify-between items-center p-6 border-t border-border bg-muted/50">
+                  <div className="text-sm text-muted-foreground">
                     Registration ID: {selectedRegistration.id}
                   </div>
                   <div className="flex gap-3">
@@ -1845,7 +1845,7 @@ const SSCRegForm = () => {
                         }
                       }}
                       disabled={pdfDownloading}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {pdfDownloading ? (
                         <>
@@ -1861,7 +1861,7 @@ const SSCRegForm = () => {
                     </button>
                     <button
                       onClick={() => setShowModal(false)}
-                      className="px-4 py-2 bg-gray-100  rounded-lg hover:bg-gray-200 transition-colors"
+                      className="px-4 py-2 bg-muted  rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       Close
                     </button>
@@ -1880,7 +1880,7 @@ const SSCRegForm = () => {
                   </h3>
                   <button
                     onClick={() => setShowEditModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-muted-foreground"
                   >
                     <svg
                       className="w-6 h-6"
@@ -1899,7 +1899,7 @@ const SSCRegForm = () => {
                 </div>
 
                 <div className="mb-4">
-                  <div className="text-sm text-gray-600 mb-3">
+                  <div className="text-sm text-muted-foreground mb-3">
                     <strong>Student:</strong>{" "}
                     {editFormData.student_name_en || "N/A"}
                     <br />
@@ -1918,7 +1918,7 @@ const SSCRegForm = () => {
                         status: e.target.value,
                       })
                     }
-                    className="w-full border dark:bg-white text-black border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border dark:bg-white text-black border-border rounded px-3 py-2 focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
                   >
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
@@ -1932,13 +1932,13 @@ const SSCRegForm = () => {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 border border-gray-300 bg-red-500 rounded hover:bg-red-700"
+                    className="px-4 py-2 border border-border bg-red-500 rounded hover:bg-red-700"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleEditSubmit}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
                   >
                     Update Status
                   </button>
@@ -1970,7 +1970,7 @@ const SSCRegForm = () => {
                     Delete Registration
                   </h3>
                   <div className="mt-2 px-7 py-3">
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       Are you sure you want to delete the registration for{" "}
                       <strong>{deleteTarget.student_name_en}</strong>? This
                       action cannot be undone.
