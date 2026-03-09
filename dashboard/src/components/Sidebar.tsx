@@ -426,7 +426,7 @@ const Sidebar = ({
         }}
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar  flex-col z-50 border-r border-border shadow-xl`}
+        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar flex-col z-50 border-r border-border shadow-sm`}
       >
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
@@ -439,9 +439,9 @@ const Sidebar = ({
                         <NavLink
                           to={item.link as string}
                           className={() =>
-                            `flex items-center w-full px-3 py-2 rounded-sm transition-all duration-200 ${isPathActive(item.link)
-                              ? "bg-primary/20 text-primary"
-                              : "hover:inset-1 hover:inset-ring"
+                            `flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-all duration-200 ${isPathActive(item.link)
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
                           onClick={() => {
@@ -451,7 +451,7 @@ const Sidebar = ({
                             }
                           }}
                         >
-                          <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
+                          <item.icon className="flex-shrink-0 h-4 w-4" />
                           {sidebarExpanded && (
                             <motion.span
                               initial={{ opacity: 0 }}
@@ -465,9 +465,12 @@ const Sidebar = ({
                       ) : (
                         <div>
                           <button
-                            className={`flex items-center w-full p-3 rounded-sm transition-all duration-200 ${sidebarExpanded
+                            className={`flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-all duration-200 ${sidebarExpanded
                               ? "justify-between gap-3"
                               : "justify-center"
+                              } ${openDropdown === item.id
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                               }`}
                             onClick={() => toggleDropdown(item.id)}
                           >
@@ -475,7 +478,7 @@ const Sidebar = ({
                               className={`flex items-center ${sidebarExpanded ? "gap-3" : ""
                                 }`}
                             >
-                              <item.icon className="flex-shrink-0 h-4 w-4 text-lg" />
+                              <item.icon className="flex-shrink-0 h-4 w-4" />
                               {sidebarExpanded && (
                                 <motion.span
                                   initial={{ opacity: 0 }}
@@ -493,7 +496,7 @@ const Sidebar = ({
                                 }}
                                 transition={{ duration: 0.2 }}
                               >
-                                <ChevronDown className="text-xs" />
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
                               </motion.div>
                             )}
                           </button>
@@ -509,20 +512,19 @@ const Sidebar = ({
                                     transition: { duration: 0.2 },
                                   }}
                                   exit={{ height: 0, opacity: 0 }}
-                                  className="overflow-visible space-y-1 pl-9"
+                                  className="overflow-visible space-y-1 pl-7 border-l border-border ml-4"
                                 >
                                   {item.items?.map((subItem) => (
                                     <li key={subItem.id}>
                                       <NavLink
                                         to={subItem.link}
                                         className={({ isActive }: { isActive: boolean }) =>
-                                          `flex items-center w-full px-3 py-2 rounded-sm transition-all duration-200 ${isActive
-                                            ? "bg-primary/20 text-primary"
-                                            : "hover:inset-1 hover:inset-ring"
+                                          `flex items-center w-full px-3 py-1.5 rounded-sm text-md transition-all duration-200 ${isActive
+                                            ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                           }`
                                         }
                                         onClick={() => {
-                                          console.log(subItem);
                                           if (
                                             window.innerWidth < 768 &&
                                             onClose
