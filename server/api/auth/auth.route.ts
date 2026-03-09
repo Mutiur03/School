@@ -7,10 +7,12 @@ import {
   addAdminSchema,
   teacherLoginSchema,
   teacherPasswordResetRequestSchema,
-  teacherPasswordResetVerifySchema,
+  teacherPasswordResetCodeVerifySchema,
+  teacherPasswordUpdateSchema,
   studentLoginSchema,
   studentPasswordResetRequestSchema,
-  studentPasswordResetVerifySchema,
+  studentPasswordResetCodeVerifySchema,
+  studentPasswordUpdateSchema,
 } from "@school/shared-schemas";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import rateLimit from "express-rate-limit";
@@ -59,7 +61,8 @@ const passwordResetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 15, // Maximum 15 requests per 15 minutes
   message: {
-    message: "Too many password reset attempts, please try again after 15 minutes",
+    message:
+      "Too many password reset attempts, please try again after 15 minutes",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -73,9 +76,15 @@ router.post(
   AuthController.requestTeacherPasswordReset,
 );
 router.post(
+  "/teacher/password-reset/check-code",
+  passwordResetLimiter,
+  validate(teacherPasswordResetCodeVerifySchema),
+  AuthController.checkTeacherPasswordResetCode,
+);
+router.post(
   "/teacher/password-reset/verify",
   passwordResetLimiter,
-  validate(teacherPasswordResetVerifySchema),
+  validate(teacherPasswordUpdateSchema),
   AuthController.verifyTeacherPasswordReset,
 );
 
@@ -87,9 +96,15 @@ router.post(
   AuthController.requestStudentPasswordReset,
 );
 router.post(
+  "/student/password-reset/check-code",
+  passwordResetLimiter,
+  validate(studentPasswordResetCodeVerifySchema),
+  AuthController.checkStudentPasswordResetCode,
+);
+router.post(
   "/student/password-reset/verify",
   passwordResetLimiter,
-  validate(studentPasswordResetVerifySchema),
+  validate(studentPasswordUpdateSchema),
   AuthController.verifyStudentPasswordReset,
 );
 

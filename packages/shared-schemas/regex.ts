@@ -14,6 +14,8 @@ export const ADDRESS_TEXT = /^[A-Za-z0-9\s]{2,100}$/;
 export const DESIGNATION = /^[A-Za-z][A-Za-z0-9 .'-]{1,48}[A-Za-z0-9.]$/;
 export const USERNAME = /^[A-Za-z0-9_.-@]+$/;
 export const ASCII_ONLY = /^[\x00-\x7F]+$/;
+export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+export const LOGIN_ID = /^\d{5}$/;
 
 // Utility filters for UI (used by both frontend and shared logic)
 export function filterEnglishInput(value: string) {

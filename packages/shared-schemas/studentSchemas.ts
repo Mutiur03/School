@@ -12,6 +12,7 @@ import {
   SECTION,
   ADDRESS_TEXT,
   CLASS_NUM,
+  LOGIN_ID,
 } from "./regex.js";
 
 export const studentLoginSchema = z.object({
@@ -19,8 +20,8 @@ export const studentLoginSchema = z.object({
     .union([z.string(), z.number()])
     .transform((val) => String(val))
     .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
-    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
-      message: "Login ID must be a valid number",
+    .refine((val) => LOGIN_ID.test(val), {
+      message: "Login ID must be exactly 5 digits",
     }),
 
   password: z.string().min(1, "Password is required"),
@@ -350,18 +351,32 @@ export const studentPasswordResetRequestSchema = z.object({
     .union([z.string(), z.number()])
     .transform((val) => String(val))
     .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
-    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
-      message: "Login ID must be a valid number",
+    .refine((val) => LOGIN_ID.test(val), {
+      message: "Login ID must be exactly 5 digits",
     }),
 });
 
-export const studentPasswordResetVerifySchema = z.object({
+export const studentPasswordResetCodeVerifySchema = z.object({
   login_id: z
     .union([z.string(), z.number()])
     .transform((val) => String(val))
     .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
-    .refine((val) => !isNaN(Number(val)) && Number.isInteger(Number(val)), {
-      message: "Login ID must be a valid number",
+    .refine((val) => LOGIN_ID.test(val), {
+      message: "Login ID must be exactly 5 digits",
+    }),
+  code: z
+    .string()
+    .length(6, "Reset code must be exactly 6 digits")
+    .regex(/^\d{6}$/, "Reset code must contain only numbers"),
+});
+
+export const studentPasswordUpdateSchema = z.object({
+  login_id: z
+    .union([z.string(), z.number()])
+    .transform((val) => String(val))
+    .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
+    .refine((val) => LOGIN_ID.test(val), {
+      message: "Login ID must be exactly 5 digits",
     }),
   code: z
     .string()
@@ -376,10 +391,17 @@ export const studentPasswordResetVerifySchema = z.object({
       const hasUpperCase = /[A-Z]/.test(password);
       const hasLowerCase = /[a-z]/.test(password);
       const hasNumbers = /\d/.test(password);
-      
+
       return hasUpperCase && hasLowerCase && hasNumbers;
     }, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
 });
 
-export type StudentPasswordResetRequestData = z.infer<typeof studentPasswordResetRequestSchema>;
-export type StudentPasswordResetVerifyData = z.infer<typeof studentPasswordResetVerifySchema>;
+export type StudentPasswordResetRequestData = z.infer<
+  typeof studentPasswordResetRequestSchema
+>;
+export type StudentPasswordResetCodeVerifyData = z.infer<
+  typeof studentPasswordResetCodeVerifySchema
+>;
+export type StudentPasswordUpdateData = z.infer<
+  typeof studentPasswordUpdateSchema
+>;

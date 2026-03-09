@@ -34,7 +34,7 @@ const statusConfig: Record<string, { icon: React.ReactNode; className: string; l
     },
     inactive: {
         icon: <Clock size={12} />,
-        className: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+        className: "bg-muted text-gray-800 dark:bg-gray-700 dark:text-gray-300",
         label: "Inactive",
     },
 };
@@ -55,7 +55,7 @@ const statusConfig: Record<string, { icon: React.ReactNode; className: string; l
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, className = "" }) => {
     const config = statusConfig[status.toLowerCase()] ?? {
         icon: <AlertCircle size={12} />,
-        className: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+        className: "bg-muted text-gray-700 dark:bg-gray-700 dark:text-gray-300",
         label: status,
     };
 

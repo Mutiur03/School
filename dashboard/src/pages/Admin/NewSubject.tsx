@@ -360,7 +360,7 @@ const NewSubject: React.FC = () => {
                       placeholder="Subject Name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                     <input
@@ -372,7 +372,7 @@ const NewSubject: React.FC = () => {
                       value={formData.class}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                   </div>
@@ -384,7 +384,7 @@ const NewSubject: React.FC = () => {
                       value={formData.full_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                     <input
@@ -394,7 +394,7 @@ const NewSubject: React.FC = () => {
                       value={formData.pass_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                   </div>
@@ -406,7 +406,7 @@ const NewSubject: React.FC = () => {
                       value={formData.cq_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                     <input
                       type="number"
@@ -415,7 +415,7 @@ const NewSubject: React.FC = () => {
                       value={formData.mcq_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                     <input
                       type="number"
@@ -424,7 +424,7 @@ const NewSubject: React.FC = () => {
                       value={formData.practical_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                   </div>
                   <div className="grid grid-cols-3 gap-4">
@@ -435,7 +435,7 @@ const NewSubject: React.FC = () => {
                       value={formData.cq_pass_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                     <input
                       type="number"
@@ -444,7 +444,7 @@ const NewSubject: React.FC = () => {
                       value={formData.mcq_pass_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                     <input
                       type="number"
@@ -453,7 +453,7 @@ const NewSubject: React.FC = () => {
                       value={formData.practical_pass_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     />
                   </div>
                   <div>
@@ -461,7 +461,7 @@ const NewSubject: React.FC = () => {
                       name="department"
                       value={formData.department}
                       onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-gray-300 rounded-lg"
+                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                     >
                       <option value="">Select a Department</option>
                       {["Science", "Arts", "Commerce"].map((department) => (
@@ -491,7 +491,7 @@ const NewSubject: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowFormatInfo(true)}
-                      className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                      className="w-6 h-6 bg-primary hover:bg-primary text-white rounded-full flex items-center justify-center text-sm font-bold transition-colors"
                       title="View Excel format requirements"
                     >
                       i
@@ -514,7 +514,7 @@ const NewSubject: React.FC = () => {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer"
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-lg cursor-pointer"
                     >
                       <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
@@ -553,7 +553,7 @@ const NewSubject: React.FC = () => {
                           ? ` (${excelFileRef.current.files[0].name})`
                           : ""}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-muted-foreground">
                         .xlsx or .xls files only
                       </span>
                     </label>
@@ -589,7 +589,7 @@ const NewSubject: React.FC = () => {
             id="filterYear"
             value={filterYear}
             onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="p-2 border text-input dark:bg-accent border-gray-300 rounded-lg"
+            className="p-2 border text-input dark:bg-accent border-border rounded-lg"
           >
             <option value={new Date().getFullYear() + 1}>
               {new Date().getFullYear() + 1}
@@ -675,7 +675,7 @@ const NewSubject: React.FC = () => {
                             </svg>
                           </button>
                           <button onClick={() => editSubject(subject)}>
-                            <Edit className="sm:w-4 sm:h-4 w-3 h-3 text-blue-500 hover:text-blue-700" />
+                            <Edit className="sm:w-4 sm:h-4 w-3 h-3 text-primary hover:text-blue-700" />
                           </button>
 
                           <DeleteConfirmationIcon
@@ -711,7 +711,7 @@ const NewSubject: React.FC = () => {
                 <h2 className="text-2xl font-bold">Subject Details</h2>
                 <button
                   onClick={() => setShowSubjectDetails(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-muted-foreground hover:text-gray-700 text-2xl"
                 >
                   ×
                 </button>
@@ -719,7 +719,7 @@ const NewSubject: React.FC = () => {
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Basic Information
                     </h3>
@@ -746,7 +746,7 @@ const NewSubject: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Main Marks
                     </h3>
@@ -761,13 +761,13 @@ const NewSubject: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Detailed Mark Distribution
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
+                      <h4 className="font-medium text-primary dark:text-primary/70 mb-2">
                         Mark Allocation
                       </h4>
                       <div className="space-y-1 text-sm">
@@ -825,7 +825,7 @@ const NewSubject: React.FC = () => {
                     setShowSubjectDetails(false);
                     editSubject(selectedSubject);
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
                 >
                   Edit Subject
                 </button>
@@ -851,19 +851,19 @@ const NewSubject: React.FC = () => {
                 </h2>
                 <button
                   onClick={() => setShowFormatInfo(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-muted-foreground hover:text-gray-700 text-2xl"
                 >
                   ×
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-sm text-muted-foreground dark:text-gray-300">
                   Your Excel file must contain the following columns with exact
                   names (case-sensitive):
                 </p>
 
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="font-medium">Required Columns:</div>
                     <div></div>
@@ -897,7 +897,7 @@ const NewSubject: React.FC = () => {
 
                 <div className="space-y-2">
                   <h3 className="font-medium">Important Notes:</h3>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-gray-600 dark:text-gray-300">
+                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground dark:text-gray-300">
                     <li>
                       <strong>name:</strong> Subject name (e.g., Mathematics,
                       Physics)
@@ -967,7 +967,7 @@ const NewSubject: React.FC = () => {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowFormatInfo(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
                 >
                   Got it
                 </button>

@@ -332,7 +332,7 @@ function Attendance() {
       {loading ? (
         <p>Loading attendance data...</p>
       ) : error ? (
-        <p className="text-gray-500">
+        <p className="text-muted-foreground">
           Please resolve the error above to view attendance data.
         </p>
       ) : (

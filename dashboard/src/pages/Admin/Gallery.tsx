@@ -413,7 +413,7 @@ export default function Gallery() {
     return (
       <div key={groupKey} className="mb-8">
         <motion.div
-          className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
+          className="flex items-center justify-between bg-muted dark:bg-gray-800 p-4 rounded-lg cursor-pointer"
           onClick={() =>
             setFoldedCategories((prev) => ({
               ...prev,
@@ -426,12 +426,12 @@ export default function Gallery() {
               animate={{ rotate: isFolded ? 0 : 180 }}
               transition={{ duration: 0.2 }}
             >
-              <FiChevronDown className="text-gray-600 dark:text-gray-300" />
+              <FiChevronDown className="text-muted-foreground dark:text-gray-300" />
             </motion.div>
             <motion.h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <FiImage className="text-primary" />
               {title}{" "}
-              <span className="text-sm text-gray-500">({images.length})</span>
+              <span className="text-sm text-muted-foreground">({images.length})</span>
             </motion.h2>
           </div>
           <div className="flex items-center gap-4">
@@ -601,7 +601,7 @@ export default function Gallery() {
                       multiple={!isEditing}
                       ref={fileref}
                       onChange={handleFileChange}
-                      className="cursor-pointer border-2 border-dashed border-gray-300 hover:border-primary transition-colors rounded-lg"
+                      className="cursor-pointer border-2 border-dashed border-border hover:border-primary transition-colors rounded-lg"
                     />
                   </div>
                   {files.length > 0 && (
@@ -639,7 +639,7 @@ export default function Gallery() {
                       });
                     }}
                     placeholder="Enter caption"
-                    className="w-full dark:bg-accent border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base"
+                    className="w-full dark:bg-accent border border-border dark:border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base"
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -763,7 +763,7 @@ export default function Gallery() {
                 )
               ) : (
                 <div className="text-center py-8 sm:py-12">
-                  <p className="text-gray-500">No gallery data available</p>
+                  <p className="text-muted-foreground">No gallery data available</p>
                 </div>
               )}
             </motion.div>
@@ -784,14 +784,14 @@ export default function Gallery() {
                 )
               ) : (
                 <div className="text-center py-8 sm:py-12">
-                  <p className="text-gray-500">No gallery data available</p>
+                  <p className="text-muted-foreground">No gallery data available</p>
                 </div>
               )}
             </motion.div>
           </>
         ) : (
           <div className="text-center py-8 sm:py-12">
-            <p className="text-gray-500">No gallery data available</p>
+            <p className="text-muted-foreground">No gallery data available</p>
           </div>
         )}
       </div>
@@ -887,8 +887,8 @@ export default function Gallery() {
                             className="max-h-full max-w-full object-contain rounded-lg"
                           />
                         </div>
-                        <div className="bg-white dark:bg-gray-900 p-4 rounded-b-lg">
-                          <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="bg-card p-4 rounded-b-lg">
+                          <div className="flex flex-wrap justify-between gap-4 mt-2 text-sm text-muted-foreground dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
                                 <span className="font-medium">Student: </span>

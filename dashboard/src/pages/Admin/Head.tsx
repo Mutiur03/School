@@ -91,7 +91,7 @@ function Head() {
 
   return (
     <div className="p-4">
-      {loading && <div className="text-gray-600">Loading...</div>}
+      {loading && <div className="text-muted-foreground">Loading...</div>}
       {error && <div className="text-red-600">{error}</div>}
       {success && <div className="text-green-600">{success}</div>}
 
@@ -126,7 +126,7 @@ function Head() {
           <button
             type="submit"
             disabled={loading || (!selectedTeacherId && !message.trim())}
-            className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60"
+            className="px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary/90 disabled:opacity-60"
           >
             Save All
           </button>

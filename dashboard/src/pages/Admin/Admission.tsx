@@ -418,7 +418,7 @@ function Admission() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Total</div>
           <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {(() => {
@@ -430,7 +430,7 @@ function Admission() {
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Pending</div>
           <div className="text-2xl font-semibold text-amber-600">
             {(() => {
@@ -444,7 +444,7 @@ function Admission() {
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
           <div className="text-sm mb-1">Approved</div>
           <div className="text-2xl font-semibold text-emerald-600">
             {(() => {
@@ -459,10 +459,10 @@ function Admission() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+      <div className="bg-white rounded-xl border border-border p-6 mb-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <div className="flex items-center gap-2 mb-4">
           <svg
-            className="w-5 h-5 text-gray-500 dark:text-gray-300"
+            className="w-5 h-5 text-muted-foreground dark:text-gray-300"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -488,7 +488,7 @@ function Admission() {
                 const v = e.target.value;
                 setFilters((prev) => ({ ...prev, status: v }));
               }}
-              className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -503,7 +503,7 @@ function Admission() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, class: e.target.value }))
               }
-              className="w-full px-3 py-2 border dark:bg-accent border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
             >
               {(() => {
                 const raw = filters.class_list || "";
@@ -586,7 +586,7 @@ function Admission() {
                   admission_year: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border dark:bg-accent  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:bg-accent  border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
             >
               <option value="">All Years</option>
               {(() => {
@@ -632,7 +632,7 @@ function Admission() {
                   const v = e.target.value;
                   setFilters((prev) => ({ ...prev, search: v }));
                 }}
-                className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-gray-300 rounded-lg focus:ring-2  focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-border rounded-lg focus:ring-2  focus:ring-primary/20 focus:border-blue-500"
               />
             </div>
           </div>
@@ -646,13 +646,13 @@ function Admission() {
       )}
 
       <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
+        <div className="px-6 py-4 border-b border-border bg-card dark:border-gray-700">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100">
                 Admissions
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">
                 Showing {filteredAdmissions.length} of {items.length} students
               </p>
             </div>
@@ -693,7 +693,7 @@ function Admission() {
                 onClick={handleExportImages}
                 disabled={loading}
                 title="Export student images as ZIP"
-                className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800/10 dark:text-gray-200 dark:border-gray-700"
+                className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg bg-muted/50 text-gray-700 border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800/10 dark:text-gray-200 dark:border-gray-700"
               >
                 <svg
                   className="w-4 h-4"
@@ -722,7 +722,7 @@ function Admission() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <thead className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
                   Student
@@ -749,7 +749,7 @@ function Admission() {
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-300"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-blue-300"></div>
                     </div>
                   </td>
                 </tr>
@@ -757,7 +757,7 @@ function Admission() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
+                    className="px-6 py-12 text-center text-muted-foreground dark:text-gray-400"
                   >
                     No admissions found
                   </td>
@@ -766,13 +766,13 @@ function Admission() {
                 filteredAdmissions.map((admission) => (
                   <tr
                     key={admission.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="hover:bg-muted/50 dark:hover:bg-gray-700"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {admission.photo_path && (
                           <img
-                            className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                            className="h-10 w-10 rounded-full object-cover border border-border dark:border-gray-600"
                             src={`${getFileUrl(admission.photo_path)}`}
                             alt=""
                           />
@@ -781,7 +781,7 @@ function Admission() {
                           <div className="font-medium text-gray-900 dark:text-gray-100">
                             {admission.student_name_en}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="text-sm text-muted-foreground dark:text-gray-400">
                             {admission.student_name_bn}
                           </div>
                         </div>
@@ -794,7 +794,7 @@ function Admission() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-gray-800 dark:bg-gray-700 dark:text-gray-100">
                         {admission.admission_user_id ||
                           admission.roll ||
                           admission.serial_no ||
@@ -804,7 +804,7 @@ function Admission() {
                     <td className="px-6 py-4">
                       {getStatusBadge(admission.status)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 text-sm text-muted-foreground dark:text-gray-400">
                       {formatDate(
                         admission.created_at || admission.submission_date
                       )}
@@ -848,7 +848,7 @@ function Admission() {
           }}
         >
           <div className="bg-white text-black rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-300 bg-linear-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
+            <div className="flex justify-between items-center p-6 border-b border-border bg-linear-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
               <div>
                 <h3 className="text-lg font-semibold">Admission Details</h3>
                 <p className="text-sm opacity-90 mt-1">
@@ -864,21 +864,21 @@ function Admission() {
             </div>
             <div className="p-6">
               {selectedAdmission.photo_path && (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center mb-6">
+                <div className="bg-muted/50 p-4 rounded-lg border border-border flex flex-col items-center mb-6">
                   <h4 className="text-sm font-semibold mb-2">
                     Student's Photo
                   </h4>
                   <img
                     src={`${getFileUrl(selectedAdmission.photo_path)}`}
                     alt="Student Photo"
-                    className="w-28 h-28 object-cover border-2 border-gray-300 rounded-lg shadow"
+                    className="w-28 h-28 object-cover border-2 border-border rounded-lg shadow"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
                     }}
                   />
                 </div>
               )}
-              <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
+              <div className="text-sm font-medium text-gray-800 border border-border rounded px-3 py-2 bg-muted/50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
                 <span>Class: {selectedAdmission.admission_class || "-"}</span>
                 <span>
                   Admission User ID:{" "}
@@ -892,7 +892,7 @@ function Admission() {
                   Status: {getStatusBadge(selectedAdmission.status)}
                 </span>
               </div>
-              <div className="border border-gray-200 bg-white rounded-lg overflow-hidden">
+              <div className="border border-border bg-white rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <tbody>
@@ -905,7 +905,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Admission Class:
                         </td>
                         <td className="py-2 px-4">
@@ -914,8 +914,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           List Type:
                         </td>
                         <td className="py-2 px-4">
@@ -925,7 +925,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Admission User ID:
                         </td>
                         <td className="py-2 px-4">
@@ -935,7 +935,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Serial No:
                         </td>
                         <td className="py-2 px-4">
@@ -945,7 +945,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Qouta:
                         </td>
                         <td className="py-2 px-4">
@@ -964,7 +964,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           ছাত্রের নাম :
                         </td>
                         <td className="py-2 px-4">
@@ -973,8 +973,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Student's Name (In Capital Letter):
                         </td>
                         <td className="py-2 px-4">
@@ -984,7 +984,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Student Nickname (BN):
                         </td>
                         <td className="py-2 px-4">
@@ -993,8 +993,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Birth Registration No.:
                         </td>
                         <td className="py-2 px-4">
@@ -1004,7 +1004,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Registration Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1013,8 +1013,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Date of Birth :
                         </td>
                         <td className="py-2 px-4">
@@ -1050,8 +1050,8 @@ function Admission() {
                         </td>
                       </tr>
 
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Blood Group:
                         </td>
                         <td className="py-2 px-4">
@@ -1061,7 +1061,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Email Address:
                         </td>
                         <td className="py-2 px-4">
@@ -1070,8 +1070,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Religion:
                         </td>
                         <td className="py-2 px-4">
@@ -1090,7 +1090,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Present Address:
                         </td>
                         <td className="py-2 px-4">
@@ -1118,8 +1118,8 @@ function Admission() {
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Permanent Address:
                         </td>
                         <td className="py-2 px-4">
@@ -1157,7 +1157,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Guardian Info:
                         </td>
                         <td className="py-2 px-4">
@@ -1186,8 +1186,8 @@ function Admission() {
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Guardian Address:
                         </td>
                         <td className="py-2 px-4">
@@ -1216,7 +1216,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Previous School Name & Address:
                         </td>
                         <td className="py-2 px-4">
@@ -1238,8 +1238,8 @@ function Admission() {
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Previous School Academic Info:
                         </td>
                         <td className="py-2 px-4">
@@ -1269,7 +1269,7 @@ function Admission() {
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Father's Name (BN):
                         </td>
                         <td className="py-2 px-4">
@@ -1278,8 +1278,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Father's Name (EN):
                         </td>
                         <td className="py-2 px-4">
@@ -1289,7 +1289,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Father's National ID Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1298,8 +1298,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Father's Mobile Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1310,7 +1310,7 @@ function Admission() {
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Mother's Name (BN):
                         </td>
                         <td className="py-2 px-4">
@@ -1319,8 +1319,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Mother's Name (EN):
                         </td>
                         <td className="py-2 px-4">
@@ -1330,7 +1330,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Mother's National ID Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1339,8 +1339,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Mother's Mobile Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1351,7 +1351,7 @@ function Admission() {
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Father's Profession:
                         </td>
                         <td className="py-2 px-4">
@@ -1360,8 +1360,8 @@ function Admission() {
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-gray-50">
-                        <td className="py-2 px-4 font-medium  bg-gray-100">
+                      <tr className="border-b bg-muted/50">
+                        <td className="py-2 px-4 font-medium  bg-muted">
                           Mother's Profession:
                         </td>
                         <td className="py-2 px-4">
@@ -1371,7 +1371,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Parent's Annual Income:
                         </td>
                         <td className="py-2 px-4">
@@ -1383,7 +1383,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Whatsapp Number:
                         </td>
                         <td className="py-2 px-4">
@@ -1393,7 +1393,7 @@ function Admission() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-gray-50">
+                        <td className="py-2 px-4 font-medium  bg-muted/50">
                           Submission Date:
                         </td>
                         <td className="py-2 px-4">
@@ -1409,8 +1409,8 @@ function Admission() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
-              <div className="text-sm text-gray-600">
+            <div className="flex justify-between items-center p-6 border-t border-border bg-muted/50">
+              <div className="text-sm text-muted-foreground">
                 Admission ID: {selectedAdmission.id}
               </div>
               <div className="flex gap-3">
@@ -1442,7 +1442,7 @@ function Admission() {
                     }
                   }}
                   disabled={pdfDownloading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {pdfDownloading ? (
                     <span className="animate-spin inline-block w-4 h-4 border-b-2 border-white"></span>
@@ -1452,7 +1452,7 @@ function Admission() {
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-100  rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 bg-muted  rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Close
                 </button>
@@ -1476,13 +1476,13 @@ function Admission() {
               </h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-muted-foreground"
               >
                 ×
               </button>
             </div>
             <div className="mb-4">
-              <div className="text-sm text-gray-600 mb-3">
+              <div className="text-sm text-muted-foreground mb-3">
                 <strong>Student:</strong>{" "}
                 {editFormData.student_name_en || "N/A"}
                 <br />
@@ -1498,7 +1498,7 @@ function Admission() {
                 onChange={(e) =>
                   setEditFormData({ ...editFormData, status: e.target.value })
                 }
-                className="w-full border dark:bg-white text-black border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border dark:bg-white text-black border-border rounded px-3 py-2 focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
               >
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
@@ -1511,13 +1511,13 @@ function Admission() {
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 border border-gray-300 bg-red-500 rounded hover:bg-red-700"
+                className="px-4 py-2 border border-border bg-red-500 rounded hover:bg-red-700"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
               >
                 Update Status
               </button>
@@ -1554,7 +1554,7 @@ function Admission() {
                 Delete Admission
               </h3>
               <div className="mt-2 px-7 py-3">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Are you sure you want to delete the admission for{" "}
                   <strong>{deleteTargetAdmission.student_name_en}</strong>? This
                   action cannot be undone.

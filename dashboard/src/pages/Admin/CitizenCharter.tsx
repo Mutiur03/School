@@ -117,12 +117,12 @@ function CitizenCharter() {
                 type="file"
                 accept=".pdf"
                 onChange={handleFileSelect}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
 
             {selectedFile && (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Selected: {selectedFile.name} (
                 {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
               </div>
@@ -142,7 +142,7 @@ function CitizenCharter() {
             <button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isUploading ? (
                 <>
@@ -181,13 +181,13 @@ function CitizenCharter() {
           </h2>
 
           {isLoading ? (
-            <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-              <div className="text-gray-500">Loading...</div>
+            <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
+              <div className="text-muted-foreground">Loading...</div>
             </div>
           ) : currentPDF ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-muted-foreground">
                   Last updated:{" "}
                   {new Date(currentPDF.updated_at).toLocaleDateString()}
                 </span>
@@ -223,8 +223,8 @@ function CitizenCharter() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-              <div className="text-center text-gray-500">
+            <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
+              <div className="text-center text-muted-foreground">
                 <svg
                   className="w-12 h-12 mx-auto mb-4"
                   fill="none"

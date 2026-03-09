@@ -23,15 +23,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const MAIN_COLOR = "bg-blue-600 dark:bg-blue-500";
-const MAIN_COLOR_HOVER = "hover:bg-blue-700 dark:hover:bg-blue-400";
+const MAIN_COLOR = "bg-primary dark:bg-primary";
+const MAIN_COLOR_HOVER = "hover:bg-primary/90 dark:hover:bg-blue-400";
 const WARNING_COLOR = "bg-yellow-500 dark:bg-yellow-600";
 const WARNING_COLOR_HOVER = "hover:bg-yellow-600 dark:hover:bg-yellow-700";
 const DANGER_COLOR = "bg-red-600 dark:bg-red-500";
 const DANGER_COLOR_HOVER = "hover:bg-red-700 dark:hover:bg-red-400";
-const CARD_COLOR = "bg-white dark:bg-zinc-900";
-const BORDER_COLOR = "border-gray-200 dark:border-zinc-800";
-const TEXT_MUTED = "text-gray-500 dark:text-gray-400";
+const CARD_COLOR = "bg-card";
+const BORDER_COLOR = "border-border dark:border-border/40";
+const TEXT_MUTED = "text-muted-foreground dark:text-gray-400";
 const TEXT_SUCCESS = "text-green-600 dark:text-green-400";
 const TEXT_ERROR = "text-red-600 dark:text-red-400";
 
@@ -293,7 +293,7 @@ function ClassRoutine() {
         >
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <Clock className="text-blue-600 dark:text-blue-400" /> Create
+              <Clock className="text-primary dark:text-primary/70" /> Create
               Class Slot
             </CardTitle>
           </CardHeader>
@@ -313,7 +313,7 @@ function ClassRoutine() {
                   <select
                     id="start_time"
                     name="start_time"
-                    className="w-full border rounded px-3 py-2 bg-white dark:bg-zinc-900"
+                    className="w-full border rounded px-3 py-2 bg-card"
                     value={slotForm.start_time}
                     onChange={(e) =>
                       setSlotForm((f) => ({
@@ -336,7 +336,7 @@ function ClassRoutine() {
                   <select
                     id="end_time"
                     name="end_time"
-                    className="w-full border rounded px-3 py-2 bg-white dark:bg-zinc-900"
+                    className="w-full border rounded px-3 py-2 bg-card"
                     value={slotForm.end_time}
                     onChange={(e) =>
                       setSlotForm((f) => ({
@@ -363,7 +363,7 @@ function ClassRoutine() {
                     {loadingSlots ? (
                       <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
-                      <PlusCircle className="text-blue-600 dark:text-blue-400" />
+                      <PlusCircle className="text-primary dark:text-primary/70" />
                     )}
                     {editingSlotId ? "Update Slot" : "Create Slot"}
                   </Button>
@@ -392,7 +392,7 @@ function ClassRoutine() {
                   <div
                     className={`${theme.success} text-sm mt-1 flex items-center gap-1`}
                   >
-                    <CheckCircle2 className="text-blue-600 dark:text-blue-400" />{" "}
+                    <CheckCircle2 className="text-primary dark:text-primary/70" />{" "}
                     {slotSuccessMsg}
                   </div>
                 )}
@@ -413,12 +413,12 @@ function ClassRoutine() {
               </Button>
             )}
             {showSlotsTable && (
-              <div className="overflow-x-auto rounded border border-gray-200 dark:border-zinc-800">
+              <div className="overflow-x-auto rounded border border-border dark:border-border/40">
                 <table
-                  className={`w-full min-w-[340px] border-collapse bg-gray-50 dark:bg-zinc-900 text-xs sm:text-sm`}
+                  className={`w-full min-w-[340px] border-collapse bg-muted/50 dark:bg-zinc-900 text-xs sm:text-sm`}
                 >
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-blue-600 dark:bg-blue-500 text-white">
+                    <tr className="bg-primary dark:bg-primary text-white">
                       <th className="p-2">Start Time</th>
                       <th className="p-2">End Time</th>
                       <th className="p-2">Actions</th>
@@ -428,14 +428,14 @@ function ClassRoutine() {
                     {loadingSlots ? (
                       <tr>
                         <td colSpan={3} className="text-center py-4">
-                          <Loader2 className="animate-spin h-5 w-5 mx-auto text-blue-600 dark:text-blue-400" />
+                          <Loader2 className="animate-spin h-5 w-5 mx-auto text-primary dark:text-primary/70" />
                         </td>
                       </tr>
                     ) : slots.length === 0 ? (
                       <tr>
                         <td
                           colSpan={3}
-                          className="text-center py-4 text-gray-400 dark:text-gray-500"
+                          className="text-center py-4 text-gray-400 dark:text-muted-foreground"
                         >
                           No slots created.
                         </td>
@@ -461,8 +461,8 @@ function ClassRoutine() {
                             key={s.id}
                             className={
                               idx % 2 === 0
-                                ? "bg-gray-100 dark:bg-zinc-800"
-                                : "bg-white dark:bg-zinc-900"
+                                ? "bg-muted dark:bg-zinc-800"
+                                : "bg-card"
                             }
                           >
                             <td className="p-2">{s.start_time}</td>
@@ -476,7 +476,7 @@ function ClassRoutine() {
                                 onClick={() => handleSlotEdit(s)}
                                 title="Edit Slot"
                               >
-                                <PencilLine className="text-blue-600 dark:text-blue-400" />
+                                <PencilLine className="text-primary dark:text-primary/70" />
                               </Button>
                               <Button
                                 type="button"
@@ -506,8 +506,8 @@ function ClassRoutine() {
           </CardContent>
         </Card>
         <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-center gap-2 mb-2 bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded px-3 py-2 text-xs sm:text-sm text-blue-800 dark:text-blue-200">
-            <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+          <div className="flex items-center gap-2 mb-2 bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-border/50 rounded px-3 py-2 text-xs sm:text-sm text-blue-800 dark:text-blue-200">
+            <Info className="w-4 h-4 text-primary dark:text-primary/70" />
             <span>
               For better UI, add <b>"Break"</b> every day at the same slot.
             </span>
@@ -517,7 +517,7 @@ function ClassRoutine() {
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <PlusCircle className="text-blue-600 dark:text-blue-400" /> Add
+                <PlusCircle className="text-primary dark:text-primary/70" /> Add
                 / Edit Routine Entry
               </CardTitle>
             </CardHeader>
@@ -630,7 +630,7 @@ function ClassRoutine() {
                       {loadingRoutines ? (
                         <Loader2 className="animate-spin h-4 w-4" />
                       ) : (
-                        <CheckCircle2 className="text-blue-600 dark:text-blue-400" />
+                        <CheckCircle2 className="text-primary dark:text-primary/70" />
                       )}
                       {editingId ? "Update" : "Add"}
                     </Button>
@@ -664,7 +664,7 @@ function ClassRoutine() {
                     <div
                       className={`${theme.success} text-sm mt-1 flex items-center gap-1`}
                     >
-                      <CheckCircle2 className="text-blue-600 dark:text-blue-400" />{" "}
+                      <CheckCircle2 className="text-primary dark:text-primary/70" />{" "}
                       {successMsg}
                     </div>
                   )}
@@ -677,7 +677,7 @@ function ClassRoutine() {
       <Card className={`mb-8 ${theme.card} ${theme.border} shadow-sm`}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-            <BookOpen className="text-blue-600 dark:text-blue-400" /> Class
+            <BookOpen className="text-primary dark:text-primary/70" /> Class
             Routine Entries
           </CardTitle>
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-4">
@@ -687,7 +687,7 @@ function ClassRoutine() {
               </Label>
               <select
                 id="filter-class"
-                className="border rounded px-2 py-1 bg-white dark:bg-zinc-900 text-xs sm:text-sm"
+                className="border rounded px-2 py-1 bg-card text-xs sm:text-sm"
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
               >
@@ -705,7 +705,7 @@ function ClassRoutine() {
               </Label>
               <select
                 id="filter-day"
-                className="border rounded px-2 py-1 bg-white dark:bg-zinc-900 text-xs sm:text-sm"
+                className="border rounded px-2 py-1 bg-card text-xs sm:text-sm"
                 value={dayFilter}
                 onChange={(e) => setDayFilter(e.target.value)}
               >
@@ -720,10 +720,10 @@ function ClassRoutine() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded border border-gray-200 dark:border-zinc-800">
-            <table className="min-w-[340px] w-full border-collapse bg-gray-50 dark:bg-zinc-900 text-xs sm:text-sm">
+          <div className="overflow-x-auto rounded border border-border dark:border-border/40">
+            <table className="min-w-[340px] w-full border-collapse bg-muted/50 dark:bg-zinc-900 text-xs sm:text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-blue-600 dark:bg-blue-500 text-white">
+                <tr className="bg-primary dark:bg-primary text-white">
                   <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">
                     Class
                   </th>
@@ -745,14 +745,14 @@ function ClassRoutine() {
                 {loadingRoutines ? (
                   <tr>
                     <td colSpan={5} className="text-center py-4">
-                      <Loader2 className="animate-spin h-5 w-5 mx-auto text-blue-600 dark:text-blue-400" />
+                      <Loader2 className="animate-spin h-5 w-5 mx-auto text-primary dark:text-primary/70" />
                     </td>
                   </tr>
                 ) : routines.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
-                      className="text-center py-4 text-gray-400 dark:text-gray-500"
+                      className="text-center py-4 text-gray-400 dark:text-muted-foreground"
                     >
                       No routine entries found.
                     </td>
@@ -794,8 +794,8 @@ function ClassRoutine() {
                         key={r.id}
                         className={
                           idx % 2 === 0
-                            ? "bg-gray-100 dark:bg-zinc-800"
-                            : "bg-white dark:bg-zinc-900"
+                            ? "bg-muted dark:bg-zinc-800"
+                            : "bg-card"
                         }
                       >
                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
@@ -821,7 +821,7 @@ function ClassRoutine() {
                             onClick={() => handleEdit(r)}
                             title="Edit Routine"
                           >
-                            <PencilLine className="text-blue-600 dark:text-blue-400" />
+                            <PencilLine className="text-primary dark:text-primary/70" />
                           </Button>
                           <Button
                             type="button"

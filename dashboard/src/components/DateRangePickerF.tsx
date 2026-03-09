@@ -95,7 +95,7 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
                   )
                 );
               }}
-              className="text-lg absolute left-0 rounded-md border border-gray-200 dark:border-gray-600 sm:p-1 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="text-lg absolute left-0 rounded-md border border-border dark:border-gray-600 sm:p-1 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <ChevronLeft className="text-muted-foreground sm:h-6 sm:w-6 h-5 w-5" />
             </button>
@@ -121,7 +121,7 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
                   )
                 );
               }}
-              className="text-lg absolute right-0  rounded-md border border-gray-200 dark:border-gray-600 sm:p-1 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="text-lg absolute right-0  rounded-md border border-border dark:border-gray-600 sm:p-1 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <ChevronRight className="text-muted-foreground sm:h-6 sm:w-6 h-5 w-5" />
             </button>
@@ -129,7 +129,7 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs px-2 sm:text-sm">
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-            <div key={d} className="font-bold text-gray-600 dark:text-gray-400">
+            <div key={d} className="font-bold text-muted-foreground dark:text-gray-400">
               {d}
             </div>
           ))}
@@ -147,10 +147,10 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
                 onClick={() => handleDateClick(day)}
                 className={`cursor-pointer h-6 w-6 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-xs sm:text-sm 
                   ${isSelected
-                    ? "bg-blue-600 text-white"
+                    ? "bg-primary text-white"
                     : inRange
                       ? "bg-blue-200 text-gray-800 dark:bg-blue-400 dark:text-gray-900"
-                      : "hover:bg-gray-100 text-gray-700 dark:hover:bg-gray-700 dark:text-gray-300"
+                      : "hover:bg-muted text-gray-700 dark:hover:bg-gray-700 dark:text-gray-300"
                   }`}
               >
                 {day.getDate()}
@@ -191,7 +191,7 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
       {showCalendar && (
         <div
           ref={calendarRef}
-          className="absolute sm:left-0 -left-2 right-0 mt-2 z-50 flex flex-col sm:flex-row border border-gray-300 bg-white shadow-lg p-4 sm:p-6 rounded-lg min-w-[21rem] sm:min-w-[36rem] dark:border-gray-700 dark:bg-gray-800"
+          className="absolute sm:left-0 -left-2 right-0 mt-2 z-50 flex flex-col sm:flex-row border border-border bg-white shadow-lg p-4 sm:p-6 rounded-lg min-w-[21rem] sm:min-w-[36rem] dark:border-gray-700 dark:bg-gray-800"
         >
           <div className="flex justify-between  w-full">
             {renderCalendar(

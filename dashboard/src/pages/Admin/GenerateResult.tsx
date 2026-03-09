@@ -306,7 +306,7 @@ const GenerateResult = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center p-4 text-gray-500">
+                  <td colSpan={7} className="text-center p-4 text-muted-foreground">
                     No students available.
                   </td>
                 </tr>

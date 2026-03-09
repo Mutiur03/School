@@ -830,19 +830,19 @@ function StudentList() {
         )}
       </PageHeader>
       {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
           <div className="w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
             {!isEditing && (
-              <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex gap-1 mb-6 border-b border-border dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => setIsExcelUpload(false)}
                   className={`pb-2 px-3 text-sm font-medium transition-colors relative ${!isExcelUpload
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-gray-700 dark:text-gray-400"
                     }`}
                 >
                   Form
@@ -851,8 +851,8 @@ function StudentList() {
                   type="button"
                   onClick={() => setIsExcelUpload(true)}
                   className={`pb-2 px-3 text-sm font-medium transition-colors relative ${isExcelUpload
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-gray-700 dark:text-gray-400"
                     }`}
                 >
                   Excel Upload
@@ -862,10 +862,10 @@ function StudentList() {
             <div className="space-y-4 sm:space-y-6">
               {!isExcelUpload ? (
                 <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                  <div className="rounded-lg border border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-800/50 p-4">
                     <div className="flex justify-center flex-col items-center">
                       <p className="text-sm font-medium mb-2">Student Image</p>
-                      <label className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
+                      <label className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-border dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors">
                         {preview ? (
                           <img
                             src={preview}
@@ -902,7 +902,7 @@ function StudentList() {
                     </div>
                   </div>
 
-                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -965,7 +965,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Academic Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -1001,7 +1001,7 @@ function StudentList() {
                           <select
                             {...register("department")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
-                            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="">Select Department</option>
                             {(VALID_DEPARTMENTS as readonly string[]).map((department: string) => (
@@ -1016,7 +1016,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
+                  <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
                     <legend className="px-1 text-sm sm:text-base font-semibold">Address Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -1058,7 +1058,7 @@ function StudentList() {
                     </div>
                   </fieldset>
 
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="rounded-lg border border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-800/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are mandatory.</p>
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
                       <label className="flex items-center space-x-2 text-sm font-medium">
@@ -1144,7 +1144,7 @@ function StudentList() {
                     />
                     <label
                       htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
+                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
                     >
                       <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                         {fileUploaded ? (
@@ -1240,7 +1240,7 @@ function StudentList() {
           <div>
             <label className="block text-sm font-medium mb-1">Class</label>
             <select
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
               value={classFilter}
               onChange={(e) => {
                 setClassFilter(e.target.value);
@@ -1257,7 +1257,7 @@ function StudentList() {
           <div>
             <label className="block text-sm font-medium mb-1">Section</label>
             <select
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
               value={sectionFilter}
               onChange={(e) => {
                 setSectionFilter(e.target.value);
@@ -1278,7 +1278,7 @@ function StudentList() {
               onChange={(e) => {
                 setYear(Number(e.target.value));
               }}
-              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
             >
               {Array.from({ length: 3 }, (_, i) => (
                 <option key={i} value={currentYear - 1 + i}>
@@ -1343,7 +1343,7 @@ function StudentList() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+              <tr className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
                 <th className="w-12 px-4 py-3 text-center">
                   <input
                     type="checkbox"
@@ -1394,7 +1394,7 @@ function StudentList() {
                 <tr>
                   <td
                     colSpan={8}
-                    className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+                    className="px-4 py-12 text-center text-sm text-muted-foreground dark:text-gray-400"
                   >
                     {errorMessage ||
                       "No students found matching your criteria."}
@@ -1415,7 +1415,7 @@ function StudentList() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Rows</span>
               <select
-                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -1552,7 +1552,7 @@ function StudentList() {
                       {popup.student.has_stipend ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Yes</span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">No</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground dark:bg-gray-700 dark:text-gray-400">No</span>
                       )}
                     </div>
                   </div>

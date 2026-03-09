@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { NAME, PHONE_NUMBER, DESIGNATION, ADDRESS_TEXT } from "./regex.js";
+import {
+  NAME,
+  PHONE_NUMBER,
+  DESIGNATION,
+  ADDRESS_TEXT,
+  EMAIL,
+} from "./regex.js";
 
 export const teacherFormSchema = z.object({
   name: z
@@ -13,7 +19,8 @@ export const teacherFormSchema = z.object({
     .string()
     .trim()
     .min(1, "Email is required")
-    .email("Enter a valid email address"),
+    .email("Enter a valid email address")
+    .regex(EMAIL, "Enter a valid email address"),
 
   phone: z
     .string()
@@ -47,7 +54,8 @@ export const teacherLoginSchema = z.object({
     .string()
     .trim()
     .min(1, "Email is required")
-    .email("Enter a valid email address"),
+    .email("Enter a valid email address")
+    .regex(EMAIL, "Enter a valid email address"),
 
   password: z.string().min(1, "Password is required"),
 });
@@ -60,29 +68,36 @@ export const teacherPasswordResetRequestSchema = z.object({
     .trim()
     .min(1, "Email is required")
     .email("Enter a valid email address")
-    .refine((email) => {
-      // Additional validation for common email domains and format
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      return emailRegex.test(email);
-    }, "Please enter a valid email address"),
+    .regex(EMAIL, "Please enter a valid email address"),
 });
 
-export const teacherPasswordResetVerifySchema = z.object({
+export const teacherPasswordResetCodeVerifySchema = z.object({
   email: z
     .string()
     .trim()
     .min(1, "Email is required")
     .email("Enter a valid email address")
-    .refine((email) => {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      return emailRegex.test(email);
-    }, "Please enter a valid email address"),
-  
+    .regex(EMAIL, "Please enter a valid email address"),
+
   code: z
     .string()
     .length(6, "Reset code must be exactly 6 digits")
     .regex(/^\d{6}$/, "Reset code must contain only numbers"),
-  
+});
+
+export const teacherPasswordUpdateSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Enter a valid email address")
+    .regex(EMAIL, "Please enter a valid email address"),
+
+  code: z
+    .string()
+    .length(6, "Reset code must be exactly 6 digits")
+    .regex(/^\d{6}$/, "Reset code must contain only numbers"),
+
   newPassword: z
     .string()
     .min(8, "Password must be at least 8 characters long")
@@ -92,11 +107,17 @@ export const teacherPasswordResetVerifySchema = z.object({
       const hasUpperCase = /[A-Z]/.test(password);
       const hasLowerCase = /[a-z]/.test(password);
       const hasNumbers = /\d/.test(password);
-      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-      
+
       return hasUpperCase && hasLowerCase && hasNumbers;
     }, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
 });
 
-export type TeacherPasswordResetRequestData = z.infer<typeof teacherPasswordResetRequestSchema>;
-export type TeacherPasswordResetVerifyData = z.infer<typeof teacherPasswordResetVerifySchema>;
+export type TeacherPasswordResetRequestData = z.infer<
+  typeof teacherPasswordResetRequestSchema
+>;
+export type TeacherPasswordResetCodeVerifyData = z.infer<
+  typeof teacherPasswordResetCodeVerifySchema
+>;
+export type TeacherPasswordUpdateData = z.infer<
+  typeof teacherPasswordUpdateSchema
+>;

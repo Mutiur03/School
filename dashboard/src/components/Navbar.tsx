@@ -32,7 +32,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
       className="navbar h-[3.5rem] flex z-40 justify-between sticky top-0 w-full shadow-md bg-sidebar px-5 items-center backdrop-blur-xl border-b border-border"
     >
       <button
-        className="md:hidden mr-2 p-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+        className="md:hidden mr-2 p-2 rounded focus:outline-none focus:ring-2 focus:ring-ring"
         onClick={() => {
           if (onBurgerClick) {
             onBurgerClick();
@@ -59,7 +59,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
       <div className="flex items-center justify-between">
         {user && user.role === "teacher" && (
           user?.image ? (
-            <div className="w-10 h-10 rounded-full border-4 border-gray-300 shadow-sm overflow-hidden">
+            <div className="w-10 h-10 rounded-full border-4 border-border shadow-sm overflow-hidden">
               <img
                 src={getFileUrl(user.image)}
                 alt="Profile"
@@ -69,7 +69,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
               />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 border-2 border-gray-300">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground border-2 border-border">
               {getInitials(user?.name)}
             </div>
           )

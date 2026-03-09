@@ -17,7 +17,7 @@ interface SectionCardProps {
  *
  * Usage:
  * ```tsx
- * <SectionCard title="Registration Settings" icon={<Settings size={20} className="text-blue-500" />}>
+ * <SectionCard title="Registration Settings" icon={<Settings size={20} className="text-primary" />}>
  *   <p>content here</p>
  * </SectionCard>
  *
@@ -40,13 +40,13 @@ const SectionCard: React.FC<SectionCardProps> = ({
 
     return (
         <div
-            className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden ${className}`}
+            className={`bg-card rounded-xl shadow-sm border border-border dark:border-gray-700 overflow-hidden ${className}`}
         >
             {hasHeader && (
                 <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-2">
                         {icon && (
-                            <span className="shrink-0 text-blue-500">{icon}</span>
+                            <span className="shrink-0 text-primary">{icon}</span>
                         )}
                         <div>
                             {title && (
@@ -55,7 +55,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 </h3>
                             )}
                             {description && (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                <p className="text-sm text-muted-foreground dark:text-gray-400 mt-0.5">
                                     {description}
                                 </p>
                             )}

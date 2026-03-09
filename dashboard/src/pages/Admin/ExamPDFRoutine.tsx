@@ -278,7 +278,7 @@ function ExamPDFRoutine() {
                   value={formData.exam_name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
                   <option value="">Select Exam</option>
                   {[
@@ -303,7 +303,7 @@ function ExamPDFRoutine() {
                   value={formData.exam_year}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -319,7 +319,7 @@ function ExamPDFRoutine() {
                       value={level}
                       checked={formData.levels.includes(level)}
                       onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      className="h-4 w-4 text-primary rounded border-border focus:ring-primary/20"
                     />
                     <span className="ml-2 text-sm">Class {level}</span>
                   </label>
@@ -343,7 +343,7 @@ function ExamPDFRoutine() {
                   value={formData.start_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 dark:bg-accent py-2 border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 dark:bg-accent py-2 border border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
 
@@ -357,7 +357,7 @@ function ExamPDFRoutine() {
                   value={formData.end_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
 
@@ -371,7 +371,7 @@ function ExamPDFRoutine() {
                   value={formData.result_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -490,7 +490,7 @@ function ExamPDFRoutine() {
                         <span
                           className={`ml-2 text-xs px-2 py-0.5 rounded-full ${exam.visible
                               ? "bg-green-100 text-green-700"
-                              : "dark:bg-card bg-gray-100"
+                              : "dark:bg-card bg-muted"
                             }`}
                         >
                           {exam.visible ? "Published" : "Hidden"}
@@ -505,7 +505,7 @@ function ExamPDFRoutine() {
                               href={exam.routine}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 flex items-center"
+                              className="text-primary hover:text-blue-800 flex items-center"
                               title="View PDF"
                             >
                               <FiExternalLink size={18} />
@@ -537,7 +537,7 @@ function ExamPDFRoutine() {
                             >
                               <label
                                 htmlFor={`pdf-${exam.id}`}
-                                className="cursor-pointer text-gray-500 hover:text-blue-600 flex items-center"
+                                className="cursor-pointer text-muted-foreground hover:text-primary flex items-center"
                                 title="Replace PDF"
                               >
                                 <FiRefreshCw size={18} />
@@ -558,7 +558,7 @@ function ExamPDFRoutine() {
                                 />
                               </label>
                               {uploadingExamId === exam.id && (
-                                <span className="text-xs text-blue-500 ml-2">
+                                <span className="text-xs text-primary ml-2">
                                   {uploadProgress[exam.id] || 0}%
                                 </span>
                               )}
@@ -594,8 +594,8 @@ function ExamPDFRoutine() {
                             className="flex items-center gap-2"
                           >
                             {selectedFiles[exam.id] ? (
-                              <div className="flex items-center gap-2 bg-gray-100 dark:bg-card px-2 py-1 rounded text-xs">
-                                <FiFileText className="text-blue-500" />
+                              <div className="flex items-center gap-2 bg-muted dark:bg-card px-2 py-1 rounded text-xs">
+                                <FiFileText className="text-primary" />
                                 <span
                                   className="truncate max-w-[120px]"
                                   title={typeof selectedFiles[exam.id] === "string" ? (selectedFiles[exam.id] as string) : undefined}
@@ -643,7 +643,7 @@ function ExamPDFRoutine() {
                               />
                             )}
                             {uploadingExamId === exam.id && (
-                              <span className="text-xs text-blue-500 ml-2">
+                              <span className="text-xs text-primary ml-2">
                                 {uploadProgress[exam.id] || 0}%
                               </span>
                             )}
@@ -664,7 +664,7 @@ function ExamPDFRoutine() {
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <button
                         onClick={() => handleEditExam(exam)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        className="text-primary hover:text-blue-900 mr-3"
                       >
                         <FiEdit className="sm:w-4 sm:h-4 w-3 h-3" />
                       </button>

@@ -29,7 +29,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{title}</h1>
                 {description && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">{description}</p>
+                    <p className="text-muted-foreground dark:text-gray-400 text-sm">{description}</p>
                 )}
             </div>
             {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}

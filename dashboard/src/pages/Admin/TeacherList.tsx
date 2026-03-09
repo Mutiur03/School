@@ -257,7 +257,7 @@ const TeacherList = () => {
       </PageHeader>
 
       {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border dark:border-gray-700 shadow-sm mb-6 overflow-hidden">
           <div className="w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
               {isEditing ? "Edit Teacher" : "Add Teacher"}
@@ -265,7 +265,7 @@ const TeacherList = () => {
             <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-6">
 
               {/* Image */}
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+              <div className="rounded-lg border border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-800/50 p-4">
                 <div className="flex justify-center flex-col items-center">
                   <p className="text-sm font-medium mb-2">Profile Image</p>
                   <input
@@ -277,14 +277,14 @@ const TeacherList = () => {
                   />
                   <label
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors"
+                    className="w-24 sm:w-32 aspect-7/9 bg-white dark:bg-gray-700 border border-border dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500 transition-colors"
                   >
                     {image ? (
                       <img src={URL.createObjectURL(image)} alt="Preview" className="w-full h-full object-cover" />
                     ) : isEditing && popup.teacher?.image ? (
                       <img src={getFileUrl(popup.teacher.image)} alt="Teacher" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm text-center px-1">Click to upload</span>
+                      <span className="text-gray-400 dark:text-muted-foreground text-xs sm:text-sm text-center px-1">Click to upload</span>
                     )}
                   </label>
                   {image && (
@@ -309,7 +309,7 @@ const TeacherList = () => {
               </div>
 
               {/* Info */}
-              <fieldset className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
+              <fieldset className="rounded-lg border border-border dark:border-gray-700 bg-card p-4 sm:p-5">
                 <legend className="px-1 text-sm sm:text-base font-semibold">Teacher Information</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -361,7 +361,7 @@ const TeacherList = () => {
                 </div>
               </fieldset>
 
-              <div className="sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur supports-backdrop-filter:bg-white/70 border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between">
+              <div className="sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur supports-backdrop-filter:bg-white/70 border-t border-border dark:border-gray-700 pt-4 flex justify-between">
                 <Button
                   type="button"
                   variant="outline"
@@ -413,7 +413,7 @@ const TeacherList = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+              <tr className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
                 {["Teacher", "Email", "Designation", "Actions"].map((header) => (
                   <th
                     key={header}
@@ -429,28 +429,28 @@ const TeacherList = () => {
                 <tr>
                   <td colSpan={4} className="py-12 text-center">
                     <div className="flex flex-col justify-center items-center gap-2">
-                      <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Loading teachers...</p>
+                      <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">Loading teachers...</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredTeachers.length > 0 ? (
                 filteredTeachers.map((teacher: Teacher) => (
-                  <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <tr key={teacher.id} className="hover:bg-muted/50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         {teacher.image ? (
-                          <img src={getFileUrl(teacher.image)} className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700" alt="" />
+                          <img src={getFileUrl(teacher.image)} className="w-10 h-10 rounded-full object-cover border border-border dark:border-gray-700" alt="" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-sm">
+                          <div className="w-10 h-10 rounded-full bg-muted dark:bg-gray-700 flex items-center justify-center text-muted-foreground dark:text-gray-400 font-bold text-sm">
                             {teacher.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <span className="font-medium text-gray-900 dark:text-gray-100">{teacher.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{teacher.email}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{teacher.designation}</td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground dark:text-gray-400">{teacher.email}</td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground dark:text-gray-400">{teacher.designation}</td>
                     <td className="px-4 py-4">
                       <div className="flex justify-end gap-2">
                         <ActionButton
@@ -471,7 +471,7 @@ const TeacherList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted-foreground dark:text-gray-400">
                     {errorMessage || "No teachers found matching your criteria."}
                   </td>
                 </tr>
@@ -490,7 +490,7 @@ const TeacherList = () => {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Rows</span>
               <select
-                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-border dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-transparent"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
