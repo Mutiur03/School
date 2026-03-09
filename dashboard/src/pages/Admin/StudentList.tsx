@@ -195,6 +195,54 @@ function StudentList() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
+  const testimonialMutation = useMutation({
+    mutationFn: async (studentId: number) => {
+      const response = await axios.post(
+        `/api/students/${studentId}/testimonials`,
+        {},
+        {
+          responseType: "blob",
+          validateStatus: () => true, // don't throw on any HTTP status
+        },
+      );
+
+      const contentType = response.headers["content-type"] as string ?? "";
+
+      // If the server returned an error (non-PDF), parse the blob as text and throw
+      if (!contentType.includes("application/pdf")) {
+        const text = await (response.data as Blob).text();
+        let message = "Failed to generate testimonial";
+        try {
+          const parsed = JSON.parse(text);
+          message = parsed?.message ?? parsed?.error ?? message;
+        } catch {
+          message = text || message;
+        }
+        throw new Error(message);
+      }
+
+      return { blob: response.data as Blob, headers: response.headers };
+    },
+    onSuccess: ({ blob, headers }, studentId) => {
+      const contentDisposition = headers["content-disposition"] as string | undefined;
+      const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] ?? `Testimonial_${studentId}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Testimonial downloaded!");
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Failed to generate testimonial";
+      toast.error(message);
+    },
+  });
+
   const {
     register,
     handleSubmit: handleFormSubmit,
@@ -1596,7 +1644,25 @@ function StudentList() {
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-border flex justify-end">
+              <div className="px-5 py-3 border-t border-border flex justify-between items-center">
+                <Button
+                  type="button"
+                  variant="default"
+                  disabled={testimonialMutation.isPending}
+                  onClick={() => testimonialMutation.mutate(popup.student!.id)}
+                >
+                  {testimonialMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Generating…
+                    </span>
+                  ) : (
+                    "Generate Testimonial"
+                  )}
+                </Button>
                 <Button onClick={closePopup} variant="outline" type="button">
                   Close
                 </Button>

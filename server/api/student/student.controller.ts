@@ -26,28 +26,40 @@ export class StudentController {
   static getStudentsQueryController = asyncHandler(
     async (req: Request, res: Response) => {
       const yearValue = req.query.year;
-      const year = typeof yearValue === "string" ? parseInt(yearValue, 10) : NaN;
+      const year =
+        typeof yearValue === "string" ? parseInt(yearValue, 10) : NaN;
 
       if (!year || Number.isNaN(year)) {
-        throw new ApiError(400, "Invalid year query. Year must be a valid number.");
+        throw new ApiError(
+          400,
+          "Invalid year query. Year must be a valid number.",
+        );
       }
 
       const classValue = req.query.class;
       const levelValue = req.query.level;
-      const parsedLevelRaw = typeof classValue === "string"
-        ? parseInt(classValue, 10)
-        : (typeof levelValue === "string" ? parseInt(levelValue, 10) : NaN);
-      const level = Number.isFinite(parsedLevelRaw) ? parsedLevelRaw : undefined;
+      const parsedLevelRaw =
+        typeof classValue === "string"
+          ? parseInt(classValue, 10)
+          : typeof levelValue === "string"
+            ? parseInt(levelValue, 10)
+            : NaN;
+      const level = Number.isFinite(parsedLevelRaw)
+        ? parsedLevelRaw
+        : undefined;
 
       const pageValue = req.query.page;
       const limitValue = req.query.limit;
       const searchValue = req.query.search;
       const sectionValue = req.query.section;
 
-      const page = typeof pageValue === "string" ? parseInt(pageValue, 10) : NaN;
-      const limit = typeof limitValue === "string" ? parseInt(limitValue, 10) : NaN;
+      const page =
+        typeof pageValue === "string" ? parseInt(pageValue, 10) : NaN;
+      const limit =
+        typeof limitValue === "string" ? parseInt(limitValue, 10) : NaN;
       const search = typeof searchValue === "string" ? searchValue : undefined;
-      const section = typeof sectionValue === "string" ? sectionValue : undefined;
+      const section =
+        typeof sectionValue === "string" ? sectionValue : undefined;
 
       const isPaginatedRequest =
         (typeof pageValue === "string" && pageValue.trim().length > 0) ||
@@ -73,9 +85,10 @@ export class StudentController {
         return;
       }
 
-      const data = typeof level === "number" && !Number.isNaN(level)
-        ? await StudentService.getClassStudents(year, level)
-        : await StudentService.getStudents(year, req.user);
+      const data =
+        typeof level === "number" && !Number.isNaN(level)
+          ? await StudentService.getClassStudents(year, level)
+          : await StudentService.getStudents(year, req.user);
 
       res
         .status(200)
@@ -135,7 +148,8 @@ export class StudentController {
       if (!parsedUpdates.success) {
         throw new ApiError(
           400,
-          parsedUpdates.error.issues[0]?.message || "Invalid student update data",
+          parsedUpdates.error.issues[0]?.message ||
+            "Invalid student update data",
           parsedUpdates.error.issues,
         );
       }
@@ -176,7 +190,8 @@ export class StudentController {
       if (!parsedRequest.success) {
         throw new ApiError(
           400,
-          parsedRequest.error.issues[0]?.message || "Invalid bulk delete payload",
+          parsedRequest.error.issues[0]?.message ||
+            "Invalid bulk delete payload",
           parsedRequest.error.issues,
         );
       }
@@ -203,7 +218,8 @@ export class StudentController {
       if (!parsedRequest.success) {
         throw new ApiError(
           400,
-          parsedRequest.error.issues[0]?.message || "Invalid bulk rotation payload",
+          parsedRequest.error.issues[0]?.message ||
+            "Invalid bulk rotation payload",
           parsedRequest.error.issues,
         );
       }
@@ -241,7 +257,8 @@ export class StudentController {
       if (!parsedAcademicUpdates.success) {
         throw new ApiError(
           400,
-          parsedAcademicUpdates.error.issues[0]?.message || "Invalid academic update data",
+          parsedAcademicUpdates.error.issues[0]?.message ||
+            "Invalid academic update data",
           parsedAcademicUpdates.error.issues,
         );
       }
@@ -330,12 +347,15 @@ export class StudentController {
       if (!parsedId.success) {
         throw new ApiError(400, "Invalid student id", parsedId.error.issues);
       }
-      const result = await StudentService.generateTestimonials(parsedId.data);
-      res
-        .status(200)
-        .json(
-          new ApiResponse(200, result, "Testimonials generated successfully"),
-        );
+      const { pdfBuffer, studentName } =
+        await StudentService.generateTestimonials(parsedId.data);
+      const filename = `Testimonial_${studentName.replace(/\s+/g, "_")}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.status(200).send(pdfBuffer);
     },
   );
 }

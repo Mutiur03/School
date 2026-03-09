@@ -1,5 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
 import generatePassword from "@/utils/pwgenerator.js";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
@@ -7,7 +5,7 @@ import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";
 import { removeInitialZeros, VALID_DEPARTMENTS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
-import puppeteer from "puppeteer";
+import PDFDocument from "pdfkit";
 import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
 import type { Prisma } from "@prisma/client";
@@ -34,12 +32,19 @@ export class StudentService {
       section?: string;
       search?: string;
     },
-    userOptions: { role?: string; levels?: Array<{ class_name: number; section: string; year: number }> } = {},
+    userOptions: {
+      role?: string;
+      levels?: Array<{ class_name: number; section: string; year: number }>;
+    } = {},
   ) {
     const { year, page, limit, level, section, search } = params;
 
-    const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
-    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
+    const normalizedPage =
+      Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const normalizedLimit =
+      Number.isFinite(limit) && limit > 0
+        ? Math.min(Math.floor(limit), 200)
+        : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const normalizedSection = section?.trim().toUpperCase();
@@ -47,25 +52,27 @@ export class StudentService {
 
     const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
       year,
-      ...(typeof level === "number" && !Number.isNaN(level) ? { class: level } : {}),
+      ...(typeof level === "number" && !Number.isNaN(level)
+        ? { class: level }
+        : {}),
       ...(normalizedSection ? { section: normalizedSection } : {}),
     };
 
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
       year,
-      student: { available: true }
+      student: { available: true },
     };
 
     if (userOptions.role === "teacher") {
       if (!userOptions.levels || userOptions.levels.length === 0) {
         return {
           data: [],
-          meta: { 
-            total: 0, 
+          meta: {
+            total: 0,
             filtered: 0,
-            page: normalizedPage, 
-            limit: normalizedLimit, 
-            totalPages: 0 
+            page: normalizedPage,
+            limit: normalizedLimit,
+            totalPages: 0,
           },
         };
       }
@@ -77,12 +84,12 @@ export class StudentService {
       if (teacherLevels.length === 0) {
         return {
           data: [],
-          meta: { 
-            total: 0, 
+          meta: {
+            total: 0,
             filtered: 0,
-            page: normalizedPage, 
-            limit: normalizedLimit, 
-            totalPages: 0 
+            page: normalizedPage,
+            limit: normalizedLimit,
+            totalPages: 0,
           },
         };
       }
@@ -98,8 +105,18 @@ export class StudentService {
           {
             OR: [
               { name: { contains: normalizedSearch, mode: "insensitive" } },
-              { father_phone: { contains: normalizedSearch, mode: "insensitive" } },
-              { mother_phone: { contains: normalizedSearch, mode: "insensitive" } },
+              {
+                father_phone: {
+                  contains: normalizedSearch,
+                  mode: "insensitive",
+                },
+              },
+              {
+                mother_phone: {
+                  contains: normalizedSearch,
+                  mode: "insensitive",
+                },
+              },
             ],
           },
         ],
@@ -136,7 +153,8 @@ export class StudentService {
       };
     });
 
-    const totalPages = filtered === 0 ? 0 : Math.ceil(filtered / normalizedLimit);
+    const totalPages =
+      filtered === 0 ? 0 : Math.ceil(filtered / normalizedLimit);
 
     return {
       data,
@@ -150,7 +168,13 @@ export class StudentService {
     };
   }
 
-  static async getStudents(year: number, userOptions: { role?: string; levels?: Array<{ class_name: number; section: string; year: number }> } = {}) {
+  static async getStudents(
+    year: number,
+    userOptions: {
+      role?: string;
+      levels?: Array<{ class_name: number; section: string; year: number }>;
+    } = {},
+  ) {
     let result: any[] = [];
     if (userOptions.role === "admin") {
       result = await prisma.students.findMany({
@@ -299,42 +323,44 @@ export class StudentService {
       processedStudents.push(student);
     }
 
-    const insertedEnrollments = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const returnEnrollments: any[] = [];
-      for (const student of processedStudents) {
-        const insertedStudent = await tx.students.create({
-          data: {
-            login_id: student.login_id,
-            name: student.name,
-            father_name: student.father_name,
-            mother_name: student.mother_name,
-            father_phone: student.father_phone,
-            mother_phone: student.mother_phone,
-            batch: student.batch,
-            village: student.village,
-            post_office: student.post_office,
-            upazila: student.upazila,
-            district: student.district,
-            dob: student.dob,
-            has_stipend: student.has_stipend,
-            password: student.password,
-          },
-        });
+    const insertedEnrollments = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const returnEnrollments: any[] = [];
+        for (const student of processedStudents) {
+          const insertedStudent = await tx.students.create({
+            data: {
+              login_id: student.login_id,
+              name: student.name,
+              father_name: student.father_name,
+              mother_name: student.mother_name,
+              father_phone: student.father_phone,
+              mother_phone: student.mother_phone,
+              batch: student.batch,
+              village: student.village,
+              post_office: student.post_office,
+              upazila: student.upazila,
+              district: student.district,
+              dob: student.dob,
+              has_stipend: student.has_stipend,
+              password: student.password,
+            },
+          });
 
-        const insertedEnrollment = await tx.student_enrollments.create({
-          data: {
-            student_id: insertedStudent.id,
-            class: student.class,
-            roll: student.roll,
-            section: student.section,
-            year: student.year,
-            department: student.department,
-          },
-        });
-        returnEnrollments.push(insertedEnrollment);
-      }
-      return returnEnrollments;
-    });
+          const insertedEnrollment = await tx.student_enrollments.create({
+            data: {
+              student_id: insertedStudent.id,
+              class: student.class,
+              roll: student.roll,
+              section: student.section,
+              year: student.year,
+              department: student.department,
+            },
+          });
+          returnEnrollments.push(insertedEnrollment);
+        }
+        return returnEnrollments;
+      },
+    );
 
     const excelData = processedStudents.map((student) => ({
       "Login ID": student.login_id,
@@ -425,7 +451,12 @@ export class StudentService {
       throw new ApiError(404, "No matching students found");
     }
 
-    const rotatedStudents: Array<{ login_id: number; name: string; batch: string; password: string }> = [];
+    const rotatedStudents: Array<{
+      login_id: number;
+      name: string;
+      batch: string;
+      password: string;
+    }> = [];
     const processedStudents: any[] = [];
     for (const student of students) {
       const password = generatePassword();
@@ -437,30 +468,35 @@ export class StudentService {
       });
     }
 
-    await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        for (const student of processedStudents) {
-          await tx.students.update({
-            where: { id: student.id },
-            data: { password: student.hashedPassword },
-          });
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const student of processedStudents) {
+        await tx.students.update({
+          where: { id: student.id },
+          data: { password: student.hashedPassword },
+        });
 
-          rotatedStudents.push({
-            login_id: student.login_id,
-            name: student.name,
-            batch: student.batch,
-            password: student.password,
-          });
-        }
-      },
+        rotatedStudents.push({
+          login_id: student.login_id,
+          name: student.name,
+          batch: student.batch,
+          password: student.password,
+        });
+      }
+    });
+
+    const excelData = rotatedStudents.map(
+      (student: {
+        login_id: number;
+        name: string;
+        batch: string;
+        password: string;
+      }) => ({
+        "Login ID": student.login_id,
+        Name: student.name,
+        Batch: student.batch,
+        "New Password": student.password,
+      }),
     );
-
-    const excelData = rotatedStudents.map((student: { login_id: number; name: string; batch: string; password: string }) => ({
-      "Login ID": student.login_id,
-      Name: student.name,
-      Batch: student.batch,
-      "New Password": student.password,
-    }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
@@ -488,7 +524,9 @@ export class StudentService {
 
   static async updateAcademicInfo(enrollmentId: number | string, updates: any) {
     const parsedEnrollmentId =
-      typeof enrollmentId === "string" ? parseInt(enrollmentId, 10) : enrollmentId;
+      typeof enrollmentId === "string"
+        ? parseInt(enrollmentId, 10)
+        : enrollmentId;
 
     const classForValidation =
       updates.class ??
@@ -513,58 +551,60 @@ export class StudentService {
       updates.department = null;
     }
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const enrollment = await tx.student_enrollments.update({
-        where: { id: parsedEnrollmentId },
-        data: updates,
-      });
-
-      if (!enrollment) throw new ApiError(404, "Enrollment record not found");
-
-      const studentInfo = await tx.students.findUnique({
-        where: { id: enrollment.student_id },
-        select: { batch: true, login_id: true, id: true },
-      });
-
-      if (!studentInfo) throw new ApiError(404, "Student not found");
-
-      const oldBatch = parseInt(studentInfo.batch);
-      const currentLoginId = studentInfo.login_id;
-      const currentYear = new Date().getFullYear();
-      const newBatch = currentYear + 11 - enrollment.class;
-
-      let newLoginId = currentLoginId;
-      let updatedStudent = null;
-
-      if (newBatch !== oldBatch) {
-        const maxLoginResult = await tx.students.findMany({
-          where: { batch: String(newBatch) },
-          orderBy: { login_id: "desc" },
-          take: 1,
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const enrollment = await tx.student_enrollments.update({
+          where: { id: parsedEnrollmentId },
+          data: updates,
         });
 
-        const maxLoginId =
-          maxLoginResult.length > 0 ? maxLoginResult[0].login_id : null;
-        newLoginId = maxLoginId
-          ? maxLoginId + 1
-          : parseInt(newBatch.toString().slice(-2) + "001");
+        if (!enrollment) throw new ApiError(404, "Enrollment record not found");
 
-        updatedStudent = await tx.students.update({
+        const studentInfo = await tx.students.findUnique({
           where: { id: enrollment.student_id },
-          data: {
-            batch: String(newBatch),
-            login_id: newLoginId,
-          },
+          select: { batch: true, login_id: true, id: true },
         });
-      }
 
-      return {
-        enrollment,
-        updatedStudent,
-        oldLoginId: currentLoginId,
-        newLoginId,
-      };
-    });
+        if (!studentInfo) throw new ApiError(404, "Student not found");
+
+        const oldBatch = parseInt(studentInfo.batch);
+        const currentLoginId = studentInfo.login_id;
+        const currentYear = new Date().getFullYear();
+        const newBatch = currentYear + 11 - enrollment.class;
+
+        let newLoginId = currentLoginId;
+        let updatedStudent = null;
+
+        if (newBatch !== oldBatch) {
+          const maxLoginResult = await tx.students.findMany({
+            where: { batch: String(newBatch) },
+            orderBy: { login_id: "desc" },
+            take: 1,
+          });
+
+          const maxLoginId =
+            maxLoginResult.length > 0 ? maxLoginResult[0].login_id : null;
+          newLoginId = maxLoginId
+            ? maxLoginId + 1
+            : parseInt(newBatch.toString().slice(-2) + "001");
+
+          updatedStudent = await tx.students.update({
+            where: { id: enrollment.student_id },
+            data: {
+              batch: String(newBatch),
+              login_id: newLoginId,
+            },
+          });
+        }
+
+        return {
+          enrollment,
+          updatedStudent,
+          oldLoginId: currentLoginId,
+          newLoginId,
+        };
+      },
+    );
 
     return result.enrollment;
   }
@@ -585,7 +625,11 @@ export class StudentService {
     });
   }
 
-  static async changePassword(studentId: number | string, currentPassword: string, newPassword: string) {
+  static async changePassword(
+    studentId: number | string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     const student = await prisma.students.findUnique({
       where: { id: studentId },
     });
@@ -639,7 +683,7 @@ export class StudentService {
 
   static async generateTestimonials(id: number | string) {
     const result = await prisma.students.findUnique({
-      where: { id: typeof id === 'string' ? parseInt(id) : id },
+      where: { id: typeof id === "string" ? parseInt(id) : id },
       include: {
         enrollments: {
           orderBy: { year: "desc" },
@@ -653,9 +697,9 @@ export class StudentService {
     }
 
     const data = {
-      school_name: "Panchbibi Lal Mohammad Pilot Govt. High School",
+      school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
       school_location: "Panchbibi, Joypurhat",
-      school_website: "https://panchbibilal.edu.bd",
+      school_website: "www.lbphs.gov.bd",
       name: result.name,
       father_name: result.father_name,
       mother_name: result.mother_name,
@@ -670,130 +714,200 @@ export class StudentService {
   }
 }
 
-async function generatePDF(data: any) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+async function generatePDF(data: {
+  school_name: string;
+  school_location: string;
+  school_website: string;
+  name: string;
+  father_name: string;
+  mother_name: string;
+  roll: number | string;
+  class: number | string;
+  section: string;
+  session: number | string;
+  batch: string;
+}): Promise<{ pdfBuffer: Buffer; studentName: string }> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const chunks: Buffer[] = [];
+
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () =>
+      resolve({ pdfBuffer: Buffer.concat(chunks), studentName: data.name }),
+    );
+    doc.on("error", reject);
+
+    const W = doc.page.width;
+    const H = doc.page.height;
+    const M = 40; // margin
+
+    // Outer double border
+    doc
+      .rect(M, M, W - M * 2, H - M * 2)
+      .lineWidth(8)
+      .stroke("#2c3e50");
+    doc
+      .rect(M + 6, M + 6, W - M * 2 - 12, H - M * 2 - 12)
+      .lineWidth(2)
+      .stroke("#2c3e50");
+
+    let y = M + 30;
+
+    // School name
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .fillColor("#1a252f")
+      .text(data.school_name.toUpperCase(), M + 20, y, {
+        align: "center",
+        width: W - (M + 20) * 2,
+      });
+
+    y += 28;
+    doc
+      .font("Helvetica")
+      .fontSize(11)
+      .fillColor("#333333")
+      .text(data.school_location, M + 20, y, {
+        align: "center",
+        width: W - (M + 20) * 2,
+      });
+
+    y += 18;
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .text(`Website: ${data.school_website}`, M + 20, y, {
+        align: "center",
+        width: W - (M + 20) * 2,
+      });
+
+    y += 30;
+
+    // Divider line
+    doc
+      .moveTo(M + 20, y)
+      .lineTo(W - M - 20, y)
+      .lineWidth(1)
+      .stroke("#2c3e50");
+    y += 20;
+
+    // Title: TESTIMONIAL (underlined)
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(26)
+      .fillColor("#1a252f")
+      .text("TESTIMONIAL", M + 20, y, {
+        align: "center",
+        width: W - (M + 20) * 2,
+        underline: true,
+      });
+
+    y += 55;
+
+    // Helper to render inline segments with underlined bold spans
+    // We build the body text using low-level text drawing for inline bolding
+    const bodyFont = "Times-Roman";
+    const bodyFontBold = "Times-Bold";
+    const bodySize = 13;
+    const bodyColor = "#333333";
+    const textWidth = W - (M + 20) * 2;
+    const textX = M + 20;
+
+    type Seg = { text: string; bold: boolean };
+
+    const renderLine = (segments: Seg[], startY: number): number => {
+      // We render each line manually to handle inline formatting
+      // For simplicity we use PDFKit's continued:true trick
+      let first = true;
+      for (const seg of segments) {
+        doc
+          .font(seg.bold ? bodyFontBold : bodyFont)
+          .fontSize(bodySize)
+          .fillColor(bodyColor);
+        if (first) {
+          doc.text(seg.text, textX, startY, {
+            continued: true,
+            width: textWidth,
+            lineGap: 4,
+          });
+          first = false;
+        } else {
+          doc.text(seg.text, { continued: true, width: textWidth, lineGap: 4 });
+        }
+      }
+      // End continuation
+      doc.text("", { continued: false });
+      return doc.y;
+    };
+
+    // Paragraph 1
+    y = renderLine(
+      [
+        { text: "This is to certify that ", bold: false },
+        { text: data.name, bold: true },
+        { text: ", son/daughter of ", bold: false },
+        { text: data.father_name, bold: true },
+        { text: " and ", bold: false },
+        { text: data.mother_name, bold: true },
+        {
+          text: ", was a student of this institution. He/She was enrolled in Class ",
+          bold: false,
+        },
+        { text: String(data.class), bold: true },
+        { text: ", Section ", bold: false },
+        { text: data.section, bold: true },
+        { text: " with Roll No. ", bold: false },
+        { text: String(data.roll), bold: true },
+        { text: " during the academic session ", bold: false },
+        { text: String(data.session), bold: true },
+        { text: ". His/Her batch was ", bold: false },
+        { text: data.batch, bold: true },
+        { text: ".", bold: false },
+      ],
+      y,
+    );
+
+    y += 14;
+    // Paragraph 2
+    doc
+      .font(bodyFont)
+      .fontSize(bodySize)
+      .fillColor(bodyColor)
+      .text(
+        "To the best of my knowledge, he/she bears a good moral character and took active part in co-curricular activities. I wish him/her every success in life.",
+        textX,
+        y,
+        { width: textWidth, lineGap: 4 },
+      );
+
+    y = doc.y + 60;
+
+    // Footer: Date (left) and Signature (right)
+    doc
+      .font("Times-Italic")
+      .fontSize(11)
+      .fillColor("#555555")
+      .text(`Date: ${new Date().toLocaleDateString("en-GB")}`, textX, y);
+
+    const sigBoxWidth = 200;
+    const sigBoxX = W - M - 20 - sigBoxWidth;
+    const sigLineY = y + 24;
+    doc
+      .moveTo(sigBoxX, sigLineY)
+      .lineTo(sigBoxX + sigBoxWidth, sigLineY)
+      .lineWidth(1)
+      .stroke("#000000");
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#1a252f")
+      .text("Headmaster", sigBoxX, sigLineY + 6, {
+        width: sigBoxWidth,
+        align: "center",
+      });
+
+    doc.end();
   });
-
-  const page = await browser.newPage();
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {
-                font-family: 'Times New Roman', Times, serif;
-                padding: 40px;
-                line-height: 1.6;
-                color: #333;
-            }
-            .certificate-container {
-                border: 10px double #2c3e50;
-                padding: 50px;
-                text-align: center;
-                position: relative;
-                min-height: 800px;
-            }
-            .header h1 {
-                margin: 0;
-                font-size: 28px;
-                text-transform: uppercase;
-                color: #1a252f;
-            }
-            .header p {
-                margin: 5px 0;
-                font-size: 16px;
-            }
-            .title {
-                margin-top: 50px;
-                font-size: 36px;
-                text-decoration: underline;
-                font-weight: bold;
-                letter-spacing: 2px;
-            }
-            .content {
-                margin-top: 60px;
-                text-align: justify;
-                font-size: 20px;
-            }
-            .student-info {
-                font-weight: bold;
-                border-bottom: 1px dotted #000;
-                display: inline-block;
-                padding: 0 5px;
-            }
-            .footer {
-                margin-top: 150px;
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-end;
-            }
-            .signature-box {
-                text-align: center;
-                width: 250px;
-                border-top: 1.5px solid #000;
-                padding-top: 8px;
-                font-weight: bold;
-            }
-            .date {
-                font-style: italic;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="certificate-container">
-            <div class="header">
-                <h1>${data.school_name}</h1>
-                <p>${data.school_location}</p>
-                <p>Website: ${data.school_website}</p>
-            </div>
-
-            <div class="title">TESTIMONIAL</div>
-
-            <div class="content">
-                This is to certify that <span class="student-info">${data.name}</span>, 
-                son/daughter of <span class="student-info">${data.father_name}</span> 
-                and <span class="student-info">${data.mother_name}</span>, was a student of this institution. 
-                He/She was enrolled in Class <span class="student-info">${data.class}</span>, 
-                Section <span class="student-info">${data.section}</span> with Roll No. <span class="student-info">${data.roll}</span> 
-                during the academic session <span class="student-info">${data.session}</span>.
-                His/Her batch was <span class="student-info">${data.batch}</span>.
-                <br><br>
-                To the best of my knowledge, he/she bears a good moral character and 
-                took active part in co-curricular activities. I wish him/her every success in life.
-            </div>
-
-            <div class="footer">
-                <div class="date">
-                    Date: ${new Date().toLocaleDateString()}
-                </div>
-                <div class="signature-box">
-                    Headmaster
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-  `;
-
-  await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
-
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: { top: "30px", right: "30px", bottom: "30px", left: "30px" },
-  });
-
-  await browser.close();
-
-  const outputPath = path.join(process.cwd(), "output.pdf");
-  fs.writeFileSync(outputPath, pdfBuffer);
-
-  return {
-    message: "PDF generated successfully",
-    path: outputPath,
-  };
 }
