@@ -46,7 +46,16 @@ import jwt from "jsonwebtoken"; // Added jwt import
 import expressStatusMonitor from "express-status-monitor";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const storagePath = path.join(__dirname, "uploads");
+
+// In production, __dirname is server/dist. In development, it is server/.
+// We need to point to the project root (where public/ and uploads/ are)
+const rootDir = __dirname.endsWith("dist")
+  ? path.join(__dirname, "..")
+  : __dirname;
+
+const storagePath = path.join(rootDir, "uploads");
+const publicPath = path.join(rootDir, "public");
+const logsPath = path.join(rootDir, "logs");
 
 const authAdmin = (req: any, res: any, next: any) => {
   const token = req.cookies?.refreshToken;
@@ -88,7 +97,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "uploads"), {
+  express.static(storagePath, {
     setHeaders: (res) => {
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
       res.set("Access-Control-Allow-Origin", "*");
@@ -166,13 +175,13 @@ app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 app.get("/logs", authAdmin, (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "logs.html"));
+  res.sendFile(path.join(publicPath, "logs.html"));
 });
 
 app.get("/api/monitoring/recent-requests", authAdmin, (_req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    const accessLogPath = path.join(__dirname, "logs", `access-${today}.log`);
+    const accessLogPath = path.join(logsPath, `access-${today}.log`);
 
     if (!fs.existsSync(accessLogPath)) {
       return res.json({ success: true, logs: [] });
@@ -275,11 +284,11 @@ app.listen(PORT, () => {
       logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  fs.mkdir("logs", { recursive: true }, (err) => {
+  fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
       logger.error("Error creating logs directory", { error: err.message });
     } else {
-      logger.info("Logs directory ready", { path: "logs" });
+      logger.info("Logs directory ready", { path: logsPath });
     }
   });
   const mode =

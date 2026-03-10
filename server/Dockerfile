@@ -64,6 +64,7 @@ RUN npm install -g pnpm pm2
 COPY --from=builder /app/server/package*.json ./
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/server/prisma ./prisma
+COPY --from=builder /app/server/public ./public
 COPY --from=builder /app/server/setup-network.sh ./
 COPY --from=builder /app/packages/shared-schemas /app/packages/shared-schemas
 
