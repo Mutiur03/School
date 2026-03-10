@@ -218,6 +218,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                         <AddressFields
                             prefix="guardian"
                             register={register}
+                            setValue={setValue}
                             errors={errors}
                             upazilas={guardianUpazilas}
                             districtValue={guardian_district}

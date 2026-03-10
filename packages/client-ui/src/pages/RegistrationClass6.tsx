@@ -761,6 +761,7 @@ export default function RegistrationClass6() {
                     <AddressFields
                         prefix="permanent"
                         register={register}
+                        setValue={setValue}
                         errors={errors}
                         upazilas={permanentUpazilas}
                         districtValue={permanent_district}
@@ -795,6 +796,7 @@ export default function RegistrationClass6() {
                             <AddressFields
                                 prefix="present"
                                 register={register}
+                                setValue={setValue}
                                 errors={errors}
                                 upazilas={presentUpazilas}
                                 districtValue={present_district}
@@ -890,6 +892,7 @@ export default function RegistrationClass6() {
                     <AddressFields
                         prefix="prev_school"
                         register={register}
+                        setValue={setValue}
                         errors={errors}
                         upazilas={prevSchoolUpazilas}
                         districtValue={prev_school_district}
