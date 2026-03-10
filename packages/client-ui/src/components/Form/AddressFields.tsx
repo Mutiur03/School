@@ -1,5 +1,5 @@
 import React from "react";
-import { UseFormRegister } from "react-hook-form";
+import { UseFormRegister, UseFormSetValue } from "react-hook-form";
 import { districts } from "@/lib/location";
 import FieldRow from "./FieldRow";
 import FormInput from "./FormInput";
@@ -8,6 +8,7 @@ interface AddressFieldsProps {
     /** Field name prefix: "permanent" | "present" | "guardian" | "prev_school" */
     prefix: string;
     register: UseFormRegister<any>;
+    setValue: UseFormSetValue<any>;
     errors: any;
     upazilas: any[];
     districtValue: string;
@@ -29,6 +30,7 @@ interface AddressFieldsProps {
 const AddressFields: React.FC<AddressFieldsProps> = ({
     prefix,
     register,
+    setValue,
     errors,
     upazilas,
     districtValue,
@@ -53,7 +55,11 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
             >
                 <select
                     id={f("district")}
-                    {...register(f("district"))}
+                    {...register(f("district"), {
+                        onChange: () => {
+                            setValue(f("upazila"), "");
+                        },
+                    })}
                     disabled={disabled}
                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
