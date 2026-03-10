@@ -47,15 +47,9 @@ import expressStatusMonitor from "express-status-monitor";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// In production, __dirname is server/dist. In development, it is server/.
-// We need to point to the project root (where public/ and uploads/ are)
-const rootDir = __dirname.endsWith("dist")
-  ? path.join(__dirname, "..")
-  : __dirname;
 
-const storagePath = path.join(rootDir, "uploads");
-const publicPath = path.join(rootDir, "public");
-const logsPath = path.join(rootDir, "logs");
+const storagePath = path.join(__dirname, "uploads");
+
 
 const authAdmin = (req: any, res: any, next: any) => {
   const token = req.cookies?.refreshToken;
@@ -174,14 +168,12 @@ app.use("/api/reg/class-6/form", studentRegistrationClass6Router);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
-app.get("/logs", authAdmin, (_req, res) => {
-  res.sendFile(path.join(publicPath, "logs.html"));
-});
+
 
 app.get("/api/monitoring/recent-requests", authAdmin, (_req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    const accessLogPath = path.join(logsPath, `access-${today}.log`);
+    const accessLogPath = path.join(__dirname, `access-${today}.log`);
 
     if (!fs.existsSync(accessLogPath)) {
       return res.json({ success: true, logs: [] });
@@ -284,11 +276,11 @@ app.listen(PORT, () => {
       logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  fs.mkdir(logsPath, { recursive: true }, (err) => {
+  fs.mkdir(path.join(__dirname, "logs"), { recursive: true }, (err) => {
     if (err) {
       logger.error("Error creating logs directory", { error: err.message });
     } else {
-      logger.info("Logs directory ready", { path: logsPath });
+      logger.info("Logs directory ready", { path: path.join(__dirname, "logs") });
     }
   });
   const mode =

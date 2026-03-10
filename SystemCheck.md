@@ -259,6 +259,8 @@ docker system df
 
 docker system prune -a
 
+docker builder prune -a
+
 docker build -f server/Dockerfile -t school-server .
 docker build --no-cache -fserver/Dockerfile -t school-server .
 

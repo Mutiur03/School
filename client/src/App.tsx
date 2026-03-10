@@ -58,12 +58,12 @@ function App() {
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/gallery/:type/:id" element={<Images />} />
           <Route path="/reg/ssc" element={<RegSSC />} />
-          <Route path="/reg/class-6" element={<RegClass6 />} />
           <Route path="/registration/ssc" element={<Registration />} />
           <Route path="/registration/ssc/:id" element={<Registration />} />
           <Route path="/registration/ssc/confirm/:id" element={<ConfirmationReg />} />
-          <Route path="/registration/class-6" element={<RegistrationClass6 />} />
-          <Route path="/registration/class-6/:id" element={<RegistrationClass6 />} />
+          <Route path="/registration/class-6" element={<RegClass6 />} />
+          <Route path="/registration/class-6/form" element={<RegistrationClass6 />} />
+          <Route path="/registration/class-6/form/:id" element={<RegistrationClass6 />} />
           <Route path="/registration/class-6/confirm/:id" element={<ConfirmationClass6 />} />
           <Route path="/admission/notice" element={<Admission />} />
           <Route path="/admission" element={<AdmissionFormNotice />} />

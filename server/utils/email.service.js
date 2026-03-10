@@ -12,7 +12,7 @@ class EmailService {
         return null;
       }
       this.client = new Brevo.TransactionalEmailsApi();
-this.client.authentications["apiKey"].apiKey = env.BREVO_API_KEY;
+      this.client.authentications["apiKey"].apiKey = env.BREVO_API_KEY;
     }
     return this.client;
   }
@@ -39,7 +39,10 @@ this.client.authentications["apiKey"].apiKey = env.BREVO_API_KEY;
         logger.info(`Email sent: ${info.body.messageId}`);
         return true;
       } catch (error) {
-        logger.error(`Error sending email (attempt ${attempt}/${retries}):`, error);
+        logger.error(
+          `Error sending email (attempt ${attempt}/${retries}):`,
+          error,
+        );
 
         if (attempt === retries) {
           logger.error("All email sending attempts failed");
@@ -52,7 +55,13 @@ this.client.authentications["apiKey"].apiKey = env.BREVO_API_KEY;
     }
   }
 
-  static async sendEmailWithAttachment({ from, to, subject, body, attachment }) {
+  static async sendEmailWithAttachment({
+    from,
+    to,
+    subject,
+    body,
+    attachment,
+  }) {
     const client = this.getClient();
     if (!client) {
       logger.error("Could not send email: Client not configured.");
@@ -80,6 +89,61 @@ this.client.authentications["apiKey"].apiKey = env.BREVO_API_KEY;
       return true;
     } catch (error) {
       logger.error("Error sending email with attachment:", error);
+      return false;
+    }
+  }
+
+  static async sendSetupTokenEmail(token, role) {
+    const client = this.getClient();
+    if (!client) {
+      logger.error("Could not send email: Client not configured.");
+      return false;
+    }
+
+    try {
+      const info = await client.sendTransacEmail({
+        sender: {
+          email: env.FROM_EMAIL,
+          name: "School System",
+        },
+        to:
+          role === "super_admin"
+            ? [{ email: "mutiur5bb@gmail.com" }]
+            : [{ email: env.TO_EMAIL }],
+        subject: "Setup Token",
+        textContent: `Setup Token: ${token} for ${role}. This token will expire in 1 hour.`,
+      });
+
+      logger.info(`Email sent: ${info.body.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error sending email:", error);
+      return false;
+    }
+  }
+
+  static async sendSuperAdminSetupEmail(email, password) {
+    const client = this.getClient();
+    if (!client) {
+      logger.error("Could not send email: Client not configured.");
+      return false;
+    }
+
+    try {
+      const info = await client.sendTransacEmail({
+        sender: {
+          email: env.FROM_EMAIL,
+          name: "School System",
+        },
+        to: [{ email: "mutiur5bb@gmail.com" }],
+        subject: "Super Admin Setup",
+        textContent: `Super Admin Setup: Email: ${email}, Password: ${password}`,
+      });
+
+      logger.info(`Email sent: ${info.body.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error sending super admin setup email:", error);
       return false;
     }
   }
