@@ -103,7 +103,6 @@ export const teacherPasswordUpdateSchema = z.object({
     .min(8, "Password must be at least 8 characters long")
     .max(100, "Password must be at most 100 characters")
     .refine((password) => {
-      // Password strength validation
       const hasUpperCase = /[A-Z]/.test(password);
       const hasLowerCase = /[a-z]/.test(password);
       const hasNumbers = /\d/.test(password);

@@ -17,17 +17,23 @@ export const ASCII_ONLY = /^[\x00-\x7F]+$/;
 export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const LOGIN_ID = /^\d{5}$/;
 
-// Utility filters for UI (used by both frontend and shared logic)
 export function filterEnglishInput(value: string) {
-  return value.replace(/[^A-Za-z.():\s]/g, "");
+  return value.replace(/[^A-Za-z.():\s]/g, "").replace(/\s+/g, " ").trimStart();
+}
+
+export function filterAddressInput(value: string) {
+  return value
+    .replace(/[^A-Za-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart(); 
 }
 
 export function filterBanglaInput(value: string) {
-  return value.replace(/[^\u0980-\u09FF.():\s]/g, "");
+  return value.replace(/[^\u0980-\u09FF.():\s]/g, "").replace(/\s+/g, " ").trimStart();
 }
 
 export function filterNumericInput(value: string) {
-  return value.replace(/[^\d]/g, "");
+  return value.replace(/[^\d]/g, "").replace(/\s+/g, "").trimStart();
 }
 
 export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];

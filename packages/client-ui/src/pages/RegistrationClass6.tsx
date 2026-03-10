@@ -17,7 +17,7 @@ import { getFileUrl } from "@/lib/backend";
 import DuplicateWarning, { Duplicate } from "@/components/Form/DupliacteWarning";
 import SectionHeader from "@/components/Form/SectionHeader";
 import FieldRow, { Instruction } from "@/components/Form/FieldRow";
-import { filterEnglishInput, filterBanglaInput, filterNumericInput } from "@school/shared-schemas";
+import { filterEnglishInput, filterBanglaInput, filterNumericInput, filterAddressInput } from "@school/shared-schemas";
 
 const registrationSchemaBase = registrationSchema;
 
@@ -667,7 +667,7 @@ export default function RegistrationClass6() {
                         <input {...register("student_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(target.value).toUpperCase();
+                                target.value = filterEnglishInput(target.value);
                             }}
                             placeholder="Student Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -750,7 +750,7 @@ export default function RegistrationClass6() {
                         <input {...register("father_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(target.value).toUpperCase();
+                                target.value = filterEnglishInput(target.value);
                             }}
                             placeholder="Father's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -794,7 +794,7 @@ export default function RegistrationClass6() {
                         <input {...register("mother_name_en")}
                             onInput={(e) => {
                                 const target = e.target as HTMLInputElement;
-                                target.value = filterEnglishInput(target.value).toUpperCase();
+                                target.value = filterEnglishInput(target.value);
                             }}
                             placeholder="Mother's Name (in English)"
                             className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-300" />
@@ -885,6 +885,10 @@ export default function RegistrationClass6() {
                             type="text"
                             id="permanent_post_office"
                             {...register("permanent_post_office")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterAddressInput(target.value);
+                            }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                             placeholder="Post Office Name"
                         />
@@ -920,6 +924,10 @@ export default function RegistrationClass6() {
                             type="text"
                             id="permanent_village_road"
                             {...register("permanent_village_road")}
+                            onInput={(e) => {
+                                const target = e.target as HTMLInputElement;
+                                target.value = filterAddressInput(target.value);
+                            }}
                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                             placeholder="Village/Road/House No"
                         />
@@ -984,6 +992,10 @@ export default function RegistrationClass6() {
                             >
                                 <input
                                     {...register("present_post_office")}
+                                    onInput={(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        target.value = filterAddressInput(target.value);
+                                    }}
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     placeholder="Post Office Name"
                                 />
@@ -1014,6 +1026,10 @@ export default function RegistrationClass6() {
                             >
                                 <input
                                     {...register("present_village_road")}
+                                    onInput={(e) => {
+                                        const target = e.target as HTMLInputElement;
+                                        target.value = filterAddressInput(target.value);
+                                    }}
                                     className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     placeholder="Village/Road/House No"
                                 />
@@ -1058,7 +1074,7 @@ export default function RegistrationClass6() {
                                         {...register("guardian_name")}
                                         onInput={(e) => {
                                             const target = e.target as HTMLInputElement;
-                                            target.value = filterEnglishInput(target.value).toUpperCase();
+                                            target.value = filterEnglishInput(target.value);
                                         }}
                                         className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
                                         placeholder="Guardian's Name"
@@ -1191,6 +1207,10 @@ export default function RegistrationClass6() {
                                     >
                                         <input
                                             {...register("guardian_post_office")}
+                                            onInput={(e) => {
+                                                const target = e.target as HTMLInputElement;
+                                                target.value = filterAddressInput(target.value);
+                                            }}
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                             placeholder="Post Office Name"
                                         />
@@ -1223,6 +1243,10 @@ export default function RegistrationClass6() {
                                     >
                                         <input
                                             {...register("guardian_village_road")}
+                                            onInput={(e) => {
+                                                const target = e.target as HTMLInputElement;
+                                                target.value = filterAddressInput(target.value);
+                                            }}
                                             className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                                             placeholder="Village/Road/House No"
                                         />

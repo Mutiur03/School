@@ -1,4 +1,5 @@
 import {
+  ADDRESS_TEXT,
   BANGLA_ONLY,
   BIRTH_REG_NO,
   ENGLISH_ONLY,
@@ -92,6 +93,7 @@ const registrationObjectShape = z.object({
   permanent_post_office: z
     .string()
     .min(1, "Post Office is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
   permanent_post_code: z
     .string()
@@ -101,11 +103,16 @@ const registrationObjectShape = z.object({
   permanent_village_road: z
     .string()
     .min(1, "Village/Road is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
 
   present_district: z.string().min(1, "District is required").default(""),
   present_upazila: z.string().min(1, "Upazila is required").default(""),
-  present_post_office: z.string().min(1, "Post Office is required").default(""),
+  present_post_office: z
+    .string()
+    .min(1, "Post Office is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
+    .default(""),
   present_post_code: z
     .string()
     .min(1, "Post Code is required")
@@ -114,6 +121,7 @@ const registrationObjectShape = z.object({
   present_village_road: z
     .string()
     .min(1, "Village/Road is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
   same_as_permanent: z.boolean().default(false),
   guardian_is_not_father: z.boolean().default(false),
@@ -158,7 +166,14 @@ const registrationObjectShape = z.object({
   ),
   guardian_post_office: z.preprocess(
     (v) => (v === null ? "" : v),
-    z.string().max(100).default(""),
+    z
+      .string()
+      .max(100)
+      .regex(
+        ADDRESS_TEXT,
+        "Only English letters, digits and spaces are allowed",
+      )
+      .default(""),
   ),
   guardian_post_code: z.preprocess(
     (v) => (v === null ? "" : v),
@@ -172,7 +187,14 @@ const registrationObjectShape = z.object({
   ),
   guardian_village_road: z.preprocess(
     (v) => (v === null ? "" : v),
-    z.string().max(200).default(""),
+    z
+      .string()
+      .max(200)
+      .regex(
+        ADDRESS_TEXT,
+        "Only English letters, digits and spaces are allowed",
+      )
+      .default(""),
   ),
 
   section: z.string().min(1, "Section is required").default(""),

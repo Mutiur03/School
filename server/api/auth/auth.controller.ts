@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Request, Response } from "express";
 import { prisma } from "@/config/prisma.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
@@ -55,6 +56,46 @@ const sendRefreshToken = (res: Response, token: string) => {
 };
 
 export class AuthController {
+  static setupSuperAdmin = asyncHandler(async (req: Request, res: Response) => {
+    const { email, token } = req.body;
+
+    if (!email || !token) {
+      throw new ApiError(400, "Email and token are required");
+    }
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const [count, tokenDoc] = await prisma.$transaction([
+      prisma.superAdmin.count(),
+      prisma.setupToken.findUnique({
+        where: { tokenHash },
+      }),
+    ]);
+    if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
+      throw new ApiError(403, "Invalid or expired token");
+    }
+    if (tokenDoc.role === "super_admin") {
+      if (count > 0) throw new ApiError(403, "Super admin already exists");
+    }
+    
+    const randomPassword = crypto.randomBytes(16).toString("hex");
+    const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+    await prisma.superAdmin.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: tokenDoc.role,
+      },
+    });
+
+    await prisma.setupToken.delete({ where: { id: tokenDoc.id } });
+    await EmailService.sendSuperAdminSetupEmail(email, randomPassword);
+    res
+      .status(201)
+      .json(
+        new ApiResponse(201, { email }, "Super admin created successfully"),
+      );
+  });
+
   static login = asyncHandler(async (req: Request, res: Response) => {
     console.log("[Admin Login] Request received");
     const { username, password } = req.body;

@@ -8,6 +8,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SetupTokenRole {
+  super_admin
+  admin
+}
+
+model setupToken {
+  id          Int             @id @default(autoincrement())
+  tokenHash   String   @unique
+  role        SetupTokenRole
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  @@index([role,tokenHash])
+}
+model SuperAdmin {
+  id           Int    @id @default(autoincrement())
+  email        String @unique
+  password     String
+  role         String @default("super_admin")
+  tokenVersion Int    @default(0)
+
+  @@index([email])
+  @@index([role])
+}
 model admin {
   id           Int    @id @default(autoincrement())
   username     String @unique

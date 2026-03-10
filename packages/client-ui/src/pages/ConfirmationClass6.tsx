@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
@@ -472,13 +472,13 @@ function Class6RegConfirmation() {
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row justify-center gap-3">
-                                <a
-                                    href={`/registration/class-6/${registration.id}`}
+                                <Link
+                                    to={`/registration/class-6/${registration.id}`}
                                     className="px-6 py-3 rounded font-medium transition-all duration-200 cursor-pointer bg-gray-600 hover:bg-gray-700 text-white! text-lg focus:outline-none flex items-center justify-center"
                                 >
                                     <span className="mr-2">✏️</span>
                                     Edit registration
-                                </a>
+                                </Link>
                                 <button
                                     onClick={handleConfirmRegistration}
                                     disabled={confirming}
