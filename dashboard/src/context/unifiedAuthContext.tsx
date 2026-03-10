@@ -139,6 +139,19 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
+
+                // Handle Blob error responses globally
+                if (error.response?.data instanceof Blob && error.response.data.type === "application/json") {
+                    try {
+                        const text = await error.response.data.text();
+                        const parsedData = JSON.parse(text);
+                        // Attach the parsed data back to the error object so downstream catch blocks can access it normally
+                        error.response.data = parsedData;
+                    } catch (e) {
+                        console.error("Failed to parse error blob as JSON:", e);
+                    }
+                }
+
                 // Skip refresh logic if flagged or if already retried
                 if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh) {
                     originalRequest._retry = true;

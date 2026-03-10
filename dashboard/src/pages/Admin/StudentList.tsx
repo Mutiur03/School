@@ -202,23 +202,13 @@ function StudentList() {
         {},
         {
           responseType: "blob",
-          validateStatus: () => true, // don't throw on any HTTP status
         },
       );
 
-      const contentType = response.headers["content-type"] as string ?? "";
+      const contentType = (response.headers["content-type"] as string) ?? "";
 
-      // If the server returned an error (non-PDF), parse the blob as text and throw
       if (!contentType.includes("application/pdf")) {
-        const text = await (response.data as Blob).text();
-        let message = "Failed to generate testimonial";
-        try {
-          const parsed = JSON.parse(text);
-          message = parsed?.message ?? parsed?.error ?? message;
-        } catch {
-          message = text || message;
-        }
-        throw new Error(message);
+        throw new Error("Failed to generate testimonial: Incorrect content type");
       }
 
       return { blob: response.data as Blob, headers: response.headers };
@@ -237,8 +227,12 @@ function StudentList() {
       URL.revokeObjectURL(url);
       toast.success("Testimonial downloaded!");
     },
-    onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : "Failed to generate testimonial";
+    onError: (err: any) => {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to generate testimonial";
       toast.error(message);
     },
   });

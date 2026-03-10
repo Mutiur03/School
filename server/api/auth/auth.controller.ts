@@ -29,7 +29,7 @@ const generateTokens = (user: AuthUser) => {
       login_id: user.login_id,
     },
     process.env.JWT_SECRET!,
-    { expiresIn: "15m" },
+    { expiresIn: env.NODE_ENV === "development" ? "1s" : "15m" },
   );
   const refreshToken = jwt.sign(
     { id: user.id, role: user.role, version: user.tokenVersion || 0 },
