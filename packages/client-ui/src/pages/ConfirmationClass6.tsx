@@ -473,7 +473,7 @@ function Class6RegConfirmation() {
                             </div>
                             <div className="flex flex-col sm:flex-row justify-center gap-3">
                                 <Link
-                                    to={`/registration/class-6/${registration.id}`}
+                                    to={`/registration/class-6/form/${registration.id}`}
                                     className="px-6 py-3 rounded font-medium transition-all duration-200 cursor-pointer bg-gray-600 hover:bg-gray-700 text-white! text-lg focus:outline-none flex items-center justify-center"
                                 >
                                     <span className="mr-2">✏️</span>
