@@ -51,7 +51,7 @@ export default function RegistrationClass6() {
         control,
         clearErrors,
         reset,
-        formState: { errors },
+        formState: { errors, isSubmitting },
     } = useForm<Class6Registration>({
         resolver: zodResolver(registrationSchemaBase) as any,
         mode: "onSubmit",
@@ -140,9 +140,6 @@ export default function RegistrationClass6() {
                                 formData[key] = "";
                             }
                         });
-                        // formData.same_as_permanent = Boolean(data.same_as_permanent);
-                        // formData.guardian_is_not_father = Boolean(data.guardian_is_not_father);
-                        // formData.guardian_address_same_as_permanent = Boolean(data.guardian_address_same_as_permanent);
                         if (currentSettings && data.section) {
                             const rollRange = data.section === "A" ? currentSettings.a_sec_roll : currentSettings.b_sec_roll;
                             const rolls = parseRollRange(rollRange);
@@ -151,6 +148,8 @@ export default function RegistrationClass6() {
                         if (data.roll) {
                             setInitialRoll(data.roll);
                             setInitialRollApplied(false);
+                        } else {
+                            setInitialRollApplied(true);
                         }
                         if (data.permanent_district) {
                             setPermanentUpazilas(getUpazilasByDistrict(data.permanent_district));
@@ -164,7 +163,8 @@ export default function RegistrationClass6() {
                             setPrevSchoolUpazilas(getUpazilasByDistrict(data.prev_school_district));
                             setInitialPrevSchoolUpazila(data.prev_school_upazila || "");
                         }
-                        setInitialUpazilasApplied(false);
+                        const hasDistrictsToSync = Boolean(data.permanent_district || data.present_district || data.prev_school_district);
+                        setInitialUpazilasApplied(!hasDistrictsToSync);
                         reset(formData);
 
                         const isSame =
@@ -193,6 +193,9 @@ export default function RegistrationClass6() {
                     } else {
                         navigate("/registration/class-6", { replace: true });
                     }
+                } else {
+                    setInitialRollApplied(true);
+                    setInitialUpazilasApplied(true);
                 }
             } catch (error) {
                 console.error("Failed to initialize data:", error);
@@ -391,7 +394,7 @@ export default function RegistrationClass6() {
         }
     }, [birth_reg_no]);
     const onSubmit = async (data: Class6Registration) => {
-        setLoading(true);
+        // setLoading(true);
         setDuplicates([]);
         try {
             let photo = "";
@@ -431,8 +434,6 @@ export default function RegistrationClass6() {
             } else {
                 alert(error.response?.data?.message || "Failed to submit registration. Please try again.");
             }
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -503,6 +504,22 @@ export default function RegistrationClass6() {
         REQUIRED_FIELDS.includes(name as any);
 
 
+
+    if (loading || !settings || (isEditMode && (!initialRollApplied || !initialUpazilasApplied))) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-md">
+                <div className="flex flex-col items-center">
+                    <div className="relative w-24 h-24">
+                        <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-100 rounded-full"></div>
+                        <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                    <div className="mt-6 text-xl font-bold text-gray-800 tracking-tight">
+                        Preparing Form Data
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
@@ -997,11 +1014,11 @@ export default function RegistrationClass6() {
                 <div className="pt-10 border-t-2 border-gray-100 flex justify-center">
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || isSubmitting}
                         className={`px-12 py-4 rounded-xl text-xl font-bold text-white shadow-2xl transition-all
-              ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}
+              ${loading || isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}
                     >
-                        {loading ? "Submitting..." : isEditMode ? "Update Registration" : "Submit Registration"}
+                        {loading || isSubmitting ? "Submitting..." : isEditMode ? "Update Registration" : "Submit Registration"}
                     </button>
                 </div>
             </form>
