@@ -42,9 +42,28 @@ import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
 import studentRouter from "./api/student/student.route.js";
 import routerTeacher from "./api/teacher/teacher.route.js";
+import jwt from "jsonwebtoken"; // Added jwt import
+import expressStatusMonitor from "express-status-monitor";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const storagePath = path.join(__dirname, "uploads");
+
+const authAdmin = (req: any, res: any, next: any) => {
+  const token = req.cookies?.refreshToken;
+
+  if (!token) return res.status(401).send("Unauthorized");
+
+  try {
+    const secret = (process.env.REFRESH_TOKEN_SECRET ||
+      process.env.JWT_SECRET)!;
+    const decoded: any = jwt.verify(token, secret);
+    if (decoded.role !== "admin") return res.status(403).send("Forbidden");
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).send("Invalid Token");
+  }
+};
 
 const app = express();
 
@@ -87,7 +106,25 @@ const LimitReq = rateLimit({
   legacyHeaders: false,
   store: limitStore,
 });
-
+app.use(
+  (expressStatusMonitor as any)({
+    spans: [
+      { interval: 1, retention: 60 },
+      { interval: 5, retention: 60 },
+      { interval: 15, retention: 60 },
+      { interval: 60, retention: 60 },
+      { interval: 300, retention: 288 },
+    ],
+    healthChecks: [
+      {
+        protocol: "http",
+        host: "localhost",
+        path: "/api/health",
+        port: PORT.toString(),
+      },
+    ],
+  }),
+);
 app.use(LimitReq);
 app.get(
   "/api/resetLimit",
@@ -128,6 +165,59 @@ app.use("/api/reg/class-6/form", studentRegistrationClass6Router);
 app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
+app.get("/logs", authAdmin, (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "logs.html"));
+});
+
+app.get("/api/monitoring/recent-requests", authAdmin, (_req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const accessLogPath = path.join(__dirname, "logs", `access-${today}.log`);
+
+    if (!fs.existsSync(accessLogPath)) {
+      return res.json({ success: true, logs: [] });
+    }
+
+    const logs = fs
+      .readFileSync(accessLogPath, "utf8")
+      .split("\n")
+      .filter((line) => line.trim())
+      // .slice(-50)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(
+        (log) =>
+          log !== null && log.type === "request" && log.status !== undefined,
+      )
+      .reverse();
+
+    return res.json({ success: true, logs });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get("/api/monitoring/logs/stream", authAdmin, (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const onLog = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  (logger as any).emitter.on("log", onLog);
+
+  req.on("close", () => {
+    (logger as any).emitter.off("log", onLog);
+  });
+});
+
 app.use("/api/sms", smsRouter);
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -183,6 +273,13 @@ app.listen(PORT, () => {
       logger.error("Error creating uploads directory", { error: err.message });
     } else {
       logger.info("Uploads directory ready", { path: storagePath });
+    }
+  });
+  fs.mkdir("logs", { recursive: true }, (err) => {
+    if (err) {
+      logger.error("Error creating logs directory", { error: err.message });
+    } else {
+      logger.info("Logs directory ready", { path: "logs" });
     }
   });
   const mode =
