@@ -169,8 +169,8 @@ const registrationObjectShape = z.object({
     z
       .string()
       .max(100)
-      .regex(
-        ADDRESS_TEXT,
+      .refine(
+        (val) => !val || ADDRESS_TEXT.test(val),
         "Only English letters, digits and spaces are allowed",
       )
       .default(""),
@@ -190,8 +190,8 @@ const registrationObjectShape = z.object({
     z
       .string()
       .max(200)
-      .regex(
-        ADDRESS_TEXT,
+      .refine(
+        (val) => !val || ADDRESS_TEXT.test(val),
         "Only English letters, digits and spaces are allowed",
       )
       .default(""),
