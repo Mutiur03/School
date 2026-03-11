@@ -8,9 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:admin": "vite --mode admin --port 5174",
-    "dev:student": "vite --mode student --port 5175",
-    "dev:teacher": "vite --mode teacher --port 5176",
+    "dev:admin": "vite --mode admin --port 5174 --clearScreen false",
+    "dev:student": "vite --mode student --port 5175 --clearScreen false",
+    "dev:teacher": "vite --mode teacher --port 5176 --clearScreen false",
     "build:admin": "tsc -b && vite build --mode admin",
     "build:student": "tsc -b && vite build --mode student",
     "build:teacher": "tsc -b && vite build --mode teacher"
