@@ -2,12 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios, { isAxiosError } from "axios";
 import type { ApiResponse } from "@school/shared-schemas";
 import { useTeacher } from "@/queries/teacher.queries";
-
-interface Teacher {
-  id: string;
-  name: string;
-}
-
+import type { Teacher } from "@/types/teachers";
 
 interface HeadData {
   teacher?: Teacher;
@@ -48,7 +43,7 @@ function Head() {
         console.log(headData);
         
         if (isMounted) {
-          if (headData?.teacher) setSelectedTeacherId(headData.teacher.id);
+          if (headData?.teacher) setSelectedTeacherId(headData.teacher.id.toString());
           if (typeof headData?.head_message === "string")
             setMessage(headData.head_message);
         }
@@ -102,12 +97,12 @@ function Head() {
             value={selectedTeacherId}
             onChange={(e) => setSelectedTeacherId(e.target.value)}
             disabled={loading || teachers.length === 0}
-            className="ml-2 border rounded px-2 py-1 text-sm disabled:opacity-60 bg-accent"
+            className="ml-2 resize-y border border-input rounded p-2 text-sm disabled:opacity-60"
           >
             <option value="">-- Select --</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>
-                {teacher.name}
+                {`${teacher.name} (${teacher.designation})`}
               </option>
             ))}
           </select>
@@ -119,7 +114,7 @@ function Head() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={loading}
-          className="w-full resize-y border rounded p-2 text-sm disabled:opacity-60 text-accent-foreground"
+          className="w-full resize-y border border-input rounded p-2 text-sm disabled:opacity-60"
         />
 
         <div>

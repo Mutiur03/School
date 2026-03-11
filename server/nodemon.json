@@ -1,8 +1,15 @@
 {
-  "exec": "npm run lint && node --import tsx server.ts",
-  "_exec": "node --import tsx server.ts",
+  "exec": "npm run lint && node --import tsx src/server.ts",
+  "_exec": "node --import tsx src/server.ts",
   "ext": "js,ts,json",
   "watch": ["./", "../packages/shared-schemas"],
   "delay": "2500",
-  "ignore": ["node_modules/", "dist/", "uploads/", "prisma/migrations/", "../packages/*/dist/", "../packages/*/node_modules/"]
+  "ignore": [
+    "node_modules/",
+    "dist/",
+    "uploads/",
+    "prisma/migrations/",
+    "../packages/*/dist/",
+    "../packages/*/node_modules/"
+  ]
 }

@@ -14,18 +14,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
 import { useTeacher } from "@/queries/teacher.queries";
+import type { Teacher } from "@/types/teachers";
 
-interface Teacher {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  designation: string;
-  subject: string;
-  available: boolean;
-  image?: string;
-}
+
 
 interface PopupState {
   visible: boolean;
@@ -105,18 +96,14 @@ const TeacherList = () => {
       formValues: TeacherFormSchemaData;
       imageFile: File | null;
     }) => {
-      await axios.post("/api/teachers", {
+      const response = await axios.post("/api/teachers", {
         teachers: [formValues],
       });
-      // The new API returns an Excel file download, so we need to get the teacher data differently
-      // For now, we'll handle it by fetching the teachers list again
       if (imageFile) {
-        // We'll need to get the teacher ID after creation
-        const teachersResponse = await axios.get("/api/teachers");
-        const newTeacher = teachersResponse.data.data.data[teachersResponse.data.data.data.length - 1];
+        const newTeacher = response.data.data.teachers[0];
         await uploadImageToR2(imageFile, newTeacher.id);
       }
-      return { message: "Teacher added successfully" };
+      return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || "Teacher added successfully.");
@@ -125,8 +112,8 @@ const TeacherList = () => {
       setShowForm(false);
       invalidateTeachers();
     },
-    onError: (error: { response?: { data?: { error?: string } } }) => {
-      toast.error(error.response?.data?.error || "An error occurred while adding the teacher.");
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      toast.error(error.response?.data?.message  || "An error occurred while adding the teacher.");
     },
   });
 
@@ -158,8 +145,8 @@ const TeacherList = () => {
       setPopup({ visible: false, type: "", teacher: null });
       invalidateTeachers();
     },
-    onError: (error: { response?: { data?: { error?: string } } }) => {
-      toast.error(error.response?.data?.error || "An error occurred while updating the teacher.");
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      toast.error(error.response?.data?.message || "An error occurred while updating the teacher.");
     },
   });
 
