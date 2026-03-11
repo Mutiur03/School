@@ -560,16 +560,17 @@ function StudentList() {
       }
     },
     onSuccess: (data) => {
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "students_credentials.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
+      if (!isEditing) {
+        const url = window.URL.createObjectURL(new Blob([data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "students_credentials.xlsx");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
       handleCancel();
-      toast.success("Student added successfully. Credentials downloaded.");
+      toast.success(isEditing ? "Student updated successfully." : "Student added successfully. Credentials downloaded.");
       invalidateStudents();
     },
     onError: async (err: any) => {
@@ -837,7 +838,7 @@ function StudentList() {
       if (response.data.success) {
         toast.success("Image removed successfully.");
         setSelectedStudent((prev) => prev ? { ...prev, image: undefined } : prev);
-        setShowForm(false);
+        // setShowForm(false);
         invalidateStudents();
       } else {
         toast.error(response.data.error || "Failed to remove image.");

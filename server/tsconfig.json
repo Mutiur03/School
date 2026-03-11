@@ -1,11 +1,12 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     },
     "strict": true,
     "noUnusedLocals": true,
@@ -18,8 +19,8 @@
     "allowImportingTsExtensions": false,
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": "src"
   },
-  "include": ["**/*.js", "**/*.ts", "**/*.json", "**/*.mjs"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

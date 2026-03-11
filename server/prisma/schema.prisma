@@ -44,7 +44,7 @@ model admin {
 
 model students {
   id           Int                   @id @default(autoincrement())
-  login_id     Int                   @unique
+  login_id     BigInt                   @unique
   name         String                @db.VarChar(100)
   father_name  String?               @db.VarChar(100)
   mother_name  String?               @db.VarChar(100)
