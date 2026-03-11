@@ -42,31 +42,12 @@ import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
 import studentRouter from "./api/student/student.route.js";
 import routerTeacher from "./api/teacher/teacher.route.js";
-import jwt from "jsonwebtoken"; // Added jwt import
 import expressStatusMonitor from "express-status-monitor";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
 const storagePath = path.join(__dirname, "uploads");
-
-
-const authAdmin = (req: any, res: any, next: any) => {
-  const token = req.cookies?.refreshToken;
-
-  if (!token) return res.status(401).send("Unauthorized");
-
-  try {
-    const secret = (process.env.REFRESH_TOKEN_SECRET ||
-      process.env.JWT_SECRET)!;
-    const decoded: any = jwt.verify(token, secret);
-    if (decoded.role !== "admin") return res.status(403).send("Forbidden");
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).send("Invalid Token");
-  }
-};
 
 const app = express();
 
@@ -140,9 +121,6 @@ app.get(
     });
   },
 );
-app.get("/api", (_req, res) => {
-  res.send("Hello World");
-});
 app.use(studentRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/sub", subRouter);
@@ -169,55 +147,6 @@ app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 
-
-app.get("/api/monitoring/recent-requests", authAdmin, (_req, res) => {
-  try {
-    const today = new Date().toISOString().split("T")[0];
-    const accessLogPath = path.join(__dirname, `access-${today}.log`);
-
-    if (!fs.existsSync(accessLogPath)) {
-      return res.json({ success: true, logs: [] });
-    }
-
-    const logs = fs
-      .readFileSync(accessLogPath, "utf8")
-      .split("\n")
-      .filter((line) => line.trim())
-      // .slice(-50)
-      .map((line) => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return null;
-        }
-      })
-      .filter(
-        (log) =>
-          log !== null && log.type === "request" && log.status !== undefined,
-      )
-      .reverse();
-
-    return res.json({ success: true, logs });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.get("/api/monitoring/logs/stream", authAdmin, (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const onLog = (data: any) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
-
-  (logger as any).emitter.on("log", onLog);
-
-  req.on("close", () => {
-    (logger as any).emitter.off("log", onLog);
-  });
-});
 
 app.use("/api/sms", smsRouter);
 app.get("/api/health", (_req, res) => {

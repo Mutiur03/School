@@ -4,6 +4,8 @@
   "workspaces": [
     "client",
     "dashboard",
+    "server",
+    "students",
     "packages/*"
   ],
   "type": "module",
