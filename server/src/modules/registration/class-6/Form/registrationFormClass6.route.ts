@@ -4,6 +4,7 @@ import { validate } from "@/middlewares/validate.middleware.js";
 import {
   registrationSchema,
   class6RegistrationStatusSchema,
+  registrationPhotoUploadSchema,
 } from "@school/shared-schemas";
 import { RegistrationFormClass6Controller } from "./registrationFormClass6.controller.js";
 
@@ -31,6 +32,7 @@ router.get(
 );
 router.post(
   "/upload-url",
+  validate(registrationPhotoUploadSchema),
   RegistrationFormClass6Controller.getRegistrationPhotoUploadUrl,
 );
 router.get("/:id", RegistrationFormClass6Controller.getRegistrationById);
