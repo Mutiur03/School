@@ -1,10 +1,11 @@
-import { removeInitialZeros } from "@school/shared-schemas";
-import { prisma } from "../config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
+import { prisma } from "@/config/prisma.js";
+import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
 import path from "path";
+import { removeInitialZeros } from "@school/shared-schemas";
+import { ApiError } from "@/utils/ApiError.js";
 
-export const createOrUpdateClass6Reg = async (req, res) => {
-  try {
+export class RegistrationSettingsClass6Service {
+  static async createOrUpdateClass6Reg(data: any) {
     const {
       a_sec_roll,
       b_sec_roll,
@@ -16,12 +17,12 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       notice_key,
       classmates,
       classmates_source,
-    } = req.body;
+    } = data;
 
-    let updateData = {
+    let updateData: any = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
-      class6_year: class6_year ? parseInt(class6_year) : null,
+      class6_year: class6_year ? parseInt(class6_year, 10) : null,
       reg_open: reg_open === "true" || reg_open === true,
       instruction_for_a:
         instruction_for_a || "Please follow the instructions carefully",
@@ -31,7 +32,9 @@ export const createOrUpdateClass6Reg = async (req, res) => {
         attachment_instruction || "Please attach all required documents",
       classmates: classmates || null,
       classmates_source: classmates_source || "default",
+      notice: null,
     };
+
     if (notice_key) {
       const existingRecord = await prisma.class6_reg.findFirst();
       if (
@@ -44,7 +47,7 @@ export const createOrUpdateClass6Reg = async (req, res) => {
       updateData.notice = notice_key;
     }
 
-    const class6Reg = await prisma.class6_reg.upsert({
+    return await prisma.class6_reg.upsert({
       where: { id: 1 },
       update: updateData,
       create: {
@@ -52,40 +55,22 @@ export const createOrUpdateClass6Reg = async (req, res) => {
         ...updateData,
       },
     });
-
-    res.status(200).json({
-      success: true,
-      message: "Class Six Registration updated successfully",
-      data: class6Reg,
-    });
-  } catch (error) {
-    console.error("Controller error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating Class Six Registration",
-      error: error.message,
-    });
   }
-};
 
-export const getClass6Reg = async (req, res) => {
-  try {
+  static async getClass6Reg() {
     const class6Reg = await prisma.class6_reg.findFirst();
 
     if (!class6Reg) {
-      return res.status(404).json({
-        success: false,
-        message: "Class Six Registration settings not found",
-      });
+      throw new ApiError(404, "Class Six Registration settings not found");
     }
 
     let resolvedClassmates = class6Reg.classmates;
 
     // If classmates_source is 'default', resolve from student enrollments
-    if (class6Reg.classmates_source === "default") {
+    if (class6Reg.classmates_source === "default" && class6Reg.class6_year) {
       const enrollments = await prisma.student_enrollments.findMany({
         where: {
-          year: class6Reg.class6_year,
+          year: class6Reg.class6_year as number,
           class: 6,
         },
         include: {
@@ -103,7 +88,7 @@ export const getClass6Reg = async (req, res) => {
       });
 
       resolvedClassmates = enrollments
-        .map((en) => {
+        .map((en: any) => {
           const name = en.student.name;
           const section = en.section || "";
           const roll = en.roll ? removeInitialZeros(String(en.roll)) : "";
@@ -112,31 +97,17 @@ export const getClass6Reg = async (req, res) => {
         .join(", ");
     }
 
-    res.status(200).json({
-      success: true,
-      data: {
-        ...class6Reg,
-        resolvedClassmates,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error fetching Class Six Registration",
-      error: error.message,
-    });
+    return {
+      ...class6Reg,
+      resolvedClassmates,
+    };
   }
-};
 
-export const deleteClass6RegNotice = async (req, res) => {
-  try {
+  static async deleteClass6RegNotice() {
     const class6Reg = await prisma.class6_reg.findFirst();
 
     if (!class6Reg || !class6Reg.notice) {
-      return res.status(404).json({
-        success: false,
-        message: "No notice found to delete",
-      });
+      throw new ApiError(404, "No notice found to delete");
     }
 
     await deleteFromR2(class6Reg.notice);
@@ -146,38 +117,19 @@ export const deleteClass6RegNotice = async (req, res) => {
       data: { notice: null },
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Notice deleted successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error deleting notice",
-      error: error.message,
-    });
+    return true;
   }
-};
 
-export const getClass6NoticeUploadUrl = async (req, res) => {
-  try {
-    const { filename, filetype } = req.body;
+  static async getClass6NoticeUploadUrl(data: any) {
+    const { filename, filetype } = data;
     if (!filename || !filetype) {
-      return res.status(400).json({
-        success: false,
-        message: "Filename and filetype are required",
-      });
+      throw new ApiError(400, "Filename and filetype are required");
     }
 
     const ext = path.extname(filename);
     const key = `notices/registrations/notice-${Date.now()}${ext}`;
     const url = await getUploadUrl(key, filetype);
 
-    res.json({ success: true, url, key });
-  } catch (error) {
-    console.error("Error generating upload URL:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to generate upload URL" });
+    return { url, key };
   }
-};
+}
