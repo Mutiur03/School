@@ -130,6 +130,6 @@ export class RegistrationSettingsClass6Service {
     const key = `notices/registrations/notice-${Date.now()}${ext}`;
     const url = await getUploadUrl(key, filetype);
 
-    return { url, key };
+    return { uploadUrl: url, key };
   }
 }

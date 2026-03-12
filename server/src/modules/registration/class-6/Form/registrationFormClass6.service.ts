@@ -282,7 +282,7 @@ export class RegistrationFormClass6Service {
     const key = `registrations/class6/${academicYear}/${safeSection}-${safeRoll}-${randomId}${ext}`;
     const url = await getUploadUrl(key, filetype);
 
-    return { url, key };
+    return { uploadUrl: url, key };
   }
 
   static async exportRegistrations(query: any) {
