@@ -207,16 +207,22 @@ model subjects {
   mcq_pass_mark       Int       @default(0)
   practical_pass_mark Int       @default(0)
   year                Int       @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  teacher_id          Int?
   department          String?   @db.VarChar(100)
+  subject_type        String    @default("single")
+  parent_id           Int?
+  assessment_type     String    @default("exam")
+  priority            Int       @default(0)
   created_at          DateTime  @default(now())
   marks               marks[]
+  parent              subjects? @relation("SubjectHierarchy", fields: [parent_id], references: [id])
+  children            subjects[] @relation("SubjectHierarchy")
 
   @@unique([name, class, department, year])
-  @@index([teacher_id])
   @@index([class, year])
   @@index([department])
   @@index([name])
+  @@index([parent_id])
+  @@index([priority])
 }
 
 model marks {

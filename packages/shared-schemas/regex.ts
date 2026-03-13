@@ -7,7 +7,9 @@ export const POST_CODE = /^\d{4}$/;
 export const REGISTRATION_NO = /^\d{10}$/;
 export const ROLL_NUMBER = /^\d{1,6}$/;
 
-export const NAME = /^[A-Za-z][A-Za-z .'-]{1,98}[A-Za-z.]$/;
+export const NAME = /^[A-Za-z][A-Za-z .'-()]{1,98}[A-Za-z.]$/;
+export const SUBJECT_NAME =
+  /^[A-Za-z0-9][A-Za-z0-9 .()&\/'-]{1,98}[A-Za-z0-9).]$/;
 export const CLASS_NUM = /^(?:[1-9]|10)$/;
 export const SECTION = /^[A-Za-z]$/;
 export const ADDRESS_TEXT = /^[A-Za-z0-9\s]{2,100}$/;
@@ -18,18 +20,24 @@ export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const LOGIN_ID = /^\d{5}$/;
 
 export function filterEnglishInput(value: string) {
-  return value.replace(/[^A-Za-z.():\s]/g, "").replace(/\s+/g, " ").trimStart();
+  return value
+    .replace(/[^A-Za-z.():\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart();
 }
 
 export function filterAddressInput(value: string) {
   return value
     .replace(/[^A-Za-z0-9\s]/g, "")
     .replace(/\s+/g, " ")
-    .trimStart(); 
+    .trimStart();
 }
 
 export function filterBanglaInput(value: string) {
-  return value.replace(/[^\u0980-\u09FF.():\s]/g, "").replace(/\s+/g, " ").trimStart();
+  return value
+    .replace(/[^\u0980-\u09FF.():\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart();
 }
 
 export function filterNumericInput(value: string) {
@@ -37,3 +45,7 @@ export function filterNumericInput(value: string) {
 }
 
 export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+export const VALID_DEPARTMENTS = ["Science", "Commerce", "Humanities"] as const;
+
+export const RELIGION = ["Islam", "Hinduism", "Christianity", "Buddhism"] as const;

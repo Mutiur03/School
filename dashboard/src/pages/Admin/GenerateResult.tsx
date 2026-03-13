@@ -251,7 +251,7 @@ const GenerateResult = () => {
               disabled={!selectedClass}
             >
               <option value="">All Departments</option>
-              {["Science", "Arts", "Commerce"].map((dept) => (
+              {["Science", "Humanities", "Commerce"].map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>

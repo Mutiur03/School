@@ -13,6 +13,7 @@ import {
   ADDRESS_TEXT,
   CLASS_NUM,
   LOGIN_ID,
+  VALID_DEPARTMENTS,
 } from "./regex.js";
 
 export const studentLoginSchema = z.object({
@@ -29,7 +30,6 @@ export const studentLoginSchema = z.object({
 
 export type StudentLoginData = z.infer<typeof studentLoginSchema>;
 
-export const VALID_DEPARTMENTS = ["Science", "Commerce", "Humanities"] as const;
 
 export const studentFormSchema = z
   .object({

@@ -3,12 +3,17 @@ import type { ChangeEvent, FormEvent } from "react";
 import axios, { AxiosError } from "axios";
 import { toast } from "react-hot-toast";
 import * as XLSX from "xlsx";
-import { Edit, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
-import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
+import DeleteConfirmation from "@/components/DeleteConfimation";
+import ActionButton from "@/components/ActionButton";
 import Loading from "@/components/Loading";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { subjectFormSchema, type SubjectFormSchemaData, VALID_DEPARTMENTS } from "@school/shared-schemas";
+import ErrorMessage from "@/components/ErrorMessage";
 
 interface Subject {
   id: number;
@@ -24,47 +29,53 @@ interface Subject {
   practical_pass_mark?: number;
   department: string;
   year: number;
+  subject_type: "main" | "paper" | "single";
+  parent_id?: number | null;
+  assessment_type: "exam" | "continuous";
+  priority: number;
   created_at: string;
 }
 
-interface FormData {
-  id: number | null;
-  name: string;
-  class: string;
-  full_mark: string;
-  pass_mark: string;
-  cq_mark: string;
-  mcq_mark: string;
-  practical_mark: string;
-  cq_pass_mark: string;
-  mcq_pass_mark: string;
-  practical_pass_mark: string;
-  department: string;
-  year: number;
-}
+// FormData interface removed in favor of SubjectFormSchemaData from shared-schemas
 
 const NewSubject: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [formData, setFormData] = useState<FormData>({
-    id: null,
-    name: "",
-    class: "",
-    full_mark: "",
-    pass_mark: "",
-    cq_mark: "",
-    mcq_mark: "",
-    practical_mark: "",
-    cq_pass_mark: "",
-    mcq_pass_mark: "",
-    practical_pass_mark: "",
-    department: "",
-    year: new Date().getFullYear(),
+
+  const {
+    register,
+    handleSubmit: handleSub,
+    reset,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<SubjectFormSchemaData>({
+    resolver: zodResolver(subjectFormSchema),
+    defaultValues: {
+      id: null,
+      name: "",
+      class: "",
+      full_mark: "",
+      pass_mark: "",
+      cq_mark: "",
+      mcq_mark: "",
+      practical_mark: "",
+      cq_pass_mark: "",
+      mcq_pass_mark: "",
+      practical_pass_mark: "",
+      department: "",
+      year: new Date().getFullYear(),
+      subject_type: "single",
+      parent_id: "",
+      assessment_type: "exam",
+      priority: "0",
+    },
   });
+
+  const formData = watch();
   const [uploadMethod, setUploadMethod] = useState<"form" | "file">("form");
   const [jsonData, setJsonData] = useState<Subject[] | null>(null);
   const [fileUploaded, setFileUploaded] = useState<boolean>(false);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [showFormatInfo, setShowFormatInfo] = useState<boolean>(false);
@@ -74,6 +85,7 @@ const NewSubject: React.FC = () => {
   useEffect(() => {
     fetchSubjects();
   }, []);
+
 
   const fetchSubjects = async (): Promise<void> => {
     setIsLoading(true);
@@ -88,16 +100,25 @@ const NewSubject: React.FC = () => {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
-    
+
     if (name === "class") {
       const classNum = Number(value);
       if (classNum > 0 && classNum < 9) {
-        setFormData({ ...formData, [name]: value, department: "" });
+        setValue("class", value);
+        setValue("department", "");
         return;
       }
     }
-    
-    setFormData({ ...formData, [name]: value });
+
+    if (name === "assessment_type") {
+      const val = value as "exam" | "continuous";
+      setValue("assessment_type", val);
+      return;
+    }
+
+    // For other fields, use register or manual setValue if needed
+    // @ts-ignore
+    setValue(name as any, value);
   };
 
   const handleMethodChange = (method: "form" | "file"): void => {
@@ -108,7 +129,7 @@ const NewSubject: React.FC = () => {
   };
 
   const resetFormData = (): void => {
-    setFormData({
+    reset({
       id: null,
       name: "",
       class: "",
@@ -122,21 +143,26 @@ const NewSubject: React.FC = () => {
       practical_pass_mark: "",
       department: "",
       year: new Date().getFullYear(),
+      subject_type: "single",
+      parent_id: "",
+      assessment_type: "exam",
+      priority: "0",
     });
   };
 
-  const handleSubmit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
+  const onSubmit = async (data: SubjectFormSchemaData): Promise<void> => {
     if (uploadMethod === "form") {
       try {
-        if (formData.id) {
-          await axios.put(`/api/sub/updateSubject/${formData.id}`, formData);
+        if (data.id) {
+          const originalSubject = subjects.find(s => s.id === data.id);
+          await axios.put(`/api/sub/updateSubject/${data.id}`, {
+            ...data,
+            old_parent_id: originalSubject?.parent_id
+          });
           toast.success("Subject updated successfully.");
         } else {
           const response = await axios.post("/api/sub/addSubject", {
-            subjects: [formData],
+            subjects: [data],
           });
           toast.success(response.data.message);
         }
@@ -145,98 +171,127 @@ const NewSubject: React.FC = () => {
         setShowForm(false);
       } catch (error) {
         const axiosError = error as AxiosError<{ error: string }>;
+        console.log(axiosError.response?.data?.error);
         toast.error(
-          axiosError.response?.data?.error ||
-            formData.id ? "Error updating subject" : "Error adding subject"
+          axiosError.response?.data?.error || "Error adding subject"
         );
       }
     }
-    setIsSubmitting(false);
   };
 
+  const onError = (errors: any) => {
+    console.error("Form validation errors:", errors);
+    toast.error("Please fix the validation errors in the form.");
+  };
+
+
+  // Improved Excel upload pipeline
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     setFileUploaded(true);
-
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
-
     reader.onload = (e) => {
       const arrayBuffer = e.target?.result;
       if (!arrayBuffer) return;
-
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
-
-      const mandatoryColumns = [
-        "name",
-        "class",
-        "full_mark",
-        "pass_mark",
-        "year",
-      ];
+      const mandatoryColumns = ["name", "class", "full_mark", "year", "assessment_type", "priority"];
       const sheetHeaders = (rawData[0] || []) as string[];
       const missingColumns = mandatoryColumns.filter((col) => !sheetHeaders.includes(col));
-
       if (missingColumns.length > 0) {
-        toast.error(
-          `Excel file is missing required columns: ${missingColumns.join(", ")}`
-        );
+        toast.error(`Excel file is missing required columns: ${missingColumns.join(", ")}`);
         setFileUploaded(false);
         return;
       }
-
       const data = XLSX.utils.sheet_to_json(sheet) as any[];
       const errors: string[] = [];
-      const validatedData: Subject[] = [];
-
-      data.forEach((row, index) => {
-        const rowNum = index + 2; // Excel row numbering
-        const rowErrors: string[] = [];
-
-        if (!row.name || String(row.name).trim() === "") rowErrors.push("Subject name");
-        if (!row.class || isNaN(Number(row.class)) || Number(row.class) < 6 || Number(row.class) > 10) 
-          rowErrors.push("Class (6-10)");
-        if (!row.full_mark || isNaN(Number(row.full_mark)) || Number(row.full_mark) <= 0) 
-          rowErrors.push("Full mark");
-        if (!row.pass_mark || isNaN(Number(row.pass_mark)) || Number(row.pass_mark) <= 0) 
-          rowErrors.push("Pass mark");
-        if (!row.year || isNaN(Number(row.year)) || Number(row.year) < 2000) 
-          rowErrors.push("Year");
-        
-        // Department validation for classes 9-10
-        const classNum = Number(row.class);
-        if ((classNum === 9 || classNum === 10) && (!row.department || String(row.department).trim() === "")) {
-          rowErrors.push("Department (required for Class 9/10)");
-        }
-
-        if (rowErrors.length > 0) {
-          errors.push(`Row ${rowNum} missing or invalid: ${rowErrors.join(", ")}`);
-        } else {
-          validatedData.push(row as Subject);
-        }
+      // Step 1: Normalize rows
+      const normalizedRows = data.map((row) => {
+        const deptKey = Object.keys(row).find(k => String(k).toLowerCase() === 'department');
+        const deptRaw = deptKey ? String(row[deptKey as keyof typeof row] || "").trim() : "";
+        const dept = deptRaw ? deptRaw.charAt(0).toUpperCase() + deptRaw.slice(1).toLowerCase() : "";
+        return {
+          ...row,
+          name: String(row.name || "").trim(),
+          class: Number(row.class),
+          full_mark: Number(row.full_mark),
+          pass_mark: row.assessment_type?.toLowerCase() === "continuous" ? null : Number(row.pass_mark),
+          department: dept,
+          year: Number(row.year) || new Date().getFullYear(),
+          assessment_type: String(row.assessment_type || "exam").toLowerCase(),
+          subject_group: row.subject_group ? String(row.subject_group).trim() : null,
+          priority: Number(row.priority) || 0,
+          // Remove parent_id from Excel input
+        };
       });
-
+      // Step 2: Validate rows
+      const seen = new Set();
+      normalizedRows.forEach((row, index) => {
+        const rowNum = index + 2;
+        const key = `${row.name}|${row.class}|${row.department}|${row.year}`;
+        if (!row.name) errors.push(`Row ${rowNum}: Subject name required.`);
+        if (!row.class || isNaN(row.class) || row.class < 6 || row.class > 10) errors.push(`Row ${rowNum}: Class must be 6-10.`);
+        if (!row.full_mark || isNaN(row.full_mark) || row.full_mark <= 0) errors.push(`Row ${rowNum}: Full mark required.`);
+        if (row.assessment_type === "exam" && (!row.pass_mark || isNaN(row.pass_mark) || row.pass_mark <= 0)) errors.push(`Row ${rowNum}: Pass mark required for exam.`);
+        if (!row.year || isNaN(row.year) || row.year < 2000) errors.push(`Row ${rowNum}: Invalid year.`);
+        if (!["exam", "continuous"].includes(row.assessment_type)) errors.push(`Row ${rowNum}: Invalid assessment type.`);
+        if (row.priority < 0) errors.push(`Row ${rowNum}: Priority must be non-negative.`);
+        if (seen.has(key)) errors.push(`Row ${rowNum}: Duplicate subject in file.`);
+        seen.add(key);
+        // Check DB duplicate
+        const isDuplicateInDB = subjects.some(
+          (s) => s.name === row.name && s.class === row.class && (s.department || "") === row.department && s.year === row.year
+        );
+        if (isDuplicateInDB) errors.push(`Row ${rowNum}: Subject already exists in database.`);
+      });
       if (errors.length > 0) {
         errors.slice(0, 5).forEach((err) => toast.error(err, { duration: 4000 }));
-        if (errors.length > 5) {
-          toast.error(`...and ${errors.length - 5} more rows have errors.`);
-        }
+        if (errors.length > 5) toast.error(`...and ${errors.length - 5} more rows have errors.`);
         setFileUploaded(false);
         setJsonData(null);
-        if (excelFileRef.current) {
-          excelFileRef.current.value = "";
-        }
+        if (excelFileRef.current) excelFileRef.current.value = "";
         return;
       }
-
-      setJsonData(validatedData);
+      // Step 3: Only upload papers and singles, do not generate main subjects
+      const subjectsToUpload: any[] = [];
+      Object.values(normalizedRows).forEach(row => {
+        // If subject_group exists and there are other papers in same group/class/year, mark as paper
+        if (row.subject_group) {
+          const groupCount = normalizedRows.filter(r => r.subject_group === row.subject_group && r.class === row.class && r.year === row.year).length;
+          if (groupCount > 1) {
+            subjectsToUpload.push({
+              ...row,
+              subject_type: "paper",
+              parent_id: null,
+            });
+          } else {
+            subjectsToUpload.push({
+              ...row,
+              subject_type: "single",
+              parent_id: null,
+            });
+          }
+        } else {
+          subjectsToUpload.push({
+            ...row,
+            subject_type: "single",
+            parent_id: null,
+          });
+        }
+      });
+      // Step 4: CAS subjects
+      subjectsToUpload.forEach(s => {
+        if (s.assessment_type === "continuous") {
+          s.exclude_from_gpa = true;
+          s.pass_mark = null;
+        }
+      });
+      setJsonData(subjectsToUpload);
     };
-
     reader.onerror = () => {
       toast.error("Error reading the file. Please try again.");
       setFileUploaded(false);
@@ -244,37 +299,19 @@ const NewSubject: React.FC = () => {
   };
 
   const handleDownloadDemoExcel = () => {
-    const demoData = [
-      {
-        name: "Mathematics",
-        class: 9,
-        full_mark: 100,
-        pass_mark: 33,
-        department: "Science",
-        year: new Date().getFullYear(),
-      },
-      {
-        name: "General Science",
-        class: 8,
-        full_mark: 100,
-        pass_mark: 33,
-        year: new Date().getFullYear(),
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(demoData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Subjects");
-    XLSX.writeFile(workbook, "subject_upload_demo.xlsx");
+    const link = document.createElement("a");
+    link.href = "/subject_upload_demo.xlsx";
+    link.download = "demo_subjects.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast.success("Demo Excel downloaded.");
   };
 
-  const sendToBackend = async (e: FormEvent): Promise<void> => {
+  const onSubmitFile = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    setIsSubmitting(true);
     if (!jsonData || jsonData.length === 0) {
       toast.error("No data to upload. Please check your Excel file.");
-      setIsSubmitting(false);
       return;
     }
 
@@ -282,10 +319,8 @@ const NewSubject: React.FC = () => {
       const response = await axios.post("/api/sub/addSubject", {
         subjects: jsonData,
       });
-
       if (!response.data.success) {
         toast.error(response.data.message);
-        setIsSubmitting(false);
         return;
       }
 
@@ -298,10 +333,10 @@ const NewSubject: React.FC = () => {
       fetchSubjects();
       setShowForm(false);
     } catch (err) {
+
       const axiosError = err as AxiosError<{ error: string }>;
       toast.error(axiosError.response?.data?.error || "Failed to upload Subjects.");
     }
-    setIsSubmitting(false);
   };
 
   const deleteSubject = async (id: number): Promise<void> => {
@@ -316,28 +351,32 @@ const NewSubject: React.FC = () => {
   };
 
   const editSubject = (subject: Subject): void => {
-    setUploadMethod("form");
-    setShowForm(true);
-    setFormData({
+    reset({
       id: subject.id,
       name: subject.name,
       class: String(subject.class),
       full_mark: String(subject.full_mark),
       pass_mark: String(subject.pass_mark),
-      cq_mark: subject.cq_mark ? String(subject.cq_mark) : "",
-      mcq_mark: subject.mcq_mark ? String(subject.mcq_mark) : "",
-      practical_mark: subject.practical_mark ? String(subject.practical_mark) : "",
-      cq_pass_mark: subject.cq_pass_mark ? String(subject.cq_pass_mark) : "",
-      mcq_pass_mark: subject.mcq_pass_mark ? String(subject.mcq_pass_mark) : "",
-      practical_pass_mark: subject.practical_pass_mark ? String(subject.practical_pass_mark) : "",
-      department: subject.department,
+      cq_mark: String(subject.cq_mark || ""),
+      mcq_mark: String(subject.mcq_mark || ""),
+      practical_mark: String(subject.practical_mark || ""),
+      cq_pass_mark: String(subject.cq_pass_mark || ""),
+      mcq_pass_mark: String(subject.mcq_pass_mark || ""),
+      practical_pass_mark: String(subject.practical_pass_mark || ""),
+      department: subject.department || "",
       year: subject.year,
+      subject_type: subject.subject_type,
+      parent_id: subject.parent_id ? String(subject.parent_id) : "",
+      assessment_type: subject.assessment_type,
+      priority: String(subject.priority),
     });
+    setUploadMethod("form");
+    setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCancel = (): void => {
-    resetFormData();
+    reset(); // Assuming reset() is available from useForm
     setUploadMethod("form");
     setFileUploaded(false);
     setJsonData(null);
@@ -356,16 +395,71 @@ const NewSubject: React.FC = () => {
     return {
       total: subjects.length,
       classes: new Set(subjects.map((s) => s.class)).size,
-      avgPassMark: subjects.length > 0
-        ? Math.round(subjects.reduce((acc, s) => acc + s.pass_mark, 0) / subjects.length)
-        : 0,
+      // avgPassMark: subjects.length > 0
+      //   ? Math.round(subjects.reduce((acc, s) => acc + s.pass_mark, 0) / subjects.length)
+      //   : 0,
     };
   }, [subjects]);
 
-  const filteredSubjects = subjects
-    .filter((subject) => subject.year === filterYear)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .sort((a, b) => a.class - b.class);
+  const filteredSubjects = useMemo(() => {
+    const baseFilter = subjects.filter((subject) => subject.year === filterYear);
+
+    // Enhanced sorting logic:
+    // 1. Class (ascending)
+    // 2. Priority (descending) 
+    // 3. Subject type: main/single first, then papers
+    // 4. Name alphabetical
+    const sorted = [...baseFilter].sort((a, b) => {
+      // First sort by class
+      if (a.class !== b.class) return a.class - b.class;
+
+      // Then by priority (higher priority first)
+      if (a.priority !== b.priority) return a.priority - b.priority;
+
+      // Then by subject type (main/single before papers)
+      const typeOrder = { main: 0, single: 1, paper: 2 };
+      const aTypeOrder = typeOrder[a.subject_type] || 2;
+      const bTypeOrder = typeOrder[b.subject_type] || 2;
+      if (aTypeOrder !== bTypeOrder) return aTypeOrder - bTypeOrder;
+
+      // Finally by name
+      return a.name.localeCompare(b.name);
+    });
+
+    // Build hierarchy: Papers follow their parents, maintaining sort order
+    const result: Subject[] = [];
+    const processedIds = new Set<number>();
+
+    // First, add main and single subjects in their sorted order
+    sorted.forEach(subject => {
+      if (subject.subject_type === "main" || subject.subject_type === "single") {
+        result.push(subject);
+        processedIds.add(subject.id);
+
+        // Add any papers that belong to this main subject
+        if (subject.subject_type === "main") {
+          const childPapers = sorted
+            .filter(p => p.subject_type === "paper" && p.parent_id === subject.id)
+            .sort((a, b) => {
+              // Papers sorted by priority ascending (1, then 2, etc.)
+              if (a.priority !== b.priority) return a.priority - b.priority;
+              return a.name.localeCompare(b.name);
+            });
+          result.push(...childPapers);
+          childPapers.forEach(p => processedIds.add(p.id));
+        }
+      }
+    });
+
+    // Add any remaining orphaned papers at the end
+    sorted.forEach(subject => {
+      if (!processedIds.has(subject.id)) {
+        result.push(subject);
+      }
+    });
+
+    return result;
+  }, [subjects, filterYear]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -386,7 +480,7 @@ const NewSubject: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <StatsCard label="Total Subjects" value={stats.total} loading={isLoading} />
         <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} />
-        <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} />
+        {/* <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} /> */}
       </div>
 
       {showForm && (
@@ -421,32 +515,32 @@ const NewSubject: React.FC = () => {
 
           <div className="space-y-6">
             {uploadMethod === "form" ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSub(onSubmit, onError)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Subject Name <span className="text-destructive">*</span></label>
                     <Input
                       type="text"
-                      name="name"
+                      {...register("name")}
                       placeholder="e.g. Mathematics"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
                     />
+                    <ErrorMessage message={errors.name?.message} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Class (6-10) <span className="text-destructive">*</span></label>
                     <Input
                       type="number"
-                      name="class"
+                      {...register("class")}
                       placeholder="e.g. 9"
                       min={6}
                       max={10}
-                      value={formData.class}
-                      onChange={handleChange}
+                      onChange={(e) => {
+                        handleChange(e);
+                        register("class").onChange(e);
+                      }}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      required
                     />
+                    <ErrorMessage message={errors.class?.message} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -454,25 +548,109 @@ const NewSubject: React.FC = () => {
                     <label className="text-sm font-medium">Full Mark <span className="text-destructive">*</span></label>
                     <Input
                       type="number"
-                      name="full_mark"
-                      placeholder="e.g. 100"
-                      value={formData.full_mark}
-                      onChange={handleChange}
+                      {...register("full_mark")}
+                      placeholder={formData.subject_type === "main" ? "Auto-calculated" : "e.g. 100"}
+                      disabled={formData.subject_type === "main"}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      required
+                      className={formData.subject_type === "main" ? "bg-muted cursor-not-allowed" : ""}
                     />
+                    <ErrorMessage message={errors.full_mark?.message} />
+                    {formData.subject_type === "main" && (
+                      <p className="text-[10px] text-primary mt-1 animate-pulse font-medium">✨ Automatically calculated from child subjects</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Pass Mark <span className="text-destructive">*</span></label>
+                    <label className="text-sm font-medium">Pass Mark {formData.assessment_type === "exam" && <span className="text-destructive">*</span>}</label>
                     <Input
                       type="number"
-                      name="pass_mark"
-                      placeholder="e.g. 33"
-                      value={formData.pass_mark}
-                      onChange={handleChange}
+                      {...register("pass_mark")}
+                      placeholder={formData.assessment_type === "continuous" ? "Optional for CAS" : "e.g. 33"}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      required
                     />
+                    <ErrorMessage message={errors.pass_mark?.message} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Subject Type <span className="text-destructive">*</span></label>
+                    <select
+                      {...register("subject_type")}
+                      onChange={(e) => {
+                        handleChange(e);
+                        register("subject_type").onChange(e);
+                      }}
+                      className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                    >
+                      <option value="single">Single Subject</option>
+                      <option value="main">Main Subject (Group)</option>
+                      <option value="paper">Paper (Child Subject)</option>
+                    </select>
+                    <ErrorMessage message={errors.subject_type?.message} />
+                  </div>
+                  {formData.subject_type === "paper" && (
+                    <div className="space-y-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+                      <label className="text-sm font-medium">Parent Subject <span className="text-destructive">*</span></label>
+                      <select
+                        {...register("parent_id")}
+                        className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                      >
+                        <option value="">Select Parent Subject</option>
+                        {subjects
+                          .filter(s => s.subject_type === "main" && s.class === Number(formData.class))
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name} (Class {s.class})</option>
+                          ))
+                        }
+                      </select>
+                      <ErrorMessage message={errors.parent_id?.message} />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Priority (Sort Order)</label>
+                    <Input
+                      type="number"
+                      {...register("priority")}
+                      placeholder="e.g. 10"
+                    />
+                    <ErrorMessage message={errors.priority?.message} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Assessment Type</label>
+                    <div className="flex gap-4 items-center h-10 px-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="exam"
+                          {...register("assessment_type")}
+                          checked={formData.assessment_type === "exam"}
+                          onChange={(e) => {
+                            handleChange(e);
+                            register("assessment_type").onChange(e);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span className="text-sm">Exam Based</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="continuous"
+                          {...register("assessment_type")}
+                          checked={formData.assessment_type === "continuous"}
+                          onChange={(e) => {
+                            handleChange(e);
+                            register("assessment_type").onChange(e);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span className="text-sm">Continuous</span>
+                      </label>
+                    </div>
+                    <ErrorMessage message={errors.assessment_type?.message} />
                   </div>
                 </div>
 
@@ -483,28 +661,25 @@ const NewSubject: React.FC = () => {
                       <label className="text-xs text-muted-foreground uppercase">CQ Mark</label>
                       <Input
                         type="number"
-                        name="cq_mark"
-                        value={formData.cq_mark}
-                        onChange={handleChange}
+                        {...register("cq_mark")}
                       />
+                      <ErrorMessage message={errors.cq_mark?.message} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground uppercase">MCQ Mark</label>
                       <Input
                         type="number"
-                        name="mcq_mark"
-                        value={formData.mcq_mark}
-                        onChange={handleChange}
+                        {...register("mcq_mark")}
                       />
+                      <ErrorMessage message={errors.mcq_mark?.message} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground uppercase">Practical Mark</label>
                       <Input
                         type="number"
-                        name="practical_mark"
-                        value={formData.practical_mark}
-                        onChange={handleChange}
+                        {...register("practical_mark")}
                       />
+                      <ErrorMessage message={errors.practical_mark?.message} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
@@ -512,57 +687,53 @@ const NewSubject: React.FC = () => {
                       <label className="text-xs text-muted-foreground uppercase">CQ Pass</label>
                       <Input
                         type="number"
-                        name="cq_pass_mark"
-                        value={formData.cq_pass_mark}
-                        onChange={handleChange}
+                        {...register("cq_pass_mark")}
                       />
+                      <ErrorMessage message={errors.cq_pass_mark?.message} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground uppercase">MCQ Pass</label>
                       <Input
                         type="number"
-                        name="mcq_pass_mark"
-                        value={formData.mcq_pass_mark}
-                        onChange={handleChange}
+                        {...register("mcq_pass_mark")}
                       />
+                      <ErrorMessage message={errors.mcq_pass_mark?.message} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground uppercase">Practical Pass</label>
                       <Input
                         type="number"
-                        name="practical_pass_mark"
-                        value={formData.practical_pass_mark}
-                        onChange={handleChange}
+                        {...register("practical_pass_mark")}
                       />
+                      <ErrorMessage message={errors.practical_pass_mark?.message} />
                     </div>
                   </div>
                 </fieldset>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className={`space-y-1.5 transition-all duration-300 ${Number(formData.class) >= 9 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                    <label className="text-sm font-medium">Department {(Number(formData.class) === 9 || Number(formData.class) === 10) && <span className="text-destructive">*</span>}</label>
+                    <label className="text-sm font-medium">Department</label>
                     <select
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
+                      {...register("department")}
                       disabled={Number(formData.class) < 9}
                       className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:bg-muted/50"
                     >
-                      <option value="">{Number(formData.class) >= 9 ? "Select a Department" : "Not Required for Class 6-8"}</option>
-                      {["Science", "Arts", "Commerce"].map((dept) => (
+                      <option value="">{Number(formData.class) >= 9 ? "General (Common for all)" : "Not Required for Class 6-8"}</option>
+                      {VALID_DEPARTMENTS.map((dept) => (
                         <option key={dept} value={dept}>{dept}</option>
                       ))}
                     </select>
+                    <ErrorMessage message={errors.department?.message} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Year</label>
                     <Input
                       type="number"
-                      name="year"
-                      value={formData.year}
+                      {...register("year")}
                       readOnly
                       className="bg-muted opacity-80"
                     />
+                    <ErrorMessage message={errors.year?.message} />
                   </div>
                 </div>
 
@@ -576,11 +747,11 @@ const NewSubject: React.FC = () => {
                 </div>
               </form>
             ) : (
-              <form onSubmit={sendToBackend} className="space-y-4">
+              <form onSubmit={onSubmitFile} className="space-y-4">
                 <div className="flex justify-between items-center mb-4">
                   <div className="space-y-1">
                     <h3 className="text-lg font-medium">Excel File Upload</h3>
-                    <p className="text-xs text-muted-foreground italic">Required columns: name, class, full_mark, pass_mark, year (department required only for 9-10)</p>
+                    <p className="text-xs text-muted-foreground italic">Required columns: name, class, full_mark, pass_mark, year</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -662,24 +833,17 @@ const NewSubject: React.FC = () => {
               </select>
             </div>
           </div>
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search subjects..."
-              className="pl-9 w-full sm:w-64"
-              onChange={() => {
-                // Future implementation: local search
-              }}
-            />
-          </div>
         </div>
 
         <div className="overflow-x-auto -mx-4 sm:mx-0">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                {["Subject", "Class", "Full Mark", "Pass Mark", "Department", "Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {["Subject", "Type", "Class", "Full Mark", "Pass Mark", "Actions"].map((h) => (
+                  <th
+                    key={h}
+                    className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${h === "Actions" ? "text-center" : ""}`}
+                  >
                     {h}
                   </th>
                 ))}
@@ -693,47 +857,77 @@ const NewSubject: React.FC = () => {
                   </td>
                 </tr>
               ) : filteredSubjects.length > 0 ? (
-                filteredSubjects.map((subject) => (
-                  <tr key={subject.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-sm">{subject.name}</td>
-                    <td className="px-4 py-3 text-sm">Class {subject.class}</td>
-                    <td className="px-4 py-3 text-sm">{subject.full_mark}</td>
-                    <td className="px-4 py-3 text-sm text-emerald-600 font-medium">{subject.pass_mark}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {subject.department ? (
-                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] uppercase font-bold tracking-wider">
-                          {subject.department}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50 text-xs italic">General</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => showSubjectInfo(subject)}
-                        >
-                          <Search className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-blue-600"
-                          onClick={() => editSubject(subject)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <DeleteConfirmationIcon
-                          onDelete={() => deleteSubject(subject.id)}
-                          msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredSubjects.map((subject, index) => {
+                  const isFirstChild = index === 0 ||
+                    filteredSubjects[index - 1].class !== subject.class ||
+                    (filteredSubjects[index - 1].subject_type === "main" && subject.subject_type === "paper" && filteredSubjects[index - 1].id === subject.parent_id);
+
+                  return (
+                    <tr
+                      key={subject.id}
+                      className={`hover:bg-muted/30 transition-colors ${subject.subject_type === "paper" ? "bg-muted/10" : ""
+                        } ${isFirstChild && subject.subject_type !== "paper" ? "border-t-2 border-border/50" : ""
+                        }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-sm">
+                        <div className="flex items-center gap-2">
+                          {subject.subject_type === "paper" && (
+                            <div className="w-4 h-4 border-l-2 border-b-2 border-border/50 rounded-bl-md ml-2 shrink-0" />
+                          )}
+                          <div className="flex flex-col">
+                            <span>{subject.name}</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {subject.priority > 0 && (
+                                <span className="text-[10px] text-muted-foreground font-normal">Priority: {subject.priority}</span>
+                              )}
+                              {subject.assessment_type === "continuous" && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-bold uppercase tracking-tighter">CAS</span>
+                              )}
+                              {subject.subject_type === "paper" && !subject.parent_id && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 font-bold uppercase tracking-tighter animate-pulse">Orphan</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {subject.subject_type === "main" ? (
+                          <span className="text-primary font-bold uppercase tracking-wider">Main</span>
+                        ) : subject.subject_type === "paper" ? (
+                          <span className="text-muted-foreground uppercase tracking-wider">Paper</span>
+                        ) : (
+                          <span className="text-muted-foreground/50 italic capitalize">Single</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex flex-col">
+                          <span>Class {subject.class}</span>
+                          {subject.department && (
+                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{subject.department}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium">{subject.full_mark}</td>
+                      <td className="px-4 py-3 text-sm text-emerald-600 font-medium">{subject.pass_mark}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex justify-end flex-wrap gap-1.5">
+                          <ActionButton
+                            action="view"
+                            onClick={() => showSubjectInfo(subject)}
+                          />
+                          <ActionButton
+                            action="edit"
+                            onClick={() => editSubject(subject)}
+                          />
+                          <DeleteConfirmation
+                            onDelete={() => deleteSubject(subject.id)}
+                            msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">
@@ -762,7 +956,7 @@ const NewSubject: React.FC = () => {
               ×
             </button>
           </div>
-          
+
           {selectedSubject && (
             <div className="space-y-6">
               <div className="bg-primary/5 p-5 rounded-xl border border-primary/10 flex items-center justify-between">
@@ -857,7 +1051,10 @@ const NewSubject: React.FC = () => {
                 {["name", "class", "full_mark", "pass_mark", "year"].map((col) => (
                   <span key={col} className="bg-background px-3 py-1.5 rounded-md border border-border text-xs font-mono shadow-sm">{col}</span>
                 ))}
-                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">department (9-10 only)</span>
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">department</span>
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">subject_group</span>
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">priority</span>
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">assessment_type</span>
               </div>
             </div>
 
@@ -883,7 +1080,7 @@ const NewSubject: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">5</div>
-                  <p><strong>department:</strong> Science/Arts/Commerce (Required only for Class 9 and 10).</p>
+                  <p><strong>department:</strong> Optional. Science/Humanities/Commerce (Common for all if empty).</p>
                 </div>
                 <div className="flex gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">6</div>
@@ -898,7 +1095,7 @@ const NewSubject: React.FC = () => {
                 <strong>Pro Tip:</strong> Optional fields like `cq_mark`, `mcq_mark`, and `practical_mark` (and their respective pass marks) can also be added as columns for automatic breakdown.
               </p>
             </div>
-            
+
             <div className="flex justify-end pt-2">
               <Button onClick={() => setShowFormatInfo(false)} variant="default" className="w-full sm:w-auto">
                 Understood

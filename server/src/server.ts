@@ -12,7 +12,6 @@ import cors from "cors";
 import { detailedRequestLogger } from "./middlewares/requestLogger.js";
 import logger from "./utils/logger.js";
 import examRouter from "./routes/examRoutes.js";
-import subRouter from "./routes/subRoutes.js";
 import marksRouter from "./routes/marksRoutes.js";
 import promotionRouter from "./routes/promotionRoutes.js";
 import authRouter from "./modules/auth/auth.route.js";
@@ -47,6 +46,7 @@ import studentRouter from "./modules/student/student.route.js";
 import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
+import subjectRouter from "./modules/result/subject/subject.route.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -125,7 +125,7 @@ app.get(
 );
 app.use(studentRouter);
 app.use("/api/exams", examRouter);
-app.use("/api/sub", subRouter);
+app.use(subjectRouter);
 app.use("/api/marks", marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use(routerTeacher);
