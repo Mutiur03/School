@@ -5,6 +5,8 @@ import { toast } from "react-hot-toast";
 import ErrorMessage from "@/components/ErrorMessage";
 import { PageHeader, SectionCard, StatsCard } from "@/components";
 import { Button } from "@/components/ui/button";
+import { useSubjects } from "@/queries/subject.queries";
+import type { Subject } from "@/types/subjects";
 
 interface Student {
   student_id: number;
@@ -15,16 +17,7 @@ interface Student {
   department: string;
 }
 
-interface Subject {
-  id: number;
-  name: string;
-  class: number;
-  department: string;
-  cq_mark: number;
-  mcq_mark: number;
-  practical_mark: number;
-  full_mark: number;
-}
+// Subject interface imported from @/types/subjects
 
 interface Exam {
   exam_name: string;
@@ -96,7 +89,7 @@ const AddMarks = () => {
   });
 
   const [students, setStudents] = useState<Student[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
   const [examList, setExamList] = useState<string[]>([]);
   const [classList, setClassList] = useState<number[][]>([]);
   const [loading, setLoading] = useState({
@@ -116,12 +109,10 @@ const AddMarks = () => {
     try {
       setLoading((prev) => ({ ...prev, initial: true }));
 
-      const [subjectsRes, examsRes] = await Promise.all([
-        axios.get("/api/sub/getSubjects").catch(() => ({ data: { data: [] } })),
+      const [examsRes] = await Promise.all([
         axios.get("/api/exams/getExams").catch(() => ({ data: { data: [] } })),
       ]);
 
-      setSubjects(subjectsRes.data?.data || []);
       const exams: Exam[] = examsRes.data?.data || [];
       const currentYearExams = exams.filter(
         (e) => e.exam_year === Number(year)
@@ -187,13 +178,15 @@ const AddMarks = () => {
 
   const filteredStudents = useMemo(() => {
     return students
-      .filter((s) => (department ? s.department === department : true))
-      .filter((s) => !section || s.section === section)
-      .sort((a, b) => a.roll - b.roll);
+      .filter((s: Student) => (department ? s.department === department : true))
+      .filter((s: Student) => !section || s.section === section)
+      .sort((a: Student, b: Student) => a.roll - b.roll);
   }, [students, department, section]);
 
   const subjectsForClass = useMemo(() => {
-    return subjects.filter((s) => s.class.toString() == level);
+    return subjects
+      .filter((s) => s.class.toString() == level)
+      .filter((s) => s.subject_type !== "main");
   }, [subjects, level]);
 
   useEffect(() => {
@@ -308,9 +301,11 @@ const AddMarks = () => {
 
   useEffect(() => {
     if (students.length > 0) {
-      setSections(() => {
-        return Array.from(new Set(students.map((s) => s.section)));
-      });
+      setSections(
+        Array.from(new Set(students.map((s: Student) => s.section))).sort((a: string, b: string) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+        )
+      );
 
       if (examName === "JSC" || examName === "SSC") {
         fetchGPA();
@@ -330,7 +325,7 @@ const AddMarks = () => {
   }, [students, examName, level, year, fetchExistingMarks, fetchGPA]);
 
   const handleMarksChange = (studentId: number, subjectId: number, markType: string, value: string) => {
-    const subject = subjectsForClass.find((s) => s.id === subjectId);
+    const subject = subjectsForClass.find((s: Subject) => s.id === subjectId);
     const marks = value;
 
     let maxMark = 100;
@@ -586,26 +581,22 @@ const AddMarks = () => {
               <ErrorMessage message={errors.level?.message} />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Department</label>
-              <select
-                {...register("department")}
-                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
-                disabled={!level || loading.initial}
-              >
-                {Number(level) >= 9
-                  ? ["", "Science", "Humanities", "Commerce"].map((dept) => (
+            {Number(level) >= 9 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Department</label>
+                <select
+                  {...register("department")}
+                  className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
+                  disabled={!level || loading.initial}
+                >
+                  {["", "Science", "Humanities", "Commerce"].map((dept) => (
                     <option key={dept} value={dept}>
                       {dept ? dept : "All Departments"}
                     </option>
-                  ))
-                  : [""].map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept ? dept : "General"}
-                    </option>
                   ))}
-              </select>
-            </div>
+                </select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Section</label>
@@ -643,11 +634,11 @@ const AddMarks = () => {
           </div>
         </SectionCard>
 
-        {loading.initial || loading.students || loading.marks ? (
+        {loading.initial || loading.students || loading.marks || isLoadingSubjects ? (
           <SectionCard className="flex flex-col justify-center items-center h-32 sm:h-64">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
             <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground text-center px-4">
-              {loading.initial ? "Loading initial data..." : loading.students ? "Loading students..." : "Loading marks data..."}
+              {loading.initial || isLoadingSubjects ? "Loading initial data..." : loading.students ? "Loading students..." : "Loading marks data..."}
             </span>
           </SectionCard>
         ) : filteredStudents.length > 0 ? (

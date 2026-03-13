@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import axios, { AxiosError } from "axios";
 import { toast } from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { Search } from "lucide-react";
@@ -14,38 +13,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { subjectFormSchema, type SubjectFormSchemaData, VALID_DEPARTMENTS } from "@school/shared-schemas";
 import ErrorMessage from "@/components/ErrorMessage";
+import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject } from "@/queries/subject.queries";
+import type { Subject } from "@/types/subjects";
 
-interface Subject {
-  id: number;
-  name: string;
-  class: number;
-  full_mark: number;
-  pass_mark: number;
-  cq_mark?: number;
-  mcq_mark?: number;
-  practical_mark?: number;
-  cq_pass_mark?: number;
-  mcq_pass_mark?: number;
-  practical_pass_mark?: number;
-  department: string;
-  year: number;
-  subject_type: "main" | "paper" | "single";
-  parent_id?: number | null;
-  assessment_type: "exam" | "continuous";
-  priority: number;
-  created_at: string;
-}
+// Subject interface imported from @/types/subjects
 
 // FormData interface removed in favor of SubjectFormSchemaData from shared-schemas
 
 const NewSubject: React.FC = () => {
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
+  const addSubjectsMutation = useAddSubjects();
+  const updateSubjectMutation = useUpdateSubject();
+  const deleteSubjectMutation = useDeleteSubject();
+
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterClass, setFilterClass] = useState<number | "all">("all");
   const [filterDepartment, setFilterDepartment] = useState<string | "all">("all");
   const [filterType, setFilterType] = useState<string | "all">("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const {
     register,
@@ -86,25 +71,12 @@ const NewSubject: React.FC = () => {
   const [showSubjectDetails, setShowSubjectDetails] = useState<boolean>(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const excelFileRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
 
   useEffect(() => {
     setValue("year", filterYear);
   }, [filterYear, setValue]);
 
-
-  const fetchSubjects = async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get("/api/sub/getSubjects");
-      setSubjects(response.data.data);
-    } catch {
-      toast.error("Error fetching subjects");
-    }
-    setIsLoading(false);
-  };
+  const isLoading = isLoadingSubjects || addSubjectsMutation.isPending || updateSubjectMutation.isPending || deleteSubjectMutation.isPending;
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
@@ -167,26 +139,19 @@ const NewSubject: React.FC = () => {
       try {
         if (data.id) {
           const originalSubject = subjects.find(s => s.id === data.id);
-          await axios.put(`/api/sub/updateSubject/${data.id}`, {
-            ...data,
+          await updateSubjectMutation.mutateAsync({
+            id: data.id,
+            data,
             old_parent_id: originalSubject?.parent_id
           });
-          toast.success("Subject updated successfully.");
         } else {
-          const response = await axios.post("/api/sub/addSubject", {
-            subjects: [data],
-          });
-          toast.success(response.data.message);
+          await addSubjectsMutation.mutateAsync([data]);
         }
-        fetchSubjects();
         resetFormData();
         setShowForm(false);
       } catch (error) {
-        const axiosError = error as AxiosError<{ error: string }>;
-        console.log(axiosError.response?.data?.error);
-        toast.error(
-          axiosError.response?.data?.error || "Error adding subject"
-        );
+        // Error handling is inside the mutation's onError
+        console.error("Submit error:", error);
       }
     }
   };
@@ -333,37 +298,24 @@ const NewSubject: React.FC = () => {
     }
 
     try {
-      const response = await axios.post("/api/sub/addSubject", {
-        subjects: jsonData,
-      });
-      if (!response.data.success) {
-        toast.error(response.data.message);
-        return;
-      }
-
-      toast.success(response.data.message);
+      await addSubjectsMutation.mutateAsync(jsonData);
       setJsonData(null);
       setFileUploaded(false);
       if (excelFileRef.current) {
         excelFileRef.current.value = "";
       }
-      fetchSubjects();
       setShowForm(false);
     } catch (err) {
-
-      const axiosError = err as AxiosError<{ error: string }>;
-      toast.error(axiosError.response?.data?.error || "Failed to upload Subjects.");
+      // Error handling is inside the mutation's onError
+      console.error("Upload error:", err);
     }
   };
 
   const deleteSubject = async (id: number): Promise<void> => {
     try {
-      await axios.delete(`/api/sub/deleteSubject/${id}`);
-      toast.success("Subject deleted successfully.");
-      fetchSubjects();
+      await deleteSubjectMutation.mutateAsync(id);
     } catch (error) {
-      const axiosError = error as AxiosError<{ error: string }>;
-      toast.error(axiosError.response?.data?.error || "Failed to delete subject.");
+      console.error("Delete error:", error);
     }
   };
 

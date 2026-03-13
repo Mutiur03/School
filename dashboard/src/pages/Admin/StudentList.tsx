@@ -360,7 +360,7 @@ function StudentList() {
       roll: student.roll.toString(),
       section: student.section,
       department: student.department || "",
-      religion: student.religion || "",
+      religion: student.religion as "Islam" | "Hinduism" | "Christianity" | "Buddhism" | "",
       has_stipend: Boolean(student.has_stipend),
       available: student.available,
     });
