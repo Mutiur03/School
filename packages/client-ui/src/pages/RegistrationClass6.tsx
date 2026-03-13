@@ -408,10 +408,10 @@ export default function RegistrationClass6() {
                     year: data.birth_year
                 });
                 if (uploadData.success) {
-                    await axios.put(uploadData.url, data.photo, {
+                    await axios.put(uploadData.data.uploadUrl, data.photo, {
                         headers: { "Content-Type": data.photo.type },
                     });
-                    photo = uploadData.key;
+                    photo = uploadData.data.key;
                 }
             } else if (typeof data.photo === "string") {
                 photo = data.photo;
