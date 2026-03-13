@@ -112,6 +112,11 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       roles: ["admin"],
       items: [
         {
+          label: "Subjects",
+          link: "/admin/result/add-subject",
+          id: "add-subject",
+        },
+        {
           label: "Add Marks",
           link: "/admin/result/add-marks",
           id: "add-marks",
@@ -183,11 +188,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       id: "settings",
       roles: ["admin"],
       items: [
-        {
-          label: "Subjects",
-          link: "/admin/settings/add-subject",
-          id: "add-subject",
-        },
+
         {
           label: "Exam",
           link: "/admin/settings/add-exam",

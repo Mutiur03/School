@@ -323,7 +323,7 @@ function App() {
                                 element={<AddMarks />}
                               />
                               <Route
-                                path="/settings/add-subject"
+                                path="/result/add-subject"
                                 element={<NewSubject />}
                               />
                               <Route

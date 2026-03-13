@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import axios, { AxiosError } from "axios";
 import { toast } from "react-hot-toast";
 import * as XLSX from "xlsx";
-import { Edit } from "lucide-react";
+import { Edit, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 import Loading from "@/components/Loading";
-
-interface Teacher {
-  id: number;
-  name: string;
-}
 
 interface Subject {
   id: number;
@@ -27,7 +24,6 @@ interface Subject {
   practical_pass_mark?: number;
   department: string;
   year: number;
-  teacher_id: number;
   created_at: string;
 }
 
@@ -45,11 +41,9 @@ interface FormData {
   practical_pass_mark: string;
   department: string;
   year: number;
-  teacher_id: string;
 }
 
 const NewSubject: React.FC = () => {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [formData, setFormData] = useState<FormData>({
     id: null,
@@ -65,7 +59,6 @@ const NewSubject: React.FC = () => {
     practical_pass_mark: "",
     department: "",
     year: new Date().getFullYear(),
-    teacher_id: "",
   });
   const [uploadMethod, setUploadMethod] = useState<"form" | "file">("form");
   const [jsonData, setJsonData] = useState<Subject[] | null>(null);
@@ -79,18 +72,8 @@ const NewSubject: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const excelFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    fetchTeachers();
     fetchSubjects();
   }, []);
-
-  const fetchTeachers = async (): Promise<void> => {
-    try {
-      const response = await axios.get("/api/teachers");
-      setTeachers(response.data?.data?.data || response.data?.data || []);
-    } catch {
-      toast.error("Error fetching teachers");
-    }
-  };
 
   const fetchSubjects = async (): Promise<void> => {
     setIsLoading(true);
@@ -105,6 +88,15 @@ const NewSubject: React.FC = () => {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
+    
+    if (name === "class") {
+      const classNum = Number(value);
+      if (classNum > 0 && classNum < 9) {
+        setFormData({ ...formData, [name]: value, department: "" });
+        return;
+      }
+    }
+    
     setFormData({ ...formData, [name]: value });
   };
 
@@ -130,7 +122,6 @@ const NewSubject: React.FC = () => {
       practical_pass_mark: "",
       department: "",
       year: new Date().getFullYear(),
-      teacher_id: "",
     });
   };
 
@@ -181,41 +172,101 @@ const NewSubject: React.FC = () => {
       const sheet = workbook.Sheets[sheetName];
       const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
 
-      const requiredColumns = [
+      const mandatoryColumns = [
         "name",
         "class",
         "full_mark",
         "pass_mark",
-        "cq_mark",
-        "mcq_mark",
-        "practical_mark",
-        "cq_pass_mark",
-        "mcq_pass_mark",
-        "practical_pass_mark",
-        "department",
         "year",
-        "teacher_id",
       ];
       const sheetHeaders = (rawData[0] || []) as string[];
-      const hasRequiredColumns = requiredColumns.every((col) =>
-        sheetHeaders.includes(col)
-      );
+      const missingColumns = mandatoryColumns.filter((col) => !sheetHeaders.includes(col));
 
-      if (!hasRequiredColumns) {
+      if (missingColumns.length > 0) {
         toast.error(
-          "Excel file is missing required columns. Please check the format."
+          `Excel file is missing required columns: ${missingColumns.join(", ")}`
         );
         setFileUploaded(false);
         return;
       }
 
-      setJsonData(XLSX.utils.sheet_to_json(sheet) as Subject[]);
+      const data = XLSX.utils.sheet_to_json(sheet) as any[];
+      const errors: string[] = [];
+      const validatedData: Subject[] = [];
+
+      data.forEach((row, index) => {
+        const rowNum = index + 2; // Excel row numbering
+        const rowErrors: string[] = [];
+
+        if (!row.name || String(row.name).trim() === "") rowErrors.push("Subject name");
+        if (!row.class || isNaN(Number(row.class)) || Number(row.class) < 6 || Number(row.class) > 10) 
+          rowErrors.push("Class (6-10)");
+        if (!row.full_mark || isNaN(Number(row.full_mark)) || Number(row.full_mark) <= 0) 
+          rowErrors.push("Full mark");
+        if (!row.pass_mark || isNaN(Number(row.pass_mark)) || Number(row.pass_mark) <= 0) 
+          rowErrors.push("Pass mark");
+        if (!row.year || isNaN(Number(row.year)) || Number(row.year) < 2000) 
+          rowErrors.push("Year");
+        
+        // Department validation for classes 9-10
+        const classNum = Number(row.class);
+        if ((classNum === 9 || classNum === 10) && (!row.department || String(row.department).trim() === "")) {
+          rowErrors.push("Department (required for Class 9/10)");
+        }
+
+        if (rowErrors.length > 0) {
+          errors.push(`Row ${rowNum} missing or invalid: ${rowErrors.join(", ")}`);
+        } else {
+          validatedData.push(row as Subject);
+        }
+      });
+
+      if (errors.length > 0) {
+        errors.slice(0, 5).forEach((err) => toast.error(err, { duration: 4000 }));
+        if (errors.length > 5) {
+          toast.error(`...and ${errors.length - 5} more rows have errors.`);
+        }
+        setFileUploaded(false);
+        setJsonData(null);
+        if (excelFileRef.current) {
+          excelFileRef.current.value = "";
+        }
+        return;
+      }
+
+      setJsonData(validatedData);
     };
 
     reader.onerror = () => {
       toast.error("Error reading the file. Please try again.");
       setFileUploaded(false);
     };
+  };
+
+  const handleDownloadDemoExcel = () => {
+    const demoData = [
+      {
+        name: "Mathematics",
+        class: 9,
+        full_mark: 100,
+        pass_mark: 33,
+        department: "Science",
+        year: new Date().getFullYear(),
+      },
+      {
+        name: "General Science",
+        class: 8,
+        full_mark: 100,
+        pass_mark: 33,
+        year: new Date().getFullYear(),
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(demoData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Subjects");
+    XLSX.writeFile(workbook, "subject_upload_demo.xlsx");
+    toast.success("Demo Excel downloaded.");
   };
 
   const sendToBackend = async (e: FormEvent): Promise<void> => {
@@ -281,7 +332,6 @@ const NewSubject: React.FC = () => {
       practical_pass_mark: subject.practical_pass_mark ? String(subject.practical_pass_mark) : "",
       department: subject.department,
       year: subject.year,
-      teacher_id: String(subject.teacher_id),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -302,682 +352,563 @@ const NewSubject: React.FC = () => {
     setShowSubjectDetails(true);
   };
 
+  const stats = useMemo(() => {
+    return {
+      total: subjects.length,
+      classes: new Set(subjects.map((s) => s.class)).size,
+      avgPassMark: subjects.length > 0
+        ? Math.round(subjects.reduce((acc, s) => acc + s.pass_mark, 0) / subjects.length)
+        : 0,
+    };
+  }, [subjects]);
+
   const filteredSubjects = subjects
     .filter((subject) => subject.year === filterYear)
     .sort((a, b) => a.name.localeCompare(b.name))
     .sort((a, b) => a.class - b.class);
 
   return (
-    <>
-      <div className="max-w-6xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-          <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-0">
-            Subject List
-          </h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title="Subject Management"
+        description="Manage school subjects, marks, and departments."
+      >
+        {!showForm && (
           <Button
             type="button"
-            variant={showForm ? "outline" : "default"}
             onClick={() => setShowForm((prev) => !prev)}
+            disabled={isLoading}
           >
-            {showForm ? "Cancel" : "+ Add New Subject"}
+            {isLoading ? "Loading..." : "+ Add New Subject"}
           </Button>
-        </div>
-        {showForm && (
-          <div className="p-8 rounded-lg shadow-2xl w-full max-w-6xl">
-            <h2 className="text-3xl font-semibold text-center mb-6">
+        )}
+      </PageHeader>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <StatsCard label="Total Subjects" value={stats.total} loading={isLoading} />
+        <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} />
+        <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} />
+      </div>
+
+      {showForm && (
+        <SectionCard className="mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">
               {formData.id ? "Edit Subject" : "Add New Subject"}
             </h2>
             {!formData.id && (
-              <div className="flex justify-center mb-6">
+              <div className="flex gap-1 border-b border-border">
                 <button
                   onClick={() => handleMethodChange("form")}
-                  className={`px-4 sm:px-6 py-2 rounded-l-lg font-semibold transition-all duration-300 ${uploadMethod === "form"
-                    ? "bg-sky-500 text-white shadow-lg"
-                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "form"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   Form
                 </button>
                 <button
                   onClick={() => handleMethodChange("file")}
-                  className={`px-4 sm:px-6 py-2 rounded-r-lg font-semibold transition-all duration-300 ${uploadMethod === "file"
-                    ? "bg-sky-500 text-white shadow-lg"
-                    : "bg-accent hover:bg-gray-400 hover:text-gray-900"
+                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "file"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   Excel Upload
                 </button>
               </div>
             )}
+          </div>
 
-            <div className="space-y-6">
-              {uploadMethod === "form" ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
+          <div className="space-y-6">
+            {uploadMethod === "form" ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Subject Name <span className="text-destructive">*</span></label>
+                    <Input
                       type="text"
                       name="name"
-                      placeholder="Subject Name"
+                      placeholder="e.g. Mathematics"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
-                    <input
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Class (6-10) <span className="text-destructive">*</span></label>
+                    <Input
                       type="number"
                       name="class"
-                      placeholder="Class"
+                      placeholder="e.g. 9"
                       min={6}
                       max={10}
                       value={formData.class}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Full Mark <span className="text-destructive">*</span></label>
+                    <Input
                       type="number"
                       name="full_mark"
-                      placeholder="Full Mark"
+                      placeholder="e.g. 100"
                       value={formData.full_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
-                    <input
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Pass Mark <span className="text-destructive">*</span></label>
+                    <Input
                       type="number"
                       name="pass_mark"
-                      placeholder="Pass Mark"
+                      placeholder="e.g. 33"
                       value={formData.pass_mark}
                       onChange={handleChange}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <input
-                      type="number"
-                      name="cq_mark"
-                      placeholder="CQ Mark (Optional)"
-                      value={formData.cq_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
-                    <input
-                      type="number"
-                      name="mcq_mark"
-                      placeholder="MCQ Mark (Optional)"
-                      value={formData.mcq_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
-                    <input
-                      type="number"
-                      name="practical_mark"
-                      placeholder="Practical Mark (Optional)"
-                      value={formData.practical_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
+                </div>
+
+                <fieldset className="p-4 border border-border rounded-lg bg-muted/30">
+                  <legend className="px-2 text-sm font-semibold">Optional Marks Breakdown</legend>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">CQ Mark</label>
+                      <Input
+                        type="number"
+                        name="cq_mark"
+                        value={formData.cq_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">MCQ Mark</label>
+                      <Input
+                        type="number"
+                        name="mcq_mark"
+                        value={formData.mcq_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">Practical Mark</label>
+                      <Input
+                        type="number"
+                        name="practical_mark"
+                        value={formData.practical_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <input
-                      type="number"
-                      name="cq_pass_mark"
-                      placeholder="CQ Pass Mark (Optional)"
-                      value={formData.cq_pass_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
-                    <input
-                      type="number"
-                      name="mcq_pass_mark"
-                      placeholder="MCQ Pass Mark (Optional)"
-                      value={formData.mcq_pass_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
-                    <input
-                      type="number"
-                      name="practical_pass_mark"
-                      placeholder="Practical Pass Mark (Optional)"
-                      value={formData.practical_pass_mark}
-                      onChange={handleChange}
-                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">CQ Pass</label>
+                      <Input
+                        type="number"
+                        name="cq_pass_mark"
+                        value={formData.cq_pass_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">MCQ Pass</label>
+                      <Input
+                        type="number"
+                        name="mcq_pass_mark"
+                        value={formData.mcq_pass_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground uppercase">Practical Pass</label>
+                      <Input
+                        type="number"
+                        name="practical_pass_mark"
+                        value={formData.practical_pass_mark}
+                        onChange={handleChange}
+                      />
+                    </div>
                   </div>
-                  <div>
+                </fieldset>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className={`space-y-1.5 transition-all duration-300 ${Number(formData.class) >= 9 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                    <label className="text-sm font-medium">Department {(Number(formData.class) === 9 || Number(formData.class) === 10) && <span className="text-destructive">*</span>}</label>
                     <select
                       name="department"
                       value={formData.department}
                       onChange={handleChange}
-                      className="w-full p-3 border text-input dark:bg-accent border-border rounded-lg"
+                      disabled={Number(formData.class) < 9}
+                      className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:bg-muted/50"
                     >
-                      <option value="">Select a Department</option>
-                      {["Science", "Arts", "Commerce"].map((department) => (
-                        <option key={department} value={department}>
-                          {department}
-                        </option>
+                      <option value="">{Number(formData.class) >= 9 ? "Select a Department" : "Not Required for Class 6-8"}</option>
+                      {["Science", "Arts", "Commerce"].map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Year</label>
+                    <Input
+                      type="number"
+                      name="year"
+                      value={formData.year}
+                      readOnly
+                      className="bg-muted opacity-80"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t border-border mt-6">
+                  <Button type="button" variant="outline" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button disabled={isSubmitting} type="submit">
+                    {isSubmitting ? "Processing..." : (formData.id ? "Update Subject" : "Submit Subject")}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={sendToBackend} className="space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-medium">Excel File Upload</h3>
+                    <p className="text-xs text-muted-foreground italic">Required columns: name, class, full_mark, pass_mark, year (department required only for 9-10)</p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleCancel}
+                      onClick={handleDownloadDemoExcel}
+                      className="h-8 px-3 text-xs"
                     >
-                      Cancel
+                      Download Demo Excel
                     </Button>
-                    <Button disabled={isSubmitting} type="submit">
-                      {formData.id ? "Update" : "Submit"}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={sendToBackend} className="space-y-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">Excel File Upload</h3>
                     <button
                       type="button"
                       onClick={() => setShowFormatInfo(true)}
-                      className="w-6 h-6 bg-primary hover:bg-primary text-white rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                      className="w-6 h-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold transition-colors"
                       title="View Excel format requirements"
                     >
                       i
                     </button>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="excelFile"
-                      name="excelFile"
-                      accept=".xlsx, .xls"
-                      ref={excelFileRef}
-                      onChange={handleFileUpload}
-                      onClick={(e) => {
-                        (e.target as HTMLInputElement).value = "";
-                        setFileUploaded(false);
-                      }}
-                      className="absolute w-full h-full opacity-0 cursor-pointer"
-                      required
-                    />
-                    <label
-                      htmlFor="excelFile"
-                      className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-lg cursor-pointer"
-                    >
-                      <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mb-4">
-                        {fileUploaded ? (
-                          <svg
-                            className="w-8 h-8 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="w-8 h-8 text-sky-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-gray-400 font-medium">
-                        {fileUploaded ? "File Uploaded" : "Upload Excel File"}
-                        {fileUploaded && excelFileRef.current?.files?.[0]
-                          ? ` (${excelFileRef.current.files[0].name})`
-                          : ""}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        .xlsx or .xls files only
-                      </span>
-                    </label>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={!fileUploaded || isSubmitting}
-                    >
-                      Upload
-                    </Button>
-                  </div>
-                </form>
-              )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="excelFile"
+                    accept=".xlsx, .xls"
+                    ref={excelFileRef}
+                    onChange={handleFileUpload}
+                    className="absolute w-full h-full opacity-0 cursor-pointer"
+                    required
+                  />
+                  <label
+                    htmlFor="excelFile"
+                    className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                  >
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
+                      {fileUploaded ? (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium">
+                      {fileUploaded ? "File Ready to Upload" : "Drop Excel file here or click to browse"}
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1">.xlsx or .xls files only</span>
+                  </label>
+                </div>
+                <div className="flex justify-between pt-4">
+                  <Button type="button" variant="outline" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={!fileUploaded || isSubmitting}>
+                    {isSubmitting ? "Uploading..." : "Upload Subjects"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      <SectionCard className="mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+          <div className="flex-1 w-full max-w-sm">
+            <label className="text-sm font-medium mb-1.5 block">Year Filter</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                className="w-full sm:w-40 px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+              >
+                <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
+                <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+                <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
+              </select>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="mt-6 p-4">
-        <div className="mb-4 flex items-center">
-          <label htmlFor="filterYear" className="font-semibold mr-2">
-            Filter by Year:
-          </label>
-          <select
-            id="filterYear"
-            value={filterYear}
-            onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="p-2 border text-input dark:bg-accent border-border rounded-lg"
-          >
-            <option value={new Date().getFullYear() + 1}>
-              {new Date().getFullYear() + 1}
-            </option>
-            <option value={new Date().getFullYear()}>
-              {new Date().getFullYear()}
-            </option>
-            <option value={new Date().getFullYear() - 1}>
-              {new Date().getFullYear() - 1}
-            </option>
-            <option value={new Date().getFullYear() - 2}>
-              {new Date().getFullYear() - 2}
-            </option>
-          </select>
-        </div>
-        <div className=" rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full border divide-y divide-gray-200">
-              <thead className="bg-popover">
-                <tr>
-                  {[
-                    "Name",
-                    "Class",
-                    "Full Mark",
-                    "Pass Mark",
-                    "Department",
-                    "Teacher",
-                    "Actions",
-                  ].map((header) => (
-                    <th key={header} className="px-4 py-2 text-left">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="py-2">
-                      <div className="flex justify-center items-center w-full h-full">
-                        <Loading />
-                      </div>
-                    </td>
-                  </tr>
-                ) : filteredSubjects.length > 0 ? (
-                  filteredSubjects.map((subject) => (
-                    <tr key={subject.id}>
-                      <td className="px-4 py-2">{subject.name}</td>
-                      <td className="px-4 py-2">{subject.class}</td>
-                      <td className="px-4 py-2">{subject.full_mark}</td>
-                      <td className="px-4 py-2">{subject.pass_mark}</td>
-                      <td className="px-4 py-2">{subject.department}</td>
-                      <td className="px-4 py-2">
-                        {teachers.find(
-                          (teacher) => teacher.id === subject.teacher_id
-                        )?.name || "N/A"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex space-x-2 justify-center items-center">
-                          <button
-                            onClick={() => showSubjectInfo(subject)}
-                            className="p-1 text-green-500 hover:text-green-700 transition-colors"
-                            title="Show Details"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                              />
-                            </svg>
-                          </button>
-                          <button onClick={() => editSubject(subject)}>
-                            <Edit className="sm:w-4 sm:h-4 w-3 h-3 text-primary hover:text-blue-700" />
-                          </button>
-
-                          <DeleteConfirmationIcon
-                            onDelete={() => deleteSubject(subject.id)}
-                            msg={`Are you sure you want to delete this subject (${subject.name
-                              }) for ${subject.class} which is assigned to ${teachers.find(
-                                (teacher) => teacher.id === subject.teacher_id
-                              )?.name || "N/A"
-                              } ?`}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="border px-4 py-2 text-center">
-                      No subjects found for the selected year
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search subjects..."
+              className="pl-9 w-full sm:w-64"
+              onChange={() => {
+                // Future implementation: local search
+              }}
+            />
           </div>
         </div>
-      </div>
 
-      {showSubjectDetails && selectedSubject && (
-        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Subject Details</h2>
-                <button
-                  onClick={() => setShowSubjectDetails(false)}
-                  className="text-muted-foreground hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border">
+                {["Subject", "Class", "Full Mark", "Pass Mark", "Department", "Actions"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-20 text-center text-muted-foreground">
+                    <Loading />
+                  </td>
+                </tr>
+              ) : filteredSubjects.length > 0 ? (
+                filteredSubjects.map((subject) => (
+                  <tr key={subject.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-sm">{subject.name}</td>
+                    <td className="px-4 py-3 text-sm">Class {subject.class}</td>
+                    <td className="px-4 py-3 text-sm">{subject.full_mark}</td>
+                    <td className="px-4 py-3 text-sm text-emerald-600 font-medium">{subject.pass_mark}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {subject.department ? (
+                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] uppercase font-bold tracking-wider">
+                          {subject.department}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50 text-xs italic">General</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => showSubjectInfo(subject)}
+                        >
+                          <Search className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                          onClick={() => editSubject(subject)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <DeleteConfirmationIcon
+                          onDelete={() => deleteSubject(subject.id)}
+                          msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                    No subjects found for {filterYear}. Try adjusting your filters or adding a new subject.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Basic Information
-                    </h3>
-                    <div className="space-y-2">
-                      <div>
-                        <strong>Name:</strong> {selectedSubject.name}
-                      </div>
-                      <div>
-                        <strong>Class:</strong> {selectedSubject.class}
-                      </div>
-                      <div>
-                        <strong>Department:</strong>{" "}
-                        {selectedSubject.department || "Not specified"}
-                      </div>
-                      <div>
-                        <strong>Year:</strong> {selectedSubject.year}
-                      </div>
-                      <div>
-                        <strong>Teacher:</strong>{" "}
-                        {teachers.find(
-                          (teacher) => teacher.id === selectedSubject.teacher_id
-                        )?.name || "N/A"}
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Main Marks
-                    </h3>
-                    <div className="space-y-2">
-                      <div>
-                        <strong>Full Mark:</strong> {selectedSubject.full_mark}
-                      </div>
-                      <div>
-                        <strong>Pass Mark:</strong> {selectedSubject.pass_mark}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Detailed Mark Distribution
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium text-primary dark:text-primary/70 mb-2">
-                        Mark Allocation
-                      </h4>
-                      <div className="space-y-1 text-sm">
-                        <div>
-                          <strong>CQ Mark:</strong>{" "}
-                          {selectedSubject.cq_mark || "Not set"}
-                        </div>
-                        <div>
-                          <strong>MCQ Mark:</strong>{" "}
-                          {selectedSubject.mcq_mark || "Not set"}
-                        </div>
-                        <div>
-                          <strong>Practical Mark:</strong>{" "}
-                          {selectedSubject.practical_mark || "Not set"}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-green-600 dark:text-green-400 mb-2">
-                        Pass Mark Requirements
-                      </h4>
-                      <div className="space-y-1 text-sm">
-                        <div>
-                          <strong>CQ Pass Mark:</strong>{" "}
-                          {selectedSubject.cq_pass_mark || "Not set"}
-                        </div>
-                        <div>
-                          <strong>MCQ Pass Mark:</strong>{" "}
-                          {selectedSubject.mcq_pass_mark || "Not set"}
-                        </div>
-                        <div>
-                          <strong>Practical Pass Mark:</strong>{" "}
-                          {selectedSubject.practical_pass_mark || "Not set"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Created:</span>
-                    <span className="text-sm">
-                      {new Date(
-                        selectedSubject.created_at
-                      ).toLocaleDateString()}
+      <Popup
+        open={showSubjectDetails}
+        onOpenChange={setShowSubjectDetails}
+        size="md"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+            <h2 className="text-xl font-bold font-heading">Subject Details</h2>
+            <button
+              onClick={() => setShowSubjectDetails(false)}
+              className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
+            >
+              ×
+            </button>
+          </div>
+          
+          {selectedSubject && (
+            <div className="space-y-6">
+              <div className="bg-primary/5 p-5 rounded-xl border border-primary/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-primary tracking-tight">{selectedSubject.name}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                      Class {selectedSubject.class}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedSubject.department || 'General'}
                     </span>
                   </div>
                 </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Academic Year</span>
+                  <span className="text-lg font-bold">{selectedSubject.year}</span>
+                </div>
               </div>
 
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setShowSubjectDetails(false);
-                    editSubject(selectedSubject);
-                  }}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
-                >
-                  Edit Subject
-                </button>
-                <button
-                  onClick={() => setShowSubjectDetails(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFormatInfo && (
-        <div className="fixed inset-0 backdrop-blur-xl flex items-center justify-center z-50 p-4">
-          <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">
-                  Excel File Format Requirements
-                </h2>
-                <button
-                  onClick={() => setShowFormatInfo(false)}
-                  className="text-muted-foreground hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-muted/30 border border-border rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest block mb-1">Full Mark</span>
+                  <span className="text-2xl font-bold">{selectedSubject.full_mark}</span>
+                </div>
+                <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-widest block mb-1">Pass Mark</span>
+                  <span className="text-2xl font-bold text-emerald-600">{selectedSubject.pass_mark}</span>
+                </div>
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground dark:text-gray-300">
-                  Your Excel file must contain the following columns with exact
-                  names (case-sensitive):
-                </p>
-
-                <div className="bg-muted/50 dark:bg-gray-800 rounded-lg p-4">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="font-medium">Required Columns:</div>
-                    <div></div>
-
-                    <div>• name</div>
-                    <div>• class</div>
-
-                    <div>• full_mark</div>
-                    <div>• pass_mark</div>
-
-                    <div>• department</div>
-                    <div>• year</div>
-
-                    <div>• teacher_id</div>
-                    <div></div>
-
-                    <div className="font-medium col-span-2 mt-2">
-                      Optional Columns:
-                    </div>
-
-                    <div>• cq_mark</div>
-                    <div>• mcq_mark</div>
-
-                    <div>• practical_mark</div>
-                    <div>• cq_pass_mark</div>
-
-                    <div>• mcq_pass_mark</div>
-                    <div>• practical_pass_mark</div>
+                <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <span className="w-1 h-4 bg-primary rounded-full"></span>
+                  Marks Distribution
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-muted/40 rounded-lg text-center border border-border/50">
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider block">CQ</span>
+                    <span className="text-sm font-bold">{selectedSubject.cq_mark || 0}</span>
+                    <div className="h-px bg-border my-1 mx-2"></div>
+                    <span className="text-[8px] text-muted-foreground uppercase tracking-tighter">Pass: {selectedSubject.cq_pass_mark || 0}</span>
+                  </div>
+                  <div className="p-3 bg-muted/40 rounded-lg text-center border border-border/50">
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider block">MCQ</span>
+                    <span className="text-sm font-bold">{selectedSubject.mcq_mark || 0}</span>
+                    <div className="h-px bg-border my-1 mx-2"></div>
+                    <span className="text-[8px] text-muted-foreground uppercase tracking-tighter">Pass: {selectedSubject.mcq_pass_mark || 0}</span>
+                  </div>
+                  <div className="p-3 bg-muted/40 rounded-lg text-center border border-border/50">
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider block">Practical</span>
+                    <span className="text-sm font-bold">{selectedSubject.practical_mark || 0}</span>
+                    <div className="h-px bg-border my-1 mx-2"></div>
+                    <span className="text-[8px] text-muted-foreground uppercase tracking-tighter">Pass: {selectedSubject.practical_pass_mark || 0}</span>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">Important Notes:</h3>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground dark:text-gray-300">
-                    <li>
-                      <strong>name:</strong> Subject name (e.g., Mathematics,
-                      Physics)
-                    </li>
-                    <li>
-                      <strong>class:</strong> Class number (6-10)
-                    </li>
-                    <li>
-                      <strong>full_mark:</strong> Maximum marks for the subject
-                    </li>
-                    <li>
-                      <strong>pass_mark:</strong> Minimum marks required to pass
-                    </li>
-                    <li>
-                      <strong>cq_mark:</strong> Creative Question marks
-                      (optional)
-                    </li>
-                    <li>
-                      <strong>mcq_mark:</strong> Multiple Choice Question marks
-                      (optional)
-                    </li>
-                    <li>
-                      <strong>practical_mark:</strong> Practical examination
-                      marks (optional)
-                    </li>
-                    <li>
-                      <strong>cq_pass_mark:</strong> Minimum CQ marks to pass
-                      (optional)
-                    </li>
-                    <li>
-                      <strong>mcq_pass_mark:</strong> Minimum MCQ marks to pass
-                      (optional)
-                    </li>
-                    <li>
-                      <strong>practical_pass_mark:</strong> Minimum practical
-                      marks to pass (optional)
-                    </li>
-                    <li>
-                      <strong>department:</strong> Science/Arts/Commerce (leave
-                      empty for classes 6-8)
-                    </li>
-                    <li>
-                      <strong>year:</strong> Academic year (e.g., 2024)
-                    </li>
-                    <li>
-                      <strong>teacher_id:</strong> ID of the assigned teacher
-                    </li>
-                    <li>
-                      <strong>File Format:</strong> Only .xlsx or .xls files are
-                      accepted
-                    </li>
-                    <li>First row should contain column headers</li>
-                    <li>All required fields must be present</li>
-                    <li>Optional mark fields can be left empty or omitted</li>
-                  </ul>
-                </div>
-
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Tip:</strong> To find teacher IDs, check the
-                    Teachers section in the admin panel. Make sure the column
-                    headers in your Excel file match exactly as listed above.
-                  </p>
-                </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowFormatInfo(false)}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
-                >
-                  Got it
-                </button>
+              <div className="flex justify-end pt-2">
+                <Button onClick={() => setShowSubjectDetails(false)} className="w-full sm:w-auto">
+                  Close Details
+                </Button>
               </div>
+            </div>
+          )}
+        </div>
+      </Popup>
+
+      <Popup
+        open={showFormatInfo}
+        onOpenChange={setShowFormatInfo}
+        size="lg"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+            <h2 className="text-xl font-bold font-heading">Excel Format Guide</h2>
+            <button
+              onClick={() => setShowFormatInfo(false)}
+              className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-muted/50 p-5 rounded-xl border border-border border-dashed">
+              <h3 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                Required Columns
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {["name", "class", "full_mark", "pass_mark", "year"].map((col) => (
+                  <span key={col} className="bg-background px-3 py-1.5 rounded-md border border-border text-xs font-mono shadow-sm">{col}</span>
+                ))}
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">department (9-10 only)</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                  <p><strong>name:</strong> The full title of the subject (e.g. Mathematics, Physics).</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                  <p><strong>class:</strong> Only numeric values between 6 and 10 are accepted.</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">3</div>
+                  <p><strong>full_mark:</strong> Total assignable marks for the subject.</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">4</div>
+                  <p><strong>pass_mark:</strong> Minimum marks required to pass.</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">5</div>
+                  <p><strong>department:</strong> Science/Arts/Commerce (Required only for Class 9 and 10).</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">6</div>
+                  <p><strong>year:</strong> Four-digit academic year (e.g. {new Date().getFullYear()}).</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl flex gap-3 items-start">
+              <Search className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
+                <strong>Pro Tip:</strong> Optional fields like `cq_mark`, `mcq_mark`, and `practical_mark` (and their respective pass marks) can also be added as columns for automatic breakdown.
+              </p>
+            </div>
+            
+            <div className="flex justify-end pt-2">
+              <Button onClick={() => setShowFormatInfo(false)} variant="default" className="w-full sm:w-auto">
+                Understood
+              </Button>
             </div>
           </div>
         </div>
-      )}
-    </>
+      </Popup>
+    </div>
   );
-}
+};
 
 export default NewSubject;
