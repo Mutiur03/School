@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react";
+import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react";
 import axios, { isAxiosError } from "axios";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useSearchParams, useLocation } from "react-router-dom";
 import {
     Plus,
@@ -26,7 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import ActionButton from "@/components/ActionButton";
 import { formatDateWithTime } from "@/lib/utils";
-import type { Class6RegistrationRecord } from "@school/shared-schemas";
+import type { Class6RegistrationRecord, Class6RegistrationSettingsData } from "@school/shared-schemas";
+import { class6RegistrationSettingsSchema } from "@school/shared-schemas";
 
 /** Full DB record as returned by the admin API — all server-managed fields are non-nullable here. */
 type Registration = Omit<Class6RegistrationRecord, "class6_year" | "birth_date" | "created_at" | "status"> & {
@@ -35,20 +38,6 @@ type Registration = Omit<Class6RegistrationRecord, "class6_year" | "birth_date" 
     created_at: string;
     status: string;
 };
-
-interface Class6RegSettings {
-    id?: number;
-    a_sec_roll: string;
-    b_sec_roll: string;
-    class6_year: string;
-    reg_open: boolean;
-    instruction_for_a: string;
-    instruction_for_b: string;
-    attachment_instruction: string;
-    notice: string | null;
-    classmates: string;
-    classmates_source: string;
-}
 
 const Class6RegForm = () => {
     const queryClient = useQueryClient();
@@ -92,18 +81,30 @@ const Class6RegForm = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editFormData, setEditFormData] = useState<{ id: string; status: string } | null>(null);
     const [pdfDownloading, setPdfDownloading] = useState(false);
-    const [settingsForm, setSettingsForm] = useState<Class6RegSettings>({
-        a_sec_roll: "",
-        b_sec_roll: "",
-        class6_year: new Date().getFullYear().toString(),
-        reg_open: false,
-        instruction_for_a: "",
-        instruction_for_b: "",
-        attachment_instruction: "",
-        notice: null,
-        classmates: "",
-        classmates_source: ""
+
+    const {
+        register,
+        handleSubmit,
+        reset,
+        watch,
+        formState: { errors, isDirty }
+    } = useForm<Class6RegistrationSettingsData>({
+        resolver: zodResolver(class6RegistrationSettingsSchema),
+        defaultValues: {
+            a_sec_roll: "",
+            b_sec_roll: "",
+            class6_year: new Date().getFullYear().toString(),
+            reg_open: false,
+            instruction_for_a: "",
+            instruction_for_b: "",
+            attachment_instruction: "",
+            notice_key: null,
+            classmates: "",
+            classmates_source: "default"
+        }
     });
+
+    const settingsForm = watch();
 
 
     const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -116,9 +117,13 @@ const Class6RegForm = () => {
 
     useEffect(() => {
         if (settingsData) {
-            setSettingsForm(settingsData);
+            const formData = {
+                ...settingsData,
+                notice_key: settingsData.notice, // Map notice to notice_key as per schema
+            };
+            reset(formData);
         }
-    }, [settingsData]);
+    }, [settingsData, reset]);
 
     const { data: registrationsResponse, isLoading: registrationsLoading, error: registrationsError } = useQuery({
         queryKey: ["class6Registrations", { page, limit, ...deferredFilters }],
@@ -186,8 +191,8 @@ const Class6RegForm = () => {
 
 
     const settingsMutation = useMutation({
-        mutationFn: async (updatedSettings: Class6RegSettings) => {
-            let notice_key = updatedSettings.notice;
+        mutationFn: async (updatedSettings: Class6RegistrationSettingsData) => {
+            let notice_key = updatedSettings.notice_key;
 
             if (selectedNotice) {
                 const { data: urlData } = await axios.post(`/api/reg/class-6/upload-url`, {
@@ -196,17 +201,17 @@ const Class6RegForm = () => {
                 });
 
                 if (urlData.success) {
-                    await axios.put(urlData.url, selectedNotice, {
+                    await axios.put(urlData.data.uploadUrl, selectedNotice, {
                         headers: { "Content-Type": selectedNotice.type }
                     });
-                    notice_key = urlData.key;
+                    notice_key = urlData.data.key;
                 }
             }
 
             const payload = {
                 ...updatedSettings,
                 notice_key,
-                reg_open: updatedSettings.reg_open.toString()
+                reg_open: typeof updatedSettings.reg_open === "boolean" ? updatedSettings.reg_open.toString() : updatedSettings.reg_open
             };
 
             const res = await axios.post(`/api/reg/class-6`, payload);
@@ -253,10 +258,9 @@ const Class6RegForm = () => {
         }
     });
 
-    const handleSettingsSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        settingsMutation.mutate(settingsForm);
-    }, [settingsMutation, settingsForm]);
+    const handleSettingsSubmit = handleSubmit((data) => {
+        settingsMutation.mutate(data);
+    });
 
     const handleStatusUpdate = useCallback((id: string, status: string) => {
         statusMutation.mutate({ id, status });
@@ -356,38 +360,38 @@ const Class6RegForm = () => {
                                     <label className="block text-sm font-medium text-foreground mb-1">Section A Roll Range (e.g., 01-50)</label>
                                     <Input
                                         type="text"
-                                        value={settingsForm.a_sec_roll || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, a_sec_roll: e.target.value })}
+                                        {...register("a_sec_roll")}
                                         placeholder="01-50"
                                     />
+                                    {errors.a_sec_roll && <p className="text-xs text-red-500 mt-1">{errors.a_sec_roll.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Section B Roll Range</label>
                                     <Input
                                         type="text"
-                                        value={settingsForm.b_sec_roll || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, b_sec_roll: e.target.value })}
+                                        {...register("b_sec_roll")}
                                         placeholder="51-100"
                                     />
+                                    {errors.b_sec_roll && <p className="text-xs text-red-500 mt-1">{errors.b_sec_roll.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Academic Year</label>
                                     <Input
                                         type="text"
-                                        value={settingsForm.class6_year || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, class6_year: e.target.value })}
+                                        {...register("class6_year")}
                                     />
+                                    {errors.class6_year && <p className="text-xs text-red-500 mt-1">{errors.class6_year.message}</p>}
                                 </div>
                                 <div className="flex items-end">
                                     <label className="flex items-center gap-2 cursor-pointer p-2 bg-muted/40 rounded-lg w-full">
                                         <input
                                             type="checkbox"
-                                            checked={settingsForm.reg_open}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, reg_open: e.target.checked })}
+                                            {...register("reg_open")}
                                             className="w-4 h-4 text-primary"
                                         />
                                         <span className="text-sm font-medium">Registration Open</span>
                                     </label>
+                                    {errors.reg_open && <p className="text-xs text-red-500 mt-1">{errors.reg_open.message}</p>}
                                 </div>
                             </div>
 
@@ -400,9 +404,9 @@ const Class6RegForm = () => {
                                         onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
                                         className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                     />
-                                    {settingsForm.notice && (
+                                    {settingsForm.notice_key && (
                                         <a
-                                            href={getFileUrl(settingsForm.notice)}
+                                            href={getFileUrl(settingsForm.notice_key)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-primary hover:underline flex items-center gap-1 text-sm font-medium shrink-0"
@@ -417,61 +421,61 @@ const Class6RegForm = () => {
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section A</label>
                                     <Textarea
-                                        value={settingsForm.instruction_for_a || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_a: e.target.value })}
+                                        {...register("instruction_for_a")}
                                         className="h-24"
                                     />
+                                    {errors.instruction_for_a && <p className="text-xs text-red-500 mt-1">{errors.instruction_for_a.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section B</label>
                                     <Textarea
-                                        value={settingsForm.instruction_for_b || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, instruction_for_b: e.target.value })}
+                                        {...register("instruction_for_b")}
                                         className="h-24"
                                     />
+                                    {errors.instruction_for_b && <p className="text-xs text-red-500 mt-1">{errors.instruction_for_b.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Classmates List Source</label>
                                     <select
-                                        value={settingsForm.classmates_source || "default"}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, classmates_source: e.target.value })}
+                                        {...register("classmates_source")}
                                         className="block w-full border rounded-md px-3 py-2 text-sm bg-card border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                                     >
                                         <option value="default">Default (Current Student List)</option>
-                                        <option value="manual">Manual (Custom List)</option>
+                                        <option value="custom">Manual (Custom List)</option>
                                     </select>
+                                    {errors.classmates_source && <p className="text-xs text-red-500 mt-1">{errors.classmates_source.message}</p>}
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        {settingsForm.classmates_source === "manual"
+                                        {settingsForm.classmates_source === "custom"
                                             ? "Enter your own student names."
                                             : "Automatically uses names from the Class 6 enrollment list."}
                                     </p>
                                 </div>
-                                {settingsForm.classmates_source === "manual" && (
+                                {settingsForm.classmates_source === "custom" && (
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1">Manual Classmates List</label>
                                         <Textarea
-                                            value={settingsForm.classmates || ""}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, classmates: e.target.value })}
+                                            {...register("classmates")}
                                             placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
                                             className="h-24"
                                         />
+                                        {errors.classmates && <p className="text-xs text-red-500 mt-1">{errors.classmates.message}</p>}
                                         <p className="text-xs text-muted-foreground mt-1">Students will be able to select from this list in the registration form's nearby student field.</p>
                                     </div>
                                 )}
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Attachment Instructions</label>
                                     <Textarea
-                                        value={settingsForm.attachment_instruction || ""}
-                                        onChange={(e) => setSettingsForm({ ...settingsForm, attachment_instruction: e.target.value })}
+                                        {...register("attachment_instruction")}
                                         className="h-24"
                                     />
+                                    {errors.attachment_instruction && <p className="text-xs text-red-500 mt-1">{errors.attachment_instruction.message}</p>}
                                 </div>
                             </div>
 
                             <div className="flex justify-end pt-4">
                                 <button
                                     type="submit"
-                                    disabled={settingsMutation.isPending}
+                                    disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}
                                     className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
                                 >
                                     {settingsMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
@@ -554,7 +558,7 @@ const Class6RegForm = () => {
                                         const years = [];
                                         for (let i = 0; i < 5; i++) years.push(currentYear - i);
 
-                                        const settingsYear = parseInt(settingsForm.class6_year);
+                                        const settingsYear = Number(settingsForm.class6_year);
                                         if (settingsForm.class6_year && !isNaN(settingsYear) && !years.includes(settingsYear)) {
                                             years.push(settingsYear);
                                             years.sort((a, b) => b - a);
