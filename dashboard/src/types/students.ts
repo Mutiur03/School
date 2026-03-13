@@ -10,6 +10,7 @@ export interface Student {
   post_office?: string;
   upazila?: string;
   district?: string;
+  religion: string;
   roll: number;
   section: string;
   dob: string;

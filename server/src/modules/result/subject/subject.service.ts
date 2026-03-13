@@ -10,45 +10,8 @@ export class SubjectService {
     }
 
     for (const subject of subjects) {
-      subject.name = subject.name.trim();
-      subject.department = subject.department?.trim();
-      subject.department === "General" && (subject.department = null);
-      subject.department === "general" && (subject.department = null);
-
-      const numericFields = [
-        "class",
-        "full_mark",
-        "pass_mark",
-        "cq_mark",
-        "mcq_mark",
-        "practical_mark",
-        "cq_pass_mark",
-        "mcq_pass_mark",
-        "practical_pass_mark",
-        "priority",
-        "parent_id",
-      ];
-
-      for (const field of numericFields) {
-        if (
-          subject[field] !== undefined &&
-          subject[field] !== null &&
-          subject[field] !== ""
-        ) {
-          subject[field] = parseInt(subject[field]);
-          if (isNaN(subject[field])) {
-            throw new ApiError(400, `${field.replace("_", " ")} must be a valid number`);
-          }
-        } else {
-          if (field.includes("mark") || field === "class") {
-            subject[field] =
-              field === "class" && !subject[field] ? subject[field] : 0;
-          } else if (field === "priority") {
-            subject[field] = 0;
-          } else {
-            subject[field] = null;
-          }
-        }
+      if (subject.department === "General" || subject.department === "general") {
+        subject.department = null;
       }
 
       const fullMarkSum =
@@ -66,15 +29,6 @@ export class SubjectService {
       if (passMarkSum > 0) {
         subject.pass_mark = passMarkSum;
       }
-
-      if (!subject.class) {
-        throw new ApiError(400, "Class is required");
-      }
-
-      // Default values for new fields if not provided
-      subject.subject_type =
-        subject.subject_type || (subject.subject_group ? "paper" : "single");
-      subject.assessment_type = subject.assessment_type || "exam";
     }
 
     // Internal duplicate check within the provided array
@@ -127,8 +81,7 @@ export class SubjectService {
             where: {
               name: subject.subject_group,
               class: subject.class,
-              year: current_year,
-              subject_type: "main",
+              year: subject.year || current_year,
               department: subject.department || null,
             },
           });
@@ -138,56 +91,76 @@ export class SubjectService {
               data: {
                 name: subject.subject_group,
                 class: subject.class,
-                year: current_year,
+                year: subject.year || current_year,
                 subject_type: "main",
+                assessment_type: subject.assessment_type || "exam",
                 department: subject.department || null,
-                priority: subject.priority || 0,
+                priority: subject.priority ?? 0,
               },
             });
+            // Mark it if it was also in the batch
+            subjects.forEach(s => {
+              if (s.name === mainSubject!.name && s.class === mainSubject!.class && s.year === mainSubject!.year && s.subject_type === "main") {
+                s._alreadyCreated = true;
+              }
+            });
+          } else if (mainSubject.subject_type !== "main") {
+            // Convert to main if it exists as something else
+            mainSubject = await tx.subjects.update({
+              where: { id: mainSubject.id },
+              data: { subject_type: "main" }
+            });
+            // Mark it if it was also in the batch
+            subjects.forEach(s => {
+              if (s.id === mainSubject!.id) {
+                s._alreadyCreated = true;
+              }
+            });
           }
+
           subject.parent_id = mainSubject.id;
           subject.subject_type = "paper";
         }
       }
 
-      const subjectData = subjects.map((subject) => ({
-        name: subject.name || null,
-        class: subject.class || null,
-        full_mark: subject.full_mark || 0,
-        pass_mark: subject.pass_mark || 0,
-        cq_mark: subject.cq_mark || 0,
-        mcq_mark: subject.mcq_mark || 0,
-        practical_mark: subject.practical_mark || 0,
-        cq_pass_mark: subject.cq_pass_mark || 0,
-        mcq_pass_mark: subject.mcq_pass_mark || 0,
-        practical_pass_mark: subject.practical_pass_mark || 0,
-        year: subject.year || current_year,
-        department: subject.department || null,
-        subject_type: subject.subject_type,
-        parent_id: subject.parent_id,
-        assessment_type: subject.assessment_type,
-        priority: subject.priority,
-      }));
+      const subjectData = subjects
+        .filter((s) => s.subject_type !== "main" || !s._alreadyCreated)
+        .map((subject) => ({
+          name: subject.name || null,
+          class: subject.class, // required field
+          full_mark: subject.full_mark ?? 0,
+          pass_mark: subject.pass_mark ?? 0,
+          cq_mark: subject.cq_mark ?? 0,
+          mcq_mark: subject.mcq_mark ?? 0,
+          practical_mark: subject.practical_mark ?? 0,
+          cq_pass_mark: subject.cq_pass_mark ?? 0,
+          mcq_pass_mark: subject.mcq_pass_mark ?? 0,
+          practical_pass_mark: subject.practical_pass_mark ?? 0,
+          year: subject.year || current_year,
+          department: subject.department || null,
+          subject_type: subject.subject_type,
+          parent_id: subject.parent_id || null,
+          assessment_type: subject.assessment_type || "exam",
+          priority: subject.priority ?? 0,
+        }));
 
-      await tx.subjects.createMany({
-        data: subjectData,
-      });
+      if (subjectData.length > 0) {
+        await tx.subjects.createMany({
+          data: subjectData,
+        });
+      }
 
       // Sync parent marks for all parents involved
-      const parentIds = [
-        ...new Set(
-          subjectData.filter((s) => s.parent_id).map((s) => s.parent_id),
-        ),
-      ];
+      const parentIds = [...new Set(subjectData.filter((s) => s.parent_id).map((s) => s.parent_id))];
       for (const parentId of parentIds) {
-        await SubjectService.syncParentMarks(parentId, tx);
+        if (parentId) await SubjectService.syncParentMarks(parentId, tx);
       }
     });
   }
 
   static async getSubjects() {
     return await prisma.subjects.findMany({
-      orderBy: [{ priority: "desc" }, { id: "asc" }],
+      orderBy: [{ priority: "asc" }, { id: "asc" }],
     });
   }
 
@@ -230,10 +203,10 @@ export class SubjectService {
     );
 
     // For main subject priority, use the highest (min numerical value) priority from children
-    const minPriority =
-      children.length > 0
-        ? Math.min(...children.map((c: any) => c.priority || 0))
-        : 0;
+    const minPriority = children.length > 0 ? Math.min(...children.map((c: any) => c.priority || 0)) : 0;
+    
+    // Sync assessment_type to match children (usually siblings share same type)
+    const firstChild = children[0];
 
     await tx.subjects.update({
       where: { id: parentId },
@@ -241,55 +214,21 @@ export class SubjectService {
         full_mark: totalFullMark,
         pass_mark: totalPassMark,
         priority: minPriority,
+        assessment_type: firstChild?.assessment_type || "exam",
       },
     });
   }
 
   static async updateSubject(id: number, data: any, old_parent_id?: number) {
-    const {
-      name,
-      class: className,
-      full_mark,
-      pass_mark,
-      cq_mark,
-      mcq_mark,
-      practical_mark,
-      cq_pass_mark,
-      mcq_pass_mark,
-      practical_pass_mark,
-      year,
-      department,
-      subject_type,
-      parent_id,
-      assessment_type,
-      priority,
-    } = data;
+    let { full_mark, pass_mark } = data;
 
-    const parseNumeric = (value: any, isMarkField = false): number | undefined => {
-      if (value === undefined || value === null || value === "") {
-        return isMarkField ? 0 : undefined;
-      }
-      const parsed = parseInt(value);
-      return isNaN(parsed) ? (isMarkField ? 0 : undefined) : parsed;
-    };
-
-    const cqMarkVal = parseNumeric(cq_mark, true);
-    const mcqMarkVal = parseNumeric(mcq_mark, true);
-    const practicalMarkVal = parseNumeric(practical_mark, true);
-    const cqPassMarkVal = parseNumeric(cq_pass_mark, true);
-    const mcqPassMarkVal = parseNumeric(mcq_pass_mark, true);
-    const practicalPassMarkVal = parseNumeric(practical_pass_mark, true);
-
-    let fullMark = parseNumeric(full_mark, true);
-    let passMark = parseNumeric(pass_mark, true);
-
-    const fullMarkSum = (cqMarkVal || 0) + (mcqMarkVal || 0) + (practicalMarkVal || 0);
+    const fullMarkSum = (data.cq_mark || 0) + (data.mcq_mark || 0) + (data.practical_mark || 0);
     if (fullMarkSum > 0) {
-      fullMark = fullMarkSum;
+      full_mark = fullMarkSum;
     }
-    const passMarkSum = (cqPassMarkVal || 0) + (mcqPassMarkVal || 0) + (practicalPassMarkVal || 0);
+    const passMarkSum = (data.cq_pass_mark || 0) + (data.mcq_pass_mark || 0) + (data.practical_pass_mark || 0);
     if (passMarkSum > 0) {
-      passMark = passMarkSum;
+      pass_mark = passMarkSum;
     }
 
     try {
@@ -297,22 +236,22 @@ export class SubjectService {
         const updated = await tx.subjects.update({
           where: { id },
           data: {
-            name: name || null,
-            class: parseNumeric(className),
-            full_mark: fullMark as number,
-            pass_mark: passMark as number,
-            cq_mark: cqMarkVal as number,
-            mcq_mark: mcqMarkVal as number,
-            practical_mark: practicalMarkVal as number,
-            cq_pass_mark: cqPassMarkVal as number,
-            mcq_pass_mark: mcqPassMarkVal as number,
-            practical_pass_mark: practicalPassMarkVal as number,
-            year: year || new Date().getFullYear(),
-            department: department || null,
-            subject_type: subject_type || "single",
-            parent_id: parseNumeric(parent_id),
-            assessment_type: assessment_type || "exam",
-            priority: parseNumeric(priority) || 0,
+            name: data.name || null,
+            class: data.class,
+            full_mark: (full_mark ?? 0) as number,
+            pass_mark: (pass_mark ?? 0) as number,
+            cq_mark: (data.cq_mark ?? 0) as number,
+            mcq_mark: (data.mcq_mark ?? 0) as number,
+            practical_mark: (data.practical_mark ?? 0) as number,
+            cq_pass_mark: (data.cq_pass_mark ?? 0) as number,
+            mcq_pass_mark: (data.mcq_pass_mark ?? 0) as number,
+            practical_pass_mark: (data.practical_pass_mark ?? 0) as number,
+            year: data.year || new Date().getFullYear(),
+            department: data.department || null,
+            subject_type: data.subject_type || "single",
+            parent_id: data.parent_id || null,
+            assessment_type: data.assessment_type || "exam",
+            priority: (data.priority ?? 0) as number,
           },
         });
 

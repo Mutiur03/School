@@ -21,15 +21,16 @@ export const useStudents = (params: {
   limit: number;
   level?: number;
   section?: string;
+  religion?: string;
   search?: string;
 }) => {
-  const { year, page, limit, level, section, search } = params;
+  const { year, page, limit, level, section, religion, search } = params;
 
   return useQuery<StudentsListResponse>({
-    queryKey: ["students", year, { page, limit, level, section, search }],
+    queryKey: ["students", year, { page, limit, level, section, religion, search }],
     queryFn: async () => {
       const response = await axios.get(`/api/students`, {
-        params: { year, page, limit, level, section, search },
+        params: { year, page, limit, level, section, religion, search },
       });
 
       const payload = response.data?.data as StudentsListResponse | undefined;

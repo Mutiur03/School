@@ -35,13 +35,14 @@ export class StudentService {
       level?: number;
       section?: string;
       search?: string;
+      religion?: string;
     },
     userOptions: {
       role?: string;
       levels?: Array<{ class_name: number; section: string; year: number }>;
     } = {},
   ) {
-    const { year, page, limit, level, section, search } = params;
+    const { year, page, limit, level, section, search, religion } = params;
 
     const normalizedPage =
       Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
@@ -106,6 +107,7 @@ export class StudentService {
       enrollmentWhere.student = {
         AND: [
           { available: true },
+          ...(religion ? [{ religion: { equals: religion, mode: "insensitive" as const } }] : []),
           {
             OR: [
               { name: { contains: normalizedSearch, mode: "insensitive" } },
@@ -118,8 +120,7 @@ export class StudentService {
               {
                 mother_phone: {
                   contains: normalizedSearch,
-                  mode: "insensitive",
-                },
+                  mode: "insensitive" },
               },
             ],
           },
@@ -128,6 +129,7 @@ export class StudentService {
     } else {
       enrollmentWhere.student = {
         available: true,
+        ...(religion ? { religion: { equals: religion, mode: "insensitive" as const } } : {}),
       };
     }
 
@@ -347,6 +349,7 @@ export class StudentService {
               district: student.district,
               dob: student.dob,
               has_stipend: student.has_stipend,
+              religion: student.religion,
               password: student.password,
             },
           });
@@ -375,6 +378,7 @@ export class StudentService {
       Class: student.class,
       Section: student.section,
       Roll: student.roll,
+      Religion: student.religion,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -449,7 +453,7 @@ export class StudentService {
   static async rotatePasswordsBulk(studentIds: (number)[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },
-      select: { id: true, login_id: true, name: true, batch: true },
+      select: { id: true, login_id: true, name: true, batch: true, religion: true },
     });
 
     if (students.length === 0) {
@@ -460,6 +464,7 @@ export class StudentService {
       login_id: bigint;
       name: string;
       batch: string;
+      religion: string;
       password: string;
     }> = [];
     const processedStudents: any[] = [];
@@ -484,6 +489,7 @@ export class StudentService {
           login_id: student.login_id,
           name: student.name,
           batch: student.batch,
+          religion: student.religion,
           password: student.password,
         });
       }
@@ -494,11 +500,13 @@ export class StudentService {
         login_id: bigint;
         name: string;
         batch: string;
+        religion: string;
         password: string;
       }) => ({
         "Login ID": student.login_id.toString(),
         Name: student.name,
         Batch: student.batch,
+        Religion: student.religion,
         "New Password": student.password,
       }),
     );

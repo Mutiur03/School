@@ -52,6 +52,7 @@ export class StudentController {
       const limitValue = req.query.limit;
       const searchValue = req.query.search;
       const sectionValue = req.query.section;
+      const religionValue = req.query.religion;
 
       const page =
         typeof pageValue === "string" ? parseInt(pageValue, 10) : NaN;
@@ -60,12 +61,14 @@ export class StudentController {
       const search = typeof searchValue === "string" ? searchValue : undefined;
       const section =
         typeof sectionValue === "string" ? sectionValue : undefined;
+      const religion = typeof religionValue === "string" ? religionValue : undefined;
 
       const isPaginatedRequest =
         (typeof pageValue === "string" && pageValue.trim().length > 0) ||
         (typeof limitValue === "string" && limitValue.trim().length > 0) ||
         (typeof searchValue === "string" && searchValue.trim().length > 0) ||
-        (typeof sectionValue === "string" && sectionValue.trim().length > 0);
+        (typeof sectionValue === "string" && sectionValue.trim().length > 0) ||
+        (typeof religionValue === "string" && religionValue.trim().length > 0);
 
       if (isPaginatedRequest) {
         const result = await StudentService.getStudentsPaginated(
@@ -76,6 +79,7 @@ export class StudentController {
             level,
             section,
             search,
+            religion,
           },
           req.user,
         );

@@ -47,6 +47,9 @@ const StudentProfile = () => {
               {student.mother_name}
             </div>
             <div>
+              <span className="font-semibold">Religion:</span> {student.religion}
+            </div>
+            <div>
               <span className="font-semibold">Date of Birth:</span>{" "}
               {format(
                 new Date(student.dob),

@@ -18,6 +18,7 @@ import {
   normalizeExcelDate,
   formatDobForDateInput,
   type StudentFormSchemaData,
+  RELIGION,
 } from "@school/shared-schemas";
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/ErrorMessage";
@@ -125,6 +126,7 @@ const defaultFormValues: StudentFormData = {
   post_office: "",
   upazila: "",
   district: "",
+  religion: "",
   dob: "",
   class: "",
   department: "",
@@ -141,6 +143,7 @@ const excelRequiredHeaders = [
   "class",
   "roll",
   "section",
+  "religion",
 ];
 
 const demoExcelColumns = [
@@ -157,6 +160,7 @@ const demoExcelColumns = [
   "class",
   "roll",
   "section",
+  "religion",
   "department",
   "has_stipend",
 ];
@@ -167,6 +171,7 @@ function StudentList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
+  const [religionFilter, setReligionFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -278,6 +283,7 @@ function StudentList() {
     limit,
     level: classFilter ? Number(classFilter) : undefined,
     section: sectionFilter || undefined,
+    religion: religionFilter || undefined,
     search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
   });
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
@@ -290,7 +296,7 @@ function StudentList() {
 
   useEffect(() => {
     setPage(1);
-  }, [year, classFilter, sectionFilter, deferredSearchQuery]);
+  }, [year, classFilter, sectionFilter, religionFilter, deferredSearchQuery]);
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
@@ -354,6 +360,7 @@ function StudentList() {
       roll: student.roll.toString(),
       section: student.section,
       department: student.department || "",
+      religion: student.religion || "",
       has_stipend: Boolean(student.has_stipend),
       available: student.available,
     });
@@ -523,6 +530,7 @@ function StudentList() {
         upazila: parsedValues.upazila || "",
         district: parsedValues.district || "",
         dob: parsedValues.dob || "",
+        religion: parsedValues.religion || "",
         available: Boolean(parsedValues.available),
         has_stipend: Boolean(parsedValues.has_stipend),
       };
@@ -642,6 +650,7 @@ function StudentList() {
           class: toExcelString(student.class),
           roll: toExcelString(student.roll),
           section: toExcelString(student.section).toUpperCase(),
+          religion: toExcelString(student.religion),
           department: toExcelString(student.department),
           has_stipend: toExcelString(student.has_stipend).toLowerCase() === "yes",
           available: true,
@@ -718,6 +727,7 @@ function StudentList() {
         class: "8",
         roll: "12",
         section: "A",
+        religion: "Islam",
         department: "",
         has_stipend: "No",
       },
@@ -735,6 +745,7 @@ function StudentList() {
         class: "9",
         roll: "5",
         section: "B",
+        religion: "Islam",
         department: "Science",
         has_stipend: "Yes",
       },
@@ -949,6 +960,7 @@ function StudentList() {
                     <legend className="px-2 text-sm sm:text-base font-semibold border-l-2 border-primary">Personal Information</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
+                        
                         <label className="block text-sm font-medium">Name <span className="text-destructive">*</span></label>
                         <Input
                           type="text"
@@ -1004,6 +1016,22 @@ function StudentList() {
                           {...register("mother_phone")}
                         />
                         {errors.mother_phone && <ErrorMessage message={errors.mother_phone.message} />}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium">Religion <span className="text-destructive">*</span></label>
+                        <select
+                          {...register("religion")}
+                          className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                        >
+                          <option value="">Select Religion</option>
+                          {RELIGION.map((religion: string) => (
+                            <option key={religion} value={religion}>
+                              {religion}
+                            </option>
+                          ))}
+                        </select>
+
+                        {errors.religion && <ErrorMessage message={errors.religion.message} />}
                       </div>
                     </div>
                   </fieldset>
@@ -1315,6 +1343,21 @@ function StudentList() {
             </select>
           </div>
           <div>
+            <label className="block text-sm font-medium mb-1">Religion</label>
+            <select
+              className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+              value={religionFilter}
+              onChange={(e) => setReligionFilter(e.target.value)}
+            >
+              <option value="">All Religions</option>
+              {RELIGION.map((religion: string) => (
+                <option key={religion} value={religion}>
+                  {religion}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium mb-1">Year</label>
             <select
               value={year}
@@ -1582,6 +1625,7 @@ function StudentList() {
                   <div className="space-y-1.5">
                     {[
                       { label: "Date of Birth", value: format(new Date(popup.student.dob), "dd MMM yyyy") },
+                      { label: "Religion", value: popup.student.religion || "N/A" },
                       { label: "Father's Name", value: popup.student.father_name },
                       { label: "Mother's Name", value: popup.student.mother_name },
                     ].map(({ label, value }) => (
@@ -1732,7 +1776,7 @@ function StudentList() {
                     <strong>Father Phone:</strong> Mandatory and should be 11 digits in Bangladesh format (e.g., 01XXXXXXXXX)
                   </li>
                   <li>
-                    <strong>Mother Phone:</strong> Optional and should be 10 digits (without country code)
+                    <strong>Mother Phone:</strong> Optional and should be 11 digits and start with 01 (e.g., 01XXXXXXXXX)
                   </li>
                   <li>
                     <strong>has_stipend:</strong> Use "Yes" or "No"
