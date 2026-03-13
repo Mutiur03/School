@@ -2,12 +2,14 @@ import {
   ADDRESS_TEXT,
   BANGLA_ONLY,
   BIRTH_REG_NO,
-  ENGLISH_ONLY,
   NID,
   PHONE_NUMBER,
   POST_CODE,
   ROLL_NUMBER,
   ASCII_ONLY,
+  NAME,
+  SECTION,
+  RELIGION,
 } from "./regex.js";
 import { z } from "zod";
 
@@ -20,7 +22,7 @@ const registrationObjectShape = z.object({
   student_name_en: z
     .string()
     .min(1, "Student Name in English is required")
-    .regex(ENGLISH_ONLY, "Only English characters are allowed")
+    .regex(NAME, "Enter a valid name (letters and basic punctuation only)")
     .default(""),
   birth_reg_no: z
     .string()
@@ -44,7 +46,7 @@ const registrationObjectShape = z.object({
         "Invalid email format",
       ),
   ),
-  religion: z.string().min(1, "Religion is required").max(50).default(""),
+  religion: z.enum(RELIGION).or(z.literal("")),
 
   father_name_bn: z
     .string()
@@ -54,7 +56,7 @@ const registrationObjectShape = z.object({
   father_name_en: z
     .string()
     .min(1, "Father's Name in English is required")
-    .regex(ENGLISH_ONLY, "Only English characters are allowed")
+    .regex(NAME, "Enter a valid father name")
     .default(""),
   father_nid: z
     .string()
@@ -75,7 +77,7 @@ const registrationObjectShape = z.object({
   mother_name_en: z
     .string()
     .min(1, "Mother's Name in English is required")
-    .regex(ENGLISH_ONLY, "Only English characters are allowed")
+    .regex(NAME, "Enter a valid mother name")
     .default(""),
   mother_nid: z
     .string()
@@ -88,8 +90,16 @@ const registrationObjectShape = z.object({
     .regex(PHONE_NUMBER, "Invalid phone number")
     .default(""),
 
-  permanent_district: z.string().min(1, "District is required").default(""),
-  permanent_upazila: z.string().min(1, "Upazila is required").default(""),
+  permanent_district: z
+    .string()
+    .min(1, "District is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
+    .default(""),
+  permanent_upazila: z
+    .string()
+    .min(1, "Upazila is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
+    .default(""),
   permanent_post_office: z
     .string()
     .min(1, "Post Office is required")
@@ -106,8 +116,16 @@ const registrationObjectShape = z.object({
     .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
 
-  present_district: z.string().min(1, "District is required").default(""),
-  present_upazila: z.string().min(1, "Upazila is required").default(""),
+  present_district: z
+    .string()
+    .min(1, "District is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
+    .default(""),
+  present_upazila: z
+    .string()
+    .min(1, "Upazila is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
+    .default(""),
   present_post_office: z
     .string()
     .min(1, "Post Office is required")
@@ -127,7 +145,11 @@ const registrationObjectShape = z.object({
   guardian_is_not_father: z.boolean().default(false),
   guardian_name: z.preprocess(
     (v) => (v === null ? "" : v),
-    z.string().max(100).default(""),
+    z
+      .string()
+      .max(100)
+      .refine((val) => !val || NAME.test(val), "Invalid guardian name format")
+      .default(""),
   ),
   guardian_phone: z.preprocess(
     (v) => (v === null ? "" : v),
@@ -158,11 +180,25 @@ const registrationObjectShape = z.object({
   guardian_address_same_as_permanent: z.boolean().default(false),
   guardian_district: z.preprocess(
     (v) => (v === null ? "" : v),
-    z.string().max(50).default(""),
+    z
+      .string()
+      .max(50)
+      .refine(
+        (val) => !val || ADDRESS_TEXT.test(val),
+        "Only English letters, digits and spaces are allowed",
+      )
+      .default(""),
   ),
   guardian_upazila: z.preprocess(
     (v) => (v === null ? "" : v),
-    z.string().max(50).default(""),
+    z
+      .string()
+      .max(50)
+      .refine(
+        (val) => !val || ADDRESS_TEXT.test(val),
+        "Only English letters, digits and spaces are allowed",
+      )
+      .default(""),
   ),
   guardian_post_office: z.preprocess(
     (v) => (v === null ? "" : v),
@@ -197,7 +233,11 @@ const registrationObjectShape = z.object({
       .default(""),
   ),
 
-  section: z.string().min(1, "Section is required").default(""),
+  section: z
+    .string()
+    .min(1, "Section is required")
+    .regex(SECTION, "Section must be a single letter (A-Z)")
+    .default(""),
   roll: z
     .string()
     .min(1, "Roll is required")
@@ -207,14 +247,20 @@ const registrationObjectShape = z.object({
   prev_school_name: z
     .string()
     .min(1, "Previous School Name is required")
+    .regex(
+      ADDRESS_TEXT,
+      "Only English letters, digits and spaces are allowed for school name",
+    )
     .default(""),
   prev_school_passing_year: z
     .string()
     .min(1, "Previous School Passing Year is required")
+    .regex(ROLL_NUMBER, "Passing year must be numeric")
     .default(""),
   section_in_prev_school: z
     .string()
     .min(1, "Section in previous school is required")
+    .regex(SECTION, "Section must be a single letter (A-Z)")
     .default(""),
   roll_in_prev_school: z
     .string()
@@ -224,10 +270,12 @@ const registrationObjectShape = z.object({
   prev_school_district: z
     .string()
     .min(1, "Previous School District is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
   prev_school_upazila: z
     .string()
     .min(1, "Previous School Upazila is required")
+    .regex(ADDRESS_TEXT, "Only English letters, digits and spaces are allowed")
     .default(""),
   nearby_student_info: z
     .string()
@@ -255,6 +303,15 @@ export const registrationSchema = registrationObjectShape.superRefine(
         path: ["photo"],
       });
     }
+
+    if (!data.religion) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Religion is required",
+        path: ["religion"],
+      });
+    }
+
     if (data.guardian_is_not_father) {
       console.log("super refine working");
       console.log("superrefine data", data.guardian_is_not_father);

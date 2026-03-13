@@ -3,6 +3,8 @@ import axios from "axios";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import ErrorMessage from "@/components/ErrorMessage";
+import { PageHeader, SectionCard, StatsCard } from "@/components";
+import { Button } from "@/components/ui/button";
 
 interface Student {
   student_id: number;
@@ -481,217 +483,199 @@ const AddMarks = () => {
   };
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 max-w-7xl">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 px-2 sm:px-0">
-        Student Marks Management
-      </h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title="Student Marks Management"
+        description="Enter and manage student marks for different examinations."
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <StatsCard
+          label="Selected Class"
+          value={level ? `Class ${level}` : "None"}
+          loading={loading.students}
+        />
+        <StatsCard
+          label="Total Students"
+          value={filteredStudents.length}
+          loading={loading.students}
+        />
+        <StatsCard
+          label="Total Subjects"
+          value={subjectsForClass.length}
+          loading={loading.initial}
+        />
+      </div>
 
       <form
         onSubmit={handleSubmit(onSubmit, (err) => {
           console.error("Form errors:", err);
           toast.error("Please fill all required fields");
         })}
-        className="space-y-4 sm:space-y-6"
+        className="space-y-6"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-card p-4 sm:p-6 rounded-lg shadow">
-          <div className="col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Academic Year
-            </label>
-            <select
-              {...register("year", { required: true })}
-              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={loading.initial}
-            >
-              {Array.from({ length: 10 }, (_, i) => (
-                <option key={i} value={2020 + i}>
-                  {2020 + i}
-                </option>
-              ))}
-            </select>
-            <ErrorMessage message={errors.year?.message} />
-          </div>
+        <SectionCard className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Academic Year</label>
+              <select
+                {...register("year", { required: true })}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                disabled={loading.initial}
+              >
+                {Array.from({ length: 10 }, (_, i) => (
+                  <option key={i} value={2020 + i}>
+                    {2020 + i}
+                  </option>
+                ))}
+              </select>
+              <ErrorMessage message={errors.year?.message} />
+            </div>
 
-          <div className="col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Examination
-            </label>
-            <select
-              {...register("examName", { required: true })}
-              className="w-full p-2 sm:p-3 text-input dark:bg-accent border rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={!year || loading.initial}
-            >
-              <option value="">Select Exam</option>
-              {examList.map((exam, index) => (
-                <option key={index} value={exam}>
-                  {exam}
-                </option>
-              ))}
-              {["JSC", "SSC"].map((exam, index) => (
-                <option key={index} value={exam}>
-                  {exam}
-                </option>
-              ))}
-            </select>
-            <ErrorMessage message={errors.examName?.message} />
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Examination</label>
+              <select
+                {...register("examName", { required: true })}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                disabled={!year || loading.initial}
+              >
+                <option value="">Select Exam</option>
+                {examList.map((exam, index) => (
+                  <option key={index} value={exam}>
+                    {exam}
+                  </option>
+                ))}
+                {["JSC", "SSC"].map((exam, index) => (
+                  <option key={index} value={exam}>
+                    {exam}
+                  </option>
+                ))}
+              </select>
+              <ErrorMessage message={errors.examName?.message} />
+            </div>
 
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Class/Grade
-            </label>
-            <select
-              {...register("level", { required: true })}
-              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={
-                !examName ||
-                loading.initial ||
-                examName === "JSC" ||
-                examName === "SSC"
-              }
-              value={level}
-            >
-              <option value="">Select Class</option>
-              {examName === "JSC" ? (
-                <option value="8">Class 8</option>
-              ) : examName === "SSC" ? (
-                <option value="10">Class 10</option>
-              ) : (
-                examName &&
-                classList[examList.indexOf(examName)]
-                  ?.sort((a, b) => a - b)
-                  .map((cls, index) => (
-                    <option key={index} value={cls}>
-                      Class {cls}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Class/Grade</label>
+              <select
+                {...register("level", { required: true })}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                disabled={
+                  !examName ||
+                  loading.initial ||
+                  examName === "JSC" ||
+                  examName === "SSC"
+                }
+                value={level}
+              >
+                <option value="">Select Class</option>
+                {examName === "JSC" ? (
+                  <option value="8">Class 8</option>
+                ) : examName === "SSC" ? (
+                  <option value="10">Class 10</option>
+                ) : (
+                  examName &&
+                  classList[examList.indexOf(examName)]
+                    ?.sort((a, b) => a - b)
+                    .map((cls, index) => (
+                      <option key={index} value={cls}>
+                        Class {cls}
+                      </option>
+                    ))
+                )}
+              </select>
+              <ErrorMessage message={errors.level?.message} />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Department</label>
+              <select
+                {...register("department")}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
+                disabled={!level || loading.initial}
+              >
+                {Number(level) >= 9
+                  ? ["", "Science", "Humanities", "Commerce"].map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept ? dept : "All Departments"}
                     </option>
                   ))
-              )}
-            </select>
-            <ErrorMessage message={errors.level?.message} />
-          </div>
+                  : [""].map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept ? dept : "General"}
+                    </option>
+                  ))}
+              </select>
+            </div>
 
-          <div className="col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Department
-            </label>
-            <select
-              {...register("department")}
-              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={!level || loading.initial}
-            >
-              {Number(level) >= 9
-                ? ["", "Science", "Humanities", "Commerce"].map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept ? dept : "All Departments"}
-                  </option>
-                ))
-                : [""].map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept ? dept : "General"}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Section</label>
+              <select
+                {...register("section")}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
+                disabled={!level || loading.initial}
+              >
+                <option value="">All Sections</option>
+                {sections.map((sec) => (
+                  <option key={sec} value={sec}>
+                    Section {sec}
                   </option>
                 ))}
-            </select>
-          </div>
+              </select>
+            </div>
 
-          <div className="col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Section
-            </label>
-            <select
-              {...register("section")}
-              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={!level || loading.initial}
-            >
-              <option value="">All Sections</option>
-              {sections.map((sec) => (
-                <option key={sec} value={sec}>
-                  Section {sec}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Subject</label>
+              <select
+                {...register("specific")}
+                className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
+                disabled={!level || loading.initial}
+              >
+                <option value="0">Select Subject</option>
+                {examName !== "JSC" &&
+                  examName !== "SSC" &&
+                  subjectsForClass.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
+        </SectionCard>
 
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-medium mb-1 sm:mb-2">
-              Subject
-            </label>
-            <select
-              {...register("specific")}
-              className="w-full p-2 sm:p-3 border text-input dark:bg-accent rounded focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-              disabled={!level || loading.initial}
-            >
-              <option value="0">Select Subject</option>
-              {examName !== "JSC" &&
-                examName !== "SSC" &&
-                subjectsForClass.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        {loading.initial ? (
-          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground dark:text-gray-400 text-center px-4">
-              Loading initial data...
+        {loading.initial || loading.students || loading.marks ? (
+          <SectionCard className="flex flex-col justify-center items-center h-32 sm:h-64">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
+            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground text-center px-4">
+              {loading.initial ? "Loading initial data..." : loading.students ? "Loading students..." : "Loading marks data..."}
             </span>
-          </div>
-        ) : loading.students ? (
-          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground dark:text-gray-400 text-center px-4">
-              Loading students...
-            </span>
-          </div>
-        ) : loading.marks ? (
-          <div className="flex flex-col justify-center items-center h-32 sm:h-64">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground dark:text-gray-400 text-center px-4">
-              Loading marks data...
-            </span>
-          </div>
+          </SectionCard>
         ) : filteredStudents.length > 0 ? (
-          <div className="px-2 sm:px-0">
+          <SectionCard className="p-0 overflow-hidden">
             {examName !== "JSC" && examName !== "SSC" ? (
               specific && specific !== 0 ? (
-                <div className="overflow-x-auto bg-card rounded-lg shadow-sm border border-border dark:border-gray-600">
-                  <div className="block sm:hidden bg-blue-50 dark:bg-blue-900 p-3 border-b border-border dark:border-gray-600">
-                    <div className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                      Subject:{" "}
-                      {subjectsForClass.find((sub) => sub.id == specific)?.name}
+                <div className="overflow-x-auto">
+                  {/* Subject Info Ribbon */}
+                  <div className="bg-primary/5 p-4 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-primary">
+                        {subjectsForClass.find((sub) => sub.id == specific)?.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Subject Mark Entry</p>
                     </div>
-                    <div className="text-xs text-blue-700 dark:text-blue-200 mt-1">
-                      Total Marks:{" "}
-                      {subjectsForClass.find((sub) => sub.id == specific)
-                        ?.full_mark || 0}{" "}
+                    <div className="flex gap-4">
+                      <div className="text-center sm:text-right">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Marks</span>
+                        <span className="text-sm font-bold">{subjectsForClass.find((sub) => sub.id == specific)?.full_mark || 0}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-muted/50 dark:bg-gray-700">
-                      <tr className="hidden sm:table-row bg-blue-50 dark:bg-blue-900">
-                        <td className="px-6 py-2 text-sm font-semibold text-blue-900 dark:text-blue-100">
-                          Subject:{" "}
-                          {
-                            subjectsForClass.find((sub) => sub.id == specific)
-                              ?.name
-                          }
-                        </td>
-                        <td
-                          className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
-                          colSpan={1}
-                        >
-                          Total Marks:{" "}
-                          {subjectsForClass.find((sub) => sub.id == specific)
-                            ?.full_mark || 0}
-                        </td>
-                      </tr>
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                          Student Info
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Student Information
                         </th>
                         {(() => {
                           const selectedSubject = subjectsForClass.find(
@@ -699,198 +683,95 @@ const AddMarks = () => {
                           );
                           return selectedSubject ? (
                             <>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                                <span className="inline">
-                                  CQ ({selectedSubject.cq_mark || 0})
-                                </span>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                                CQ ({selectedSubject.cq_mark || 0})
                               </th>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                                <span className="inline">
-                                  MCQ ({selectedSubject.mcq_mark || 0})
-                                </span>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                                MCQ ({selectedSubject.mcq_mark || 0})
                               </th>
-                              <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                                <span className="hidden sm:inline">
-                                  Practical (
-                                  {selectedSubject.practical_mark || 0})
-                                </span>
-                                <span className="sm:hidden">
-                                  Prac ({selectedSubject.practical_mark || 0})
-                                </span>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                                Practical ({selectedSubject.practical_mark || 0})
                               </th>
                             </>
                           ) : null;
                         })()}
                       </tr>
                     </thead>
-                    <tbody className="bg-card divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-border bg-card">
                       {filteredStudents.map((student) => {
-                        const selectedSubject = subjectsForClass.find(
-                          (sub) => sub.id == specific
-                        );
+                        const selectedSubject = subjectsForClass.find((sub) => sub.id == specific);
+                        if (!selectedSubject) return null;
 
-                        if (!selectedSubject) {
-                          return null;
-                        }
+                        const isDeptMismatch = selectedSubject.department && 
+                          selectedSubject.department !== "" && 
+                          selectedSubject.department !== student.department;
 
-                        if (
-                          selectedSubject.department !== student.department &&
-                          selectedSubject.department !== "" &&
-                          selectedSubject.department !== null
-                        ) {
+                        if (isDeptMismatch) {
                           return (
-                            <tr
-                              key={student.student_id}
-                              className="bg-muted dark:bg-gray-700"
-                            >
-                              <td className="px-3 sm:px-6 py-3 sm:py-4">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {student.name}
-                                  </div>
-                                  <div className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400">
-                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                      <span>Roll: {student.roll}</span>
-                                      <span className="hidden sm:inline">
-                                        |
-                                      </span>
-                                      <span>
-                                        Sec: {student.section || "N/A"}
-                                      </span>
-                                      <span className="hidden sm:inline">
-                                        |
-                                      </span>
-                                      <span>Class: {student.class}</span>
-                                    </div>
-                                    {student.department && (
-                                      <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                                        {student.department}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                            <tr key={student.student_id} className="bg-muted/30">
+                              <td className="px-4 py-4">
+                                <div className="text-sm font-medium">{student.name}</div>
+                                <div className="text-[10px] text-muted-foreground">Roll: {student.roll} | Sec: {student.section || "N/A"}</div>
                               </td>
-                              <td
-                                colSpan={3}
-                                className="px-3 sm:px-6 py-3 sm:py-4 text-center text-xs sm:text-sm text-muted-foreground dark:text-gray-400"
-                              >
-                                Subject not available for this student's
-                                department
+                              <td colSpan={3} className="px-4 py-4 text-center text-xs text-muted-foreground italic">
+                                Not available for student department
                               </td>
                             </tr>
                           );
                         }
 
-                        const studentSubject = marksData[
-                          student.student_id
-                        ]?.subjectMarks?.find(
+                        const studentSubject = marksData[student.student_id]?.subjectMarks?.find(
                           (m) => m.subjectId === selectedSubject.id
                         );
 
-                        const cqMarks = studentSubject?.cq_marks || 0;
-                        const mcqMarks = studentSubject?.mcq_marks || 0;
-                        const practicalMarks =
-                          studentSubject?.practical_marks || 0;
-
                         return (
-                          <tr
-                            key={student.student_id}
-                            className="hover:bg-muted/50 dark:hover:bg-gray-700"
-                          >
-                            <td className="px-3 sm:px-6 py-3 sm:py-4">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {student.name}
-                                </div>
-                                <div className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400">
-                                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                    <span>Roll: {student.roll}</span>
-                                    <span className="hidden sm:inline">|</span>
-                                    <span>Sec: {student.section || "N/A"}</span>
-                                    <span className="hidden sm:inline">|</span>
-                                    <span>Class: {student.class}</span>
-                                  </div>
-                                  {student.department && (
-                                    <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                                      {student.department}
-                                    </span>
-                                  )}
+                          <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold">{student.name}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Roll: {student.roll}</span>
+                                  <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Sec: {student.section || "N/A"}</span>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
+                            <td className="px-4 py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
                                 max={selectedSubject.cq_mark || 100}
-                                value={cqMarks}
-                                onChange={(e) =>
-                                  handleMarksChange(
-                                    student.student_id,
-                                    selectedSubject.id,
-                                    "cq_marks",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={
-                                  !selectedSubject.cq_mark ||
-                                  selectedSubject.cq_mark === 0
-                                }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-border dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:border-transparent ${!selectedSubject.cq_mark ||
-                                  selectedSubject.cq_mark === 0
-                                  ? "bg-muted dark:bg-gray-600 text-gray-400 dark:text-muted-foreground cursor-not-allowed"
-                                  : "bg-white dark:bg-gray-700"
-                                  }`}
+                                value={studentSubject?.cq_marks || 0}
+                                onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "cq_marks", e.target.value)}
+                                disabled={!selectedSubject.cq_mark}
+                                className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${
+                                  !selectedSubject.cq_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
+                                }`}
                               />
                             </td>
-                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
+                            <td className="px-4 py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
                                 max={selectedSubject.mcq_mark || 100}
-                                value={mcqMarks}
-                                onChange={(e) =>
-                                  handleMarksChange(
-                                    student.student_id,
-                                    selectedSubject.id,
-                                    "mcq_marks",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={
-                                  !selectedSubject.mcq_mark ||
-                                  selectedSubject.mcq_mark === 0
-                                }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-border dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:border-transparent ${!selectedSubject.mcq_mark ||
-                                  selectedSubject.mcq_mark === 0
-                                  ? "bg-muted dark:bg-gray-600 text-gray-400 dark:text-muted-foreground cursor-not-allowed"
-                                  : "bg-white dark:bg-gray-700"
-                                  }`}
+                                value={studentSubject?.mcq_marks || 0}
+                                onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "mcq_marks", e.target.value)}
+                                disabled={!selectedSubject.mcq_mark}
+                                className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${
+                                  !selectedSubject.mcq_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
+                                }`}
                               />
                             </td>
-                            <td className="px-1 sm:px-6 py-3 sm:py-4 text-center">
+                            <td className="px-4 py-4 text-center">
                               <input
                                 type="number"
                                 min="0"
                                 max={selectedSubject.practical_mark || 100}
-                                value={practicalMarks}
-                                onChange={(e) =>
-                                  handleMarksChange(
-                                    student.student_id,
-                                    selectedSubject.id,
-                                    "practical_marks",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={
-                                  !selectedSubject.practical_mark ||
-                                  selectedSubject.practical_mark === 0
-                                }
-                                className={`w-12 sm:w-16 p-1 sm:p-2 border border-border dark:border-gray-600 rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:border-transparent ${!selectedSubject.practical_mark ||
-                                  selectedSubject.practical_mark === 0
-                                  ? "bg-muted dark:bg-gray-600 text-gray-400 dark:text-muted-foreground cursor-not-allowed"
-                                  : "bg-white dark:bg-gray-700"
-                                  }`}
+                                value={studentSubject?.practical_marks || 0}
+                                onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "practical_marks", e.target.value)}
+                                disabled={!selectedSubject.practical_mark}
+                                className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${
+                                  !selectedSubject.practical_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
+                                }`}
                               />
                             </td>
                           </tr>
@@ -900,57 +781,34 @@ const AddMarks = () => {
                   </table>
                 </div>
               ) : (
-                <div className="p-6 sm:p-8 rounded-lg dark:bg-accent bg-muted/50 shadow text-center mx-2 sm:mx-0">
-                  <p className="text-sm sm:text-base text-muted-foreground dark:text-gray-400">
-                    Please select a subject from the dropdown above to enter
-                    marks for students.
+                <div className="p-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Please select a subject from the filters above to continue.
                   </p>
                 </div>
               )
             ) : (
-              <div className="overflow-x-auto bg-card rounded-lg shadow-sm border border-border dark:border-gray-600">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-muted/50 dark:bg-gray-700">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted/50 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
                     <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                        Student Info
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-muted-foreground dark:text-gray-300 uppercase tracking-wider">
-                        <span className="hidden sm:inline">
-                          GPA (Out of 5.00)
-                        </span>
-                        <span className="sm:hidden">GPA</span>
-                      </th>
+                      <th className="px-6 py-3 text-left">Student Information</th>
+                      <th className="px-6 py-3 text-center">GPA (Out of 5.00)</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-card divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-border bg-card">
                     {filteredStudents.map((student) => (
-                      <tr
-                        key={student.student_id}
-                        className="hover:bg-muted/50 dark:hover:bg-gray-700"
-                      >
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {student.name}
-                            </div>
-                            <div className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400">
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                <span>Roll: {student.roll}</span>
-                                <span className="hidden sm:inline">|</span>
-                                <span>Sec: {student.section || "N/A"}</span>
-                                <span className="hidden sm:inline">|</span>
-                                <span>Class: {student.class}</span>
-                              </div>
-                              {student.department && (
-                                <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                                  {student.department}
-                                </span>
-                              )}
+                      <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold">{student.name}</span>
+                            <div className="flex gap-2 mt-1">
+                              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Roll: {student.roll}</span>
+                              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Sec: {student.section || "N/A"}</span>
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                        <td className="px-6 py-4 text-center">
                           <input
                             type="number"
                             step="0.01"
@@ -966,7 +824,7 @@ const AddMarks = () => {
                               }
                               handleGPAchange(student.student_id, val);
                             }}
-                            className="w-16 sm:w-24 p-2 sm:p-3 border border-border dark:border-gray-600 rounded-md focus:ring-2 focus:ring-primary/20 focus:border-transparent text-center font-semibold bg-white dark:bg-gray-700 text-sm sm:text-base"
+                            className="w-24 p-2.5 border border-border rounded-lg text-center font-bold text-sm bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none"
                             placeholder="0.00"
                           />
                         </td>
@@ -976,17 +834,17 @@ const AddMarks = () => {
                 </table>
               </div>
             )}
-          </div>
+          </SectionCard>
         ) : (
-          <div className="p-6 sm:p-8 rounded-lg dark:bg-accent bg-muted/50 shadow text-center mx-2 sm:mx-0">
-            <p className="text-sm sm:text-base">
+          <SectionCard className="p-12 text-center">
+            <p className="text-sm text-muted-foreground">
               {!level
                 ? "Please select a class to view students"
                 : students.length === 0
-                  ? "No students found in the system for the selected class"
-                  : "No students match the selected filters"}
+                  ? "No students found for the selected class."
+                  : "No students match the current filters."}
             </p>
-          </div>
+          </SectionCard>
         )}
 
         {filteredStudents.length > 0 &&
@@ -1000,16 +858,17 @@ const AddMarks = () => {
           ((subjectsForClass.find((sub) => sub.id == specific)?.cq_mark ?? 0) ||
             (subjectsForClass.find((sub) => sub.id == specific)?.mcq_mark ?? 0) ||
             (subjectsForClass.find((sub) => sub.id == specific)?.practical_mark ?? 0)) && (
-            <div className="flex justify-center sm:justify-end px-2 sm:px-0">
-              <button
+            <div className="flex justify-end pt-4">
+              <Button
                 type="submit"
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-primary text-white rounded hover:bg-primary/90 disabled:bg-blue-300 flex items-center justify-center text-sm sm:text-base font-medium"
+                size="lg"
                 disabled={loading.submit}
+                className="w-full sm:w-auto px-10 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 {loading.submit ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -1031,10 +890,9 @@ const AddMarks = () => {
                     Processing...
                   </>
                 ) : (
-                  `Save ${examName === "JSC" || examName === "SSC" ? "GPA" : "Marks"
-                  }`
+                  `Save ${examName === "JSC" || examName === "SSC" ? "GPA" : "Marks"}`
                 )}
-              </button>
+              </Button>
             </div>
           )}
       </form>

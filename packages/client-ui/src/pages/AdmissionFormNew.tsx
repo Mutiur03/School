@@ -11,7 +11,7 @@ import { districts, getUpazilasByDistrict } from "@/lib/location";
 import axios from "axios";
 import {
   BANGLA_ONLY,
-  ENGLISH_ONLY,
+  NAME,
   PHONE_NUMBER,
   NID,
   BIRTH_REG_NO,
@@ -43,7 +43,7 @@ const admissionSchema = z
       .string()
       .min(1, "Student Name in English is required")
       .max(100)
-      .regex(ENGLISH_ONLY, "Only English characters are allowed")
+      .regex(NAME, "Only English characters are allowed")
       .default(""),
     birth_reg_no: z
       .string()
@@ -63,7 +63,7 @@ const admissionSchema = z
       .string()
       .min(1, "Father's Name in English is required")
       .max(100)
-      .regex(ENGLISH_ONLY, "Only English characters are allowed")
+      .regex(NAME, "Only English characters are allowed")
       .default(""),
     father_nid: z
       .string()
@@ -87,7 +87,7 @@ const admissionSchema = z
       .string()
       .min(1, "Mother's Name in English is required")
       .max(100)
-      .regex(ENGLISH_ONLY, "Only English characters are allowed")
+      .regex(NAME, "Only English characters are allowed")
       .default(""),
     mother_nid: z
       .string()

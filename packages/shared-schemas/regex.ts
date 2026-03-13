@@ -1,5 +1,4 @@
 export const BANGLA_ONLY = /^[\u0980-\u09FF\s.:]+$/;
-export const ENGLISH_ONLY = /^[A-Za-z\s.:]+$/;
 export const PHONE_NUMBER = /^01\d{9}$/;
 export const NID = /^(?:\d{10}|\d{13}|\d{17})$/;
 export const BIRTH_REG_NO = /^\d{17}$/;
@@ -19,29 +18,34 @@ export const ASCII_ONLY = /^[\x00-\x7F]+$/;
 export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const LOGIN_ID = /^\d{5}$/;
 
+export const ENGLISH_FILTER = /[^A-Za-z.():\s]/g;
+export const ADDRESS_FILTER = /[^A-Za-z0-9\s]/g;
+export const BANGLA_FILTER = /[^\u0980-\u09FF.():\s]/g;
+export const NUMERIC_FILTER = /[^\d]/g;
+
 export function filterEnglishInput(value: string) {
   return value
-    .replace(/[^A-Za-z.():\s]/g, "")
+    .replace(ENGLISH_FILTER, "")
     .replace(/\s+/g, " ")
     .trimStart();
 }
 
 export function filterAddressInput(value: string) {
   return value
-    .replace(/[^A-Za-z0-9\s]/g, "")
+    .replace(ADDRESS_FILTER, "")
     .replace(/\s+/g, " ")
     .trimStart();
 }
 
 export function filterBanglaInput(value: string) {
   return value
-    .replace(/[^\u0980-\u09FF.():\s]/g, "")
+    .replace(BANGLA_FILTER, "")
     .replace(/\s+/g, " ")
     .trimStart();
 }
 
 export function filterNumericInput(value: string) {
-  return value.replace(/[^\d]/g, "").replace(/\s+/g, "").trimStart();
+  return value.replace(NUMERIC_FILTER, "").replace(/\s+/g, "").trimStart();
 }
 
 export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
