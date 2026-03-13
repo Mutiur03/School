@@ -25,9 +25,10 @@
     "build:common:ui": "npm run build -w @school/common-ui",
     "dev:common:ui": "npm run dev -w @school/common-ui",
     "dev:shared-schemas": "npm run dev -w @school/shared-schemas",
-    "build:server": "npm run build -w server" 
+    "build:server": "npm run build -w server"
   },
   "devDependencies": {
+    "@types/archiver": "^7.0.0",
     "concurrently": "^9.2.1"
   }
 }

@@ -330,6 +330,7 @@ export class RegistrationFormClass6Service {
       section: reg.section,
       department: "",
       has_stipend: "No",
+      religion: reg.religion,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(registrationsForExport);

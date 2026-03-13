@@ -30,7 +30,6 @@ export const studentLoginSchema = z.object({
 
 export type StudentLoginData = z.infer<typeof studentLoginSchema>;
 
-
 export const studentFormSchema = z
   .object({
     name: z
@@ -61,6 +60,7 @@ export const studentFormSchema = z
     mother_phone: z
       .string()
       .trim()
+      .nullish()
       .refine((value) => !value || PHONE_NUMBER.test(value), {
         message: "Mother phone must be 11 digits and start with 01",
       }),
@@ -77,27 +77,32 @@ export const studentFormSchema = z
     village: z
       .string()
       .trim()
+      .nullish()
       .refine((value) => !value || ADDRESS_TEXT.test(value), {
         message: "Enter a valid village",
       }),
     post_office: z
       .string()
       .trim()
+      .nullish()
       .refine((value) => !value || ADDRESS_TEXT.test(value), {
         message: "Enter a valid post office",
       }),
     upazila: z
       .string()
       .trim()
+      .nullish()
       .refine((value) => !value || ADDRESS_TEXT.test(value), {
         message: "Enter a valid upazila",
       }),
     district: z
       .string()
       .trim()
+      .nullish()
       .refine((value) => !value || ADDRESS_TEXT.test(value), {
         message: "Enter a valid district",
       }),
+    religion: z.string().trim().min(1, "Religion is required"),
     dob: z
       .string()
       .trim()
@@ -213,6 +218,7 @@ export const addStudentInputSchema = z
         message: "Section must be a single letter",
       }),
     department: z.any().optional().transform(normalizeOptionalText),
+    religion: z.string().trim().min(1, "Religion is required"),
     year: z.coerce.number().int().optional(),
   })
   .superRefine((value, ctx) => {
@@ -278,7 +284,6 @@ export const updateStudentSchema = z
       ),
     mother_phone: z
       .any()
-      .optional()
       .transform(normalizeOptionalText)
       .refine((value) => value === null || PHONE_NUMBER.test(value), {
         message: "Invalid mother phone",
@@ -315,6 +320,7 @@ export const updateStudentSchema = z
       }),
     has_stipend: z.any().transform((value) => Boolean(value)),
     available: z.any().transform((value) => Boolean(value)),
+    religion: z.string().trim().optional(),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, {

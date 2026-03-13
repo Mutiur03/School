@@ -1,5 +1,5 @@
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client-js"
   // binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
 }
 
@@ -14,13 +14,15 @@ enum SetupTokenRole {
 }
 
 model setupToken {
-  id          Int             @id @default(autoincrement())
-  tokenHash   String   @unique
-  role        SetupTokenRole
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  @@index([role,tokenHash])
+  id        Int            @id @default(autoincrement())
+  tokenHash String         @unique
+  role      SetupTokenRole
+  expiresAt DateTime
+  createdAt DateTime       @default(now())
+
+  @@index([role, tokenHash])
 }
+
 model SuperAdmin {
   id           Int    @id @default(autoincrement())
   email        String @unique
@@ -31,6 +33,7 @@ model SuperAdmin {
   @@index([email])
   @@index([role])
 }
+
 model admin {
   id           Int    @id @default(autoincrement())
   username     String @unique
@@ -43,31 +46,32 @@ model admin {
 }
 
 model students {
-  id           Int                   @id @default(autoincrement())
-  login_id     BigInt                   @unique
-  name         String                @db.VarChar(100)
-  father_name  String?               @db.VarChar(100)
-  mother_name  String?               @db.VarChar(100)
-  batch        String                @db.Char(4)
-  dob          String?               @db.VarChar(10)
-  has_stipend  Boolean               @default(false)
-  image        String?
-  password     String?               @db.VarChar(100)
+  id              Int                   @id @default(autoincrement())
+  login_id        BigInt                @unique
+  name            String                @db.VarChar(100)
+  religion        String                @default("") @db.VarChar(50)
+  father_name     String?               @db.VarChar(100)
+  mother_name     String?               @db.VarChar(100)
+  batch           String                @db.Char(4)
+  dob             String?               @db.VarChar(10)
+  has_stipend     Boolean               @default(false)
+  image           String?
+  password        String?               @db.VarChar(100)
   available       Boolean               @default(true)
   created_at      DateTime              @default(now())
   tokenVersion    Int                   @default(0)
   sheet_row_index Int?
   father_phone    String?               @db.Char(11)
-  mother_phone String?               @db.Char(11)
-  village      String?               @db.VarChar(100)
-  post_office  String?               @db.VarChar(100)
-  upazila      String?               @db.VarChar(100)
-  district     String?               @db.VarChar(100)
-  attendances  attendence[]
-  galleries    gallery[]             @relation("StudentGalleryUploader")
-  gpa          gpa?
-  sms_logs     sms_logs[]
-  enrollments  student_enrollments[]
+  mother_phone    String?               @db.Char(11)
+  village         String?               @db.VarChar(100)
+  post_office     String?               @db.VarChar(100)
+  upazila         String?               @db.VarChar(100)
+  district        String?               @db.VarChar(100)
+  attendances     attendence[]
+  galleries       gallery[]             @relation("StudentGalleryUploader")
+  gpa             gpa?
+  sms_logs        sms_logs[]
+  enrollments     student_enrollments[]
 
   @@index([login_id])
   @@index([batch])
@@ -195,26 +199,26 @@ model levels {
 }
 
 model subjects {
-  id                  Int       @id @default(autoincrement())
-  name                String    @db.VarChar(100)
+  id                  Int        @id @default(autoincrement())
+  name                String     @db.VarChar(100)
   class               Int
-  full_mark           Int       @default(0)
-  pass_mark           Int       @default(0)
-  cq_mark             Int       @default(0)
-  mcq_mark            Int       @default(0)
-  practical_mark      Int       @default(0)
-  cq_pass_mark        Int       @default(0)
-  mcq_pass_mark       Int       @default(0)
-  practical_pass_mark Int       @default(0)
-  year                Int       @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  department          String?   @db.VarChar(100)
-  subject_type        String    @default("single")
+  full_mark           Int        @default(0)
+  pass_mark           Int        @default(0)
+  cq_mark             Int        @default(0)
+  mcq_mark            Int        @default(0)
+  practical_mark      Int        @default(0)
+  cq_pass_mark        Int        @default(0)
+  mcq_pass_mark       Int        @default(0)
+  practical_pass_mark Int        @default(0)
+  year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  department          String?    @db.VarChar(100)
+  subject_type        String     @default("single")
   parent_id           Int?
-  assessment_type     String    @default("exam")
-  priority            Int       @default(0)
-  created_at          DateTime  @default(now())
+  assessment_type     String     @default("exam")
+  priority            Int        @default(0)
+  created_at          DateTime   @default(now())
   marks               marks[]
-  parent              subjects? @relation("SubjectHierarchy", fields: [parent_id], references: [id])
+  parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
 
   @@unique([name, class, department, year])

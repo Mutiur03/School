@@ -40,6 +40,12 @@ interface Subject {
 
 const NewSubject: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterClass, setFilterClass] = useState<number | "all">("all");
+  const [filterDepartment, setFilterDepartment] = useState<string | "all">("all");
+  const [filterType, setFilterType] = useState<string | "all">("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const {
     register,
@@ -49,25 +55,25 @@ const NewSubject: React.FC = () => {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<SubjectFormSchemaData>({
-    resolver: zodResolver(subjectFormSchema),
+    resolver: zodResolver(subjectFormSchema) as any,
     defaultValues: {
       id: null,
       name: "",
-      class: "",
-      full_mark: "",
-      pass_mark: "",
-      cq_mark: "",
-      mcq_mark: "",
-      practical_mark: "",
-      cq_pass_mark: "",
-      mcq_pass_mark: "",
-      practical_pass_mark: "",
+      class: null as any,
+      full_mark: null as any,
+      pass_mark: 0,
+      cq_mark: 0,
+      mcq_mark: 0,
+      practical_mark: 0,
+      cq_pass_mark: 0,
+      mcq_pass_mark: 0,
+      practical_pass_mark: 0,
       department: "",
-      year: new Date().getFullYear(),
+      year: filterYear,
       subject_type: "single",
-      parent_id: "",
+      parent_id: null as any,
       assessment_type: "exam",
-      priority: "0",
+      priority: 0,
     },
   });
 
@@ -75,8 +81,6 @@ const NewSubject: React.FC = () => {
   const [uploadMethod, setUploadMethod] = useState<"form" | "file">("form");
   const [jsonData, setJsonData] = useState<Subject[] | null>(null);
   const [fileUploaded, setFileUploaded] = useState<boolean>(false);
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [showFormatInfo, setShowFormatInfo] = useState<boolean>(false);
   const [showSubjectDetails, setShowSubjectDetails] = useState<boolean>(false);
@@ -85,6 +89,10 @@ const NewSubject: React.FC = () => {
   useEffect(() => {
     fetchSubjects();
   }, []);
+
+  useEffect(() => {
+    setValue("year", filterYear);
+  }, [filterYear, setValue]);
 
 
   const fetchSubjects = async (): Promise<void> => {
@@ -104,7 +112,7 @@ const NewSubject: React.FC = () => {
     if (name === "class") {
       const classNum = Number(value);
       if (classNum > 0 && classNum < 9) {
-        setValue("class", value);
+        setValue("class", classNum as any);
         setValue("department", "");
         return;
       }
@@ -117,8 +125,12 @@ const NewSubject: React.FC = () => {
     }
 
     // For other fields, use register or manual setValue if needed
-    // @ts-ignore
-    setValue(name as any, value);
+    const numericFields = ["class", "full_mark", "pass_mark", "cq_mark", "mcq_mark", "practical_mark", "cq_pass_mark", "mcq_pass_mark", "practical_pass_mark", "year", "priority", "parent_id"];
+    if (numericFields.includes(name)) {
+      setValue(name as any, value === "" ? null : Number(value));
+    } else {
+      setValue(name as any, value);
+    }
   };
 
   const handleMethodChange = (method: "form" | "file"): void => {
@@ -132,21 +144,21 @@ const NewSubject: React.FC = () => {
     reset({
       id: null,
       name: "",
-      class: "",
-      full_mark: "",
-      pass_mark: "",
-      cq_mark: "",
-      mcq_mark: "",
-      practical_mark: "",
-      cq_pass_mark: "",
-      mcq_pass_mark: "",
-      practical_pass_mark: "",
+      class: null as any,
+      full_mark: null as any,
+      pass_mark: 0,
+      cq_mark: 0,
+      mcq_mark: 0,
+      practical_mark: 0,
+      cq_pass_mark: 0,
+      mcq_pass_mark: 0,
+      practical_pass_mark: 0,
       department: "",
-      year: new Date().getFullYear(),
+      year: filterYear,
       subject_type: "single",
-      parent_id: "",
+      parent_id: null as any,
       assessment_type: "exam",
-      priority: "0",
+      priority: 0,
     });
   };
 
@@ -225,7 +237,12 @@ const NewSubject: React.FC = () => {
           assessment_type: String(row.assessment_type || "exam").toLowerCase(),
           subject_group: row.subject_group ? String(row.subject_group).trim() : null,
           priority: Number(row.priority) || 0,
-          // Remove parent_id from Excel input
+          cq_mark: Number(row.cq_mark) || 0,
+          mcq_mark: Number(row.mcq_mark) || 0,
+          practical_mark: Number(row.practical_mark) || 0,
+          cq_pass_mark: Number(row.cq_pass_mark) || 0,
+          mcq_pass_mark: Number(row.mcq_pass_mark) || 0,
+          practical_pass_mark: Number(row.practical_pass_mark) || 0,
         };
       });
       // Step 2: Validate rows
@@ -236,7 +253,7 @@ const NewSubject: React.FC = () => {
         if (!row.name) errors.push(`Row ${rowNum}: Subject name required.`);
         if (!row.class || isNaN(row.class) || row.class < 6 || row.class > 10) errors.push(`Row ${rowNum}: Class must be 6-10.`);
         if (!row.full_mark || isNaN(row.full_mark) || row.full_mark <= 0) errors.push(`Row ${rowNum}: Full mark required.`);
-        if (row.assessment_type === "exam" && (!row.pass_mark || isNaN(row.pass_mark) || row.pass_mark <= 0)) errors.push(`Row ${rowNum}: Pass mark required for exam.`);
+        if (row.assessment_type === "exam" && (row.pass_mark === null || isNaN(row.pass_mark) || row.pass_mark < 0)) errors.push(`Row ${rowNum}: Pass mark required for exam.`);
         if (!row.year || isNaN(row.year) || row.year < 2000) errors.push(`Row ${rowNum}: Invalid year.`);
         if (!["exam", "continuous"].includes(row.assessment_type)) errors.push(`Row ${rowNum}: Invalid assessment type.`);
         if (row.priority < 0) errors.push(`Row ${rowNum}: Priority must be non-negative.`);
@@ -354,21 +371,21 @@ const NewSubject: React.FC = () => {
     reset({
       id: subject.id,
       name: subject.name,
-      class: String(subject.class),
-      full_mark: String(subject.full_mark),
-      pass_mark: String(subject.pass_mark),
-      cq_mark: String(subject.cq_mark || ""),
-      mcq_mark: String(subject.mcq_mark || ""),
-      practical_mark: String(subject.practical_mark || ""),
-      cq_pass_mark: String(subject.cq_pass_mark || ""),
-      mcq_pass_mark: String(subject.mcq_pass_mark || ""),
-      practical_pass_mark: String(subject.practical_pass_mark || ""),
+      class: subject.class as any,
+      full_mark: subject.full_mark as any,
+      pass_mark: subject.pass_mark as any,
+      cq_mark: (subject.cq_mark || 0) as any,
+      mcq_mark: (subject.mcq_mark || 0) as any,
+      practical_mark: (subject.practical_mark || 0) as any,
+      cq_pass_mark: (subject.cq_pass_mark || 0) as any,
+      mcq_pass_mark: (subject.mcq_pass_mark || 0) as any,
+      practical_pass_mark: (subject.practical_pass_mark || 0) as any,
       department: subject.department || "",
       year: subject.year,
       subject_type: subject.subject_type,
-      parent_id: subject.parent_id ? String(subject.parent_id) : "",
+      parent_id: (subject.parent_id || null) as any,
       assessment_type: subject.assessment_type,
-      priority: String(subject.priority),
+      priority: subject.priority as any,
     });
     setUploadMethod("form");
     setShowForm(true);
@@ -392,17 +409,32 @@ const NewSubject: React.FC = () => {
   };
 
   const stats = useMemo(() => {
+    const yearSubjects = subjects.filter(s => s.year === filterYear);
     return {
-      total: subjects.length,
-      classes: new Set(subjects.map((s) => s.class)).size,
+      total: yearSubjects.length,
+      // classes: new Set(subjects.map((s) => s.class)).size,
       // avgPassMark: subjects.length > 0
       //   ? Math.round(subjects.reduce((acc, s) => acc + s.pass_mark, 0) / subjects.length)
       //   : 0,
     };
-  }, [subjects]);
+  }, [subjects, filterYear]);
 
   const filteredSubjects = useMemo(() => {
-    const baseFilter = subjects.filter((subject) => subject.year === filterYear);
+    let baseFilter = subjects.filter((subject) => subject.year === filterYear);
+
+    if (filterClass !== "all") {
+      baseFilter = baseFilter.filter((s) => s.class === filterClass);
+    }
+    if (filterDepartment !== "all") {
+      baseFilter = baseFilter.filter((s) => (s.department || "") === filterDepartment);
+    }
+    if (filterType !== "all") {
+      baseFilter = baseFilter.filter((s) => s.subject_type === filterType);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      baseFilter = baseFilter.filter((s) => s.name.toLowerCase().includes(term));
+    }
 
     // Enhanced sorting logic:
     // 1. Class (ascending)
@@ -459,7 +491,7 @@ const NewSubject: React.FC = () => {
     });
 
     return result;
-  }, [subjects, filterYear]);
+  }, [subjects, filterYear, filterClass, filterDepartment, filterType, searchTerm]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -478,8 +510,8 @@ const NewSubject: React.FC = () => {
         )}
       </PageHeader>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Subjects" value={stats.total} loading={isLoading} />
-        <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} />
+        <StatsCard label="Total Subjects" value={filteredSubjects.length === stats.total ? `${stats.total}` : `${filteredSubjects.length}/${stats.total}`} loading={isLoading} />
+        {/* <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} /> */}
         {/* <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} /> */}
       </div>
 
@@ -515,7 +547,7 @@ const NewSubject: React.FC = () => {
 
           <div className="space-y-6">
             {uploadMethod === "form" ? (
-              <form onSubmit={handleSub(onSubmit, onError)} className="space-y-4">
+              <form onSubmit={handleSub(onSubmit as any, onError)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Subject Name <span className="text-destructive">*</span></label>
@@ -818,20 +850,92 @@ const NewSubject: React.FC = () => {
       )}
 
       <SectionCard className="mb-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-          <div className="flex-1 w-full max-w-sm">
-            <label className="text-sm font-medium mb-1.5 block">Year Filter</label>
-            <div className="flex items-center gap-2">
-              <select
-                value={filterYear}
-                onChange={(e) => setFilterYear(Number(e.target.value))}
-                className="w-full sm:w-40 px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
-              >
-                <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
-                <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
-                <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
-              </select>
+        <div className="flex flex-wrap items-end gap-4 mb-6">
+          <div className="w-full sm:w-40">
+            <label className="text-sm font-medium mb-1.5 block">Year</label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(Number(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+            >
+              <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
+              <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+              <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
+            </select>
+          </div>
+
+          <div className="w-full sm:w-40">
+            <label className="text-sm font-medium mb-1.5 block">Class</label>
+            <select
+              value={filterClass}
+              onChange={(e) => setFilterClass(e.target.value === "all" ? "all" : Number(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+            >
+              <option value="all">All Classes</option>
+              {[6, 7, 8, 9, 10].map(c => (
+                <option key={c} value={c}>Class {c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-full sm:w-40">
+            <label className="text-sm font-medium mb-1.5 block">Department</label>
+            <select
+              value={filterDepartment}
+              disabled={filterClass !== "all" && (filterClass as number) < 9}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:bg-muted/50"
+            >
+              <option value="all">All Departments</option>
+              <option value="">General</option>
+              {VALID_DEPARTMENTS.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-full sm:w-40">
+            <label className="text-sm font-medium mb-1.5 block">Type</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+            >
+              <option value="all">All Types</option>
+              <option value="main">Main (Groups)</option>
+              <option value="paper">Paper (Parts)</option>
+              <option value="single">Single Subject</option>
+            </select>
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium mb-1.5 block">Search Subject</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-10"
+              />
             </div>
+          </div>
+
+          <div className="flex items-end h-10 pb-0.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFilterYear(new Date().getFullYear());
+                setFilterClass("all");
+                setFilterDepartment("all");
+                setFilterType("all");
+                setSearchTerm("");
+              }}
+              className="text-xs h-9"
+            >
+              Reset
+            </Button>
           </div>
         </div>
 
@@ -931,7 +1035,7 @@ const NewSubject: React.FC = () => {
               ) : (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                    No subjects found for {filterYear}. Try adjusting your filters or adding a new subject.
+                    No subjects found with the selected filters. Try adjusting your filters or adding a new subject.
                   </td>
                 </tr>
               )}
