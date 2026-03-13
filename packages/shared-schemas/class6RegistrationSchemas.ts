@@ -353,9 +353,43 @@ export const class6RegistrationStatusSchema = z.object({
   }),
 });
 
+export const class6RegistrationSettingsSchema = z.object({
+  a_sec_roll: z.string().nullable().optional(),
+  b_sec_roll: z.string().nullable().optional(),
+  class6_year: z.union([z.string(), z.number()]).optional(),
+  reg_open: z.union([z.string(), z.boolean()]).optional(),
+  instruction_for_a: z.string().optional(),
+  instruction_for_b: z.string().optional(),
+  attachment_instruction: z.string().optional(),
+  notice_key: z.string().nullable().optional(),
+  classmates: z.string().nullable().optional(),
+  classmates_source: z.enum(["default", "custom"]).optional(),
+});
+
+export const registrationNoticeUploadSchema = z.object({
+  filename: z.string().min(1, "Filename is required"),
+  filetype: z.string().min(1, "Filetype is required"),
+});
+
+export const registrationPhotoUploadSchema = z.object({
+  filename: z.string().min(1, "Filename is required"),
+  filetype: z.string().min(1, "Filetype is required"),
+  section: z.string().optional(),
+  roll: z.string().optional(),
+});
+
 export type Class6Registration = z.infer<typeof registrationSchema>;
 export type Class6RegistrationStatusData = z.infer<
   typeof class6RegistrationStatusSchema
+>;
+export type Class6RegistrationSettingsData = z.infer<
+  typeof class6RegistrationSettingsSchema
+>;
+export type RegistrationNoticeUploadData = z.infer<
+  typeof registrationNoticeUploadSchema
+>;
+export type RegistrationPhotoUploadData = z.infer<
+  typeof registrationPhotoUploadSchema
 >;
 
 export const registrationDefaultValues: Class6Registration = {
