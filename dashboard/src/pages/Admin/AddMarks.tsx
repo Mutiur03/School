@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useForm } from "react-hook-form";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
+import ErrorMessage from "@/components/ErrorMessage";
 
 interface Student {
   student_id: number;
@@ -17,7 +18,6 @@ interface Subject {
   name: string;
   class: number;
   department: string;
-  teacher_name: string;
   cq_mark: number;
   mcq_mark: number;
   practical_mark: number;
@@ -81,6 +81,7 @@ const AddMarks = () => {
     handleSubmit,
     watch,
     setValue,
+    formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       year: new Date().getFullYear(),
@@ -486,7 +487,10 @@ const AddMarks = () => {
       </h1>
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit, (err) => {
+          console.error("Form errors:", err);
+          toast.error("Please fill all required fields");
+        })}
         className="space-y-4 sm:space-y-6"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-card p-4 sm:p-6 rounded-lg shadow">
@@ -505,6 +509,7 @@ const AddMarks = () => {
                 </option>
               ))}
             </select>
+            <ErrorMessage message={errors.year?.message} />
           </div>
 
           <div className="col-span-1">
@@ -528,6 +533,7 @@ const AddMarks = () => {
                 </option>
               ))}
             </select>
+            <ErrorMessage message={errors.examName?.message} />
           </div>
 
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
@@ -561,6 +567,7 @@ const AddMarks = () => {
                   ))
               )}
             </select>
+            <ErrorMessage message={errors.level?.message} />
           </div>
 
           <div className="col-span-1">
@@ -573,7 +580,7 @@ const AddMarks = () => {
               disabled={!level || loading.initial}
             >
               {Number(level) >= 9
-                ? ["", "Science", "Arts", "Commerce"].map((dept) => (
+                ? ["", "Science", "Humanities", "Commerce"].map((dept) => (
                   <option key={dept} value={dept}>
                     {dept ? dept : "All Departments"}
                   </option>
@@ -657,13 +664,6 @@ const AddMarks = () => {
                       {subjectsForClass.find((sub) => sub.id == specific)?.name}
                     </div>
                     <div className="text-xs text-blue-700 dark:text-blue-200 mt-1">
-                      Teacher:{" "}
-                      {
-                        subjectsForClass.find((sub) => sub.id == specific)
-                          ?.teacher_name
-                      }
-                    </div>
-                    <div>
                       Total Marks:{" "}
                       {subjectsForClass.find((sub) => sub.id == specific)
                         ?.full_mark || 0}{" "}
@@ -678,16 +678,6 @@ const AddMarks = () => {
                           {
                             subjectsForClass.find((sub) => sub.id == specific)
                               ?.name
-                          }
-                        </td>
-                        <td
-                          className="px-6 py-2 text-sm text-blue-700 dark:text-blue-200"
-                          colSpan={2}
-                        >
-                          Teacher:{" "}
-                          {
-                            subjectsForClass.find((sub) => sub.id == specific)
-                              ?.teacher_name
                           }
                         </td>
                         <td
