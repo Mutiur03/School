@@ -393,7 +393,7 @@ const NewSubject: React.FC = () => {
   };
 
   const handleCancel = (): void => {
-    reset(); // Assuming reset() is available from useForm
+    resetFormData();
     setUploadMethod("form");
     setFileUploaded(false);
     setJsonData(null);

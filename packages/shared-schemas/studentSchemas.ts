@@ -14,6 +14,7 @@ import {
   CLASS_NUM,
   LOGIN_ID,
   VALID_DEPARTMENTS,
+  RELIGION,
 } from "./regex.js";
 
 export const studentLoginSchema = z.object({
@@ -102,7 +103,7 @@ export const studentFormSchema = z
       .refine((value) => !value || ADDRESS_TEXT.test(value), {
         message: "Enter a valid district",
       }),
-    religion: z.string().trim().min(1, "Religion is required"),
+    religion: z.enum(RELIGION).or(z.literal("")),
     dob: z
       .string()
       .trim()
@@ -119,6 +120,13 @@ export const studentFormSchema = z
     image: z.string().optional(),
   })
   .superRefine((value, ctx) => {
+    if (!value.religion) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["religion"],
+        message: "Religion is required",
+      });
+    }
     const classNumber = Number(value.class);
     if (
       (classNumber === 9 || classNumber === 10) &&
