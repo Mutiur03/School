@@ -36,13 +36,14 @@ export class StudentService {
       section?: string;
       search?: string;
       religion?: string;
+      roll?: number;
     },
     userOptions: {
       role?: string;
       levels?: Array<{ class_name: number; section: string; year: number }>;
     } = {},
   ) {
-    const { year, page, limit, level, section, search, religion } = params;
+    const { year, page, limit, level, section, search, religion, roll } = params;
 
     const normalizedPage =
       Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
@@ -61,6 +62,7 @@ export class StudentService {
         ? { class: level }
         : {}),
       ...(normalizedSection ? { section: normalizedSection } : {}),
+      ...(!Number.isNaN(roll as number) && roll !== undefined ? { roll } : {}),
     };
 
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
@@ -133,7 +135,7 @@ export class StudentService {
       };
     }
 
-    const [total, filtered, enrollments] = await prisma.$transaction([
+    const [total, filtered, enrollments, allOptions] = await prisma.$transaction([
       prisma.student_enrollments.count({
         where: baseWhere,
       }),
@@ -147,7 +149,26 @@ export class StudentService {
         skip,
         take: normalizedLimit,
       }),
+      prisma.student_enrollments.findMany({
+        where: baseWhere,
+        select: { class: true, section: true, roll: true },
+      }),
     ]);
+
+    const availableClasses = Array.from(new Set(allOptions.map((o) => o.class))).sort((a, b) => a - b);
+
+    const availableSections = Array.from(new Set(allOptions.map((o) => o.section))).sort();
+
+    const hasLevel = typeof level === "number" && !Number.isNaN(level);
+    const hasSection = !!normalizedSection;
+
+    const availableRolls = Array.from(
+      new Set(
+        allOptions
+          .filter((o) => (!hasLevel || o.class === level) && (!hasSection || o.section === normalizedSection))
+          .map((o) => o.roll),
+      ),
+    ).sort((a, b) => a - b);
 
     const data = enrollments.map((enrollment: any) => {
       const { student, ...enrollmentData } = enrollment;
@@ -171,6 +192,9 @@ export class StudentService {
         page: normalizedPage,
         limit: normalizedLimit,
         totalPages,
+        availableClasses,
+        availableSections,
+        availableRolls,
       },
     };
   }
