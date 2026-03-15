@@ -8,6 +8,9 @@ export type StudentsListMeta = {
   page: number;
   limit: number;
   totalPages: number;
+  availableClasses?: number[];
+  availableSections?: string[];
+  availableRolls?: number[];
 };
 
 export type StudentsListResponse = {
@@ -22,15 +25,16 @@ export const useStudents = (params: {
   level?: number;
   section?: string;
   religion?: string;
+  roll?: number;
   search?: string;
 }) => {
-  const { year, page, limit, level, section, religion, search } = params;
+  const { year, page, limit, level, section, religion, roll, search } = params;
 
   return useQuery<StudentsListResponse>({
-    queryKey: ["students", year, { page, limit, level, section, religion, search }],
+    queryKey: ["students", year, { page, limit, level, section, religion, roll, search }],
     queryFn: async () => {
       const response = await axios.get(`/api/students`, {
-        params: { year, page, limit, level, section, religion, search },
+        params: { year, page, limit, level, section, religion, roll, search },
       });
 
       const payload = response.data?.data as StudentsListResponse | undefined;
@@ -44,6 +48,9 @@ export const useStudents = (params: {
         page: payload?.meta?.page ?? page,
         limit: payload?.meta?.limit ?? limit,
         totalPages: payload?.meta?.totalPages ?? 0,
+        availableClasses: payload?.meta?.availableClasses,
+        availableSections: payload?.meta?.availableSections,
+        availableRolls: payload?.meta?.availableRolls,
       };
 
       return { data: list, meta } satisfies StudentsListResponse;

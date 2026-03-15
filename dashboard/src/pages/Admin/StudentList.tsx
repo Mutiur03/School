@@ -171,7 +171,7 @@ function StudentList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
-  const [religionFilter, setReligionFilter] = useState("");
+  const [rollFilter, setRollFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -283,7 +283,7 @@ function StudentList() {
     limit,
     level: classFilter ? Number(classFilter) : undefined,
     section: sectionFilter || undefined,
-    religion: religionFilter || undefined,
+    roll: rollFilter ? Number(rollFilter) : undefined,
     search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
   });
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
@@ -296,7 +296,20 @@ function StudentList() {
 
   useEffect(() => {
     setPage(1);
-  }, [year, classFilter, sectionFilter, religionFilter, deferredSearchQuery]);
+  }, [year, classFilter, sectionFilter, rollFilter, deferredSearchQuery]);
+
+  // Sequential filter auto-reset logic
+  useEffect(() => {
+    if (!loading && studentsResponse && meta?.filtered === 0) {
+      if (rollFilter) {
+        setRollFilter("");
+      } else if (sectionFilter) {
+        setSectionFilter("");
+      } else if (classFilter) {
+        setClassFilter("");
+      }
+    }
+  }, [loading, studentsResponse, meta?.filtered, rollFilter, sectionFilter, classFilter]);
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
@@ -388,14 +401,17 @@ function StudentList() {
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
 
-  const sortedUniqueClasses = useMemo(
-    () => Array.from({ length: 5 }, (_, i) => i + 6),
-    [],
-  );
-  const sortedUniqueSections = useMemo(
-    () => Array.from({ length: 2 }, (_, i) => String.fromCharCode(65 + i)),
-    [],
-  );
+  const sortedUniqueClasses = useMemo(() => {
+    return (meta?.availableClasses || []).sort((a, b) => a - b);
+  }, [meta?.availableClasses]);
+
+  const sortedUniqueSections = useMemo(() => {
+    return (meta?.availableSections || []).sort();
+  }, [meta?.availableSections]);
+
+  const sortedUniqueRolls = useMemo(() => {
+    return (meta?.availableRolls || []).sort((a, b) => a - b);
+  }, [meta?.availableRolls]);
 
   const visibleStudentIds = useMemo(() => students.map((student) => student.id), [students]);
   const visibleStudentIdSet = useMemo(() => new Set(visibleStudentIds), [visibleStudentIds]);
@@ -1343,16 +1359,16 @@ function StudentList() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Religion</label>
+            <label className="block text-sm font-medium mb-1">Roll</label>
             <select
               className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
-              value={religionFilter}
-              onChange={(e) => setReligionFilter(e.target.value)}
+              value={rollFilter}
+              onChange={(e) => setRollFilter(e.target.value)}
             >
-              <option value="">All Religions</option>
-              {RELIGION.map((religion: string) => (
-                <option key={religion} value={religion}>
-                  {religion}
+              <option value="">All Rolls</option>
+              {sortedUniqueRolls.map((roll: number) => (
+                <option key={roll} value={roll}>
+                  Roll {roll}
                 </option>
               ))}
             </select>
