@@ -52,7 +52,7 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   return duplicates;
 };
 
-const formatDateLong = (dateStr: string) => {
+export const formatDateLong = (dateStr: string) => {
   if (!dateStr) return "";
   let d, m, y;
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
@@ -147,7 +147,7 @@ export class RegistrationFormClass6Service {
       const skip = (normalizedPage - 1) * normalizedLimit;
 
       const [total, registrations] = await prisma.$transaction([
-        prisma.student_registration_class6.count({ where }),
+        prisma.student_registration_class6.count({ where: { class6_year: Number(class6_year) } }),
         prisma.student_registration_class6.findMany({
           where,
           orderBy: { created_at: "desc" },

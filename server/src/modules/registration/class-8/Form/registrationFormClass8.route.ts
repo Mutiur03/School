@@ -25,6 +25,16 @@ router.post(
   validate(registrationPhotoUploadSchema),
   RegistrationFormClass8Controller.getRegistrationPhotoUploadUrl,
 );
+router.get(
+  "/export",
+  AuthMiddleware.authenticate(["admin"]),
+  RegistrationFormClass8Controller.exportRegistrations,
+);
+router.get(
+  "/export-photos",
+  AuthMiddleware.authenticate(["admin"]),
+  RegistrationFormClass8Controller.exportRegistrationPhotos, 
+);
 router.get("/:id", RegistrationFormClass8Controller.getRegistrationById);
 router.put(
   "/:id/status",
@@ -40,17 +50,6 @@ router.delete(
   "/:id",
   AuthMiddleware.authenticate(["admin"]),
   RegistrationFormClass8Controller.deleteRegistration,
-);
-
-router.get(
-  "/export",
-  AuthMiddleware.authenticate(["admin"]),
-  RegistrationFormClass8Controller.exportRegistrations,
-);
-router.get(
-  "/export-photos",
-  AuthMiddleware.authenticate(["admin"]),
-  RegistrationFormClass8Controller.exportRegistrationPhotos, 
 );
 router.get("/:id/pdf", RegistrationFormClass8Controller.downloadRegistrationPDF);
 
