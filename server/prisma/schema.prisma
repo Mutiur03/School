@@ -663,6 +663,7 @@ model student_registration_class6 {
   photo                    String   @db.VarChar(255)
   class6_year              Int
   nearby_student_info      String?  @db.VarChar(200)
+  scout_status             String?  @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -737,6 +738,7 @@ model student_registration_class8 {
   nearby_student_info      String?  @db.VarChar(200)
   registration_no          String   @db.VarChar(50)
   class6_academic_session  String   @db.VarChar(50)
+  scout_status             String?  @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])

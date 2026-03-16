@@ -102,6 +102,7 @@ export const registrationDefaultValuesClass8: Class8Registration = {
   nearby_student_info: "",
   registration_no: "",
   class6_academic_session: "",
+  scout_status: "",
   photo: "",
 };
 

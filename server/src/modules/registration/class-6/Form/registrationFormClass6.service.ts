@@ -1,9 +1,5 @@
 import { prisma } from "@/config/prisma.js";
-import {
-  getUploadUrl,
-  deleteFromR2,
-  getDownloadUrl,
-} from "@/config/r2.js";
+import { getUploadUrl, deleteFromR2, getDownloadUrl } from "@/config/r2.js";
 import path from "path";
 import * as XLSX from "xlsx";
 import archiver from "archiver";
