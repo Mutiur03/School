@@ -53,3 +53,6 @@ export { default as AdmissionFormNew } from "./pages/AdmissionFormNew";
 export { default as RegistrationClass6 } from "./pages/RegistrationClass6";
 export { default as RegClass6 } from "./pages/RegClass6";
 export { default as ConfirmationClass6 } from "./pages/ConfirmationClass6";
+export { default as RegistrationClass8 } from "./pages/RegistrationClass8";
+export { default as ConfirmationClass8 } from "./pages/ConfirmationClass8";
+export { default as RegClass8 } from "./pages/RegClass8";

@@ -16,10 +16,6 @@ import ErrorMessage from "@/components/ErrorMessage";
 import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject } from "@/queries/subject.queries";
 import type { Subject } from "@/types/subjects";
 
-// Subject interface imported from @/types/subjects
-
-// FormData interface removed in favor of SubjectFormSchemaData from shared-schemas
-
 const NewSubject: React.FC = () => {
   const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
   const addSubjectsMutation = useAddSubjects();

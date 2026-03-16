@@ -13,6 +13,7 @@ import {
   AtAGlance,
   ConfirmationAdmission,
   ConfirmationClass6,
+  ConfirmationClass8,
   ConfirmationReg,
   Event,
   ExamRoutinePage,
@@ -22,9 +23,11 @@ import {
   Images,
   Notice,
   RegClass6,
+  RegClass8,
   RegSSC,
   Registration,
   RegistrationClass6,
+  RegistrationClass8,
   StaffList,
   TeacherList,
 } from "@school/client-ui";
@@ -65,6 +68,10 @@ function App() {
           <Route path="/registration/class-6/form" element={<RegistrationClass6 />} />
           <Route path="/registration/class-6/form/:id" element={<RegistrationClass6 />} />
           <Route path="/registration/class-6/confirm/:id" element={<ConfirmationClass6 />} />
+          <Route path="/registration/class-8" element={<RegClass8 />} />
+          <Route path="/registration/class-8/form" element={<RegistrationClass8 />} />
+          <Route path="/registration/class-8/form/:id" element={<RegistrationClass8 />} />
+          <Route path="/registration/class-8/confirm/:id" element={<ConfirmationClass8 />} />
           <Route path="/admission/notice" element={<Admission />} />
           <Route path="/admission" element={<AdmissionFormNotice />} />
           <Route path="/admission/form" element={<AdmissionFormNew />} />
