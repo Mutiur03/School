@@ -13,6 +13,8 @@ import {
     Settings,
     Users,
     Loader2,
+    CheckCircle2,
+    AlertCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
@@ -137,6 +139,7 @@ const Class8RegForm = () => {
         },
         placeholderData: keepPreviousData,
         staleTime: 2 * 60 * 1000,
+        refetchOnWindowFocus: true,
     });
 
     const registrations = useMemo(() => registrationsResponse?.data ?? [], [registrationsResponse]);
@@ -318,25 +321,41 @@ const Class8RegForm = () => {
             />
 
             {activeTab === "settings" ? (
-                <SectionCard title="Registration Settings" icon={<Settings size={20} />}>
+                <SectionCard
+                    title="Registration Settings"
+                    icon={<Settings size={20} />}
+                >
                     {settingsLoading ? (
-                        <div className="py-20 flex justify-center"><Loader2 size={40} className="animate-spin text-primary" /></div>
+                        <div className="py-20 flex justify-center">
+                            <Loader2 size={40} className="animate-spin text-primary" />
+                        </div>
                     ) : (
                         <form onSubmit={handleSettingsSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Section A Roll Range (e.g., 01-50)</label>
-                                    <Input {...register("a_sec_roll")} placeholder="01-50" />
+                                    <Input
+                                        type="text"
+                                        {...register("a_sec_roll")}
+                                        placeholder="01-50"
+                                    />
                                     {errors.a_sec_roll && <p className="text-xs text-red-500 mt-1">{errors.a_sec_roll.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Section B Roll Range</label>
-                                    <Input {...register("b_sec_roll")} placeholder="51-100" />
+                                    <Input
+                                        type="text"
+                                        {...register("b_sec_roll")}
+                                        placeholder="51-100"
+                                    />
                                     {errors.b_sec_roll && <p className="text-xs text-red-500 mt-1">{errors.b_sec_roll.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Academic Year</label>
-                                    <Input {...register("class8_year")} />
+                                    <Input
+                                        type="text"
+                                        {...register("class8_year")}
+                                    />
                                     {errors.class8_year && <p className="text-xs text-red-500 mt-1">{errors.class8_year.message}</p>}
                                 </div>
                                 <div className="flex items-end">
@@ -351,6 +370,7 @@ const Class8RegForm = () => {
                                     {errors.reg_open && <p className="text-xs text-red-500 mt-1">{errors.reg_open.message}</p>}
                                 </div>
                             </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-1">Notice File (PDF)</label>
                                 <div className="mt-1 flex items-center gap-4">
@@ -358,7 +378,7 @@ const Class8RegForm = () => {
                                         type="file"
                                         accept=".pdf"
                                         onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
-                                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all cursor-pointer"
+                                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                     />
                                     {settingsForm.notice_key && (
                                         <a
@@ -372,43 +392,71 @@ const Class8RegForm = () => {
                                     )}
                                 </div>
                             </div>
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section A</label>
-                                    <Textarea {...register("instruction_for_a")} className="h-24" />
+                                    <Textarea
+                                        {...register("instruction_for_a")}
+                                        className="h-24"
+                                    />
                                     {errors.instruction_for_a && <p className="text-xs text-red-500 mt-1">{errors.instruction_for_a.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Instruction for Section B</label>
-                                    <Textarea {...register("instruction_for_b")} className="h-24" />
+                                    <Textarea
+                                        {...register("instruction_for_b")}
+                                        className="h-24"
+                                    />
                                     {errors.instruction_for_b && <p className="text-xs text-red-500 mt-1">{errors.instruction_for_b.message}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Classmates List Source</label>
-                                    <select {...register("classmates_source")} className="block w-full border rounded-md px-3 py-2 text-sm bg-card">
+                                    <select
+                                        {...register("classmates_source")}
+                                        className="block w-full border rounded-md px-3 py-2 text-sm bg-card border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    >
                                         <option value="default">Default (Current Student List)</option>
                                         <option value="custom">Manual (Custom List)</option>
                                     </select>
                                     {errors.classmates_source && <p className="text-xs text-red-500 mt-1">{errors.classmates_source.message}</p>}
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {settingsForm.classmates_source === "custom"
+                                            ? "Enter your own student names."
+                                            : "Automatically uses names from the Class 6 enrollment list."}
+                                    </p>
                                 </div>
                                 {settingsForm.classmates_source === "custom" && (
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1">Manual Classmates List</label>
-                                        <Textarea {...register("classmates")} placeholder=" আব্দুল করিম, রহিম উদ্দিন" className="h-24" />
+                                        <Textarea
+                                            {...register("classmates")}
+                                            placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
+                                            className="h-24"
+                                        />
                                         {errors.classmates && <p className="text-xs text-red-500 mt-1">{errors.classmates.message}</p>}
+                                        <p className="text-xs text-muted-foreground mt-1">Students will be able to select from this list in the registration form's nearby student field.</p>
                                     </div>
                                 )}
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Attachment Instructions</label>
-                                    <Textarea {...register("attachment_instruction")} className="h-24" />
+                                    <Textarea
+                                        {...register("attachment_instruction")}
+                                        className="h-24"
+                                    />
                                     {errors.attachment_instruction && <p className="text-xs text-red-500 mt-1">{errors.attachment_instruction.message}</p>}
                                 </div>
                             </div>
+
                             <div className="flex justify-end pt-4">
-                                <Button type="submit" disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}>
+                                <button
+                                    type="submit"
+                                    disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}
+                                    className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                >
                                     {settingsMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
                                     Save Settings
-                                </Button>
+                                </button>
                             </div>
                         </form>
                     )}
@@ -416,9 +464,23 @@ const Class8RegForm = () => {
             ) : (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <StatsCard label="Total Registrations" value={renderCount(stats.total.filtered, stats.total.all)} loading={registrationsLoading} />
-                        <StatsCard label="Pending" value={renderCount(stats.pending.filtered, stats.pending.all)} color="amber" loading={registrationsLoading} />
-                        <StatsCard label="Approved" value={renderCount(stats.approved.filtered, stats.approved.all)} color="emerald" loading={registrationsLoading} />
+                        <StatsCard
+                            label="Total Registrations"
+                            value={renderCount(stats.total.filtered, stats.total.all)}
+                            loading={registrationsLoading}
+                        />
+                        <StatsCard
+                            label="Pending"
+                            value={renderCount(stats.pending.filtered, stats.pending.all)}
+                            color="amber"
+                            loading={registrationsLoading}
+                        />
+                        <StatsCard
+                            label="Approved"
+                            value={renderCount(stats.approved.filtered, stats.approved.all)}
+                            color="emerald"
+                            loading={registrationsLoading}
+                        />
                     </div>
 
                     <SectionCard>
@@ -484,14 +546,20 @@ const Class8RegForm = () => {
                                 </select>
                             </div>
                             <div className="flex gap-2">
-                                <Button onClick={() => handleExport("sheet")} className="bg-emerald-600 hover:bg-emerald-700 h-10">
+                                <button
+                                    onClick={() => handleExport("sheet")}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                                >
                                     <FileText size={18} />
                                     <span>Export Sheet</span>
-                                </Button>
-                                <Button onClick={() => handleExport("photos")} className="h-10">
+                                </button>
+                                <button
+                                    onClick={() => handleExport("photos")}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                                >
                                     <ImageIcon size={18} />
                                     <span>Export Photos</span>
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </SectionCard>
@@ -515,7 +583,7 @@ const Class8RegForm = () => {
                                             <td colSpan={6} className="py-12 text-center">
                                                 <div className="flex flex-col justify-center items-center gap-2">
                                                     <Loader2 className="animate-spin h-8 w-8 text-primary" />
-                                                    <p className="text-sm text-muted-foreground">Loading registrations...</p>
+                                                    <p className="text-sm text-muted-foreground dark:text-gray-400">Loading registrations...</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -531,13 +599,17 @@ const Class8RegForm = () => {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         {reg.photo ? (
-                                                            <img src={getFileUrl(reg.photo)} className="w-10 h-10 rounded-full object-cover border border-border" alt="" />
+                                                            <img src={getFileUrl(reg.photo)} className="w-10 h-10 rounded-full object-cover  border border-border" alt="" />
                                                         ) : (
                                                             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground"><Users size={18} /></div>
                                                         )}
                                                         <div>
-                                                            <div className="font-medium text-foreground">{reg.student_name_en}</div>
-                                                            <div className="text-sm text-muted-foreground">{reg.student_name_bn}</div>
+                                                            <div className="font-medium text-foreground">
+                                                                {reg.student_name_en}
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {reg.student_name_bn}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -546,15 +618,29 @@ const Class8RegForm = () => {
                                                         {reg.section || "-"}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-mono font-medium text-muted-foreground">{reg.roll || "-"}</td>
+                                                <td className="px-6 py-4 text-center font-mono font-medium text-muted-foreground">
+                                                    {reg.roll || "-"}
+                                                </td>
                                                 <td className="px-6 py-4"><StatusBadge status={reg.status} /></td>
                                                 <td className="px-6 py-4 text-sm text-muted-foreground">
                                                     {formatDateWithTime(reg.created_at)}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="flex justify-center gap-2">
-                                                        <ActionButton action="view" onClick={() => { setSelectedReg(reg); setShowDetails(true); }} />
-                                                        <ActionButton action="edit" onClick={() => { setEditFormData({ id: reg.id, status: reg.status }); setShowEditModal(true); }} />
+                                                    <div className="flex justify-end gap-2">
+                                                        <ActionButton
+                                                            action="view"
+                                                            onClick={() => {
+                                                                setSelectedReg(reg);
+                                                                setShowDetails(true);
+                                                            }}
+                                                        />
+                                                        <ActionButton
+                                                            action="edit"
+                                                            onClick={() => {
+                                                                setEditFormData({ id: reg.id, status: reg.status });
+                                                                setShowEditModal(true);
+                                                            }}
+                                                        />
                                                         <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
                                                     </div>
                                                 </td>
@@ -626,7 +712,9 @@ const Class8RegForm = () => {
                                     }
                                     return pages.map((p, idx) =>
                                         p === "..." ? (
-                                            <span key={idx} className="px-2 text-muted-foreground">...</span>
+                                            <span key={idx} className="px-2 text-muted-foreground">
+                                                ...
+                                            </span>
                                         ) : (
                                             <Button
                                                 key={idx}
@@ -648,79 +736,332 @@ const Class8RegForm = () => {
 
             {showDetails && selectedReg && (
                 <Popup open onOpenChange={(o) => !o && setShowDetails(false)}>
-                    <div className="flex justify-between items-center p-6 bg-blue-600 text-white rounded-t-xl">
-                        <h3 className="text-xl font-bold">Registration Details (Class 8)</h3>
-                        <button onClick={() => setShowDetails(false)}><XCircle size={24} /></button>
+                    <div className="flex justify-between items-center p-6 border-b border-border dark:border-gray-700 bg-linear-to-r from-blue-600 to-blue-500 text-white rounded-t-xl">
+                        <div>
+                            <h3 className="text-xl font-bold">Registration Details</h3>
+                            <p className="text-sm opacity-90 mt-1">Full student information preview</p>
+                        </div>
+                        <button
+                            onClick={() => setShowDetails(false)}
+                            className="text-white hover:text-gray-200 transition-colors p-2"
+                        >
+                            <XCircle size={24} />
+                        </button>
                     </div>
+
                     <div className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                             <div className="md:col-span-1">
-                                {selectedReg.photo ? <img src={getFileUrl(selectedReg.photo)} className="w-full aspect-3/4 object-cover rounded-lg shadow-md" alt="Student" /> : <Users size={48} />}
-                                <div className="mt-4"><StatusBadge status={selectedReg.status} /></div>
-                            </div>
-                            <div className="md:col-span-3 space-y-6">
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-blue-50 rounded-xl">
-                                    <div><p className="text-[10px] uppercase font-bold text-primary">Section</p><p className="font-semibold">{selectedReg.section || "-"}</p></div>
-                                    <div><p className="text-[10px] uppercase font-bold text-primary">Roll No</p><p className="font-semibold">{selectedReg.roll || "-"}</p></div>
-                                    <div><p className="text-[10px] uppercase font-bold text-primary">Year</p><p className="font-semibold">{selectedReg.class8_year}</p></div>
-                                    <div><p className="text-[10px] uppercase font-bold text-primary">Rel.</p><p className="font-semibold">{selectedReg.religion || "-"}</p></div>
+                                <div className="bg-muted/50 sticky top-20 dark:bg-gray-900/50 p-4 rounded-xl border border-border dark:border-gray-700 flex flex-col items-center">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Student Photo</h4>
+                                    {selectedReg.photo ? (
+                                        <img
+                                            src={getFileUrl(selectedReg.photo)}
+                                            className="w-full aspect-3/4 object-cover rounded-lg border-2 border-white dark:border-gray-800 shadow-md"
+                                            alt="Student"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = "/placeholder-student.png";
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-full aspect-3/4 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-border dark:border-gray-600">
+                                            <Users size={48} className="text-gray-400" />
+                                        </div>
+                                    )}
+                                    <div className="mt-4 w-full">
+                                        <div className="p-3 bg-card rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold mb-1">Status</p>
+                                            <div className="flex justify-center"><StatusBadge status={selectedReg.status} /></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="border rounded-xl overflow-hidden text-sm">
-                                    <table className="w-full">
-                                        <tbody className="divide-y">
-                                            <tr><td className="px-4 py-2 bg-muted/30">Student (EN)</td><td className="px-4 py-2 font-bold uppercase">{selectedReg.student_name_en}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">Registration No</td><td className="px-4 py-2">{(selectedReg as any).registration_no || "-"}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">Class 6 Session</td><td className="px-4 py-2">{(selectedReg as any).class6_academic_session || "-"}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">Birth Reg</td><td className="px-4 py-2">{selectedReg.birth_reg_no}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">Father</td><td className="px-4 py-2">{selectedReg.father_name_en}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">Mother</td><td className="px-4 py-2">{selectedReg.mother_name_en}</td></tr>
-                                            <tr><td className="px-4 py-2 bg-muted/30">School</td><td className="px-4 py-2">{selectedReg.prev_school_name}</td></tr>
+                            </div>
+
+                            <div className="md:col-span-3 space-y-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/20">
+                                    <div>
+                                        <p className="text-[10px] text-primary dark:text-primary/70 uppercase font-bold">Section</p>
+                                        <p className="font-semibold">{selectedReg.section || "-"}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-primary dark:text-primary/70 uppercase font-bold">Roll No</p>
+                                        <p className="font-semibold">{selectedReg.roll || "-"}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-primary dark:text-primary/70 uppercase font-bold">Academic Year</p>
+                                        <p className="font-semibold">{selectedReg.class8_year}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-primary dark:text-primary/70 uppercase font-bold">Religion</p>
+                                        <p className="font-semibold">{selectedReg.religion || "-"}</p>
+                                    </div>
+                                </div>
+
+                                <div className="border border-border dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                                    <table className="w-full text-sm">
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                            <tr>
+                                                <td colSpan={2} className="bg-muted/50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Personal Information (ব্যক্তিগত তথ্য)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Student Name (EN)</td>
+                                                <td className="px-4 py-2.5 font-bold text-blue-700 dark:text-primary/70 uppercase">{selectedReg.student_name_en}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Birth Reg. No</td>
+                                                <td className="px-4 py-2.5 font-mono">{selectedReg.birth_reg_no}</td>
+                                            </tr>
+
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Date of Birth</td>
+                                                <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Scout Status</td>
+                                                <td className="px-4 py-2.5">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${selectedReg.scout_status === "Yes"
+                                                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                                                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                                                        }`}>
+                                                        {selectedReg.scout_status || "No"}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Registration No</td>
+                                                <td className="px-4 py-2.5 font-mono">{selectedReg.registration_no}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Class 6 Session</td>
+                                                <td className="px-4 py-2.5">{selectedReg.class6_academic_session}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Contact Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p>Email: {selectedReg.email || "-"}</p>
+                                                    <p>Father Ph: {selectedReg.father_phone || "-"}</p>
+                                                    <p>Mother Ph: {selectedReg.mother_phone || "-"}</p>
+                                                </td>
+                                            </tr>
+
+                                            <tr>
+                                                <td colSpan={2} className="bg-muted/50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Parent Information (পিতা-মাতার তথ্য)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Father's Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p><strong>Father's Name (BN):</strong> {selectedReg.father_name_bn}</p>
+                                                    <p><strong>Father's Name (EN):</strong> {selectedReg.father_name_en}</p>
+                                                    <p className="text-xs">NID: {selectedReg.father_nid || "-"}</p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Mother's Info</td>
+                                                <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 text-lg">
+                                                    {selectedReg.mother_name_bn}
+                                                    <span className="block text-sm font-normal text-muted-foreground uppercase mt-1">{selectedReg.mother_name_en}</span>
+                                                    <p className="text-xs">NID: {selectedReg.mother_nid || "-"}</p>
+                                                </td>
+                                            </tr>
+
+                                            <tr>
+                                                <td colSpan={2} className="bg-muted/50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Address Details (ঠিকানা)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30 align-top">Present Address</td>
+                                                <td className="px-4 py-2.5 leading-relaxed">
+                                                    {selectedReg.present_village_road}, {selectedReg.present_post_office}-{selectedReg.present_post_code}, {selectedReg.present_upazila}, {selectedReg.present_district}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30 align-top">Permanent Address</td>
+                                                <td className="px-4 py-2.5 leading-relaxed">
+                                                    {selectedReg.permanent_village_road}, {selectedReg.permanent_post_office}-{selectedReg.permanent_post_code}, {selectedReg.permanent_upazila}, {selectedReg.permanent_district}
+                                                </td>
+                                            </tr>
+
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30 align-top">Nearby Student Info</td>
+                                                <td className="px-4 py-2.5">
+                                                    {selectedReg.nearby_student_info || "Not Applicable"}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan={2} className="bg-muted/50 dark:bg-gray-900/50 px-4 py-2 font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight text-xs">
+                                                    Guardian Info (অভিভাবক)
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30 align-top">Prev. School</td>
+                                                <td className="px-4 py-2.5">
+                                                    <p className="font-bold text-gray-800 dark:text-gray-200 uppercase text-xs">{selectedReg.prev_school_name}</p>
+                                                    <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                                                        {selectedReg.prev_school_upazila}, {selectedReg.prev_school_district}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30 align-top">Guardian</td>
+                                                <td className="px-4 py-2.5">
+                                                    {selectedReg.guardian_name ? (
+                                                        <div className="space-y-1.5">
+                                                            <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                                                {selectedReg.guardian_name} <span className="text-xs font-normal text-muted-foreground">({selectedReg.guardian_relation})</span>
+                                                            </p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                                                <p><span className="text-gray-400">Phone:</span> {selectedReg.guardian_phone || "-"}</p>
+                                                                <p><span className="text-gray-400">NID:</span> {selectedReg.guardian_nid || "-"}</p>
+                                                            </div>
+                                                            {(selectedReg.guardian_village_road || selectedReg.guardian_district) && (
+                                                                <div className="pt-1 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+                                                                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Guardian Address</p>
+                                                                    <p className="text-xs leading-relaxed text-muted-foreground dark:text-gray-400">
+                                                                        {selectedReg.guardian_village_road}, {selectedReg.guardian_post_office}-{selectedReg.guardian_post_code}, {selectedReg.guardian_upazila}, {selectedReg.guardian_district}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic">Parent (No separate guardian specified)</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">System Info</td>
+                                                <td className="px-4 py-2.5 text-[10px] text-muted-foreground">
+                                                    <p>ID: {selectedReg.id}</p>
+                                                    <p>Submitted: {formatDateWithTime(selectedReg.created_at)}</p>
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="flex gap-2 pt-4">
-                                    <Button onClick={() => handlePreviewPDF(selectedReg.id)} className="bg-violet-600"><FileText size={18} /> Preview PDF</Button>
-                                    <Button onClick={async () => {
-                                        if (!selectedReg || pdfDownloading) return;
-                                        setPdfDownloading(true);
-                                        try {
-                                            const response = await axios.get(`/api/reg/class-8/form/${selectedReg.id}/pdf`, { responseType: "blob" });
-                                            const blob = new Blob([response.data], { type: "application/pdf" });
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement("a");
-                                            a.href = url;
-                                            a.download = `Class8_Registration_${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`;
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            a.remove();
-                                            window.URL.revokeObjectURL(url);
-                                        } catch (err) { toast.error("Failed to download PDF"); } finally { setPdfDownloading(false); }
-                                    }} disabled={pdfDownloading}>
-                                        {pdfDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} PDF
-                                    </Button>
-                                    {selectedReg.status === "pending" && <Button onClick={() => { handleStatusUpdate(selectedReg.id, "approved"); setShowDetails(false); }} className="bg-emerald-600">Approve</Button>}
-                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <div className="p-6 border-t border-border dark:border-gray-700 bg-muted/50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    if (!selectedReg) return;
+                                    handlePreviewPDF(selectedReg.id);
+                                }}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all font-semibold shadow-md"
+                            >
+                                <FileText size={18} />
+                                Preview PDF
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!selectedReg || pdfDownloading) return;
+                                    setPdfDownloading(true);
+                                    try {
+                                        const response = await axios.get(
+                                            `/api/reg/class-8/form/${selectedReg.id}/pdf`,
+                                            { responseType: "blob" }
+                                        );
+                                        const blob = new Blob([response.data], { type: "application/pdf" });
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `Class8_Registration_${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                        window.URL.revokeObjectURL(url);
+
+                                    } catch (err) {
+                                        console.error(err);
+                                        toast.error("Failed to download PDF");
+                                    } finally {
+                                        setPdfDownloading(false);
+                                    }
+                                }}
+                                disabled={pdfDownloading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-md disabled:opacity-50"
+                            >
+                                {pdfDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                                {pdfDownloading ? "Generating PDF..." : "Download PDF"}
+                            </button>
+                            {selectedReg.status === "pending" && (
+                                <button
+                                    onClick={() => {
+                                        handleStatusUpdate(selectedReg.id, "approved");
+                                        setShowDetails(false);
+                                    }}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-md"
+                                >
+                                    <CheckCircle2 size={18} />
+                                    Approve Now
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setShowDetails(false)}
+                            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-semibold"
+                        >
+                            Close Preview
+                        </button>
+                    </div>
                 </Popup>
             )}
-
             {showEditModal && editFormData && (
                 <Popup open onOpenChange={(o) => !o && setShowEditModal(false)} size="md">
-                    <div className="p-6 border-b flex justify-between items-center"><h3 className="text-xl font-bold">Update Status</h3><button onClick={() => setShowEditModal(false)}><XCircle size={24} /></button></div>
+                    <div className="p-6 border-b border-border dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-xl font-bold">Update Registration Status</h3>
+                        <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-muted dark:hover:bg-gray-700 rounded-full transition-colors">
+                            <XCircle size={24} className="text-muted-foreground" />
+                        </button>
+                    </div>
                     <div className="p-6 space-y-6">
-                        <div className="grid grid-cols-1 gap-3">
-                            {["pending", "approved"].map((s) => (
-                                <button key={s} onClick={() => setEditFormData({ ...editFormData, status: s })} className={`flex items-center justify-between p-4 rounded-xl border-2 ${editFormData.status === s ? "border-blue-500 bg-blue-50" : "border-gray-100"}`}>
-                                    <div className="flex items-center gap-3"><span className="font-semibold capitalize">{s}</span></div>
-                                    {editFormData.status === s && <div className="w-3 h-3 bg-primary rounded-full" />}
-                                </button>
-                            ))}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Status</label>
+                            <div className="grid grid-cols-1 gap-3">
+                                {["pending", "approved"].map((s) => (
+                                    <button
+                                        key={s}
+                                        onClick={() => setEditFormData({ ...editFormData, status: s })}
+                                        className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${editFormData.status === s
+                                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                                            : "border-gray-100 dark:border-gray-700 hover:border-border dark:hover:border-gray-600"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-full ${s === "approved" ? "bg-emerald-100 text-emerald-600" : s === "rejected" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
+                                                {s === "approved" ? <CheckCircle2 size={20} /> : s === "rejected" ? <XCircle size={20} /> : <AlertCircle size={20} />}
+                                            </div>
+                                            <span className="font-semibold capitalize text-gray-900 dark:text-white">{s}</span>
+                                        </div>
+                                        {editFormData.status === s && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
+
                         <div className="flex gap-3 justify-end pt-4">
-                            <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
-                            <Button onClick={async () => { await handleStatusUpdate(editFormData.id, editFormData.status); setShowEditModal(false); }}>Update Status</Button>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await handleStatusUpdate(editFormData.id, editFormData.status);
+                                    setShowEditModal(false);
+                                }}
+                                className="px-6 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                            >
+                                Update Status
+                            </button>
                         </div>
                     </div>
                 </Popup>

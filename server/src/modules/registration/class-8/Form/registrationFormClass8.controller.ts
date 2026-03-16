@@ -94,7 +94,7 @@ export class RegistrationFormClass8Controller {
 
     const fileName = `Class8_Reg_${result.studentName.replace(/\s+/g, "_")}.pdf`;
     res.setHeader("Content-Disposition", `${result.isInlinePreview ? "inline" : "attachment"}; filename="${fileName}"`);
-    res.send(result.pdfBuffer);
+    res.end(result.pdfBuffer);
     return;
   });
 }

@@ -843,6 +843,17 @@ const Class6RegForm = () => {
                                                 <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
                                             </tr>
                                             <tr>
+                                                <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Scout Status</td>
+                                                <td className="px-4 py-2.5">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${selectedReg.scout_status === "Yes"
+                                                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                                                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                                                        }`}>
+                                                        {selectedReg.scout_status || "No"}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
                                                 <td className="px-4 py-2.5 text-muted-foreground dark:text-gray-400 bg-muted/50/30 dark:bg-gray-800/30">Contact Info</td>
                                                 <td className="px-4 py-2.5">
                                                     <p>Email: {selectedReg.email || "-"}</p>

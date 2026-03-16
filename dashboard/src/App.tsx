@@ -40,7 +40,7 @@ import {
   Class6RegForm,
   Class8RegForm,
 } from "./pages/Admin/index.ts"
-import { Class6PdfPreview } from "@school/common-ui";
+import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
 
 import backend from "./lib/backend.ts";
 import StudentDashboard from "./pages/Students/StudentDashboard.tsx";
@@ -111,6 +111,7 @@ function App() {
         <div className="">
           <Routes>
             <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
+            <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
             {/* CASE 1: envPreferredRole IS PRESENT (e.g., 'teacher') */}
             {envPreferredRole && (
               <>

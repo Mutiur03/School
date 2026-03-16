@@ -9,27 +9,7 @@ import axios from "axios";
 import QRCode from "qrcode";
 import { ApiError } from "@/utils/ApiError.js";
 import { removeInitialZeros } from "@school/shared-schemas";
-
-const formatDateLong = (dateStr: string) => {
-  if (!dateStr) return "";
-  let d, m, y;
-  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(dateStr)) {
-    [y, m, d] = dateStr.split("-");
-  } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    [y, m, d] = dateStr.split("-");
-  } else {
-    return dateStr;
-  }
-  const dateObj = new Date(`${y}-${m}-${d}`);
-  if (isNaN(dateObj.getTime())) return dateStr;
-  return dateObj
-    .toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })
-    .replace(/(\w+)\s(\d{4})/, "$1, $2");
-};
+import { formatDateLong } from "../../class-6/Form/registrationFormClass6.service";
 
 const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   const duplicates = [];
@@ -55,7 +35,7 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
       const existing = await prisma.student_registration_class8.findFirst({
         where: {
           section: data.section,
-          roll: removeInitialZeros(data.roll),
+          roll: data.roll,
           class8_year: parseInt(data.class8_year),
           ...(excludeId ? { id: { not: excludeId } } : {}),
         },
@@ -89,71 +69,29 @@ export class RegistrationFormClass8Service {
   }
 
   static async createRegistration(data: any) {
-    const {
-      section,
-      roll,
-      birth_reg_no,
-      birth_year,
-      birth_month,
-      birth_day,
-      photo,
-      ...rest
-    } = data;
-
-    const settings = await prisma.class8_reg.findFirst();
-    if (!settings || !settings.reg_open) {
-      throw new ApiError(400, "Registration is currently closed");
-    }
-
-    if (!settings.class8_year) {
-      throw new ApiError(400, "Class 8 academic year is not set in settings");
-    }
-
-    const year = settings.class8_year;
-    data.class8_year = year;
-
     const duplicates = await checkDuplicates(data);
     if (duplicates.length > 0) {
       throw new ApiError(400, "Duplicate information found", duplicates as any);
     }
 
-    // Validate roll and section based on settings
-    const cleanRoll = removeInitialZeros(roll);
-    const rollRange =
-      section.toUpperCase() === "A" ? settings.a_sec_roll : settings.b_sec_roll;
-
-    if (!rollRange) {
-      throw new ApiError(400, `Roll range not set for Section ${section}`);
+    if (data.birth_day && data.birth_month && data.birth_year) {
+      data.birth_date = `${data.birth_day}/${data.birth_month}/${data.birth_year}`;
+    } else if (data.birth_date && data.birth_date.includes("/")) {
+      const [d, m, y] = data.birth_date.split("/");
+      data.birth_day = d;
+      data.birth_month = m;
+      data.birth_year = y;
     }
+    const {
+      same_as_permanent: _same_as_permanent,
+      guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
+      guardian_is_not_father: _guardian_is_not_father,
+      ...dbData
+    } = data;
 
-    const [start, end] = rollRange
-      .split("-")
-      .map((r) => parseInt(r.trim(), 10));
-    const rollNum = parseInt(cleanRoll, 10);
-
-    if (rollNum < start || rollNum > end) {
-      throw new ApiError(
-        400,
-        `Roll number ${cleanRoll} is out of range for Section ${section} (${start}-${end})`,
-      );
-    }
-
-    const birth_date = `${birth_year}-${birth_month}-${birth_day}`;
-    delete rest.same_as_permanent;
-    delete rest.guardian_address_same_as_permanent;
-    delete rest.guardian_is_not_father;
     return await prisma.student_registration_class8.create({
       data: {
-        ...rest,
-        section,
-        roll: cleanRoll,
-        birth_reg_no,
-        birth_year,
-        birth_month,
-        birth_day,
-        birth_date,
-        photo,
-        class8_year: year,
+        ...dbData,
         status: "pending",
       },
     });
@@ -172,7 +110,7 @@ export class RegistrationFormClass8Service {
 
     const where: any = {};
     if (section) where.section = section;
-    if (status) where.status = status;
+    if (status && status !== "all") where.status = status;
     if (class8_year) where.class8_year = parseInt(class8_year, 10);
     if (search) {
       where.OR = [
@@ -182,16 +120,19 @@ export class RegistrationFormClass8Service {
         { birth_reg_no: { contains: search } },
       ];
     }
-
+    console.log(where);
     const [data, total] = await Promise.all([
       prisma.student_registration_class8.findMany({
         where,
         skip,
-        take: parseInt(limit, 10),
+        take: Number(limit),
         orderBy: { created_at: "desc" },
       }),
-      prisma.student_registration_class8.count({ where }),
+      prisma.student_registration_class8.count({
+        where: { class8_year: Number(class8_year) },
+      }),
     ]);
+    console.log(total);
 
     return {
       data,
@@ -224,41 +165,47 @@ export class RegistrationFormClass8Service {
   }
 
   static async updateRegistration(id: string, data: any) {
-    const { birth_year, birth_month, birth_day, photo, ...rest } = data;
-
-    const existing = await this.getRegistrationById(id);
-
-    // Ensure we have class8_year for duplicate checking
-    data.class8_year = data.class8_year || existing.class8_year;
-
-    const duplicates = await checkDuplicates(data, id);
-    if (duplicates.length > 0) {
-      throw new ApiError(400, "Duplicate information found", duplicates as any);
+      const existing = await prisma.student_registration_class8.findUnique({
+        where: { id },
+      });
+  
+      if (!existing) {
+        throw new ApiError(404, "Registration not found");
+      }
+  
+      const duplicates = await checkDuplicates(data, id);
+      if (duplicates.length > 0) {
+        throw new ApiError(400, "Duplicate information found", duplicates as any);
+      }
+  
+      if (!data.photo) {
+        data.photo = existing.photo;
+      }
+  
+      if (data.photo && existing.photo && data.photo !== existing.photo) {
+        await deleteFromR2(existing.photo);
+      }
+  
+      if (data.birth_day && data.birth_month && data.birth_year) {
+        data.birth_date = `${data.birth_day}/${data.birth_month}/${data.birth_year}`;
+      }
+  
+      if (data.class8_year) {
+        data.class8_year = parseInt(data.class8_year, 10);
+      }
+  
+      const {
+        same_as_permanent: _same_as_permanent,
+        guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
+        guardian_is_not_father: _guardian_is_not_father,
+        ...dbData
+      } = data;
+  
+      return await prisma.student_registration_class8.update({  
+        where: { id },
+        data: dbData,
+      });
     }
-
-    if (photo && existing.photo && existing.photo !== photo) {
-      await deleteFromR2(existing.photo);
-    }
-
-    const birth_date =
-      birth_year && birth_month && birth_day
-        ? `${birth_year}-${birth_month}-${birth_day}`
-        : existing.birth_date;
-    delete rest.same_as_permanent;
-    delete rest.guardian_address_same_as_permanent;
-    delete rest.guardian_is_not_father;
-    return await prisma.student_registration_class8.update({
-      where: { id },
-      data: {
-        ...rest,
-        birth_year,
-        birth_month,
-        birth_day,
-        birth_date,
-        photo: photo || existing.photo,
-      },
-    });
-  }
 
   static async deleteRegistration(id: string) {
     const registration = await this.getRegistrationById(id);
@@ -495,10 +442,6 @@ export class RegistrationFormClass8Service {
         "Registration Number:",
         wrapBnEn((registration as any).registration_no || ""),
       ],
-      [
-        "Class 6 Academic Session:",
-        wrapBnEn((registration as any).class6_academic_session || ""),
-      ],
       ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
       [
         "Date of Birth:",
@@ -733,7 +676,6 @@ export class RegistrationFormClass8Service {
       </body>
       </html>
     `;
-
     if (isHtmlPreview) {
       return { html };
     }
@@ -765,14 +707,52 @@ export class RegistrationFormClass8Service {
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     );
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      displayHeaderFooter: false,
-      margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" },
+    await page.setExtraHTTPHeaders({
+      "Accept-Charset": "utf-8",
+      "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
     });
+
+    await page.setContent(html, {
+      waitUntil: isInlinePreview
+        ? ["domcontentloaded"]
+        : ["networkidle0", "domcontentloaded"],
+    });
+
+    await page.evaluate((quickPreview) => {
+      /* global document, NodeFilter */
+      // @ts-ignore
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        null,
+      );
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.nodeValue) node.nodeValue = node.nodeValue.normalize("NFC");
+      }
+      return new Promise((resolve) => {
+        const fallbackDelay = quickPreview ? 80 : 1000;
+        const fontDelay = quickPreview ? 120 : 500;
+        // @ts-ignore
+        if (document.fonts && document.fonts.ready) {
+          // @ts-ignore
+          document.fonts.ready.then(() => setTimeout(resolve, fontDelay));
+        } else {
+          setTimeout(resolve, fallbackDelay);
+        }
+      });
+    }, isInlinePreview);
+
+    const pdfBuffer = await page.pdf({
+      format: "a4",
+      printBackground: true,
+      margin: { top: 24, bottom: 24, left: 24, right: 24 },
+      preferCSSPageSize: true,
+      pageRanges: "1",
+    });
+
     await browser.close();
+
     return {
       pdfBuffer,
       studentName: registration.student_name_en,

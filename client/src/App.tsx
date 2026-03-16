@@ -31,7 +31,7 @@ import {
   StaffList,
   TeacherList,
 } from "@school/client-ui";
-import { Class6PdfPreview } from "@school/common-ui";
+import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
 
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
@@ -47,6 +47,11 @@ function App() {
         <Route
           path="/preview/class6/:id"
           element={<Class6PdfPreview />}
+        />
+
+        <Route
+          path="/preview/class8/:id"
+          element={<Class8PdfPreview />}
         />
 
         <Route element={<AppLayout />}>
