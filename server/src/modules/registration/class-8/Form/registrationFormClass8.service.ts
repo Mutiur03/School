@@ -9,7 +9,7 @@ import axios from "axios";
 import QRCode from "qrcode";
 import { ApiError } from "@/utils/ApiError.js";
 import { removeInitialZeros } from "@school/shared-schemas";
-import { formatDateLong } from "../../class-6/Form/registrationFormClass6.service";
+import { formatDateLong } from "../../class-6/Form/registrationFormClass6.service.js";
 
 const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   const duplicates = [];
