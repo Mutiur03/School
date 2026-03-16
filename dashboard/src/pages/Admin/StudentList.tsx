@@ -646,7 +646,13 @@ function StudentList() {
         return;
       }
 
-      const formattedData = rawData.slice(1).map((row: unknown[]) => {
+      const formattedData = rawData
+        .slice(1)
+        .filter((row: unknown[]) => {
+          const nameIndex = headers.indexOf("name");
+          return row[nameIndex] !== undefined && String(row[nameIndex]).trim() !== "";
+        })
+        .map((row: unknown[]) => {
         const student: Record<string, unknown> = {};
         headers.forEach((header: string, index: number) => {
           student[header] = row[index];
