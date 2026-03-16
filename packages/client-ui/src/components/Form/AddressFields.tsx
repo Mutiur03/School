@@ -17,10 +17,15 @@ interface AddressFieldsProps {
     showPostFields?: boolean;
     disabled?: boolean;
     districtTooltip?: string;
+    districtInstruction?: string | React.ReactNode;
     upazilaTooltip?: string;
+    upazilaInstruction?: string | React.ReactNode;
     postOfficeTooltip?: string;
+    postOfficeInstruction?: string | React.ReactNode;
     postCodeTooltip?: string;
+    postCodeInstruction?: string | React.ReactNode;
     villageTooltip?: string;
+    villageInstruction?: string | React.ReactNode;
 }
 
 /**
@@ -38,10 +43,15 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
     showPostFields = true,
     disabled = false,
     districtTooltip,
+    districtInstruction,
     upazilaTooltip,
+    upazilaInstruction,
     postOfficeTooltip,
+    postOfficeInstruction,
     postCodeTooltip,
+    postCodeInstruction,
     villageTooltip,
+    villageInstruction,
 }) => {
     const f = (field: string) => `${prefix}_${field}`;
 
@@ -52,6 +62,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                 isRequired={isRequired(f("district"))}
                 error={errors[f("district")]}
                 tooltip={districtTooltip}
+                instruction={districtInstruction}
             >
                 <select
                     id={f("district")}
@@ -77,6 +88,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                 isRequired={isRequired(f("upazila"))}
                 error={errors[f("upazila")]}
                 tooltip={upazilaTooltip}
+                instruction={upazilaInstruction}
             >
                 <select
                     id={f("upazila")}
@@ -102,6 +114,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                         errors={errors}
                         isRequired={isRequired(f("post_office"))}
                         tooltip={postOfficeTooltip}
+                        instruction={postOfficeInstruction}
                         filterType="address"
                         placeholder="Post Office Name"
                         disabled={disabled}
@@ -114,6 +127,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                         errors={errors}
                         isRequired={isRequired(f("post_code"))}
                         tooltip={postCodeTooltip}
+                        instruction={postCodeInstruction}
                         filterType="numeric"
                         maxLength={4}
                         placeholder="1234"
@@ -128,6 +142,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                         errors={errors}
                         isRequired={isRequired(f("village_road"))}
                         tooltip={villageTooltip}
+                        instruction={villageInstruction}
                         filterType="address"
                         placeholder="Village/Road/House No"
                         disabled={disabled}

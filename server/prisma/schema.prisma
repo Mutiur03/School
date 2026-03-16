@@ -670,3 +670,77 @@ model student_registration_class6 {
   @@index([status])
   @@index([submission_date])
 }
+
+model class8_reg {
+  id                     Int      @id @default(autoincrement())
+  reg_open               Boolean? @default(false)
+  a_sec_roll             String?
+  b_sec_roll             String?
+  notice                 String?
+  class8_year            Int?
+  instruction_for_a      String?  @default("Please follow the instructions carefully")
+  instruction_for_b      String?  @default("Please follow the instructions carefully")
+  attachment_instruction String?  @default("Please attach all required documents")
+  classmates             String?
+  classmates_source      String   @default("default") // 'default' or 'manual'
+}
+
+model student_registration_class8 {
+  id                       String   @id @default(uuid())
+  section                  String   @db.VarChar(10)
+  roll                     String   @db.VarChar(20)
+  religion                 String   @db.VarChar(50)
+  student_name_bn          String   @db.VarChar(100)
+  student_name_en          String   @db.VarChar(100)
+  birth_reg_no             String   @db.VarChar(17)
+  father_name_bn           String   @db.VarChar(100)
+  father_name_en           String   @db.VarChar(100)
+  father_nid               String?  @db.VarChar(17)
+  father_phone             String?  @db.VarChar(11)
+  mother_name_bn           String   @db.VarChar(100)
+  mother_name_en           String   @db.VarChar(100)
+  mother_nid               String?  @db.VarChar(17)
+  mother_phone             String?  @db.VarChar(11)
+  birth_date               String   @db.VarChar(10)
+  birth_year               String   @db.VarChar(4)
+  birth_month              String   @db.VarChar(2)
+  birth_day                String   @db.VarChar(2)
+  email                    String?  @db.VarChar(100)
+  present_district         String   @db.VarChar(50)
+  present_upazila          String   @db.VarChar(50)
+  present_post_office      String   @db.VarChar(100)
+  present_post_code        String   @db.VarChar(4)
+  present_village_road     String   @db.VarChar(200)
+  permanent_district       String   @db.VarChar(50)
+  permanent_upazila        String   @db.VarChar(50)
+  permanent_post_office    String   @db.VarChar(100)
+  permanent_post_code      String   @db.VarChar(4)
+  permanent_village_road   String   @db.VarChar(200)
+  guardian_name            String?  @db.VarChar(100)
+  guardian_phone           String?  @db.VarChar(11)
+  guardian_relation        String?  @db.VarChar(50)
+  guardian_nid             String?  @db.VarChar(17)
+  guardian_district        String?  @db.VarChar(50)
+  guardian_upazila         String?  @db.VarChar(50)
+  guardian_post_office     String?  @db.VarChar(100)
+  guardian_post_code       String?  @db.VarChar(4)
+  guardian_village_road    String?  @db.VarChar(200)
+  prev_school_name         String   @db.VarChar(200)
+  prev_school_district     String   @db.VarChar(50)
+  prev_school_upazila      String   @db.VarChar(50)
+  status                   String   @default("pending") @db.VarChar(20)
+  submission_date          DateTime @default(now())
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+  photo                    String   @db.VarChar(255)
+  class8_year              Int
+  nearby_student_info      String?  @db.VarChar(200)
+  registration_no          String   @db.VarChar(50)
+  class6_academic_session  String   @db.VarChar(50)
+
+  @@index([birth_reg_no])
+  @@index([father_nid])
+  @@index([mother_nid])
+  @@index([status])
+  @@index([submission_date])
+}

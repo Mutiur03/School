@@ -13,7 +13,7 @@ import {
 } from "./regex.js";
 import { z } from "zod";
 
-const registrationObjectShape = z.object({
+export const registrationObjectShape = z.object({
   student_name_bn: z
     .string()
     .min(1, "Student Name in Bangla is required")
@@ -291,117 +291,116 @@ const registrationObjectShape = z.object({
   ),
 });
 
+export const registrationSuperRefine = (data: any, ctx: z.RefinementCtx) => {
+  if (
+    !data.photo ||
+    (typeof data.photo === "string" && data.photo.trim() === "")
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Student photo is required",
+      path: ["photo"],
+    });
+  }
+
+  if (!data.religion) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Religion is required",
+      path: ["religion"],
+    });
+  }
+
+  if (data.guardian_is_not_father) {
+    if (!data.guardian_name || data.guardian_name.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Guardian name is required when guardian is not father",
+        path: ["guardian_name"],
+      });
+    }
+    if (!data.guardian_phone || data.guardian_phone.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Guardian phone is required when guardian is not father",
+        path: ["guardian_phone"],
+      });
+    } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid Bangladeshi phone number",
+        path: ["guardian_phone"],
+      });
+    }
+    if (!data.guardian_relation || data.guardian_relation.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Guardian relation is required when guardian is not father",
+        path: ["guardian_relation"],
+      });
+    }
+    if (!data.guardian_nid || data.guardian_nid.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Guardian NID is required",
+        path: ["guardian_nid"],
+      });
+    } else if (!NID.test(data.guardian_nid)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Guardian NID must be 10,13 or 17 digits",
+        path: ["guardian_nid"],
+      });
+    }
+
+    if (!data.guardian_address_same_as_permanent) {
+      if (!data.guardian_district || data.guardian_district.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Guardian District is required",
+          path: ["guardian_district"],
+        });
+      }
+      if (!data.guardian_upazila || data.guardian_upazila.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Guardian Upazila is required",
+          path: ["guardian_upazila"],
+        });
+      }
+      if (
+        !data.guardian_post_office ||
+        data.guardian_post_office.trim() === ""
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Guardian Post Office is required",
+          path: ["guardian_post_office"],
+        });
+      }
+      if (!data.guardian_post_code || data.guardian_post_code.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Guardian Post Code is required",
+          path: ["guardian_post_code"],
+        });
+      }
+      if (
+        !data.guardian_village_road ||
+        data.guardian_village_road.trim() === ""
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Guardian Village/Road is required",
+          path: ["guardian_village_road"],
+        });
+      }
+    }
+  }
+};
+
 export const registrationSchema = registrationObjectShape.superRefine(
-  (data, ctx) => {
-    if (
-      !data.photo ||
-      (typeof data.photo === "string" && data.photo.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Student photo is required",
-        path: ["photo"],
-      });
-    }
-
-    if (!data.religion) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Religion is required",
-        path: ["religion"],
-      });
-    }
-
-    if (data.guardian_is_not_father) {
-      console.log("super refine working");
-      console.log("superrefine data", data.guardian_is_not_father);
-
-      if (!data.guardian_name || data.guardian_name.trim() === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Guardian name is required when guardian is not father",
-          path: ["guardian_name"],
-        });
-      }
-      if (!data.guardian_phone || data.guardian_phone.trim() === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Guardian phone is required when guardian is not father",
-          path: ["guardian_phone"],
-        });
-      } else if (!PHONE_NUMBER.test(data.guardian_phone)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Invalid Bangladeshi phone number",
-          path: ["guardian_phone"],
-        });
-      }
-      if (!data.guardian_relation || data.guardian_relation.trim() === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Guardian relation is required when guardian is not father",
-          path: ["guardian_relation"],
-        });
-      }
-      if (!data.guardian_nid || data.guardian_nid.trim() === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Guardian NID is required",
-          path: ["guardian_nid"],
-        });
-      } else if (!NID.test(data.guardian_nid)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Guardian NID must be 10,13 or 17 digits",
-          path: ["guardian_nid"],
-        });
-      }
-
-      if (!data.guardian_address_same_as_permanent) {
-        if (!data.guardian_district || data.guardian_district.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Guardian District is required",
-            path: ["guardian_district"],
-          });
-        }
-        if (!data.guardian_upazila || data.guardian_upazila.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Guardian Upazila is required",
-            path: ["guardian_upazila"],
-          });
-        }
-        if (
-          !data.guardian_post_office ||
-          data.guardian_post_office.trim() === ""
-        ) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Guardian Post Office is required",
-            path: ["guardian_post_office"],
-          });
-        }
-        if (!data.guardian_post_code || data.guardian_post_code.trim() === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Guardian Post Code is required",
-            path: ["guardian_post_code"],
-          });
-        }
-        if (
-          !data.guardian_village_road ||
-          data.guardian_village_road.trim() === ""
-        ) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Guardian Village/Road is required",
-            path: ["guardian_village_road"],
-          });
-        }
-      }
-    }
-  },
+  registrationSuperRefine,
 );
 
 export const class6RegistrationStatusSchema = z.object({

@@ -262,7 +262,7 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         text: "Registration",
         dropdown: [
           { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
-          { id: "menu-item-3548", href: "", text: "Class Eight" },
+          { id: "menu-item-3548", href: "registration/class-8", text: "Class Eight" },
           { id: "menu-item-3549", href: "registration/class-6", text: "Class Six" },
         ],
       },

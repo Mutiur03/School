@@ -145,15 +145,21 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       id: "registration",
       roles: ["admin"],
       items: [
-        {
-          label: "SSC Registration",
-          link: "/admin/registration/ssc",
-          id: "ssc-registration",
-        },
+        
         {
           label: "Class Six Registration",
           link: "/admin/registration/class-6",
           id: "class-6-registration",
+        },
+        {
+          label: "Class Eight Registration",
+          link: "/admin/registration/class-8",
+          id: "class-8-registration",
+        },
+        {
+          label: "SSC Registration",
+          link: "/admin/registration/ssc",
+          id: "ssc-registration",
         },
       ],
     },

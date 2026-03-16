@@ -20,6 +20,7 @@ interface GuardianSectionProps {
         post_code?: string;
         village_road?: string;
     };
+    metadata?: any;
 }
 
 const GuardianSection: React.FC<GuardianSectionProps> = ({
@@ -29,6 +30,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
     setValue,
     isRequired,
     permanentAddress,
+    metadata,
 }) => {
     const [guardianUpazilas, setGuardianUpazilas] = useState<any[]>([]);
     const [initialUpazila, setInitialUpazila] = useState<string | null>(null);
@@ -106,7 +108,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                 label="Guardian is not the father:"
                 isRequired={false}
                 error={undefined}
-                tooltip="Check this box only if your guardian is someone other than your father (e.g., mother, uncle, etc.)"
+                tooltip={metadata?.guardian?.is_not_father?.tooltip}
+                instruction={metadata?.guardian?.is_not_father?.instruction}
             >
                 <label className="inline-flex items-start sm:items-center gap-2">
                     <input
@@ -140,7 +143,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                             register={register}
                             errors={errors}
                             isRequired={isRequired("guardian_name")}
-                            tooltip="Enter the full name of your guardian in English"
+                            tooltip={metadata?.guardian?.name?.tooltip}
+                            instruction={metadata?.guardian?.name?.instruction}
                             filterType="english"
                             placeholder="Guardian's Name"
                         />
@@ -151,7 +155,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                             register={register}
                             errors={errors}
                             isRequired={isRequired("guardian_nid")}
-                            tooltip="Enter guardian's National ID number (10-17 digits)"
+                            tooltip={metadata?.guardian?.nid?.tooltip}
+                            instruction={metadata?.guardian?.nid?.instruction}
                             filterType="numeric"
                             maxLength={17}
                             placeholder="10 Digits/13 Digits/17 Digits"
@@ -164,7 +169,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                             register={register}
                             errors={errors}
                             isRequired={isRequired("guardian_phone")}
-                            tooltip="Enter guardian's mobile number in 11-digit format"
+                            tooltip={metadata?.guardian?.phone?.tooltip}
+                            instruction={metadata?.guardian?.phone?.instruction}
                             filterType="numeric"
                             maxLength={11}
                             placeholder="01XXXXXXXXX"
@@ -175,7 +181,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                             label="Relationship with Guardian:"
                             isRequired={isRequired("guardian_relation")}
                             error={errors.guardian_relation}
-                            tooltip="Select your relationship with the guardian from the dropdown"
+                            tooltip={metadata?.guardian?.relation?.tooltip}
+                            instruction={metadata?.guardian?.relation?.instruction}
                         >
                             <select
                                 {...register("guardian_relation")}
@@ -195,7 +202,8 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                         label="Guardian's Address:"
                         isRequired={false}
                         error={undefined}
-                        tooltip="Check if guardian's address is same as permanent address, otherwise fill separately"
+                        tooltip={metadata?.guardian?.address_same?.tooltip}
+                        instruction={metadata?.guardian?.address_same?.instruction}
                     >
                         <label className="inline-flex items-center gap-2 mb-2">
                             <input
@@ -223,6 +231,16 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                             upazilas={guardianUpazilas}
                             districtValue={guardian_district}
                             isRequired={isRequired}
+                            districtTooltip={metadata?.address?.district?.tooltip}
+                            upazilaTooltip={metadata?.address?.upazila?.tooltip}
+                            postOfficeTooltip={metadata?.address?.post_office?.tooltip}
+                            postCodeTooltip={metadata?.address?.post_code?.tooltip}
+                            villageTooltip={metadata?.address?.village_road?.tooltip}
+                            districtInstruction={metadata?.address?.district?.instruction}
+                            upazilaInstruction={metadata?.address?.upazila?.instruction}
+                            postOfficeInstruction={metadata?.address?.post_office?.instruction}
+                            postCodeInstruction={metadata?.address?.post_code?.instruction}
+                            villageInstruction={metadata?.address?.village_road?.instruction}
                         />
                     )}
                 </>

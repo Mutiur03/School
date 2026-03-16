@@ -38,6 +38,7 @@ import {
   ClassRoutinePDF,
   SSCRegForm,
   Class6RegForm,
+  Class8RegForm,
 } from "./pages/Admin/index.ts"
 import { Class6PdfPreview } from "@school/common-ui";
 
@@ -387,6 +388,10 @@ function App() {
                               <Route
                                 path="/registration/class-6"
                                 element={<Class6RegForm />}
+                              ></Route>
+                              <Route
+                                path="/registration/class-8"
+                                element={<Class8RegForm />}
                               ></Route>
                               <Route
                                 path="*"

@@ -3,6 +3,8 @@ export * from "./teacherSchemas.js";
 export * from "./adminSchemas.js";
 export * from "./subjectSchemas.js";
 export * from "./class6RegistrationSchemas.js";
+export * from "./class8RegistrationSchemas.js";
+export * from "./registrationMetadata.js";
 export * from "./regex.js";
 export * from "./utils.js";
 export * from "./types.js";

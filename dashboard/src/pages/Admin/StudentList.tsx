@@ -1359,7 +1359,7 @@ function StudentList() {
               <option value="">All Sections</option>
               {sortedUniqueSections.map((section: string) => (
                 <option key={section} value={section}>
-                  Section {section}
+                  {section}
                 </option>
               ))}
             </select>
@@ -1374,7 +1374,7 @@ function StudentList() {
               <option value="">All Rolls</option>
               {sortedUniqueRolls.map((roll: number) => (
                 <option key={roll} value={roll}>
-                  Roll {roll}
+                  {roll}
                 </option>
               ))}
             </select>
