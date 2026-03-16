@@ -523,6 +523,7 @@ export default function RegistrationClass6() {
         "prev_school_district",
         "prev_school_upazila",
         "nearby_student_info",
+        "scout_status",
         "photo",
     ] as const;
 
@@ -614,6 +615,21 @@ export default function RegistrationClass6() {
                             <option value="Hinduism">Hinduism</option>
                             <option value="Christianity">Christianity</option>
                             <option value="Buddhism">Buddhism</option>
+                        </select>
+                    </FieldRow>
+                    <FieldRow
+                        label="Cub scout/Scout:"
+                        isRequired={isRequired("scout_status")}
+                        error={errors.scout_status}
+                    >
+                        <select
+                            {...register("scout_status")}
+                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            aria-invalid={!!errors.scout_status}
+                        >
+                            <option value="">Select Option</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
                         </select>
                     </FieldRow>
                     <FormInput

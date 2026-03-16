@@ -491,8 +491,14 @@ export class RegistrationFormClass8Service {
         "Student's Name:",
         wrapBnEn(registration.student_name_en.toUpperCase() || ""),
       ],
-      ["Registration Number:", wrapBnEn((registration as any).registration_no || "")],
-      ["Class 6 Academic Session:", wrapBnEn((registration as any).class6_academic_session || "")],
+      [
+        "Registration Number:",
+        wrapBnEn((registration as any).registration_no || ""),
+      ],
+      [
+        "Class 6 Academic Session:",
+        wrapBnEn((registration as any).class6_academic_session || ""),
+      ],
       ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
       [
         "Date of Birth:",

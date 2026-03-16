@@ -464,7 +464,7 @@ export default function RegistrationClass8() {
         }
     };
 
-    const isRequired = (name: string) => true; // Simplification for fields that are generally required
+    const isRequired = () => true; 
 
     if (loading || !settings || (isEditMode && (!initialRollApplied || !initialUpazilasApplied))) {
         return (
@@ -549,6 +549,20 @@ export default function RegistrationClass8() {
                             <option value="Hinduism">Hinduism</option>
                             <option value="Christianity">Christianity</option>
                             <option value="Buddhism">Buddhism</option>
+                        </select>
+                    </FieldRow>
+                    <FieldRow
+                        label="Cub scout/Scout:"
+                        isRequired
+                        error={errors.scout_status}
+                    >
+                        <select
+                            {...register("scout_status")}
+                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        >
+                            <option value="">Select Option</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
                         </select>
                     </FieldRow>
                     <FormInput

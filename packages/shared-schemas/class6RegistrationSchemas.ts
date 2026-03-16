@@ -47,6 +47,7 @@ export const registrationObjectShape = z.object({
       ),
   ),
   religion: z.enum(RELIGION).or(z.literal("")),
+  scout_status: z.enum(["Yes", "No"]).or(z.literal("")),
 
   father_name_bn: z
     .string()
@@ -302,12 +303,19 @@ export const registrationSuperRefine = (data: any, ctx: z.RefinementCtx) => {
       path: ["photo"],
     });
   }
-
   if (!data.religion) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Religion is required",
       path: ["religion"],
+    });
+  }
+  
+  if (!data.scout_status) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Scout status is required",
+      path: ["scout_status"],
     });
   }
 
@@ -496,6 +504,7 @@ export const registrationDefaultValues: Class6Registration = {
   prev_school_district: "",
   prev_school_upazila: "",
   nearby_student_info: "",
+  scout_status: "",
   photo: "",
 };
 
