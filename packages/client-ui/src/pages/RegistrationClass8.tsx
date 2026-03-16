@@ -307,10 +307,36 @@ export default function RegistrationClass8() {
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setValue("photo", file, { shouldValidate: true });
-            const reader = new FileReader();
-            reader.onloadend = () => setPhotoPreview(reader.result as string);
-            reader.readAsDataURL(file);
+            // Check file size (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File is too large! Maximum allowed size is 2MB.");
+                e.target.value = "";
+                return;
+            }
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                const width = img.width;
+                const height = img.height;
+                const ratio = width / height;
+                const targetRatio = 15 / 19;
+                
+                // Allow a small tolerance (5%)
+                const tolerance = 0.05;
+                if (Math.abs(ratio - targetRatio) > tolerance) {
+                    alert("Image aspect ratio MUST be 15:19 (Portrait). Please resize your image.");
+                    e.target.value = "";
+                    return;
+                }
+
+                setValue("photo", file, { shouldValidate: true });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPhotoPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            };
         }
     };
 
@@ -844,7 +870,10 @@ export default function RegistrationClass8() {
                     >
                         <div className="flex flex-col lg:flex-row items-start gap-4">
                             <div className="shrink-0">
-                                <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
+                                <div 
+                                    className="relative border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden"
+                                    style={{ width: '150px', height: '190px' }}
+                                >
                                     {photoPreview ? (
                                         <img
                                             src={photoPreview}
@@ -871,10 +900,18 @@ export default function RegistrationClass8() {
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                     <label
                                         htmlFor="photo-input"
-                                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base"
+                                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 cursor-pointer text-sm sm:text-base font-medium"
                                     >
                                         {photoPreview ? "Change Photo" : "Choose Photo"}
                                     </label>
+                                    <a
+                                        href="https://imageresizer.com/crop-image"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white! rounded shadow hover:bg-green-700 text-sm sm:text-base font-medium"
+                                    >
+                                        Resize Now (15:19)
+                                    </a>
                                     {(photoPreview || photo) && (
                                         <button
                                             type="button"
@@ -893,12 +930,13 @@ export default function RegistrationClass8() {
                                     )}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-2">
-                                    JPG only. Max file size 2MB. Click the box or "Choose Photo" to upload.
+                                    JPG only. Max 2MB. <strong>Requirement: 15:19 Ratio.</strong>
                                 </p>
                             </div>
                         </div>
                     </FieldRow>
                 </SectionHeader>
+
                 <div className="pt-10 border-t-2 border-gray-100 flex justify-center">
                     <button
                         type="submit"
