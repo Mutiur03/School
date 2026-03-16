@@ -282,119 +282,108 @@ export class StudentService {
   }
 
   static async addStudents(students: any[]) {
+    const batches = [...new Set(students.map((s: any) => {
+      const classNum = Number(removeInitialZeros(String(s.class || 1)));
+      return String(current_year + 11 - classNum);
+    }))];
+
     const batchLoginIdMap: Record<string, bigint> = {};
-    const usedLoginIds = new Set<bigint>();
-    const processedStudents: any[] = [];
-
-    for (let i = 0; i < students.length; i++) {
-      const student = { ...students[i] };
-
-      let password = generatePassword();
-      student.originalPassword = password;
-      student.password = await bcrypt.hash(password, 10);
-
-      const classNum = Number(removeInitialZeros(String(student.class || 1)));
-      student.class = classNum;
-      student.section = (student.section?.trim() || "A").toUpperCase();
-      student.roll = Number(removeInitialZeros(String(student.roll || 1)));
-
-      const batchYear = current_year + 11 - classNum;
-      student.batch = String(batchYear);
-
-      student.department =
-        classNum >= 9 ? student.department?.trim() || null : null;
-
-      if (
-        (classNum === 9 || classNum === 10) &&
-        !VALID_DEPARTMENTS.includes(student.department || "")
-      ) {
-        throw new ApiError(
-          400,
-          `Student at index ${i}: Department is required for class 9-10`,
-        );
-      }
-
-      if (classNum < 9) {
-        student.department = null;
-      }
-      student.year = student.year || current_year;
-
-      if (!batchLoginIdMap[student.batch]) {
-        const result = await prisma.students.findMany({
-          where: { batch: student.batch },
-          orderBy: { login_id: "desc" },
-          take: 1,
-        });
-
-        batchLoginIdMap[student.batch] =
-          result.length > 0 && result[0].login_id
-            ? result[0].login_id + 1n
-            : BigInt(student.batch.toString().slice(-2) + "001");
-      }
-
-      student.login_id = batchLoginIdMap[student.batch];
-
-      const existingRecord = await prisma.students.findUnique({
-        where: { login_id: student.login_id },
-        select: { id: true },
+    for (const batch of batches) {
+      const result = await prisma.students.findMany({
+        where: { batch },
+        orderBy: { login_id: "desc" },
+        take: 1,
       });
 
-      while (usedLoginIds.has(student.login_id) || existingRecord) {
-        student.login_id += 1n;
-        const existingRecord = await prisma.students.findUnique({
-          where: { login_id: student.login_id },
-          select: { id: true },
-        });
-        if (!existingRecord) break;
-      }
-
-      usedLoginIds.add(student.login_id);
-      batchLoginIdMap[student.batch] = student.login_id + 1n;
-
-      processedStudents.push(student);
+      batchLoginIdMap[batch] =
+        result.length > 0 && result[0].login_id
+          ? result[0].login_id + 1n
+          : BigInt(batch.slice(-2) + "001");
     }
 
-    const insertedEnrollments = await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        const returnEnrollments: any[] = [];
-        for (const student of processedStudents) {
-          const insertedStudent = await tx.students.create({
-            data: {
-              login_id: student.login_id,
-              name: student.name,
-              father_name: student.father_name,
-              mother_name: student.mother_name,
-              father_phone: student.father_phone,
-              mother_phone: student.mother_phone,
-              batch: student.batch,
-              village: student.village,
-              post_office: student.post_office,
-              upazila: student.upazila,
-              district: student.district,
-              dob: student.dob,
-              has_stipend: student.has_stipend,
-              religion: student.religion,
-              password: student.password,
-            },
-          });
+    const hashedStudents = await Promise.all(
+      students.map(async (s, i) => {
+        const student = { ...s };
+        const password = generatePassword();
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const classNum = Number(removeInitialZeros(String(student.class || 1)));
+        const batch = String(current_year + 11 - classNum);
+        const section = (student.section?.trim() || "A").toUpperCase();
+        const roll = Number(removeInitialZeros(String(student.roll || 1)));
+        const department = classNum >= 9 ? student.department?.trim() || null : null;
 
-          const insertedEnrollment = await tx.student_enrollments.create({
-            data: {
-              student_id: insertedStudent.id,
-              class: student.class,
-              roll: student.roll,
-              section: student.section,
-              year: student.year,
-              department: student.department,
-            },
-          });
-          returnEnrollments.push(insertedEnrollment);
+        if ((classNum === 9 || classNum === 10) && !VALID_DEPARTMENTS.includes(department || "")) {
+          throw new ApiError(400, `Student at index ${i}: Department is required for class 9-10`);
         }
-        return returnEnrollments;
-      },
+
+        const login_id = batchLoginIdMap[batch];
+        batchLoginIdMap[batch] += 1n;
+
+        return {
+          ...student,
+          originalPassword: password,
+          password: hashedPassword,
+          class: classNum,
+          batch,
+          section,
+          roll,
+          department,
+          login_id,
+          year: student.year || current_year,
+        };
+      })
     );
 
-    const excelData = processedStudents.map((student) => ({
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.students.createMany({
+        data: hashedStudents.map(s => ({
+          login_id: s.login_id,
+          name: s.name,
+          father_name: s.father_name,
+          mother_name: s.mother_name,
+          father_phone: s.father_phone,
+          mother_phone: s.mother_phone,
+          batch: s.batch,
+          village: s.village,
+          post_office: s.post_office,
+          upazila: s.upazila,
+          district: s.district,
+          dob: s.dob,
+          has_stipend: s.has_stipend,
+          religion: s.religion,
+          password: s.password,
+        })),
+        skipDuplicates: true,
+      });
+
+      const newStudents = await tx.students.findMany({
+        where: { login_id: { in: hashedStudents.map(s => s.login_id) } },
+        select: { id: true, login_id: true },
+      });
+
+      const studentIdMap = new Map(newStudents.map(s => [s.login_id, s.id]));
+
+      const enrollmentData = hashedStudents.map(s => ({
+        student_id: studentIdMap.get(s.login_id)!,
+        class: s.class,
+        roll: s.roll,
+        section: s.section,
+        year: s.year,
+        department: s.department,
+      }));
+
+      await tx.student_enrollments.createMany({
+        data: enrollmentData,
+        skipDuplicates: true,
+      });
+
+      return await tx.student_enrollments.findMany({
+        where: { student_id: { in: Array.from(studentIdMap.values()) }, year: current_year },
+      });
+    });
+
+    const excelData = hashedStudents.map((student) => ({
       "Login ID": student.login_id.toString(),
       Name: student.name,
       Password: student.originalPassword,
@@ -418,7 +407,7 @@ export class StudentService {
       from: env.FROM_EMAIL,
       to: "mutiur5bb@gmail.com",
       subject: "New Students Registered - Credentials",
-      body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${processedStudents.length} newly registered students.\n\nBest regards,\nSchool Management System`,
+      body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${hashedStudents.length} newly registered students.\n\nBest regards,\nSchool Management System`,
       attachment: {
         filename: "students_credentials.xlsx",
         content: excelBuffer,
@@ -426,11 +415,12 @@ export class StudentService {
     }).catch((err) => console.error("Failed to send headmaster email:", err));
 
     return {
-      data: insertedEnrollments,
-      inserted_count: processedStudents.length,
+      data: result,
+      inserted_count: hashedStudents.length,
       excelBuffer,
     };
   }
+
 
   static async updateStudent(id: number, updates: any) {
     const result = await prisma.students.update({
@@ -484,6 +474,18 @@ export class StudentService {
       throw new ApiError(404, "No matching students found");
     }
 
+    const processedStudents = await Promise.all(
+      students.map(async (student) => {
+        const password = generatePassword();
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return {
+          ...student,
+          password,
+          hashedPassword,
+        };
+      })
+    );
+  
     const rotatedStudents: Array<{
       login_id: bigint;
       name: string;
@@ -491,16 +493,6 @@ export class StudentService {
       religion: string;
       password: string;
     }> = [];
-    const processedStudents: any[] = [];
-    for (const student of students) {
-      const password = generatePassword();
-      const hashedPassword = await bcrypt.hash(password, 10);
-      processedStudents.push({
-        ...student,
-        password,
-        hashedPassword,
-      });
-    }
 
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       for (const student of processedStudents) {
@@ -518,6 +510,7 @@ export class StudentService {
         });
       }
     });
+
 
     const excelData = rotatedStudents.map(
       (student: {
