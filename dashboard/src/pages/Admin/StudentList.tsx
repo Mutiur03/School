@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   studentFormSchema,
-  VALID_DEPARTMENTS,
+  VALID_GROUPS,
   toExcelString,
   normalizeExcelDate,
   formatDobForDateInput,
@@ -91,7 +91,7 @@ const StudentRow = React.memo(
           {student.section}
         </td>
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-          {student.department || ""}
+          {student.group || ""}
         </td>
 
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
@@ -136,7 +136,7 @@ const defaultFormValues: StudentFormData = {
   religion: "",
   dob: "",
   class: "",
-  department: "",
+  group: "",
   has_stipend: false,
   available: true,
 };
@@ -168,7 +168,7 @@ const demoExcelColumns = [
   "roll",
   "section",
   "religion",
-  "department",
+  "group",
   "has_stipend",
 ];
 
@@ -267,7 +267,7 @@ function StudentList() {
 
   useEffect(() => {
     if (watchedClass !== 9 && watchedClass !== 10) {
-      setValue("department", "");
+      setValue("group", "");
     }
   }, [watchedClass, setValue]);
 
@@ -379,7 +379,7 @@ function StudentList() {
       class: student.class.toString(),
       roll: student.roll.toString(),
       section: student.section,
-      department: student.department || "",
+      group: student.group || "",
       religion: student.religion as "Islam" | "Hinduism" | "Christianity" | "Buddhism" | "",
       has_stipend: Boolean(student.has_stipend),
       available: student.available,
@@ -538,7 +538,7 @@ function StudentList() {
       }
       const parsedValues = parsedForm.data as StudentFormData;
       const classNumber = Number(parsedValues.class);
-      const requiresDepartment = classNumber === 9 || classNumber === 10;
+      const requiresGroup = classNumber === 9 || classNumber === 10;
 
       const basicDeatils: Record<string, string | boolean | null> = {
         name: parsedValues.name || "",
@@ -561,7 +561,7 @@ function StudentList() {
         roll: parsedValues.roll || "",
         class: parsedValues.class || "",
         section: parsedValues.section || "",
-        department: requiresDepartment ? parsedValues.department || "" : "",
+        group: requiresGroup ? parsedValues.group || "" : "",
       };
 
       if (isEditing && selectedStudent) {
@@ -579,7 +579,7 @@ function StudentList() {
                 roll: parsedValues.roll,
                 class: parsedValues.class,
                 section: parsedValues.section,
-                department: requiresDepartment ? parsedValues.department : "",
+                group: requiresGroup ? parsedValues.group : "",
               },
             ],
           },
@@ -680,7 +680,7 @@ function StudentList() {
           roll: toExcelString(student.roll),
           section: toExcelString(student.section).toUpperCase(),
           religion: toExcelString(student.religion),
-          department: toExcelString(student.department),
+          group: toExcelString(student.group),
           has_stipend: toExcelString(student.has_stipend).toLowerCase() === "yes",
           available: true,
         };
@@ -705,13 +705,13 @@ function StudentList() {
         }
 
         const classNum = Number((row.class as string) || 0);
-        if ((classNum === 9 || classNum === 10) && !(row.department as string)?.trim()) {
+        if ((classNum === 9 || classNum === 10) && !(row.group as string)?.trim()) {
           console.error("[Excel Row Validation Failed]", {
             rowNumber: index + 2,
             input: row,
-            issues: [{ path: ["department"], message: "Department is required for class 9-10" }],
+            issues: [{ path: ["group"], message: "Group is required for class 9-10" }],
           });
-          validationErrors.push(`Row ${index + 2}: Department is required for class 9-10`);
+          validationErrors.push(`Row ${index + 2}: Group is required for class 9-10`);
         }
       });
 
@@ -757,7 +757,7 @@ function StudentList() {
         roll: "12",
         section: "A",
         religion: "Islam",
-        department: "",
+        group: "",
         has_stipend: "No",
       },
       {
@@ -775,7 +775,7 @@ function StudentList() {
         roll: "5",
         section: "B",
         religion: "Islam",
-        department: "Science",
+        group: "Science",
         has_stipend: "Yes",
       },
     ];
@@ -1096,20 +1096,20 @@ function StudentList() {
                       </div>
                       {(watchedClass === 9 || watchedClass === 10) && (
                         <div className="space-y-1.5">
-                          <label className="block text-sm font-medium">Department <span className="text-destructive">*</span></label>
+                          <label className="block text-sm font-medium">Group <span className="text-destructive">*</span></label>
                           <select
-                            {...register("department")}
+                            {...register("group")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
                             className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <option value="">Select Department</option>
-                            {(VALID_DEPARTMENTS as readonly string[]).map((department: string) => (
-                              <option key={department} value={department}>
-                                {department}
+                            <option value="">Select Group</option>
+                            {(VALID_GROUPS as readonly string[]).map((group: string) => (
+                              <option key={group} value={group}>
+                                {group}
                               </option>
                             ))}
                           </select>
-                          {errors.department && <ErrorMessage message={errors.department.message} />}
+                          {errors.group && <ErrorMessage message={errors.group.message} />}
                         </div>
                       )}
                     </div>
@@ -1472,7 +1472,7 @@ function StudentList() {
                   "Roll",
                   "Class",
                   "Section",
-                  "Department",
+                   "Group",
                   "Actions",
                 ].map((header) => (
                   <th
@@ -1636,8 +1636,8 @@ function StudentList() {
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
-                  {popup.student.department && (
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.department}</span>
+                  {popup.student.group && (
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.group}</span>
                   )}
                   {popup.student.has_stipend && (
                     <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
@@ -1789,7 +1789,7 @@ function StudentList() {
                   <div>• roll</div>
                   <div>• section</div>
 
-                  <div>• department</div>
+                  <div>• group</div>
                   <div></div>
                 </div>
               </div>
@@ -1810,7 +1810,7 @@ function StudentList() {
                     <strong>has_stipend:</strong> Use "Yes" or "No"
                   </li>
                   <li>
-                    <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
+                    <strong>group:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
                   </li>
                   <li>
                     <strong>File Format:</strong> Only .xlsx or .xls files are accepted

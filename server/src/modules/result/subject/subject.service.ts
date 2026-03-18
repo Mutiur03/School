@@ -10,8 +10,8 @@ export class SubjectService {
     }
 
     for (const subject of subjects) {
-      if (subject.department === "General" || subject.department === "general") {
-        subject.department = null;
+      if (subject.group === "General" || subject.group === "general") {
+        subject.group = null;
       }
 
       const fullMarkSum =
@@ -36,7 +36,7 @@ export class SubjectService {
     const internalDuplicates = [];
 
     for (const subject of subjects) {
-      const key = `${subject.name}-${subject.class}-${subject.department || "General"}-${subject.year}`;
+      const key = `${subject.name}-${subject.class}-${subject.group || "General"}-${subject.year}`;
       if (subjectMap.has(key)) {
         internalDuplicates.push(
           `${subject.name} (Class ${subject.class}, ${subject.year})`,
@@ -55,7 +55,7 @@ export class SubjectService {
         where: {
           name: subject.name,
           class: subject.class,
-          department: subject.department || null,
+          group: subject.group || null,
           year: subject.year || current_year,
         },
       });
@@ -82,7 +82,7 @@ export class SubjectService {
               name: subject.subject_group,
               class: subject.class,
               year: subject.year || current_year,
-              department: subject.department || null,
+              group: subject.group || null,
             },
           });
 
@@ -94,7 +94,7 @@ export class SubjectService {
                 year: subject.year || current_year,
                 subject_type: "main",
                 assessment_type: subject.assessment_type || "exam",
-                department: subject.department || null,
+                group: subject.group || null,
                 priority: subject.priority ?? 0,
               },
             });
@@ -137,7 +137,7 @@ export class SubjectService {
           mcq_pass_mark: subject.mcq_pass_mark ?? 0,
           practical_pass_mark: subject.practical_pass_mark ?? 0,
           year: subject.year || current_year,
-          department: subject.department || null,
+          group: subject.group || null,
           subject_type: subject.subject_type,
           parent_id: subject.parent_id || null,
           assessment_type: subject.assessment_type || "exam",
@@ -247,7 +247,7 @@ export class SubjectService {
             mcq_pass_mark: (data.mcq_pass_mark ?? 0) as number,
             practical_pass_mark: (data.practical_pass_mark ?? 0) as number,
             year: data.year || new Date().getFullYear(),
-            department: data.department || null,
+            group: data.group || null,
             subject_type: data.subject_type || "single",
             parent_id: data.parent_id || null,
             assessment_type: data.assessment_type || "exam",

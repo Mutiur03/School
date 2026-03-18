@@ -3,7 +3,7 @@ import * as bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";
-import { removeInitialZeros, VALID_DEPARTMENTS } from "@school/shared-schemas";
+import { removeInitialZeros, VALID_GROUPS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
 import PDFDocument from "pdfkit";
 import EmailService from "@/utils/email.service.js";
@@ -310,10 +310,10 @@ export class StudentService {
         const batch = String(current_year + 11 - classNum);
         const section = (student.section?.trim() || "A").toUpperCase();
         const roll = Number(removeInitialZeros(String(student.roll || 1)));
-        const department = classNum >= 9 ? student.department?.trim() || null : null;
+        const group = classNum >= 9 ? student.group?.trim() || null : null;
 
-        if ((classNum === 9 || classNum === 10) && !VALID_DEPARTMENTS.includes(department || "")) {
-          throw new ApiError(400, `Student at index ${i}: Department is required for class 9-10`);
+        if ((classNum === 9 || classNum === 10) && !VALID_GROUPS.includes(group || "")) {
+          throw new ApiError(400, `Student at index ${i}: Group is required for class 9-10`);
         }
 
         const login_id = batchLoginIdMap[batch];
@@ -327,7 +327,7 @@ export class StudentService {
           batch,
           section,
           roll,
-          department,
+          group,
           login_id,
           year: student.year || current_year,
         };
@@ -369,7 +369,7 @@ export class StudentService {
         roll: s.roll,
         section: s.section,
         year: s.year,
-        department: s.department,
+        group: s.group,
       }));
 
       await tx.student_enrollments.createMany({
@@ -567,16 +567,16 @@ export class StudentService {
 
     if (
       (classForValidation === 9 || classForValidation === 10) &&
-      (!updates.department || !VALID_DEPARTMENTS.includes(updates.department))
+      (!updates.group || !VALID_GROUPS.includes(updates.group))
     ) {
       throw new ApiError(
         400,
-        "Department is required for class 9-10 and must be valid.",
+        "Group is required for class 9-10 and must be valid.",
       );
     }
 
     if (classForValidation !== 9 && classForValidation !== 10) {
-      updates.department = null;
+      updates.group = null;
     }
 
     const result = await prisma.$transaction(

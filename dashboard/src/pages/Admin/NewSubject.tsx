@@ -11,7 +11,7 @@ import ActionButton from "@/components/ActionButton";
 import Loading from "@/components/Loading";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { subjectFormSchema, type SubjectFormSchemaData, VALID_DEPARTMENTS } from "@school/shared-schemas";
+import { subjectFormSchema, type SubjectFormSchemaData, VALID_GROUPS } from "@school/shared-schemas";
 import ErrorMessage from "@/components/ErrorMessage";
 import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject } from "@/queries/subject.queries";
 import type { Subject } from "@/types/subjects";
@@ -24,7 +24,7 @@ const NewSubject: React.FC = () => {
 
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterClass, setFilterClass] = useState<number | "all">("all");
-  const [filterDepartment, setFilterDepartment] = useState<string | "all">("all");
+  const [filterGroup, setFilterGroup] = useState<string | "all">("all");
   const [filterType, setFilterType] = useState<string | "all">("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -49,7 +49,7 @@ const NewSubject: React.FC = () => {
       cq_pass_mark: 0,
       mcq_pass_mark: 0,
       practical_pass_mark: 0,
-      department: "",
+      group: "",
       year: filterYear,
       subject_type: "single",
       parent_id: null as any,
@@ -81,7 +81,7 @@ const NewSubject: React.FC = () => {
       const classNum = Number(value);
       if (classNum > 0 && classNum < 9) {
         setValue("class", classNum as any);
-        setValue("department", "");
+        setValue("group", "");
         return;
       }
     }
@@ -121,7 +121,7 @@ const NewSubject: React.FC = () => {
       cq_pass_mark: 0,
       mcq_pass_mark: 0,
       practical_pass_mark: 0,
-      department: "",
+      group: "",
       year: filterYear,
       subject_type: "single",
       parent_id: null as any,
@@ -184,16 +184,16 @@ const NewSubject: React.FC = () => {
       const errors: string[] = [];
       // Step 1: Normalize rows
       const normalizedRows = data.map((row) => {
-        const deptKey = Object.keys(row).find(k => String(k).toLowerCase() === 'department');
-        const deptRaw = deptKey ? String(row[deptKey as keyof typeof row] || "").trim() : "";
-        const dept = deptRaw ? deptRaw.charAt(0).toUpperCase() + deptRaw.slice(1).toLowerCase() : "";
+        const groupKey = Object.keys(row).find(k => String(k).toLowerCase() === 'group');
+        const groupRaw = groupKey ? String(row[groupKey as keyof typeof row] || "").trim() : "";
+        const group = groupRaw ? groupRaw.charAt(0).toUpperCase() + groupRaw.slice(1).toLowerCase() : "";
         return {
           ...row,
           name: String(row.name || "").trim(),
           class: Number(row.class),
           full_mark: Number(row.full_mark),
           pass_mark: row.assessment_type?.toLowerCase() === "continuous" ? null : Number(row.pass_mark),
-          department: dept,
+          group: group,
           year: Number(row.year) || new Date().getFullYear(),
           assessment_type: String(row.assessment_type || "exam").toLowerCase(),
           subject_group: row.subject_group ? String(row.subject_group).trim() : null,
@@ -210,7 +210,7 @@ const NewSubject: React.FC = () => {
       const seen = new Set();
       normalizedRows.forEach((row, index) => {
         const rowNum = index + 2;
-        const key = `${row.name}|${row.class}|${row.department}|${row.year}`;
+        const key = `${row.name}|${row.class}|${row.group}|${row.year}`;
         if (!row.name) errors.push(`Row ${rowNum}: Subject name required.`);
         if (!row.class || isNaN(row.class) || row.class < 6 || row.class > 10) errors.push(`Row ${rowNum}: Class must be 6-10.`);
         if (!row.full_mark || isNaN(row.full_mark) || row.full_mark <= 0) errors.push(`Row ${rowNum}: Full mark required.`);
@@ -222,7 +222,7 @@ const NewSubject: React.FC = () => {
         seen.add(key);
         // Check DB duplicate
         const isDuplicateInDB = subjects.some(
-          (s) => s.name === row.name && s.class === row.class && (s.department || "") === row.department && s.year === row.year
+          (s) => s.name === row.name && s.class === row.class && (s.group || "") === row.group && s.year === row.year
         );
         if (isDuplicateInDB) errors.push(`Row ${rowNum}: Subject already exists in database.`);
       });
@@ -328,7 +328,7 @@ const NewSubject: React.FC = () => {
       cq_pass_mark: (subject.cq_pass_mark || 0) as any,
       mcq_pass_mark: (subject.mcq_pass_mark || 0) as any,
       practical_pass_mark: (subject.practical_pass_mark || 0) as any,
-      department: subject.department || "",
+      group: subject.group || "",
       year: subject.year,
       subject_type: subject.subject_type,
       parent_id: (subject.parent_id || null) as any,
@@ -373,8 +373,8 @@ const NewSubject: React.FC = () => {
     if (filterClass !== "all") {
       baseFilter = baseFilter.filter((s) => s.class === filterClass);
     }
-    if (filterDepartment !== "all") {
-      baseFilter = baseFilter.filter((s) => (s.department || "") === filterDepartment);
+    if (filterGroup !== "all") {
+      baseFilter = baseFilter.filter((s) => (s.group || "") === filterGroup);
     }
     if (filterType !== "all") {
       baseFilter = baseFilter.filter((s) => s.subject_type === filterType);
@@ -439,13 +439,13 @@ const NewSubject: React.FC = () => {
     });
 
     return result;
-  }, [subjects, filterYear, filterClass, filterDepartment, filterType, searchTerm]);
+  }, [subjects, filterYear, filterClass, filterGroup, filterType, searchTerm]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Subject Management"
-        description="Manage school subjects, marks, and departments."
+        description="Manage school subjects, marks, and groups."
       >
         {!showForm && (
           <Button
@@ -686,18 +686,18 @@ const NewSubject: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className={`space-y-1.5 transition-all duration-300 ${Number(formData.class) >= 9 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                    <label className="text-sm font-medium">Department</label>
+                    <label className="text-sm font-medium">Group</label>
                     <select
-                      {...register("department")}
+                      {...register("group" as any)}
                       disabled={Number(formData.class) < 9}
                       className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:bg-muted/50"
                     >
                       <option value="">{Number(formData.class) >= 9 ? "General (Common for all)" : "Not Required for Class 6-8"}</option>
-                      {VALID_DEPARTMENTS.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
+                      {VALID_GROUPS.map((grp) => (
+                        <option key={grp} value={grp}>{grp}</option>
                       ))}
                     </select>
-                    <ErrorMessage message={errors.department?.message} />
+                    <ErrorMessage message={(errors as any).group?.message} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Year</label>
@@ -825,17 +825,17 @@ const NewSubject: React.FC = () => {
           </div>
 
           <div className="w-full sm:w-40">
-            <label className="text-sm font-medium mb-1.5 block">Department</label>
+            <label className="text-sm font-medium mb-1.5 block">Group</label>
             <select
-              value={filterDepartment}
+              value={filterGroup}
               disabled={filterClass !== "all" && (filterClass as number) < 9}
-              onChange={(e) => setFilterDepartment(e.target.value)}
+              onChange={(e) => setFilterGroup(e.target.value)}
               className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:bg-muted/50"
             >
-              <option value="all">All Departments</option>
+              <option value="all">All Groups</option>
               <option value="">General</option>
-              {VALID_DEPARTMENTS.map(d => (
-                <option key={d} value={d}>{d}</option>
+              {VALID_GROUPS.map(g => (
+                <option key={g} value={g}>{g}</option>
               ))}
             </select>
           </div>
@@ -874,7 +874,7 @@ const NewSubject: React.FC = () => {
               onClick={() => {
                 setFilterYear(new Date().getFullYear());
                 setFilterClass("all");
-                setFilterDepartment("all");
+                setFilterGroup("all");
                 setFilterType("all");
                 setSearchTerm("");
               }}
@@ -952,8 +952,8 @@ const NewSubject: React.FC = () => {
                       <td className="px-4 py-3 text-sm">
                         <div className="flex flex-col">
                           <span>Class {subject.class}</span>
-                          {subject.department && (
-                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{subject.department}</span>
+                          {subject.group && (
+                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{subject.group}</span>
                           )}
                         </div>
                       </td>
@@ -1017,7 +1017,7 @@ const NewSubject: React.FC = () => {
                       Class {selectedSubject.class}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {selectedSubject.department || 'General'}
+                      {selectedSubject.group || 'General'}
                     </span>
                   </div>
                 </div>
@@ -1101,7 +1101,7 @@ const NewSubject: React.FC = () => {
                 {["name", "class", "full_mark", "pass_mark", "year"].map((col) => (
                   <span key={col} className="bg-background px-3 py-1.5 rounded-md border border-border text-xs font-mono shadow-sm">{col}</span>
                 ))}
-                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">department</span>
+                <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">group</span>
                 <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">subject_group</span>
                 <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">priority</span>
                 <span className="bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 text-xs font-mono shadow-sm text-primary">assessment_type</span>
@@ -1130,7 +1130,7 @@ const NewSubject: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">5</div>
-                  <p><strong>department:</strong> Optional. Science/Humanities/Commerce (Common for all if empty).</p>
+                  <p><strong>group:</strong> Optional. Science/Humanities/Commerce (Common for all if empty).</p>
                 </div>
                 <div className="flex gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">6</div>

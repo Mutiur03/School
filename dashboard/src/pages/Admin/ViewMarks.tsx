@@ -23,7 +23,7 @@ interface StudentData {
   name: string;
   class: string;
   section?: string;
-  department?: string;
+  group?: string;
   marks?: SubjectMark[];
 }
 
@@ -48,10 +48,10 @@ const ViewMarks = () => {
   const [year, setYear] = useState("2025");
   const [exam, setExam] = useState("");
   const [section, setSection] = useState("");
-  const [department, setDepartment] = useState("");
+  const [group, setGroup] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [availableSections, setAvailableSections] = useState<string[]>([]);
-  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<string[]>([]);
   const [examList, setExamList] = useState<string[]>([]);
   const [classList, setClassList] = useState<ClassList>({});
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
@@ -102,7 +102,7 @@ const ViewMarks = () => {
         const data = response.data;
         if (!data.success) {
           setMarksData([]);
-          setAvailableDepartments([]);
+          setAvailableGroups([]);
           setAvailableSections([]);
           return;
         }
@@ -115,19 +115,19 @@ const ViewMarks = () => {
         } else {
           const allSubjects = new Set<string>();
           const sections = new Set<string>();
-          const departments = new Set<string>();
+          const groups = new Set<string>();
 
           marks.forEach((student) => {
             student.marks?.forEach((subject) => {
               allSubjects.add(subject.subject);
             });
             if (student.section) sections.add(student.section);
-            if (student.department) departments.add(student.department);
+            if (student.group) groups.add(student.group);
           });
 
           setSubjects(Array.from(allSubjects).sort());
           setAvailableSections(Array.from(sections).sort());
-          setAvailableDepartments(Array.from(departments).sort());
+          setAvailableGroups(Array.from(groups).sort());
         }
       } catch {
         setMarksData([]);
@@ -145,15 +145,15 @@ const ViewMarks = () => {
     setAvailableSections([]);
     setClassName("");
     setSection("");
-    setDepartment("");
+    setGroup("");
     setMarksData([]);
-    setAvailableDepartments([]);
+    setAvailableGroups([]);
   };
 
   const handleClassChange = (selectedClass: string) => {
     setClassName(selectedClass);
     setSection("");
-    setDepartment("");
+    setGroup("");
   };
 
   const downloadMarksheet = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -175,8 +175,8 @@ const ViewMarks = () => {
 
   const filteredData = marksData.filter((student) => {
     const sectionMatch = !section || (student.section || "") === section;
-    const deptMatch = !department || (student.department || "") === department;
-    return sectionMatch && deptMatch;
+    const groupMatch = !group || (student.group || "") === group;
+    return sectionMatch && groupMatch;
   });
 
   if (error) return <p className="text-center mt-4 text-red-500">{error}</p>;
@@ -245,17 +245,17 @@ const ViewMarks = () => {
           </select>
         )}
 
-        {availableDepartments.length > 0 && (
+        {availableGroups.length > 0 && (
           <select
             className="border dark:bg-accent p-2 rounded"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
             disabled={!className}
           >
-            <option value="">All Departments</option>
-            {availableDepartments.map((dept, index) => (
-              <option key={index} value={dept}>
-                {dept}
+            <option value="">All Groups</option>
+            {availableGroups.map((grp, index) => (
+              <option key={index} value={grp}>
+                {grp}
               </option>
             ))}
           </select>
@@ -423,9 +423,9 @@ const ViewMarks = () => {
                       <strong>Section:</strong> {selectedStudent.section}
                     </div>
                   )}
-                  {selectedStudent.department && (
+                  {selectedStudent.group && (
                     <div>
-                      <strong>Department:</strong> {selectedStudent.department}
+                      <strong>Group:</strong> {selectedStudent.group}
                     </div>
                   )}
                 </div>

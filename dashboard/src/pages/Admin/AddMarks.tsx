@@ -14,7 +14,7 @@ interface Student {
   roll: number;
   section: string;
   class: number;
-  department: string;
+  group: string;
 }
 
 // Subject interface imported from @/types/subjects
@@ -49,7 +49,7 @@ interface FormValues {
   year: number;
   examName: string;
   level: string;
-  department: string;
+  group: string;
   section: string;
   specific: number;
 }
@@ -82,7 +82,7 @@ const AddMarks = () => {
       year: new Date().getFullYear(),
       examName: "",
       level: "",
-      department: "",
+      group: "",
       section: "",
       specific: 0,
     },
@@ -103,7 +103,7 @@ const AddMarks = () => {
   const [gpaData, setGpaData] = useState<GpaData>({});
 
   const formValues = watch();
-  const { year, examName, level, department, section, specific } = formValues;
+  const { year, examName, level, group, section, specific } = formValues;
 
   const fetchInitialData = useCallback(async () => {
     try {
@@ -155,7 +155,7 @@ const AddMarks = () => {
 
   useEffect(() => {
     setValue("level", "");
-    setValue("department", "");
+    setValue("group", "");
     setValue("section", "");
     setValue("specific", 0);
     setStudents([]);
@@ -178,10 +178,10 @@ const AddMarks = () => {
 
   const filteredStudents = useMemo(() => {
     return students
-      .filter((s: Student) => (department ? s.department === department : true))
+      .filter((s: Student) => (group ? s.group === group : true))
       .filter((s: Student) => !section || s.section === section)
       .sort((a: Student, b: Student) => a.roll - b.roll);
-  }, [students, department, section]);
+  }, [students, group, section]);
 
   const subjectsForClass = useMemo(() => {
     return subjects
@@ -201,18 +201,19 @@ const AddMarks = () => {
         (sub) => sub.id == specific
       );
       if (selectedSubject) {
+        const subjectGroup = selectedSubject.group;
         if (
-          selectedSubject.department &&
-          selectedSubject.department !== "" &&
-          selectedSubject.department !== null
+          subjectGroup &&
+          subjectGroup !== "" &&
+          subjectGroup !== null
         ) {
-          setValue("department", selectedSubject.department);
+          setValue("group", subjectGroup);
         } else {
-          setValue("department", "");
+          setValue("group", "");
         }
       }
     } else if (specific === 0) {
-      setValue("department", "");
+      setValue("group", "");
     }
   }, [specific, subjectsForClass, setValue]);
 
@@ -583,15 +584,15 @@ const AddMarks = () => {
 
             {Number(level) >= 9 && (
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Department</label>
+                <label className="text-sm font-medium">Group</label>
                 <select
-                  {...register("department")}
+                  {...register("group")}
                   className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
                   disabled={!level || loading.initial}
                 >
                   {["", "Science", "Humanities", "Commerce"].map((dept) => (
                     <option key={dept} value={dept}>
-                      {dept ? dept : "All Departments"}
+                      {dept ? dept : "All Groups"}
                     </option>
                   ))}
                 </select>
@@ -693,11 +694,13 @@ const AddMarks = () => {
                         const selectedSubject = subjectsForClass.find((sub) => sub.id == specific);
                         if (!selectedSubject) return null;
 
-                        const isDeptMismatch = selectedSubject.department && 
-                          selectedSubject.department !== "" && 
-                          selectedSubject.department !== student.department;
+                        const studentGroup = student.group;
+                        const subjectGroup = selectedSubject.group;
+                        const isGroupMismatch = subjectGroup && 
+                          subjectGroup !== "" && 
+                          subjectGroup !== studentGroup;
 
-                        if (isDeptMismatch) {
+                        if (isGroupMismatch) {
                           return (
                             <tr key={student.student_id} className="bg-muted/30">
                               <td className="px-4 py-4">
@@ -705,7 +708,7 @@ const AddMarks = () => {
                                 <div className="text-[10px] text-muted-foreground">Roll: {student.roll} | Sec: {student.section || "N/A"}</div>
                               </td>
                               <td colSpan={3} className="px-4 py-4 text-center text-xs text-muted-foreground italic">
-                                Not available for student department
+                                Not available for student group
                               </td>
                             </tr>
                           );

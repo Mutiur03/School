@@ -50,6 +50,6 @@ export function filterNumericInput(value: string) {
 
 export const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-export const VALID_DEPARTMENTS = ["Science", "Commerce", "Humanities"] as const;
+export const VALID_GROUPS = ["Science", "Commerce", "Humanities"] as const;
 
 export const RELIGION = ["Islam", "Hinduism", "Christianity", "Buddhism"] as const;
