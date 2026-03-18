@@ -72,7 +72,14 @@ const StudentRow = React.memo(
               {student.name.charAt(0).toUpperCase()}
             </div>
           )}
-          {student.name}
+          <div className="flex flex-col">
+            <span>{student.name}</span>
+            {!student.available && (
+              <span className="text-[10px] uppercase font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-sm w-fit mt-0.5 tracking-wider">
+                Inactive
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
           {student.roll}
@@ -906,8 +913,7 @@ function StudentList() {
         )}
       </PageHeader>
       {showForm && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-6 overflow-hidden">
-          <div className="w-full p-6">
+        <SectionCard className="mb-6 overflow-hidden">
             <h2 className="text-xl font-bold text-foreground mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
@@ -1163,11 +1169,12 @@ function StudentList() {
                         <span>Has Stipend</span>
                       </label>
                       {isEditing && (
-                        <label className="flex items-center space-x-2 text-sm font-medium">
+                        <label className="flex items-center space-x-2 text-sm font-medium opacity-50 cursor-not-allowed">
                           <input
                             type="checkbox"
                             {...register("available")}
                             className="w-4 h-4"
+                            disabled
                           />
                           <span>Active Student</span>
                         </label>
@@ -1301,8 +1308,7 @@ function StudentList() {
                 </form>
               )}
             </div>
-          </div>
-        </div>
+        </SectionCard>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />

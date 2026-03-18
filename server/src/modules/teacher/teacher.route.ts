@@ -18,6 +18,7 @@ router.delete("/:id/image", AuthMiddleware.authenticate(["admin"]), TeacherContr
 
 // Teacher password management
 router.post("/change-password", AuthMiddleware.authenticate(["teacher"]), TeacherController.changePasswordController);
+router.post("/password-rotations", AuthMiddleware.authenticate(["admin"]), TeacherController.rotatePasswordsBulkController);
 
 // Head message management
 router.post("/head-message", AuthMiddleware.authenticate(["admin"]), TeacherController.updateHeadMessageController);

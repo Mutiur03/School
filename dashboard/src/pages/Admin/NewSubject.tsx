@@ -457,43 +457,37 @@ const NewSubject: React.FC = () => {
           </Button>
         )}
       </PageHeader>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <StatsCard label="Total Subjects" value={filteredSubjects.length === stats.total ? `${stats.total}` : `${filteredSubjects.length}/${stats.total}`} loading={isLoading} />
-        {/* <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} /> */}
-        {/* <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} /> */}
-      </div>
+
 
       {showForm && (
         <SectionCard className="mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">
-              {formData.id ? "Edit Subject" : "Add New Subject"}
-            </h2>
-            {!formData.id && (
-              <div className="flex gap-1 border-b border-border">
-                <button
-                  onClick={() => handleMethodChange("form")}
-                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "form"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  Form
-                </button>
-                <button
-                  onClick={() => handleMethodChange("file")}
-                  className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "file"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  Excel Upload
-                </button>
-              </div>
-            )}
-          </div>
+          <h2 className="text-xl font-bold text-foreground mb-6">
+            {formData.id ? "Edit Subject" : "Add New Subject"}
+          </h2>
+          {!formData.id && (
+            <div className="flex gap-1 mb-6 border-b border-border">
+              <button
+                onClick={() => handleMethodChange("form")}
+                className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "form"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Form
+              </button>
+              <button
+                onClick={() => handleMethodChange("file")}
+                className={`pb-2 px-3 text-sm font-medium transition-colors relative ${uploadMethod === "file"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Excel Upload
+              </button>
+            </div>
+          )}
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {uploadMethod === "form" ? (
               <form onSubmit={handleSub(onSubmit as any, onError)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -796,7 +790,11 @@ const NewSubject: React.FC = () => {
           </div>
         </SectionCard>
       )}
-
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <StatsCard label="Total Subjects" value={filteredSubjects.length === stats.total ? `${stats.total}` : `${filteredSubjects.length}/${stats.total}`} loading={isLoading} />
+        {/* <StatsCard label="Unique Classes" value={stats.classes} loading={isLoading} /> */}
+        {/* <StatsCard label="Avg. Pass Mark" value={stats.avgPassMark} color="emerald" loading={isLoading} /> */}
+      </div>
       <SectionCard className="mb-6">
         <div className="flex flex-wrap items-end gap-4 mb-6">
           <div className="w-full sm:w-40">

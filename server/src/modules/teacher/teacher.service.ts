@@ -275,6 +275,88 @@ export class TeacherService {
     });
   }
 
+  static async rotatePasswordsBulk(teacherIds: number[]) {
+    const teachers = await prisma.teachers.findMany({
+      where: { id: { in: teacherIds } },
+      select: { id: true, name: true, email: true, designation: true },
+    });
+
+    if (teachers.length === 0) {
+      throw new ApiError(404, "No matching teachers found");
+    }
+
+    const processedTeachers = await Promise.all(
+      teachers.map(async (teacher) => {
+        const password = generatePassword();
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return {
+          ...teacher,
+          password,
+          hashedPassword,
+        };
+      })
+    );
+
+    const rotatedTeachers: Array<{
+      name: string;
+      email: string;
+      designation: string;
+      password: string;
+    }> = [];
+
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const teacher of processedTeachers) {
+        await tx.teachers.update({
+          where: { id: teacher.id },
+          data: { password: teacher.hashedPassword },
+        });
+
+        rotatedTeachers.push({
+          name: teacher.name,
+          email: teacher.email || "N/A",
+          designation: teacher.designation || "N/A",
+          password: teacher.password,
+        });
+      }
+    });
+
+    const excelData = rotatedTeachers.map(
+      (teacher: {
+        name: string;
+        email: string;
+        designation: string;
+        password: string;
+      }) => ({
+        Name: teacher.name,
+        Email: teacher.email,
+        Designation: teacher.designation,
+        "New Password": teacher.password,
+      }),
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rotated Passwords");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "buffer",
+    });
+
+    EmailService.sendEmailWithAttachment({
+      from: env.FROM_EMAIL,
+      to: "mutiur5bb@gmail.com",
+      subject: "Teacher Passwords Rotated - New Credentials",
+      body: `Hello Headmaster,\n\nPlease find attached the new login credentials for the ${rotatedTeachers.length} teachers whose passwords were just rotated.\n\nBest regards,\nSchool Management System`,
+      attachment: {
+        filename: "rotated_passwords.xlsx",
+        content: excelBuffer,
+      },
+    }).catch((err) => console.error("Failed to send headmaster email:", err));
+
+    return excelBuffer;
+  }
+
   static async updateHeadMessage(teacherId?: number | null, message?: string | null) {
     const updateData: any = {};
     if (teacherId) updateData.head_id = parseInt(teacherId.toString());

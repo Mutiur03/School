@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get(
   "/",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  AuthMiddleware.authenticate(["admin"]),
   StudentController.getStudentsQueryController,
 );
 

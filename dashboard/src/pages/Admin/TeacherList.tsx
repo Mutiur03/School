@@ -5,7 +5,7 @@ import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/ErrorMessage";
-import { PageHeader, SectionCard, StatsCard, Popup } from "@/components";
+import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup } from "@/components";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { teacherFormSchema, type TeacherFormSchemaData } from "@school/shared-schemas";
@@ -15,8 +15,6 @@ import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
 import { useTeacher } from "@/queries/teacher.queries";
 import type { Teacher } from "@/types/teachers";
-
-
 
 interface PopupState {
   visible: boolean;
@@ -73,6 +71,8 @@ const TeacherList = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [image, setImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<number>>(() => new Set());
+  const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
   const invalidateTeachers = () =>
     queryClient.invalidateQueries({ queryKey: ["teachers"] });
@@ -113,7 +113,7 @@ const TeacherList = () => {
       invalidateTeachers();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
-      toast.error(error.response?.data?.message  || "An error occurred while adding the teacher.");
+      toast.error(error.response?.data?.message || "An error occurred while adding the teacher.");
     },
   });
 
@@ -176,6 +176,34 @@ const TeacherList = () => {
     },
   });
 
+  const bulkRotateMutation = useMutation({
+    mutationFn: async (teacherIds: number[]) => {
+      const response = await axios.post(
+        "/api/teachers/password-rotations",
+        { teacherIds },
+        { responseType: "blob" }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "rotated_passwords.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Passwords rotated successfully. Excel downloaded.");
+      setSelectedTeacherIds(new Set());
+      invalidateTeachers();
+      setBulkRotateOpen(false);
+    },
+    onError: (error) => {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to rotate passwords. Please try again.");
+    },
+  });
+
   const handleEdit = useCallback((teacher: Teacher) => {
     reset({
       name: teacher.name || "",
@@ -226,6 +254,57 @@ const TeacherList = () => {
     () => teachers.filter((teacher: Teacher) => teacher.available),
     [teachers],
   );
+
+  const onToggleSelect = useCallback((teacherId: number) => {
+    setSelectedTeacherIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(teacherId)) next.delete(teacherId);
+      else next.add(teacherId);
+      return next;
+    });
+  }, []);
+
+  const visibleTeacherIds = useMemo(() => filteredTeachers.map((t: Teacher) => t.id), [filteredTeachers]);
+  const visibleTeacherIdSet = useMemo(() => new Set<number>(visibleTeacherIds), [visibleTeacherIds]);
+
+  const selectedVisibleCount = useMemo(() => {
+    let count = 0;
+    selectedTeacherIds.forEach((id) => {
+      if (visibleTeacherIdSet.has(id)) count += 1;
+    });
+    return count;
+  }, [selectedTeacherIds, visibleTeacherIdSet]);
+
+  const allVisibleSelected =
+    visibleTeacherIds.length > 0 && selectedVisibleCount === visibleTeacherIds.length;
+
+  const handleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedTeacherIds((prev) => {
+        const next = new Set(prev);
+        visibleTeacherIdSet.forEach((id) => next.delete(id));
+        return next;
+      });
+      return;
+    }
+
+    setSelectedTeacherIds((prev) => {
+      const next = new Set(prev);
+      visibleTeacherIdSet.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    setSelectedTeacherIds((prev) => {
+      const existing = new Set(teachers.map((teacher: Teacher) => teacher.id));
+      const next = new Set<number>();
+      prev.forEach((id) => {
+        if (existing.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [teachers]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -286,7 +365,7 @@ const TeacherList = () => {
                   {!image && isEditing && popup.teacher?.image && (
                     <button
                       type="button"
-                      onClick={() => removeImageMutation.mutate(popup.teacher!.id)}
+                      onClick={() => removeImageMutation.mutate(Number(popup.teacher!.id))}
                       className="mt-2 text-sm text-destructive hover:underline"
                     >
                       Remove Current Image
@@ -329,18 +408,25 @@ const TeacherList = () => {
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium">Designation <span className="text-destructive">*</span></label>
-                    <Input
-                      type="text"
-                      placeholder="Enter teacher's designation"
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...register("designation")}
-                    />
+                      defaultValue={isEditing ? popup.teacher?.designation : ""}
+                    >
+                      <option value="">Select Designation</option>
+                      <option value="Headmaster">Headmaster</option>
+                      <option value="Assistant Headmaster">Assistant Headmaster</option>
+                      <option value="Headmaster (Incharge)">Headmaster (Incharge)</option>
+                      <option value="Senior Teacher">Senior Teacher</option>
+                      <option value="Assistant Teacher">Assistant Teacher</option>
+                    </select>
                     {errors.designation && <ErrorMessage message={errors.designation.message} />}
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="block text-sm font-medium">Home Town</label>
+                    <label className="block text-sm font-medium">Address</label>
                     <Input
                       type="text"
-                      placeholder="Enter teacher's home town"
+                      placeholder="Enter teacher's address"
                       {...register("address")}
                     />
                     {errors.address && <ErrorMessage message={errors.address.message} />}
@@ -397,10 +483,52 @@ const TeacherList = () => {
       </SectionCard>
 
       <SectionCard noPadding className="mb-6">
+        {selectedTeacherIds.size > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-muted border-b border-border">
+            <p className="text-sm font-medium text-foreground">
+              {selectedTeacherIds.size} teacher(s) selected
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBulkRotateOpen(true)}
+                disabled={bulkRotateMutation.isPending}
+                className="w-full sm:w-auto bg-white hover:bg-gray-50 text-black! border-gray-200"
+              >
+                Rotate Passwords
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedTeacherIds(new Set())}
+                className="w-full sm:w-auto text-muted-foreground"
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted border-b border-border">
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    ref={(input) => {
+                      if (input) {
+                        input.indeterminate =
+                          selectedVisibleCount > 0 &&
+                          selectedVisibleCount < visibleTeacherIds.length;
+                      }
+                    }}
+                    onChange={handleSelectAllVisible}
+                    aria-label="Select all visible teachers"
+                    className="h-4 w-4"
+                  />
+                </th>
                 {["Teacher", "Email", "Designation", "Actions"].map((header) => (
                   <th
                     key={header}
@@ -423,13 +551,22 @@ const TeacherList = () => {
                 </tr>
               ) : filteredTeachers.length > 0 ? (
                 filteredTeachers.map((teacher: Teacher) => (
-                  <tr key={teacher.id} className="hover:bg-muted/50 transition-colors">
+                  <tr key={teacher.id} className={`transition-colors ${selectedTeacherIds.has(teacher.id) ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedTeacherIds.has(teacher.id)}
+                        onChange={() => onToggleSelect(teacher.id)}
+                        aria-label={`Select ${teacher.name}`}
+                        className="h-4 w-4"
+                      />
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         {teacher.image ? (
                           <img src={getFileUrl(teacher.image)} className="w-10 h-10 rounded-full object-cover border border-border" alt="" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground font-bold text-sm">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground font-bold text-lg">
                             {teacher.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -458,7 +595,7 @@ const TeacherList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {errorMessage || "No teachers found matching your criteria."}
                   </td>
                 </tr>
@@ -573,7 +710,7 @@ const TeacherList = () => {
                     className="w-20 aspect-[7/9] object-cover rounded-sm border border-border shadow"
                   />
                 ) : (
-                  <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
+                  <div className="w-20 aspect-[7/9] rounded-sm border border-border bg-muted flex items-center justify-center text-4xl text-muted-foreground font-bold">
                     {popup.teacher.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -594,7 +731,7 @@ const TeacherList = () => {
                 {[
                   { label: "Email", value: popup.teacher.email },
                   { label: "Phone", value: popup.teacher.phone },
-                  { label: "Home Town", value: popup.teacher.address },
+                  { label: "Address", value: popup.teacher.address },
                 ].filter(({ value }) => value).map(({ label, value }) => (
                   <div key={label} className="flex text-sm">
                     <span className="w-28 text-muted-foreground shrink-0">{label}</span>
@@ -612,6 +749,17 @@ const TeacherList = () => {
             </>
           )}
         </Popup>
+      )}
+
+      {bulkRotateOpen && (
+        <ConfirmationPopup
+          open={bulkRotateOpen}
+          onOpenChange={setBulkRotateOpen}
+          onConfirm={() => bulkRotateMutation.mutate(Array.from(selectedTeacherIds))}
+          title="Rotate Passwords"
+          msg={`Are you sure you want to rotate passwords for ${selectedTeacherIds.size} selected ${selectedTeacherIds.size === 1 ? "teacher" : "teachers"}? A new password will be generated for each and an Excel file will be downloaded, while also sending an email to the headmaster.`}
+          confirmLabel={bulkRotateMutation.isPending ? "Generating..." : "Yes, Rotate Passwords"}
+        />
       )}
     </div>
   );
