@@ -324,7 +324,7 @@ export class RegistrationFormClass6Service {
       class: 6,
       roll: reg.roll ? removeInitialZeros(String(reg.roll)) : "",
       section: reg.section,
-      department: "",
+      group: "",
       has_stipend: "No",
       religion: reg.religion,
     }));

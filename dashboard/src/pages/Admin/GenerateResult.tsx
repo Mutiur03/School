@@ -11,7 +11,7 @@ interface Student {
   roll: number;
   section: string;
   class: number;
-  department?: string;
+  group?: string; 
   final_merit?: number;
   next_year_roll?: number;
   next_year_section?: string;
@@ -25,19 +25,19 @@ const GenerateResult = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [classSection, setClassSection] = useState<string>("");
-  const [department, setDepartment] = useState<string>("");
+  const [group, setGroup] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
 
   useEffect(() => {
     const storedYear = sessionStorage.getItem("generateResultYear");
     const storedClass = sessionStorage.getItem("generateResultClass");
     const storedSection = sessionStorage.getItem("generateResultSection");
-    const storedDepartment = sessionStorage.getItem("generateResultDepartment");
+    const storedGroup = sessionStorage.getItem("generateResultGroup");
 
     if (storedYear) setYear(Number(storedYear));
     if (storedClass) setSelectedClass(storedClass);
     if (storedSection) setClassSection(storedSection);
-    if (storedDepartment) setDepartment(storedDepartment);
+    if (storedGroup) setGroup(storedGroup);
   }, []);
 
   const handleYearChange = (value: string) => {
@@ -47,7 +47,7 @@ const GenerateResult = () => {
 
   const handleClassChange = (value: string) => {
     setSelectedClass(value);
-    setDepartment("");
+    setGroup("");
     setClassSection("");
     sessionStorage.setItem("generateResultClass", value);
   };
@@ -57,9 +57,9 @@ const GenerateResult = () => {
     sessionStorage.setItem("generateResultSection", value);
   };
 
-  const handleDepartmentChange = (value: string) => {
-    setDepartment(value);
-    sessionStorage.setItem("generateResultDepartment", value);
+  const handleGroupChange = (value: string) => {
+    setGroup(value);
+    sessionStorage.setItem("generateResultGroup", value);
   };
 
   const handleGenerateResult = () => {
@@ -126,7 +126,7 @@ const GenerateResult = () => {
       (s) =>
         s.class === parseInt(selectedClass) &&
         (!classSection || s.section === classSection) &&
-        (!department || s.department === department)
+        (!group || s.group === group)
     )
     .sort((a, b) => a.section.localeCompare(b.section) || a.roll - b.roll);
 
@@ -243,14 +243,14 @@ const GenerateResult = () => {
         </div>
         {selectedClass > "8" && (
           <div>
-            <label className="block mb-1 font-medium">Department:</label>
+            <label className="block mb-1 font-medium">Group:</label>
             <select
-              value={department}
-              onChange={(e) => handleDepartmentChange(e.target.value)}
+              value={group}
+              onChange={(e) => handleGroupChange(e.target.value)}
               className="p-2 border dark:bg-accent rounded-md w-full"
               disabled={!selectedClass}
             >
-              <option value="">All Departments</option>
+              <option value="">All Groups</option>
               {["Science", "Humanities", "Commerce"].map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}

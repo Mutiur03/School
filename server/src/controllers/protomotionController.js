@@ -95,7 +95,7 @@ export const promoteStudentController = async (req, res) => {
         },
         marks: true,
       },
-      orderBy: [{ class: "asc" }, { department: "asc" }],
+      orderBy: [{ class: "asc" }, { group: "asc" }],
     });
 
     // Calculate sort values for each student
@@ -114,10 +114,10 @@ export const promoteStudentController = async (req, res) => {
       };
     });
 
-    // Group by class and department for merit calculation
+    // Group by class and group for merit calculation
     const groupedStudents = {};
     studentsWithMerit.forEach((student) => {
-      const key = `${student.class}-${student.department}`;
+      const key = `${student.class}-${student.group}`;
       if (!groupedStudents[key]) {
         groupedStudents[key] = [];
       }
@@ -185,7 +185,7 @@ export const promoteStudentController = async (req, res) => {
 
     // Process all classes and assign rolls based on merit
     Object.keys(groupedStudents).forEach((key) => {
-      const [currentClass, department] = key.split("-");
+      const [currentClass, groupName] = key.split("-");
       const classNum = parseInt(currentClass);
       const group = groupedStudents[key];
 
@@ -203,7 +203,7 @@ export const promoteStudentController = async (req, res) => {
       group.forEach((student) => {
         const newClassKey =
           classNum === 9 && student.new_class === 10
-            ? `${student.new_class}-${department}`
+            ? `${student.new_class}-${groupName}`
             : `${student.new_class}`;
 
         if (!newClassGroups[newClassKey]) {
@@ -239,7 +239,7 @@ export const promoteStudentController = async (req, res) => {
       const {
         id: enrollment_id,
         student_id,
-        department,
+        group,
         new_class,
         new_section,
         new_roll,
@@ -275,14 +275,14 @@ export const promoteStudentController = async (req, res) => {
           section: new_section,
           year: newYear,
           status: "Pending",
-          department,
+          group,
         },
       });
     }
 
     res.json({
       message:
-        "Promotion, Merit Update & Roll Assignment Completed by Department!",
+        "Promotion, Merit Update & Roll Assignment Completed by Group!",
     });
   } catch (error) {
     console.error("Error promoting students:", error);

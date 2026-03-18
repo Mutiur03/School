@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUBJECT_NAME, CLASS_NUM, VALID_DEPARTMENTS } from "./regex.js";
+import { SUBJECT_NAME, CLASS_NUM, VALID_GROUPS } from "./regex.js";
 
 // Helper for numeric fields that can be empty or null
 const numericCoerce = z.preprocess((val) => {
@@ -29,7 +29,7 @@ export const subjectFormSchema = z
     cq_pass_mark: numericCoerce.default(0),
     mcq_pass_mark: numericCoerce.default(0),
     practical_pass_mark: numericCoerce.default(0),
-    department: z.string().trim().nullable().optional(),
+    group: z.string().trim().nullable().optional(),
     year: z.number().int().min(2000, "Year must be at least 2000"),
     subject_type: z.enum(["main", "paper", "single"]),
     subject_group: z.string().trim().nullable().optional(),
@@ -80,17 +80,17 @@ export const subjectFormSchema = z
       });
     }
 
-    // Department validation
-    if (data.department && data.department.trim() !== "") {
+    // Group validation
+    if (data.group && data.group.trim() !== "") {
       if (
-        !VALID_DEPARTMENTS.includes(
-          data.department as (typeof VALID_DEPARTMENTS)[number],
+        !VALID_GROUPS.includes(
+          data.group as (typeof VALID_GROUPS)[number],
         )
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["department"],
-          message: `Invalid department: ${data.department}. Allowed values: ${VALID_DEPARTMENTS.join(", ")}`,
+          path: ["group"],
+          message: `Invalid group: ${data.group}. Allowed values: ${VALID_GROUPS.join(", ")}`,
         });
       }
     }

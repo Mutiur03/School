@@ -89,7 +89,7 @@ model student_enrollments {
   roll              Int
   section           String   @db.Char(1)
   year              Int
-  department        String?  @db.VarChar(100)
+  group             String?  @db.VarChar(100)
   fail_count        Int      @default(0)
   status            String   @default("Passed") @db.VarChar(100)
   final_merit       Int      @default(0)
@@ -104,7 +104,7 @@ model student_enrollments {
   @@index([class, year])
   @@index([class, section, year])
   @@index([roll, class, section, year])
-  @@index([department])
+  @@index([group])
   @@index([status])
 }
 
@@ -211,7 +211,7 @@ model subjects {
   mcq_pass_mark       Int        @default(0)
   practical_pass_mark Int        @default(0)
   year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  department          String?    @db.VarChar(100)
+  group               String?    @db.VarChar(100)
   subject_type        String     @default("single")
   parent_id           Int?
   assessment_type     String     @default("exam")
@@ -221,9 +221,9 @@ model subjects {
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
 
-  @@unique([name, class, department, year])
+  @@unique([name, class, group, year])
   @@index([class, year])
-  @@index([department])
+  @@index([group])
   @@index([name])
   @@index([parent_id])
   @@index([priority])

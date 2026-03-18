@@ -264,7 +264,7 @@ export const getClassMarksController = async (req, res) => {
       name: enrollment.student.name,
       roll: enrollment.roll,
       class: enrollment.class,
-      department: enrollment.department,
+      group: enrollment.group,
       section: enrollment.section,
       marks: enrollment.marks.map((mark) => ({
         subject_id: mark.subject.id,
@@ -1185,7 +1185,7 @@ export const getAllStudentsGPAController = async (req, res) => {
       student_name: enrollment.student.name,
       class: enrollment.class,
       roll: enrollment.roll,
-      department: enrollment.department,
+      group: enrollment.group,
       section: enrollment.section,
       jsc_gpa: enrollment.student.gpa?.jsc_gpa || null,
       ssc_gpa: enrollment.student.gpa?.ssc_gpa || null,
