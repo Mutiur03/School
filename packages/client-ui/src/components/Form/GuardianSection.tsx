@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Control, useWatch, UseFormRegister, UseFormSetValue } from "react-hook-form";
-import { getUpazilasByDistrict } from "@/lib/location";
+import { getUpazilasByDistrict } from "@school/shared-schemas";
 import { guardianRelations } from "@/lib/guardian";
 import SectionHeader from "./SectionHeader";
 import FieldRow from "./FieldRow";

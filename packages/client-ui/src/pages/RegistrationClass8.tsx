@@ -4,7 +4,7 @@ import {
     useWatch,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getUpazilasByDistrict } from "@/lib/location";
+import { getUpazilasByDistrict } from "@school/shared-schemas";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {

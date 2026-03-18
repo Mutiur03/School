@@ -4,15 +4,21 @@ import {
     useWatch,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getUpazilasByDistrict } from "@/lib/location";
+import {
+  BANGLA_ONLY,
+  NAME,
+  PHONE_NUMBER,
+  NID,
+  BIRTH_REG_NO,
+  districts,
+  getUpazilasByDistrict,
+  Class6Registration,
+  registrationSchema,
+  registrationDefaultValues,
+  filterNumericInput,
+} from "@school/shared-schemas";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-    Class6Registration,
-    registrationSchema,
-    registrationDefaultValues,
-    filterNumericInput,
-} from "@school/shared-schemas";
 import { getFileUrl } from "@/lib/backend";
 import DuplicateWarning, { Duplicate } from "@/components/Form/DupliacteWarning";
 import SectionHeader from "@/components/Form/SectionHeader";

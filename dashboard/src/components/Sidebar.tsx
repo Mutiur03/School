@@ -215,6 +215,11 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
           link: "/admin/citizencharter",
           id: "citizen-charter",
         },
+        {
+          label: "School Information",
+          link: "/admin/settings/school",
+          id: "school-settings",
+        },
       ],
     },
     {

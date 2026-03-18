@@ -39,6 +39,7 @@ import {
   SSCRegForm,
   Class6RegForm,
   Class8RegForm,
+  SchoolSettings,
 } from "./pages/Admin/index.ts"
 import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
 
@@ -319,6 +320,10 @@ function App() {
                               <Route
                                 path="/settings/add-exam"
                                 element={<ExamPDFRoutine />}
+                              />
+                              <Route
+                                path="/settings/school"
+                                element={<SchoolSettings />}
                               />
                               <Route
                                 path="/result/add-marks"

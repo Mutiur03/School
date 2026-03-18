@@ -44,6 +44,8 @@ import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
+import schoolRouter from "./modules/school/school.route.js";
+import { tenantMiddleware } from "./middlewares/tenant.middleware.js";
 import studentRouter from "./modules/student/student.route.js";
 import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
@@ -74,6 +76,7 @@ app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+app.use(tenantMiddleware);
 app.use(
   "/uploads",
   express.static(storagePath, {
@@ -126,6 +129,7 @@ app.get(
   },
 );
 app.use(studentRouter);
+app.use(schoolRouter);
 app.use("/api/exams", examRouter);
 app.use(subjectRouter);
 app.use("/api/marks", marksRouter);
