@@ -1,5 +1,5 @@
 import { getUploadUrl } from "@/config/r2.js";
-import { teacherFormSchema } from "@school/shared-schemas";
+import { teacherFormSchema, rotateTeachersPasswordsBulkRequestSchema } from "@school/shared-schemas";
 import asyncHandler from "@/utils/asyncHandler.js";
 import { TeacherService } from "@/modules/teacher/teacher.service.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
@@ -187,6 +187,36 @@ export class TeacherController {
       res
         .status(200)
         .json(new ApiResponse(200, null, "Password changed successfully"));
+    },
+  );
+
+  static rotatePasswordsBulkController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedRequest = rotateTeachersPasswordsBulkRequestSchema.safeParse(
+        req.body,
+      );
+      if (!parsedRequest.success) {
+        throw new ApiError(
+          400,
+          parsedRequest.error.issues[0]?.message ||
+            "Invalid bulk rotation payload",
+          parsedRequest.error.issues,
+        );
+      }
+
+      const teacherIds = Array.from(new Set(parsedRequest.data.teacherIds));
+      const excelBuffer = await TeacherService.rotatePasswordsBulk(teacherIds);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=rotated_passwords.xlsx",
+      );
+
+      res.status(200).send(excelBuffer);
     },
   );
 

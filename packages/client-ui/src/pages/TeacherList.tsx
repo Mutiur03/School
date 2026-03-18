@@ -73,12 +73,12 @@ function TeacherList() {
                         ) : (
                             filteredTeachers.map((t, i) => (
                                 <tr key={t.id} className={i % 2 === 0 ? 'bg-white divide-x divide-gray-200' : 'bg-gray-50 divide-x divide-gray-200'}>
-                                    <td className="px-4 py-3 text-sm w-32 align-top">
+                                    <td className="px-4 py-3 text-sm align-top">
                                         {t.image ? (
                                             <img
                                                 src={getFileUrl(t.image) || '/placeholder.svg'}
                                                 alt={t.name}
-                                                className="w-20 h-20 object-cover object-top rounded border border-gray-200"
+                                                className="w-60 h-60 object-cover object-top rounded border border-gray-200"
                                             />
                                         ) : (
                                             <div className="w-20 h-20 bg-gray-100 flex items-center justify-center rounded border border-gray-200 text-gray-400 text-xs">

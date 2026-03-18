@@ -38,10 +38,10 @@ export class StudentService {
       religion?: string;
       roll?: number;
     },
-    userOptions: {
-      role?: string;
-      levels?: Array<{ class_name: number; section: string; year: number }>;
-    } = {},
+    // userOptions: {
+    //   role?: string;
+    //   levels?: Array<{ class_name: number; section: string; year: number }>;
+    // } = {},
   ) {
     const { year, page, limit, level, section, search, religion, roll } = params;
 
@@ -67,48 +67,46 @@ export class StudentService {
 
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
       year,
-      student: { available: true },
     };
 
-    if (userOptions.role === "teacher") {
-      if (!userOptions.levels || userOptions.levels.length === 0) {
-        return {
-          data: [],
-          meta: {
-            total: 0,
-            filtered: 0,
-            page: normalizedPage,
-            limit: normalizedLimit,
-            totalPages: 0,
-          },
-        };
-      }
+    // if (userOptions.role === "teacher") {
+    //   if (!userOptions.levels || userOptions.levels.length === 0) {
+    //     return {
+    //       data: [],
+    //       meta: {
+    //         total: 0,
+    //         filtered: 0,
+    //         page: normalizedPage,
+    //         limit: normalizedLimit,
+    //         totalPages: 0,
+    //       },
+    //     };
+    //   }
 
-      const teacherLevels = userOptions.levels
-        .filter((l) => l.year === year)
-        .map((l) => ({ class: l.class_name, section: l.section }));
+    //   const teacherLevels = userOptions.levels
+    //     .filter((l) => l.year === year)
+    //     .map((l) => ({ class: l.class_name, section: l.section }));
 
-      if (teacherLevels.length === 0) {
-        return {
-          data: [],
-          meta: {
-            total: 0,
-            filtered: 0,
-            page: normalizedPage,
-            limit: normalizedLimit,
-            totalPages: 0,
-          },
-        };
-      }
+    //   if (teacherLevels.length === 0) {
+    //     return {
+    //       data: [],
+    //       meta: {
+    //         total: 0,
+    //         filtered: 0,
+    //         page: normalizedPage,
+    //         limit: normalizedLimit,
+    //         totalPages: 0,
+    //       },
+    //     };
+    //   }
 
-      baseWhere.OR = teacherLevels;
-      enrollmentWhere.OR = teacherLevels;
-    }
+    //   baseWhere.OR = teacherLevels;
+    //   enrollmentWhere.OR = teacherLevels;
+    // }
 
     if (normalizedSearch) {
       enrollmentWhere.student = {
         AND: [
-          { available: true },
           ...(religion ? [{ religion: { equals: religion, mode: "insensitive" as const } }] : []),
           {
             OR: [
@@ -129,10 +127,11 @@ export class StudentService {
         ],
       };
     } else {
-      enrollmentWhere.student = {
-        available: true,
-        ...(religion ? { religion: { equals: religion, mode: "insensitive" as const } } : {}),
-      };
+      if (religion) {
+        enrollmentWhere.student = {
+          religion: { equals: religion, mode: "insensitive" as const },
+        };
+      }
     }
 
     const [total, filtered, enrollments, allOptions] = await prisma.$transaction([

@@ -85,7 +85,7 @@ export class StudentController {
             religion,
             roll,
           },
-          req.user,
+          // req.user,
         );
         res
           .status(200)
