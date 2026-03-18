@@ -29,3 +29,4 @@ export { default as AdmissionResult } from "./AdmissionResult";
 export { default as SSCRegForm } from "./SSCRegForm";
 export { default as Class6RegForm } from "./Class6RegForm";
 export { default as Class8RegForm } from "./Class8RegForm";
+export { default as SchoolSettings } from "./SchoolSettings";

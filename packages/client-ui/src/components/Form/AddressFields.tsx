@@ -1,6 +1,6 @@
 import React from "react";
 import { UseFormRegister, UseFormSetValue } from "react-hook-form";
-import { districts } from "@/lib/location";
+import { districts } from "@school/shared-schemas";
 import FieldRow from "./FieldRow";
 import FormInput from "./FormInput";
 

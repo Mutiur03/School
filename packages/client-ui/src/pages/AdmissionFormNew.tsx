@@ -7,8 +7,6 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { districts, getUpazilasByDistrict } from "@/lib/location";
-import axios from "axios";
 import {
   BANGLA_ONLY,
   NAME,
@@ -21,7 +19,10 @@ import {
   filterEnglishInput,
   filterBanglaInput,
   bloodGroups,
+  districts,
+  getUpazilasByDistrict,
 } from "@school/shared-schemas";
+import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "..";
@@ -1367,7 +1368,7 @@ function Form() {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Admission submission error:", error);
 
       if (axios.isAxiosError(error) && error.response) {

@@ -8,6 +8,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model School {
+  id            Int        @id @default(autoincrement())
+  name          String     @db.VarChar(200)
+  shortName     String?    @db.VarChar(50)
+  eiin          String?    @unique @db.VarChar(20)
+  logo          String?
+  favicon       String?
+  district      String?    @db.VarChar(100)
+  upazila       String?    @db.VarChar(100)
+  phone         String?    @db.VarChar(20)
+  email         String?    @db.VarChar(100)
+  website       String?
+  slogan        String?
+  establishedIn Int?
+  subdomain     String?    @unique @db.VarChar(100)
+  customDomain  String?    @unique @db.VarChar(255)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  students      students[]
+  teachers      teachers[]
+  exams         exams[]
+  notices       notices[]
+  admins        admin[]
+  holidays      holidays[]
+  staffs        staffs[]
+  subjects      subjects[]
+  categories    categories[]
+  events        events[]
+  admission     admission[]
+  syllabus      syllabus[]
+  class_slots   class_slot_time[]
+  class_routine class_routine[]
+  charters      CitizenCharter[]
+  routines_pdf  class_routine_pdf[]
+  ssc_reg       ssc_reg[]
+  ssc_forms     student_registration_ssc[]
+  adm_forms     admission_form[]
+  adm_results   admission_result[]
+  class6_reg    class6_reg[]
+  class6_forms  student_registration_class6[]
+  class8_reg    class8_reg[]
+  class8_forms  student_registration_class8[]
+  enrollments   student_enrollments[]
+  attendances   attendence[]
+  levels        levels[]
+  marks         marks[]
+  gpa           gpa[]
+  galleries     gallery[]
+  exam_routines exam_routines[]
+  head_msgs     head_msg[]
+  sms_logs      sms_logs[]
+
+  @@index([name])
+  @@index([subdomain])
+  @@index([customDomain])
+}
+
 enum SetupTokenRole {
   super_admin
   admin
@@ -40,9 +97,12 @@ model admin {
   password     String
   role         String @default("admin")
   tokenVersion Int    @default(0)
+  school_id    Int?
+  school       School? @relation(fields: [school_id], references: [id])
 
   @@index([username])
   @@index([role])
+  @@index([school_id])
 }
 
 model students {
@@ -72,6 +132,8 @@ model students {
   gpa             gpa?
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
+  school_id       Int?
+  school          School?               @relation(fields: [school_id], references: [id])
 
   @@index([login_id])
   @@index([batch])
@@ -80,6 +142,7 @@ model students {
   @@index([batch, available])
   @@index([father_phone])
   @@index([mother_phone])
+  @@index([school_id])
 }
 
 model student_enrollments {
@@ -98,6 +161,8 @@ model student_enrollments {
   created_at        DateTime @default(now())
   marks             marks[]
   student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id         Int?
+  school            School?  @relation(fields: [school_id], references: [id])
 
   @@unique([student_id, class, year])
   @@index([student_id])
@@ -106,6 +171,7 @@ model student_enrollments {
   @@index([roll, class, section, year])
   @@index([department])
   @@index([status])
+  @@index([school_id])
 }
 
 model attendence {
@@ -116,12 +182,15 @@ model attendence {
   send_msg   Boolean  @default(false)
   created_at DateTime @default(now())
   student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id  Int?
+  school     School?  @relation(fields: [school_id], references: [id])
 
   @@index([student_id])
   @@index([date])
   @@index([student_id, date])
   @@index([status])
   @@index([send_msg])
+  @@index([school_id])
 }
 
 model exams {
@@ -139,8 +208,11 @@ model exams {
   public_id     String?
   exam_routines exam_routines[]
   marks         marks[]
+  school_id     Int?
+  school        School?         @relation(fields: [school_id], references: [id])
 
   @@unique([exam_name, exam_year, levels])
+  @@index([school_id])
 }
 
 model holidays {
@@ -150,6 +222,10 @@ model holidays {
   end_date    String?  @db.VarChar(10)
   description String?
   is_optional Boolean?
+  school_id   Int?
+  school      School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model teachers {
@@ -166,12 +242,15 @@ model teachers {
   tokenVersion Int        @default(0)
   head_msgs    head_msg[]
   levels       levels[]
+  school_id    Int?
+  school       School?    @relation(fields: [school_id], references: [id])
 
   @@index([email])
   @@index([phone])
   @@index([available])
   @@index([created_at])
   @@index([designation])
+  @@index([school_id])
 }
 
 model staffs {
@@ -183,6 +262,10 @@ model staffs {
   image       String?
   address     String?
   created_at  DateTime @default(now())
+  school_id   Int?
+  school      School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model levels {
@@ -192,10 +275,13 @@ model levels {
   year       Int
   teacher_id Int
   teacher    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+  school_id  Int?
+  school     School?  @relation(fields: [school_id], references: [id])
 
   @@index([teacher_id])
   @@index([class_name, year])
   @@index([class_name, section, year])
+  @@index([school_id])
 }
 
 model subjects {
@@ -220,13 +306,16 @@ model subjects {
   marks               marks[]
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
+  school_id           Int?
+  school              School?    @relation(fields: [school_id], references: [id])
 
-  @@unique([name, class, department, year])
+  @@unique([name, class, department, year, school_id])
   @@index([class, year])
   @@index([department])
   @@index([name])
   @@index([parent_id])
   @@index([priority])
+  @@index([school_id])
 }
 
 model marks {
@@ -243,12 +332,15 @@ model marks {
   enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
   exam            exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   subject         subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  school_id       Int?
+  school          School?             @relation(fields: [school_id], references: [id])
 
   @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
   @@index([enrollment_id])
   @@index([subject_id])
   @@index([exam_id])
   @@index([created_at])
+  @@index([school_id])
 }
 
 model gpa {
@@ -259,6 +351,10 @@ model gpa {
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
   student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id  Int?
+  school     School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model categories {
@@ -266,6 +362,10 @@ model categories {
   category  String    @unique
   thumbnail String?
   galleries gallery[]
+  school_id Int?
+  school    School?   @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model events {
@@ -282,6 +382,10 @@ model events {
   created_at   DateTime  @default(now())
   download_url String?
   galleries    gallery[]
+  school_id    Int?
+  school       School?   @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model gallery {
@@ -297,6 +401,10 @@ model gallery {
   category      categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
   event         events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
   uploader      students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
+  school_id     Int?
+  school        School?     @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model notices {
@@ -306,6 +414,10 @@ model notices {
   download_url String?
   public_id    String?
   created_at   DateTime @default(now())
+  school_id    Int?
+  school       School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model admission {
@@ -335,6 +447,10 @@ model admission {
   serial_no_class7              String?
   serial_no_class8              String?
   serial_no_class9              String?
+  school_id                     Int?
+  school                        School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model syllabus {
@@ -345,6 +461,10 @@ model syllabus {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
+  school_id    Int?
+  school       School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model class_slot_time {
@@ -353,6 +473,10 @@ model class_slot_time {
   end_time   String          @db.VarChar(8)
   created_at DateTime        @default(now())
   routines   class_routine[]
+  school_id  Int?
+  school     School?         @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model class_routine {
@@ -363,8 +487,11 @@ model class_routine {
   subject    String          @db.VarChar(100)
   created_at DateTime        @default(now())
   slot       class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
+  school_id  Int?
+  school     School?         @relation(fields: [school_id], references: [id])
 
-  @@unique([class, slot_id, day], name: "unique_class_slot_day")
+  @@unique([class, slot_id, day, school_id], name: "unique_class_slot_day")
+  @@index([school_id])
 }
 
 model exam_routines {
@@ -376,8 +503,11 @@ model exam_routines {
   subject    String   @db.VarChar(100)
   created_at DateTime @default(now())
   exam       exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  school_id  Int?
+  school     School?  @relation(fields: [school_id], references: [id])
 
   @@index([exam_id, class])
+  @@index([school_id])
 }
 
 model class_routine_pdf {
@@ -386,6 +516,10 @@ model class_routine_pdf {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
+  school_id    Int?
+  school       School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model CitizenCharter {
@@ -395,6 +529,10 @@ model CitizenCharter {
   public_id    String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  school_id    Int?
+  school       School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model head_msg {
@@ -404,6 +542,10 @@ model head_msg {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   teacher      teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
+  school_id    Int?
+  school       School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model ssc_reg {
@@ -416,6 +558,10 @@ model ssc_reg {
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
+  school_id              Int?
+  school                 School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model student_registration_ssc {
@@ -481,12 +627,15 @@ model student_registration_ssc {
   upobritti                String?   @db.VarChar(10)
   roll_in_class_8          String?   @db.VarChar(20)
   section_in_class_8       String?   @db.VarChar(10)
+  school_id                Int?
+  school                   School?   @relation(fields: [school_id], references: [id])
 
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
   @@index([status])
   @@index([submission_date])
+  @@index([school_id])
 }
 
 model admission_form {
@@ -551,11 +700,14 @@ model admission_form {
   admission_year           Int?
   registration_no          String?   @db.VarChar(50)
   whatsapp_number          String?   @db.VarChar(11)
+  school_id                Int?
+  school                   School?   @relation(fields: [school_id], references: [id])
 
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
   @@index([status])
+  @@index([school_id])
 }
 
 model admission_result {
@@ -570,9 +722,12 @@ model admission_result {
   waiting_list_2_public_id String?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
+  school_id                Int?
+  school                   School?  @relation(fields: [school_id], references: [id])
 
   @@index([class_name])
   @@index([admission_year])
+  @@index([school_id])
 }
 
 model sms_logs {
@@ -590,10 +745,13 @@ model sms_logs {
   message_id      String?  @db.VarChar(100)
   sms_count       Int?
   student         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id       Int?
+  school          School?  @relation(fields: [school_id], references: [id])
 
   @@index([status])
   @@index([attendance_date])
   @@index([student_id])
+  @@index([school_id])
 }
 
 model class6_reg {
@@ -608,6 +766,10 @@ model class6_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
+  school_id              Int?
+  school                 School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model student_registration_class6 {
@@ -664,12 +826,15 @@ model student_registration_class6 {
   class6_year              Int
   nearby_student_info      String?  @db.VarChar(200)
   scout_status             String?  @db.VarChar(10)
+  school_id                Int?
+  school                   School?  @relation(fields: [school_id], references: [id])
 
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
   @@index([status])
   @@index([submission_date])
+  @@index([school_id])
 }
 
 model class8_reg {
@@ -684,6 +849,10 @@ model class8_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
+  school_id              Int?
+  school                 School?  @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
 }
 
 model student_registration_class8 {
@@ -739,10 +908,13 @@ model student_registration_class8 {
   registration_no          String   @db.VarChar(50)
   class6_academic_session  String   @db.VarChar(50)
   scout_status             String?  @db.VarChar(10)
+  school_id                Int?
+  school                   School?  @relation(fields: [school_id], references: [id])
 
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
   @@index([status])
   @@index([submission_date])
+  @@index([school_id])
 }

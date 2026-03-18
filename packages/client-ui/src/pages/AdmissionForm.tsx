@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useReducer } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { districts, getUpazilasByDistrict } from "../lib/location";
+import { districts, getUpazilasByDistrict } from "@school/shared-schemas";
 import axios from "axios";
 import { useSchoolConfig } from "..";
 
