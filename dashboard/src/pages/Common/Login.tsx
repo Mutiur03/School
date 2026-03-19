@@ -292,7 +292,6 @@ function Login() {
                         }`}
                     >
                       Student
-                      {location.pathname.startsWith("/student") && "Student"}
                     </button>
                   </>)
                 ) : (

@@ -1,3 +1,4 @@
+import { env } from "@/config/env";
 import axios from "axios";
 
 export interface SMSMessage {
@@ -12,8 +13,8 @@ export interface SMSResponse {
 }
 
 export class SMSService {
-  private static readonly API_KEY = process.env.BULK_SMS_API_KEY;
-  private static readonly SENDER_ID = process.env.BULK_SMS_SENDER_ID;
+  private static readonly API_KEY = env.BULK_SMS_API_KEY;
+  private static readonly SENDER_ID = env.BULK_SMS_SENDER_ID;
   private static readonly API_URL = "https://sms.onecodesoft.com/api/send-bulk-sms";
 
   /**
@@ -113,45 +114,45 @@ export class SMSService {
     return this.sendSMS(phoneNumber, message);
   }
 
-  /**
-   * Send verification code
-   */
-  static async sendVerificationCode(phoneNumber: string, verificationCode: string, purpose: string): Promise<SMSResponse> {
-    const message = `School Management System: Your ${purpose} verification code is: ${verificationCode}. This code will expire in 10 minutes. If you didn't request this, please ignore this message.`;
+  // /**
+  //  * Send verification code
+  //  */
+  // static async sendVerificationCode(phoneNumber: string, verificationCode: string, purpose: string): Promise<SMSResponse> {
+  //   const message = `School Management System: Your ${purpose} verification code is: ${verificationCode}. This code will expire in 10 minutes. If you didn't request this, please ignore this message.`;
     
-    return this.sendSMS(phoneNumber, message);
-  }
+  //   return this.sendSMS(phoneNumber, message);
+  // }
 
-  /**
-   * Send general notification
-   */
-  static async sendNotification(phoneNumber: string, notification: string): Promise<SMSResponse> {
-    const message = `School Management System: ${notification}`;
+  // /**
+  //  * Send general notification
+  //  */
+  // static async sendNotification(phoneNumber: string, notification: string): Promise<SMSResponse> {
+  //   const message = `School Management System: ${notification}`;
     
-    return this.sendSMS(phoneNumber, message);
-  }
+  //   return this.sendSMS(phoneNumber, message);
+  // }
 
-  /**
-   * Validate phone number format (Bangladesh)
-   */
-  static validatePhoneNumber(phoneNumber: string): boolean {
-    // Remove any non-digit characters
-    const cleanNumber = phoneNumber.replace(/\D/g, '');
+  // /**
+  //  * Validate phone number format (Bangladesh)
+  //  */
+  // static validatePhoneNumber(phoneNumber: string): boolean {
+  //   // Remove any non-digit characters
+  //   const cleanNumber = phoneNumber.replace(/\D/g, '');
     
-    // Check if it's a valid Bangladesh number (11 digits starting with 01)
-    return cleanNumber.length === 11 && cleanNumber.startsWith('01');
-  }
+  //   // Check if it's a valid Bangladesh number (11 digits starting with 01)
+  //   return cleanNumber.length === 11 && cleanNumber.startsWith('01');
+  // }
 
-  /**
-   * Format phone number to standard format
-   */
-  static formatPhoneNumber(phoneNumber: string): string {
-    const cleanNumber = phoneNumber.replace(/\D/g, '');
+  // /**
+  //  * Format phone number to standard format
+  //  */
+  // static formatPhoneNumber(phoneNumber: string): string {
+  //   const cleanNumber = phoneNumber.replace(/\D/g, '');
     
-    if (cleanNumber.length === 11 && cleanNumber.startsWith('01')) {
-      return cleanNumber;
-    }
+  //   if (cleanNumber.length === 11 && cleanNumber.startsWith('01')) {
+  //     return cleanNumber;
+  //   }
     
-    throw new Error('Invalid phone number format. Must be 11 digits starting with 01');
-  }
+  //   throw new Error('Invalid phone number format. Must be 11 digits starting with 01');
+  // }
 }

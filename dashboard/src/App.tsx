@@ -329,7 +329,7 @@ function App() {
                                 element={<NewSubject />}
                               />
                               <Route
-                                path="/administration/assigned-teachers"
+                                path="/result/assigned-teachers"
                                 element={<AddLevel />}
                               />
                               <Route
