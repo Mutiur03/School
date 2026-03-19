@@ -271,6 +271,44 @@ export class StudentService {
     });
   }
 
+  static async getAttendanceOverview(params: {
+    year: number;
+    level?: number;
+    section?: string;
+  }) {
+    const { year, level, section } = params;
+
+    const where: Prisma.student_enrollmentsWhereInput = {
+      year,
+      ...(typeof level === "number" && !Number.isNaN(level) ? { class: level } : {}),
+      ...(section ? { section } : {}),
+    };
+
+    const enrollments = await prisma.student_enrollments.findMany({
+      where,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
+    });
+
+    return enrollments.map((enrollment) => ({
+      id: enrollment.student.id,
+      name: enrollment.student.name,
+      image: enrollment.student.image,
+      class: enrollment.class,
+      section: enrollment.section,
+      roll: enrollment.roll,
+      enrollment_id: enrollment.id,
+    }));
+  }
+
   static async getStudentById(studentId: number) {
     const result = await prisma.students.findUnique({
       where: { id: studentId },

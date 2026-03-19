@@ -104,6 +104,41 @@ export class StudentController {
     },
   );
 
+  static getAttendanceOverviewController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const yearValue = req.query.year;
+      const year =
+        typeof yearValue === "string" ? parseInt(yearValue, 10) : NaN;
+
+      if (!year || Number.isNaN(year)) {
+        throw new ApiError(
+          400,
+          "Invalid year query. Year must be a valid number.",
+        );
+      }
+
+      const levelValue = req.query.level;
+      const sectionValue = req.query.section;
+
+      const level =
+        typeof levelValue === "string" ? parseInt(levelValue, 10) : undefined;
+      const section =
+        typeof sectionValue === "string" ? sectionValue : undefined;
+
+      const data = await StudentService.getAttendanceOverview({
+        year,
+        level,
+        section,
+      });
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(200, data, "Attendance overview fetched successfully"),
+        );
+    },
+  );
+
   static getStudentController = asyncHandler(
     async (req: Request, res: Response) => {
       if (!req.user) {

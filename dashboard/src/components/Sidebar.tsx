@@ -92,11 +92,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
           link: "/admin/administration/staff-list",
           id: "staff-list",
         },
-        {
-          label: "Assigned Teachers",
-          link: "/admin/administration/assigned-teachers",
-          id: "assignments",
-        },
+
         {
           label: "Message From Head",
           link: "/admin/administration/head",
@@ -115,6 +111,11 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
           label: "Subjects",
           link: "/admin/result/add-subject",
           id: "add-subject",
+        },
+        {
+          label: "Assigned Teachers",
+          link: "/admin/result/assigned-teachers",
+          id: "assignments",
         },
         {
           label: "Add Marks",
@@ -145,7 +146,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       id: "registration",
       roles: ["admin"],
       items: [
-        
+
         {
           label: "Class Six Registration",
           link: "/admin/registration/class-6",

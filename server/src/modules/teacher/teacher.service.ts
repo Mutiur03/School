@@ -46,7 +46,7 @@ export class TeacherService {
     }
 
     const [total, teachers] = await prisma.$transaction([
-      prisma.teachers.count({ where }),
+      prisma.teachers.count({ where: { available: true } }),
       prisma.teachers.findMany({
         where,
         orderBy: { id: "asc" },
@@ -79,7 +79,7 @@ export class TeacherService {
 
   static async getTeacherById(teacherId: number | string) {
     const teacher = await prisma.teachers.findUnique({
-      where: { id: Number(teacherId) },
+      where: { id: Number(teacherId), available: true },
     });
 
     if (!teacher) {
@@ -277,7 +277,7 @@ export class TeacherService {
 
   static async rotatePasswordsBulk(teacherIds: number[]) {
     const teachers = await prisma.teachers.findMany({
-      where: { id: { in: teacherIds } },
+      where: { id: { in: teacherIds }, available: true },
       select: { id: true, name: true, email: true, designation: true },
     });
 
