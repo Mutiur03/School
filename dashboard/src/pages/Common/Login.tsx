@@ -227,7 +227,7 @@ function Login() {
             <div className="flex justify-center mb-8">
               <div className="flex p-1.5 bg-muted/80 dark:bg-slate-800/50 rounded-md w-full shadow-inner border border-border dark:border-slate-700/30">
                 {!showPasswordReset ? (
-                  <>
+                  envPreferredRole ? (<>
                     <button
                       // onClick={() => navigate("/admin/login")}
                       // className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
@@ -265,6 +265,36 @@ function Login() {
                     </button>
 
                   </>
+                  ) : (<>
+                    <button
+                      onClick={() => navigate("/admin/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Admin
+                    </button>
+                    <button
+                      onClick={() => navigate("/teacher/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/teacher")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Teacher
+                    </button>
+                    <button
+                      onClick={() => navigate("/student/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/student")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Student
+                      {location.pathname.startsWith("/student") && "Student"}
+                    </button>
+                  </>)
                 ) : (
                   <div className="w-full py-3 text-center text-sm font-black text-primary dark:text-primary-foreground bg-white/50 dark:bg-slate-800/50 rounded-md shadow-sm border border-primary/10 dark:border-primary/20 tracking-wider">
                     RESETTING {role.toUpperCase()}
