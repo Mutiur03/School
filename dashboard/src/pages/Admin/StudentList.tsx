@@ -225,19 +225,13 @@ function StudentList() {
 
       return { blob: response.data as Blob, headers: response.headers };
     },
-    onSuccess: ({ blob, headers }, studentId) => {
-      const contentDisposition = headers["content-disposition"] as string | undefined;
-      const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch?.[1] ?? `Testimonial_${studentId}.pdf`;
+    onSuccess: ({ blob }) => {
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Testimonial downloaded!");
+      window.open(url, "_blank");
+      // Note: We don't revokeObjectURL here because the new tab needs it to load.
+      // Most browsers will handle the blob URL cleanup once the tab is closed
+      // or after some time.
+      toast.success("Testimonial opened in new tab!");
     },
     onError: (err: any) => {
       const message =
