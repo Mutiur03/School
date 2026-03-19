@@ -32,6 +32,7 @@
     "@school/shared-schemas": "file:../packages/shared-schemas",
     "archiver": "^7.0.1",
     "axios": "^1.10.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "bull": "^4.16.5",
     "cloudinary": "^2.7.0",
@@ -64,6 +65,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/archiver": "^7.0.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
