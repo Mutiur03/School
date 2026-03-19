@@ -248,6 +248,23 @@ export class StudentController {
     },
   );
 
+  static regenerateAllCredentialsController = asyncHandler(
+    async (_req: Request, res: Response) => {
+      const excelBuffer = await StudentService.regenerateAllCredentials();
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=all_students_credentials.xlsx",
+      );
+
+      res.status(200).send(excelBuffer);
+    },
+  );
+
   static updateAcademicInfoController = asyncHandler(
     async (req: Request, res: Response) => {
       const parsedEnrollmentId = enrollmentIdParamSchema.safeParse(

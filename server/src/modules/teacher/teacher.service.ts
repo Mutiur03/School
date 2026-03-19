@@ -1,5 +1,5 @@
 import generatePassword from "@/utils/pwgenerator.js";
-import * as bcrypt from "bcryptjs";
+import * as bcrypt from "bcrypt";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";

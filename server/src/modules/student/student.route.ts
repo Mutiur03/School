@@ -65,6 +65,12 @@ router.post(
 );
 
 router.post(
+  "/regenerate-all",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.regenerateAllCredentialsController,
+);
+
+router.post(
   "/me/password",
   AuthMiddleware.authenticate(["student"]),
   StudentController.changePasswordController,

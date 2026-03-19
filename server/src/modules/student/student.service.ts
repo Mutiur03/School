@@ -1,5 +1,5 @@
 import generatePassword from "@/utils/pwgenerator.js";
-import * as bcrypt from "bcryptjs";
+import * as bcrypt from "bcrypt";
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2, getFileBuffer } from "@/config/r2.js";
 import * as XLSX from "xlsx";
@@ -297,37 +297,15 @@ export class StudentService {
   }
 
   static async addStudents(students: any[]) {
-    const batches = [
-      ...new Set(
-        students.map((s: any) => {
-          const classNum = Number(removeInitialZeros(String(s.class || 1)));
-          return String(current_year + 11 - classNum);
-        }),
-      ),
-    ];
-
-    const batchLoginIdMap: Record<string, bigint> = {};
-    for (const batch of batches) {
-      const result = await prisma.students.findMany({
-        where: { batch },
-        orderBy: { login_id: "desc" },
-        take: 1,
-      });
-
-      batchLoginIdMap[batch] =
-        result.length > 0 && result[0].login_id
-          ? result[0].login_id + 1n
-          : BigInt(batch.slice(-2) + "001");
-    }
-
     const hashedStudents = await Promise.all(
       students.map(async (s, i) => {
         const student = { ...s };
         const password = generatePassword();
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const studentYear = student.year || current_year;
         const classNum = Number(removeInitialZeros(String(student.class || 1)));
-        const batch = String(current_year + 11 - classNum);
+        const batch = String(studentYear + 11 - classNum);
         const section = (student.section?.trim() || "A").toUpperCase();
         const roll = Number(removeInitialZeros(String(student.roll || 1)));
         const group = classNum >= 9 ? student.group?.trim() || null : null;
@@ -342,8 +320,16 @@ export class StudentService {
           );
         }
 
-        const login_id = batchLoginIdMap[batch];
-        batchLoginIdMap[batch] += 1n;
+        const class6Year = studentYear - (classNum - 6);
+        let secValue = 1;
+        if (section >= 'A' && section <= 'Z') {
+          secValue = section.charCodeAt(0) - 64;
+        } else if (!isNaN(Number(section))) {
+          secValue = Number(section);
+        }
+        const sectionCode = String(secValue).padStart(2, '0');
+        const rollCode = String(roll).padStart(2, '0');
+        const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
 
         return {
           ...student,
@@ -583,6 +569,154 @@ export class StudentService {
     return excelBuffer;
   }
 
+  static async regenerateAllCredentials() {
+    const students = await prisma.students.findMany({
+      include: {
+        enrollments: {
+          orderBy: { year: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (students.length === 0) {
+      throw new ApiError(404, "No students found");
+    }
+
+    const currentYear = new Date().getFullYear();
+
+    const idMappedStudents = students.map((student) => {
+      let studentYear = currentYear;
+      let classNum = 1;
+      let section = "A";
+      let roll = 1;
+
+      if (student.enrollments.length > 0) {
+        const enrollment = student.enrollments[0];
+        studentYear = enrollment.year || currentYear;
+        classNum = enrollment.class;
+        section = (enrollment.section?.trim() || "A").toUpperCase();
+        roll = enrollment.roll;
+      }
+
+      const class6Year = studentYear - (classNum - 6);
+      let secValue = 1;
+      if (section >= 'A' && section <= 'Z') {
+        secValue = section.charCodeAt(0) - 64;
+      } else if (!isNaN(Number(section))) {
+        secValue = Number(section);
+      }
+      const sectionCode = String(secValue).padStart(2, '0');
+      const rollCode = String(roll).padStart(2, '0');
+      const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+      const batch = String(studentYear + 11 - classNum);
+
+      return {
+        id: student.id,
+        name: student.name || "N/A",
+        religion: student.religion || "N/A",
+        class: classNum,
+        section,
+        roll,
+        login_id,
+        batch,
+      };
+    });
+
+    const loginIdGroups = new Map<string, any[]>();
+    const duplicateErrors: any[] = [];
+
+    for (const student of idMappedStudents) {
+      const idStr = student.login_id.toString();
+      if (!loginIdGroups.has(idStr)) {
+        loginIdGroups.set(idStr, []);
+      }
+      loginIdGroups.get(idStr)!.push(student);
+    }
+
+    for (const [loginId, group] of loginIdGroups.entries()) {
+      if (group.length > 1) {
+        duplicateErrors.push({
+          login_id: loginId,
+          students: group.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            class: s.class,
+            section: s.section,
+            roll: s.roll
+          }))
+        });
+      }
+    }
+
+    if (duplicateErrors.length > 0) {
+      throw new ApiError(
+        400,
+        "Duplicate login IDs generated for some students. Ensure class, section, and roll combinations are unique.",
+        duplicateErrors
+      );
+    }
+
+    const processedStudents = await Promise.all(
+      idMappedStudents.map(async (student) => {
+        const password = generatePassword();
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        return {
+          ...student,
+          password,
+          hashedPassword,
+        };
+      })
+    );
+
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const student of processedStudents) {
+        await tx.students.update({
+          where: { id: student.id },
+          data: {
+            login_id: student.login_id,
+            batch: student.batch,
+            password: student.hashedPassword,
+          },
+        });
+      }
+    });
+
+    const excelData = processedStudents.map((s) => ({
+      "Login ID": s.login_id.toString(),
+      Name: s.name,
+      Batch: s.batch,
+      Class: s.class,
+      Section: s.section,
+      Roll: s.roll,
+      Religion: s.religion,
+      "New Password": s.password,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Credentials");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "buffer",
+    });
+
+    EmailService.sendEmailWithAttachment({
+      from: env.FROM_EMAIL,
+      to: "mutiur5bb@gmail.com",
+      subject: "All Student Credentials Regenerated",
+      body: `Hello Headmaster,\n\nPlease find attached the completely regenerated login IDs and passwords for all ${processedStudents.length} students.\n\nBest regards,\nSchool Management System`,
+      attachment: {
+        filename: "all_students_credentials.xlsx",
+        content: excelBuffer,
+      },
+    }).catch((err) => console.error("Failed to send headmaster email:", err));
+
+    return excelBuffer;
+  }
+
   static async updateAcademicInfo(enrollmentId: number, updates: any) {
     const parsedEnrollmentId =
       typeof enrollmentId === "string"
@@ -637,17 +771,21 @@ export class StudentService {
         let updatedStudent = null;
 
         if (newBatch !== oldBatch) {
-          const maxLoginResult = await tx.students.findMany({
-            where: { batch: String(newBatch) },
-            orderBy: { login_id: "desc" },
-            take: 1,
-          });
-
-          const maxLoginId =
-            maxLoginResult.length > 0 ? maxLoginResult[0].login_id : null;
-          newLoginId = maxLoginId
-            ? maxLoginId + 1n
-            : BigInt(newBatch.toString().slice(-2) + "001");
+          const studentYear = enrollment.year || currentYear;
+          const classNum = enrollment.class;
+          const section = (enrollment.section?.trim() || "A").toUpperCase();
+          const roll = enrollment.roll;
+          
+          const class6Year = studentYear - (classNum - 6);
+          let secValue = 1;
+          if (section >= 'A' && section <= 'Z') {
+            secValue = section.charCodeAt(0) - 64;
+          } else if (!isNaN(Number(section))) {
+            secValue = Number(section);
+          }
+          const sectionCode = String(secValue).padStart(2, '0');
+          const rollCode = String(roll).padStart(2, '0');
+          newLoginId = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
 
           updatedStudent = await tx.students.update({
             where: { id: enrollment.student_id },
