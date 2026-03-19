@@ -1,7 +1,7 @@
 import generatePassword from "@/utils/pwgenerator.js";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/config/prisma.js";
-import { deleteFromR2 } from "@/config/r2.js";
+import { deleteFromR2, getFileBuffer } from "@/config/r2.js";
 import * as XLSX from "xlsx";
 import { removeInitialZeros, VALID_GROUPS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
@@ -9,7 +9,10 @@ import PDFDocument from "pdfkit";
 import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
 import type { Prisma } from "@prisma/client";
-
+import path from "path";
+import fs from "fs";
+import QRCode from "qrcode";
+import sharp from "sharp";
 const current_year = new Date().getFullYear();
 
 export const sanitizeStudent = (student: any) => {
@@ -43,7 +46,8 @@ export class StudentService {
     //   levels?: Array<{ class_name: number; section: string; year: number }>;
     // } = {},
   ) {
-    const { year, page, limit, level, section, search, religion, roll } = params;
+    const { year, page, limit, level, section, search, religion, roll } =
+      params;
 
     const normalizedPage =
       Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
@@ -107,7 +111,9 @@ export class StudentService {
     if (normalizedSearch) {
       enrollmentWhere.student = {
         AND: [
-          ...(religion ? [{ religion: { equals: religion, mode: "insensitive" as const } }] : []),
+          ...(religion
+            ? [{ religion: { equals: religion, mode: "insensitive" as const } }]
+            : []),
           {
             OR: [
               { name: { contains: normalizedSearch, mode: "insensitive" } },
@@ -120,7 +126,8 @@ export class StudentService {
               {
                 mother_phone: {
                   contains: normalizedSearch,
-                  mode: "insensitive" },
+                  mode: "insensitive",
+                },
               },
             ],
           },
@@ -134,29 +141,34 @@ export class StudentService {
       }
     }
 
-    const [total, filtered, enrollments, allOptions] = await prisma.$transaction([
-      prisma.student_enrollments.count({
-        where: baseWhere,
-      }),
-      prisma.student_enrollments.count({
-        where: enrollmentWhere,
-      }),
-      prisma.student_enrollments.findMany({
-        where: enrollmentWhere,
-        include: { student: true },
-        orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
-        skip,
-        take: normalizedLimit,
-      }),
-      prisma.student_enrollments.findMany({
-        where: baseWhere,
-        select: { class: true, section: true, roll: true },
-      }),
-    ]);
+    const [total, filtered, enrollments, allOptions] =
+      await prisma.$transaction([
+        prisma.student_enrollments.count({
+          where: baseWhere,
+        }),
+        prisma.student_enrollments.count({
+          where: enrollmentWhere,
+        }),
+        prisma.student_enrollments.findMany({
+          where: enrollmentWhere,
+          include: { student: true },
+          orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
+          skip,
+          take: normalizedLimit,
+        }),
+        prisma.student_enrollments.findMany({
+          where: baseWhere,
+          select: { class: true, section: true, roll: true },
+        }),
+      ]);
 
-    const availableClasses = Array.from(new Set(allOptions.map((o) => o.class))).sort((a, b) => a - b);
+    const availableClasses = Array.from(
+      new Set(allOptions.map((o) => o.class)),
+    ).sort((a, b) => a - b);
 
-    const availableSections = Array.from(new Set(allOptions.map((o) => o.section))).sort();
+    const availableSections = Array.from(
+      new Set(allOptions.map((o) => o.section)),
+    ).sort();
 
     const hasLevel = typeof level === "number" && !Number.isNaN(level);
     const hasSection = !!normalizedSection;
@@ -164,7 +176,11 @@ export class StudentService {
     const availableRolls = Array.from(
       new Set(
         allOptions
-          .filter((o) => (!hasLevel || o.class === level) && (!hasSection || o.section === normalizedSection))
+          .filter(
+            (o) =>
+              (!hasLevel || o.class === level) &&
+              (!hasSection || o.section === normalizedSection),
+          )
           .map((o) => o.roll),
       ),
     ).sort((a, b) => a - b);
@@ -281,10 +297,14 @@ export class StudentService {
   }
 
   static async addStudents(students: any[]) {
-    const batches = [...new Set(students.map((s: any) => {
-      const classNum = Number(removeInitialZeros(String(s.class || 1)));
-      return String(current_year + 11 - classNum);
-    }))];
+    const batches = [
+      ...new Set(
+        students.map((s: any) => {
+          const classNum = Number(removeInitialZeros(String(s.class || 1)));
+          return String(current_year + 11 - classNum);
+        }),
+      ),
+    ];
 
     const batchLoginIdMap: Record<string, bigint> = {};
     for (const batch of batches) {
@@ -305,15 +325,21 @@ export class StudentService {
         const student = { ...s };
         const password = generatePassword();
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         const classNum = Number(removeInitialZeros(String(student.class || 1)));
         const batch = String(current_year + 11 - classNum);
         const section = (student.section?.trim() || "A").toUpperCase();
         const roll = Number(removeInitialZeros(String(student.roll || 1)));
         const group = classNum >= 9 ? student.group?.trim() || null : null;
 
-        if ((classNum === 9 || classNum === 10) && !VALID_GROUPS.includes(group || "")) {
-          throw new ApiError(400, `Student at index ${i}: Group is required for class 9-10`);
+        if (
+          (classNum === 9 || classNum === 10) &&
+          !VALID_GROUPS.includes(group || "")
+        ) {
+          throw new ApiError(
+            400,
+            `Student at index ${i}: Group is required for class 9-10`,
+          );
         }
 
         const login_id = batchLoginIdMap[batch];
@@ -331,12 +357,12 @@ export class StudentService {
           login_id,
           year: student.year || current_year,
         };
-      })
+      }),
     );
 
     const result = await prisma.$transaction(async (tx) => {
       await tx.students.createMany({
-        data: hashedStudents.map(s => ({
+        data: hashedStudents.map((s) => ({
           login_id: s.login_id,
           name: s.name,
           father_name: s.father_name,
@@ -357,13 +383,13 @@ export class StudentService {
       });
 
       const newStudents = await tx.students.findMany({
-        where: { login_id: { in: hashedStudents.map(s => s.login_id) } },
+        where: { login_id: { in: hashedStudents.map((s) => s.login_id) } },
         select: { id: true, login_id: true },
       });
 
-      const studentIdMap = new Map(newStudents.map(s => [s.login_id, s.id]));
+      const studentIdMap = new Map(newStudents.map((s) => [s.login_id, s.id]));
 
-      const enrollmentData = hashedStudents.map(s => ({
+      const enrollmentData = hashedStudents.map((s) => ({
         student_id: studentIdMap.get(s.login_id)!,
         class: s.class,
         roll: s.roll,
@@ -378,7 +404,10 @@ export class StudentService {
       });
 
       return await tx.student_enrollments.findMany({
-        where: { student_id: { in: Array.from(studentIdMap.values()) }, year: current_year },
+        where: {
+          student_id: { in: Array.from(studentIdMap.values()) },
+          year: current_year,
+        },
       });
     });
 
@@ -420,7 +449,6 @@ export class StudentService {
     };
   }
 
-
   static async updateStudent(id: number, updates: any) {
     const result = await prisma.students.update({
       where: { id },
@@ -446,7 +474,7 @@ export class StudentService {
     return { message: "Student deleted successfully" };
   }
 
-  static async deleteStudentsBulk(studentIds: (number)[]) {
+  static async deleteStudentsBulk(studentIds: number[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },
       select: { id: true, login_id: true },
@@ -463,10 +491,16 @@ export class StudentService {
     return students.length;
   }
 
-  static async rotatePasswordsBulk(studentIds: (number)[]) {
+  static async rotatePasswordsBulk(studentIds: number[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },
-      select: { id: true, login_id: true, name: true, batch: true, religion: true },
+      select: {
+        id: true,
+        login_id: true,
+        name: true,
+        batch: true,
+        religion: true,
+      },
     });
 
     if (students.length === 0) {
@@ -482,9 +516,9 @@ export class StudentService {
           password,
           hashedPassword,
         };
-      })
+      }),
     );
-  
+
     const rotatedStudents: Array<{
       login_id: bigint;
       name: string;
@@ -509,7 +543,6 @@ export class StudentService {
         });
       }
     });
-
 
     const excelData = rotatedStudents.map(
       (student: {
@@ -727,9 +760,16 @@ export class StudentService {
       throw new ApiError(404, "Student not found");
     }
 
+    const rawDob = result.dob || "";
+    let formattedDob = rawDob;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawDob)) {
+      const [y, m, d] = rawDob.split("-");
+      formattedDob = `${d}/${m}/${y}`;
+    }
+
     const data = {
       school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
-      school_location: "Panchbibi, Joypurhat",
+      school_location: "Panchbibi, Joypurhat.",
       school_website: "www.lbphs.gov.bd",
       name: result.name || "N/A",
       father_name: result.father_name || "N/A",
@@ -738,13 +778,15 @@ export class StudentService {
       class: result.enrollments[0]?.class || "N/A",
       section: result.enrollments[0]?.section || "N/A",
       session: result.enrollments[0]?.year || "N/A",
-      batch: result.batch || "N/A",
+      dob: formattedDob || "N/A",
+      student_id: result.login_id ? result.login_id.toString() : "N/A",
+      id: result.id,
+      imageKey: result.image || null,
     };
 
     return await generatePDF(data);
   }
 }
-
 async function generatePDF(data: {
   school_name: string;
   school_location: string;
@@ -756,10 +798,58 @@ async function generatePDF(data: {
   class: number | string;
   section: string;
   session: number | string;
-  batch: string;
+  dob: string;
+  student_id: string;
+  id: number;
+  imageKey?: string | null;
 }): Promise<{ pdfBuffer: Buffer; studentName: string }> {
+  const classNames: Record<number, string> = {
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five",
+    6: "six",
+    7: "seven",
+    8: "eight",
+    9: "nine",
+    10: "ten",
+  };
+  const classStr = classNames[Number(data.class)] || String(data.class);
+
+  // Pre-generate QR Code Data URL (so we can await it outside the synchronous Promise executor)
+  const qrText = `Name: ${data.name}\nRoll: ${data.roll}\nClass: ${classStr}\nSection: ${data.section}\nSession: ${data.session}\nSchool: ${data.school_name}`;
+  const qrDataUrl = await QRCode.toDataURL(qrText, {
+    margin: 1,
+    width: 200,
+  }).catch(() => null);
+
+  // Pre-generate Grayscale Watermark (outside the synchronous Promise executor)
+  const logoPath = path.join("public", "icon.jpg");
+  let logoBuffer: Buffer | null = null;
+  if (fs.existsSync(logoPath)) {
+    try {
+      logoBuffer = await sharp(logoPath).grayscale().toBuffer();
+    } catch (e) {
+      console.error("Failed to process watermark logo with sharp:", e);
+    }
+  }
+
+  // Pre-fetch and process student passport image
+  let passportBuffer: Buffer | null = null;
+  if (data.imageKey) {
+    try {
+      const rawPassport = await getFileBuffer(data.imageKey);
+      if (rawPassport) {
+        passportBuffer = rawPassport;
+      }
+    } catch (e) {
+      console.error("Failed to process passport image:", e);
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
     const chunks: Buffer[] = [];
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -769,175 +859,277 @@ async function generatePDF(data: {
     doc.on("error", reject);
 
     const W = doc.page.width;
-    const H = doc.page.height;
     const M = 40; // margin
+    const studentPartHeight = 648; // 9 inches (9 * 72)
 
-    // Outer double border
-    doc
-      .rect(M, M, W - M * 2, H - M * 2)
-      .lineWidth(8)
-      .stroke("#2c3e50");
-    doc
-      .rect(M + 6, M + 6, W - M * 2 - 12, H - M * 2 - 12)
-      .lineWidth(2)
-      .stroke("#2c3e50");
+    // --- STUDENT PART (Top 9 Inches) ---
 
-    let y = M + 30;
+    // Official Header (Centered - Original Design)
+    let y = M - 5;
+    const contentWidth = W - M * 2;
+    doc.font("Times-Roman").fontSize(12).fillColor("#000000");
+    doc.text("Government of the People's Republic of Bangladesh", M, y, {
+      align: "center",
+      width: contentWidth,
+    });
 
-    // School name
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(18)
-      .fillColor("#1a252f")
-      .text(data.school_name.toUpperCase(), M + 20, y, {
-        align: "center",
-        width: W - (M + 20) * 2,
-      });
-
-    y += 28;
-    doc
-      .font("Helvetica")
-      .fontSize(11)
-      .fillColor("#333333")
-      .text(data.school_location, M + 20, y, {
-        align: "center",
-        width: W - (M + 20) * 2,
-      });
-
-    y += 18;
-    doc
-      .font("Helvetica")
-      .fontSize(10)
-      .text(`Website: ${data.school_website}`, M + 20, y, {
-        align: "center",
-        width: W - (M + 20) * 2,
-      });
-
-    y += 30;
-
-    // Divider line
-    doc
-      .moveTo(M + 20, y)
-      .lineTo(W - M - 20, y)
-      .lineWidth(1)
-      .stroke("#2c3e50");
     y += 20;
-
-    // Title: TESTIMONIAL (underlined)
     doc
-      .font("Helvetica-Bold")
-      .fontSize(26)
-      .fillColor("#1a252f")
-      .text("TESTIMONIAL", M + 20, y, {
+      .fontSize(14)
+      .text("The office of the Headmaster", M, y, {
         align: "center",
-        width: W - (M + 20) * 2,
-        underline: true,
+        width: contentWidth,
       });
 
-    y += 55;
+    y += 26;
+    
+    if (passportBuffer) {
+      // Scale Puppeteer CSS pixels (96dpi) to PDFKit points (72dpi): 90x110 -> 68x83
+      const imgW = 68;
+      const imgH = 83;
+      const imgX = W - M - imgW;
+      const imgY = M + 10;
+      doc.save();
+      doc.rect(imgX, imgY, imgW, imgH).clip();
+      doc.image(passportBuffer, imgX, imgY, { cover: [imgW, imgH], align: 'center', valign: 'center' });
+      doc.restore();
+      doc.rect(imgX, imgY, imgW, imgH).lineWidth(1).stroke("#bbbbbb");
+    }
 
-    // Helper to render inline segments with underlined bold spans
-    // We build the body text using low-level text drawing for inline bolding
-    const bodyFont = "Times-Roman";
-    const bodyFontBold = "Times-Bold";
-    const bodySize = 13;
-    const bodyColor = "#333333";
-    const textWidth = W - (M + 20) * 2;
-    const textX = M + 20;
+    let schoolNameFontSize = 24;
+    doc.font("Times-Bold").fontSize(schoolNameFontSize);
+    const maxSchoolNameWidth = passportBuffer ? 350 : contentWidth;
+    while (doc.widthOfString(data.school_name) > maxSchoolNameWidth && schoolNameFontSize > 10) {
+      schoolNameFontSize -= 1;
+      doc.fontSize(schoolNameFontSize);
+    }
 
-    type Seg = { text: string; bold: boolean };
+    doc.text(data.school_name, M, y, { align: "center", width: contentWidth });
 
-    const renderLine = (segments: Seg[], startY: number): number => {
-      // We render each line manually to handle inline formatting
-      // For simplicity we use PDFKit's continued:true trick
-      let first = true;
-      for (const seg of segments) {
-        doc
-          .font(seg.bold ? bodyFontBold : bodyFont)
-          .fontSize(bodySize)
-          .fillColor(bodyColor);
-        if (first) {
-          doc.text(seg.text, textX, startY, {
-            continued: true,
-            width: textWidth,
-            lineGap: 4,
-          });
-          first = false;
-        } else {
-          doc.text(seg.text, { continued: true, width: textWidth, lineGap: 4 });
-        }
-      }
-      // End continuation
-      doc.text("", { continued: false });
-      return doc.y;
-    };
-
-    // Paragraph 1
-    y = renderLine(
-      [
-        { text: "This is to certify that ", bold: false },
-        { text: data.name, bold: true },
-        { text: ", son/daughter of ", bold: false },
-        { text: data.father_name, bold: true },
-        { text: " and ", bold: false },
-        { text: data.mother_name, bold: true },
-        {
-          text: ", was a student of this institution. He/She was enrolled in Class ",
-          bold: false,
-        },
-        { text: String(data.class), bold: true },
-        { text: ", Section ", bold: false },
-        { text: data.section, bold: true },
-        { text: " with Roll No. ", bold: false },
-        { text: String(data.roll), bold: true },
-        { text: " during the academic session ", bold: false },
-        { text: String(data.session), bold: true },
-        { text: ". His/Her batch was ", bold: false },
-        { text: data.batch, bold: true },
-        { text: ".", bold: false },
-      ],
-      y,
-    );
-
-    y += 14;
-    // Paragraph 2
+    y += Math.max(schoolNameFontSize + 6, 26);
     doc
-      .font(bodyFont)
-      .fontSize(bodySize)
-      .fillColor(bodyColor)
-      .text(
-        "To the best of my knowledge, he/she bears a good moral character and took active part in co-curricular activities. I wish him/her every success in life.",
-        textX,
-        y,
-        { width: textWidth, lineGap: 4 },
-      );
+      .font("Times-Roman")
+      .fontSize(14)
+      .text(data.school_location, M, y, {
+        align: "center",
+        width: contentWidth,
+      });
 
-    y = doc.y + 60;
-
-    // Footer: Date (left) and Signature (right)
+    y += 20;
     doc
-      .font("Times-Italic")
-      .fontSize(11)
-      .fillColor("#555555")
-      .text(`Date: ${new Date().toLocaleDateString("en-GB")}`, textX, y);
+      .fontSize(13)
+      .text(data.school_website, M, y, {
+        align: "center",
+        width: contentWidth,
+      });
 
-    const sigBoxWidth = 200;
-    const sigBoxX = W - M - 20 - sigBoxWidth;
-    const sigLineY = y + 24;
+    y += 20;
     doc
-      .moveTo(sigBoxX, sigLineY)
-      .lineTo(sigBoxX + sigBoxWidth, sigLineY)
+      .fontSize(13)
+      .text("EIIN: 121983, School Code: 5100", M, y, {
+        align: "center",
+        width: contentWidth,
+      });
+
+    y += 26;
+    // Double line divider
+    const dividerY = y;
+    doc
+      .moveTo(M, y)
+      .lineTo(W - M, y)
+      .lineWidth(2)
+      .stroke("#000000");
+    doc
+      .moveTo(M, y + 3)
+      .lineTo(W - M, y + 3)
       .lineWidth(1)
       .stroke("#000000");
 
+    y += 12;
+
+    // SL No & Date (Positioned after the header divider)
+    doc.font("Times-Bold").fontSize(10).fillColor("#333333");
+    doc.text(
+      `Date: ${new Date().toLocaleDateString("en-GB")}`,
+      W - M - 150,
+      y,
+      { align: "right", width: 150 },
+    );
+
+    // Watermark drawing (Centered between divider and cutting line)
+    try {
+      doc.save();
+      doc.opacity(0.05); // Professional subtle watermark
+      const watermarkWidth = 300;
+      const centerY = (dividerY + studentPartHeight) / 2;
+      if (logoBuffer) {
+        doc.image(logoBuffer, W / 2 - watermarkWidth / 2, centerY - 150, {
+          width: watermarkWidth,
+        });
+      }
+      doc.restore();
+    } catch (e) {
+      /* ignore */
+    }
+
+    y += 35;
+    // Professional Title
     doc
-      .font("Helvetica-Bold")
-      .fontSize(11)
-      .fillColor("#1a252f")
-      .text("Headmaster", sigBoxX, sigLineY + 6, {
-        width: sigBoxWidth,
+      .font("Times-Bold")
+      .fontSize(22)
+      .text("Certificate", M, y, { align: "center", width: contentWidth });
+
+    y += 45;
+
+    // Paragraph 1
+    const bodyFont = "Times-Roman";
+    const bodyFontBold = "Times-Bold";
+    const bodySize = 13;
+    const textX = M + 20;
+    const textWidth = W - (M + 20) * 2;
+
+    doc.font(bodyFont).fontSize(bodySize).fillColor("#000000");
+    doc.text("This is to certify that ", textX, y, {
+      continued: true,
+      width: textWidth,
+      lineGap: 12,
+    });
+    doc.font(bodyFontBold).text(data.name, { continued: true });
+    doc.font(bodyFont).text(" son of ", { continued: true });
+    doc.font(bodyFontBold).text(data.father_name, { continued: true });
+    doc.font(bodyFont).text(" and ", { continued: true });
+    doc.font(bodyFontBold).text(data.mother_name, { continued: true });
+    doc.font(bodyFont).text(" is a student of class ", { continued: true });
+    doc.font(bodyFontBold).text(classStr, { continued: true });
+    doc.font(bodyFont).text(", section ", { continued: true });
+    doc.font(bodyFontBold).text(data.section, { continued: true });
+    doc
+      .font(bodyFont)
+      .text(
+        " of this school. According to the admission information his date of birth is ",
+        { continued: true },
+      );
+    doc.font(bodyFontBold).text(data.dob, { continued: false });
+
+    y = doc.y + 18;
+    doc
+      .font(bodyFont)
+      .text(
+        "His behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.",
+        textX,
+        y,
+        { width: textWidth, lineGap: 12 },
+      );
+
+    y = doc.y + 18;
+    doc
+      .font(bodyFont)
+      .text("I wish his all success in life.", textX, y, {
+        width: textWidth,
+        lineGap: 12,
+      });
+
+    y = studentPartHeight - 50;
+    const sigWidth = 180; // Longer signature line
+
+    // QR Code Placement (using pre-generated qrDataUrl)
+    if (qrDataUrl) {
+      doc.image(qrDataUrl, M + 30, y - 90, { width: 80 });
+    }
+
+    doc
+      .moveTo(W - M - sigWidth, y)
+      .lineTo(W - M, y)
+      .lineWidth(1)
+      .stroke("#000000");
+    doc
+      .font("Times-Bold")
+      .fontSize(12)
+      .text("Headmaster", W - M - sigWidth, y + 8, {
+        width: sigWidth,
         align: "center",
       });
+
+    // --- CUTTING SECTION ---
+    const drawScissor = (x: number, y: number, angle: number = 0) => {
+      doc
+        .save()
+        .translate(x, y)
+        .rotate(angle)
+        .scale(0.4)
+        .lineWidth(1.2)
+        .strokeColor("#666666");
+      doc.circle(-8, -6, 6).stroke(); // Handles
+      doc.circle(-8, 6, 6).stroke();
+      doc.moveTo(-4, 0).lineTo(24, -8).stroke(); // Blades
+      doc.moveTo(-4, 0).lineTo(24, 8).stroke();
+      doc.restore();
+    };
+
+    drawScissor(M + 25, studentPartHeight, 0); // Lying along the line
+    drawScissor(W - M - 25, studentPartHeight, 0);
+
+    doc
+      .moveTo(M + 45, studentPartHeight)
+      .lineTo(W - M - 45, studentPartHeight)
+      .lineWidth(1)
+      .dash(2, { space: 2 })
+      .stroke("#666666")
+      .undash();
+    doc.fillColor("#000000"); // Reset
+
+    // --- SCHOOL RECEIPT (OFFICE COPY) ---
+    const receiptTop = studentPartHeight + 25;
+    const receiptHeight = 110;
+
+    // Receipt Border Box
+    doc
+      .rect(M, receiptTop, contentWidth, receiptHeight)
+      .lineWidth(0.5)
+      .dash(3, { space: 3 })
+      .stroke("#999999")
+      .undash();
+
+    y = receiptTop + 15;
+    doc
+      .font("Times-Bold")
+      .fontSize(12)
+      .fillColor("#000000")
+      .text("OFFICE COPY (RECEIPT / ACKNOWLEDGEMENT)", M, y, {
+        align: "center",
+        width: contentWidth,
+      });
+
+    y += 20;
+    doc
+      .font("Times-Bold")
+      .fontSize(9)
+      .text(
+        `Date: ${new Date().toLocaleDateString("en-GB")}`,
+        M + 15,
+        y,
+      );
+
+    y += 18;
+    doc.font("Times-Roman").fontSize(10);
+    doc.text("Name: ", M + 15, y, { continued: true });
+    doc.font("Times-Bold").text(data.name);
+
+    y += 16;
+    doc.font("Times-Roman").text("Class: ", M + 15, y, { continued: true });
+    doc
+      .font("Times-Bold")
+      .text(`${classStr} (${data.class})`, { continued: true });
+    doc.font("Times-Roman").text(" | Section: ", { continued: true });
+    doc.font("Times-Bold").text(data.section, { continued: true });
+    doc.font("Times-Roman").text(" | Roll: ", { continued: true });
+    doc.font("Times-Bold").text(String(data.roll));
+
+    y += 16;
+    doc
+      .font("Times-Roman")
+      .text("Father's Name: ", M + 15, y, { continued: true });
+    doc.font("Times-Bold").text(data.father_name);
 
     doc.end();
   });
