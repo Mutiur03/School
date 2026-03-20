@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import {
@@ -30,6 +31,7 @@ interface StudentOverview {
   section: string;
   roll: number;
   enrollment_id: number;
+  login_id: number;
 }
 
 const months = [
@@ -56,6 +58,20 @@ function Attendance() {
   const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, "present" | "absent">>({});
   const [lastSaveResult, setLastSaveResult] = useState<any>(null);
+  const [smsSettings, setSmsSettings] = useState<any>(null);
+
+  const fetchSmsSettings = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/sms-settings/public");
+      setSmsSettings(response.data.data);
+    } catch (error) {
+      console.error("Error fetching SMS settings:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSmsSettings();
+  }, [fetchSmsSettings]);
 
   const { data: attendanceRecords } = useAttendance({
     month: selectedMonth,
@@ -107,6 +123,56 @@ function Attendance() {
     return localAttendance[key] || attendanceMap[key] || "absent";
   };
 
+  const smsEstimate = useMemo(() => {
+    if (!smsSettings || !smsSettings.is_active || students.length === 0) return { count: 0, cost: 0 };
+
+    const todayDay = currentDate.getDate();
+    const isToday = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+    if (!isToday) return { count: 0, cost: 0 };
+
+    const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+
+    let totalSegments = 0;
+    let messagesToSend = 0;
+
+    // Helper for segment calculation (mirroring backend SMSService)
+    const calculateSegments = (text: string) => {
+      const gsm7Regex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\\[\]~|€]*$/;
+      const isGsm7 = gsm7Regex.test(text);
+      if (isGsm7) {
+        let gsmLength = 0;
+        const extendedSet = "^{}\\[]~|€";
+        for (let i = 0; i < text.length; i++) {
+          gsmLength += extendedSet.includes(text[i]) ? 2 : 1;
+        }
+        return gsmLength <= 160 ? 1 : Math.ceil(gsmLength / 153);
+      } else {
+        return text.length <= 70 ? 1 : Math.ceil(text.length / 67);
+      }
+    };
+
+    students.forEach(student => {
+      const status = getStatus(student.id, todayDay);
+      const shouldSend = (status === "present" && smsSettings.send_to_present) || 
+                         (status === "absent" && smsSettings.send_to_absent);
+      
+      if (shouldSend) {
+        const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
+        // Approximation of interpolated message length
+        const message = template
+          .replace(/{student_name}/g, student.name)
+          .replace(/{login_id}/g, student.login_id?.toString() || "")
+          .replace(/{date}/g, todayIso) // Date length is fixed
+          .replace(/{school_name}/g, "School Name");
+
+        totalSegments += calculateSegments(message);
+        messagesToSend++;
+      }
+    });
+
+    return { count: messagesToSend, cost: totalSegments };
+  }, [smsSettings, students, localAttendance, attendanceMap, selectedMonth, selectedYear]);
+
   const saveAttendance = async () => {
     if (!selectedClass || !selectedSection) {
       toast.error("Please select both class and section");
@@ -157,27 +223,40 @@ function Attendance() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
-      <PageHeader
+       <PageHeader
         title="Attendance Management"
         description="Monitor and record student attendance across different classes and sections."
       >
-        <Button
-          onClick={saveAttendance}
-          disabled={
-            addAttendanceMutation.isPending || 
-            !selectedClass || 
-            !selectedSection || 
-            !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear())
-          }
-          className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-        >
-          {addAttendanceMutation.isPending ? (
-            <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
+        <div className="flex flex-col items-end gap-2">
+          {smsEstimate.cost > 0 && (
+            <div className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+              smsSettings?.sms_balance < smsEstimate.cost 
+                ? "bg-red-100 text-red-700 animate-pulse" 
+                : "bg-primary/10 text-primary"
+            }`}>
+              Est. SMS Cost: {smsEstimate.cost} credits 
+              {smsSettings?.sms_balance < smsEstimate.cost && " (Insufficient Balance!)"}
+            </div>
           )}
-          {addAttendanceMutation.isPending ? "Saving..." : "Save Attendance"}
-        </Button>
+          <Button
+            onClick={saveAttendance}
+            disabled={
+              addAttendanceMutation.isPending || 
+              !selectedClass || 
+              !selectedSection || 
+              !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()) ||
+              (smsSettings?.sms_balance < smsEstimate.cost)
+            }
+            className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {addAttendanceMutation.isPending ? (
+              <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {addAttendanceMutation.isPending ? "Saving..." : "Save Attendance"}
+          </Button>
+        </div>
       </PageHeader>
 
       {lastSaveResult && (

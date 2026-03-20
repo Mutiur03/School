@@ -3,18 +3,9 @@ import { AttendenceController } from "./attendence.controller.js";
 import AuthMiddleware from "@/middlewares/auth.middleware.js";
 
 const router = express.Router();
-
-router.get(
-  "/getAttendence",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  AttendenceController.getAttendenceController
-);
-
-router.post(
-  "/addAttendence",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  AttendenceController.addAttendenceController
-);
+router.use(AuthMiddleware.authenticate(["admin", "teacher"]));
+router.get("/getAttendence", AttendenceController.getAttendenceController);
+router.post("/addAttendence", AttendenceController.addAttendenceController);
 
 const attendenceRouter = express.Router();
 attendenceRouter.use("/api/attendance", router);
