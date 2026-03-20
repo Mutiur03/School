@@ -146,7 +146,4 @@ dist
 uploads
 uploads/*
 
-
-package-lock.json
-
 stats.html
