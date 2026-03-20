@@ -120,6 +120,7 @@ export class AttendenceService {
                 login_id: student.login_id.toString(),
                 date: formattedDate,
               });
+              const smsCount = SMSService.calculateSMSCount(message).count;
 
               const smsLog = await prisma.sms_logs.create({
                 data: {
@@ -128,6 +129,7 @@ export class AttendenceService {
                   message: message,
                   attendance_date: formattedDate,
                   status: "pending",
+                  sms_count: smsCount,
                 },
               });
 
@@ -135,7 +137,7 @@ export class AttendenceService {
               smsMessages.push({ Number: phoneKey, Text: message });
               
               if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
-              smsLogMap.get(phoneKey).push({ smsLogId: smsLog.id, studentId, date: formattedDate });
+              smsLogMap.get(phoneKey).push({ smsLogId: smsLog.id, studentId, date: formattedDate, smsCount });
             }
           }
         }
@@ -157,7 +159,7 @@ export class AttendenceService {
                   smsSuccessCount++;
                   await prisma.sms_logs.update({
                     where: { id: log.smsLogId },
-                    data: { status: "sent", message_id: result.message_id },
+                    data: { status: "sent", message_id: result.message_id, sms_count: result.sms_count || log.smsCount },
                   });
                   await prisma.attendence.updateMany({
                     where: { student_id: log.studentId, date: log.date },
