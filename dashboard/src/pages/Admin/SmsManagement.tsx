@@ -32,6 +32,8 @@ import { formatDobForDateInput as toDateInputValue } from "@school/shared-schema
 import { PHONE_NUMBER } from "@school/shared-schemas";
 import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
 import type { TabItem } from "@/components";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Enrollment {
   class: string;
@@ -70,6 +72,33 @@ interface Filters {
   limit: number;
 }
 
+interface SmsLogsResponse {
+  smsLogs: SmsLog[];
+  totalPages: number;
+  stats: Stats;
+}
+
+interface SmsBalance {
+  balance?: number;
+  credits?: number;
+}
+
+interface SmsSettings {
+  present_template: string;
+  absent_template: string;
+  send_to_present: boolean;
+  send_to_absent: boolean;
+  is_active: boolean;
+}
+
+const EMPTY_SETTINGS: SmsSettings = {
+  present_template: "",
+  absent_template: "",
+  send_to_present: false,
+  send_to_absent: false,
+  is_active: false,
+};
+
 const REQUIRED_TOKENS = [
   "{student_name}",
   "{login_id}",
@@ -97,13 +126,8 @@ function SmsManagement() {
   };
 
   const [activeTab, setActiveTab] = useState<"logs" | "settings">("logs");
-  const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [retrying, setRetrying] = useState<boolean>(false);
   const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
-  const [stats, setStats] = useState<Stats>({});
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
   const [filters, setFilters] = useState<Filters>({
     status: "all",
     date: formatIsoToDisplayDate(new Date().toISOString()),
@@ -111,15 +135,13 @@ function SmsManagement() {
   });
 
   // Settings State
-  const [settings, setSettings] = useState<any>(null);
-  const [balance, setBalance] = useState<any>(null);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [testingSms, setTestingSms] = useState(false);
   const [testForm, setTestForm] = useState({ phoneNumber: "", message: "" });
   const [testErrors, setTestErrors] = useState<{ phoneNumber?: string; message?: string }>({});
   const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string }>({});
   const [addBalanceAmount, setAddBalanceAmount] = useState<string>("");
-  const [addingBalance, setAddingBalance] = useState(false);
+  const queryClient = useQueryClient();
+  const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
 
   const statusColors: Record<string, string> = {
     sent: "bg-green-500",
@@ -148,55 +170,141 @@ function SmsManagement() {
     }
   }, []);
 
-  useEffect(() => {
-    if (activeTab === "settings" && settings) {
-      calculateEstimate("present", settings.present_template || "");
-      calculateEstimate("absent", settings.absent_template || "");
-    }
-  }, [activeTab, settings, calculateEstimate]);
-
-  useEffect(() => {
-    calculateEstimate("test", testForm.message || "");
-  }, [testForm.message, calculateEstimate]);
-
-  const fetchSmsLogs = useCallback(async () => {
-    try {
-      setLoading(true);
+  const smsLogsQuery = useQuery<SmsLogsResponse>({
+    queryKey: ["smsLogs", currentPage, filters.limit, filters.date],
+    queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: filters.limit.toString(),
         date: toDateInputValue(filters.date) || filters.date,
       });
-
       const response = await axios.get(`/api/sms/sms-logs?${params}`);
-      setSmsLogs(response.data.smsLogs);
-      setTotalPages(response.data.totalPages);
-      setStats(response.data.stats);
-    } catch (error) {
-      console.error("Error fetching SMS logs:", error);
-      toast.error("Failed to fetch SMS logs");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, filters.date, filters.limit]);
+      return response.data;
+    },
+    enabled: activeTab === "logs",
+    placeholderData: (prev) => prev,
+    refetchOnWindowFocus: true,
+  });
 
-  const fetchSettings = useCallback(async () => {
-    try {
+  const smsSettingsQuery = useQuery<SmsSettings>({
+    queryKey: ["smsSettings"],
+    queryFn: async () => {
       const response = await axios.get("/api/sms-settings");
-      setSettings(response.data.data);
-    } catch (error) {
-      console.error("Error fetching SMS settings:", error);
-    }
-  }, []);
+      return response.data.data;
+    },
+    enabled: activeTab === "settings",
+  });
 
-  const fetchBalance = useCallback(async () => {
-    try {
+  const smsBalanceQuery = useQuery<SmsBalance>({
+    queryKey: ["smsBalance"],
+    queryFn: async () => {
       const response = await axios.get("/api/sms-settings/balance");
-      setBalance(response.data.data);
-    } catch (error) {
-      console.error("Error fetching SMS balance:", error);
+      return response.data.data;
+    },
+    enabled: activeTab === "settings",
+  });
+
+  const settingsMutation = useMutation({
+    mutationFn: async (nextSettings: SmsSettings) => {
+      await axios.patch("/api/sms-settings", nextSettings);
+    },
+    onSuccess: () => {
+      toast.success("SMS settings updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["smsSettings"] });
+      setSettingsDirty(false);
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || "Failed to update SMS settings";
+      toast.error(errorMessage);
+    },
+  });
+
+  const addBalanceMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      await axios.post("/api/sms-settings/add-balance", { amount });
+    },
+    onSuccess: (_, amount) => {
+      toast.success(`${amount} credits added successfully`);
+      setAddBalanceAmount("");
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+    },
+    onError: () => {
+      toast.error("Failed to add SMS balance");
+    },
+  });
+
+  const testSmsMutation = useMutation({
+    mutationFn: async (payload: { phoneNumber: string; message: string }) => {
+      await axios.post("/api/sms-settings/test", payload);
+    },
+    onSuccess: () => {
+      toast.success("Test SMS sent successfully");
+      setTestForm((prev) => ({ ...prev, message: "" }));
+      setTestErrors({});
+    },
+    onError: () => {
+      toast.error("Failed to send test SMS");
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (smsLogIds: number[]) => {
+      const response = await axios.post("/api/sms/retry-sms", { smsLogIds });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setSelectedLogs([]);
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+    },
+    onError: () => {
+      toast.error("Failed to retry SMS messages");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (smsLogIds: number[]) => {
+      const response = await axios.delete("/api/sms/sms-logs", { data: { smsLogIds } });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setSelectedLogs([]);
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+    },
+    onError: () => {
+      toast.error("Failed to delete SMS logs");
+    },
+  });
+
+  useEffect(() => {
+    if (smsLogsQuery.isError) toast.error("Failed to fetch SMS logs");
+  }, [smsLogsQuery.isError]);
+
+  useEffect(() => {
+    if (smsSettingsQuery.isError) toast.error("Failed to fetch SMS settings");
+  }, [smsSettingsQuery.isError]);
+
+  useEffect(() => {
+    if (smsBalanceQuery.isError) toast.error("Failed to fetch SMS balance");
+  }, [smsBalanceQuery.isError]);
+
+  useEffect(() => {
+    if (smsSettingsQuery.data && !settingsDirty) {
+      setSettingsDraft(smsSettingsQuery.data);
     }
-  }, []);
+  }, [smsSettingsQuery.data, settingsDirty]);
+
+  useEffect(() => {
+    if (activeTab === "settings" && settingsDraft) {
+      calculateEstimate("present", settingsDraft.present_template || "");
+      calculateEstimate("absent", settingsDraft.absent_template || "");
+    }
+  }, [activeTab, settingsDraft, calculateEstimate]);
+
+  useEffect(() => {
+    calculateEstimate("test", testForm.message || "");
+  }, [testForm.message, calculateEstimate]);
 
   const handleAddBalance = async () => {
     const amount = parseInt(addBalanceAmount);
@@ -204,42 +312,22 @@ function SmsManagement() {
       toast.error("Please enter a valid amount");
       return;
     }
-
-    try {
-      setAddingBalance(true);
-      await axios.post("/api/sms-settings/add-balance", { amount });
-      toast.success(`${amount} credits added successfully`);
-      setAddBalanceAmount("");
-      fetchBalance();
-    } catch (error) {
-      toast.error("Failed to add SMS balance");
-    } finally {
-      setAddingBalance(false);
-    }
+    addBalanceMutation.mutate(amount);
   };
-
-  useEffect(() => {
-    if (activeTab === "logs") {
-      fetchSmsLogs();
-    } else {
-      fetchSettings();
-      fetchBalance();
-    }
-  }, [activeTab, fetchSmsLogs, fetchSettings, fetchBalance]);
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settings) return;
+    if (!settingsDraft) return;
 
-    const presentValidation = validateTemplate(settings.present_template || "");
-    const absentValidation = validateTemplate(settings.absent_template || "");
+    const presentValidation = validateTemplate(settingsDraft.present_template || "");
+    const absentValidation = validateTemplate(settingsDraft.absent_template || "");
     const nextErrors: { present_template?: string; absent_template?: string } = {};
 
-    if (settings.is_active && settings.send_to_present && !presentValidation.isValid) {
+    if (settingsDraft.is_active && settingsDraft.send_to_present && !presentValidation.isValid) {
       nextErrors.present_template = `Present template must include ${presentValidation.missing.join(", ")}.`;
     }
 
-    if (settings.is_active && settings.send_to_absent && !absentValidation.isValid) {
+    if (settingsDraft.is_active && settingsDraft.send_to_absent && !absentValidation.isValid) {
       nextErrors.absent_template = `Absent template must include ${absentValidation.missing.join(", ")}.`;
     }
 
@@ -250,16 +338,7 @@ function SmsManagement() {
       return;
     }
 
-    try {
-      setSavingSettings(true);
-      await axios.patch("/api/sms-settings", settings);
-      toast.success("SMS settings updated successfully");
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Failed to update SMS settings";
-      toast.error(errorMessage);
-    } finally {
-      setSavingSettings(false);
-    }
+    settingsMutation.mutate(settingsDraft);
   };
 
   const handleSendTestSms = async (e: React.FormEvent) => {
@@ -285,22 +364,24 @@ function SmsManagement() {
       return;
     }
 
-    try {
-      setTestingSms(true);
-      await axios.post("/api/sms-settings/test", { phoneNumber: phone, message });
-      toast.success("Test SMS sent successfully");
-      setTestForm({ ...testForm, message: "" });
-      setTestErrors({});
-    } catch (error) {
-      toast.error("Failed to send test SMS");
-    } finally {
-      setTestingSms(false);
-    }
+    testSmsMutation.mutate({ phoneNumber: phone, message });
   };
+
+  const smsLogs = smsLogsQuery.data?.smsLogs || [];
+  const stats: Stats = smsLogsQuery.data?.stats || {};
+  const totalPages = smsLogsQuery.data?.totalPages || 1;
+  const loadingLogs = smsLogsQuery.isLoading;
+  const logsError = smsLogsQuery.isError;
+  const settings = settingsDraft;
+  const settingsLoading = smsSettingsQuery.isLoading;
+  const settingsError = smsSettingsQuery.isError;
+  const balance = smsBalanceQuery.data || null;
+  const balanceLoading = smsBalanceQuery.isLoading;
+  const balanceError = smsBalanceQuery.isError;
 
   const displayedLogs = useMemo(() => {
     if (filters.status === "all") return smsLogs;
-    return smsLogs.filter((log) => log.status === filters.status);
+    return smsLogs.filter((log: SmsLog) => log.status === filters.status);
   }, [smsLogs, filters.status]);
 
   const totalSms = (stats.sent || 0) + (stats.failed || 0) + (stats.pending || 0);
@@ -311,7 +392,7 @@ function SmsManagement() {
       return;
     }
 
-    const failedLogs = smsLogs.filter(
+    const failedLogs: SmsLog[] = smsLogs.filter(
       (log) => selectedLogs.includes(log.id) && log.status === "failed"
     );
 
@@ -320,21 +401,7 @@ function SmsManagement() {
       return;
     }
 
-    try {
-      setRetrying(true);
-      const response = await axios.post("/api/sms/retry-sms", {
-        smsLogIds: failedLogs.map((log) => log.id),
-      });
-
-      toast.success(response.data.message);
-      setSelectedLogs([]);
-      fetchSmsLogs();
-    } catch (error) {
-      console.error("Error retrying SMS:", error);
-      toast.error("Failed to retry SMS messages");
-    } finally {
-      setRetrying(false);
-    }
+    retryMutation.mutate(failedLogs.map((log) => log.id));
   };
 
   const handleDeleteSelected = async (): Promise<void> => {
@@ -342,19 +409,7 @@ function SmsManagement() {
       toast.error("Please select SMS logs to delete");
       return;
     }
-
-    try {
-      const response = await axios.delete("/api/sms/sms-logs", {
-        data: { smsLogIds: selectedLogs },
-      });
-
-      toast.success(response.data.message);
-      setSelectedLogs([]);
-      fetchSmsLogs();
-    } catch (error) {
-      console.error("Error deleting SMS logs:", error);
-      toast.error("Failed to delete SMS logs");
-    }
+    deleteMutation.mutate(selectedLogs);
   };
 
   const handleSelectAll = (): void => {
@@ -383,7 +438,7 @@ function SmsManagement() {
     { id: "settings", label: "SMS Settings", icon: <Settings size={16} /> },
   ];
 
-  if (loading && smsLogs.length === 0) {
+  if (loadingLogs && smsLogs.length === 0) {
     return <Loading />;
   }
 
@@ -403,6 +458,11 @@ function SmsManagement() {
 
       {activeTab === "settings" ? (
         <div className="space-y-6">
+          {(settingsError || balanceError) && (
+            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+              Unable to load SMS settings or balance. Please refresh.
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <SectionCard
               title="Account Balance"
@@ -413,10 +473,15 @@ function SmsManagement() {
                 <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-border">
                   <div className="text-sm text-muted-foreground mb-1">Available Credits</div>
                   <div className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    {balance?.credits ?? balance?.balance ?? "..."}
+                    {balanceLoading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      balance?.credits ?? balance?.balance ?? "..."
+                    )}
                     <button
-                      onClick={fetchBalance}
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ["smsBalance"] })}
                       className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                      disabled={balanceLoading}
                     >
                       <RefreshCw className="w-4 h-4 text-slate-400" />
                     </button>
@@ -436,79 +501,98 @@ function SmsManagement() {
                       placeholder="Amount"
                       value={addBalanceAmount}
                       onChange={(e) => setAddBalanceAmount(e.target.value)}
+                      disabled={balanceLoading}
                     />
                     <Button
                       onClick={handleAddBalance}
-                      disabled={addingBalance || !addBalanceAmount}
+                      disabled={addBalanceMutation.isPending || !addBalanceAmount || balanceLoading}
                       variant="outline"
                       size="sm"
                     >
-                      {addingBalance ? "..." : "Add"}
+                      {addBalanceMutation.isPending ? "..." : "Add"}
                     </Button>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard
-              title="Test SMS Delivery"
-              icon={<Send className="w-5 h-5 text-primary" />}
-              className="lg:col-span-2"
-            >
-              <form onSubmit={handleSendTestSms} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="testPhone">Phone Number</Label>
-                    <Input
-                      id="testPhone"
-                      placeholder="017XXXXXXXX"
-                      value={testForm.phoneNumber}
-                      onChange={(e) => {
-                        setTestForm({ ...testForm, phoneNumber: e.target.value });
-                        if (testErrors.phoneNumber) {
-                          setTestErrors((prev) => ({ ...prev, phoneNumber: undefined }));
-                        }
-                      }}
-                    />
-                    {testErrors.phoneNumber && (
-                      <p className="text-xs text-red-500">{testErrors.phoneNumber}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="testMessage">Test Message</Label>
-                    <Input
-                      id="testMessage"
-                      placeholder="Hello from school system!"
-                      value={testForm.message}
-                      onChange={(e) => {
-                        setTestForm({ ...testForm, message: e.target.value });
-                        if (testErrors.message) {
-                          setTestErrors((prev) => ({ ...prev, message: undefined }));
-                        }
-                      }}
-                    />
-                    {testErrors.message && (
-                      <p className="text-xs text-red-500">{testErrors.message}</p>
-                    )}
-                    {estimates.test && (
-                      <div className="text-[10px] font-medium text-primary mt-1">
-                        Est: <span className="font-bold">{estimates.test.count}</span> credit{estimates.test.count !== 1 ? "s" : ""} ({estimates.test.encoding}) {estimates.test.length} chars
-                      </div>
-                    )}
-                  </div>
+          <SectionCard
+            title="Test SMS Delivery"
+            icon={<Send className="w-5 h-5 text-primary" />}
+            className="lg:col-span-2"
+          >
+            <form onSubmit={handleSendTestSms} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="testPhone">Phone Number</Label>
+                  <Input
+                    id="testPhone"
+                    placeholder="017XXXXXXXX"
+                    value={testForm.phoneNumber}
+                    onChange={(e) => {
+                      setTestForm({ ...testForm, phoneNumber: e.target.value });
+                      if (testErrors.phoneNumber) {
+                        setTestErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                      }
+                    }}
+                    disabled={settingsLoading}
+                  />
+                  {testErrors.phoneNumber && (
+                    <p className="text-xs text-red-500">{testErrors.phoneNumber}</p>
+                  )}
                 </div>
-                <Button type="submit" disabled={testingSms} className="w-full sm:w-auto">
-                  {testingSms ? "Sending..." : "Send Test SMS"}
-                </Button>
-              </form>
-            </SectionCard>
+                <div className="space-y-2">
+                  <Label htmlFor="testMessage">Test Message</Label>
+                  <Input
+                    id="testMessage"
+                    placeholder="Hello from school system!"
+                    value={testForm.message}
+                    onChange={(e) => {
+                      setTestForm({ ...testForm, message: e.target.value });
+                      if (testErrors.message) {
+                        setTestErrors((prev) => ({ ...prev, message: undefined }));
+                      }
+                    }}
+                    disabled={settingsLoading}
+                  />
+                  {testErrors.message && (
+                    <p className="text-xs text-red-500">{testErrors.message}</p>
+                  )}
+                  {estimates.test && (
+                    <div className="text-[10px] font-medium text-primary mt-1">
+                      Est: <span className="font-bold">{estimates.test.count}</span> credit{estimates.test.count !== 1 ? "s" : ""} ({estimates.test.encoding}) {estimates.test.length} chars
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button type="submit" disabled={testSmsMutation.isPending || settingsLoading} className="w-full sm:w-auto">
+                {testSmsMutation.isPending ? "Sending..." : "Send Test SMS"}
+              </Button>
+            </form>
+          </SectionCard>
           </div>
 
           <SectionCard
             title="Notification Templates & Rules"
             icon={<Settings className="w-5 h-5 text-primary" />}
           >
-            {settings ? (
+            {settingsLoading ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                  <div className="space-y-3">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-40" />
+              </div>
+            ) : settings ? (
               <form onSubmit={handleUpdateSettings} className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
@@ -524,7 +608,11 @@ function SmsManagement() {
                           id="send_to_present"
                           checked={settings.send_to_present}
                           onCheckedChange={(checked) => {
-                            setSettings({ ...settings, send_to_present: !!checked });
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              send_to_present: !!checked,
+                            }));
                             if (!checked && settingsErrors.present_template) {
                               setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
                             }
@@ -541,7 +629,11 @@ function SmsManagement() {
                           value={settings.present_template}
                           onChange={(e) => {
                             const nextValue = e.target.value;
-                            setSettings({ ...settings, present_template: nextValue });
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              present_template: nextValue,
+                            }));
                             if (settingsErrors.present_template) {
                               const validation = validateTemplate(nextValue);
                               if (validation.isValid) {
@@ -583,7 +675,11 @@ function SmsManagement() {
                           id="send_to_absent"
                           checked={settings.send_to_absent}
                           onCheckedChange={(checked) => {
-                            setSettings({ ...settings, send_to_absent: !!checked });
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              send_to_absent: !!checked,
+                            }));
                             if (!checked && settingsErrors.absent_template) {
                               setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
                             }
@@ -600,7 +696,11 @@ function SmsManagement() {
                           value={settings.absent_template}
                           onChange={(e) => {
                             const nextValue = e.target.value;
-                            setSettings({ ...settings, absent_template: nextValue });
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              absent_template: nextValue,
+                            }));
                             if (settingsErrors.absent_template) {
                               const validation = validateTemplate(nextValue);
                               if (validation.isValid) {
@@ -637,7 +737,11 @@ function SmsManagement() {
                         id="is_active"
                         checked={settings.is_active}
                         onCheckedChange={(checked) => {
-                          setSettings({ ...settings, is_active: !!checked });
+                          if (!settingsDirty) setSettingsDirty(true);
+                          setSettingsDraft((prev) => ({
+                            ...(prev || EMPTY_SETTINGS),
+                            is_active: !!checked,
+                          }));
                           if (!checked) {
                             setSettingsErrors({});
                           }
@@ -646,9 +750,9 @@ function SmsManagement() {
                         <Label htmlFor="is_active">Global System Active</Label>
                       </div>
                     </div>
-                    <Button type="submit" disabled={savingSettings} size="lg" className="px-8 shadow-md">
+                    <Button type="submit" disabled={settingsMutation.isPending} size="lg" className="px-8 shadow-md">
                       <Save className="w-4 h-4 mr-2" />
-                      {savingSettings ? "Saving..." : "Save Configuration"}
+                      {settingsMutation.isPending ? "Saving..." : "Save Configuration"}
                     </Button>
                   </div>
               </form>
@@ -661,6 +765,11 @@ function SmsManagement() {
         </div>
       ) : (
         <>
+      {logsError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+          Unable to load SMS logs. Please refresh.
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           label="Total SMS"
@@ -770,7 +879,7 @@ function SmsManagement() {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={handleRetrySelected}
-                disabled={retrying || selectedLogs.length === 0}
+                disabled={retryMutation.isPending || selectedLogs.length === 0}
                 className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-1 sm:flex-initial"
               >
                 <Send className="w-4 h-4 mr-2" />
@@ -833,254 +942,279 @@ function SmsManagement() {
       >
         <div className="p-6">
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-border dark:border-slate-700">
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    <Checkbox
-                      checked={
-                        selectedLogs.length === displayedLogs.length &&
-                        displayedLogs.length > 0
-                      }
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Student
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Class Info
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Phone
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Date
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Status
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    SMS count
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Retry Count
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Message
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Error
-                  </th>
-                  <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-border dark:border-slate-700 hover:bg-muted/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors group"
-                  >
-                    <td className="p-3">
-                      <Checkbox
-                        checked={selectedLogs.includes(log.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedLogs((prev) => [...prev, log.id]);
-                          } else {
-                            setSelectedLogs((prev) =>
-                              prev.filter((id) => id !== log.id)
-                            );
-                          }
-                        }}
-                      />
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                          {log.student?.name || "N/A"}
-                        </div>
-                        <div className="text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
-                          ID: {log.student?.login_id || "N/A"}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
-                      {getStudentInfo(log.student)}
-                    </td>
-                    <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                      {log.phone_number}
-                    </td>
-                    <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                      {formatIsoToDisplayDate(log.attendance_date)}
-                    </td>
-                    <td className="p-3">
-                      <Badge
-                        className={`text-white ${statusColors[log.status]}`}
-                      >
-                        {statusLabels[log.status]}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      {log.sms_count ? (
-                        <div className="font-semibold text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-200 dark:border-green-800">
-                          {log.sms_count}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
-                          N/A
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3 text-center text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                      {log.retry_count}
-                    </td>
-                    <td className="p-3 max-w-xs">
-                      <div
-                        className="truncate text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white"
-                        title={log.message}
-                      >
-                        {log.message}
-                      </div>
-                    </td>
-                    <td className="p-3 max-w-xs">
-                      {log.error_reason && (
-                        <div
-                          className="text-red-600 dark:text-red-400 group-hover:text-red-600 dark:group-hover:text-red-400 text-sm truncate"
-                          title={log.error_reason}
-                        >
-                          {log.error_reason}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
-                      {formatIsoToDisplayDate(log.created_at)}
-                    </td>
-                  </tr>
+            {loadingLogs ? (
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="grid grid-cols-11 gap-3 items-center">
+                    {Array.from({ length: 11 }).map((__, j) => (
+                      <Skeleton key={j} className="h-4 w-full" />
+                    ))}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border dark:border-slate-700">
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      <Checkbox
+                        checked={
+                          selectedLogs.length === displayedLogs.length &&
+                          displayedLogs.length > 0
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Student
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Class Info
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Phone
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Date
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Status
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      SMS count
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Retry Count
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Message
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Error
+                    </th>
+                    <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      Created
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                {displayedLogs.map((log: SmsLog) => (
+                    <tr
+                      key={log.id}
+                      className="border-b border-border dark:border-slate-700 hover:bg-muted/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors group"
+                    >
+                      <td className="p-3">
+                        <Checkbox
+                          checked={selectedLogs.includes(log.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedLogs((prev) => [...prev, log.id]);
+                            } else {
+                              setSelectedLogs((prev) =>
+                                prev.filter((id) => id !== log.id)
+                              );
+                            }
+                          }}
+                        />
+                      </td>
+                      <td className="p-3">
+                        <div>
+                          <div className="font-medium text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                            {log.student?.name || "N/A"}
+                          </div>
+                          <div className="text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                            ID: {log.student?.login_id || "N/A"}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                        {getStudentInfo(log.student)}
+                      </td>
+                      <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                        {log.phone_number}
+                      </td>
+                      <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                        {formatIsoToDisplayDate(log.attendance_date)}
+                      </td>
+                      <td className="p-3">
+                        <Badge
+                          className={`text-white ${statusColors[log.status]}`}
+                        >
+                          {statusLabels[log.status]}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {log.sms_count ? (
+                          <div className="font-semibold text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-200 dark:border-green-800">
+                            {log.sms_count}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                            N/A
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                        {log.retry_count}
+                      </td>
+                      <td className="p-3 max-w-xs">
+                        <div
+                          className="truncate text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white"
+                          title={log.message}
+                        >
+                          {log.message}
+                        </div>
+                      </td>
+                      <td className="p-3 max-w-xs">
+                        {log.error_reason && (
+                          <div
+                            className="text-red-600 dark:text-red-400 group-hover:text-red-600 dark:group-hover:text-red-400 text-sm truncate"
+                            title={log.error_reason}
+                          >
+                            {log.error_reason}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                        {formatIsoToDisplayDate(log.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="lg:hidden space-y-4">
-            {displayedLogs.map((log) => (
-              <Card
-                key={log.id}
-                className="border border-border dark:border-slate-700"
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={selectedLogs.includes(log.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedLogs((prev) => [...prev, log.id]);
-                          } else {
-                            setSelectedLogs((prev) =>
-                              prev.filter((id) => id !== log.id)
-                            );
-                          }
-                        }}
-                      />
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-white">
-                          {log.student?.name || "N/A"}
-                        </div>
-                        <div className="text-sm text-muted-foreground dark:text-slate-400">
-                          ID: {log.student?.login_id || "N/A"}
+            {loadingLogs ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="border border-border dark:border-slate-700">
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-24" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              displayedLogs.map((log: SmsLog) => (
+                <Card
+                  key={log.id}
+                  className="border border-border dark:border-slate-700"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedLogs.includes(log.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedLogs((prev) => [...prev, log.id]);
+                            } else {
+                              setSelectedLogs((prev) =>
+                                prev.filter((id) => id !== log.id)
+                              );
+                            }
+                          }}
+                        />
+                        <div>
+                          <div className="font-medium text-slate-900 dark:text-white">
+                            {log.student?.name || "N/A"}
+                          </div>
+                          <div className="text-sm text-muted-foreground dark:text-slate-400">
+                            ID: {log.student?.login_id || "N/A"}
+                          </div>
                         </div>
                       </div>
+                      <Badge className={`text-white ${statusColors[log.status]}`}>
+                        {statusLabels[log.status]}
+                      </Badge>
                     </div>
-                    <Badge className={`text-white ${statusColors[log.status]}`}>
-                      {statusLabels[log.status]}
-                    </Badge>
-                  </div>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        Class Info:
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {getStudentInfo(log.student)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        Phone:
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {log.phone_number}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        Date:
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {formatIsoToDisplayDate(log.attendance_date)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        SMS Count:
-                      </span>
-                      {log.sms_count ? (
-                        <span className="font-semibold text-green-600 dark:text-green-400">
-                          {log.sms_count}
-                        </span>
-                      ) : (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground dark:text-slate-400">
-                          N/A
+                          Class Info:
                         </span>
+                        <span className="text-slate-900 dark:text-white">
+                          {getStudentInfo(log.student)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground dark:text-slate-400">
+                          Phone:
+                        </span>
+                        <span className="text-slate-900 dark:text-white">
+                          {log.phone_number}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground dark:text-slate-400">
+                          Date:
+                        </span>
+                        <span className="text-slate-900 dark:text-white">
+                          {formatIsoToDisplayDate(log.attendance_date)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground dark:text-slate-400">
+                          SMS Count:
+                        </span>
+                        {log.sms_count ? (
+                          <span className="font-semibold text-green-600 dark:text-green-400">
+                            {log.sms_count}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground dark:text-slate-400">
+                            N/A
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground dark:text-slate-400">
+                          Retry Count:
+                        </span>
+                        <span className="text-slate-900 dark:text-white">
+                          {log.retry_count}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground dark:text-slate-400">
+                          Created:
+                        </span>
+                        <span className="text-slate-900 dark:text-white">
+                          {formatIsoToDisplayDate(log.created_at)}
+                        </span>
+                      </div>
+                      {log.message && (
+                        <div className="pt-2">
+                          <div className="text-muted-foreground dark:text-slate-400 mb-1">
+                            Message:
+                          </div>
+                          <div className="text-slate-900 dark:text-white text-xs bg-muted dark:bg-slate-800 p-2 rounded">
+                            {log.message}
+                          </div>
+                        </div>
+                      )}
+                      {log.error_reason && (
+                        <div className="pt-2">
+                          <div className="text-muted-foreground dark:text-slate-400 mb-1">
+                            Error:
+                          </div>
+                          <div className="text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/20 p-2 rounded">
+                            {log.error_reason}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        Retry Count:
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {log.retry_count}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground dark:text-slate-400">
-                        Created:
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {formatIsoToDisplayDate(log.created_at)}
-                      </span>
-                    </div>
-                    {log.message && (
-                      <div className="pt-2">
-                        <div className="text-muted-foreground dark:text-slate-400 mb-1">
-                          Message:
-                        </div>
-                        <div className="text-slate-900 dark:text-white text-xs bg-muted dark:bg-slate-800 p-2 rounded">
-                          {log.message}
-                        </div>
-                      </div>
-                    )}
-                    {log.error_reason && (
-                      <div className="pt-2">
-                        <div className="text-muted-foreground dark:text-slate-400 mb-1">
-                          Error:
-                        </div>
-                        <div className="text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/20 p-2 rounded">
-                          {log.error_reason}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
-          {displayedLogs.length === 0 && !loading && (
+          {displayedLogs.length === 0 && !loadingLogs && (
             <div className="text-center py-8 text-muted-foreground dark:text-slate-400">
               No SMS logs found matching the current filters.
             </div>
