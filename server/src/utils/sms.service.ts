@@ -1,4 +1,5 @@
-import { env } from "@/config/env";
+import { env } from "@/config/env.js";
+import { prisma } from "@/config/prisma.js";
 import axios from "axios";
 
 export interface SMSMessage {
@@ -13,31 +14,54 @@ export interface SMSResponse {
 }
 
 export class SMSService {
-  private static readonly API_KEY = env.BULK_SMS_API_KEY;
-  private static readonly SENDER_ID = env.BULK_SMS_SENDER_ID;
-  private static readonly API_URL = "https://sms.onecodesoft.com/api/send-bulk-sms";
+  private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
+  private static readonly FALLBACK_SENDER_ID = env.BULK_SMS_SENDER_ID;
+  private static readonly DEFAULT_API_URL = "https://sms.onecodesoft.com/api/send-bulk-sms";
+
+  private static async getSettings() {
+    let settings = await prisma.sms_settings.findFirst();
+    if (!settings) {
+      settings = await prisma.sms_settings.create({
+        data: {},
+      });
+    }
+    return settings;
+  }
 
   /**
    * Send a single SMS message
    */
   static async sendSMS(phoneNumber: string, message: string): Promise<SMSResponse> {
-    if (!this.API_KEY || !this.SENDER_ID) {
-      throw new Error("SMS configuration missing. Please check BULK_SMS_API_KEY and BULK_SMS_SENDER_ID environment variables.");
+    const settings = await this.getSettings();
+    const apiKey = settings.api_key || this.FALLBACK_API_KEY;
+    const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
+    const apiUrl = settings.api_url || this.DEFAULT_API_URL;
+
+    if (!apiKey || !senderId) {
+      throw new Error("SMS configuration missing in database and environment.");
+    }
+
+    const calc = this.calculateSMSCount(message);
+    if (settings.sms_balance < calc.count) {
+      return {
+        success: false,
+        message: `Insufficient SMS balance. Needed: ${calc.count} credits, Available: ${settings.sms_balance}`,
+      };
     }
 
     const messageParameters: SMSMessage[] = [
       {
-        Number: `88${phoneNumber}`, // Bangladesh country code
+        Number: phoneNumber.startsWith('88') ? phoneNumber : `88${phoneNumber}`,
         Text: message,
       },
     ];
 
     try {
       const response = await axios.post(
-        this.API_URL,
+        apiUrl,
         {
-          api_key: this.API_KEY,
-          senderid: this.SENDER_ID,
+          api_key: apiKey,
+          senderid: senderId,
           MessageParameters: messageParameters,
         },
         {
@@ -47,6 +71,27 @@ export class SMSService {
           },
         }
       );
+      console.log(response.data);
+
+      // Sum up sms_count from results if available
+      let totalSmsUsed = 0;
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        totalSmsUsed = response.data.results.reduce((sum: number, res: any) => sum + (res.sms_count || 0), 0);
+      }
+      
+      // Fallback if results are empty but top level has something
+      if (totalSmsUsed === 0) {
+        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || 1;
+      }
+
+      await prisma.sms_settings.update({
+        where: { id: settings.id },
+        data: {
+          sms_balance: {
+            decrement: totalSmsUsed
+          }
+        }
+      });
 
       return {
         success: true,
@@ -66,8 +111,27 @@ export class SMSService {
    * Send bulk SMS messages
    */
   static async sendBulkSMS(messages: SMSMessage[]): Promise<SMSResponse> {
-    if (!this.API_KEY || !this.SENDER_ID) {
-      throw new Error("SMS configuration missing. Please check BULK_SMS_API_KEY and BULK_SMS_SENDER_ID environment variables.");
+    const settings = await this.getSettings();
+    const apiKey = settings.api_key || this.FALLBACK_API_KEY;
+    const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
+    const apiUrl = settings.api_url || this.DEFAULT_API_URL;
+
+    if (!apiKey || !senderId) {
+      throw new Error("SMS configuration missing.");
+    }
+
+    // Calculate aggregate segments needed for the ENTIRE batch
+    let totalSegmentsNeeded = 0;
+    for (const msg of messages) {
+      const calc = this.calculateSMSCount(msg.Text);
+      totalSegmentsNeeded += calc.count;
+    }
+
+    if (settings.sms_balance < totalSegmentsNeeded) {
+      return {
+        success: false,
+        message: `Insufficient SMS balance. Needed: ${totalSegmentsNeeded} credits, Available: ${settings.sms_balance}`,
+      };
     }
 
     const messageParameters = messages.map(msg => ({
@@ -77,10 +141,10 @@ export class SMSService {
 
     try {
       const response = await axios.post(
-        this.API_URL,
+        apiUrl,
         {
-          api_key: this.API_KEY,
-          senderid: this.SENDER_ID,
+          api_key: apiKey,
+          senderid: senderId,
           MessageParameters: messageParameters,
         },
         {
@@ -90,6 +154,23 @@ export class SMSService {
           },
         }
       );
+      console.log(response.data);
+      let totalSmsUsed = 0;
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        totalSmsUsed = response.data.results.reduce((sum: number, res: any) => sum + (res.sms_count || 0), 0);
+      }
+      if (totalSmsUsed === 0) {
+        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || totalSegmentsNeeded;
+      }
+
+      await prisma.sms_settings.update({
+        where: { id: settings.id },
+        data: {
+          sms_balance: {
+            decrement: totalSmsUsed
+          }
+        }
+      });
 
       return {
         success: true,
@@ -103,6 +184,53 @@ export class SMSService {
         message: error.response?.data?.message || error.message || "Failed to send bulk SMS",
       };
     }
+  }
+
+  /**
+   * Get SMS Balance
+   */
+  static async getBalance(): Promise<SMSResponse> {
+    const settings = await this.getSettings();
+    return {
+      success: true,
+      data: { balance: settings.sms_balance },
+      message: "Balance retrieved from database",
+    };
+  }
+
+  /**
+   * Calculate SMS count based on text length and encoding
+   */
+  static calculateSMSCount(text: string): { count: number; encoding: 'GSM-7' | 'Unicode'; length: number } {
+    const gsm7Regex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\\[\]~|€]*$/;
+    const isGsm7 = gsm7Regex.test(text);
+    const encoding = isGsm7 ? 'GSM-7' : 'Unicode';
+    
+    let effectiveLength = text.length;
+    if (isGsm7) {
+      // Extended characters in GSM-7 count as 2
+      let gsmLength = 0;
+      const extendedSet = "^{}\\[]~|€";
+      for (let i = 0; i < text.length; i++) {
+        gsmLength += extendedSet.includes(text[i]) ? 2 : 1;
+      }
+      effectiveLength = gsmLength;
+
+      if (effectiveLength <= 160) return { count: 1, encoding, length: effectiveLength };
+      return { count: Math.ceil(effectiveLength / 153), encoding, length: effectiveLength };
+    } else {
+      // Unicode (UCS-2)
+      if (effectiveLength <= 70) return { count: 1, encoding, length: effectiveLength };
+      return { count: Math.ceil(effectiveLength / 67), encoding, length: effectiveLength };
+    }
+  }
+
+  /**
+   * Send a test SMS message
+   */
+  static async sendTestSMS(phoneNumber: string, message: string): Promise<SMSResponse> {
+    const testMessage = `[TEST] School Management System: ${message}`;
+    return this.sendSMS(phoneNumber, testMessage);
   }
 
   /**

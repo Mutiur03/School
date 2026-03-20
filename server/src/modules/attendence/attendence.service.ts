@@ -1,5 +1,6 @@
 import { prisma } from "@/config/prisma.js";
 import { SMSService } from "@/utils/sms.service.js";
+import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
 
 export class AttendenceService {
   static async getAllAttendence(filters: { month?: number; year?: number; level?: number; section?: string }) {
@@ -47,6 +48,17 @@ export class AttendenceService {
       timeZone: "Asia/Dhaka",
     });
 
+    const smsSettings = await SmsSettingsService.getSettings();
+    const SCHOOL_NAME = "Panchbibi Lal Bihari Pilot Govt. High School";
+
+    const interpolate = (template: string, data: any) => {
+      return template
+        .replace(/{student_name}/g, data.student_name)
+        .replace(/{login_id}/g, data.login_id)
+        .replace(/{date}/g, data.date)
+        .replace(/{school_name}/g, SCHOOL_NAME);
+    };
+
     const processed = [];
     const errors = [];
     let smsSuccessCount = 0;
@@ -85,8 +97,11 @@ export class AttendenceService {
         if (status === "absent") absentCount++;
         else if (status === "present") presentCount++;
 
-        // SMS Logic for present students today
-        if (formattedDate === today && status === "present") {
+        // SMS Logic based on settings
+        const shouldSendPresent = status === "present" && smsSettings.send_to_present;
+        const shouldSendAbsent = status === "absent" && smsSettings.send_to_absent;
+
+        if (formattedDate === today && (shouldSendPresent || shouldSendAbsent) && smsSettings.is_active) {
           const student = await prisma.students.findUnique({
             where: { id: studentId },
             select: { id: true, name: true, login_id: true, father_phone: true },
@@ -99,13 +114,12 @@ export class AttendenceService {
             });
 
             if (!hasSent?.send_msg) {
-              const message = [
-                `Dear Parent,`,
-                `Your child ${student.name} (ID: ${student.login_id}) has attended school today (${formattedDate}).`,
-                `Thank you.`,
-                `Head Master`,
-                `Panchbibi Lal Bihari Govt. High School.`,
-              ].join("\n");
+              const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
+              const message = interpolate(template, {
+                student_name: student.name,
+                login_id: student.login_id.toString(),
+                date: formattedDate,
+              });
 
               const smsLog = await prisma.sms_logs.create({
                 data: {
@@ -165,12 +179,18 @@ export class AttendenceService {
       }
     }
 
+    const finalBalance = await prisma.sms_settings.findFirst({ select: { sms_balance: true } });
+
     return {
       processed: processed.length,
       present: presentCount,
       absent: absentCount,
       errors,
-      sms: { successful: smsSuccessCount, failed: smsFailedCount },
+      sms: { 
+        successful: smsSuccessCount, 
+        failed: smsFailedCount,
+        balance: finalBalance?.sms_balance || 0
+      },
     };
   }
 }

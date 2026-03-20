@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,9 +25,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-hot-toast";
-import { Send, Trash2, Filter, Calendar } from "lucide-react";
+import { Send, Trash2, Filter, Calendar, Settings, MessageSquare, CreditCard, Save, RefreshCw, Inbox } from "lucide-react";
 import Loading from "@/components/Loading";
+import { Textarea } from "@/components/ui/textarea";
 import { formatDobForDateInput as toDateInputValue } from "@school/shared-schemas";
+import { PHONE_NUMBER } from "@school/shared-schemas";
+import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
+import type { TabItem } from "@/components";
 
 interface Enrollment {
   class: string;
@@ -71,6 +70,23 @@ interface Filters {
   limit: number;
 }
 
+const REQUIRED_TOKENS = [
+  "{student_name}",
+  "{login_id}",
+  "{date}",
+  "{school_name}",
+] as const;
+
+const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, "");
+
+const validateTemplate = (template: string) => {
+  const missing = REQUIRED_TOKENS.filter((token) => !template.includes(token));
+  return {
+    missing,
+    isValid: template.trim().length > 0 && missing.length === 0,
+  };
+};
+
 function SmsManagement() {
   const formatIsoToDisplayDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -80,6 +96,7 @@ function SmsManagement() {
     return `${day}/${month}/${year}`;
   };
 
+  const [activeTab, setActiveTab] = useState<"logs" | "settings">("logs");
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [retrying, setRetrying] = useState<boolean>(false);
@@ -93,6 +110,17 @@ function SmsManagement() {
     limit: 50,
   });
 
+  // Settings State
+  const [settings, setSettings] = useState<any>(null);
+  const [balance, setBalance] = useState<any>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [testingSms, setTestingSms] = useState(false);
+  const [testForm, setTestForm] = useState({ phoneNumber: "", message: "" });
+  const [testErrors, setTestErrors] = useState<{ phoneNumber?: string; message?: string }>({});
+  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string }>({});
+  const [addBalanceAmount, setAddBalanceAmount] = useState<string>("");
+  const [addingBalance, setAddingBalance] = useState(false);
+
   const statusColors: Record<string, string> = {
     sent: "bg-green-500",
     failed: "bg-red-500",
@@ -104,6 +132,32 @@ function SmsManagement() {
     failed: "Failed",
     pending: "Pending",
   };
+
+  const [estimates, setEstimates] = useState<{ [key: string]: { count: number; encoding: string; length: number } }>({});
+
+  const calculateEstimate = useCallback(async (key: string, text: string) => {
+    if (!text) {
+      setEstimates(prev => ({ ...prev, [key]: { count: 0, encoding: "None", length: 0 } }));
+      return;
+    }
+    try {
+      const response = await axios.get(`/api/sms-settings/calculate-count?text=${encodeURIComponent(text)}`);
+      setEstimates(prev => ({ ...prev, [key]: response.data.data }));
+    } catch (error) {
+      console.error("Error calculating estimate:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "settings" && settings) {
+      calculateEstimate("present", settings.present_template || "");
+      calculateEstimate("absent", settings.absent_template || "");
+    }
+  }, [activeTab, settings, calculateEstimate]);
+
+  useEffect(() => {
+    calculateEstimate("test", testForm.message || "");
+  }, [testForm.message, calculateEstimate]);
 
   const fetchSmsLogs = useCallback(async () => {
     try {
@@ -126,14 +180,130 @@ function SmsManagement() {
     }
   }, [currentPage, filters.date, filters.limit]);
 
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/sms-settings");
+      setSettings(response.data.data);
+    } catch (error) {
+      console.error("Error fetching SMS settings:", error);
+    }
+  }, []);
+
+  const fetchBalance = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/sms-settings/balance");
+      setBalance(response.data.data);
+    } catch (error) {
+      console.error("Error fetching SMS balance:", error);
+    }
+  }, []);
+
+  const handleAddBalance = async () => {
+    const amount = parseInt(addBalanceAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    try {
+      setAddingBalance(true);
+      await axios.post("/api/sms-settings/add-balance", { amount });
+      toast.success(`${amount} credits added successfully`);
+      setAddBalanceAmount("");
+      fetchBalance();
+    } catch (error) {
+      toast.error("Failed to add SMS balance");
+    } finally {
+      setAddingBalance(false);
+    }
+  };
+
   useEffect(() => {
-    fetchSmsLogs();
-  }, [fetchSmsLogs]);
+    if (activeTab === "logs") {
+      fetchSmsLogs();
+    } else {
+      fetchSettings();
+      fetchBalance();
+    }
+  }, [activeTab, fetchSmsLogs, fetchSettings, fetchBalance]);
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+
+    const presentValidation = validateTemplate(settings.present_template || "");
+    const absentValidation = validateTemplate(settings.absent_template || "");
+    const nextErrors: { present_template?: string; absent_template?: string } = {};
+
+    if (settings.is_active && settings.send_to_present && !presentValidation.isValid) {
+      nextErrors.present_template = `Present template must include ${presentValidation.missing.join(", ")}.`;
+    }
+
+    if (settings.is_active && settings.send_to_absent && !absentValidation.isValid) {
+      nextErrors.absent_template = `Absent template must include ${absentValidation.missing.join(", ")}.`;
+    }
+
+    setSettingsErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error("Please fix template validation errors before saving.");
+      return;
+    }
+
+    try {
+      setSavingSettings(true);
+      await axios.patch("/api/sms-settings", settings);
+      toast.success("SMS settings updated successfully");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to update SMS settings";
+      toast.error(errorMessage);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleSendTestSms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const phone = normalizePhoneNumber(testForm.phoneNumber);
+    const message = testForm.message.trim();
+    const nextErrors: { phoneNumber?: string; message?: string } = {};
+
+    if (!phone) {
+      nextErrors.phoneNumber = "Phone number is required.";
+    } else if (!PHONE_NUMBER.test(phone)) {
+      nextErrors.phoneNumber = "Phone must be 11 digits and start with 01.";
+    }
+
+    if (!message) {
+      nextErrors.message = "Message is required.";
+    }
+
+    setTestErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error("Please fix the test SMS form errors.");
+      return;
+    }
+
+    try {
+      setTestingSms(true);
+      await axios.post("/api/sms-settings/test", { phoneNumber: phone, message });
+      toast.success("Test SMS sent successfully");
+      setTestForm({ ...testForm, message: "" });
+      setTestErrors({});
+    } catch (error) {
+      toast.error("Failed to send test SMS");
+    } finally {
+      setTestingSms(false);
+    }
+  };
 
   const displayedLogs = useMemo(() => {
     if (filters.status === "all") return smsLogs;
     return smsLogs.filter((log) => log.status === filters.status);
   }, [smsLogs, filters.status]);
+
+  const totalSms = (stats.sent || 0) + (stats.failed || 0) + (stats.pending || 0);
 
   const handleRetrySelected = async (): Promise<void> => {
     if (selectedLogs.length === 0) {
@@ -208,72 +378,321 @@ function SmsManagement() {
     return `Class ${enrollment.class}, Section ${enrollment.section}, Roll ${enrollment.roll}`;
   };
 
+  const tabs: TabItem[] = [
+    { id: "logs", label: "Delivery Logs", icon: <Inbox size={16} /> },
+    { id: "settings", label: "SMS Settings", icon: <Settings size={16} /> },
+  ];
+
   if (loading && smsLogs.length === 0) {
     return <Loading />;
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 mx-auto">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-          SMS Management
-        </h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+      <PageHeader
+        title="SMS Management"
+        description="Track delivery logs, test SMS delivery, and configure attendance notifications."
+      />
+
+      <TabNav
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as "logs" | "settings")}
+        className="mb-6"
+      />
+
+      {activeTab === "settings" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SectionCard
+              title="Account Balance"
+              icon={<CreditCard className="w-5 h-5 text-primary" />}
+              className="lg:col-span-1"
+            >
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-border">
+                  <div className="text-sm text-muted-foreground mb-1">Available Credits</div>
+                  <div className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    {balance?.credits ?? balance?.balance ?? "..."}
+                    <button
+                      onClick={fetchBalance}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4 text-slate-400" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  Internal Database Balance
+                </div>
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <Label htmlFor="add_credits">Add Credits</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="add_credits"
+                      type="number"
+                      placeholder="Amount"
+                      value={addBalanceAmount}
+                      onChange={(e) => setAddBalanceAmount(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleAddBalance}
+                      disabled={addingBalance || !addBalanceAmount}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {addingBalance ? "..." : "Add"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Test SMS Delivery"
+              icon={<Send className="w-5 h-5 text-primary" />}
+              className="lg:col-span-2"
+            >
+              <form onSubmit={handleSendTestSms} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="testPhone">Phone Number</Label>
+                    <Input
+                      id="testPhone"
+                      placeholder="017XXXXXXXX"
+                      value={testForm.phoneNumber}
+                      onChange={(e) => {
+                        setTestForm({ ...testForm, phoneNumber: e.target.value });
+                        if (testErrors.phoneNumber) {
+                          setTestErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                        }
+                      }}
+                    />
+                    {testErrors.phoneNumber && (
+                      <p className="text-xs text-red-500">{testErrors.phoneNumber}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="testMessage">Test Message</Label>
+                    <Input
+                      id="testMessage"
+                      placeholder="Hello from school system!"
+                      value={testForm.message}
+                      onChange={(e) => {
+                        setTestForm({ ...testForm, message: e.target.value });
+                        if (testErrors.message) {
+                          setTestErrors((prev) => ({ ...prev, message: undefined }));
+                        }
+                      }}
+                    />
+                    {testErrors.message && (
+                      <p className="text-xs text-red-500">{testErrors.message}</p>
+                    )}
+                    {estimates.test && (
+                      <div className="text-[10px] font-medium text-primary mt-1">
+                        Est: <span className="font-bold">{estimates.test.count}</span> credit{estimates.test.count !== 1 ? "s" : ""} ({estimates.test.encoding}) {estimates.test.length} chars
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Button type="submit" disabled={testingSms} className="w-full sm:w-auto">
+                  {testingSms ? "Sending..." : "Send Test SMS"}
+                </Button>
+              </form>
+            </SectionCard>
+          </div>
+
+          <SectionCard
+            title="Notification Templates & Rules"
+            icon={<Settings className="w-5 h-5 text-primary" />}
+          >
+            {settings ? (
+              <form onSubmit={handleUpdateSettings} className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-semibold">
+                          <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600">
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          Present Student SMS
+                        </div>
+                        <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="send_to_present"
+                          checked={settings.send_to_present}
+                          onCheckedChange={(checked) => {
+                            setSettings({ ...settings, send_to_present: !!checked });
+                            if (!checked && settingsErrors.present_template) {
+                              setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
+                            }
+                          }}
+                        />
+                          <Label htmlFor="send_to_present">Enable</Label>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="present_template">Message Template</Label>
+                        <Textarea
+                          id="present_template"
+                          rows={4}
+                          value={settings.present_template}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setSettings({ ...settings, present_template: nextValue });
+                            if (settingsErrors.present_template) {
+                              const validation = validateTemplate(nextValue);
+                              if (validation.isValid) {
+                                setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
+                              }
+                            }
+                          }}
+                        />
+                        {settingsErrors.present_template && (
+                          <p className="text-xs text-red-500">{settingsErrors.present_template}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                            <span className="font-semibold text-red-500">Mandatory:</span>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{login_id}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{date}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{school_name}"}</code>
+                          </div>
+                          {estimates.present && (
+                            <div className="text-[10px] font-medium text-primary">
+                              Est: <span className="font-bold">{estimates.present.count}</span> credit{estimates.present.count !== 1 ? 's' : ''} ({estimates.present.encoding})
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-semibold">
+                          <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center text-red-600">
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          Absent Student SMS
+                        </div>
+                        <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="send_to_absent"
+                          checked={settings.send_to_absent}
+                          onCheckedChange={(checked) => {
+                            setSettings({ ...settings, send_to_absent: !!checked });
+                            if (!checked && settingsErrors.absent_template) {
+                              setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
+                            }
+                          }}
+                        />
+                          <Label htmlFor="send_to_absent">Enable</Label>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="absent_template">Message Template</Label>
+                        <Textarea
+                          id="absent_template"
+                          rows={4}
+                          value={settings.absent_template}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setSettings({ ...settings, absent_template: nextValue });
+                            if (settingsErrors.absent_template) {
+                              const validation = validateTemplate(nextValue);
+                              if (validation.isValid) {
+                                setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
+                              }
+                            }
+                          }}
+                        />
+                        {settingsErrors.absent_template && (
+                          <p className="text-xs text-red-500">{settingsErrors.absent_template}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                            <span className="font-semibold text-red-500">Mandatory:</span>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{login_id}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{date}"}</code>
+                            <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{school_name}"}</code>
+                          </div>
+                          {estimates.absent && (
+                            <div className="text-[10px] font-medium text-primary">
+                              Est: <span className="font-bold">{estimates.absent.count}</span> credit{estimates.absent.count !== 1 ? 's' : ''} ({estimates.absent.encoding})
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="is_active"
+                        checked={settings.is_active}
+                        onCheckedChange={(checked) => {
+                          setSettings({ ...settings, is_active: !!checked });
+                          if (!checked) {
+                            setSettingsErrors({});
+                          }
+                        }}
+                      />
+                        <Label htmlFor="is_active">Global System Active</Label>
+                      </div>
+                    </div>
+                    <Button type="submit" disabled={savingSettings} size="lg" className="px-8 shadow-md">
+                      <Save className="w-4 h-4 mr-2" />
+                      {savingSettings ? "Saving..." : "Save Configuration"}
+                    </Button>
+                  </div>
+              </form>
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <Loading />
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      ) : (
+        <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          label="Total SMS"
+          value={totalSms}
+          color="default"
+          icon={<MessageSquare className="w-5 h-5" />}
+          loading={false}
+        />
+        <StatsCard
+          label="Sent"
+          value={stats.sent || 0}
+          color="emerald"
+          icon={<Send className="w-5 h-5" />}
+          loading={false}
+        />
+        <StatsCard
+          label="Failed"
+          value={stats.failed || 0}
+          color="red"
+          icon={<Trash2 className="w-5 h-5" />}
+          loading={false}
+        />
+        <StatsCard
+          label="Pending"
+          value={stats.pending || 0}
+          color="amber"
+          icon={<RefreshCw className="w-5 h-5" />}
+          loading={false}
+        />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <Card>
-          <CardContent className="sm:p-6">
-            <div className="text-xs sm:text-sm font-medium text-muted-foreground dark:text-slate-400 mb-1 sm:mb-2">
-              Total SMS
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">
-              {Object.values(stats).reduce((a, b) => a + b, 0)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="sm:p-6">
-            <div className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-500 mb-1 sm:mb-2">
-              Sent
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-500">
-              {stats.sent || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="sm:p-6">
-            <div className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-500 mb-1 sm:mb-2">
-              Failed
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-500">
-              {stats.failed || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="sm:p-6">
-            <div className="text-xs sm:text-sm font-medium text-yellow-600 dark:text-yellow-500 mb-1 sm:mb-2">
-              Pending
-            </div>
-            <div className="text-lg sm:text-2xl font-bold text-yellow-600 dark:text-yellow-500">
-              {stats.pending || 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters & Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <SectionCard title="Filters & Actions" icon={<Filter className="w-5 h-5" />}>
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
@@ -391,14 +810,12 @@ function SmsManagement() {
               </AlertDialog>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </SectionCard>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-slate-900 dark:text-white">
-            SMS Logs
-          </CardTitle>
+      <SectionCard
+        title="SMS Logs"
+        icon={<Inbox className="w-5 h-5" />}
+        headerAction={
           <div className="flex items-center gap-2">
             <Checkbox
               checked={
@@ -411,8 +828,10 @@ function SmsManagement() {
               Select All
             </span>
           </div>
-        </CardHeader>
-        <CardContent>
+        }
+        noPadding
+      >
+        <div className="p-6">
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -694,9 +1113,11 @@ function SmsManagement() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </SectionCard>
+    </>
+  )}
+</div>
   );
 }
 
