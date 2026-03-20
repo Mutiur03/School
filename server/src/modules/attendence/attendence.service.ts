@@ -3,22 +3,27 @@ import { SMSService } from "@/utils/sms.service.js";
 import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
 
 export class AttendenceService {
-  static async getAllAttendence(filters: { month?: number; year?: number; level?: number; section?: string }) {
+  static async getAllAttendence(filters: {
+    month?: number;
+    year?: number;
+    level?: number;
+    section?: string;
+  }) {
     const { month, year, level, section } = filters;
-    
+
     const where: any = {};
-    
+
     if (year !== undefined && month !== undefined) {
       const startDate = new Date(year, month, 1);
       const endDate = new Date(year, month + 1, 0);
       where.date = {
-        gte: startDate.toISOString().split('T')[0],
-        lte: endDate.toISOString().split('T')[0],
+        gte: startDate.toISOString().split("T")[0],
+        lte: endDate.toISOString().split("T")[0],
       };
     } else if (year !== undefined) {
-        where.date = {
-            startsWith: `${year}-`
-        };
+      where.date = {
+        startsWith: `${year}-`,
+      };
     }
 
     if (level !== undefined || section !== undefined) {
@@ -40,7 +45,6 @@ export class AttendenceService {
   }
 
   static async addAttendence(records: any[]) {
-
     const today = new Date().toLocaleDateString("en-CA", {
       year: "numeric",
       month: "2-digit",
@@ -59,62 +63,77 @@ export class AttendenceService {
         .replace(/{school_name}/g, SCHOOL_NAME);
     };
 
-    const processed = [];
-    const errors = [];
+    const errors: any[] = [];
     let smsSuccessCount = 0;
     let smsFailedCount = 0;
-    let absentCount = 0;
-    let presentCount = 0;
     const smsMessages: any[] = [];
     const smsLogMap = new Map();
 
-    for (const record of records) {
-      let { studentId, date, status } = record;
-      const formattedDate = new Date(date).toLocaleDateString("en-CA", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        timeZone: "Asia/Dhaka",
-      });
+    const result = await prisma.$transaction(async (tx) => {
+      const innerProcessed = [];
+      const innerSmsToLog = [];
+      let innerAbsentCount = 0;
+      let innerPresentCount = 0;
 
-      try {
-        const existingRecord = await prisma.attendence.findFirst({
+      for (const record of records) {
+        let { studentId, date, status } = record;
+        const formattedDate = new Date(date).toLocaleDateString("en-CA", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          timeZone: "Asia/Dhaka",
+        });
+
+        const existingRecord = await tx.attendence.findFirst({
           where: { student_id: studentId, date: formattedDate },
         });
 
         if (existingRecord) {
-          await prisma.attendence.update({
+          await tx.attendence.update({
             where: { id: existingRecord.id },
             data: { status },
           });
         } else {
-          await prisma.attendence.create({
+          await tx.attendence.create({
             data: { student_id: studentId, date: formattedDate, status },
           });
         }
 
-        processed.push({ studentId, date: formattedDate, status });
-        if (status === "absent") absentCount++;
-        else if (status === "present") presentCount++;
+        innerProcessed.push({ studentId, date: formattedDate, status });
+        if (status === "absent") innerAbsentCount++;
+        else if (status === "present") innerPresentCount++;
 
-        // SMS Logic based on settings
-        const shouldSendPresent = status === "present" && smsSettings.send_to_present;
-        const shouldSendAbsent = status === "absent" && smsSettings.send_to_absent;
+        const shouldSendPresent =
+          status === "present" && smsSettings.send_to_present;
+        const shouldSendAbsent =
+          status === "absent" && smsSettings.send_to_absent;
 
-        if (formattedDate === today && (shouldSendPresent || shouldSendAbsent) && smsSettings.is_active) {
-          const student = await prisma.students.findUnique({
+        if (
+          formattedDate === today &&
+          (shouldSendPresent || shouldSendAbsent) &&
+          smsSettings.is_active
+        ) {
+          const student = await tx.students.findUnique({
             where: { id: studentId },
-            select: { id: true, name: true, login_id: true, father_phone: true },
+            select: {
+              id: true,
+              name: true,
+              login_id: true,
+              father_phone: true,
+            },
           });
 
           if (student?.father_phone) {
-            const hasSent = await prisma.attendence.findFirst({
+            const hasSent = await tx.attendence.findFirst({
               where: { student_id: studentId, date: formattedDate },
               select: { send_msg: true },
             });
 
             if (!hasSent?.send_msg) {
-              const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
+              const template =
+                status === "present"
+                  ? smsSettings.present_template
+                  : smsSettings.absent_template;
               const message = interpolate(template, {
                 student_name: student.name,
                 login_id: student.login_id.toString(),
@@ -122,7 +141,7 @@ export class AttendenceService {
               });
               const smsCount = SMSService.calculateSMSCount(message).count;
 
-              const smsLog = await prisma.sms_logs.create({
+              const smsLog = await tx.sms_logs.create({
                 data: {
                   student_id: studentId,
                   phone_number: student.father_phone,
@@ -133,20 +152,36 @@ export class AttendenceService {
                 },
               });
 
-              const phoneKey = `88${student.father_phone}`;
-              smsMessages.push({ Number: phoneKey, Text: message });
-              
-              if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
-              smsLogMap.get(phoneKey).push({ smsLogId: smsLog.id, studentId, date: formattedDate, smsCount });
+              innerSmsToLog.push({
+                smsLogId: smsLog.id,
+                studentId,
+                date: formattedDate,
+                phoneNumber: student.father_phone,
+                message: message,
+                smsCount,
+              });
             }
           }
         }
-      } catch (err: any) {
-        errors.push({ studentId, error: err.message });
       }
+      return {
+        processed: innerProcessed,
+        smsToLog: innerSmsToLog,
+        absentCount: innerAbsentCount,
+        presentCount: innerPresentCount,
+      };
+    });
+
+    const { processed, smsToLog, absentCount, presentCount } = result;
+
+    for (const log of smsToLog) {
+      const phoneKey = `88${log.phoneNumber}`;
+      smsMessages.push({ Number: phoneKey, Text: log.message });
+
+      if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
+      smsLogMap.get(phoneKey).push(log);
     }
 
-    // Process SMS Messages
     if (smsMessages.length > 0) {
       try {
         const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
@@ -154,25 +189,34 @@ export class AttendenceService {
           for (const result of bulkSmsResponse.data.results) {
             const logs = smsLogMap.get(result.to);
             if (logs) {
-              for (const log of logs) {
-                if (result.status === "sent") {
-                  smsSuccessCount++;
-                  await prisma.sms_logs.update({
-                    where: { id: log.smsLogId },
-                    data: { status: "sent", message_id: result.message_id, sms_count: result.sms_count || log.smsCount },
-                  });
-                  await prisma.attendence.updateMany({
-                    where: { student_id: log.studentId, date: log.date },
-                    data: { send_msg: true },
-                  });
-                } else {
-                  smsFailedCount++;
-                  await prisma.sms_logs.update({
-                    where: { id: log.smsLogId },
-                    data: { status: "failed", error_reason: result.code || "API Error" },
-                  });
+              await prisma.$transaction(async (tx) => {
+                for (const log of logs) {
+                  if (result.status === "sent") {
+                    smsSuccessCount++;
+                    await tx.sms_logs.update({
+                      where: { id: log.smsLogId },
+                      data: {
+                        status: "sent",
+                        message_id: result.message_id,
+                        sms_count: result.sms_count || log.smsCount,
+                      },
+                    });
+                    await tx.attendence.updateMany({
+                      where: { student_id: log.studentId, date: log.date },
+                      data: { send_msg: true },
+                    });
+                  } else {
+                    smsFailedCount++;
+                    await tx.sms_logs.update({
+                      where: { id: log.smsLogId },
+                      data: {
+                        status: "failed",
+                        error_reason: result.code || "API Error",
+                      },
+                    });
+                  }
                 }
-              }
+              });
             }
           }
         }
@@ -181,17 +225,19 @@ export class AttendenceService {
       }
     }
 
-    const finalBalance = await prisma.sms_settings.findFirst({ select: { sms_balance: true } });
+    const finalBalance = await prisma.sms_settings.findFirst({
+      select: { sms_balance: true },
+    });
 
     return {
       processed: processed.length,
       present: presentCount,
       absent: absentCount,
       errors,
-      sms: { 
-        successful: smsSuccessCount, 
+      sms: {
+        successful: smsSuccessCount,
         failed: smsFailedCount,
-        balance: finalBalance?.sms_balance || 0
+        balance: finalBalance?.sms_balance || 0,
       },
     };
   }

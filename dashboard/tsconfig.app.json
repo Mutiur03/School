@@ -25,6 +25,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@school/client-ui": [
+        "../packages/client-ui/src/index.ts"
+      ],
+      "@school/common-ui": [
+        "../packages/common-ui/src/index.ts"
+      ],
+      "@school/shared-schemas": [
+        "../packages/shared-schemas/index.ts"
       ]
     },
     /* Linting */
