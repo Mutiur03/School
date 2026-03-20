@@ -4,11 +4,13 @@ import AuthMiddleware from "@/middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Allow both admins and teachers to see public settings (templates + balance)
-router.get("/public", AuthMiddleware.authenticate(['admin', 'teacher']), SmsSettingsController.getPublicSettings);
+router.get(
+  "/public",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  SmsSettingsController.getPublicSettings,
+);
 
-// Protect all other routes with admin only middleware
-router.use(AuthMiddleware.authenticate(['admin']));
+router.use(AuthMiddleware.authenticate(["admin"]));
 
 router.get("/", SmsSettingsController.getSettings);
 router.patch("/", SmsSettingsController.updateSettings);
@@ -17,4 +19,6 @@ router.post("/add-balance", SmsSettingsController.updateBalance);
 router.post("/test", SmsSettingsController.sendTestSMS);
 router.get("/calculate-count", SmsSettingsController.getCalculateCount);
 
-export default router;
+const smsSettingsRoute = Router();
+smsSettingsRoute.use("/api/sms-settings", router);
+export default smsSettingsRoute;

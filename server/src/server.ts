@@ -36,7 +36,7 @@ import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
-import smsRouter from "./routes/smsRoutes.js";
+import smsRouter from "./modules/sms-logs/sms-logs.route.js";
 import registrationSettingsClass6Router from "./modules/registration/class-6/Settings/registrationSettingsClass6.route.js";
 import registrationFormClass6Router from "./modules/registration/class-6/Form/registrationFormClass6.route.js";
 import registrationSettingsClass8Router from "./modules/registration/class-8/Settings/registrationSettingsClass8.route.js";
@@ -137,7 +137,7 @@ app.use(authRouter);
 app.use(levelRouter);
 app.use(attendenceRouter);
 app.use("/api/notices", noticeRouter);
-app.use("/api/sms-settings", smsSettingsRoute);
+app.use(smsSettingsRoute);
 app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
@@ -155,7 +155,7 @@ app.use("/api/admission", admmissionRoutes);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 
-app.use("/api/sms", smsRouter);
+app.use(smsRouter);
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
