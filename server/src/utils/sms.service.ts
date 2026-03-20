@@ -1,6 +1,7 @@
 import { env } from "@/config/env.js";
 import { prisma } from "@/config/prisma.js";
 import axios from "axios";
+import { calculateSMSCount } from "@school/shared-schemas";
 
 export interface SMSMessage {
   Number: string;
@@ -201,28 +202,8 @@ export class SMSService {
   /**
    * Calculate SMS count based on text length and encoding
    */
-  static calculateSMSCount(text: string): { count: number; encoding: 'GSM-7' | 'Unicode'; length: number } {
-    const gsm7Regex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\\[\]~|€]*$/;
-    const isGsm7 = gsm7Regex.test(text);
-    const encoding = isGsm7 ? 'GSM-7' : 'Unicode';
-    
-    let effectiveLength = text.length;
-    if (isGsm7) {
-      // Extended characters in GSM-7 count as 2
-      let gsmLength = 0;
-      const extendedSet = "^{}\\[]~|€";
-      for (let i = 0; i < text.length; i++) {
-        gsmLength += extendedSet.includes(text[i]) ? 2 : 1;
-      }
-      effectiveLength = gsmLength;
-
-      if (effectiveLength <= 160) return { count: 1, encoding, length: effectiveLength };
-      return { count: Math.ceil(effectiveLength / 153), encoding, length: effectiveLength };
-    } else {
-      // Unicode (UCS-2)
-      if (effectiveLength <= 70) return { count: 1, encoding, length: effectiveLength };
-      return { count: Math.ceil(effectiveLength / 67), encoding, length: effectiveLength };
-    }
+  static calculateSMSCount(text: string): { count: number; encoding: "GSM-7" | "Unicode"; length: number } {
+    return calculateSMSCount(text);
   }
 
   /**
@@ -284,3 +265,4 @@ export class SMSService {
   //   throw new Error('Invalid phone number format. Must be 11 digits starting with 01');
   // }
 }
+

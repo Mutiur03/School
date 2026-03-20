@@ -111,7 +111,7 @@ export class SmsLogsService {
 
     const stats = await prisma.sms_logs.groupBy({
       by: ["status"],
-      where: studentFilter ? { student_id: studentFilter } : {},
+      where: whereClause,
       _count: {
         status: true,
       },
