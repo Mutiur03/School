@@ -41,3 +41,14 @@ export const useAddAttendance = () => {
     },
   });
 };
+
+export const useAttendanceStats = (params: { date: string; level: number; section: string; year: number }) => {
+  return useQuery({
+    queryKey: ["attendance-stats", params],
+    queryFn: async () => {
+      const response = await axios.get("/api/attendance/getStats", { params });
+      return response.data;
+    },
+    enabled: !!params.date && !!params.level && !!params.section && !!params.year,
+  });
+};

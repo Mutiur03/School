@@ -58,7 +58,6 @@ export class SmsSettingsService {
     const settings = await this.getSettings();
     return {
       balance: settings.sms_balance,
-      credits: settings.sms_balance // Support both for frontend safety
     };
   }
 
