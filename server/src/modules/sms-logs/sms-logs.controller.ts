@@ -31,4 +31,10 @@ export class SmsLogsController {
     const result = await SmsLogsService.deleteSmsLogs(smsLogIds);
     res.status(result.status).json(result.body);
   });
+
+  static getSmsUsageStats = asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const { days } = req.query;
+    const result = await SmsLogsService.getSmsUsageStats(days ? Number(days) : 30);
+    res.status(result.status).json(result.body);
+  });
 }

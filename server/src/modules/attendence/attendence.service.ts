@@ -177,31 +177,43 @@ export class AttendenceService {
     const { processed, absentCount, presentCount } = result;
 
     if (smsMessages.length > 0) {
-      try {
-        const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
-        if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-          const processRes = await SmsLogsService.processBatchResults(
-            bulkSmsResponse.data.results,
-            smsLogMap
-          );
-          smsSuccessCount = processRes.successCount;
-          smsFailedCount = processRes.failedCount;
-          smsPendingCount = processRes.pendingCount;
-        } else {
+      const settings = await SMSService.getSettings();
+      let totalSegmentsNeeded = 0;
+      for (const msg of smsMessages) {
+        totalSegmentsNeeded += SMSService.calculateSMSCount(msg.Text).count;
+      }
+
+      if (settings.sms_balance < totalSegmentsNeeded) {
+        // Insufficient balance, leave as pending
+        smsPendingCount = smsMessages.length;
+      } else {
+        try {
+          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
+          if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
+            const processRes = await SmsLogsService.processBatchResults(
+              bulkSmsResponse.data.results,
+              smsLogMap
+            );
+            smsSuccessCount = processRes.successCount;
+            smsFailedCount = processRes.failedCount;
+            // Any that didn't go through are considered pending if they were successfully processed
+            smsPendingCount = smsMessages.length - (smsSuccessCount + smsFailedCount);
+          } else {
+            const failRes = await SmsLogsService.handleCatastrophicFailure(
+              smsLogMap,
+              bulkSmsResponse.message || "Bulk SMS delivery failed"
+            );
+            smsFailedCount = failRes.failedCount;
+            // If the failure reason is balance, it would be caught by the pre-check above,
+            // but if it somehow gets here, we mark as failed per current handleCatastrophicFailure logic.
+          }
+        } catch (smsErr: any) {
           const failRes = await SmsLogsService.handleCatastrophicFailure(
             smsLogMap,
-            bulkSmsResponse.message || "Bulk SMS delivery failed"
+            smsErr.message || "Unknown SMS Error"
           );
           smsFailedCount = failRes.failedCount;
-          smsPendingCount = failRes.pendingCount;
         }
-      } catch (smsErr: any) {
-        const failRes = await SmsLogsService.handleCatastrophicFailure(
-          smsLogMap,
-          smsErr.message || "Unknown SMS Error"
-        );
-        smsFailedCount = failRes.failedCount;
-        smsPendingCount = failRes.pendingCount;
       }
     }
 

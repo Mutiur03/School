@@ -31,7 +31,7 @@ export class SMSService {
     return cleanNumber.startsWith("88") ? cleanNumber : `88${cleanNumber}`;
   }
 
-  private static async getSettings() {
+  public static async getSettings() {
     let settings = await prisma.sms_settings.findFirst();
     if (!settings) {
       settings = await prisma.sms_settings.create({

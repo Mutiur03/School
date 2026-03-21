@@ -34,6 +34,11 @@ export const useAddAttendance = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
       toast.success(data.message || "Attendance saved successfully");
     },
     onError: (error: any) => {

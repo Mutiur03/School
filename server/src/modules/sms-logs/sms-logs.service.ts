@@ -366,4 +366,52 @@ export class SmsLogsService {
       },
     };
   }
+
+  static async getSmsUsageStats(days: number = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const logs = await prisma.sms_logs.findMany({
+      where: {
+        status: "sent",
+        created_at: {
+          gte: startDate,
+        },
+      },
+      select: {
+        sms_count: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: "asc",
+      },
+    });
+
+    const usageMap = new Map<string, number>();
+
+    // Initialize all days in range with 0
+    for (let i = 0; i <= days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateKey = d.toISOString().split("T")[0];
+      usageMap.set(dateKey, 0);
+    }
+
+    // Fill with actual data
+    logs.forEach((log) => {
+      const dateKey = log.created_at.toISOString().split("T")[0];
+      if (usageMap.has(dateKey)) {
+        usageMap.set(dateKey, usageMap.get(dateKey)! + (log.sms_count || 1));
+      }
+    });
+
+    const stats = Array.from(usageMap.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      status: 200,
+      body: { stats },
+    };
+  }
 }

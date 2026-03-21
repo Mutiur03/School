@@ -110,18 +110,21 @@ function Attendance() {
     return new Date(selectedYear, selectedMonth + 1, 0).getDate();
   }, [selectedMonth, selectedYear]);
 
-  const attendanceMap = useMemo(() => {
-    const map: Record<string, "present" | "absent"> = {};
-    if (!attendanceRecords?.data) return map;
+  const { attendanceMap, sentMap } = useMemo(() => {
+    const aMap: Record<string, "present" | "absent"> = {};
+    const sMap: Record<string, boolean> = {};
+
+    if (!attendanceRecords?.data) return { attendanceMap: aMap, sentMap: sMap };
 
     attendanceRecords.data.forEach((record: any) => {
-      const date = new Date(record.date);
-      if (date.getMonth() === selectedMonth && date.getFullYear() === selectedYear) {
-        const key = `${record.student_id}-${date.getDate()}`;
-        map[key] = record.status;
+      if (record.date.startsWith(`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`)) {
+        const day = parseInt(record.date.split("-")[2]);
+        const key = `${record.student_id}-${day}`;
+        aMap[key] = record.status;
+        sMap[key] = !!record.send_msg;
       }
     });
-    return map;
+    return { attendanceMap: aMap, sentMap: sMap };
   }, [attendanceRecords, selectedMonth, selectedYear]);
 
   const students = (studentsData?.data || []) as StudentOverview[];
@@ -132,10 +135,7 @@ function Attendance() {
     if (!isToday || !attendanceRecords?.data) return false;
 
     return attendanceRecords.data.some((record: any) => {
-      const date = new Date(record.date);
-      return date.getDate() === todayDay &&
-        date.getMonth() === selectedMonth &&
-        date.getFullYear() === selectedYear;
+      return record.date === `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
     });
   }, [attendanceRecords, currentDate, selectedMonth, selectedYear]);
 
@@ -180,6 +180,9 @@ function Attendance() {
       const shouldSend = (status === "present" && smsSettings.send_to_present) ||
         (status === "absent" && smsSettings.send_to_absent);
 
+      const alreadySent = sentMap[`${student.id}-${todayDay}`];
+      if (alreadySent) return;
+
       if (shouldSend) {
         const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
         // Approximation of interpolated message length
@@ -195,7 +198,7 @@ function Attendance() {
     });
 
     return { count: messagesToSend, cost: totalSegments };
-  }, [smsSettings, students, localAttendance, attendanceMap, selectedMonth, selectedYear]);
+  }, [smsSettings, students, localAttendance, attendanceMap, sentMap, selectedMonth, selectedYear]);
 
   const saveAttendance = async () => {
     if (!selectedClass || !selectedSection) {
@@ -281,7 +284,7 @@ function Attendance() {
         </div>
       </PageHeader>
 
-      {statsToDisplay && (
+      {statsToDisplay && (statsToDisplay.present > 0 || statsToDisplay.absent > 0) && (
         <div className="relative space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
