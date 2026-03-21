@@ -416,7 +416,7 @@ function SmsManagement() {
     }
 
     const failedLogs: SmsLog[] = smsLogs.filter(
-      (log) => selectedLogs.includes(log.id) && log.status === "failed"
+      (log) => selectedLogs.includes(log.id) && (log.status === "failed" || log.status === "pending")
     );
 
     if (failedLogs.length === 0) {
@@ -918,11 +918,11 @@ function SmsManagement() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                onClick={handleRetrySelected}
-                disabled={retryMutation.isPending || selectedLogs.length === 0}
-                className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-1 sm:flex-initial"
-              >
+                <Button
+                  onClick={handleRetrySelected}
+                  disabled={retryMutation.isPending || selectedLogs.length === 0}
+                  className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-1 sm:flex-initial"
+                >
                   <Send className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Retry Selected</span>
                   <span className="sm:hidden">Retry ({selectedLogs.length})</span>

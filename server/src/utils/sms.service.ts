@@ -19,6 +19,18 @@ export class SMSService {
   private static readonly FALLBACK_SENDER_ID = env.BULK_SMS_SENDER_ID;
   private static readonly DEFAULT_API_URL = "https://sms.onecodesoft.com/api/send-bulk-sms";
 
+  public static formatPhoneNumber(phoneNumber: string): string {
+    const cleanNumber = phoneNumber.replace(/\D/g, "");
+    if (cleanNumber.length === 11 && cleanNumber.startsWith("01")) {
+      return `88${cleanNumber}`;
+    }
+    if (cleanNumber.length === 13 && cleanNumber.startsWith("8801")) {
+      return cleanNumber;
+    }
+    // Fallback: if it's already 13 and looks like international, or if it's just 11
+    return cleanNumber.startsWith("88") ? cleanNumber : `88${cleanNumber}`;
+  }
+
   private static async getSettings() {
     let settings = await prisma.sms_settings.findFirst();
     if (!settings) {
@@ -52,7 +64,7 @@ export class SMSService {
 
     const messageParameters: SMSMessage[] = [
       {
-        Number: phoneNumber.startsWith('88') ? phoneNumber : `88${phoneNumber}`,
+        Number: SMSService.formatPhoneNumber(phoneNumber),
         Text: message,
       },
     ];
@@ -136,7 +148,7 @@ export class SMSService {
     }
 
     const messageParameters = messages.map(msg => ({
-      Number: msg.Number.startsWith('88') ? msg.Number : `88${msg.Number}`,
+      Number: SMSService.formatPhoneNumber(msg.Number),
       Text: msg.Text,
     }));
 

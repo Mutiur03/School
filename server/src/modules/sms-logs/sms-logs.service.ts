@@ -1,5 +1,5 @@
-import axios from "axios";
 import { prisma } from "@/config/prisma.js";
+import { SMSService } from "@/utils/sms.service.js";
 
 type UserContext = {
   role?: string;
@@ -13,30 +13,11 @@ type LogFilters = {
   limit?: number;
 };
 
-type StatsFilters = {
-  startDate?: string;
-  endDate?: string;
-};
-
-const sendBulkSMS = async (messageParameters: any[], apiKey: string, senderId: string) => {
-  const bulkSmsPayload = {
-    api_key: apiKey,
-    senderid: senderId,
-    MessageParameters: messageParameters,
-  };
-
-  const response = await axios.post(
-    "https://sms.onecodesoft.com/api/send-bulk-sms",
-    bulkSmsPayload,
-    {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    },
-  );
-
-  return response.data;
+export type SmsLogInfo = {
+  smsLogId: number;
+  studentId: number;
+  attendanceDate: string;
+  studentName?: string;
 };
 
 const buildTeacherStudentFilter = async (user?: UserContext) => {
@@ -131,6 +112,105 @@ export class SmsLogsService {
     };
   }
 
+  static async processBatchResults(
+    batchResults: any[],
+    smsLogMap: Map<string, SmsLogInfo[]>,
+  ) {
+    let successCount = 0;
+    let failedCount = 0;
+    const results: any[] = [];
+
+    for (const result of batchResults) {
+      const smsDataArray = smsLogMap.get(result.to);
+      if (smsDataArray) {
+        for (const smsData of smsDataArray) {
+          const { smsLogId, studentId, attendanceDate, studentName } = smsData;
+
+          if (result.status === "sent") {
+            successCount++;
+
+            await prisma.sms_logs.update({
+              where: { id: smsLogId },
+              data: {
+                status: "sent",
+                sms_count: result.sms_count || 1,
+                message_id: result.message_id,
+                error_reason: null,
+                updated_at: new Date(),
+              },
+            });
+
+            await prisma.attendence.updateMany({
+              where: {
+                student_id: studentId,
+                date: attendanceDate,
+              },
+              data: { send_msg: true },
+            });
+
+            results.push({
+              smsLogId,
+              status: "success",
+              message: "SMS sent successfully",
+              studentName,
+            });
+          } else {
+            failedCount++;
+
+            await prisma.sms_logs.update({
+              where: { id: smsLogId },
+              data: {
+                status: "failed",
+                error_reason: `API Error: ${result.code || "Unknown error"}`,
+                updated_at: new Date(),
+              },
+            });
+
+            results.push({
+              smsLogId,
+              status: "failed",
+              message: `API Error: ${result.code || "Unknown error"}`,
+              studentName,
+            });
+          }
+        }
+      }
+    }
+    return { successCount, failedCount, results };
+  }
+
+  static async handleCatastrophicFailure(
+    smsLogMap: Map<string, SmsLogInfo[]>,
+    errorReason: string,
+  ) {
+    let failedCount = 0;
+    const results: any[] = [];
+
+    for (const [_phoneNumber, smsDataArray] of smsLogMap) {
+      for (const smsData of smsDataArray) {
+        const { smsLogId, studentName } = smsData;
+        failedCount++;
+
+        await prisma.sms_logs.update({
+          where: { id: smsLogId },
+          data: {
+            status: "failed",
+            error_reason: errorReason,
+            updated_at: new Date(),
+          },
+        });
+
+        results.push({
+          smsLogId,
+          status: "failed",
+          message: errorReason,
+          studentName,
+        });
+      }
+    }
+    return { failedCount, results };
+  }
+
   static async retrySms(smsLogIds: number[]) {
     if (!smsLogIds || !Array.isArray(smsLogIds)) {
       return {
@@ -139,21 +219,12 @@ export class SmsLogsService {
       };
     }
 
-    const apiKey = process.env.BULK_SMS_API_KEY;
-    const senderId = process.env.BULK_SMS_SENDER_ID;
-
-    if (!apiKey) {
-      return {
-        status: 400,
-        body: { error: "SMS API key not configured" },
-      };
-    }
-
     let successCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
     const results: any[] = [];
-    const smsMessages: any[] = [];
-    const smsLogMap = new Map<string, any[]>();
+    const smsMessages: { Number: string; Text: string }[] = [];
+    const smsLogMap = new Map<string, SmsLogInfo[]>();
 
     for (const smsLogId of smsLogIds) {
       try {
@@ -183,7 +254,9 @@ export class SmsLogsService {
             smsLogId,
             status: "skipped",
             message: "SMS already sent successfully",
+            studentName: smsLog.student.name,
           });
+          skippedCount++;
           continue;
         }
 
@@ -196,18 +269,23 @@ export class SmsLogsService {
           },
         });
 
+        const phoneNumber = smsLog.phone_number.startsWith("88")
+          ? smsLog.phone_number
+          : `88${smsLog.phone_number}`;
+
         smsMessages.push({
-          Number: `88${smsLog.phone_number}`,
+          Number: phoneNumber,
           Text: smsLog.message,
         });
 
-        const phoneKey = `88${smsLog.phone_number}`;
-        if (!smsLogMap.has(phoneKey)) {
-          smsLogMap.set(phoneKey, []);
+        if (!smsLogMap.has(phoneNumber)) {
+          smsLogMap.set(phoneNumber, []);
         }
-        smsLogMap.get(phoneKey)?.push({
+        smsLogMap.get(phoneNumber)!.push({
           smsLogId: smsLogId,
-          smsLog: smsLog,
+          studentId: smsLog.student_id,
+          attendanceDate: smsLog.attendance_date,
+          studentName: smsLog.student.name,
         });
       } catch (error: any) {
         results.push({
@@ -221,131 +299,46 @@ export class SmsLogsService {
 
     if (smsMessages.length > 0) {
       try {
-        const bulkSmsResponse = await sendBulkSMS(
-          smsMessages,
-          apiKey,
-          senderId as string,
-        );
+        const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
 
-        if (bulkSmsResponse && bulkSmsResponse.results) {
-          for (const result of bulkSmsResponse.results) {
-            const smsDataArray = smsLogMap.get(result.to);
-            if (smsDataArray) {
-              if (result.status === "sent") {
-                successCount++;
-
-                for (const smsData of smsDataArray) {
-                  const { smsLogId, smsLog } = smsData;
-
-                  await prisma.sms_logs.update({
-                    where: { id: smsLogId },
-                    data: {
-                      status: "sent",
-                      sms_count: result.sms_count || 1,
-                      message_id: result.message_id,
-                      error_reason: null,
-                      updated_at: new Date(),
-                    },
-                  });
-
-                  await prisma.attendence.updateMany({
-                    where: {
-                      student_id: smsLog.student_id,
-                      date: smsLog.attendance_date,
-                    },
-                    data: { send_msg: true },
-                  });
-
-                  results.push({
-                    smsLogId,
-                    status: "success",
-                    message: "SMS sent successfully",
-                    studentName: smsLog.student.name,
-                  });
-                }
-              } else {
-                failedCount++;
-
-                for (const smsData of smsDataArray) {
-                  const { smsLogId, smsLog } = smsData;
-
-                  await prisma.sms_logs.update({
-                    where: { id: smsLogId },
-                    data: {
-                      status: "failed",
-                      error_reason: `API Error: ${result.code || "Unknown error"}`,
-                      updated_at: new Date(),
-                    },
-                  });
-
-                  results.push({
-                    smsLogId,
-                    status: "failed",
-                    message: `API Error: ${result.code || "Unknown error"}`,
-                    studentName: smsLog.student.name,
-                  });
-                }
-              }
-            }
-          }
+        if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
+          const processRes = await this.processBatchResults(
+            bulkSmsResponse.data.results,
+            smsLogMap,
+          );
+          successCount += processRes.successCount;
+          failedCount += processRes.failedCount;
+          results.push(...processRes.results);
         } else {
-          for (const [_phoneNumber, smsDataArray] of smsLogMap) {
-            failedCount++;
-            for (const smsData of smsDataArray) {
-              const { smsLogId, smsLog } = smsData;
-              await prisma.sms_logs.update({
-                where: { id: smsLogId },
-                data: {
-                  status: "failed",
-                  error_reason: "Invalid bulk SMS response",
-                  updated_at: new Date(),
-                },
-              });
-
-              results.push({
-                smsLogId,
-                status: "failed",
-                message: "Invalid bulk SMS response",
-                studentName: smsLog.student.name,
-              });
-            }
-          }
+          const errorReason =
+            bulkSmsResponse.message || "Bulk SMS delivery failed";
+          const failRes = await this.handleCatastrophicFailure(
+            smsLogMap,
+            errorReason,
+          );
+          failedCount += failRes.failedCount;
+          results.push(...failRes.results);
         }
       } catch (smsError: any) {
-        for (const [_phoneNumber, smsDataArray] of smsLogMap) {
-          failedCount++;
-
-          for (const smsData of smsDataArray) {
-            const { smsLogId, smsLog } = smsData;
-            await prisma.sms_logs.update({
-              where: { id: smsLogId },
-              data: {
-                status: "failed",
-                error_reason: smsError.message,
-                updated_at: new Date(),
-              },
-            });
-
-            results.push({
-              smsLogId,
-              status: "failed",
-              message: smsError.message,
-              studentName: smsLog.student.name,
-            });
-          }
-        }
+        const failRes = await this.handleCatastrophicFailure(
+          smsLogMap,
+          smsError.message,
+        );
+        failedCount += failRes.failedCount;
+        results.push(...failRes.results);
       }
     }
 
     return {
       status: 200,
       body: {
-        message: `Retry completed: ${successCount} successful, ${failedCount} failed`,
+        message: `Retry completed: ${successCount} successful, ${failedCount} failed, ${skippedCount} skipped`,
         results,
         stats: {
           total: smsLogIds.length,
           successful: successCount,
           failed: failedCount,
+          skipped: skippedCount,
         },
       },
     };
@@ -371,57 +364,6 @@ export class SmsLogsService {
         message: `${deletedCount.count} SMS logs deleted successfully`,
         deletedCount: deletedCount.count,
       },
-    };
-  }
-
-  static async getSmsStats(filters: StatsFilters, user?: UserContext) {
-    const { startDate, endDate } = filters;
-    const whereClause: any = {};
-
-    if (startDate && endDate) {
-      whereClause.attendance_date = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
-
-    const studentFilter = await buildTeacherStudentFilter(user);
-    if (studentFilter) {
-      whereClause.student_id = studentFilter;
-    }
-
-    const [statusStats, dailyStats, retryStats] = await Promise.all([
-      prisma.sms_logs.groupBy({
-        by: ["status"],
-        where: whereClause,
-        _count: { status: true },
-      }),
-
-      prisma.sms_logs.groupBy({
-        by: ["attendance_date"],
-        where: whereClause,
-        _count: { attendance_date: true },
-        orderBy: { attendance_date: "desc" },
-        take: 30,
-      }),
-
-      prisma.sms_logs.groupBy({
-        by: ["retry_count"],
-        where: whereClause,
-        _count: { retry_count: true },
-        orderBy: { retry_count: "asc" },
-      }),
-    ]);
-
-    const statusStatsObject = statusStats.reduce((acc: any, stat) => {
-      acc[stat.status] = stat._count.status;
-      return acc;
-    }, {});
-
-    return {
-      statusStats: statusStatsObject,
-      dailyStats,
-      retryStats,
     };
   }
 }

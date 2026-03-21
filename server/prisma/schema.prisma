@@ -1,16 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  // binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-enum SetupTokenRole {
-  super_admin
-  admin
 }
 
 model setupToken {
@@ -49,7 +43,6 @@ model students {
   id              Int                   @id @default(autoincrement())
   login_id        BigInt                @unique
   name            String                @db.VarChar(100)
-  religion        String                @default("") @db.VarChar(50)
   father_name     String?               @db.VarChar(100)
   mother_name     String?               @db.VarChar(100)
   batch           String                @db.Char(4)
@@ -60,13 +53,14 @@ model students {
   available       Boolean               @default(true)
   created_at      DateTime              @default(now())
   tokenVersion    Int                   @default(0)
-  sheet_row_index Int?
   father_phone    String?               @db.Char(11)
   mother_phone    String?               @db.Char(11)
   village         String?               @db.VarChar(100)
   post_office     String?               @db.VarChar(100)
   upazila         String?               @db.VarChar(100)
   district        String?               @db.VarChar(100)
+  sheet_row_index Int?
+  religion        String                @default("") @db.VarChar(50)
   attendances     attendence[]
   galleries       gallery[]             @relation("StudentGalleryUploader")
   gpa             gpa?
@@ -212,11 +206,11 @@ model subjects {
   practical_pass_mark Int        @default(0)
   year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
   group               String?    @db.VarChar(100)
-  subject_type        String     @default("single")
-  parent_id           Int?
-  assessment_type     String     @default("exam")
-  priority            Int        @default(0)
   created_at          DateTime   @default(now())
+  assessment_type     String     @default("exam")
+  parent_id           Int?
+  priority            Int        @default(0)
+  subject_type        String     @default("single")
   marks               marks[]
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
@@ -607,7 +601,7 @@ model class6_reg {
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
-  classmates_source      String   @default("default") // 'default' or 'manual'
+  classmates_source      String   @default("default")
 }
 
 model student_registration_class6 {
@@ -683,62 +677,62 @@ model class8_reg {
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
-  classmates_source      String   @default("default") // 'default' or 'manual'
+  classmates_source      String   @default("default")
 }
 
 model student_registration_class8 {
-  id                       String   @id @default(uuid())
-  section                  String   @db.VarChar(10)
-  roll                     String   @db.VarChar(20)
-  religion                 String   @db.VarChar(50)
-  student_name_bn          String   @db.VarChar(100)
-  student_name_en          String   @db.VarChar(100)
-  birth_reg_no             String   @db.VarChar(17)
-  father_name_bn           String   @db.VarChar(100)
-  father_name_en           String   @db.VarChar(100)
-  father_nid               String?  @db.VarChar(17)
-  father_phone             String?  @db.VarChar(11)
-  mother_name_bn           String   @db.VarChar(100)
-  mother_name_en           String   @db.VarChar(100)
-  mother_nid               String?  @db.VarChar(17)
-  mother_phone             String?  @db.VarChar(11)
-  birth_date               String   @db.VarChar(10)
-  birth_year               String   @db.VarChar(4)
-  birth_month              String   @db.VarChar(2)
-  birth_day                String   @db.VarChar(2)
-  email                    String?  @db.VarChar(100)
-  present_district         String   @db.VarChar(50)
-  present_upazila          String   @db.VarChar(50)
-  present_post_office      String   @db.VarChar(100)
-  present_post_code        String   @db.VarChar(4)
-  present_village_road     String   @db.VarChar(200)
-  permanent_district       String   @db.VarChar(50)
-  permanent_upazila        String   @db.VarChar(50)
-  permanent_post_office    String   @db.VarChar(100)
-  permanent_post_code      String   @db.VarChar(4)
-  permanent_village_road   String   @db.VarChar(200)
-  guardian_name            String?  @db.VarChar(100)
-  guardian_phone           String?  @db.VarChar(11)
-  guardian_relation        String?  @db.VarChar(50)
-  guardian_nid             String?  @db.VarChar(17)
-  guardian_district        String?  @db.VarChar(50)
-  guardian_upazila         String?  @db.VarChar(50)
-  guardian_post_office     String?  @db.VarChar(100)
-  guardian_post_code       String?  @db.VarChar(4)
-  guardian_village_road    String?  @db.VarChar(200)
-  prev_school_name         String   @db.VarChar(200)
-  prev_school_district     String   @db.VarChar(50)
-  prev_school_upazila      String   @db.VarChar(50)
-  status                   String   @default("pending") @db.VarChar(20)
-  submission_date          DateTime @default(now())
-  created_at               DateTime @default(now())
-  updated_at               DateTime @updatedAt
-  photo                    String   @db.VarChar(255)
-  class8_year              Int
-  nearby_student_info      String?  @db.VarChar(200)
-  registration_no          String   @db.VarChar(50)
-  class6_academic_session  String   @db.VarChar(50)
-  scout_status             String?  @db.VarChar(10)
+  id                      String   @id @default(uuid())
+  section                 String   @db.VarChar(10)
+  roll                    String   @db.VarChar(20)
+  religion                String   @db.VarChar(50)
+  student_name_bn         String   @db.VarChar(100)
+  student_name_en         String   @db.VarChar(100)
+  birth_reg_no            String   @db.VarChar(17)
+  father_name_bn          String   @db.VarChar(100)
+  father_name_en          String   @db.VarChar(100)
+  father_nid              String?  @db.VarChar(17)
+  father_phone            String?  @db.VarChar(11)
+  mother_name_bn          String   @db.VarChar(100)
+  mother_name_en          String   @db.VarChar(100)
+  mother_nid              String?  @db.VarChar(17)
+  mother_phone            String?  @db.VarChar(11)
+  birth_date              String   @db.VarChar(10)
+  birth_year              String   @db.VarChar(4)
+  birth_month             String   @db.VarChar(2)
+  birth_day               String   @db.VarChar(2)
+  email                   String?  @db.VarChar(100)
+  present_district        String   @db.VarChar(50)
+  present_upazila         String   @db.VarChar(50)
+  present_post_office     String   @db.VarChar(100)
+  present_post_code       String   @db.VarChar(4)
+  present_village_road    String   @db.VarChar(200)
+  permanent_district      String   @db.VarChar(50)
+  permanent_upazila       String   @db.VarChar(50)
+  permanent_post_office   String   @db.VarChar(100)
+  permanent_post_code     String   @db.VarChar(4)
+  permanent_village_road  String   @db.VarChar(200)
+  guardian_name           String?  @db.VarChar(100)
+  guardian_phone          String?  @db.VarChar(11)
+  guardian_relation       String?  @db.VarChar(50)
+  guardian_nid            String?  @db.VarChar(17)
+  guardian_district       String?  @db.VarChar(50)
+  guardian_upazila        String?  @db.VarChar(50)
+  guardian_post_office    String?  @db.VarChar(100)
+  guardian_post_code      String?  @db.VarChar(4)
+  guardian_village_road   String?  @db.VarChar(200)
+  prev_school_name        String   @db.VarChar(200)
+  prev_school_district    String   @db.VarChar(50)
+  prev_school_upazila     String   @db.VarChar(50)
+  status                  String   @default("pending") @db.VarChar(20)
+  submission_date         DateTime @default(now())
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  photo                   String   @db.VarChar(255)
+  class8_year             Int
+  nearby_student_info     String?  @db.VarChar(200)
+  registration_no         String   @db.VarChar(50)
+  class6_academic_session String   @db.VarChar(50)
+  scout_status            String?  @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -746,6 +740,7 @@ model student_registration_class8 {
   @@index([status])
   @@index([submission_date])
 }
+
 model sms_settings {
   id               Int      @id @default(autoincrement())
   present_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
@@ -759,4 +754,9 @@ model sms_settings {
   sender_id        String?  @db.VarChar(50)
   service_type     String?  @db.VarChar(50)
   updated_at       DateTime @updatedAt
+}
+
+enum SetupTokenRole {
+  super_admin
+  admin
 }

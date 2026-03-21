@@ -6,6 +6,7 @@ const router = express.Router();
 router.use(AuthMiddleware.authenticate(["admin", "teacher"]));
 router.get("/getAttendence", AttendenceController.getAttendenceController);
 router.post("/addAttendence", AttendenceController.addAttendenceController);
+router.get("/getStats", AttendenceController.getAttendanceStatsController);
 
 const attendenceRouter = express.Router();
 attendenceRouter.use("/api/attendance", router);

@@ -1,6 +1,7 @@
 import { prisma } from "@/config/prisma.js";
 import { SMSService } from "@/utils/sms.service.js";
 import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
+import { SmsLogsService, SmsLogInfo } from "../sms-logs/sms-logs.service.js";
 
 export class AttendenceService {
   static async getAllAttendence(filters: {
@@ -63,15 +64,15 @@ export class AttendenceService {
         .replace(/{school_name}/g, SCHOOL_NAME);
     };
 
-    const errors: any[] = [];
     let smsSuccessCount = 0;
     let smsFailedCount = 0;
+    let smsPendingCount = 0;
     const smsMessages: any[] = [];
-    const smsLogMap = new Map();
+    const smsLogMap = new Map<string, SmsLogInfo[]>();
 
     const result = await prisma.$transaction(async (tx) => {
-      const innerProcessed = [];
-      const innerSmsToLog = [];
+      const innerProcessed: { studentId: number; date: string; status: string }[] =
+        [];
       let innerAbsentCount = 0;
       let innerPresentCount = 0;
 
@@ -152,92 +153,132 @@ export class AttendenceService {
                 },
               });
 
-              innerSmsToLog.push({
+              const phoneKey = SMSService.formatPhoneNumber(student.father_phone);
+              if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
+              smsLogMap.get(phoneKey)!.push({
                 smsLogId: smsLog.id,
                 studentId,
-                date: formattedDate,
-                phoneNumber: student.father_phone,
-                message: message,
-                smsCount,
+                attendanceDate: formattedDate,
+                studentName: student.name,
               });
+
+              smsMessages.push({ Number: phoneKey, Text: message });
             }
           }
         }
       }
       return {
         processed: innerProcessed,
-        smsToLog: innerSmsToLog,
         absentCount: innerAbsentCount,
         presentCount: innerPresentCount,
       };
     });
 
-    const { processed, smsToLog, absentCount, presentCount } = result;
-
-    for (const log of smsToLog) {
-      const phoneKey = `88${log.phoneNumber}`;
-      smsMessages.push({ Number: phoneKey, Text: log.message });
-
-      if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
-      smsLogMap.get(phoneKey).push(log);
-    }
+    const { processed, absentCount, presentCount } = result;
 
     if (smsMessages.length > 0) {
       try {
         const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
         if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-          for (const result of bulkSmsResponse.data.results) {
-            const logs = smsLogMap.get(result.to);
-            if (logs) {
-              await prisma.$transaction(async (tx) => {
-                for (const log of logs) {
-                  if (result.status === "sent") {
-                    smsSuccessCount++;
-                    await tx.sms_logs.update({
-                      where: { id: log.smsLogId },
-                      data: {
-                        status: "sent",
-                        message_id: result.message_id,
-                        sms_count: result.sms_count || log.smsCount,
-                      },
-                    });
-                    await tx.attendence.updateMany({
-                      where: { student_id: log.studentId, date: log.date },
-                      data: { send_msg: true },
-                    });
-                  } else {
-                    smsFailedCount++;
-                    await tx.sms_logs.update({
-                      where: { id: log.smsLogId },
-                      data: {
-                        status: "failed",
-                        error_reason: result.code || "API Error",
-                      },
-                    });
-                  }
-                }
-              });
-            }
-          }
+          const processRes = await SmsLogsService.processBatchResults(
+            bulkSmsResponse.data.results,
+            smsLogMap
+          );
+          smsSuccessCount = processRes.successCount;
+          smsFailedCount = processRes.failedCount;
+          smsPendingCount = processRes.pendingCount;
+        } else {
+          const failRes = await SmsLogsService.handleCatastrophicFailure(
+            smsLogMap,
+            bulkSmsResponse.message || "Bulk SMS delivery failed"
+          );
+          smsFailedCount = failRes.failedCount;
+          smsPendingCount = failRes.pendingCount;
         }
-      } catch (smsErr) {
-        smsFailedCount += smsMessages.length;
+      } catch (smsErr: any) {
+        const failRes = await SmsLogsService.handleCatastrophicFailure(
+          smsLogMap,
+          smsErr.message || "Unknown SMS Error"
+        );
+        smsFailedCount = failRes.failedCount;
+        smsPendingCount = failRes.pendingCount;
       }
     }
 
-    const finalBalance = await prisma.sms_settings.findFirst({
-      select: { sms_balance: true },
-    });
+
 
     return {
       processed: processed.length,
       present: presentCount,
       absent: absentCount,
-      errors,
       sms: {
         successful: smsSuccessCount,
         failed: smsFailedCount,
-        balance: finalBalance?.sms_balance || 0,
+        pending: smsPendingCount,
+      },
+    };
+  }
+  static async getAttendanceStats(filters: {
+    date: string;
+    level: number;
+    section: string;
+    year: number;
+  }) {
+    const { date, level, section, year } = filters;
+
+    const studentsInLevel = await prisma.student_enrollments.findMany({
+      where: {
+        class: level,
+        section: section,
+        year: year,
+      },
+      select: { student_id: true },
+    });
+
+    const studentIds = studentsInLevel.map((s) => s.student_id);
+
+    const [attendanceStats, smsLogsStats] = await Promise.all([
+      prisma.attendence.groupBy({
+        by: ["status"],
+        where: {
+          date: date,
+          student_id: { in: studentIds },
+        },
+        _count: { status: true },
+      }),
+      prisma.sms_logs.groupBy({
+        by: ["status"],
+        where: {
+          attendance_date: date,
+          student_id: { in: studentIds },
+        },
+        _count: { status: true },
+      }),
+    ]);
+
+    const attendanceSummary = attendanceStats.reduce(
+      (acc: any, curr) => {
+        acc[curr.status] = curr._count.status;
+        return acc;
+      },
+      { present: 0, absent: 0 }
+    );
+
+    const smsSummary = smsLogsStats.reduce(
+      (acc: any, curr) => {
+        acc[curr.status] = curr._count.status;
+        return acc;
+      },
+      { sent: 0, failed: 0, pending: 0 }
+    );
+
+    return {
+      present: attendanceSummary.present,
+      absent: attendanceSummary.absent,
+      sms: {
+        successful: smsSummary.sent,
+        failed: smsSummary.failed,
+        pending: smsSummary.pending,
       },
     };
   }
