@@ -30,6 +30,7 @@ import Loading from "@/components/Loading";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDobForDateInput as toDateInputValue, calculateSMSCount, PHONE_NUMBER } from "@school/shared-schemas";
 import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { TabItem } from "@/components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -206,6 +207,15 @@ function SmsManagement() {
     staleTime: 60000,
   });
 
+  const smsUsageQuery = useQuery({
+    queryKey: ["smsUsage"],
+    queryFn: async () => {
+      const response = await axios.get("/api/sms/usage-stats?days=30");
+      return response.data;
+    },
+    enabled: activeTab === "logs",
+  });
+
   const smsSettingsQuery = useQuery<SmsSettings>({
     queryKey: ["smsSettings"],
     queryFn: async () => {
@@ -264,6 +274,8 @@ function SmsManagement() {
       toast.success("Test SMS sent successfully");
       setTestForm((prev) => ({ ...prev, message: "" }));
       setTestErrors({});
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
     },
     onError: () => {
       toast.error("Failed to send test SMS");
@@ -279,6 +291,8 @@ function SmsManagement() {
       toast.success(data.message);
       setSelectedLogs([]);
       queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
     },
     onError: () => {
       toast.error("Failed to retry SMS messages");
@@ -541,7 +555,7 @@ function SmsManagement() {
                       onClick={handleAddBalance}
                       disabled={addBalanceMutation.isPending || !addBalanceAmount || balanceLoading}
                       variant="outline"
-                      size="sm"
+                      size="lg"
                     >
                       {addBalanceMutation.isPending ? "..." : "Add"}
                     </Button>
@@ -811,6 +825,67 @@ function SmsManagement() {
               Unable to load SMS logs. Please refresh.
             </div>
           )}
+
+          <SectionCard
+            title="Daily Credit Usage (Last 30 Days)"
+            icon={<RefreshCw className="w-5 h-5 text-primary" />}
+          >
+            <div className="h-[250px] w-full pt-4">
+              {smsUsageQuery.isLoading ? (
+                <div className="h-full w-full flex items-center justify-center">
+                  <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={smsUsageQuery.data?.stats || []}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(val) => {
+                        const d = new Date(val);
+                        return d.getDate().toString().padStart(2, "0") + "/" + (d.getMonth() + 1).toString().padStart(2, "0");
+                      }}
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const date = new Date(payload[0].payload.date).toLocaleDateString("en-GB");
+                          return (
+                            <div className="bg-white dark:bg-slate-900 border border-border p-2 rounded-lg shadow-xl text-xs">
+                              <div className="font-bold border-b pb-1 mb-1">{date}</div>
+                              <div className="text-primary flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-primary" />
+                                Usage: {payload[0].value} Credits
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill="var(--primary)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                    >
+                      {smsUsageQuery.data?.stats?.map((entry: any, index: number) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.count > 0 ? "hsl(var(--primary))" : "hsl(var(--muted))"}
+                          fillOpacity={entry.count > 0 ? 1 : 0.2}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
               label="Total SMS"

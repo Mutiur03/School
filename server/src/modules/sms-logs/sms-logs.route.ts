@@ -5,6 +5,7 @@ import { SmsLogsController } from "./sms-logs.controller.js";
 const router = Router();
 router.use(AuthMiddleware.authenticate(["admin"]));
 router.get("/sms-logs", SmsLogsController.getSmsLogs);
+router.get("/usage-stats", SmsLogsController.getSmsUsageStats);
 router.post("/retry-sms", SmsLogsController.retrySms);
 router.delete("/sms-logs", SmsLogsController.deleteSmsLogs);
 
