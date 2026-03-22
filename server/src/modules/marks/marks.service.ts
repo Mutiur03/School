@@ -17,6 +17,7 @@ export class MarksService {
         mark.cq_marks = Math.max(0, parseInt(mark.cq_marks) || 0);
         mark.mcq_marks = Math.max(0, parseInt(mark.mcq_marks) || 0);
         mark.practical_marks = Math.max(0, parseInt(mark.practical_marks) || 0);
+        mark.marks = Math.max(0, parseInt(mark.marks) || 0);
       });
     });
   }
@@ -91,10 +92,9 @@ export class MarksService {
           cq_marks,
           mcq_marks,
           practical_marks,
+          marks: providedTotal,
         } of student.subjectMarks) {
           try {
-            const totalMarks =
-              (cq_marks || 0) + (mcq_marks || 0) + (practical_marks || 0);
             const subject = await prisma.subjects.findUnique({
               where: { id: subjectId },
             });
@@ -103,6 +103,10 @@ export class MarksService {
               errors.push(`Subject ${subjectId} not found`);
               continue;
             }
+
+            const totalMarks = (subject as any).marking_scheme === "BREAKDOWN"
+              ? (cq_marks || 0) + (mcq_marks || 0) + (practical_marks || 0)
+              : (providedTotal || 0);
 
             const existingMark = await prisma.marks.findFirst({
               where: {

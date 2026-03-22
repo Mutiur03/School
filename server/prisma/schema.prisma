@@ -210,6 +210,7 @@ model subjects {
   parent_id           Int?
   priority            Int        @default(0)
   subject_type        String     @default("single")
+  marking_scheme      MarkingScheme @default(TOTAL)
   marks               marks[]
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
@@ -748,4 +749,9 @@ model sms_settings {
 enum SetupTokenRole {
   super_admin
   admin
+}
+
+enum MarkingScheme {
+  TOTAL
+  BREAKDOWN
 }

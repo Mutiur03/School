@@ -141,6 +141,7 @@ export class SubjectService {
           subject_type: subject.subject_type,
           parent_id: subject.parent_id || null,
           assessment_type: subject.assessment_type || "exam",
+          marking_scheme: subject.marking_scheme || "TOTAL",
           priority: subject.priority ?? 0,
         }));
 
@@ -251,6 +252,7 @@ export class SubjectService {
             subject_type: data.subject_type || "single",
             parent_id: data.parent_id || null,
             assessment_type: data.assessment_type || "exam",
+            marking_scheme: data.marking_scheme || "TOTAL",
             priority: (data.priority ?? 0) as number,
           },
         });
