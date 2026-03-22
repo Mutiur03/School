@@ -264,7 +264,6 @@ const NewSubject: React.FC = () => {
       // Step 4: CAS subjects
       subjectsToUpload.forEach(s => {
         if (s.assessment_type === "continuous") {
-          s.exclude_from_gpa = true;
           s.pass_mark = null;
         }
       });

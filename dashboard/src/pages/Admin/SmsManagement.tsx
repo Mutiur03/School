@@ -537,9 +537,9 @@ function SmsManagement() {
     },
   ];
 
-  if (loadingLogs && smsLogs.length === 0) {
-    return <Loading />;
-  }
+  // if (loadingLogs && smsLogs.length === 0) {
+  //   return <Loading />;
+  // }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">

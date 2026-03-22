@@ -15,11 +15,7 @@ export const passStatusController = async (req, res) => {
     const students = await prisma.student_enrollments.findMany({
       where: { year: parseInt(year) },
       include: {
-        student: {
-          include: {
-            gpa: true,
-          },
-        },
+        student: true,
         marks: true,
       },
     });
@@ -42,9 +38,6 @@ export const passStatusController = async (req, res) => {
 
       let failed;
 
-      if (studentClass === 8) {
-        failed = !studentData?.gpa || studentData.gpa.jsc_gpa < 2.0;
-      } else {
         const failCount = await prisma.marks.count({
           where: {
             enrollment_id: enrollmentId,
@@ -57,7 +50,6 @@ export const passStatusController = async (req, res) => {
           where: { id: enrollmentId },
           data: { fail_count: failCount },
         });
-      }
 
       await prisma.student_enrollments.update({
         where: { id: enrollmentId },
@@ -88,11 +80,7 @@ export const promoteStudentController = async (req, res) => {
         student: { available: true },
       },
       include: {
-        student: {
-          include: {
-            gpa: true,
-          },
-        },
+        student: true,
         marks: true,
       },
       orderBy: [{ class: "asc" }, { group: "asc" }],
@@ -104,8 +92,7 @@ export const promoteStudentController = async (req, res) => {
         (sum, mark) => sum + mark.marks,
         0
       );
-      const sortValue =
-        student.class === 8 ? student.student?.gpa?.jsc_gpa || 0 : totalMarks;
+      const sortValue = totalMarks;
 
       return {
         ...student,
@@ -168,7 +155,7 @@ export const promoteStudentController = async (req, res) => {
 
     // Update merit in database for non-class-8 students
     for (const student of studentsWithMerit) {
-      if (student.class !== 8) {
+      if (student.class !== 127) { // Always update merit since GPA is gone
         await prisma.student_enrollments.update({
           where: { id: student.id },
           data: { final_merit: student.final_merit },

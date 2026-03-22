@@ -224,6 +224,9 @@ export class AuthController {
         email: email,
         available: true,
       },
+      include: {
+        levels: { where: { year: new Date().getFullYear() } },
+      },
     });
 
     if (!user || !user.password) {
@@ -255,6 +258,7 @@ export class AuthController {
             designation: user.designation,
             address: user.address,
             image: user.image,
+            levels: (user as any).levels,
           },
         },
         "Login successful",
@@ -284,7 +288,10 @@ export class AuthController {
     } else if (payload.role === "student") {
       user = await prisma.students.findUnique({ where: { id: payload.id } });
     } else if (payload.role === "teacher") {
-      user = await prisma.teachers.findUnique({ where: { id: payload.id } });
+      user = await prisma.teachers.findUnique({
+        where: { id: payload.id },
+        include: { levels: { where: { year: new Date().getFullYear() } } },
+      });
     } else if (payload.role === "super_admin") {
       user = await prisma.superAdmin.findUnique({ where: { id: payload.id } });
     }
@@ -326,6 +333,11 @@ export class AuthController {
       responseUser.designation = (user as any).designation;
       responseUser.address = (user as any).address;
       responseUser.image = (user as any).image;
+      responseUser.levels = (user as any).levels;
+      console.log(
+        "[Refresh Token] Teacher User from DB:",
+        JSON.stringify(user, null, 2),
+      );
     } else if (payload.role === "student") {
       const student = user as any;
       const studentAddress = [
@@ -348,7 +360,7 @@ export class AuthController {
       responseUser.address = studentAddress;
       responseUser.image = student.image;
     }
-
+    console.log(responseUser);
     res
       .status(200)
       .json(

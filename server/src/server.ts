@@ -12,7 +12,7 @@ import cors from "cors";
 import { detailedRequestLogger } from "./middlewares/requestLogger.js";
 import logger from "./utils/logger.js";
 import examRouter from "./routes/examRoutes.js";
-import marksRouter from "./routes/marksRoutes.js";
+import marksRouter from "./modules/marks/marks.route.js";
 import promotionRouter from "./routes/promotionRoutes.js";
 import authRouter from "./modules/auth/auth.route.js";
 import cookieParser from "cookie-parser";
@@ -129,7 +129,7 @@ app.get(
 app.use(studentRouter);
 app.use("/api/exams", examRouter);
 app.use(subjectRouter);
-app.use("/api/marks", marksRouter);
+app.use(marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use(routerTeacher);
 app.use("/api/staffs", routerStaff);
