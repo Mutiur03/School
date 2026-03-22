@@ -63,7 +63,6 @@ model students {
   religion        String                @default("") @db.VarChar(50)
   attendances     attendence[]
   galleries       gallery[]             @relation("StudentGalleryUploader")
-  gpa             gpa?
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
 
@@ -243,16 +242,6 @@ model marks {
   @@index([subject_id])
   @@index([exam_id])
   @@index([created_at])
-}
-
-model gpa {
-  id         Int      @id @default(autoincrement())
-  student_id Int      @unique
-  jsc_gpa    Float    @default(0)
-  ssc_gpa    Float    @default(0)
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-  student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 }
 
 model categories {

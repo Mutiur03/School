@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/useAuth";
 import { toast } from "react-toastify";
 import axios from "axios";
 import Loading from "@/components/Loading";
@@ -38,6 +39,7 @@ interface ClassList {
 }
 
 const ViewMarks = () => {
+  const { user } = useAuth();
   const [marksData, setMarksData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState({
     initial: true,
@@ -82,6 +84,21 @@ const ViewMarks = () => {
 
     fetchInitialData();
   }, [year]);
+
+  useEffect(() => {
+    if (user?.role === "teacher" && user.levels && user.levels.length > 0) {
+      const assignmentsInYear = user.levels.filter(
+        (l: any) => l.year === Number(year)
+      );
+      if (assignmentsInYear.length === 1) {
+        const assignment = assignmentsInYear[0];
+        if (exam) {
+          setClassName(assignment.class_name.toString());
+          setSection(assignment.section);
+        }
+      }
+    }
+  }, [user, year, exam]);
 
   useEffect(() => {
     const fetchMarks = async () => {
@@ -222,11 +239,21 @@ const ViewMarks = () => {
           disabled={!exam}
         >
           <option value="">Select Class</option>
-          {(classList[exam] || []).map((cls, index) => (
-            <option key={index} value={cls}>
-              {`Class ${cls}`}
-            </option>
-          ))}
+          {(classList[exam] || [])
+            .filter((cls) => {
+              if (user?.role === "admin") return true;
+              if (user?.role === "teacher") {
+                return user.levels?.some(
+                  (l: any) => l.class_name === Number(cls) && l.year === Number(year)
+                );
+              }
+              return false;
+            })
+            .map((cls, index) => (
+              <option key={index} value={cls}>
+                {`Class ${cls}`}
+              </option>
+            ))}
         </select>
 
         {availableSections.length > 0 && (
@@ -237,11 +264,24 @@ const ViewMarks = () => {
             disabled={!className}
           >
             <option value="">All Sections</option>
-            {availableSections.map((sec, index) => (
-              <option key={index} value={sec}>
-                {sec}
-              </option>
-            ))}
+            {availableSections
+              .filter((sec) => {
+                if (user?.role === "admin") return true;
+                if (user?.role === "teacher") {
+                  return user.levels?.some(
+                    (l: any) =>
+                      l.class_name === Number(className) &&
+                      l.section === sec &&
+                      l.year === Number(year)
+                  );
+                }
+                return false;
+              })
+              .map((sec, index) => (
+                <option key={index} value={sec}>
+                  {sec}
+                </option>
+              ))}
           </select>
         )}
 
