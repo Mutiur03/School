@@ -39,24 +39,6 @@ export class TeacherController {
     },
   );
 
-  static getTeacherController = asyncHandler(
-    async (req: Request, res: Response) => {
-      if (!req.user) {
-        throw new ApiError(401, "Unauthorized");
-      }
-      const responseData = await TeacherService.getTeacherById(req.user.id);
-      res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            responseData,
-            "Teacher details fetched successfully",
-          ),
-        );
-    },
-  );
-
   static addTeacherController = asyncHandler(
     async (req: Request, res: Response) => {
       const { teachers } = req.body;
@@ -126,7 +108,12 @@ export class TeacherController {
         throw new ApiError(400, "id, key, and contentType are required");
       }
 
-      await TeacherService.getTeacherById(parseInt(id as string));
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own image");
+      }
+
+      await TeacherService.getTeacherById(teacherId);
 
       const r2Key = `teachers/${key}`;
       const uploadUrl = await getUploadUrl(r2Key, contentType);
@@ -144,9 +131,13 @@ export class TeacherController {
     async (req: Request, res: Response) => {
       const { id } = req.params;
       const { key } = req.body;
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own image");
+      }
 
       const result = await TeacherService.saveTeacherImage(
-        parseInt(id as string),
+        teacherId,
         key,
       );
       res
@@ -160,9 +151,13 @@ export class TeacherController {
   static removeTeacherImageController = asyncHandler(
     async (req: Request, res: Response) => {
       const { id } = req.params;
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own image");
+      }
 
       const result = await TeacherService.saveTeacherImage(
-        parseInt(id as string),
+        teacherId,
         null,
       );
       res

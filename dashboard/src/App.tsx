@@ -187,7 +187,7 @@ function App() {
                             navbarRef={navbarRef}
                           />
                           <div
-                            className={`content-area flex-1 overflow-y-auto relative px-[1rem] transition-all duration-100 md:ml-[15rem] md:w-[calc(100%-15rem)]}`}
+                            className={`content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]}`}
                           >
                             <Routes>
                               <Route path="/dashboard" element={<TeacherDashboard />} />
