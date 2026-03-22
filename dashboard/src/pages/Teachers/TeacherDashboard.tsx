@@ -3,8 +3,6 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/context/useAuth";
 import { getFileUrl } from "@/lib/backend";
 import { getInitials } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
 export default function TeacherProfile() {
     const { user } = useAuth();
