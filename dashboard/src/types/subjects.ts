@@ -15,6 +15,7 @@ export interface Subject {
   subject_type: "main" | "paper" | "single";
   parent_id?: number | null;
   assessment_type: "exam" | "continuous";
+  marking_scheme: "TOTAL" | "BREAKDOWN";
   priority: number;
   created_at: string;
 }

@@ -31,6 +31,7 @@ interface SubjectMark {
   cq_marks: number;
   mcq_marks: number;
   practical_marks: number;
+  marks: number;
 }
 
 interface MarksData {
@@ -56,6 +57,7 @@ interface StudentMarkResponse {
     cq_marks: number;
     mcq_marks: number;
     practical_marks: number;
+    marks: number;
   }>;
 }
 
@@ -244,13 +246,14 @@ const AddMarks = () => {
         initialData[student.student_id] = {
           subjectMarks: subjectsForClass.map((subject) => {
             const existingMark = (student.marks || []).find(
-              (mark: { subject_id: number; cq_marks: number; mcq_marks: number; practical_marks: number }) => mark.subject_id === subject.id
+              (mark: { subject_id: number; cq_marks: number; mcq_marks: number; practical_marks: number; marks: number }) => mark.subject_id === subject.id
             );
             return {
               subjectId: subject.id,
               cq_marks: existingMark?.cq_marks || 0,
               mcq_marks: existingMark?.mcq_marks || 0,
               practical_marks: existingMark?.practical_marks || 0,
+              marks: existingMark?.marks || 0,
             };
           }),
         };
@@ -302,6 +305,9 @@ const AddMarks = () => {
         case "practical_marks":
           maxMark = subject.practical_mark || 0;
           break;
+        case "marks":
+          maxMark = subject.full_mark || 100;
+          break;
       }
     }
 
@@ -334,6 +340,7 @@ const AddMarks = () => {
             mcq_marks: markType === "mcq_marks" ? Number(validatedMarks) : 0,
             practical_marks:
               markType === "practical_marks" ? Number(validatedMarks) : 0,
+            marks: markType === "marks" ? Number(validatedMarks) : 0,
           },
         ];
       }
@@ -371,6 +378,7 @@ const AddMarks = () => {
               0,
               Number(existingMark?.practical_marks) || 0
             ),
+            marks: Math.max(0, Number(existingMark?.marks) || 0),
           };
         });
 
@@ -607,19 +615,17 @@ const AddMarks = () => {
                         const selectedSubject = subjectsForClass.find(
                           (sub) => sub.id == specific
                         );
-                        return selectedSubject ? (
+                        return selectedSubject && (selectedSubject as any).marking_scheme === "BREAKDOWN" ? (
                           <>
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                              CQ ({selectedSubject.cq_mark || 0})
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                              MCQ ({selectedSubject.mcq_mark || 0})
-                            </th>
                             <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
                               Practical ({selectedSubject.practical_mark || 0})
                             </th>
                           </>
-                        ) : null;
+                        ) : (
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                            Total Marks ({selectedSubject?.full_mark || 0})
+                          </th>
+                        );
                       })()}
                     </tr>
                   </thead>
@@ -652,7 +658,7 @@ const AddMarks = () => {
                         (m) => m.subjectId === selectedSubject.id
                       );
 
-                      return (
+                      return (selectedSubject as any).marking_scheme === "BREAKDOWN" ? (
                         <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-4">
                             <div className="flex flex-col">
@@ -697,6 +703,28 @@ const AddMarks = () => {
                               disabled={!selectedSubject.practical_mark}
                               className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${!selectedSubject.practical_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
                                 }`}
+                            />
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold">{student.name}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Roll: {student.roll}</span>
+                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Sec: {student.section || "N/A"}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              max={selectedSubject.full_mark || 100}
+                              value={studentSubject?.marks || 0}
+                              onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "marks", e.target.value)}
+                              className="w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all bg-card"
                             />
                           </td>
                         </tr>
