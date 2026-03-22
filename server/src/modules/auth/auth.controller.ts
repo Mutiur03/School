@@ -21,6 +21,7 @@ type AuthUser = {
 };
 
 const generateTokens = (user: AuthUser) => {
+  const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
   const accessToken = jwt.sign(
     {
       id: user.id,
@@ -29,12 +30,12 @@ const generateTokens = (user: AuthUser) => {
       email: user.email,
       login_id: user.login_id,
     },
-    process.env.JWT_SECRET!,
+    env.JWT_SECRET,
     { expiresIn: env.NODE_ENV === "development" ? "1s" : "15m" },
   );
   const refreshToken = jwt.sign(
     { id: user.id, role: user.role, version: user.tokenVersion || 0 },
-    (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
+    secret,
     { expiresIn: "7d" },
   );
   return { accessToken, refreshToken };
@@ -264,16 +265,16 @@ export class AuthController {
   static refresh_token = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
     if (!token) {
+      console.log("[Refresh Token] No refresh token found in cookies");
       throw new ApiError(401, "Unauthorized");
     }
 
+    const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
     let payload: any;
     try {
-      payload = jwt.verify(
-        token,
-        (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
-      ) as any;
-    } catch {
+      payload = jwt.verify(token, secret) as any;
+    } catch (error) {
+      console.log(`[Refresh Token] JWT verification failed: ${error}`);
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -284,9 +285,14 @@ export class AuthController {
       user = await prisma.students.findUnique({ where: { id: payload.id } });
     } else if (payload.role === "teacher") {
       user = await prisma.teachers.findUnique({ where: { id: payload.id } });
+    } else if (payload.role === "super_admin") {
+      user = await prisma.superAdmin.findUnique({ where: { id: payload.id } });
     }
 
     if (!user) {
+      console.log(
+        `[Refresh Token] User not found for role: ${payload.role}, id: ${payload.id}`,
+      );
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -294,6 +300,9 @@ export class AuthController {
     const userVersion = user.tokenVersion || 0;
 
     if (tokenVersion !== userVersion) {
+      console.log(
+        `[Refresh Token] Token version mismatch: payload ${tokenVersion}, user ${userVersion}`,
+      );
       throw new ApiError(401, "Unauthorized");
     }
 
