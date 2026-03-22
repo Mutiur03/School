@@ -58,9 +58,12 @@ export class AttendenceService {
 
     const interpolate = (template: string, data: any) => {
       return template
-        .replace(/{student_name}/g, data.student_name)
-        .replace(/{login_id}/g, data.login_id)
-        .replace(/{date}/g, data.date)
+        .replace(/{student_name}/g, data.student_name || "")
+        .replace(/{login_id}/g, data.login_id || "")
+        .replace(/{date}/g, data.date || "")
+        .replace(/{class}/g, data.class || "")
+        .replace(/{section}/g, data.section || "")
+        .replace(/{roll}/g, data.roll || "")
         .replace(/{school_name}/g, SCHOOL_NAME);
     };
 
@@ -121,6 +124,12 @@ export class AttendenceService {
               name: true,
               login_id: true,
               father_phone: true,
+              enrollments: {
+                where: {
+                  year: parseInt(formattedDate.split("-")[0]),
+                },
+                take: 1,
+              },
             },
           });
 
@@ -135,10 +144,15 @@ export class AttendenceService {
                 status === "present"
                   ? smsSettings.present_template
                   : smsSettings.absent_template;
+              const enrollment = student.enrollments?.[0];
+
               const message = interpolate(template, {
                 student_name: student.name,
                 login_id: student.login_id.toString(),
                 date: formattedDate,
+                class: enrollment?.class?.toString() || "N/A",
+                section: enrollment?.section || "N/A",
+                roll: enrollment?.roll?.toString() || "N/A",
               });
               const smsCount = SMSService.calculateSMSCount(message).count;
 

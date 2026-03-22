@@ -100,20 +100,29 @@ const EMPTY_SETTINGS: SmsSettings = {
   is_active: false,
 };
 
-const REQUIRED_TOKENS = [
-  "{student_name}",
-  "{login_id}",
-  "{date}",
-  "{school_name}",
+const CORE_TOKENS = ["{student_name}"] as const;
+const ELECTIVE_TOKENS = [
+  { id: "{login_id}", label: "Login ID" },
+  { id: "{date}", label: "Date" },
+  { id: "{school_name}", label: "School Name" },
+  { id: "{class}", label: "Class" },
+  { id: "{section}", label: "Section" },
+  { id: "{roll}", label: "Roll" },
 ] as const;
 
 const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, "");
 
-const validateTemplate = (template: string) => {
-  const missing = REQUIRED_TOKENS.filter((token) => !template.includes(token));
+const validateTemplate = (template: string, requiredPlaceholders: string[]) => {
+  const allRequired = [...CORE_TOKENS, ...requiredPlaceholders];
+  const missing = allRequired.filter((token) => !template.includes(token));
+  
+  const allPossibleElectives = ELECTIVE_TOKENS.map(t => t.id);
+  const forbidden = allPossibleElectives.filter(token => !requiredPlaceholders.includes(token) && template.includes(token));
+
   return {
     missing,
-    isValid: template.trim().length > 0 && missing.length === 0,
+    forbidden,
+    isValid: template.trim().length > 0 && missing.length === 0 && forbidden.length === 0,
   };
 };
 
@@ -164,6 +173,7 @@ function SmsManagement() {
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [requiredPlaceholders, setRequiredPlaceholders] = useState<string[]>([]);
 
   const statusColors: Record<string, string> = {
     sent: "bg-green-500",
@@ -178,6 +188,28 @@ function SmsManagement() {
   };
 
   const [estimates, setEstimates] = useState<{ [key: string]: { count: number; encoding: string; length: number } }>({});
+
+  const generateTemplates = (placeholders: string[]) => {
+    const getSms = (status: string) => {
+      let optional = "";
+      if (placeholders.includes("{login_id}")) optional += " (ID: {login_id})";
+      if (placeholders.includes("{class}")) optional += ", Class: {class}";
+      if (placeholders.includes("{section}")) optional += ", Section: {section}";
+      if (placeholders.includes("{roll}")) optional += ", Roll: {roll}";
+      
+      const datePart = placeholders.includes("{date}") ? " today ({date})" : "";
+      const schoolPart = placeholders.includes("{school_name}") ? "\nThank you.\n{school_name}" : "";
+      
+      return `Dear Parent,\nYour child {student_name}${optional} is ${status}${datePart}.${schoolPart}`;
+    };
+
+    setSettingsDraft(prev => ({
+      ...(prev || EMPTY_SETTINGS),
+      present_template: getSms("present"),
+      absent_template: getSms("absent"),
+    }));
+    setSettingsDirty(true);
+  };
 
   const calculateEstimate = useCallback((key: string, text: string) => {
     const raw = text ?? "";
@@ -238,8 +270,11 @@ function SmsManagement() {
   });
 
   const settingsMutation = useMutation({
-    mutationFn: async (nextSettings: SmsSettings) => {
-      await axios.patch("/api/sms-settings", nextSettings);
+    mutationFn: async (payload: { settings: SmsSettings; requiredPlaceholders: string[] }) => {
+      await axios.patch("/api/sms-settings", {
+        ...payload.settings,
+        requiredPlaceholders: payload.requiredPlaceholders,
+      });
     },
     onSuccess: () => {
       toast.success("SMS settings updated successfully");
@@ -329,6 +364,13 @@ function SmsManagement() {
   useEffect(() => {
     if (smsSettingsQuery.data && !settingsDirty) {
       setSettingsDraft(smsSettingsQuery.data);
+      
+      // Sync elective placeholders from existing templates
+      const templates = (smsSettingsQuery.data.present_template || "") + (smsSettingsQuery.data.absent_template || "");
+      const initial = ELECTIVE_TOKENS
+        .map(t => t.id)
+        .filter(token => templates.includes(token));
+      setRequiredPlaceholders(initial);
     }
   }, [smsSettingsQuery.data, settingsDirty]);
 
@@ -356,26 +398,35 @@ function SmsManagement() {
     e.preventDefault();
     if (!settingsDraft) return;
 
-    const presentValidation = validateTemplate(settingsDraft.present_template || "");
-    const absentValidation = validateTemplate(settingsDraft.absent_template || "");
+    const presentValidation = validateTemplate(settingsDraft.present_template || "", requiredPlaceholders);
+    const absentValidation = validateTemplate(settingsDraft.absent_template || "", requiredPlaceholders);
     const nextErrors: { present_template?: string; absent_template?: string } = {};
 
     if (settingsDraft.is_active && settingsDraft.send_to_present && !presentValidation.isValid) {
-      nextErrors.present_template = `Present template must include ${presentValidation.missing.join(", ")}.`;
+      const parts = [];
+      if (presentValidation.missing.length > 0) parts.push(`missing mandatory ${presentValidation.missing.join(", ")}`);
+      if (presentValidation.forbidden.length > 0) parts.push(`contains forbidden ${presentValidation.forbidden.join(", ")}`);
+      nextErrors.present_template = `Present template ${parts.join(" and ")}.`;
     }
 
     if (settingsDraft.is_active && settingsDraft.send_to_absent && !absentValidation.isValid) {
-      nextErrors.absent_template = `Absent template must include ${absentValidation.missing.join(", ")}.`;
+      const parts = [];
+      if (absentValidation.missing.length > 0) parts.push(`missing mandatory ${absentValidation.missing.join(", ")}`);
+      if (absentValidation.forbidden.length > 0) parts.push(`contains forbidden ${absentValidation.forbidden.join(", ")}`);
+      nextErrors.absent_template = `Absent template ${parts.join(" and ")}.`;
     }
 
     setSettingsErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please fix template validation errors before saving.");
+      // toast.error("Please fix template validation errors before saving.");
       return;
     }
 
-    settingsMutation.mutate(settingsDraft);
+    settingsMutation.mutate({
+      settings: settingsDraft,
+      requiredPlaceholders
+    });
   };
 
   const handleSendTestSms = async (e: React.FormEvent) => {
@@ -684,7 +735,7 @@ function SmsManagement() {
                           }));
                           calculateEstimate("present", nextValue);
                           if (settingsErrors.present_template) {
-                            const validation = validateTemplate(nextValue);
+                            const validation = validateTemplate(nextValue, requiredPlaceholders);
                             if (validation.isValid) {
                               setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
                             }
@@ -698,9 +749,15 @@ function SmsManagement() {
                         <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
                           <span className="font-semibold text-red-500">Mandatory:</span>
                           <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{login_id}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{date}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{school_name}"}</code>
+                          {requiredPlaceholders.map(p => (
+                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
+                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
+                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
+                          ))}
                         </div>
                         {estimates.present && (
                           <div className="text-[10px] font-medium text-primary">
@@ -752,7 +809,7 @@ function SmsManagement() {
                           }));
                           calculateEstimate("absent", nextValue);
                           if (settingsErrors.absent_template) {
-                            const validation = validateTemplate(nextValue);
+                            const validation = validateTemplate(nextValue, requiredPlaceholders);
                             if (validation.isValid) {
                               setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
                             }
@@ -766,9 +823,15 @@ function SmsManagement() {
                         <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
                           <span className="font-semibold text-red-500">Mandatory:</span>
                           <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{login_id}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{date}"}</code>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{school_name}"}</code>
+                          {requiredPlaceholders.map(p => (
+                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
+                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
+                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
+                          ))}
                         </div>
                         {estimates.absent && (
                           <div className="text-[10px] font-medium text-primary">
@@ -781,8 +844,33 @@ function SmsManagement() {
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-4">
+                    <Label className="text-sm font-semibold">Required Placeholders</Label>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-border">
+                       <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                        <Checkbox checked disabled />
+                        <span className="text-sm">Student Name</span>
+                      </div>
+                      {ELECTIVE_TOKENS.map((token) => (
+                        <div key={token.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`req_${token.id}`}
+                            checked={requiredPlaceholders.includes(token.id)}
+                            onCheckedChange={(checked) => {
+                              if (!settingsDirty) setSettingsDirty(true);
+                              const next = checked 
+                                ? [...requiredPlaceholders, token.id] 
+                                : requiredPlaceholders.filter(p => p !== token.id);
+                              setRequiredPlaceholders(next);
+                              generateTemplates(next);
+                            }}
+                          />
+                          <Label htmlFor={`req_${token.id}`} className="text-sm cursor-pointer">{token.label}</Label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
                       <Checkbox
                         id="is_active"
                         checked={settings.is_active}
