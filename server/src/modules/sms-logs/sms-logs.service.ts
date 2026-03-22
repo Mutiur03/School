@@ -1,5 +1,6 @@
 import { prisma } from "@/config/prisma.js";
 import { SMSService } from "@/utils/sms.service.js";
+import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
 
 type UserContext = {
   role?: string;
@@ -298,34 +299,63 @@ export class SmsLogsService {
     }
 
     if (smsMessages.length > 0) {
-      try {
-        const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
+      let totalSegmentsNeeded = 0;
+      for (const msg of smsMessages) {
+        totalSegmentsNeeded += SMSService.calculateSMSCount(msg.Text).count;
+      }
 
-        if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-          const processRes = await this.processBatchResults(
-            bulkSmsResponse.data.results,
-            smsLogMap,
-          );
-          successCount += processRes.successCount;
-          failedCount += processRes.failedCount;
-          results.push(...processRes.results);
-        } else {
-          const errorReason =
-            bulkSmsResponse.message || "Bulk SMS delivery failed";
+      // Reserve balance atomically
+      const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
+
+      if (!isReserved) {
+        results.push({
+          status: "error",
+          message: "Insufficient SMS balance for retry",
+        });
+        failedCount += smsMessages.length;
+      } else {
+        try {
+          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
+
+          if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
+            const processRes = await this.processBatchResults(
+              bulkSmsResponse.data.results,
+              smsLogMap,
+            );
+            successCount += processRes.successCount;
+            failedCount += processRes.failedCount;
+            results.push(...processRes.results);
+
+            // Calculate actual usage and refund unused portion
+            let totalActualUsed = 0;
+            for (const res of bulkSmsResponse.data.results) {
+              totalActualUsed += (res.sms_count || 1);
+            }
+            const refund = totalSegmentsNeeded - totalActualUsed;
+            if (refund > 0) {
+              await SmsSettingsService.updateBalance(refund);
+            }
+          } else {
+            // Catastrophic failure - refund entire reserved amount
+            await SmsSettingsService.updateBalance(totalSegmentsNeeded);
+            const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
+            const failRes = await this.handleCatastrophicFailure(
+              smsLogMap,
+              errorReason,
+            );
+            failedCount += failRes.failedCount;
+            results.push(...failRes.results);
+          }
+        } catch (smsError: any) {
+          // Refund entire reserved amount on error
+          await SmsSettingsService.updateBalance(totalSegmentsNeeded);
           const failRes = await this.handleCatastrophicFailure(
             smsLogMap,
-            errorReason,
+            smsError.message,
           );
           failedCount += failRes.failedCount;
           results.push(...failRes.results);
         }
-      } catch (smsError: any) {
-        const failRes = await this.handleCatastrophicFailure(
-          smsLogMap,
-          smsError.message,
-        );
-        failedCount += failRes.failedCount;
-        results.push(...failRes.results);
       }
     }
 
