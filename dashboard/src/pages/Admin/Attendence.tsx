@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import axios from "axios";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import {
@@ -7,6 +6,7 @@ import {
   useAttendanceOverview,
   useAddAttendance,
   useAttendanceStats,
+  useSmsSettings,
 } from "@/queries/attendence.queries.js";
 import PageHeader from "@/components/PageHeader.js";
 import SectionCard from "@/components/SectionCard.js";
@@ -62,20 +62,7 @@ function Attendance() {
   const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, "present" | "absent">>({});
   const [lastSaveResult, setLastSaveResult] = useState<any>(null);
-  const [smsSettings, setSmsSettings] = useState<any>(null);
-
-  const fetchSmsSettings = useCallback(async () => {
-    try {
-      const response = await axios.get("/api/sms-settings/public");
-      setSmsSettings(response.data.data);
-    } catch (error) {
-      console.error("Error fetching SMS settings:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSmsSettings();
-  }, [fetchSmsSettings]);
+  const { data: smsSettings } = useSmsSettings(selectedSection);
 
   const { data: attendanceRecords } = useAttendance({
     month: selectedMonth,

@@ -57,3 +57,16 @@ export const useAttendanceStats = (params: { date: string; level: number; sectio
     enabled: !!params.date && !!params.level && !!params.section && !!params.year,
   });
 };
+
+export const useSmsSettings = (section: string) => {
+  return useQuery({
+    queryKey: ["smsSettingsPublic"],
+    queryFn: async () => {
+      const response = await axios.get("/api/sms-settings/public");
+      return response.data.data;
+    },
+    enabled:!!section,
+    refetchInterval: 10000, // Poll every 10 seconds for balance updates
+    staleTime: 5000,
+  });
+};

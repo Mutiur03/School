@@ -191,13 +191,15 @@ export class AttendenceService {
     const { processed, absentCount, presentCount } = result;
 
     if (smsMessages.length > 0) {
-      const settings = await SMSService.getSettings();
       let totalSegmentsNeeded = 0;
       for (const msg of smsMessages) {
         totalSegmentsNeeded += SMSService.calculateSMSCount(msg.Text).count;
       }
 
-      if (settings.sms_balance < totalSegmentsNeeded) {
+      // Reserve balance atomically before sending
+      const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
+
+      if (!isReserved) {
         // Insufficient balance, leave as pending
         smsPendingCount = smsMessages.length;
       } else {
@@ -212,16 +214,28 @@ export class AttendenceService {
             smsFailedCount = processRes.failedCount;
             // Any that didn't go through are considered pending if they were successfully processed
             smsPendingCount = smsMessages.length - (smsSuccessCount + smsFailedCount);
+
+            // Calculate actual usage and refund unused portion
+            let totalActualUsed = 0;
+            for (const res of bulkSmsResponse.data.results) {
+                totalActualUsed += (res.sms_count || 1);
+            }
+            const refund = totalSegmentsNeeded - totalActualUsed;
+            if (refund > 0) {
+                await SmsSettingsService.updateBalance(refund);
+            }
           } else {
+            // Catastrophic failure - refund entire reserved amount
+            await SmsSettingsService.updateBalance(totalSegmentsNeeded);
             const failRes = await SmsLogsService.handleCatastrophicFailure(
               smsLogMap,
               bulkSmsResponse.message || "Bulk SMS delivery failed"
             );
             smsFailedCount = failRes.failedCount;
-            // If the failure reason is balance, it would be caught by the pre-check above,
-            // but if it somehow gets here, we mark as failed per current handleCatastrophicFailure logic.
           }
         } catch (smsErr: any) {
+          // Refund entire reserved amount on error
+          await SmsSettingsService.updateBalance(totalSegmentsNeeded);
           const failRes = await SmsLogsService.handleCatastrophicFailure(
             smsLogMap,
             smsErr.message || "Unknown SMS Error"

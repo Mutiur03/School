@@ -71,6 +71,31 @@ export class SmsSettingsService {
     });
   }
 
+  /**
+   * Reserves an amount of credits atomically.
+   * Returns true if successful, false if insufficient balance.
+   */
+  static async reserveBalance(amount: number) {
+    if (amount <= 0) return true;
+    
+    const settings = await this.getSettings();
+    const result = await prisma.sms_settings.updateMany({
+      where: {
+        id: settings.id,
+        sms_balance: {
+          gte: amount
+        }
+      },
+      data: {
+        sms_balance: {
+          decrement: amount
+        }
+      }
+    });
+
+    return result.count > 0;
+  }
+
   static async getBalance() {
     const settings = await this.getSettings();
     return {
