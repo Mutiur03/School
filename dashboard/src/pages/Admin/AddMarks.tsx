@@ -1,45 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/useAuth";
-import axios from "axios";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import ErrorMessage from "@/components/ErrorMessage";
 import { PageHeader, SectionCard, StatsCard } from "@/components";
 import { Button } from "@/components/ui/button";
 import { useSubjects } from "@/queries/subject.queries";
-import type { Subject } from "@/types/subjects";
-
-interface Student {
-  student_id: number;
-  name: string;
-  roll: number;
-  section: string;
-  class: number;
-  group: string;
-}
-
-// Subject interface imported from @/types/subjects
-
-interface Exam {
-  exam_name: string;
-  exam_year: number;
-  levels: number[];
-}
-
-interface SubjectMark {
-  subjectId: number;
-  cq_marks: number;
-  mcq_marks: number;
-  practical_marks: number;
-  marks: number;
-}
-
-interface MarksData {
-  [studentId: number]: {
-    subjectMarks: SubjectMark[];
-  };
-}
-
+import { useExams } from "@/queries/exam.queries";
+import { useMarksStudents, useClassMarks, useAddMarksMutation, type Student, type MarksData, type SubjectMark } from "@/queries/marks.queries";
+import StudentMarkRow from "./components/StudentMarkRow";
 
 interface FormValues {
   year: number;
@@ -49,18 +18,6 @@ interface FormValues {
   section: string;
   specific: number;
 }
-
-interface StudentMarkResponse {
-  student_id: number;
-  marks?: Array<{
-    subject_id: number;
-    cq_marks: number;
-    mcq_marks: number;
-    practical_marks: number;
-    marks: number;
-  }>;
-}
-
 
 const AddMarks = () => {
   const { user } = useAuth();
@@ -81,86 +38,44 @@ const AddMarks = () => {
     },
   });
 
-  const [students, setStudents] = useState<Student[]>([]);
   const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
-  const [examList, setExamList] = useState<string[]>([]);
-  const [classList, setClassList] = useState<number[][]>([]);
-  const [loading, setLoading] = useState({
-    initial: true,
-    students: false,
-    marks: false,
-    submit: false,
-  });
+  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const addMarksMutation = useAddMarksMutation();
+
   const [marksData, setMarksData] = useState<MarksData>({});
   const [sections, setSections] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const formValues = watch();
   const { year, examName, level, group, section, specific } = formValues;
 
-  const fetchInitialData = useCallback(async () => {
-    try {
-      setLoading((prev) => ({ ...prev, initial: true }));
+  const { data: students = [], isLoading: isLoadingStudents } = useMarksStudents(year, level);
+  const { data: existingMarks = [], isLoading: isLoadingMarks, refetch: refetchMarks } = useClassMarks(level, year, examName);
 
-      const [examsRes] = await Promise.all([
-        axios.get("/api/exams/getExams").catch(() => ({ data: { data: [] } })),
-      ]);
+  const subjectsForClass = useMemo(() => {
+    return subjects
+      .filter((s) => s.class.toString() == level)
+      .filter((s) => s.subject_type !== "main");
+  }, [subjects, level]);
 
-      const exams: Exam[] = examsRes.data?.data || [];
-      const currentYearExams = exams.filter(
-        (e) => e.exam_year === Number(year)
-      );
-      setExamList(currentYearExams.map((e) => e.exam_name));
-      setClassList(currentYearExams.map((e) => e.levels || []));
-    } catch (error) {
-      console.error("Initial data error:", error);
-      toast.error("Failed to load initial data");
-    } finally {
-      setLoading((prev) => ({ ...prev, initial: false }));
-    }
-  }, [year]);
+  const selectedSubject = useMemo(() => {
+    return subjectsForClass.find((s) => s.id === Number(specific));
+  }, [subjectsForClass, specific]);
 
-  const fetchStudents = useCallback(async () => {
-    if (!level) {
-      setStudents([]);
-      return;
-    }
-
-    try {
-      setLoading((prev) => ({ ...prev, students: true }));
-      const studentsRes = await axios.get("/api/marks/students", {
-        params: { year, class: level },
-      });
-      const studentsData = studentsRes.data?.data || [];
-      setStudents(studentsData);
-    } catch (error) {
-      console.error("Students fetch error:", error);
-      toast.error("Failed to load students");
-      setStudents([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, students: false }));
-    }
-  }, [level, year]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [year, fetchInitialData]);
+  const examList = useMemo(() => exams.filter(e => e.exam_year === Number(year)).map(e => e.exam_name), [exams, year]);
+  const classList = useMemo(() => exams.filter(e => e.exam_year === Number(year)).map(e => e.levels || []), [exams, year]);
 
   useEffect(() => {
     setValue("level", "");
     setValue("group", "");
     setValue("section", "");
     setValue("specific", 0);
-    setStudents([]);
-
-    if (examName === "JSC" || examName === "SSC") {
-      setValue("level", ""); // Clear level if it was JSC/SSC
-    }
+    if (examName === "JSC" || examName === "SSC") setValue("level", "");
   }, [examName, setValue]);
+
   useEffect(() => {
     if (user?.role === "teacher" && user.levels && user.levels.length > 0) {
-      const assignmentsInYear = user.levels.filter(
-        (l: any) => l.year === Number(year)
-      );
+      const assignmentsInYear = user.levels.filter((l: any) => l.year === Number(year));
       if (assignmentsInYear.length === 1) {
         const assignment = assignmentsInYear[0];
         if (examName) {
@@ -171,83 +86,29 @@ const AddMarks = () => {
     }
   }, [user, year, examName, setValue]);
 
-  useEffect(() => {
-    if (level) {
-      fetchStudents();
-    } else {
-      setStudents([]);
-      setSections([]);
-    }
-  }, [level, year, fetchStudents]);
-
-  const filteredStudents = useMemo(() => {
-    return students
-      .filter((s: Student) => (group ? s.group === group : true))
-      .filter((s: Student) => !section || s.section === section)
-      .sort((a: Student, b: Student) => a.roll - b.roll);
-  }, [students, group, section]);
-
-  const subjectsForClass = useMemo(() => {
-    return subjects
-      .filter((s) => s.class.toString() == level)
-      .filter((s) => s.subject_type !== "main");
-  }, [subjects, level]);
 
   useEffect(() => {
-    if (!subjectsForClass.some((sub) => sub.id == specific)) {
+    if (specific && !subjectsForClass.some((sub) => sub.id == Number(specific))) {
       setValue("specific", 0);
     }
   }, [subjectsForClass, specific, setValue]);
 
   useEffect(() => {
-    if (specific && specific !== 0) {
-      const selectedSubject = subjectsForClass.find(
-        (sub) => sub.id == specific
-      );
-      if (selectedSubject) {
-        const subjectGroup = selectedSubject.group;
-        if (
-          subjectGroup &&
-          subjectGroup !== "" &&
-          subjectGroup !== null
-        ) {
-          setValue("group", subjectGroup);
-        } else {
-          setValue("group", "");
-        }
-      }
+    if (selectedSubject) {
+      const subjectGroup = selectedSubject.group;
+      setValue("group", subjectGroup && subjectGroup !== "" ? subjectGroup : "");
     } else if (specific === 0) {
       setValue("group", "");
     }
-  }, [specific, subjectsForClass, setValue]);
+  }, [selectedSubject, specific, setValue]);
 
-  const fetchExistingMarks = useCallback(async () => {
-    if (
-      !level ||
-      !year ||
-      !examName
-    ) {
-      setMarksData({});
-      return;
-    }
-
-    try {
-      setLoading((prev) => ({ ...prev, marks: true }));
-      setMarksData({});
-
-      const res = await axios.get(
-        `/api/marks/getClassMarks/${level}/${year}/${examName}`
-      );
-
-      const marks = res.data?.data || [];
+  useEffect(() => {
+    if (existingMarks.length > 0) {
       const initialData: MarksData = {};
-
-      marks.forEach((student: StudentMarkResponse) => {
+      existingMarks.forEach((student) => {
         initialData[student.student_id] = {
           subjectMarks: subjectsForClass.map((subject) => {
-            const existingMark = (student.marks || []).find(
-              (mark: { subject_id: number; cq_marks: number; mcq_marks: number; practical_marks: number; marks: number }) => mark.subject_id === subject.id
-            );
+            const existingMark = (student.marks || []).find((mark) => mark.subject_id === subject.id);
             return {
               subjectId: subject.id,
               cq_marks: existingMark?.cq_marks || 0,
@@ -258,158 +119,120 @@ const AddMarks = () => {
           }),
         };
       });
-
       setMarksData(initialData);
-    } catch (error) {
-      console.error("Marks fetch error:", error);
-      toast.error("Failed to load existing marks");
-    } finally {
-      setLoading((prev) => ({ ...prev, marks: false }));
+    } else {
+      setMarksData({});
     }
-  }, [level, year, examName, subjectsForClass]);
-
+  }, [existingMarks, subjectsForClass]);
 
   useEffect(() => {
     if (students.length > 0) {
-      setSections(
-        Array.from(new Set(students.map((s: Student) => s.section))).sort((a: string, b: string) =>
-          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-        )
-      );
-
-      if (
-        examName &&
-        level
-      ) {
-        fetchExistingMarks();
-      }
+      setSections(Array.from(new Set(students.map((s) => s.section))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })));
     } else {
       setSections([]);
-      setMarksData({});
     }
-  }, [students, examName, level, year, fetchExistingMarks]);
+  }, [students]);
 
-  const handleMarksChange = (studentId: number, subjectId: number, markType: string, value: string) => {
-    const subject = subjectsForClass.find((s: Subject) => s.id === subjectId);
-    const marks = value;
-
+  const handleMarksChange = useCallback((studentId: number, subjectId: number, markType: string, value: string) => {
+    const subject = subjectsForClass.find((s) => s.id === subjectId);
     let maxMark = 100;
     if (subject) {
-      switch (markType) {
-        case "cq_marks":
-          maxMark = subject.cq_mark || 0;
-          break;
-        case "mcq_marks":
-          maxMark = subject.mcq_mark || 0;
-          break;
-        case "practical_marks":
-          maxMark = subject.practical_mark || 0;
-          break;
-        case "marks":
-          maxMark = subject.full_mark || 100;
-          break;
-      }
+      if (markType === "cq_marks") maxMark = subject.cq_mark || 0;
+      else if (markType === "mcq_marks") maxMark = subject.mcq_mark || 0;
+      else if (markType === "practical_marks") maxMark = subject.practical_mark || 0;
+      else if (markType === "marks") maxMark = subject.full_mark || 100;
     }
 
-    const validatedMarks =
-      marks === ""
-        ? 0
-        : parseInt(marks) > maxMark
-          ? maxMark
-          : parseInt(marks) || 0;
+    const marks = value;
+    const validatedMarks = marks === "" ? 0 : parseInt(marks) > maxMark ? maxMark : parseInt(marks) || 0;
 
     setMarksData((prev) => {
       const currentStudent = prev[studentId] || { subjectMarks: [] };
-      const currentSubjectIndex = currentStudent.subjectMarks.findIndex(
-        (m) => m.subjectId === subjectId
-      );
-
-      let updatedSubjectMarks: SubjectMark[];
+      const currentSubjectIndex = currentStudent.subjectMarks.findIndex((m) => m.subjectId === subjectId);
+      let updatedSubjectMarks: any[];
       if (currentSubjectIndex >= 0) {
         updatedSubjectMarks = [...currentStudent.subjectMarks];
-        updatedSubjectMarks[currentSubjectIndex] = {
-          ...updatedSubjectMarks[currentSubjectIndex],
-          [markType]: Number(validatedMarks),
-        };
+        const updatedMark = { ...updatedSubjectMarks[currentSubjectIndex], [markType]: Number(validatedMarks) };
+        if (subject && subject.marking_scheme === "BREAKDOWN" && markType !== "marks") {
+          updatedMark.marks = (updatedMark.cq_marks || 0) + (updatedMark.mcq_marks || 0) + (updatedMark.practical_marks || 0);
+        }
+        updatedSubjectMarks[currentSubjectIndex] = updatedMark;
       } else {
-        updatedSubjectMarks = [
-          ...currentStudent.subjectMarks,
-          {
-            subjectId,
-            cq_marks: markType === "cq_marks" ? Number(validatedMarks) : 0,
-            mcq_marks: markType === "mcq_marks" ? Number(validatedMarks) : 0,
-            practical_marks:
-              markType === "practical_marks" ? Number(validatedMarks) : 0,
-            marks: markType === "marks" ? Number(validatedMarks) : 0,
-          },
-        ];
+        const newMark: any = {
+          subjectId,
+          cq_marks: markType === "cq_marks" ? Number(validatedMarks) : 0,
+          mcq_marks: markType === "mcq_marks" ? Number(validatedMarks) : 0,
+          practical_marks: markType === "practical_marks" ? Number(validatedMarks) : 0,
+          marks: markType === "marks" ? Number(validatedMarks) : 0,
+        };
+        if (subject && subject.marking_scheme === "BREAKDOWN" && markType !== "marks") {
+          newMark.marks = (newMark.cq_marks || 0) + (newMark.mcq_marks || 0) + (newMark.practical_marks || 0);
+        }
+        updatedSubjectMarks = [...currentStudent.subjectMarks, newMark];
       }
-
-      return {
-        ...prev,
-        [studentId]: {
-          ...currentStudent,
-          subjectMarks: updatedSubjectMarks,
-        },
-      };
+      return { ...prev, [studentId]: { ...currentStudent, subjectMarks: updatedSubjectMarks } };
     });
-  };
+  }, [subjectsForClass]);
+
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter((s: Student) => (group ? s.group === group : true))
+      .filter((s: Student) => !section || s.section === section)
+      .filter((s: Student) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          s.name.toLowerCase().includes(query) ||
+          s.roll.toString().includes(query)
+        );
+      })
+      .sort((a: Student, b: Student) => a.roll - b.roll);
+  }, [students, group, section, searchQuery]);
 
 
   const onSubmit = async () => {
-    setLoading((prev) => ({ ...prev, submit: true }));
-    try {
-      const visibleSubjects = subjectsForClass.filter(
-        (s) => !specific || s.id == specific
-      );
+    const visibleSubjects = subjectsForClass.filter(
+      (s) => !specific || s.id == specific
+    );
 
-      const submissionData = filteredStudents.map((student) => {
-        const studentData = marksData[student.student_id];
-
-        const subjectMarks = visibleSubjects.map((subject) => {
-          const existingMark = studentData?.subjectMarks?.find(
-            (m) => m.subjectId === subject.id
-          );
-          return {
-            subjectId: subject.id,
-            cq_marks: Math.max(0, Number(existingMark?.cq_marks) || 0),
-            mcq_marks: Math.max(0, Number(existingMark?.mcq_marks) || 0),
-            practical_marks: Math.max(
-              0,
-              Number(existingMark?.practical_marks) || 0
-            ),
-            marks: Math.max(0, Number(existingMark?.marks) || 0),
-          };
-        });
-
+    const submissionData = filteredStudents.map((student) => {
+      const studentData = marksData[student.student_id];
+      const subjectMarks = visibleSubjects.map((subject) => {
+        const existingMark = studentData?.subjectMarks?.find(
+          (m) => m.subjectId === subject.id
+        );
         return {
-          studentId: student.student_id,
-          subjectMarks: subjectMarks,
+          subjectId: subject.id,
+          cq_marks: Math.max(0, Number(existingMark?.cq_marks) || 0),
+          mcq_marks: Math.max(0, Number(existingMark?.mcq_marks) || 0),
+          practical_marks: Math.max(0, Number(existingMark?.practical_marks) || 0),
+          marks: Math.max(0, Number(existingMark?.marks) || 0),
         };
       });
 
-      if (submissionData.length === 0) {
-        throw new Error("No students found to submit marks for");
-      }
+      return {
+        studentId: student.student_id,
+        subjectMarks: subjectMarks,
+      };
+    });
 
-      const response = await axios.post("/api/marks/addMarks", {
-        students: submissionData,
-        examName,
-        year,
-      });
-
-      toast.success(response.data.message || "Marks saved successfully");
-    } catch (error) {
-      console.error("Submission error:", error);
-      const axiosError = error as { response?: { data?: { error?: string } }; message?: string };
-      toast.error(
-        axiosError.response?.data?.error || axiosError.message || "Failed to save marks"
-      );
-    } finally {
-      fetchExistingMarks();
-      setLoading((prev) => ({ ...prev, submit: false }));
+    if (submissionData.length === 0) {
+      toast.error("No students found to submit marks for");
+      return;
     }
+
+    addMarksMutation.mutate({
+      students: submissionData,
+      examName,
+      year,
+    }, {
+      onSuccess: () => {
+        refetchMarks();
+      }
+    });
   };
+
+  const isLoading = isLoadingSubjects || isLoadingExams || isLoadingStudents || isLoadingMarks;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -422,17 +245,17 @@ const AddMarks = () => {
         <StatsCard
           label="Selected Class"
           value={level ? `Class ${level}` : "None"}
-          loading={loading.students}
+          loading={isLoadingStudents}
         />
         <StatsCard
           label="Total Students"
           value={filteredStudents.length}
-          loading={loading.students}
+          loading={isLoadingStudents}
         />
         <StatsCard
           label="Total Subjects"
           value={subjectsForClass.length}
-          loading={loading.initial}
+          loading={isLoadingSubjects}
         />
       </div>
 
@@ -450,7 +273,7 @@ const AddMarks = () => {
               <select
                 {...register("year", { required: true, valueAsNumber: true })}
                 className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                disabled={loading.initial}
+                disabled={isLoadingExams}
               >
                 {Array.from({ length: 10 }, (_, i) => (
                   <option key={i} value={2020 + i}>
@@ -466,7 +289,7 @@ const AddMarks = () => {
               <select
                 {...register("examName", { required: true })}
                 className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                disabled={!year || loading.initial}
+                disabled={!year || isLoadingExams}
               >
                 <option value="">Select Exam</option>
                 {examList.map((exam, index) => (
@@ -483,10 +306,7 @@ const AddMarks = () => {
               <select
                 {...register("level", { required: true })}
                 className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                disabled={
-                  !examName ||
-                  loading.initial
-                }
+                disabled={!examName || isLoadingExams}
                 value={level}
               >
                 <option value="">Select Class</option>
@@ -519,7 +339,7 @@ const AddMarks = () => {
                 <select
                   {...register("group")}
                   className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
-                  disabled={!level || loading.initial}
+                  disabled={!level || isLoadingExams}
                 >
                   {["", "Science", "Humanities", "Commerce"].map((dept) => (
                     <option key={dept} value={dept}>
@@ -535,7 +355,7 @@ const AddMarks = () => {
               <select
                 {...register("section")}
                 className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
-                disabled={!level || loading.initial}
+                disabled={!level || isLoadingExams}
               >
                 <option value="">All Sections</option>
                 {sections
@@ -564,7 +384,7 @@ const AddMarks = () => {
               <select
                 {...register("specific", { valueAsNumber: true })}
                 className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:bg-muted/50"
-                disabled={!level || loading.initial}
+                disabled={!level || isLoadingExams}
               >
                 <option value="0">Select Subject</option>
                 {examName &&
@@ -578,18 +398,46 @@ const AddMarks = () => {
           </div>
         </SectionCard>
 
-        {loading.initial || loading.students || loading.marks || isLoadingSubjects ? (
+        {isLoading ? (
           <SectionCard className="flex flex-col justify-center items-center h-32 sm:h-64">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
             <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground text-center px-4">
-              {loading.initial || isLoadingSubjects ? "Loading initial data..." : loading.students ? "Loading students..." : "Loading marks data..."}
+              {isLoadingSubjects || isLoadingExams ? "Loading initial data..." : isLoadingStudents ? "Loading students..." : "Loading marks data..."}
             </span>
           </SectionCard>
         ) : filteredStudents.length > 0 ? (
           <SectionCard className="p-0 overflow-hidden">
+            <div className="p-4 bg-muted/20 border-b border-border flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="relative w-full md:w-72">
+                <input
+                  type="text"
+                  placeholder="Search student name or roll..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">
+                Showing {filteredStudents.length} of {students.length} students
+              </div>
+            </div>
+
             {specific && specific !== 0 ? (
               <div className="overflow-x-auto">
-                {/* Subject Info Ribbon */}
                 <div className="bg-primary/5 p-4 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-primary">
@@ -605,131 +453,43 @@ const AddMarks = () => {
                   </div>
                 </div>
 
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted/50">
+                <table className="min-w-[800px] w-full divide-y divide-border">
+                  <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Student Information
                       </th>
-                      {(() => {
-                        const selectedSubject = subjectsForClass.find(
-                          (sub) => sub.id == specific
-                        );
-                        return selectedSubject && (selectedSubject as any).marking_scheme === "BREAKDOWN" ? (
-                          <>
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                              Practical ({selectedSubject.practical_mark || 0})
-                            </th>
-                          </>
-                        ) : (
+                      {selectedSubject && selectedSubject.marking_scheme === "BREAKDOWN" ? (
+                        <>
                           <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                            Total Marks ({selectedSubject?.full_mark || 0})
+                            CQ Marks ({selectedSubject.cq_mark || 0})
                           </th>
-                        );
-                      })()}
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                            MCQ Marks ({selectedSubject.mcq_mark || 0})
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                            Practical ({selectedSubject.practical_mark || 0})
+                          </th>
+                        </>
+                      ) : (
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                          Total Marks ({selectedSubject?.full_mark || 0})
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-card">
-                    {filteredStudents.map((student) => {
-                      const selectedSubject = subjectsForClass.find((sub) => sub.id == specific);
-                      if (!selectedSubject) return null;
-
-                      const studentGroup = student.group;
-                      const subjectGroup = selectedSubject.group;
-                      const isGroupMismatch = subjectGroup &&
-                        subjectGroup !== "" &&
-                        subjectGroup !== studentGroup;
-
-                      if (isGroupMismatch) {
-                        return (
-                          <tr key={student.student_id} className="bg-muted/30">
-                            <td className="px-4 py-4">
-                              <div className="text-sm font-medium">{student.name}</div>
-                              <div className="text-[10px] text-muted-foreground">Roll: {student.roll} | Sec: {student.section || "N/A"}</div>
-                            </td>
-                            <td colSpan={3} className="px-4 py-4 text-center text-xs text-muted-foreground italic">
-                              Not available for student group
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      const studentSubject = marksData[student.student_id]?.subjectMarks?.find(
-                        (m) => m.subjectId === selectedSubject.id
-                      );
-
-                      return (selectedSubject as any).marking_scheme === "BREAKDOWN" ? (
-                        <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold">{student.name}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Roll: {student.roll}</span>
-                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Sec: {student.section || "N/A"}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={selectedSubject.cq_mark || 100}
-                              value={studentSubject?.cq_marks || 0}
-                              onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "cq_marks", e.target.value)}
-                              disabled={!selectedSubject.cq_mark}
-                              className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${!selectedSubject.cq_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
-                                }`}
-                            />
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={selectedSubject.mcq_mark || 100}
-                              value={studentSubject?.mcq_marks || 0}
-                              onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "mcq_marks", e.target.value)}
-                              disabled={!selectedSubject.mcq_mark}
-                              className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${!selectedSubject.mcq_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
-                                }`}
-                            />
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={selectedSubject.practical_mark || 100}
-                              value={studentSubject?.practical_marks || 0}
-                              onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "practical_marks", e.target.value)}
-                              disabled={!selectedSubject.practical_mark}
-                              className={`w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${!selectedSubject.practical_mark ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
-                                }`}
-                            />
-                          </td>
-                        </tr>
-                      ) : (
-                        <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold">{student.name}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Roll: {student.roll}</span>
-                                <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded">Sec: {student.section || "N/A"}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={selectedSubject.full_mark || 100}
-                              value={studentSubject?.marks || 0}
-                              onChange={(e) => handleMarksChange(student.student_id, selectedSubject.id, "marks", e.target.value)}
-                              className="w-16 p-2 border border-border rounded text-center text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all bg-card"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredStudents.map((student) => (
+                      <StudentMarkRow
+                        key={student.student_id}
+                        student={student}
+                        selectedSubject={selectedSubject!}
+                        studentSubject={marksData[student.student_id]?.subjectMarks?.find(
+                          (m) => m.subjectId === selectedSubject!.id
+                        )}
+                        onMarkChange={handleMarksChange}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -756,22 +516,22 @@ const AddMarks = () => {
         {filteredStudents.length > 0 &&
           (examName === "JSC" ||
             examName === "SSC" ||
-            (examName !== "JSC" &&
-              examName !== "SSC" &&
-              specific &&
-              specific !== 0)) &&
-          ((subjectsForClass.find((sub) => sub.id == specific)?.full_mark ?? 0) > 0) &&
-          ((subjectsForClass.find((sub) => sub.id == specific)?.cq_mark ?? 0) ||
-            (subjectsForClass.find((sub) => sub.id == specific)?.mcq_mark ?? 0) ||
-            (subjectsForClass.find((sub) => sub.id == specific)?.practical_mark ?? 0)) && (
+            (specific && specific !== 0)) &&
+          selectedSubject &&
+          selectedSubject.full_mark > 0 && (
+            selectedSubject.marking_scheme === "TOTAL" ||
+            (selectedSubject.cq_mark || 0) > 0 ||
+            (selectedSubject.mcq_mark || 0) > 0 ||
+            (selectedSubject.practical_mark || 0) > 0
+          ) && (
             <div className="flex justify-end pt-4">
               <Button
                 type="submit"
                 size="lg"
-                disabled={loading.submit}
+                disabled={addMarksMutation.isPending}
                 className="w-full sm:w-auto px-10 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                {loading.submit ? (
+                {addMarksMutation.isPending ? (
                   <>
                     <svg
                       className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
