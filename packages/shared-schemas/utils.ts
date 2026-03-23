@@ -160,3 +160,37 @@ export const toDateInputIsoValue = (value: string | null | undefined) => {
 };
 
 export const formatDobForDateInput = toDateInputIsoValue;
+
+// Calculate SMS segment count based on GSM-7 / Unicode rules.
+export const calculateSMSCount = (
+  text: string,
+): { count: number; encoding: "GSM-7" | "Unicode"; length: number } => {
+  const raw = text ?? "";
+  const gsm7Regex =
+    /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\[\]~|€]*$/;
+  const isGsm7 = gsm7Regex.test(raw);
+  const encoding: "GSM-7" | "Unicode" = isGsm7 ? "GSM-7" : "Unicode";
+
+  if (!raw.length) {
+    return { count: 0, encoding, length: 0 };
+  }
+
+  if (isGsm7) {
+    let gsmLength = 0;
+    const extendedSet = "^{}\\[]~|€";
+    for (let i = 0; i < raw.length; i++) {
+      gsmLength += extendedSet.includes(raw[i]) ? 2 : 1;
+    }
+    return {
+      count: gsmLength <= 160 ? 1 : Math.ceil(gsmLength / 153),
+      encoding,
+      length: gsmLength,
+    };
+  }
+
+  return {
+    count: raw.length <= 70 ? 1 : Math.ceil(raw.length / 67),
+    encoding,
+    length: raw.length,
+  };
+};

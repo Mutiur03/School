@@ -7,6 +7,12 @@ import {
   EMAIL,
 } from "./regex.js";
 
+export const deleteTeachersBulkRequestSchema = z.object({
+  teacherIds: z.array(z.number()),
+});
+
+export const rotateTeachersPasswordsBulkRequestSchema = deleteTeachersBulkRequestSchema;
+
 export const teacherFormSchema = z.object({
   name: z
     .string()
@@ -36,7 +42,7 @@ export const teacherFormSchema = z.object({
     .max(50, "Designation must be at most 50 characters")
     .regex(
       DESIGNATION,
-      "Enter a valid designation (letters, numbers and basic punctuation only)",
+      "Enter a valid designation (must start with a letter and contain valid characters)",
     ),
 
   address: z

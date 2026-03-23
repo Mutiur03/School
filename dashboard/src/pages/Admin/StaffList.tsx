@@ -301,7 +301,7 @@ function StaffList() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Home Town:</label>
+                  <label className="block text-sm font-medium mb-1">Address:</label>
                   <input
                     type="text"
                     name="address"

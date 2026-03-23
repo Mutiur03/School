@@ -37,8 +37,14 @@ function Login() {
   const codeInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
   const role: UserRole = location.pathname.includes("/teacher") ? "teacher" : location.pathname.includes("/student") ? "student" : "admin";
 
+  const redirectTo = (location.state as any)?.from;
+
   useEffect(() => {
     if (user) {
+      if (redirectTo && !redirectTo.includes('/login')) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
       if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) navigate("/admin/dashboard");
       else if (isTeacher() && (!envPreferredRole || envPreferredRole === 'teacher')) navigate("/teacher/dashboard");
       else if (isStudent() && (!envPreferredRole || envPreferredRole === 'student')) navigate("/student/dashboard");
@@ -212,11 +218,11 @@ function Login() {
       <div className="relative w-full max-w-md z-10">
         <div className="text-center mb-10 animate-in fade-in slide-in-from-top duration-1000">
           <h1 className="text-5xl sm:text-6xl font-black mb-3 tracking-tighter">
-            <span className="bg-clip-text text-transparent bg-gradient-to-br from-primary via-primary/80 to-secondary dark:from-primary dark:via-primary/70 dark:to-secondary">
+            <span className="bg-clip-text text-transparent bg-linear-to-br from-primary via-primary/80 to-secondary dark:from-primary dark:via-primary/70 dark:to-secondary">
               School Sync
             </span>
           </h1>
-          <div className="h-1.5 w-16 bg-gradient-to-r from-primary to-secondary mx-auto rounded-full mb-4 shadow-[0_0_15px_rgba(15,23,42,0.2)]"></div>
+          <div className="h-1.5 w-16 bg-linear-to-r from-primary to-secondary mx-auto rounded-full mb-4 shadow-[0_0_15px_rgba(15,23,42,0.2)]"></div>
           <p className="text-muted-foreground font-bold tracking-[0.2em] uppercase text-[10px] opacity-80">
             Professional Enterprise Intelligence
           </p>
@@ -227,7 +233,7 @@ function Login() {
             <div className="flex justify-center mb-8">
               <div className="flex p-1.5 bg-muted/80 dark:bg-slate-800/50 rounded-md w-full shadow-inner border border-border dark:border-slate-700/30">
                 {!showPasswordReset ? (
-                  <>
+                  envPreferredRole ? (<>
                     <button
                       // onClick={() => navigate("/admin/login")}
                       // className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
@@ -265,6 +271,35 @@ function Login() {
                     </button>
 
                   </>
+                  ) : (<>
+                    <button
+                      onClick={() => navigate("/admin/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Admin
+                    </button>
+                    <button
+                      onClick={() => navigate("/teacher/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/teacher")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Teacher
+                    </button>
+                    <button
+                      onClick={() => navigate("/student/login")}
+                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/student")
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                        }`}
+                    >
+                      Student
+                    </button>
+                  </>)
                 ) : (
                   <div className="w-full py-3 text-center text-sm font-black text-primary dark:text-primary-foreground bg-white/50 dark:bg-slate-800/50 rounded-md shadow-sm border border-primary/10 dark:border-primary/20 tracking-wider">
                     RESETTING {role.toUpperCase()}
@@ -357,7 +392,7 @@ function Login() {
                     <Button
                       type="submit"
                       disabled={isResetting}
-                      className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
                     >
                       {isResetting ? (
                         <div className="flex items-center justify-center">
@@ -389,7 +424,7 @@ function Login() {
                     <Button
                       onClick={handleCodeVerify}
                       disabled={isResetting}
-                      className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
                     >
                       {isResetting ? "Verifying..." : "Verify Code"}
                     </Button>
@@ -447,7 +482,7 @@ function Login() {
                     <Button
                       type="submit"
                       disabled={isResetting}
-                      className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
                     >
                       {isResetting ? (
                         "Updating..."
@@ -501,8 +536,8 @@ function Login() {
                       return;
                     }
                   } else if (location.pathname.includes("/student")) {
-                    if (!/^\d{5}$/.test(loginID)) {
-                      setLoginError("Student ID must be exactly 5 digits.");
+                    if (!/^\d{6}$/.test(loginID)) {
+                      setLoginError("Student ID must be exactly 6 digits.");
                       return;
                     }
                   } else {
@@ -520,9 +555,12 @@ function Login() {
                     } else {
                       await loginAdmin(username, password);
                     }
-                    if (role === "admin") navigate("/admin/dashboard");
-                    else if (role === "teacher") navigate("/teacher/dashboard");
-                    else if (role === "student") navigate("/student/dashboard");
+                    const destination = redirectTo || (
+                      role === "admin" ? "/admin/dashboard" :
+                      role === "teacher" ? "/teacher/dashboard" :
+                      "/student/dashboard"
+                    );
+                    navigate(destination, { replace: true });
                   } catch {
                     // Error is already toasted inside the login functions
                   }
@@ -566,12 +604,12 @@ function Login() {
                   ) : location.pathname.includes("/student") ? (
                     <Input
                       type="text"
-                      placeholder="e.g., 10001"
+                      placeholder="e.g., 220101"
                       required
-                      pattern="\d{5}"
-                      title="Login ID must be exactly 5 digits"
-                      maxLength={5}
-                      minLength={5}
+                      pattern="\d{6}"
+                      title="Login ID must be exactly 6 digits"
+                      maxLength={6}
+                      minLength={6}
                       value={loginID}
                       onChange={(e) => setLoginID(e.target.value)}
                       className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
@@ -634,7 +672,7 @@ function Login() {
                     </button>
                   </div>
                 )}
-                <Button className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+                <Button className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
                   <span>Sign In</span>
                   <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />

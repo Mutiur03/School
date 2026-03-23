@@ -2,11 +2,12 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "@/context/useAuth";
 import Loading from "./Loading";
+import ServerOffline from "@/pages/Common/ServerOffline";
 
 const TeacherRoute = ({ element }: { element: ReactNode }) => {
-    const { user, loading, isTeacher } = useAuth();
+    const { user, loading, isTeacher, serverOffline } = useAuth();
 
-    if (loading) {
+    if (loading && !user) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <Loading />
@@ -14,7 +15,12 @@ const TeacherRoute = ({ element }: { element: ReactNode }) => {
         );
     }
 
-    return user && isTeacher() ? element : <Navigate to="/teacher/login" />;
+    return (
+        <>
+            {serverOffline && <ServerOffline isOverlay />}
+            {user && isTeacher() ? element : <Navigate to="/teacher/login" />}
+        </>
+    );
 };
 
 export default TeacherRoute;

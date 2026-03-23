@@ -1,169 +1,130 @@
-import { useState, useEffect } from "react";
-import { toast } from "react-toastify";
+import { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/context/useAuth";
+import { toast } from "react-hot-toast";
 import axios from "axios";
 import Loading from "@/components/Loading";
+import { PageHeader, SectionCard } from "@/components";
+import { 
+  Search, 
+  Download, 
+  Info, 
+  Calendar, 
+  GraduationCap, 
+  Users, 
+  Layers, 
+  FileSpreadsheet,
+  X
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useExams } from "@/queries/exam.queries";
+import { useClassMarks, type StudentMarkResponse } from "@/queries/marks.queries";
 
-interface SubjectMark {
-  subject: string;
-  marks: number;
-  cq_marks?: number;
-  mcq_marks?: number;
-  practical_marks?: number;
-  subject_info?: {
-    full_mark?: number;
-    cq_mark?: number;
-    mcq_mark?: number;
-    practical_mark?: number;
-  };
+interface TeacherLevel {
+  id: number;
+  class_name: number;
+  section: string;
+  year: number;
 }
 
-interface StudentData {
-  student_id: string;
-  roll: string;
-  name: string;
-  class: string;
-  section?: string;
-  department?: string;
-  marks?: SubjectMark[];
-}
-
-interface ExamData {
-  exam_name: string;
-  exam_year: string;
-  levels?: string[];
-}
-
-interface ClassList {
-  [examName: string]: string[];
+interface UserWithLevels {
+  role: string;
+  levels?: TeacherLevel[];
 }
 
 const ViewMarks = () => {
-  const [marksData, setMarksData] = useState<StudentData[]>([]);
-  const [loading, setLoading] = useState({
-    initial: true,
-    marks: false,
-  });
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   const [className, setClassName] = useState("");
-  const [year, setYear] = useState("2025");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
   const [exam, setExam] = useState("");
   const [section, setSection] = useState("");
-  const [department, setDepartment] = useState("");
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [availableSections, setAvailableSections] = useState<string[]>([]);
-  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
-  const [examList, setExamList] = useState<string[]>([]);
-  const [classList, setClassList] = useState<ClassList>({});
+  const [group, setGroup] = useState("");
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentMarkResponse | null>(null);
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setLoading((prev) => ({ ...prev, initial: true }));
+  // Queries
+  const { data: exams = [], isLoading: examsLoading } = useExams();
+  const { data: marksData = [], isLoading: marksLoading } = useClassMarks(className, Number(year), exam);
 
-        const examsRes = await axios.get("/api/exams/getExams");
-        const exams: ExamData[] = examsRes.data?.data || [];
-        const currentYearExams = exams.filter((e) => e.exam_year == year);
-
-        setExamList(currentYearExams.map((e) => e.exam_name));
-        setClassList(
-          currentYearExams.reduce((acc: ClassList, e) => {
-            acc[e.exam_name] = e.levels || [];
-            return acc;
-          }, {})
-        );
-      } catch {
-        toast.error("Failed to load exam data");
-      } finally {
-        setLoading((prev) => ({ ...prev, initial: false }));
-      }
+  // Derived data from exams
+  const { examList, classList } = useMemo(() => {
+    const currentYearExams = exams.filter((e) => e.exam_year === Number(year));
+    return {
+      examList: Array.from(new Set(currentYearExams.map((e) => e.exam_name))),
+      classList: currentYearExams.reduce((acc: Record<string, number[]>, e) => {
+        acc[e.exam_name] = e.levels || [];
+        return acc;
+      }, {})
     };
+  }, [exams, year]);
 
-    fetchInitialData();
-  }, [year]);
+  // Derived filter options from marks data
+  const { subjects, availableSections, availableGroups } = useMemo(() => {
+    const allSubjects = new Set<string>();
+    const sections = new Set<string>();
+    const groups = new Set<string>();
 
-  useEffect(() => {
-    const fetchMarks = async () => {
-      if (!className || !year || !exam) {
-        setMarksData([]);
-        setError(null);
-        return;
-      }
+    marksData.forEach((student) => {
+      student.marks
+        ?.filter((subject) => subject.marks !== null)
+        .forEach((subject) => {
+          allSubjects.add(subject.subject);
+        });
+      if (student.section) sections.add(student.section);
+      if (student.group) groups.add(student.group);
+    });
 
-      try {
-        setLoading((prev) => ({ ...prev, marks: true }));
-        setError(null);
-
-        const response = await axios.get(
-          `/api/marks/getClassMarks/${className}/${year}/${exam}`
-        );
-
-        const data = response.data;
-        if (!data.success) {
-          setMarksData([]);
-          setAvailableDepartments([]);
-          setAvailableSections([]);
-          return;
-        }
-
-        const marks: StudentData[] = Array.isArray(data.data) ? data.data : [];
-        setMarksData(marks);
-
-        if (marks.length === 0) {
-          setError("No marks data available for the selected filters");
-        } else {
-          const allSubjects = new Set<string>();
-          const sections = new Set<string>();
-          const departments = new Set<string>();
-
-          marks.forEach((student) => {
-            student.marks?.forEach((subject) => {
-              allSubjects.add(subject.subject);
-            });
-            if (student.section) sections.add(student.section);
-            if (student.department) departments.add(student.department);
-          });
-
-          setSubjects(Array.from(allSubjects).sort());
-          setAvailableSections(Array.from(sections).sort());
-          setAvailableDepartments(Array.from(departments).sort());
-        }
-      } catch {
-        setMarksData([]);
-      } finally {
-        setLoading((prev) => ({ ...prev, marks: false }));
-      }
+    return {
+      subjects: Array.from(allSubjects).sort(),
+      availableSections: Array.from(sections).sort(),
+      availableGroups: Array.from(groups).sort()
     };
+  }, [marksData]);
 
-    fetchMarks();
-  }, [className, year, exam]);
+  // Handle teacher assignments
+  useEffect(() => {
+    if (user?.role === "teacher" && (user as UserWithLevels).levels && ((user as UserWithLevels).levels?.length ?? 0) > 0) {
+      const assignmentsInYear = (user as UserWithLevels).levels?.filter(
+        (l: TeacherLevel) => l.year === Number(year)
+      );
+      if (assignmentsInYear && assignmentsInYear.length === 1 && !className) {
+        const assignment = assignmentsInYear[0];
+        setClassName(assignment.class_name.toString());
+        setSection(assignment.section);
+      }
+    }
+  }, [user, year, className]);
 
   const handleExamChange = (selectedExam: string) => {
     setExam(selectedExam);
-    if (subjects.length > 0) setSubjects([]);
-    setAvailableSections([]);
     setClassName("");
     setSection("");
-    setDepartment("");
-    setMarksData([]);
-    setAvailableDepartments([]);
+    setGroup("");
   };
 
   const handleClassChange = (selectedClass: string) => {
     setClassName(selectedClass);
     setSection("");
-    setDepartment("");
+    setGroup("");
   };
 
-  const downloadMarksheet = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    const host = import.meta.env.VITE_BACKEND_URL;
-    const url = `${host}/api/marks/markSheet/${id}/marks/${year}/${exam}/download`;
-    window.open(url, "_blank");
+    try {
+      const response = await axios.get(
+        `/api/marks/${id}/${year}/${exam}/download`,
+        { responseType: "blob" }
+      );
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      toast.error("Failed to download marksheet");
+    }
   };
 
-  const showStudentDetails = (student: StudentData) => {
+  const showStudentDetails = (student: StudentMarkResponse) => {
     setSelectedStudent(student);
     setShowDetailsPopup(true);
   };
@@ -174,119 +135,175 @@ const ViewMarks = () => {
   };
 
   const filteredData = marksData.filter((student) => {
+    if (!student.marks || student.marks.length === 0) return false;
+    const hasAnyMarks = student.marks.some(
+      (m) => m.marks !== null && m.marks !== undefined
+    );
+    if (!hasAnyMarks) return false;
     const sectionMatch = !section || (student.section || "") === section;
-    const deptMatch = !department || (student.department || "") === department;
-    return sectionMatch && deptMatch;
+    const groupMatch = !group || (student.group || "") === group;
+    return sectionMatch && groupMatch;
   });
 
-  if (error) return <p className="text-center mt-4 text-red-500">{error}</p>;
-
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <h2 className="text-xl font-bold mb-4 text-center">
-        {className
-          ? `Marks for Class ${className}, Year ${year}, Exam: ${exam}`
-          : "View Marks"}
-      </h2>
+    <div className="p-4 sm:p-6 space-y-6">
+      <PageHeader 
+        title="Class Results" 
+        description={className ? `Viewing marks for Class ${className}, ${exam} (${year})` : "Analyze and manage student academic performance."}
+      />
 
-      <div className="flex flex-wrap justify-center gap-4 mb-6">
-        <select
-          className="border p-2 dark:bg-accent rounded-md"
-          value={new Date().getFullYear()}
-          onChange={(e) => setYear(e.target.value)}
-        >
-          {Array.from({ length: 5 }, (_, i) => (
-            <option key={i} value={new Date().getFullYear() - i}>
-              {new Date().getFullYear() - i}
-            </option>
-          ))}
-        </select>
+      <SectionCard
+        title="Filter Results"
+        icon={<Search className="w-5 h-5" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Calendar className="w-3 h-3" /> Year
+            </Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            >
+              {Array.from({ length: 5 }, (_, i) => (
+                <option key={i} value={new Date().getFullYear() - i}>
+                  {new Date().getFullYear() - i}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <select
-          className="border p-2 dark:bg-accent rounded-md"
-          value={exam}
-          onChange={(e) => handleExamChange(e.target.value)}
-        >
-          <option value="">Select Exam</option>
-          {examList.map((exam, index) => (
-            <option key={index} value={exam}>
-              {exam}
-            </option>
-          ))}
-        </select>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileSpreadsheet className="w-3 h-3" /> Exam
+            </Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              value={exam}
+              onChange={(e) => handleExamChange(e.target.value)}
+            >
+              <option value="">Select Exam</option>
+              {examList.map((exam, index) => (
+                <option key={index} value={exam}>
+                  {exam}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <select
-          className="border p-2 dark:bg-accent rounded-md"
-          value={className}
-          onChange={(e) => handleClassChange(e.target.value)}
-          disabled={!exam}
-        >
-          <option value="">Select Class</option>
-          {(classList[exam] || []).map((cls, index) => (
-            <option key={index} value={cls}>
-              {`Class ${cls}`}
-            </option>
-          ))}
-        </select>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <GraduationCap className="w-3 h-3" /> Class
+            </Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              value={className}
+              onChange={(e) => handleClassChange(e.target.value)}
+              disabled={!exam}
+            >
+              <option value="">Select Class</option>
+              {(classList[exam] || [])
+                .filter((cls) => {
+                  if (user?.role === "admin") return true;
+                  if (user?.role === "teacher" && (user as UserWithLevels).levels) {
+                    return (user as UserWithLevels).levels?.some(
+                      (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year)
+                    );
+                  }
+                  return false;
+                })
+                .map((cls, index) => (
+                  <option key={index} value={cls}>
+                    {`Class ${cls}`}
+                  </option>
+                ))}
+            </select>
+          </div>
 
-        {availableSections.length > 0 && (
-          <select
-            className="border p-2 dark:bg-accent rounded"
-            value={section}
-            onChange={(e) => setSection(e.target.value)}
-            disabled={!className}
-          >
-            <option value="">All Sections</option>
-            {availableSections.map((sec, index) => (
-              <option key={index} value={sec}>
-                {sec}
-              </option>
-            ))}
-          </select>
-        )}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Users className="w-3 h-3" /> Section
+            </Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+              disabled={!className || availableSections.length === 0}
+            >
+              <option value="">All Sections</option>
+              {availableSections
+                .filter((sec) => {
+                  if (user?.role === "admin") return true;
+                  if (user?.role === "teacher" && (user as UserWithLevels).levels) {
+                    return (user as UserWithLevels).levels?.some(
+                      (l: TeacherLevel) =>
+                        l.class_name === Number(className) &&
+                        l.section === sec &&
+                        l.year === Number(year)
+                    );
+                  }
+                  return false;
+                })
+                .map((sec, index) => (
+                  <option key={index} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+            </select>
+          </div>
 
-        {availableDepartments.length > 0 && (
-          <select
-            className="border dark:bg-accent p-2 rounded"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            disabled={!className}
-          >
-            <option value="">All Departments</option>
-            {availableDepartments.map((dept, index) => (
-              <option key={index} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Layers className="w-3 h-3" /> Group
+            </Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              disabled={!className || availableGroups.length === 0}
+            >
+              <option value="">All Groups</option>
+              {availableGroups.map((grp, index) => (
+                <option key={index} value={grp}>
+                  {grp}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </SectionCard>
 
-      <div className=" rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full border divide-y divide-gray-200">
-            <thead className="bg-popover">
-              <tr className="">
-                <th className=" p-2 text-center">Roll</th>
-                <th className=" p-2 text-center">Student Name</th>
+      <SectionCard 
+        noPadding 
+        title="Student Marks"
+        icon={<FileSpreadsheet className="w-5 h-5 text-primary" />}
+        description={`Showing ${filteredData.length} records`}
+      >
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-muted/50 border-b border-border shadow-sm">
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Roll</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic min-w-[200px]">Student Name</th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className=" p-2 text-center "
-                    style={{ width: "100px" }}
+                    className="px-4 py-4 text-center font-semibold text-gray-900 dark:text-gray-100 italic min-w-[100px]"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className=" p-2 text-center">Actions</th>
+                <th className="px-6 py-4 text-center font-bold text-gray-900 dark:text-gray-100 italic">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {loading.marks ? (
+            <tbody className="divide-y divide-border">
+              {marksLoading ? (
                 <tr>
-                  <td colSpan={subjects.length + 3} className="text-center">
-                    <div className="flex justify-center items-center py-4">
+                  <td colSpan={subjects.length + 3} className="py-20">
+                    <div className="flex flex-col items-center justify-center gap-4">
                       <Loading />
+                      <p className="text-muted-foreground animate-pulse font-medium">Loading results...</p>
                     </div>
                   </td>
                 </tr>
@@ -294,264 +311,242 @@ const ViewMarks = () => {
                 <tr>
                   <td
                     colSpan={subjects.length + 3}
-                    className="text-center   p-2"
+                    className="py-20 text-center text-muted-foreground"
                   >
-                    {className && exam
-                      ? "No students found"
-                      : "Please select all filters"}
+                    <div className="flex flex-col items-center gap-2 opacity-50">
+                      <Search className="w-10 h-10 mb-2" />
+                      <p className="text-lg font-medium">
+                        {className && exam
+                          ? examsLoading ? "Refreshing exams..." : "No marks found matching these filters."
+                          : "Please select Class and Exam to view results."}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredData.map((data) => {
-                  const marksMap: { [key: string]: number } = {};
+                  const marksMap: { [key: string]: number | null } = {};
                   data.marks?.forEach((subject) => {
                     marksMap[subject.subject] = subject.marks;
                   });
 
                   return (
-                    <tr key={data.student_id}>
-                      <td className=" p-2 text-center">{data.roll}</td>
-                      <td className=" p-2 text-center">{data.name}</td>
+                    <motion.tr 
+                      key={data.student_id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="hover:bg-muted/30 transition-all group"
+                    >
+                      <td className="px-6 py-4 text-center font-medium tabular-nums border-r border-border/50">{data.roll}</td>
+                      <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors uppercase border-r border-border/50">
+                        {data.name}
+                      </td>
                       {subjects.map((subject) => (
                         <td
                           key={`${data.student_id}-${subject}`}
-                          className=" p-2 text-center"
+                          className="px-4 py-4 text-center tabular-nums font-medium"
                         >
-                          {marksMap[subject]}
+                          {marksMap[subject] ?? "-"}
                         </td>
                       ))}
-                      <td className=" p-2 text-center">
+                      <td className="px-6 py-4">
                         <div className="flex gap-2 justify-center">
-                          <button
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white border-green-500/20 shadow-none h-8 px-3 gap-1.5 transition-all"
                             onClick={() => showStudentDetails(data)}
-                            title="Show Details"
                           >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
+                            <Info className="w-3.5 h-3.5" />
                             Details
-                          </button>
-                          <button
-                            className="bg-primary hover:bg-primary text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-                            onClick={(e) =>
-                              downloadMarksheet(data.student_id, e)
-                            }
-                            title="Download Marksheet"
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-primary/10 text-primary hover:bg-primary hover:text-white border-primary/20 shadow-none h-8 px-3 gap-1.5 transition-all"
+                            onClick={(e) => downloadMarksheet(data.student_id, e)}
                           >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
+                            <Download className="w-3.5 h-3.5" />
                             Download
-                          </button>
+                          </Button>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </SectionCard>
 
-      {showDetailsPopup && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b p-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">
-                Detailed Marks - {selectedStudent.name} (Roll:{" "}
-                {selectedStudent.roll})
-              </h3>
-              <button
-                onClick={closeDetailsPopup}
-                className="text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold mb-2">
-                  Student Information
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <strong>Name:</strong> {selectedStudent.name}
+      <AnimatePresence>
+        {showDetailsPopup && selectedStudent && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-100 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card rounded-2xl border border-border shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b flex justify-between items-center bg-muted/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <strong>Roll:</strong> {selectedStudent.roll}
+                    <h3 className="text-xl font-bold tracking-tight">
+                      Detailed Marks
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                      {selectedStudent.name} | Roll: {selectedStudent.roll}
+                    </p>
                   </div>
-                  <div>
-                    <strong>Class:</strong> {selectedStudent.class}
-                  </div>
-                  {selectedStudent.section && (
-                    <div>
-                      <strong>Section:</strong> {selectedStudent.section}
-                    </div>
-                  )}
-                  {selectedStudent.department && (
-                    <div>
-                      <strong>Department:</strong> {selectedStudent.department}
-                    </div>
-                  )}
                 </div>
+                <button
+                  onClick={closeDetailsPopup}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div>
-                <h4 className="text-lg font-semibold mb-4">
-                  Subject-wise Marks Details
-                </h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-border rounded-lg">
-                    <thead className="bg-muted/50 dark:bg-gray-700">
-                      <tr>
-                        <th className="border p-3 text-left">Subject</th>
-                        <th className="border p-3 text-center">CQ Marks</th>
-                        <th className="border p-3 text-center">MCQ Marks</th>
-                        <th className="border p-3 text-center">
-                          Practical Marks
-                        </th>
-                        <th className="border p-3 text-center">Total Marks</th>
-                        <th className="border p-3 text-center">Full Marks</th>
-                        <th className="border p-3 text-center">Percentage</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(selectedStudent.marks) && selectedStudent.marks.length > 0 ? (
-                        selectedStudent.marks.map((mark, index) => {
-                          const percentage = mark.subject_info?.full_mark
-                            ? (
-                              (mark.marks / mark.subject_info.full_mark) *
-                              100
-                            ).toFixed(2)
-                            : 0;
+              <div className="p-6 overflow-y-auto space-y-8">
+                <div>
+                  <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary mb-4">
+                    <Info className="w-4 h-4" /> Student Snapshot
+                  </h4>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[
+                      { label: "Class", value: selectedStudent.class, icon: GraduationCap },
+                      { label: "Roll", value: selectedStudent.roll, icon: Users },
+                      { label: "Section", value: selectedStudent.section || "N/A", icon: Layers },
+                      { label: "Group", value: selectedStudent.group || "N/A", icon: Info },
+                    ].map((item, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-muted/30 border border-border/50 flex items-center gap-3">
+                        <item.icon className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground/70">{item.label}</p>
+                          <p className="font-bold text-sm tracking-tight">{item.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                          return (
-                            <tr
-                              key={index}
-                              className="hover:bg-muted/50 dark:hover:bg-gray-700"
-                            >
-                              <td className="border p-3 font-medium">
-                                {mark.subject}
-                              </td>
-                              <td className="border p-3 text-center">
-                                {mark.cq_marks !== null &&
-                                  mark.cq_marks !== undefined
-                                  ? mark.cq_marks
-                                  : "N/A"}
-                                {mark.subject_info?.cq_mark && (
-                                  <span className="text-xs text-muted-foreground block">
-                                    /{mark.subject_info.cq_mark}
-                                  </span>
+                <div>
+                  <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary mb-4">
+                    <FileSpreadsheet className="w-4 h-4" /> Performance Metrics
+                  </h4>
+                  <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead>
+                          {(() => {
+                            const showBreakdown = selectedStudent.marks?.some(
+                              (mark) => mark.subject_info?.marking_scheme === "BREAKDOWN"
+                            );
+                            return (
+                              <tr className="bg-muted/50 border-b border-border">
+                                <th className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100 italic">Subject</th>
+                                {showBreakdown && (
+                                  <>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">CQ</th>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">MCQ</th>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">PRC</th>
+                                  </>
                                 )}
-                              </td>
-                              <td className="border p-3 text-center">
-                                {mark.mcq_marks !== null &&
-                                  mark.mcq_marks !== undefined
-                                  ? mark.mcq_marks
-                                  : "N/A"}
-                                {mark.subject_info?.mcq_mark && (
-                                  <span className="text-xs text-muted-foreground block">
-                                    /{mark.subject_info.mcq_mark}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="border p-3 text-center">
-                                {mark.practical_marks !== null &&
-                                  mark.practical_marks !== undefined
-                                  ? mark.practical_marks
-                                  : "N/A"}
-                                {mark.subject_info?.practical_mark && (
-                                  <span className="text-xs text-muted-foreground block">
-                                    /{mark.subject_info.practical_mark}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="border p-3 text-center font-semibold">
-                                {mark.marks !== null && mark.marks !== undefined
-                                  ? mark.marks
-                                  : "N/A"}
-                              </td>
-                              <td className="border p-3 text-center">
-                                {mark.subject_info?.full_mark || "N/A"}
-                              </td>
-                              <td className="border p-3 text-center">
-                                <span
-                                  className={`font-medium ${percentage && parseFloat(percentage) >= 80
-                                    ? "text-green-600"
-                                    : percentage &&
-                                      parseFloat(percentage) >= 60
-                                      ? "text-yellow-600"
-                                      : percentage &&
-                                        parseFloat(percentage) >= 40
-                                        ? "text-orange-600"
-                                        : "text-red-600"
-                                    }`}
-                                >
-                                  {mark.marks !== null &&
-                                    mark.marks !== undefined &&
-                                    mark.subject_info?.full_mark
-                                    ? `${percentage}%`
-                                    : "N/A"}
-                                </span>
+                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Total</th>
+                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Status</th>
+                              </tr>
+                            );
+                          })()}
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {Array.isArray(selectedStudent.marks) && selectedStudent.marks.length > 0 ? (
+                            (() => {
+                              const showBreakdownTable = selectedStudent.marks?.some(
+                                (mark) => mark.subject_info?.marking_scheme === "BREAKDOWN"
+                              );
+                              return selectedStudent.marks
+                                .filter((mark) => mark.marks !== null)
+                                .map((mark, index) => {
+                                const percentage = mark.subject_info?.full_mark && mark.marks !== null
+                                  ? (mark.marks / mark.subject_info.full_mark) * 100
+                                  : 0;
+
+                                return (
+                                  <tr
+                                    key={index}
+                                    className="hover:bg-muted/30 transition-colors"
+                                  >
+                                    <td className="px-4 py-3 font-bold uppercase text-xs tracking-tight">
+                                      {mark.subject}
+                                    </td>
+                                    {showBreakdownTable && (
+                                      <>
+                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
+                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.cq_marks ?? "-") : "-"}
+                                        </td>
+                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
+                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.mcq_marks ?? "-") : "-"}
+                                        </td>
+                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
+                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.practical_marks ?? "-") : "-"}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="px-4 py-3 text-center tabular-nums font-bold text-primary">
+                                      {mark.marks ?? "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                          percentage >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                                          percentage >= 60 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
+                                          percentage >= 40 ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
+                                          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                        }`}
+                                      >
+                                        {percentage >= 33 ? "Passed" : "Failed"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              });
+                            })()
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground opacity-50 italic">
+                                No records available
                               </td>
                             </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={7}
-                            className="border p-4 text-center text-muted-foreground"
-                          >
-                            No marks data available
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <div className="p-6 bg-muted/10 border-t flex justify-end gap-3">
+                <Button variant="outline" onClick={closeDetailsPopup}>
+                  Close
+                </Button>
+                <Button onClick={(e) => {
+                  downloadMarksheet(selectedStudent.student_id, e);
+                  closeDetailsPopup();
+                }} className="gap-2">
+                  <Download className="w-4 h-4" /> Download Official Transcript
+                </Button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 export default ViewMarks;
+

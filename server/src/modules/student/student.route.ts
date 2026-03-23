@@ -6,8 +6,14 @@ const router = express.Router();
 
 router.get(
   "/",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  AuthMiddleware.authenticate(["admin"]),
   StudentController.getStudentsQueryController,
+);
+
+router.get(
+  "/attendance-overview",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  StudentController.getAttendanceOverviewController,
 );
 
 router.get(
@@ -62,6 +68,12 @@ router.post(
   "/password-rotations",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.rotatePasswordsBulkController,
+);
+
+router.post(
+  "/regenerate-all",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.regenerateAllCredentialsController,
 );
 
 router.post(

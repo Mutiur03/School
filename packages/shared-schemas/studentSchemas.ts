@@ -13,7 +13,7 @@ import {
   ADDRESS_TEXT,
   CLASS_NUM,
   LOGIN_ID,
-  VALID_DEPARTMENTS,
+  VALID_GROUPS,
   RELIGION,
 } from "./regex.js";
 
@@ -23,7 +23,7 @@ export const studentLoginSchema = z.object({
     .transform((val) => String(val))
     .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
     .refine((val) => LOGIN_ID.test(val), {
-      message: "Login ID must be exactly 5 digits",
+      message: "Login ID must be exactly 6 digits",
     }),
 
   password: z.string().min(1, "Password is required"),
@@ -114,7 +114,7 @@ export const studentFormSchema = z
       .trim()
       .min(1, "Class is required")
       .regex(CLASS_NUM, "Class must be between 1 and 10"),
-    department: z.string().trim(),
+    group: z.string().trim(),
     has_stipend: z.boolean(),
     available: z.boolean(),
     image: z.string().optional(),
@@ -130,14 +130,14 @@ export const studentFormSchema = z
     const classNumber = Number(value.class);
     if (
       (classNumber === 9 || classNumber === 10) &&
-      !VALID_DEPARTMENTS.includes(
-        value.department as (typeof VALID_DEPARTMENTS)[number],
+      !VALID_GROUPS.includes(
+        value.group as (typeof VALID_GROUPS)[number],
       )
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["department"],
-        message: "Department is required for class 9-10",
+        path: ["group"],
+        message: "Group is required for class 9-10",
       });
     }
   });
@@ -225,21 +225,21 @@ export const addStudentInputSchema = z
       .refine((value) => SECTION.test(value), {
         message: "Section must be a single letter",
       }),
-    department: z.any().optional().transform(normalizeOptionalText),
+    group: z.any().optional().transform(normalizeOptionalText),
     religion: z.string().trim().min(1, "Religion is required"),
     year: z.coerce.number().int().optional(),
   })
   .superRefine((value, ctx) => {
     if (
       (value.class === 9 || value.class === 10) &&
-      !VALID_DEPARTMENTS.includes(
-        (value.department || "") as (typeof VALID_DEPARTMENTS)[number],
+      !VALID_GROUPS.includes(
+        (value.group || "") as (typeof VALID_GROUPS)[number],
       )
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["department"],
-        message: "Department is required for class 9-10",
+        path: ["group"],
+        message: "Group is required for class 9-10",
       });
     }
   });
@@ -345,7 +345,7 @@ export const updateAcademicSchema = z
       .refine((value) => SECTION.test(value), {
         message: "Section must be a single letter (A-Z).",
       }),
-    department: z.any().transform(normalizeOptionalText),
+    group: z.any().transform(normalizeOptionalText),
     year: z.coerce.number().int(),
   })
   .partial()

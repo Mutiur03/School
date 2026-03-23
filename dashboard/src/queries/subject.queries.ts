@@ -25,7 +25,15 @@ export const useAddSubjects = () => {
       toast.success(data.message || "Subjects added successfully");
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Error adding subjects");
+      const serverErrors = error.response?.data?.errors;
+      if (Array.isArray(serverErrors) && serverErrors.length > 0) {
+        const firstError = serverErrors[0];
+        const fieldName = Array.isArray(firstError.path) ? firstError.path[firstError.path.length - 1] : "";
+        const msg = fieldName ? `${fieldName}: ${firstError.message}` : firstError.message;
+        toast.error(msg);
+      } else {
+        toast.error(error.response?.data?.error || "Error adding subjects");
+      }
     },
   });
 };
@@ -45,7 +53,15 @@ export const useUpdateSubject = () => {
       toast.success("Subject updated successfully");
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Error updating subject");
+      const serverErrors = error.response?.data?.errors;
+      if (Array.isArray(serverErrors) && serverErrors.length > 0) {
+        const firstError = serverErrors[0];
+        const fieldName = Array.isArray(firstError.path) ? firstError.path[firstError.path.length - 1] : "";
+        const msg = fieldName ? `${fieldName}: ${firstError.message}` : firstError.message;
+        toast.error(msg);
+      } else {
+        toast.error(error.response?.data?.error || "Error updating subject");
+      }
     },
   });
 };
