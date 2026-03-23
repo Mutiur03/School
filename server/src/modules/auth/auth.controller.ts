@@ -297,9 +297,6 @@ export class AuthController {
     }
 
     if (!user) {
-      console.log(
-        `[Refresh Token] User not found for role: ${payload.role}, id: ${payload.id}`,
-      );
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -307,9 +304,6 @@ export class AuthController {
     const userVersion = user.tokenVersion || 0;
 
     if (tokenVersion !== userVersion) {
-      console.log(
-        `[Refresh Token] Token version mismatch: payload ${tokenVersion}, user ${userVersion}`,
-      );
       throw new ApiError(401, "Unauthorized");
     }
 

@@ -2,9 +2,10 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "@/context/useAuth";
 import Loading from "./Loading";
+import ServerOffline from "@/pages/Common/ServerOffline";
 
 const StudentRoute = ({ element }: { element: ReactNode }) => {
-    const { user, loading, isStudent } = useAuth();
+    const { user, loading, isStudent, serverOffline } = useAuth();
 
     if (loading) {
         return (
@@ -13,6 +14,8 @@ const StudentRoute = ({ element }: { element: ReactNode }) => {
             </div>
         );
     }
+
+    if (serverOffline) return <ServerOffline />;
 
     return user && isStudent() ? element : <Navigate to="/student/login" />;
 };

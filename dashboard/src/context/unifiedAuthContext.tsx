@@ -72,6 +72,7 @@ export type { AdminUser, TeacherUser, StudentUser };
 interface UnifiedAuthContextType {
     user: User | null;
     loading: boolean;
+    serverOffline: boolean;
     preferredRole: UserRole | null;
     accessToken: string | null;
     loginAdmin: (username: string, password: string) => Promise<void>;
@@ -79,6 +80,7 @@ interface UnifiedAuthContextType {
     loginStudent: (login_id: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
+    retryAuth: () => void;
     setPreferredRole: (role: UserRole | null) => void;
     isAdmin: () => boolean;
     isTeacher: () => boolean;
@@ -86,9 +88,14 @@ interface UnifiedAuthContextType {
     hasRole: (role: UserRole) => boolean;
 }
 
+const isNetworkError = (error: any): boolean => {
+    return !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error');
+};
+
 const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
     user: null,
     loading: true,
+    serverOffline: false,
     preferredRole: null,
     accessToken: null,
     loginAdmin: async () => { },
@@ -96,6 +103,7 @@ const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
     loginStudent: async () => { },
     logout: async () => { },
     checkAuth: async () => { },
+    retryAuth: () => { },
     setPreferredRole: () => { },
     isAdmin: () => false,
     isTeacher: () => false,
@@ -106,11 +114,13 @@ const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
 export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [serverOffline, setServerOffline] = useState(false);
     const [preferredRole, setPreferredRole] = useState<UserRole | null>(
         envPreferredRole
     );
     const [accessToken, setAccessTokenState] = useState<string | null>(null);
     const tokenRef = useRef<string | null>(null);
+    const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const setAccessToken = (token: string | null) => {
         tokenRef.current = token;
@@ -136,9 +146,19 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         );
 
         const responseInterceptor = axios.interceptors.response.use(
-            (response) => response,
+            (response) => {
+                // If we get any successful response, server is back online
+                if (serverOffline) setServerOffline(false);
+                return response;
+            },
             async (error) => {
                 const originalRequest = error.config;
+
+                // Detect network errors (server unreachable)
+                if (isNetworkError(error)) {
+                    setServerOffline(true);
+                    return Promise.reject(error);
+                }
 
                 // Handle Blob error responses globally
                 if (error.response?.data instanceof Blob && error.response.data.type === "application/json") {
@@ -166,6 +186,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                             return axios(originalRequest);
                         }
                     } catch (refreshError) {
+                        // If refresh itself is a network error, mark offline
+                        if (isNetworkError(refreshError)) {
+                            setServerOffline(true);
+                            return Promise.reject(refreshError);
+                        }
                         console.error("Token refresh failed:", refreshError);
                     }
                     // Refresh failed or returned success:false — clear auth state
@@ -200,19 +225,64 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             if (refreshRes.data.success && accessToken) {
                 setAccessToken(accessToken);
                 setUser(userData);
+                setServerOffline(false);
                 if (userData?.role) {
                     setPreferredRole(userData.role as UserRole);
                 }
                 setLoading(false);
                 return;
             }
-        } catch {
-            // failed to refresh — no active session
-            console.log("No active refresh session found");
-            setUser(null);
+        } catch (error: any) {
+            // Distinguish: network error vs auth failure
+            if (isNetworkError(error)) {
+                console.log("Server is unreachable");
+                setServerOffline(true);
+                // Do NOT clear user — keep existing auth state if any
+            } else {
+                // Auth failure — no active session
+                console.log("No active refresh session found");
+                setUser(null);
+                setServerOffline(false);
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    // Auto-retry polling when server is offline
+    useEffect(() => {
+        if (serverOffline) {
+            retryIntervalRef.current = setInterval(async () => {
+                try {
+                    await axios.post("/api/auth/sessions/refresh", {}, {
+                        _skipAuthRefresh: true,
+                        timeout: 5000,
+                    });
+                    // If we get here, server is back
+                    setServerOffline(false);
+                    checkAuth();
+                } catch {
+                    // Still offline, keep polling
+                }
+            }, 5000);
+        } else {
+            if (retryIntervalRef.current) {
+                clearInterval(retryIntervalRef.current);
+                retryIntervalRef.current = null;
+            }
+        }
+
+        return () => {
+            if (retryIntervalRef.current) {
+                clearInterval(retryIntervalRef.current);
+                retryIntervalRef.current = null;
+            }
+        };
+    }, [serverOffline]);
+
+    const retryAuth = () => {
+        setServerOffline(false);
+        checkAuth();
     };
 
     const loginAdmin = async (username: string, password: string) => {
@@ -299,6 +369,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             value={{
                 user,
                 loading,
+                serverOffline,
                 preferredRole,
                 accessToken,
                 loginAdmin,
@@ -306,6 +377,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 loginStudent,
                 logout,
                 checkAuth,
+                retryAuth,
                 setPreferredRole,
                 isAdmin,
                 isTeacher,
