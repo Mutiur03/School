@@ -85,57 +85,13 @@ export class MarksController {
           "Student id, year, and exam are required parameters",
         );
       }
-      const pdfBuffer = await MarksService.generateMarksheetPDF(
+      const { buffer, studentName } = await MarksService.generateMarksheetPDF(
         id as string,
         year as string,
         exam as string,
         req.user,
       );
-      const filename = `marksheet_${id}_${exam}_${year}.pdf`;
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${filename}"`,
-      );
-      res.end(pdfBuffer);
-    },
-  );
-
-  static previewMarksheetController = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { id, year } = req.params;
-      if (!id || !year) {
-        throw new ApiError(400, "Student id and year are required parameters");
-      }
-      const data = await MarksService.previewMarksheet(
-        id as string,
-        year as string,
-        req.user,
-      );
-      res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            data,
-            "Marksheet preview data fetched successfully",
-          ),
-        );
-    },
-  );
-
-  static downloadPreviewMarksheetController = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { id, year } = req.params;
-      if (!id || !year) {
-        throw new ApiError(400, "Student id and year are required parameters");
-      }
-      const { buffer, studentName } = await MarksService.generatePreviewPDF(
-        id as string,
-        year as string,
-        req.user,
-      );
-      const filename = `marksheet_${studentName}_${year}.pdf`;
+      const filename = `marksheet_${studentName}_${exam}_${year}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",

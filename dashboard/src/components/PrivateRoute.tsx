@@ -7,7 +7,7 @@ import ServerOffline from "@/pages/Common/ServerOffline";
 const PrivateRoute = ({ element }: { element: ReactNode }) => {
   const { user, loading, isAdmin, serverOffline } = useAuth();
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loading />
@@ -15,9 +15,12 @@ const PrivateRoute = ({ element }: { element: ReactNode }) => {
     );
   }
 
-  if (serverOffline) return <ServerOffline />;
-
-  return user && isAdmin() ? element : <Navigate to="/login" />;
+  return (
+    <>
+      {serverOffline && <ServerOffline isOverlay />}
+      {user && isAdmin() ? element : <Navigate to="/login" />}
+    </>
+  );
 };
 
 export default PrivateRoute;

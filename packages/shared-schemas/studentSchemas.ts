@@ -23,7 +23,7 @@ export const studentLoginSchema = z.object({
     .transform((val) => String(val))
     .refine((val) => val.trim().length > 0, { message: "Login ID is required" })
     .refine((val) => LOGIN_ID.test(val), {
-      message: "Login ID must be exactly 5 digits",
+      message: "Login ID must be exactly 6 digits",
     }),
 
   password: z.string().min(1, "Password is required"),
