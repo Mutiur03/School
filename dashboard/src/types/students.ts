@@ -15,7 +15,7 @@ export interface Student {
   section: string;
   dob: string;
   class: number;
-  department: string;
+  group: string;
   has_stipend: boolean;
   available: boolean;
   image?: string;

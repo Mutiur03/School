@@ -264,3 +264,9 @@ docker builder prune -a
 docker build -f server/Dockerfile -t school-server .
 docker build --no-cache -fserver/Dockerfile -t school-server .
 
+
+<!-- #restore -->
+docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < C:\Users\Mutiur\Downloads\backup.sql
+
+<!-- #backup -->
+docker exec -i lbp-postgres_school-1 pg_dump -U mutiur -d school -F c > backup.sql

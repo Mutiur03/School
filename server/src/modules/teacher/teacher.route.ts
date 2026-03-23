@@ -6,18 +6,18 @@ const router = express.Router();
 
 // Teacher CRUD operations
 router.get("/", TeacherController.getTeachersController);
-router.get("/me", AuthMiddleware.authenticate(["teacher"]), TeacherController.getTeacherController);
 router.post("/", AuthMiddleware.authenticate(["admin"]), TeacherController.addTeacherController);
 router.put("/:id", AuthMiddleware.authenticate(["admin"]), TeacherController.updateTeacherController);
 router.delete("/:id", AuthMiddleware.authenticate(["admin"]), TeacherController.deleteTeacherController);
 
 // Teacher image management
-router.post("/image/upload-url", AuthMiddleware.authenticate(["admin"]), TeacherController.getTeacherImageUploadUrlController);
-router.put("/:id/image", AuthMiddleware.authenticate(["admin"]), TeacherController.saveTeacherImageController);
-router.delete("/:id/image", AuthMiddleware.authenticate(["admin"]), TeacherController.removeTeacherImageController);
+router.post("/image/upload-url", AuthMiddleware.authenticate(["admin", "teacher"]), TeacherController.getTeacherImageUploadUrlController);
+router.put("/:id/image", AuthMiddleware.authenticate(["admin", "teacher"]), TeacherController.saveTeacherImageController);
+router.delete("/:id/image", AuthMiddleware.authenticate(["admin", "teacher"]), TeacherController.removeTeacherImageController);
 
 // Teacher password management
 router.post("/change-password", AuthMiddleware.authenticate(["teacher"]), TeacherController.changePasswordController);
+router.post("/password-rotations", AuthMiddleware.authenticate(["admin"]), TeacherController.rotatePasswordsBulkController);
 
 // Head message management
 router.post("/head-message", AuthMiddleware.authenticate(["admin"]), TeacherController.updateHeadMessageController);

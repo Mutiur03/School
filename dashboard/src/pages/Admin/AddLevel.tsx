@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react";
-import axios, { isAxiosError } from "axios";
+import { useState, useMemo, useCallback } from "react";
+import axios from "axios";
 import { toast } from "react-hot-toast";
-import { FiTrash2, FiEdit, FiX } from "react-icons/fi";
-
-interface FormData {
-  class_name: string;
-  section: string;
-  year: number;
-  teacher_id: string;
-}
-
-interface Teacher {
-  id: string;
-  name: string;
-}
+import { Loader2, Plus, Search } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { levelFormSchema, type LevelFormSchemaData } from "@school/shared-schemas";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { PageHeader, SectionCard, StatsCard, ErrorMessage } from "@/components";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import ActionButton from "@/components/ActionButton";
+import DeleteConfirmation from "@/components/DeleteConfimation";
+import { useLevels } from "@/queries/level.queries";
+import { useTeacher } from "@/queries/teacher.queries";
 
 interface Level {
   id: string;
@@ -21,377 +20,294 @@ interface Level {
   section: string;
   year: number;
   teacher_id: string;
+  teacher_name?: string;
 }
 
-function AddLevel() {
-  const [formData, setFormData] = useState<FormData>({
-    class_name: "",
-    section: "",
-    year: new Date().getFullYear(),
-    teacher_id: "",
-  });
-
-  const [assignedLevels, setAssignedLevels] = useState<Level[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+const AddLevel = () => {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [levelToDelete, setLevelToDelete] = useState<string | null>(null);
-  const [isFormVisible, setIsFormVisible] = useState(false);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const fetchTeachers = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("/api/teachers");
-      setTeachers(res.data?.data?.data || res.data?.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching teachers:", err);
-      setLoading(false);
-    }
-  };
-
-  const fetchAssignedLevels = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("/api/level/getLevels");
-      setAssignedLevels(res.data.data);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching levels:", err);
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!formData.class_name || !formData.section || !formData.teacher_id) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      if (editingId) {
-        await axios.put(`/api/level/updateLevel/${editingId}`, formData);
-        toast.success("Assignment updated successfully");
-      } else {
-        await axios.post("/api/level/addLevel", formData);
-        toast.success("Class teacher assigned successfully");
-      }
-
-      resetForm();
-      fetchAssignedLevels();
-    } catch (error) {
-      if (isAxiosError(error))
-        toast.error(error.response?.data?.error || "Operation failed");
-      else toast.error("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      class_name: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<LevelFormSchemaData>({
+    resolver: zodResolver(levelFormSchema) as any,
+    defaultValues: {
+      class_name: undefined,
       section: "",
       year: new Date().getFullYear(),
-      teacher_id: "",
-    });
-    setEditingId(null);
-    setIsFormVisible(false);
-  };
+      teacher_id: undefined,
+    },
+  });
 
-  const handleEdit = (level: Level) => {
-    setFormData({
-      class_name: level.class_name,
-      section: level.section,
-      year: level.year,
-      teacher_id: level.teacher_id,
-    });
-    setEditingId(level.id);
-    setIsFormVisible(true);
-  };
+  const invalidateLevels = () => queryClient.invalidateQueries({ queryKey: ["levels"] });
 
-  const handleDelete = (id: string) => {
-    setLevelToDelete(id);
-    setShowDeleteModal(true);
-  };
+  const { data: levelsResponse, isLoading: isLevelsLoading } = useLevels();
+  const { data: teachersResponse, isLoading: isTeachersLoading } = useTeacher({ limit: 100 });
 
-  const confirmDelete = async () => {
-    try {
-      await axios.delete(`/api/level/deleteLevel/${levelToDelete}`);
+  const assignedLevels = useMemo(() => levelsResponse?.data || [], [levelsResponse]);
+  const teachers = useMemo(() => teachersResponse?.data || [], [teachersResponse]);
+
+  const addMutation = useMutation({
+    mutationFn: (data: LevelFormSchemaData) => axios.post("/api/level/addLevel", data),
+    onSuccess: () => {
+      toast.success("Class teacher assigned successfully");
+      invalidateLevels();
+      reset();
+      setShowForm(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to assign teacher");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: LevelFormSchemaData) => axios.put(`/api/level/updateLevel/${editingId}`, data),
+    onSuccess: () => {
+      toast.success("Assignment updated successfully");
+      invalidateLevels();
+      reset();
+      setShowForm(false);
+      setIsEditing(false);
+      setEditingId(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update assignment");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => axios.delete(`/api/level/deleteLevel/${id}`),
+    onSuccess: () => {
       toast.success("Assignment deleted successfully");
-      fetchAssignedLevels();
-    } catch (error) {
-      console.error("Error deleting assignment:", error);
-      toast.error("Failed to delete assignment");
-    } finally {
-      setShowDeleteModal(false);
+      invalidateLevels();
+    },
+    onError: () => toast.error("Failed to delete assignment"),
+  });
+
+  const onValidSubmit = (data: LevelFormSchemaData) => {
+    if (isEditing) {
+      updateMutation.mutate(data);
+    } else {
+      addMutation.mutate(data);
     }
   };
 
-  useEffect(() => {
-    fetchTeachers();
-    fetchAssignedLevels();
-  }, []);
+  const handleEdit = useCallback((level: Level) => {
+    setEditingId(level.id);
+    setIsEditing(true);
+    setShowForm(true);
+    reset({
+      class_name: Number(level.class_name),
+      section: level.section,
+      year: level.year,
+      teacher_id: Number(level.teacher_id),
+    });
+  }, [reset]);
 
-  const filteredLevels = assignedLevels.filter(
-    (level) => level.year === Number(filterYear)
-  );
+  const filteredLevels = useMemo(() => {
+    return assignedLevels.filter((level: Level) => {
+      const matchesYear = level.year === filterYear;
+      const matchesSearch = 
+        level.teacher_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        `Class ${level.class_name}`.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesYear && matchesSearch;
+    });
+  }, [assignedLevels, filterYear, searchQuery]);
+
+  const isSubmitting = addMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-light">Class Teacher Assignment</h1>
-        {!isFormVisible && (
-          <button
-            onClick={() => setIsFormVisible(!isFormVisible)}
-            className="px-4 py-2 rounded-md bg-primary text-white hover:bg-opacity-90"
-          >
-            + Assign Teacher
-          </button>
-        )}
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title="Class Teacher Assignment"
+        description="Assign teachers to specific classes and sections per year."
+      >
+        <div className="flex flex-wrap gap-3">
+          {!showForm && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Assign Teacher
+            </Button>
+          )}
+        </div>
+      </PageHeader>
 
-      {isFormVisible && (
-        <div className="rounded-lg shadow-sm border border-gray-100 p-6 mb-8">
-          <h2 className="text-lg font-medium mb-4">
-            {editingId ? "Edit Assignment" : "Create New Assignment"}
-          </h2>
+      {showForm && (
+        <SectionCard className="mb-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold">
+              {isEditing ? "Update Class Teacher" : "Assign New Class Teacher"}
+            </h2>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-normal mb-1">Class</label>
+          <form onSubmit={handleSubmit((data) => onValidSubmit({ ...data, year: filterYear }))} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Class</label>
                 <select
-                  name="class_name"
-                  value={formData.class_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  {...register("class_name")}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <option value="">Select Class</option>
-                  {["6", "7", "8", "9", "10"].map((cls) => (
-                    <option key={cls} value={cls}>
-                      Class {cls}
-                    </option>
+                  {[6, 7, 8, 9, 10].map((cls) => (
+                    <option key={cls} value={cls}>Class {cls}</option>
                   ))}
                 </select>
+                {errors.class_name && <ErrorMessage message={errors.class_name.message} />}
               </div>
 
-              <div>
-                <label className="block text-sm font-normal mb-1">Section</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Section</label>
                 <select
-                  name="section"
-                  value={formData.section}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  {...register("section")}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <option value="">Select Section</option>
                   {["A", "B"].map((sec) => (
-                    <option key={sec} value={sec}>
-                      Section {sec}
-                    </option>
+                    <option key={sec} value={sec}>Section {sec}</option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-normal mb-1">Year</label>
-                <input
-                  type="number"
-                  name="year"
-                  value={formData.year}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-border dark:bg-accent rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
-                  min="2000"
-                  max="2100"
-                />
+                {errors.section && <ErrorMessage message={errors.section.message} />}
               </div>
 
-              <div>
-                <label className="block text-sm font-normal mb-1">Teacher</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Teacher</label>
                 <select
-                  name="teacher_id"
-                  value={formData.teacher_id}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-border rounded dark:bg-accent focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  {...register("teacher_id")}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="">Select Teacher</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </option>
+                  <option value="">Choose Teacher</option>
+                  {teachers.map((teacher: any) => (
+                    <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
                   ))}
                 </select>
+                {errors.teacher_id && <ErrorMessage message={errors.teacher_id.message} />}
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
+            <div className="flex justify-between gap-3 pt-6 border-t border-border/50">
+              <Button
                 type="button"
-                onClick={resetForm}
-                className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-md"
+                variant="outline"
+                onClick={() => {
+                  setShowForm(false);
+                  setIsEditing(false);
+                  reset();
+                }}
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm bg-primary text-white hover:bg-primary/90 rounded-md"
-                disabled={loading}
-              >
-                {loading
-                  ? "Processing..."
-                  : editingId
-                    ? "Update Assignment"
-                    : "Create Assignment"}
-              </button>
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isEditing ? "Updating..." : "Assigning..."}
+                  </>
+                ) : (
+                  isEditing ? "Update Assignment" : "Assign Teacher"
+                )}
+              </Button>
             </div>
           </form>
-        </div>
+        </SectionCard>
       )}
 
-      <div className="mb-4 flex justify-end">
-        <div className="flex items-center space-x-2">
-          <label className="block text-sm font-normal">Filter by Year:</label>
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="px-3 py-1 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
-          >
-            {Array.from(
-              { length: 3 },
-              (_, i) => new Date().getFullYear() - i + 1
-            ).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <StatsCard label="Active Assignments" value={assignedLevels.length} loading={isLevelsLoading} />
+        <StatsCard label="Total Teachers" value={teachers.length} color="emerald" loading={isTeachersLoading} />
       </div>
 
-      <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <SectionCard className="mb-6">
+        <div className="flex flex-col md:flex-row items-end gap-4">
+          <div className="flex-1 min-w-[300px]">
+            <label className="block text-sm font-medium mb-1.5 text-muted-foreground">Search Assignments</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search by teacher or class..."
+                className="pl-10 h-10 border-border bg-background/50 hover:bg-background transition-colors"
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="w-full md:w-48">
+            <label className="block text-sm font-medium mb-1.5 text-muted-foreground">Academic Year</label>
+            <div className="relative">
+              <select
+                value={filterYear}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterYear(Number(e.target.value))}
+                className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background transition-colors cursor-pointer font-medium"
+              >
+                {[0, 1, 2].map((offset) => {
+                  const yr = new Date().getFullYear() - offset + 1;
+                  return <option key={yr} value={yr}>{yr}</option>;
+                })}
+              </select>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard noPadding>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-popover">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Class
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Section
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Year
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Teacher
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
-                  Actions
-                </th>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-muted border-b border-border">
+                {["Class", "Section", "Assigned Teacher", "Actions"].map((head) => (
+                  <th key={head} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${head === "Actions" ? "text-right" : ""}`}>
+                    {head}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredLevels.length === 0 ? (
+            <tbody className="divide-y divide-border text-sm">
+              {isLevelsLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm">
-                    No assigned teacher found for {filterYear}
+                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                    Loading assignments...
                   </td>
                 </tr>
-              ) : (
-                filteredLevels.map((level) => (
-                  <tr key={level.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium">
-                        Class {level.class_name}
+              ) : filteredLevels.length > 0 ? (
+                filteredLevels.map((level: Level) => (
+                  <tr key={level.id} className="hover:bg-muted/50 transition-colors">
+                    <td className="px-4 py-4 font-medium">Class {level.class_name}</td>
+                    <td className="px-4 py-4">{level.section}</td>
+                    <td className="px-4 py-4">
+                      {level.teacher_name || "Unknown"}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <ActionButton action="edit" onClick={() => handleEdit(level)} />
+                        <DeleteConfirmation
+                          onDelete={() => deleteMutation.mutate(level.id)}
+                          msg={`Are you sure you want to remove ${level.teacher_name} from Class ${level.class_name} Section ${level.section}?`}
+                        />
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">{level.section}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">{level.year}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        {teachers.find((t) => t.id === level.teacher_id)?.name || "Not assigned"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(level)}
-                        className="hover:text-sky-500 mr-3"
-                      >
-                        <FiEdit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(level.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
                     </td>
                   </tr>
                 ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-muted-foreground font-medium">
+                    No teacher assignments found for the current filters.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-          <div className="bg-background rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-medium text-foreground">
-                Confirm Deletion
-              </h3>
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <FiX size={20} />
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to delete this assignment? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-sm bg-accent text-accent-foreground hover:bg-accent/80 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
-              >
-                <FiTrash2 className="mr-2" size={14} />
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </SectionCard>
     </div>
   );
-}
+};
 
 export default AddLevel;

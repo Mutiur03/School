@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   studentFormSchema,
-  VALID_DEPARTMENTS,
+  VALID_GROUPS,
   toExcelString,
   normalizeExcelDate,
   formatDobForDateInput,
@@ -72,7 +72,14 @@ const StudentRow = React.memo(
               {student.name.charAt(0).toUpperCase()}
             </div>
           )}
-          {student.name}
+          <div className="flex flex-col">
+            <span>{student.name}</span>
+            {!student.available && (
+              <span className="text-[10px] uppercase font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-sm w-fit mt-0.5 tracking-wider">
+                Inactive
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
           {student.roll}
@@ -84,7 +91,7 @@ const StudentRow = React.memo(
           {student.section}
         </td>
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-          {student.department || ""}
+          {student.group || ""}
         </td>
 
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
@@ -129,7 +136,7 @@ const defaultFormValues: StudentFormData = {
   religion: "",
   dob: "",
   class: "",
-  department: "",
+  group: "",
   has_stipend: false,
   available: true,
 };
@@ -161,7 +168,7 @@ const demoExcelColumns = [
   "roll",
   "section",
   "religion",
-  "department",
+  "group",
   "has_stipend",
 ];
 
@@ -218,19 +225,13 @@ function StudentList() {
 
       return { blob: response.data as Blob, headers: response.headers };
     },
-    onSuccess: ({ blob, headers }, studentId) => {
-      const contentDisposition = headers["content-disposition"] as string | undefined;
-      const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch?.[1] ?? `Testimonial_${studentId}.pdf`;
+    onSuccess: ({ blob }) => {
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Testimonial downloaded!");
+      window.open(url, "_blank");
+      // Note: We don't revokeObjectURL here because the new tab needs it to load.
+      // Most browsers will handle the blob URL cleanup once the tab is closed
+      // or after some time.
+      toast.success("Testimonial opened in new tab!");
     },
     onError: (err: any) => {
       const message =
@@ -260,7 +261,7 @@ function StudentList() {
 
   useEffect(() => {
     if (watchedClass !== 9 && watchedClass !== 10) {
-      setValue("department", "");
+      setValue("group", "");
     }
   }, [watchedClass, setValue]);
 
@@ -372,7 +373,7 @@ function StudentList() {
       class: student.class.toString(),
       roll: student.roll.toString(),
       section: student.section,
-      department: student.department || "",
+      group: student.group || "",
       religion: student.religion as "Islam" | "Hinduism" | "Christianity" | "Buddhism" | "",
       has_stipend: Boolean(student.has_stipend),
       available: student.available,
@@ -531,7 +532,7 @@ function StudentList() {
       }
       const parsedValues = parsedForm.data as StudentFormData;
       const classNumber = Number(parsedValues.class);
-      const requiresDepartment = classNumber === 9 || classNumber === 10;
+      const requiresGroup = classNumber === 9 || classNumber === 10;
 
       const basicDeatils: Record<string, string | boolean | null> = {
         name: parsedValues.name || "",
@@ -554,7 +555,7 @@ function StudentList() {
         roll: parsedValues.roll || "",
         class: parsedValues.class || "",
         section: parsedValues.section || "",
-        department: requiresDepartment ? parsedValues.department || "" : "",
+        group: requiresGroup ? parsedValues.group || "" : "",
       };
 
       if (isEditing && selectedStudent) {
@@ -572,7 +573,7 @@ function StudentList() {
                 roll: parsedValues.roll,
                 class: parsedValues.class,
                 section: parsedValues.section,
-                department: requiresDepartment ? parsedValues.department : "",
+                group: requiresGroup ? parsedValues.group : "",
               },
             ],
           },
@@ -673,7 +674,7 @@ function StudentList() {
           roll: toExcelString(student.roll),
           section: toExcelString(student.section).toUpperCase(),
           religion: toExcelString(student.religion),
-          department: toExcelString(student.department),
+          group: toExcelString(student.group),
           has_stipend: toExcelString(student.has_stipend).toLowerCase() === "yes",
           available: true,
         };
@@ -698,13 +699,13 @@ function StudentList() {
         }
 
         const classNum = Number((row.class as string) || 0);
-        if ((classNum === 9 || classNum === 10) && !(row.department as string)?.trim()) {
+        if ((classNum === 9 || classNum === 10) && !(row.group as string)?.trim()) {
           console.error("[Excel Row Validation Failed]", {
             rowNumber: index + 2,
             input: row,
-            issues: [{ path: ["department"], message: "Department is required for class 9-10" }],
+            issues: [{ path: ["group"], message: "Group is required for class 9-10" }],
           });
-          validationErrors.push(`Row ${index + 2}: Department is required for class 9-10`);
+          validationErrors.push(`Row ${index + 2}: Group is required for class 9-10`);
         }
       });
 
@@ -750,7 +751,7 @@ function StudentList() {
         roll: "12",
         section: "A",
         religion: "Islam",
-        department: "",
+        group: "",
         has_stipend: "No",
       },
       {
@@ -768,7 +769,7 @@ function StudentList() {
         roll: "5",
         section: "B",
         religion: "Islam",
-        department: "Science",
+        group: "Science",
         has_stipend: "Yes",
       },
     ];
@@ -906,8 +907,7 @@ function StudentList() {
         )}
       </PageHeader>
       {showForm && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-6 overflow-hidden">
-          <div className="w-full p-6">
+        <SectionCard className="mb-6 overflow-hidden">
             <h2 className="text-xl font-bold text-foreground mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
             </h2>
@@ -1090,20 +1090,20 @@ function StudentList() {
                       </div>
                       {(watchedClass === 9 || watchedClass === 10) && (
                         <div className="space-y-1.5">
-                          <label className="block text-sm font-medium">Department <span className="text-destructive">*</span></label>
+                          <label className="block text-sm font-medium">Group <span className="text-destructive">*</span></label>
                           <select
-                            {...register("department")}
+                            {...register("group")}
                             disabled={!(watchedClass === 9 || watchedClass === 10)}
                             className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <option value="">Select Department</option>
-                            {(VALID_DEPARTMENTS as readonly string[]).map((department: string) => (
-                              <option key={department} value={department}>
-                                {department}
+                            <option value="">Select Group</option>
+                            {(VALID_GROUPS as readonly string[]).map((group: string) => (
+                              <option key={group} value={group}>
+                                {group}
                               </option>
                             ))}
                           </select>
-                          {errors.department && <ErrorMessage message={errors.department.message} />}
+                          {errors.group && <ErrorMessage message={errors.group.message} />}
                         </div>
                       )}
                     </div>
@@ -1163,11 +1163,12 @@ function StudentList() {
                         <span>Has Stipend</span>
                       </label>
                       {isEditing && (
-                        <label className="flex items-center space-x-2 text-sm font-medium">
+                        <label className="flex items-center space-x-2 text-sm font-medium opacity-50 cursor-not-allowed">
                           <input
                             type="checkbox"
                             {...register("available")}
                             className="w-4 h-4"
+                            disabled
                           />
                           <span>Active Student</span>
                         </label>
@@ -1301,8 +1302,7 @@ function StudentList() {
                 </form>
               )}
             </div>
-          </div>
-        </div>
+        </SectionCard>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />
@@ -1466,7 +1466,7 @@ function StudentList() {
                   "Roll",
                   "Class",
                   "Section",
-                  "Department",
+                   "Group",
                   "Actions",
                 ].map((header) => (
                   <th
@@ -1630,8 +1630,8 @@ function StudentList() {
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
                   <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
-                  {popup.student.department && (
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.department}</span>
+                  {popup.student.group && (
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.group}</span>
                   )}
                   {popup.student.has_stipend && (
                     <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
@@ -1783,7 +1783,7 @@ function StudentList() {
                   <div>• roll</div>
                   <div>• section</div>
 
-                  <div>• department</div>
+                  <div>• group</div>
                   <div></div>
                 </div>
               </div>
@@ -1804,7 +1804,7 @@ function StudentList() {
                     <strong>has_stipend:</strong> Use "Yes" or "No"
                   </li>
                   <li>
-                    <strong>department:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
+                    <strong>group:</strong> Required only for classes 9 and 10 (Science/Commerce/Humanities)
                   </li>
                   <li>
                     <strong>File Format:</strong> Only .xlsx or .xls files are accepted

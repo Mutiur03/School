@@ -15,11 +15,7 @@ export const passStatusController = async (req, res) => {
     const students = await prisma.student_enrollments.findMany({
       where: { year: parseInt(year) },
       include: {
-        student: {
-          include: {
-            gpa: true,
-          },
-        },
+        student: true,
         marks: true,
       },
     });
@@ -42,9 +38,6 @@ export const passStatusController = async (req, res) => {
 
       let failed;
 
-      if (studentClass === 8) {
-        failed = !studentData?.gpa || studentData.gpa.jsc_gpa < 2.0;
-      } else {
         const failCount = await prisma.marks.count({
           where: {
             enrollment_id: enrollmentId,
@@ -57,7 +50,6 @@ export const passStatusController = async (req, res) => {
           where: { id: enrollmentId },
           data: { fail_count: failCount },
         });
-      }
 
       await prisma.student_enrollments.update({
         where: { id: enrollmentId },
@@ -88,14 +80,10 @@ export const promoteStudentController = async (req, res) => {
         student: { available: true },
       },
       include: {
-        student: {
-          include: {
-            gpa: true,
-          },
-        },
+        student: true,
         marks: true,
       },
-      orderBy: [{ class: "asc" }, { department: "asc" }],
+      orderBy: [{ class: "asc" }, { group: "asc" }],
     });
 
     // Calculate sort values for each student
@@ -104,8 +92,7 @@ export const promoteStudentController = async (req, res) => {
         (sum, mark) => sum + mark.marks,
         0
       );
-      const sortValue =
-        student.class === 8 ? student.student?.gpa?.jsc_gpa || 0 : totalMarks;
+      const sortValue = totalMarks;
 
       return {
         ...student,
@@ -114,10 +101,10 @@ export const promoteStudentController = async (req, res) => {
       };
     });
 
-    // Group by class and department for merit calculation
+    // Group by class and group for merit calculation
     const groupedStudents = {};
     studentsWithMerit.forEach((student) => {
-      const key = `${student.class}-${student.department}`;
+      const key = `${student.class}-${student.group}`;
       if (!groupedStudents[key]) {
         groupedStudents[key] = [];
       }
@@ -168,7 +155,7 @@ export const promoteStudentController = async (req, res) => {
 
     // Update merit in database for non-class-8 students
     for (const student of studentsWithMerit) {
-      if (student.class !== 8) {
+      if (student.class !== 127) { // Always update merit since GPA is gone
         await prisma.student_enrollments.update({
           where: { id: student.id },
           data: { final_merit: student.final_merit },
@@ -185,7 +172,7 @@ export const promoteStudentController = async (req, res) => {
 
     // Process all classes and assign rolls based on merit
     Object.keys(groupedStudents).forEach((key) => {
-      const [currentClass, department] = key.split("-");
+      const [currentClass, groupName] = key.split("-");
       const classNum = parseInt(currentClass);
       const group = groupedStudents[key];
 
@@ -203,7 +190,7 @@ export const promoteStudentController = async (req, res) => {
       group.forEach((student) => {
         const newClassKey =
           classNum === 9 && student.new_class === 10
-            ? `${student.new_class}-${department}`
+            ? `${student.new_class}-${groupName}`
             : `${student.new_class}`;
 
         if (!newClassGroups[newClassKey]) {
@@ -239,7 +226,7 @@ export const promoteStudentController = async (req, res) => {
       const {
         id: enrollment_id,
         student_id,
-        department,
+        group,
         new_class,
         new_section,
         new_roll,
@@ -275,14 +262,14 @@ export const promoteStudentController = async (req, res) => {
           section: new_section,
           year: newYear,
           status: "Pending",
-          department,
+          group,
         },
       });
     }
 
     res.json({
       message:
-        "Promotion, Merit Update & Roll Assignment Completed by Department!",
+        "Promotion, Merit Update & Roll Assignment Completed by Group!",
     });
   } catch (error) {
     console.error("Error promoting students:", error);

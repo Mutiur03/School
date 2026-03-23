@@ -1,457 +1,528 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "react-hot-toast";
+import {
+  useAttendance,
+  useAttendanceOverview,
+  useAddAttendance,
+  useAttendanceStats,
+  useSmsSettings,
+} from "@/queries/attendence.queries.js";
+import PageHeader from "@/components/PageHeader.js";
+import SectionCard from "@/components/SectionCard.js";
+import StatsCard from "@/components/StatsCard.js";
+import {
+  Calendar as CalendarIcon,
+  Save,
+  RefreshCcw,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Filter,
+  Eye,
+  EyeOff,
+  X,
+  Clock,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { calculateSMSCount } from "@school/shared-schemas";
 
-interface Student {
+interface StudentOverview {
   id: number;
   name: string;
-  roll: number;
-  section: string;
+  image: string | null;
   class: number;
+  section: string;
+  roll: number;
+  enrollment_id: number;
+  login_id: number;
 }
 
-interface AttendanceRecord {
-  student_id: number;
-  date: string;
-  status: "present" | "absent";
-}
-
-interface AttendanceData {
-  [studentId: number]: {
-    [day: number]: "present" | "absent";
-  };
-}
-
-interface SavedAttendanceRecord {
-  studentId: number;
-  date: string;
-  status: string;
-}
+const months = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function Attendance() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
-  const [editableDays, setEditableDays] = useState<number[]>([]);
-  const [visibleDays, setVisibleDays] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [classList, setClassList] = useState<number[]>([]);
-  const [selectedClass, setSelectedClass] = useState<number | "">("");
-
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
   const currentDate = new Date();
-  const currentDay = currentDate.getDate();
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedClass, setSelectedClass] = useState<number | "">("");
+  const [selectedSection, setSelectedSection] = useState<string>("");
+  const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
+  const [localAttendance, setLocalAttendance] = useState<Record<string, "present" | "absent">>({});
+  const [lastSaveResult, setLastSaveResult] = useState<any>(null);
+  const { data: smsSettings } = useSmsSettings(selectedSection);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const { data: attendanceRecords } = useAttendance({
+    month: selectedMonth,
+    year: selectedYear,
+    level: selectedClass === "" ? undefined : selectedClass,
+    section: selectedSection || undefined,
+  });
+  const { data: studentsData, isLoading: studentsLoading } = useAttendanceOverview({
+    year: selectedYear,
+    level: selectedClass === "" ? undefined : selectedClass,
+    section: selectedSection || undefined,
+  });
 
-        const [studentsResponse, attendanceResponse] = await Promise.all([
-          axios
-            .get(`/api/students`, {
-              params: { year: selectedYear },
-            })
-            .catch((err) => {
-              if (
-                err.response?.status === 404 ||
-                err.response?.data?.data?.length === 0
-              ) {
-                return { data: { data: [] } };
-              }
-              throw err;
-            }),
-          axios.get(`/api/attendance/getAttendence`).catch((err) => {
-            if (
-              err.response?.status === 404 ||
-              err.response?.data?.length === 0
-            ) {
-              return { data: [] };
-            }
-            throw err;
-          }),
-        ]);
+  const todayIso = `${currentDate.getFullYear()}-${String(
+    currentDate.getMonth() + 1
+  ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
 
-        const fetchedStudents: Student[] = (studentsResponse.data.data || [])
-          .sort((a: Student, b: Student) => a.roll - b.roll)
-          .sort((a: Student, b: Student) => a.section.localeCompare(b.section));
-        setClassList([...new Set(fetchedStudents.map((student: Student) => student.class))] as number[]);
-        setStudents(fetchedStudents);
+  const { data: persistentStats } = useAttendanceStats({
+    date: todayIso,
+    level: selectedClass === "" ? 0 : selectedClass,
+    section: selectedSection,
+    year: selectedYear,
+  });
 
-        const attendanceMap: AttendanceData = {};
-        const attendanceRecords: AttendanceRecord[] = attendanceResponse.data || [];
-        attendanceRecords.forEach((record) => {
-          const date = new Date(record.date);
-          const day = date.getDate();
-          const month = date.getMonth();
-          const year = date.getFullYear();
-          if (month === selectedMonth && year === selectedYear) {
-            if (!attendanceMap[record.student_id]) {
-              attendanceMap[record.student_id] = {};
-            }
-            attendanceMap[record.student_id][day] = record.status;
-          }
-        });
-        setAttendanceData(attendanceMap);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        const error = err as { response?: { status?: number } };
-        if (!error.response || (typeof error.response.status === "number" && error.response.status >= 500)) {
-          setError(
-            "Failed to fetch students or attendance data. Please try again."
-          );
-        }
-        setStudents([]);
-        setAttendanceData({});
-        setClassList([]);
-      } finally {
-        setLoading(false);
+  const addAttendanceMutation = useAddAttendance();
+  const statsToDisplay = lastSaveResult || persistentStats?.data;
+
+  const classes = [6, 7, 8, 9, 10];
+  const sections = ["A", "B"];
+
+  const daysInMonth = useMemo(() => {
+    return new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  }, [selectedMonth, selectedYear]);
+
+  const { attendanceMap, sentMap } = useMemo(() => {
+    const aMap: Record<string, "present" | "absent"> = {};
+    const sMap: Record<string, boolean> = {};
+
+    if (!attendanceRecords?.data) return { attendanceMap: aMap, sentMap: sMap };
+
+    attendanceRecords.data.forEach((record: any) => {
+      if (record.date.startsWith(`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`)) {
+        const day = parseInt(record.date.split("-")[2]);
+        const key = `${record.student_id}-${day}`;
+        aMap[key] = record.status;
+        sMap[key] = !!record.send_msg;
       }
-    };
+    });
+    return { attendanceMap: aMap, sentMap: sMap };
+  }, [attendanceRecords, selectedMonth, selectedYear]);
 
-    fetchData();
-    setVisibleDays([currentDay]);
-    setEditableDays([]);
-  }, [currentDay, selectedMonth, selectedYear]);
+  const students = (studentsData?.data || []) as StudentOverview[];
 
-  const getDaysInMonth = (month: number, year: number): number =>
-    new Date(year, month + 1, 0).getDate();
+  const hasTodayRecords = useMemo(() => {
+    const todayDay = currentDate.getDate();
+    const isToday = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+    if (!isToday || !attendanceRecords?.data) return false;
 
-  const toggleVisibleDay = (day: number) => {
-    setVisibleDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
+    return attendanceRecords.data.some((record: any) => {
+      return record.date === `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
+    });
+  }, [attendanceRecords, currentDate, selectedMonth, selectedYear]);
 
-  const isEditable = (day: number): boolean =>
-    (selectedMonth === currentMonth &&
-      selectedYear === currentYear &&
-      day === currentDay) ||
-    editableDays.includes(day);
-
-  const isVisible = (day: number): boolean =>
-    (selectedMonth === currentMonth &&
-      selectedYear === currentYear &&
-      day === currentDay) ||
-    visibleDays.includes(day);
-
-  const handleAttendanceChange = (studentId: number, day: number, isChecked: boolean) => {
-    if (isEditable(day)) {
-      const updatedAttendance = { ...attendanceData };
-      if (!updatedAttendance[studentId]) {
-        updatedAttendance[studentId] = {};
+  const handleAttendanceChange = (studentId: number, day: number, isPresent: boolean) => {
+    const key = `${studentId}-${day}`;
+    const nextStatus: "present" | "absent" = isPresent ? "present" : "absent";
+    const currentStatus = attendanceMap[key] || "absent";
+    setLocalAttendance((prev: Record<string, "present" | "absent">) => {
+      if (nextStatus === currentStatus) {
+        const { [key]: _removed, ...rest } = prev;
+        return rest;
       }
-      updatedAttendance[studentId][day] = isChecked ? "present" : "absent";
-      setAttendanceData(updatedAttendance);
-    }
+      return {
+        ...prev,
+        [key]: nextStatus,
+      };
+    });
   };
 
-  const getAttendanceStatus = (studentId: number, day: number): string => {
-    return attendanceData[studentId]?.[day] || "";
+  const getStatus = (studentId: number, day: number) => {
+    const key = `${studentId}-${day}`;
+    return localAttendance[key] || attendanceMap[key] || "absent";
   };
 
-  const resetFilters = () => {
-    setSelectedMonth(currentMonth);
-    setSelectedYear(currentYear);
-    setVisibleDays([currentDay]);
-    setEditableDays([]);
-  };
+  const smsEstimate = useMemo(() => {
+    if (!smsSettings || !smsSettings.is_active || students.length === 0) return { count: 0, cost: 0 };
+
+    const todayDay = currentDate.getDate();
+    const isToday = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+    if (!isToday) return { count: 0, cost: 0 };
+
+    const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+
+    let totalSegments = 0;
+    let messagesToSend = 0;
+
+    // Helper for segment calculation (mirroring backend SMSService)
+    const calculateSegments = (text: string) => calculateSMSCount(text).count;
+
+    students.forEach(student => {
+      const status = getStatus(student.id, todayDay);
+      const shouldSend = (status === "present" && smsSettings.send_to_present) ||
+        (status === "absent" && smsSettings.send_to_absent);
+
+      const alreadySent = sentMap[`${student.id}-${todayDay}`];
+      if (alreadySent) return;
+
+      if (shouldSend) {
+        const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
+        // Approximation of interpolated message length
+        const message = template
+          .replace(/{student_name}/g, student.name)
+          .replace(/{login_id}/g, student.login_id?.toString() || "")
+          .replace(/{date}/g, todayIso) // Date length is fixed
+          .replace(/{school_name}/g, "Panchbibi Lal Bihari Govt High School");
+
+        totalSegments += calculateSegments(message);
+        messagesToSend++;
+      }
+    });
+
+    return { count: messagesToSend, cost: totalSegments };
+  }, [smsSettings, students, localAttendance, attendanceMap, sentMap, selectedMonth, selectedYear]);
 
   const saveAttendance = async () => {
-    try {
-      setSaving(true);
-      const allEditableDays = [
-        ...(selectedMonth === currentMonth && selectedYear === currentYear
-          ? [currentDay]
-          : []),
-        ...editableDays,
-      ];
-      const attendanceRecords: SavedAttendanceRecord[] = [];
-      students
-        .filter((student) => student.class === selectedClass)
-        .forEach((student) => {
-          allEditableDays.forEach((day) => {
-            attendanceRecords.push({
-              studentId: student.id,
-              date: `${selectedYear}-${selectedMonth + 1}-${day}`,
-              status: attendanceData[student.id]?.[day] || "absent",
-            });
-          });
-        });
-
-      const data = await axios
-        .post("/api/attendance/addAttendence", {
-          records: attendanceRecords,
-        })
-        .then((res) => res.data);
-
-      alert(
-        `${data.message}\nPresent: ${data.present}\nAbsent: ${data.absent}\nSMS Success: ${data.sms.successful}\nSMS Failed: ${data.sms.failed}`
-      );
-    } catch (err) {
-      console.error("Error saving attendance:", err);
-      alert("Failed to save attendance");
-    } finally {
-      setSaving(false);
+    if (!selectedClass || !selectedSection) {
+      toast.error("Please select both class and section");
+      return;
     }
+
+    const todayDay = currentDate.getDate();
+    const isTodaySelectable = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+
+    if (!isTodaySelectable) {
+      toast.error("Attendance can only be managed for the current date");
+      return;
+    }
+
+    const recordsToSave: any[] = [];
+    students.forEach((student) => {
+      const status = getStatus(student.id, todayDay);
+      recordsToSave.push({
+        studentId: student.id,
+        date: `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`,
+        status,
+      });
+    });
+
+    addAttendanceMutation.mutate(recordsToSave, {
+      onSuccess: (data) => {
+        setLastSaveResult(data.data);
+        setLocalAttendance({});
+      },
+    });
   };
 
-  const addtovisible = () => {
-    setVisibleDays(
-      Array.from(
-        { length: getDaysInMonth(selectedMonth, selectedYear) },
-        (_, i) => i + 1
-      )
+  const toggleVisibleDay = (day: number) => {
+    setVisibleDays((prev: number[]) =>
+      prev.includes(day) ? prev.filter((d: number) => d !== day) : [...prev, day].sort((a, b) => a - b)
     );
   };
 
-  const resetvisible = () => {
-    setVisibleDays([currentDay]);
+  const selectAllDays = () => {
+    setVisibleDays(Array.from({ length: daysInMonth }, (_, i) => i + 1));
   };
 
+  const resetVisibleDays = () => {
+    setVisibleDays([currentDate.getDate()]);
+  };
+
+
   return (
-    <div className="p-4 sm:p-6">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4">
-        Attendance Management
-      </h1>
-      <p className="mb-4 text-sm sm:text-base">
-        View and manage attendance records for students.
-      </p>
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6 items-stretch md:items-center">
-        <select
-          className="border rounded-lg text-input dark:bg-accent px-3 py-2 w-full md:w-auto"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-        >
-          {months.map((month, index) => (
-            <option key={month} value={index}>
-              {month}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="border rounded-lg px-3 py-2 text-input dark:bg-accent w-full md:w-auto"
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-        >
-          {[currentYear - 1, currentYear, currentYear + 1].map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-
-        <Button onClick={resetFilters} variant="outline">
-          Reset
-        </Button>
-      </div>
-
-      <div className="mb-4 space-y-4">
-        <div>
-          <p className="font-semibold mb-1">Toggle Visible Days:</p>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(
-              { length: getDaysInMonth(selectedMonth, selectedYear) },
-              (_, i) => i + 1
-            ).map((day) => (
-              <button
-                key={day}
-                onClick={() => toggleVisibleDay(day)}
-                className={`px-2 py-1 text-sm border rounded-md ${isVisible(day) ? "bg-green-500 text-white" : ""
-                  }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-2">
-            <Button
-              onClick={addtovisible}
-              className="bg-green-500 text-white hover:bg-green-600"
-            >
-              Select All
-            </Button>
-            <Button variant="outline" onClick={resetvisible}>
-              Reset
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <select
-          className="border rounded-md text-input dark:bg-accent px-3 py-2 w-full md:w-auto"
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(parseInt(e.target.value))}
-        >
-          <option value="" disabled>
-            Select Class
-          </option>
-          {classList.map((classItem) => (
-            <option key={classItem} value={classItem}>
-              Class {classItem}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-700 text-sm">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-2 text-red-700 underline text-sm hover:text-red-900"
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
+      <PageHeader
+        title="Attendance Management"
+        description="Monitor and record student attendance across different classes and sections."
+      >
+        <div className="flex flex-col items-end gap-2">
+          {smsEstimate.cost > 0 && (
+            <div className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${smsSettings?.sms_balance < smsEstimate.cost
+              ? "bg-red-100 text-red-700 animate-pulse"
+              : "bg-primary/10 text-primary"
+              }`}>
+              Est. SMS Cost: {smsEstimate.cost} credits
+              {smsSettings?.sms_balance < smsEstimate.cost && " (Insufficient Balance!)"}
+            </div>
+          )}
+          <Button
+            onClick={saveAttendance}
+            disabled={
+              addAttendanceMutation.isPending ||
+              !selectedClass ||
+              !selectedSection ||
+              !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()) ||
+              (hasTodayRecords && Object.keys(localAttendance).length === 0) || !students.length
+            }
+            className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            Retry
-          </button>
+            {addAttendanceMutation.isPending ? (
+              <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {addAttendanceMutation.isPending ? "Saving..." : "Save Attendance"}
+          </Button>
+        </div>
+      </PageHeader>
+
+      {statsToDisplay && (statsToDisplay.present > 0 || statsToDisplay.absent > 0) && (
+        <div className="relative space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
+              <RefreshCcw className="w-4 h-4" />
+              {lastSaveResult ? "Last Submission Results" : "Today's Attendance Overview"}
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLastSaveResult(null);
+              }}
+              className="h-8 w-8 p-0 rounded-full hover:bg-muted"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <StatsCard
+              label="Present"
+              value={statsToDisplay.present}
+              color="emerald"
+              icon={<CheckCircle2 className="w-5 h-5" />}
+              loading={false}
+            />
+            <StatsCard
+              label="Absent"
+              value={statsToDisplay.absent}
+              color="red"
+              icon={<XCircle className="w-5 h-5" />}
+              loading={false}
+            />
+            <StatsCard
+              label="SMS Success"
+              value={statsToDisplay.sms.successful}
+              color="blue"
+              icon={<RefreshCcw className="w-5 h-5" />}
+              loading={false}
+            />
+            <StatsCard
+              label="SMS Failed"
+              value={statsToDisplay.sms.failed}
+              color="amber"
+              icon={<Filter className="w-5 h-5" />}
+              loading={false}
+            />
+            <StatsCard
+              label="Pending SMS"
+              value={statsToDisplay.sms.pending}
+              color="violet"
+              icon={<Clock className="w-5 h-5" />}
+              loading={false}
+            />
+          </div>
         </div>
       )}
 
-      {loading ? (
-        <p>Loading attendance data...</p>
-      ) : error ? (
-        <p className="text-muted-foreground">
-          Please resolve the error above to view attendance data.
-        </p>
-      ) : (
-        <>
-          <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full border divide-y divide-gray-200">
-                <thead className="bg-popover">
-                  <tr>
-                    <th className="min-w-[50px] px-4 py-2 text-left sticky top-0 z-10">
-                      Section
-                    </th>
-                    <th className="min-w-[50px] px-4 py-2 text-left sticky top-0 z-10">
-                      Roll
-                    </th>
-                    <th className="min-w-[150px] px-4 py-2 text-left sticky top-0 z-10">
-                      Name
-                    </th>
-                    {selectedClass &&
-                      Array.from(
-                        { length: getDaysInMonth(selectedMonth, selectedYear) },
-                        (_, i) => i + 1
-                      )
-                        .filter((day) => isVisible(day))
-                        .map((day) => (
-                          <th
-                            key={day}
-                            className={`min-w-[50px] px-3 py-2 text-center sticky top-0 z-10 ${isEditable(day) ? "" : "opacity-50"
-                              }`}
-                          >
-                            {day}
-                          </th>
-                        ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {!selectedClass && (
-                    <tr>
-                      <td colSpan={4} className="text-center py-4">
-                        Please select a class to view attendance.
-                      </td>
-                    </tr>
-                  )}
-                  {selectedClass &&
-                    students
-                      .filter((student) => student.class === selectedClass)
-                      .map((student) => (
-                        <tr key={student.id}>
-                          <td className="px-4 py-2">{student.section}</td>
-                          <td className="px-4 py-2">{student.roll}</td>
-                          <td className="px-4 py-2">{student.name}</td>
-                          {Array.from(
-                            {
-                              length: getDaysInMonth(
-                                selectedMonth,
-                                selectedYear
-                              ),
-                            },
-                            (_, i) => i + 1
-                          )
-                            .filter((day) => isVisible(day))
-                            .map((day) => (
-                              <td
-                                key={day}
-                                className="px-3 py-2 text-center"
-                              >
-                                {isEditable(day) ? (
-                                  <input
-                                    type="checkbox"
-                                    checked={
-                                      getAttendanceStatus(student.id, day) ===
-                                      "present"
-                                    }
-                                    onChange={(e) =>
-                                      handleAttendanceChange(
-                                        student.id,
-                                        day,
-                                        e.target.checked
-                                      )
-                                    }
-                                    className="w-4 h-4"
-                                  />
-                                ) : (
-                                  <span
-                                    className={
-                                      getAttendanceStatus(student.id, day) ===
-                                        "present"
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                    }
-                                  >
-                                    {getAttendanceStatus(student.id, day)
-                                      .charAt(0)
-                                      .toUpperCase()}
-                                  </span>
-                                )}
-                              </td>
-                            ))}
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
+      <SectionCard title="Search & Filters" icon={<Filter className="w-5 h-5" />}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Month</label>
+            <select
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            >
+              {months.map((month, index) => (
+                <option key={month} value={index}>
+                  {month}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Year</label>
+            <select
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            >
+              {[currentDate.getFullYear() - 1, currentDate.getFullYear(), currentDate.getFullYear() + 1].map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Class</label>
+            <select
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedClass}
+              onChange={(e) => {
+                setSelectedClass(e.target.value ? parseInt(e.target.value) : "");
+                setSelectedSection("");
+              }}
+            >
+              <option value="">Select Class</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Section</label>
+            <select
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              disabled={!selectedClass}
+            >
+              <option value="">Select Section</option>
+              {sections.map((s: string) => (
+                <option key={s} value={s}>
+                  Section {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <label className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
+              <CalendarIcon className="w-4 h-4 text-primary" />
+              Toggle Visible Days
+            </label>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button variant="ghost" size="sm" onClick={selectAllDays} className="flex-1 sm:flex-none text-xs h-8">
+                <Eye className="w-3 h-3 mr-1.5" />
+                Select All
+              </Button>
+              <Button variant="ghost" size="sm" onClick={resetVisibleDays} className="flex-1 sm:flex-none text-xs h-8">
+                <EyeOff className="w-3 h-3 mr-1.5" />
+                Reset
+              </Button>
             </div>
           </div>
+          <div className="max-w-full overflow-hidden">
+            <div className="flex flex-nowrap overflow-x-auto gap-1.5 p-3 bg-muted/30 rounded-lg border border-border/50 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
+                <button
+                  key={day}
+                  onClick={() => toggleVisibleDay(day)}
+                  className={`flex-shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-all ${visibleDays.includes(day)
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-background text-muted-foreground border-input hover:border-primary/50"
+                    }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
-          {(selectedMonth === currentMonth && selectedYear === currentYear) ||
-            editableDays.length > 0 ? (
-            <Button
-              onClick={saveAttendance}
-              disabled={saving}
-              className="mt-4"
-            >
-              {saving ? "Saving..." : "Save Attendance"}
-            </Button>
-          ) : null}
-        </>
-      )}
+      <SectionCard
+        title={selectedClass ? `Attendance: Class ${selectedClass} ${selectedSection}` : "Student List"}
+        icon={<Users className="w-5 h-5 text-primary" />}
+        noPadding
+      >
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-background z-20 min-w-[64px] max-w-[64px] border-r border-border/50">
+                  Sec
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-background z-20 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
+                  Roll
+                </th>
+                {visibleDays.map((day) => (
+                  <th key={day} className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[60px]">
+                    {day}
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky right-0 bg-background z-20 min-w-[150px] sm:min-w-[200px] border-l border-border/50 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                  Student Name
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {studentsLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3 min-w-[64px] max-w-[64px] sticky left-0 bg-background z-10"><Skeleton className="h-4 w-8" /></td>
+                    <td className="px-4 py-3 min-w-[64px] max-w-[64px] sticky left-0 bg-background z-10" style={{ left: '64px' }}><Skeleton className="h-4 w-8" /></td>
+                    {visibleDays.map((d) => (
+                      <td key={d} className="px-2 py-3"><Skeleton className="h-4 w-4 mx-auto" /></td>
+                    ))}
+                    <td className="px-4 py-3 min-w-[150px] sm:min-w-[200px] sticky right-0 bg-background z-10"><Skeleton className="h-4 w-40 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : students.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleDays.length + 3} className="px-4 py-12 text-center text-muted-foreground">
+                    No students found. Please select a class and section.
+                  </td>
+                </tr>
+              ) : (
+                students.map((student) => (
+                  <tr key={student.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
+                      {student.section}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
+                      {student.roll}
+                    </td>
+                    {visibleDays.map((day) => {
+                      const isToday = day === currentDate.getDate() && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+                      const status = getStatus(student.id, day);
+                      return (
+                        <td key={day} className="px-2 py-3 text-center">
+                          {isToday ? (
+                            <input
+                              type="checkbox"
+                              checked={status === "present"}
+                              onChange={(e) => handleAttendanceChange(student.id, day, e.target.checked)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              {status === "present" ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-sm font-semibold sticky right-0 bg-background z-10 border-l border-border/50 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]">
+                      {student.name}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
     </div>
   );
 }
 
 export default Attendance;
+

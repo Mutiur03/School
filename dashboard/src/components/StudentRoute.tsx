@@ -2,11 +2,12 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "@/context/useAuth";
 import Loading from "./Loading";
+import ServerOffline from "@/pages/Common/ServerOffline";
 
 const StudentRoute = ({ element }: { element: ReactNode }) => {
-    const { user, loading, isStudent } = useAuth();
+    const { user, loading, isStudent, serverOffline } = useAuth();
 
-    if (loading) {
+    if (loading && !user) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <Loading />
@@ -14,7 +15,12 @@ const StudentRoute = ({ element }: { element: ReactNode }) => {
         );
     }
 
-    return user && isStudent() ? element : <Navigate to="/student/login" />;
+    return (
+        <>
+            {serverOffline && <ServerOffline isOverlay />}
+            {user && isStudent() ? element : <Navigate to="/student/login" />}
+        </>
+    );
 };
 
 export default StudentRoute;

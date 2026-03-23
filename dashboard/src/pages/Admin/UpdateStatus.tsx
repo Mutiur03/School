@@ -7,7 +7,7 @@ interface Student {
   name: string;
   class: number;
   section: string;
-  department: string;
+  group: string;
   status: "Passed" | "Failed" | "Pending";
   fail_count: number;
 }
@@ -17,7 +17,7 @@ function UpdateStatus() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [classSection, setClassSection] = useState<string>("");
-  const [department, setDepartment] = useState<string>("");
+  const [group, setGroup] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
 
   const getStudentList = async () => {
@@ -75,7 +75,7 @@ function UpdateStatus() {
     (student) =>
       student.class === parseInt(selectedClass) &&
       (classSection === "" || student.section === classSection) &&
-      (department === "" || student.department === department)
+      (group === "" || student.group === group)
   );
 
   return (
@@ -135,20 +135,20 @@ function UpdateStatus() {
         </div>
         {parseInt(selectedClass) > 8 && (
           <div>
-            <label htmlFor="department" className="block font-medium mb-1">
-              Department:
+            <label htmlFor="group" className="block font-medium mb-1">
+              Group:
             </label>
             <select
-              id="department"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+              id="group"
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
               className="p-2 border border-border rounded-md dark:bg-accent w-full"
               disabled={!selectedClass}
             >
-              <option value="">All Departments</option>
-              {["Science", "Humanities", "Commerce"].map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
+              <option value="">All Groups</option>
+              {["Science", "Humanities", "Commerce"].map((grp) => (
+                <option key={grp} value={grp}>
+                  {grp}
                 </option>
               ))}
             </select>

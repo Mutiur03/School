@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  // binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -54,7 +53,6 @@ model School {
   attendances   attendence[]
   levels        levels[]
   marks         marks[]
-  gpa           gpa[]
   galleries     gallery[]
   exam_routines exam_routines[]
   head_msgs     head_msg[]
@@ -109,7 +107,6 @@ model students {
   id              Int                   @id @default(autoincrement())
   login_id        BigInt                @unique
   name            String                @db.VarChar(100)
-  religion        String                @default("") @db.VarChar(50)
   father_name     String?               @db.VarChar(100)
   mother_name     String?               @db.VarChar(100)
   batch           String                @db.Char(4)
@@ -120,16 +117,16 @@ model students {
   available       Boolean               @default(true)
   created_at      DateTime              @default(now())
   tokenVersion    Int                   @default(0)
-  sheet_row_index Int?
   father_phone    String?               @db.Char(11)
   mother_phone    String?               @db.Char(11)
   village         String?               @db.VarChar(100)
   post_office     String?               @db.VarChar(100)
   upazila         String?               @db.VarChar(100)
   district        String?               @db.VarChar(100)
+  sheet_row_index Int?
+  religion        String                @default("") @db.VarChar(50)
   attendances     attendence[]
   galleries       gallery[]             @relation("StudentGalleryUploader")
-  gpa             gpa?
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
   school_id       Int?
@@ -152,7 +149,7 @@ model student_enrollments {
   roll              Int
   section           String   @db.Char(1)
   year              Int
-  department        String?  @db.VarChar(100)
+  group             String?  @db.VarChar(100)
   fail_count        Int      @default(0)
   status            String   @default("Passed") @db.VarChar(100)
   final_merit       Int      @default(0)
@@ -169,7 +166,7 @@ model student_enrollments {
   @@index([class, year])
   @@index([class, section, year])
   @@index([roll, class, section, year])
-  @@index([department])
+  @@index([group])
   @@index([status])
   @@index([school_id])
 }
@@ -297,21 +294,22 @@ model subjects {
   mcq_pass_mark       Int        @default(0)
   practical_pass_mark Int        @default(0)
   year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  department          String?    @db.VarChar(100)
-  subject_type        String     @default("single")
-  parent_id           Int?
-  assessment_type     String     @default("exam")
-  priority            Int        @default(0)
+  group               String?    @db.VarChar(100)
   created_at          DateTime   @default(now())
+  assessment_type     String     @default("exam")
+  parent_id           Int?
+  priority            Int        @default(0)
+  subject_type        String     @default("single")
+  marking_scheme      MarkingScheme @default(TOTAL)
   marks               marks[]
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
   school_id           Int?
   school              School?    @relation(fields: [school_id], references: [id])
 
-  @@unique([name, class, department, year, school_id])
+  @@unique([name, class, group, year, school_id])
   @@index([class, year])
-  @@index([department])
+  @@index([group])
   @@index([name])
   @@index([parent_id])
   @@index([priority])
@@ -323,10 +321,10 @@ model marks {
   enrollment_id   Int
   subject_id      Int
   exam_id         Int
-  cq_marks        Int                 @default(0)
-  mcq_marks       Int                 @default(0)
-  practical_marks Int                 @default(0)
-  marks           Int                 @default(0)
+  cq_marks        Int?
+  mcq_marks       Int?
+  practical_marks Int?
+  marks           Int?
   created_at      DateTime            @default(now())
   updated_at      DateTime            @default(now()) @updatedAt
   enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
@@ -340,20 +338,6 @@ model marks {
   @@index([subject_id])
   @@index([exam_id])
   @@index([created_at])
-  @@index([school_id])
-}
-
-model gpa {
-  id         Int      @id @default(autoincrement())
-  student_id Int      @unique
-  jsc_gpa    Float    @default(0)
-  ssc_gpa    Float    @default(0)
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-  student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id  Int?
-  school     School?  @relation(fields: [school_id], references: [id])
-
   @@index([school_id])
 }
 
@@ -917,4 +901,24 @@ model student_registration_class8 {
   @@index([status])
   @@index([submission_date])
   @@index([school_id])
+}
+
+model sms_settings {
+  id               Int      @id @default(autoincrement())
+  present_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
+  absent_template  String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) is absent from school today ({date}).\nPlease contact the school office for more info.\nThank you.\n{school_name}")
+  send_to_present  Boolean  @default(true)
+  send_to_absent   Boolean  @default(false)
+  is_active        Boolean  @default(true)
+  sms_balance      Int      @default(0)
+  api_key          String?  @db.VarChar(255)
+  api_url          String?  @db.VarChar(255)
+  sender_id        String?  @db.VarChar(50)
+  service_type     String?  @db.VarChar(50)
+  updated_at       DateTime @updatedAt
+}
+
+enum MarkingScheme {
+  TOTAL
+  BREAKDOWN
 }
