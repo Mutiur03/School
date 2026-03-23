@@ -682,6 +682,7 @@ const NewSubject: React.FC = () => {
       console.log("Submitting subject data:", { 
         name: data.name, 
         class: data.class, 
+        group: data.group || "General",
         marking_scheme: data.marking_scheme,
         isBreakdownScheme,
         isNotMain,
@@ -765,8 +766,15 @@ const NewSubject: React.FC = () => {
       const data = XLSX.utils.sheet_to_json(sheet) as any[];
       const errors: string[] = [];
       const normalizedRows = data.map((row) => {
-        const groupKey = Object.keys(row).find(k => String(k).toLowerCase() === 'group');
+        // More robust key matching for 'group' and other optional columns
+        const findKeyByValue = (searchVal: string) => Object.keys(row).find(k => String(k).trim().toLowerCase() === searchVal.toLowerCase());
+        
+        const groupKey = findKeyByValue('group');
         const groupRaw = groupKey ? String(row[groupKey as keyof typeof row] || "").trim() : "";
+        
+        const subjectGroupKey = findKeyByValue('subject_group');
+        const subjectGroupRaw = subjectGroupKey ? String(row[subjectGroupKey as keyof typeof row] || "").trim() : null;
+
         const group = groupRaw ? groupRaw.charAt(0).toUpperCase() + groupRaw.slice(1).toLowerCase() : "";
         return {
           ...row,
@@ -774,10 +782,10 @@ const NewSubject: React.FC = () => {
           class: Number(row.class),
           full_mark: Number(row.full_mark),
           pass_mark: row.assessment_type?.toLowerCase() === "continuous" ? null : Number(row.pass_mark),
-          group: group,
+          group: group === "General" ? "" : group,
           year: Number(row.year) || new Date().getFullYear(),
           assessment_type: String(row.assessment_type || "exam").toLowerCase(),
-          subject_group: row.subject_group ? String(row.subject_group).trim() : null,
+          subject_group: subjectGroupRaw,
           priority: Number(row.priority) || 0,
           cq_mark: Number(row.cq_mark) || 0,
           mcq_mark: Number(row.mcq_mark) || 0,
@@ -803,6 +811,23 @@ const NewSubject: React.FC = () => {
         if (row.marking_scheme === "BREAKDOWN" && (Number(row.cq_mark) || 0) === 0 && (Number(row.mcq_mark) || 0) === 0 && (Number(row.practical_mark) || 0) === 0) {
           errors.push(`Row ${rowNum}: BREAKDOWN scheme requires at least one mark type (CQ, MCQ, or Practical).`);
         }
+        
+        // Sum validation for breakdown marks
+        const totalBreakdown = (Number(row.cq_mark) || 0) + (Number(row.mcq_mark) || 0) + (Number(row.practical_mark) || 0);
+        if (totalBreakdown > 0 && row.full_mark !== totalBreakdown) {
+          errors.push(`Row ${rowNum}: Full mark (${row.full_mark}) must equal sum of CQ, MCQ, and Practical (${totalBreakdown}).`);
+        }
+
+        // Sum validation for pass marks
+        const totalPassBreakdown = (Number(row.cq_pass_mark) || 0) + (Number(row.mcq_pass_mark) || 0) + (Number(row.practical_pass_mark) || 0);
+        if (totalPassBreakdown > 0 && row.pass_mark !== totalPassBreakdown) {
+          errors.push(`Row ${rowNum}: Pass mark (${row.pass_mark}) must equal sum of breakdown pass marks (${totalPassBreakdown}).`);
+        }
+
+        if (row.pass_mark > row.full_mark) {
+          errors.push(`Row ${rowNum}: Pass mark (${row.pass_mark}) cannot exceed full mark (${row.full_mark}).`);
+        }
+
         if (!["TOTAL", "BREAKDOWN"].includes(row.marking_scheme)) errors.push(`Row ${rowNum}: Invalid marking scheme (must be TOTAL or BREAKDOWN).`);
         if (seen.has(key)) errors.push(`Row ${rowNum}: Duplicate subject in file.`);
         seen.add(key);
@@ -819,18 +844,15 @@ const NewSubject: React.FC = () => {
         if (excelFileRef.current) excelFileRef.current.value = "";
         return;
       }
-      const subjectsToUpload: any[] = [];
-      Object.values(normalizedRows).forEach(row => {
-        if (row.subject_group) {
-          const groupCount = normalizedRows.filter(r => r.subject_group === row.subject_group && r.class === row.class && r.year === row.year).length;
-          if (groupCount > 1) {
-            subjectsToUpload.push({ ...row, subject_type: "paper", parent_id: null });
-          } else {
-            subjectsToUpload.push({ ...row, subject_type: "single", parent_id: null });
-          }
-        } else {
-          subjectsToUpload.push({ ...row, subject_type: "single", parent_id: null });
-        }
+      const subjectsToUpload: any[] = normalizedRows.map((row) => {
+        // Optimization: Let the backend handle auto-grouping via subject_group.
+        // We set subject_type to 'single' if parent_id is null to pass frontend/backend validation.
+        // The backend will promote it to 'paper' if a subject_group matches.
+        return {
+          ...row,
+          subject_type: row.subject_type || "single",
+          parent_id: row.parent_id || null,
+        };
       });
       subjectsToUpload.forEach(s => {
         if (s.assessment_type === "continuous") s.pass_mark = null;
