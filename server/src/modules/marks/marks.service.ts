@@ -14,10 +14,10 @@ export class MarksService {
         if (!mark.subjectId) {
           throw new Error("Invalid marks data structure - missing subjectId");
         }
-        mark.cq_marks = Math.max(0, parseInt(mark.cq_marks) || 0);
-        mark.mcq_marks = Math.max(0, parseInt(mark.mcq_marks) || 0);
-        mark.practical_marks = Math.max(0, parseInt(mark.practical_marks) || 0);
-        mark.marks = Math.max(0, parseInt(mark.marks) || 0);
+        mark.cq_marks = mark.cq_marks === null || mark.cq_marks === undefined ? null : Math.max(0, parseInt(mark.cq_marks));
+        mark.mcq_marks = mark.mcq_marks === null || mark.mcq_marks === undefined ? null : Math.max(0, parseInt(mark.mcq_marks));
+        mark.practical_marks = mark.practical_marks === null || mark.practical_marks === undefined ? null : Math.max(0, parseInt(mark.practical_marks));
+        mark.marks = mark.marks === null || mark.marks === undefined ? null : Math.max(0, parseInt(mark.marks));
       });
     });
   }
@@ -104,9 +104,13 @@ export class MarksService {
               continue;
             }
 
-            const totalMarks = (subject as any).marking_scheme === "BREAKDOWN"
-              ? (cq_marks || 0) + (mcq_marks || 0) + (practical_marks || 0)
-              : (providedTotal || 0);
+            let totalMarks: number | null = (subject as any).marking_scheme === "BREAKDOWN"
+              ? (Number(cq_marks) || 0) + (Number(mcq_marks) || 0) + (Number(practical_marks) || 0)
+              : providedTotal;
+
+            if ((subject as any).marking_scheme === "BREAKDOWN" && cq_marks === null && mcq_marks === null && practical_marks === null) {
+              totalMarks = null;
+            }
 
             const existingMark = await prisma.marks.findFirst({
               where: {
@@ -117,9 +121,9 @@ export class MarksService {
             });
 
             const markData = {
-              cq_marks: cq_marks || 0,
-              mcq_marks: mcq_marks || 0,
-              practical_marks: practical_marks || 0,
+              cq_marks: cq_marks,
+              mcq_marks: mcq_marks,
+              practical_marks: practical_marks,
               marks: totalMarks,
             };
 
@@ -263,9 +267,7 @@ export class MarksService {
     });
 
     if (result.length === 0) {
-      throw new Error(
-        "No marks found for the specified class, year, and exam.",
-      );
+      return [];
     }
 
     return result.map((enrollment) => ({
@@ -416,7 +418,7 @@ export class MarksService {
     const studentName = result[0].enrollment.student.name;
     const studentClass = result[0].enrollment.class;
     const studentRoll = result[0].enrollment.roll;
-    const totalMarks = result.reduce((sum, mark) => sum + mark.marks, 0);
+    const totalMarks = result.reduce((sum, mark) => sum + (mark.marks ?? 0), 0);
 
     const html = `
       <!DOCTYPE html>
@@ -447,7 +449,7 @@ export class MarksService {
               </tr>
             </thead>
             <tbody>
-              ${result.map((mark) => `<tr><td class="border border-gray-300 p-2">${mark.subject.name}</td><td class="border border-gray-300 p-2">${mark.marks}</td></tr>`).join("")}
+              ${result.map((mark) => `<tr><td class="border border-gray-300 p-2">${mark.subject.name}</td><td class="border border-gray-300 p-2">${mark.marks ?? ""}</td></tr>`).join("")}
             </tbody>
           </table>
           <div class="text-base font-bold mt-5">Total Marks: ${totalMarks}</div>
@@ -502,7 +504,7 @@ export class MarksService {
       }
       groupedData[subjectName].exam_marks[examName] = mark.marks;
       totalMarksByExam[examName] =
-        (totalMarksByExam[examName] || 0) + mark.marks;
+        (totalMarksByExam[examName] || 0) + (mark.marks ?? 0);
     });
 
     return Object.values(groupedData).map((subject: any) => ({
@@ -554,7 +556,7 @@ export class MarksService {
       }
       groupedData[subjectName].exam_marks[examName] = mark.marks;
       totalMarksByExam[examName] =
-        (totalMarksByExam[examName] || 0) + mark.marks;
+        (totalMarksByExam[examName] || 0) + (mark.marks ?? 0);
     });
 
     const studentData = Object.values(groupedData) as any[];
@@ -593,7 +595,7 @@ export class MarksService {
                   (row) => `
                 <tr>
                   <td class="border border-gray-300 px-4 py-2">${row.subject}</td>
-                  ${examsList.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${row.exam_marks[exam] ?? "-"}</td>`).join("")}
+                  ${examsList.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${row.exam_marks[exam] ?? ""}</td>`).join("")}
                 </tr>`,
                 )
                 .join("")}
@@ -656,7 +658,7 @@ export class MarksService {
       }
       subject.exam_marks[examName] = mark.marks;
       totalMarksByStudentExam[key] =
-        (totalMarksByStudentExam[key] || 0) + mark.marks;
+        (totalMarksByStudentExam[key] || 0) + (mark.marks ?? 0);
     });
 
     const allMarksheetHTML = Object.values(grouped)
@@ -678,7 +680,7 @@ export class MarksService {
               <tr class="bg-gray-200"><th class="border border-gray-300 px-4 py-2">Subject</th>${examHeaders.map((exam) => `<th class="border border-gray-300 px-4 py-2">${exam}</th>`).join("")}</tr>
             </thead>
             <tbody>
-              ${student.subjects.map((sub: any) => `<tr><td class="border border-gray-300 px-4 py-2">${sub.subject}</td>${examHeaders.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${sub.exam_marks[exam]}</td>`).join("")}</tr>`).join("")}
+              ${student.subjects.map((sub: any) => `<tr><td class="border border-gray-300 px-4 py-2">${sub.subject}</td>${examHeaders.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${sub.exam_marks[exam] ?? ""}</td>`).join("")}</tr>`).join("")}
               <tr class="bg-gray-100 font-semibold"><td class="border border-gray-300 px-4 py-2 text-right">Total</td>${examHeaders.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${totalMarksByStudentExam[`${student.student_id}_${exam}`] || 0}</td>`).join("")}</tr>
             </tbody>
           </table>

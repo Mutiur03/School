@@ -228,10 +228,10 @@ model marks {
   enrollment_id   Int
   subject_id      Int
   exam_id         Int
-  cq_marks        Int                 @default(0)
-  mcq_marks       Int                 @default(0)
-  practical_marks Int                 @default(0)
-  marks           Int                 @default(0)
+  cq_marks        Int?
+  mcq_marks       Int?
+  practical_marks Int?
+  marks           Int?
   created_at      DateTime            @default(now())
   updated_at      DateTime            @default(now()) @updatedAt
   enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)

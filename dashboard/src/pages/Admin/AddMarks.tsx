@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@/context/useAuth";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
@@ -38,8 +38,10 @@ const AddMarks = () => {
     },
   });
 
-  const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
-  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const EMPTY_ARRAY = useRef<never[]>([]).current;
+
+  const { data: subjects = EMPTY_ARRAY, isLoading: isLoadingSubjects } = useSubjects();
+  const { data: exams = EMPTY_ARRAY, isLoading: isLoadingExams } = useExams();
   const addMarksMutation = useAddMarksMutation();
 
   const [marksData, setMarksData] = useState<MarksData>({});
@@ -49,8 +51,8 @@ const AddMarks = () => {
   const formValues = watch();
   const { year, examName, level, group, section, specific } = formValues;
 
-  const { data: students = [], isLoading: isLoadingStudents } = useMarksStudents(year, level);
-  const { data: existingMarks = [], isLoading: isLoadingMarks, refetch: refetchMarks } = useClassMarks(level, year, examName);
+  const { data: students = EMPTY_ARRAY, isLoading: isLoadingStudents } = useMarksStudents(year, level);
+  const { data: existingMarks = EMPTY_ARRAY, isLoading: isLoadingMarks, refetch: refetchMarks } = useClassMarks(level, year, examName);
 
   const subjectsForClass = useMemo(() => {
     return subjects
@@ -111,17 +113,17 @@ const AddMarks = () => {
             const existingMark = (student.marks || []).find((mark) => mark.subject_id === subject.id);
             return {
               subjectId: subject.id,
-              cq_marks: existingMark?.cq_marks || 0,
-              mcq_marks: existingMark?.mcq_marks || 0,
-              practical_marks: existingMark?.practical_marks || 0,
-              marks: existingMark?.marks || 0,
+              cq_marks: existingMark?.cq_marks ?? null,
+              mcq_marks: existingMark?.mcq_marks ?? null,
+              practical_marks: existingMark?.practical_marks ?? null,
+              marks: existingMark?.marks ?? null,
             };
           }),
         };
       });
       setMarksData(initialData);
     } else {
-      setMarksData({});
+      setMarksData((prev) => Object.keys(prev).length === 0 ? prev : {});
     }
   }, [existingMarks, subjectsForClass]);
 
@@ -143,30 +145,42 @@ const AddMarks = () => {
       else if (markType === "marks") maxMark = subject.full_mark || 100;
     }
 
-    const marks = value;
-    const validatedMarks = marks === "" ? 0 : parseInt(marks) > maxMark ? maxMark : parseInt(marks) || 0;
+    // Parse and validate: empty = null, non-numeric = reject, clamp to [0, maxMark]
+    let validatedMarks: number | null;
+    if (value === "") {
+      validatedMarks = null;
+    } else {
+      const parsed = parseInt(value, 10);
+      if (isNaN(parsed)) return; // reject non-numeric input entirely
+      validatedMarks = Math.min(Math.max(0, parsed), maxMark);
+    }
 
     setMarksData((prev) => {
       const currentStudent = prev[studentId] || { subjectMarks: [] };
       const currentSubjectIndex = currentStudent.subjectMarks.findIndex((m) => m.subjectId === subjectId);
-      let updatedSubjectMarks: any[];
+      let updatedSubjectMarks: SubjectMark[];
       if (currentSubjectIndex >= 0) {
         updatedSubjectMarks = [...currentStudent.subjectMarks];
-        const updatedMark = { ...updatedSubjectMarks[currentSubjectIndex], [markType]: Number(validatedMarks) };
+        const updatedMark = { ...updatedSubjectMarks[currentSubjectIndex], [markType]: validatedMarks };
         if (subject && subject.marking_scheme === "BREAKDOWN" && markType !== "marks") {
-          updatedMark.marks = (updatedMark.cq_marks || 0) + (updatedMark.mcq_marks || 0) + (updatedMark.practical_marks || 0);
+          const cq = updatedMark.cq_marks;
+          const mcq = updatedMark.mcq_marks;
+          const prac = updatedMark.practical_marks;
+          updatedMark.marks = (cq === null || cq === undefined) && (mcq === null || mcq === undefined) && (prac === null || prac === undefined)
+            ? null
+            : (Number(cq) || 0) + (Number(mcq) || 0) + (Number(prac) || 0);
         }
         updatedSubjectMarks[currentSubjectIndex] = updatedMark;
       } else {
-        const newMark: any = {
+        const newMark: SubjectMark = {
           subjectId,
-          cq_marks: markType === "cq_marks" ? Number(validatedMarks) : 0,
-          mcq_marks: markType === "mcq_marks" ? Number(validatedMarks) : 0,
-          practical_marks: markType === "practical_marks" ? Number(validatedMarks) : 0,
-          marks: markType === "marks" ? Number(validatedMarks) : 0,
+          cq_marks: markType === "cq_marks" ? validatedMarks : null,
+          mcq_marks: markType === "mcq_marks" ? validatedMarks : null,
+          practical_marks: markType === "practical_marks" ? validatedMarks : null,
+          marks: markType === "marks" ? validatedMarks : null,
         };
         if (subject && subject.marking_scheme === "BREAKDOWN" && markType !== "marks") {
-          newMark.marks = (newMark.cq_marks || 0) + (newMark.mcq_marks || 0) + (newMark.practical_marks || 0);
+          newMark.marks = (Number(newMark.cq_marks) || 0) + (Number(newMark.mcq_marks) || 0) + (Number(newMark.practical_marks) || 0);
         }
         updatedSubjectMarks = [...currentStudent.subjectMarks, newMark];
       }
@@ -203,10 +217,10 @@ const AddMarks = () => {
         );
         return {
           subjectId: subject.id,
-          cq_marks: Math.max(0, Number(existingMark?.cq_marks) || 0),
-          mcq_marks: Math.max(0, Number(existingMark?.mcq_marks) || 0),
-          practical_marks: Math.max(0, Number(existingMark?.practical_marks) || 0),
-          marks: Math.max(0, Number(existingMark?.marks) || 0),
+          cq_marks: existingMark?.cq_marks ?? null,
+          mcq_marks: existingMark?.mcq_marks ?? null,
+          practical_marks: existingMark?.practical_marks ?? null,
+          marks: existingMark?.marks ?? null,
         };
       });
 
@@ -312,7 +326,7 @@ const AddMarks = () => {
                 <option value="">Select Class</option>
                 {examName &&
                   classList[examList.indexOf(examName)]
-                    ?.sort((a, b) => a - b)
+                    ?.slice().sort((a, b) => a - b)
                     .filter((cls) => {
                       if (user?.role === "admin") return true;
                       if (user?.role === "teacher") {
@@ -479,17 +493,21 @@ const AddMarks = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-card">
-                    {filteredStudents.map((student) => (
-                      <StudentMarkRow
-                        key={student.student_id}
-                        student={student}
-                        selectedSubject={selectedSubject!}
-                        studentSubject={marksData[student.student_id]?.subjectMarks?.find(
-                          (m) => m.subjectId === selectedSubject!.id
-                        )}
-                        onMarkChange={handleMarksChange}
-                      />
-                    ))}
+                    {filteredStudents.map((student) => {
+                      const studentMarksEntry = marksData[student.student_id];
+                      const subjectMark = studentMarksEntry?.subjectMarks?.find(
+                        (m) => m.subjectId === selectedSubject!.id
+                      );
+                      return (
+                        <StudentMarkRow
+                          key={student.student_id}
+                          student={student}
+                          selectedSubject={selectedSubject!}
+                          studentSubject={subjectMark}
+                          onMarkChange={handleMarksChange}
+                        />
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

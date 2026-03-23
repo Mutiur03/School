@@ -47,7 +47,7 @@ const ViewMarks = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [className, setClassName] = useState("");
-  const [year, setYear] = useState("2025");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
   const [exam, setExam] = useState("");
   const [section, setSection] = useState("");
   const [group, setGroup] = useState("");
@@ -173,11 +173,19 @@ const ViewMarks = () => {
     setGroup("");
   };
 
-  const downloadMarksheet = (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const downloadMarksheet = async (id: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    const host = import.meta.env.VITE_BACKEND_URL;
-    const url = `${host}/api/marks/markSheet/${id}/marks/${year}/${exam}/download`;
-    window.open(url, "_blank");
+    try {
+      const response = await axios.get(
+        `/api/marks/markSheet/${id}/marks/${year}/${exam}/download`,
+        { responseType: "blob" }
+      );
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      toast.error("Failed to download marksheet");
+    }
   };
 
   const showStudentDetails = (student: StudentData) => {
@@ -191,12 +199,17 @@ const ViewMarks = () => {
   };
 
   const filteredData = marksData.filter((student) => {
+    if (!student.marks || student.marks.length === 0) return false;
+    const hasAnyMarks = student.marks.some(
+      (m) => m.marks !== null && m.marks !== undefined
+    );
+    if (!hasAnyMarks) return false;
     const sectionMatch = !section || (student.section || "") === section;
     const groupMatch = !group || (student.group || "") === group;
     return sectionMatch && groupMatch;
   });
 
-  if (error) return <p className="text-center mt-4 text-red-500">{error}</p>;
+
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
@@ -209,7 +222,7 @@ const ViewMarks = () => {
       <div className="flex flex-wrap justify-center gap-4 mb-6">
         <select
           className="border p-2 dark:bg-accent rounded-md"
-          value={new Date().getFullYear()}
+          value={year}
           onChange={(e) => setYear(e.target.value)}
         >
           {Array.from({ length: 5 }, (_, i) => (
