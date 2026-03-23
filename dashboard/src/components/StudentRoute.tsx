@@ -7,7 +7,7 @@ import ServerOffline from "@/pages/Common/ServerOffline";
 const StudentRoute = ({ element }: { element: ReactNode }) => {
     const { user, loading, isStudent, serverOffline } = useAuth();
 
-    if (loading) {
+    if (loading && !user) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <Loading />
@@ -15,9 +15,12 @@ const StudentRoute = ({ element }: { element: ReactNode }) => {
         );
     }
 
-    if (serverOffline) return <ServerOffline />;
-
-    return user && isStudent() ? element : <Navigate to="/student/login" />;
+    return (
+        <>
+            {serverOffline && <ServerOffline isOverlay />}
+            {user && isStudent() ? element : <Navigate to="/student/login" />}
+        </>
+    );
 };
 
 export default StudentRoute;

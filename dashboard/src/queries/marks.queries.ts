@@ -27,12 +27,25 @@ export interface MarksData {
 
 export interface StudentMarkResponse {
   student_id: number;
+  roll: number;
+  name: string;
+  class: number;
+  section?: string;
+  group?: string;
   marks?: Array<{
     subject_id: number;
+    subject: string;
     cq_marks: number | null;
     mcq_marks: number | null;
     practical_marks: number | null;
     marks: number | null;
+    subject_info?: {
+      full_mark: number;
+      cq_mark: number;
+      mcq_mark: number;
+      practical_mark: number;
+      marking_scheme: string;
+    };
   }>;
 }
 
@@ -61,6 +74,34 @@ export const useClassMarks = (level: string, year: number, examName: string) => 
       return response.data?.data || [];
     },
     enabled: !!level && !!year && !!examName,
+  });
+};
+
+export const useStudentMarks = (studentId: number | undefined, year: number, examName: string) => {
+  return useQuery({
+    queryKey: ["student-marks", studentId, year, examName],
+    queryFn: async () => {
+      if (!studentId || !year || !examName) return null;
+      const response = await axios.get(
+        `/api/marks/getMarks/${studentId}/${year}/${examName}`
+      );
+      return response.data?.data || [];
+    },
+    enabled: !!studentId && !!year && !!examName,
+  });
+};
+
+export const useStudentPreview = (studentId: number | undefined, year: number) => {
+  return useQuery({
+    queryKey: ["student-preview", studentId, year],
+    queryFn: async () => {
+      if (!studentId || !year) return null;
+      const response = await axios.get(
+        `/api/marks/${studentId}/${year}/preview`
+      );
+      return response.data?.data || [];
+    },
+    enabled: !!studentId && !!year,
   });
 };
 

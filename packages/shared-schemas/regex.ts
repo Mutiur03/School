@@ -16,7 +16,7 @@ export const DESIGNATION = /^[A-Za-z][A-Za-z0-9\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`
 export const USERNAME = /^[A-Za-z0-9_.@-]+$/;
 export const ASCII_ONLY = /^[\x00-\x7F]+$/;
 export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-export const LOGIN_ID = /^\d{5}$/;
+export const LOGIN_ID = /^\d{6}$/;
 
 export const ENGLISH_FILTER = /[^A-Za-z.():\s]/g;
 export const ADDRESS_FILTER = /[^A-Za-z0-9\s,\/()]/g;

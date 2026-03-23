@@ -536,8 +536,8 @@ function Login() {
                       return;
                     }
                   } else if (location.pathname.includes("/student")) {
-                    if (!/^\d{5}$/.test(loginID)) {
-                      setLoginError("Student ID must be exactly 5 digits.");
+                    if (!/^\d{6}$/.test(loginID)) {
+                      setLoginError("Student ID must be exactly 6 digits.");
                       return;
                     }
                   } else {
@@ -604,12 +604,12 @@ function Login() {
                   ) : location.pathname.includes("/student") ? (
                     <Input
                       type="text"
-                      placeholder="e.g., 10001"
+                      placeholder="e.g., 220101"
                       required
-                      pattern="\d{5}"
-                      title="Login ID must be exactly 5 digits"
-                      maxLength={5}
-                      minLength={5}
+                      pattern="\d{6}"
+                      title="Login ID must be exactly 6 digits"
+                      maxLength={6}
+                      minLength={6}
                       value={loginID}
                       onChange={(e) => setLoginID(e.target.value)}
                       className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"

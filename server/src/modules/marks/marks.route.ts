@@ -16,7 +16,7 @@ router.get(
 );
 router.get(
   "/getMarks/:id/:year/:exam",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
   MarksController.getIndividualMarksController,
 );
 router.get(
@@ -25,19 +25,9 @@ router.get(
   MarksController.getClassMarksController,
 );
 router.get(
-  "/markSheet/:id/marks/:year/:exam/download",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  "/:id/:year/:exam/download",
+  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
   MarksController.generateMarksheetController,
-);
-router.get(
-  "/:id/:year/preview",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  MarksController.previewMarksheetController,
-);
-router.get(
-  "/:id/:year/download",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  MarksController.downloadPreviewMarksheetController,
 );
 router.get(
   "/all/:year",

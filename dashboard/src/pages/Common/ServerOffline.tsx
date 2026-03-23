@@ -2,11 +2,11 @@ import { useAuth } from "@/context/useAuth";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function ServerOffline() {
+export default function ServerOffline({ isOverlay = false }: { isOverlay?: boolean }) {
     const { retryAuth } = useAuth();
 
     return (
-        <div className="relative min-h-screen bg-background flex items-center justify-center p-4 overflow-hidden text-foreground">
+        <div className={`${isOverlay ? "fixed inset-0 z-9999 backdrop-blur-md bg-background/60" : "relative min-h-screen bg-background"} flex items-center justify-center p-4 overflow-hidden text-foreground`}>
             {/* Decorative blobs */}
             <div className="absolute top-[-15%] left-[-15%] w-[50%] h-[50%] bg-destructive/10 rounded-full blur-[120px] pointer-events-none animate-pulse duration-[10s]"></div>
             <div className="absolute bottom-[-15%] right-[-15%] w-[50%] h-[50%] bg-orange-500/10 rounded-full blur-[120px] pointer-events-none animate-pulse duration-[8s]"></div>

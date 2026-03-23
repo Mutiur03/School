@@ -52,6 +52,7 @@ import NotFound from "./pages/Common/not-found.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import envPreferredRole from "./lib/role.ts";
 import Loading from "./components/Loading.tsx";
+import Result from "./pages/Students/Result.tsx";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
@@ -235,6 +236,7 @@ function App() {
                           >
                             <Routes>
                               <Route path="/dashboard" element={<StudentDashboard />} />
+                              <Route path="/result" element={<Result />} />
                               <Route path="*" element={<Navigate to="/student/dashboard" />} />
                             </Routes>
                           </div>

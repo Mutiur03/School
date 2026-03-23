@@ -1,5 +1,5 @@
 import envPreferredRole from "@/lib/role";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { createContext, useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
@@ -211,8 +211,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         checkAuth();
     }, []);
 
-    const checkAuth = async () => {
-        setLoading(true);
+    const checkAuth = async (showLoading = true) => {
+        if (showLoading && !user) setLoading(true);
         try {
             // Try to refresh token first to check if session exists
             // Use direct axios call to avoid interceptor recursion
@@ -340,8 +340,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             setAccessToken(res.data?.data?.accessToken);
             setUser(res.data?.data?.user);
         } catch (error) {
-            console.error("Error logging in:", error);
-            toast.error(getErrorMessage(error));
+            if (isAxiosError(error)) {
+                console.error("Error logging in:", error);
+                toast.error(error.response?.data.message || "Login failed");
+            }
             throw error;
         }
     };

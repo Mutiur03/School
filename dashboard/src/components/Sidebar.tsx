@@ -328,6 +328,14 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       id: "dashboard",
       roles: ["student"],
     },
+    {
+      label: "Result",
+      icon: FaClipboardList,
+      dropdown: false,
+      link: "/student/result",
+      id: "result",
+      roles: ["student"],
+    },
   ];
 
   const routesByRole = {

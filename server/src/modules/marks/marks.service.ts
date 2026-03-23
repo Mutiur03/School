@@ -1,5 +1,18 @@
 import { prisma } from "@/config/prisma.js";
-import puppeteer from "puppeteer";
+import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
+
+const PDF_STYLES = {
+  startX: 50,
+  contentWidth: 495,
+  rowHeight: 20,
+  headerFontSize: 10,
+  rowFontSize: 9,
+  fontBold: "Times-Bold",
+  fontRegular: "Times-Roman",
+  fontItalic: "Times-Italic",
+}; 
 
 export class MarksService {
   private static validateMarksData(data: any) {
@@ -19,10 +32,10 @@ export class MarksService {
         mark.practical_marks = mark.practical_marks === null || mark.practical_marks === undefined ? null : Math.max(0, parseInt(mark.practical_marks));
         mark.marks = mark.marks === null || mark.marks === undefined ? null : Math.max(0, parseInt(mark.marks));
       });
-    });
+    }); 
   }
 
-  private static checkTeacherAccess(user: any, className: number, section: string, year: number) {
+  private static checkAccess(user: any, studentId: number, className: number, section: string, year: number) {
     if (user.role === "admin") return true;
     if (user.role === "teacher") {
       return user.levels?.some(
@@ -31,6 +44,9 @@ export class MarksService {
           level.section === section &&
           level.year === year,
       );
+    }
+    if (user.role === "student") {
+      return user.id === studentId;
     }
     return false;
   }
@@ -72,10 +88,11 @@ export class MarksService {
           continue;
         }
 
-        // Check teacher access
+        // Check access
         if (
-          !this.checkTeacherAccess(
+          !this.checkAccess(
             user,
+            student.studentId,
             enrollment.class,
             enrollment.section,
             parseInt(year),
@@ -207,7 +224,7 @@ export class MarksService {
       orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
     });
 
-    return students.map((enrollment) => ({
+    return students.map((enrollment: any) => ({
       student_id: enrollment.student.id,
       name: enrollment.student.name,
       roll: enrollment.roll,
@@ -257,6 +274,7 @@ export class MarksService {
                 cq_mark: true,
                 mcq_mark: true,
                 practical_mark: true,
+                marking_scheme: true,
               },
             },
             exam: { select: { exam_name: true } },
@@ -270,27 +288,30 @@ export class MarksService {
       return [];
     }
 
-    return result.map((enrollment) => ({
+    return result.map((enrollment: any) => ({
       student_id: enrollment.student.id,
       name: enrollment.student.name,
       roll: enrollment.roll,
       class: enrollment.class,
       group: enrollment.group,
       section: enrollment.section,
-      marks: enrollment.marks.map((mark) => ({
-        subject_id: mark.subject.id,
-        subject: mark.subject.name,
-        cq_marks: mark.cq_marks,
-        mcq_marks: mark.mcq_marks,
-        practical_marks: mark.practical_marks,
-        marks: mark.marks,
-        subject_info: {
-          full_mark: mark.subject.full_mark,
-          cq_mark: mark.subject.cq_mark,
-          mcq_mark: mark.subject.mcq_mark,
-          practical_mark: mark.subject.practical_mark,
-        },
-      })),
+      marks: enrollment.marks
+        .filter((mark: any) => mark.marks !== null)
+        .map((mark: any) => ({
+          subject_id: mark.subject.id,
+          subject: mark.subject.name,
+          cq_marks: mark.cq_marks,
+          mcq_marks: mark.mcq_marks,
+          practical_marks: mark.practical_marks,
+          marks: mark.marks,
+          subject_info: {
+            full_mark: mark.subject.full_mark,
+            cq_mark: mark.subject.cq_mark,
+            mcq_mark: mark.subject.mcq_mark,
+            practical_mark: mark.subject.practical_mark,
+            marking_scheme: (mark.subject as any).marking_scheme,
+          },
+        })),
     }));
   }
 
@@ -311,7 +332,7 @@ export class MarksService {
       throw new Error("Student enrollment not found for specified year");
     }
 
-    if (!this.checkTeacherAccess(user, enrollment.class, enrollment.section, yearInt)) {
+    if (!this.checkAccess(user, studentId, enrollment.class, enrollment.section, yearInt)) {
       throw new Error("You are not authorized to view this student's marks");
     }
 
@@ -359,36 +380,33 @@ export class MarksService {
       throw new Error("No marks found for this student, year, and exam");
     }
 
-    return result.map((mark) => ({
-      name: mark.enrollment.student.name,
-      subject: mark.subject.name,
-      full_mark: mark.subject.full_mark,
-      pass_mark: mark.subject.pass_mark,
-      exam: mark.exam.exam_name,
-      cq_marks: mark.cq_marks,
-      mcq_marks: mark.mcq_marks,
-      practical_marks: mark.practical_marks,
-      marks: mark.marks,
-      class: mark.enrollment.class,
-      roll: mark.enrollment.roll,
-      year: mark.enrollment.year,
-      subject_breakdown: {
-        cq_mark: mark.subject.cq_mark,
-        mcq_mark: mark.subject.mcq_mark,
-        practical_mark: mark.subject.practical_mark,
-        cq_pass_mark: mark.subject.cq_pass_mark,
-        mcq_pass_mark: mark.subject.mcq_pass_mark,
-        practical_pass_mark: mark.subject.practical_pass_mark,
-      },
-    }));
+    return result
+      .filter((mark: any) => mark.marks !== null)
+      .map((mark: any) => ({
+        name: mark.enrollment.student.name,
+        subject: mark.subject.name,
+        full_mark: mark.subject.full_mark,
+        pass_mark: mark.subject.pass_mark,
+        exam: mark.exam.exam_name,
+        cq_marks: mark.cq_marks,
+        mcq_marks: mark.mcq_marks,
+        practical_marks: mark.practical_marks,
+        marks: mark.marks,
+        class: mark.enrollment.class,
+        roll: mark.enrollment.roll,
+        year: mark.enrollment.year,
+        subject_breakdown: {
+          cq_mark: mark.subject.cq_mark,
+          mcq_mark: mark.subject.mcq_mark,
+          practical_mark: mark.subject.practical_mark,
+          cq_pass_mark: mark.subject.cq_pass_mark,
+          mcq_pass_mark: mark.subject.mcq_pass_mark,
+          practical_pass_mark: mark.subject.practical_pass_mark,
+        },
+      }));
   }
 
-  static async generateMarksheetPDF(
-    id: string,
-    year: string,
-    exam: string,
-    user: any,
-  ) {
+  static async generateMarksheetPDF(id: string, year: string, exam: string, user: any) {
     const result = await prisma.marks.findMany({
       where: {
         enrollment: { student_id: parseInt(id), year: parseInt(year) },
@@ -404,214 +422,33 @@ export class MarksService {
     if (result.length === 0) throw new Error("No marks found for the student");
 
     const enrollment = result[0].enrollment;
-    if (
-      !this.checkTeacherAccess(
-        user,
-        enrollment.class,
-        enrollment.section,
-        parseInt(year),
-      )
-    ) {
+    if (!this.checkAccess(user, parseInt(id), enrollment.class, enrollment.section, parseInt(year))) {
       throw new Error("You are not authorized to download this marksheet");
     }
 
     const studentName = result[0].enrollment.student.name;
     const studentClass = result[0].enrollment.class;
     const studentRoll = result[0].enrollment.roll;
-    const totalMarks = result.reduce((sum, mark) => sum + (mark.marks ?? 0), 0);
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Marksheet</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="font-sans m-0 p-5">
-        <div class="max-w-4xl mx-auto border border-gray-300 p-5 text-center">
-          <div class="mb-5">
-            <h2 class="m-0 text-2xl font-bold">PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL</h2>
-            <p class="my-1 italic">Panchbibi, Joypurhat</p>
-            <h3 class="text-xl font-semibold mt-4">ACADEMIC TRANSCRIPT</h3>
-          </div>
-          <div class="mb-5 text-left">
-            <p class="my-1"><strong>Name:</strong> ${studentName}</p>
-            <p class="my-1"><strong>Class:</strong> ${studentClass}</p>
-            <p class="my-1"><strong>Roll No:</strong> ${studentRoll}</p>
-            <p class="my-1"><strong>Year:</strong> ${year}</p>
-            <p class="my-1"><strong>Exam:</strong> ${exam}</p>
-          </div>
-          <table class="w-full border-collapse border border-gray-300 mb-5">
-            <thead>
-              <tr>
-                <th class="border border-gray-300 p-2 text-left bg-gray-100">Subject</th>
-                <th class="border border-gray-300 p-2 text-left bg-gray-100">Marks</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${result.map((mark) => `<tr><td class="border border-gray-300 p-2">${mark.subject.name}</td><td class="border border-gray-300 p-2">${mark.marks ?? ""}</td></tr>`).join("")}
-            </tbody>
-          </table>
-          <div class="text-base font-bold mt-5">Total Marks: ${totalMarks}</div>
-        </div>
-      </body>
-      </html>
-    `;
+    const studentDetails = {
+      name: studentName,
+      class: studentClass,
+      roll: studentRoll,
+      year: parseInt(year),
+      exam: exam,
+    };
 
-    return await this.generatePDF(html);
+    const tableData = result
+      .filter((mark) => mark.marks !== null)
+      .map((mark) => ({
+        subject: mark.subject.name,
+        marks: mark.marks,
+      }));
+
+    const buffer = await this.renderStudentReportPDF(studentDetails, tableData);
+    return { buffer, studentName };
   }
 
-  static async previewMarksheet(id: string, year: string, user: any) {
-    const marks = await prisma.marks.findMany({
-      where: { enrollment: { student_id: parseInt(id), year: parseInt(year) } },
-      include: {
-        enrollment: { include: { student: { select: { name: true } } } },
-        subject: { select: { name: true } },
-        exam: { select: { exam_name: true } },
-      },
-    });
-
-    if (marks.length === 0) throw new Error("No marks found");
-
-    const enrollment = marks[0].enrollment;
-    if (
-      !this.checkTeacherAccess(
-        user,
-        enrollment.class,
-        enrollment.section,
-        parseInt(year),
-      )
-    ) {
-      throw new Error("You are not authorized to preview this marksheet");
-    }
-
-    const groupedData: any = {};
-    const totalMarksByExam: any = {};
-
-    marks.forEach((mark) => {
-      const subjectName = mark.subject.name;
-      const examName = mark.exam.exam_name;
-      if (!groupedData[subjectName]) {
-        groupedData[subjectName] = {
-          student_name: mark.enrollment.student.name,
-          subject: subjectName,
-          class: mark.enrollment.class,
-          roll: mark.enrollment.roll,
-          year: mark.enrollment.year,
-          final_merit: mark.enrollment.final_merit,
-          exam_marks: {},
-        };
-      }
-      groupedData[subjectName].exam_marks[examName] = mark.marks;
-      totalMarksByExam[examName] =
-        (totalMarksByExam[examName] || 0) + (mark.marks ?? 0);
-    });
-
-    return Object.values(groupedData).map((subject: any) => ({
-      ...subject,
-      total_marks_per_exam: totalMarksByExam,
-    }));
-  }
-
-  static async generatePreviewPDF(id: string, year: string, user: any) {
-    const marks = await prisma.marks.findMany({
-      where: { enrollment: { student_id: parseInt(id), year: parseInt(year) } },
-      include: {
-        enrollment: { include: { student: { select: { name: true } } } },
-        subject: { select: { name: true } },
-        exam: { select: { exam_name: true } },
-      },
-    });
-
-    if (marks.length === 0) throw new Error("No marks found");
-
-    const enrollment = marks[0].enrollment;
-    if (
-      !this.checkTeacherAccess(
-        user,
-        enrollment.class,
-        enrollment.section,
-        parseInt(year),
-      )
-    ) {
-      throw new Error("You are not authorized to download this preview");
-    }
-
-    const groupedData: any = {};
-    const totalMarksByExam: any = {};
-    const exams = new Set();
-    marks.forEach((mark) => {
-      const subjectName = mark.subject.name;
-      const examName = mark.exam.exam_name;
-      exams.add(examName);
-      if (!groupedData[subjectName]) {
-        groupedData[subjectName] = {
-          student_name: mark.enrollment.student.name,
-          subject: subjectName,
-          class: mark.enrollment.class,
-          roll: mark.enrollment.roll,
-          year: mark.enrollment.year,
-          exam_marks: {},
-        };
-      }
-      groupedData[subjectName].exam_marks[examName] = mark.marks;
-      totalMarksByExam[examName] =
-        (totalMarksByExam[examName] || 0) + (mark.marks ?? 0);
-    });
-
-    const studentData = Object.values(groupedData) as any[];
-    const examsList = Array.from(exams) as string[];
-    const studentName = studentData[0].student_name;
-    const studentClass = studentData[0].class;
-    const studentRoll = studentData[0].roll;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Marksheet Preview</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="p-6">
-        <div id="marksheet" class="max-w-4xl mx-auto bg-white rounded-lg p-6 shadow">
-          <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold">PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL</h2>
-            <p class="italic">Panchbibi, Joypurhat</p>
-          </div>
-          <div class="flex justify-between mb-6">
-            <div><p><strong>Name:</strong> ${studentName}</p><p><strong>Class:</strong> ${studentClass}</p></div>
-            <div><p><strong>Roll No:</strong> ${studentRoll}</p><p><strong>Year:</strong> ${year}</p></div>
-          </div>
-          <table class="table-auto w-full border-collapse border border-gray-300 mb-6">
-            <thead>
-              <tr class="bg-gray-200 text-center">
-                <th class="border border-gray-300 px-4 py-2 text-left">Subject</th>
-                ${examsList.map((exam) => `<th class="border border-gray-300 px-4 py-2">${exam}</th>`).join("")}
-              </tr>
-            </thead>
-            <tbody>
-              ${studentData
-                .map(
-                  (row) => `
-                <tr>
-                  <td class="border border-gray-300 px-4 py-2">${row.subject}</td>
-                  ${examsList.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${row.exam_marks[exam] ?? ""}</td>`).join("")}
-                </tr>`,
-                )
-                .join("")}
-              <tr class="bg-gray-100 font-semibold">
-                <td class="border border-gray-300 px-4 py-2 text-right">Total</td>
-                ${examsList.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${totalMarksByExam[exam] ?? "-"}</td>`).join("")}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </body>
-      </html>
-    `;
-
-    return { buffer: await this.generatePDF(html), studentName };
-  }
 
   static async generateAllMarksheetsPDF(year: string) {
     const marks = await prisma.marks.findMany({
@@ -634,7 +471,9 @@ export class MarksService {
     const grouped: any = {};
     const totalMarksByStudentExam: any = {};
 
-    marks.forEach((mark) => {
+    marks.forEach((mark: any) => {
+      if (mark.marks === null) return;
+      
       const studentId = mark.enrollment.student.id;
       const examName = mark.exam.exam_name;
       const key = `${studentId}_${examName}`;
@@ -649,77 +488,208 @@ export class MarksService {
           subjects: [],
         };
       }
-      let subject = grouped[studentId].subjects.find(
-        (s: any) => s.subject === mark.subject.name,
-      );
+      let subject = grouped[studentId].subjects.find((s: any) => s.subject === mark.subject.name);
       if (!subject) {
         subject = { subject: mark.subject.name, exam_marks: {} };
         grouped[studentId].subjects.push(subject);
       }
       subject.exam_marks[examName] = mark.marks;
-      totalMarksByStudentExam[key] =
-        (totalMarksByStudentExam[key] || 0) + (mark.marks ?? 0);
+      totalMarksByStudentExam[key] = (totalMarksByStudentExam[key] || 0) + (mark.marks ?? 0);
     });
 
-    const allMarksheetHTML = Object.values(grouped)
-      .map((student: any) => {
-        const examHeaders = Object.keys(student.subjects[0]?.exam_marks || {});
-        return `
-        <div class="max-w-4xl mx-auto bg-white rounded-lg p-6 page-break">
-          <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold">PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL</h2>
-            <p class="italic">Panchbibi, Joypurhat</p>
-          </div>
-          <div class="flex justify-between mb-4">
-            <div><p><strong>Name:</strong> ${student.student_name}</p><p><strong>Class:</strong> ${student.class}</p></div>
-            <div><p><strong>Roll No:</strong> ${student.roll}</p><p><strong>Year:</strong> ${student.year}</p></div>
-            <div><p><strong>Final Merit:</strong> ${student.final_merit || "-"}</p></div>
-          </div>
-          <table class="table-auto w-full border-collapse border border-gray-300 mb-6">
-            <thead>
-              <tr class="bg-gray-200"><th class="border border-gray-300 px-4 py-2">Subject</th>${examHeaders.map((exam) => `<th class="border border-gray-300 px-4 py-2">${exam}</th>`).join("")}</tr>
-            </thead>
-            <tbody>
-              ${student.subjects.map((sub: any) => `<tr><td class="border border-gray-300 px-4 py-2">${sub.subject}</td>${examHeaders.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${sub.exam_marks[exam] ?? ""}</td>`).join("")}</tr>`).join("")}
-              <tr class="bg-gray-100 font-semibold"><td class="border border-gray-300 px-4 py-2 text-right">Total</td>${examHeaders.map((exam) => `<td class="border text-center border-gray-300 px-4 py-2">${totalMarksByStudentExam[`${student.student_id}_${exam}`] || 0}</td>`).join("")}</tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-      })
-      .join("");
+    const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-    const finalHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>All Marksheet PDF</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <style>.page-break { page-break-after: always; }</style>
-      </head>
-      <body>${allMarksheetHTML}</body>
-      </html>
-    `;
+    return new Promise<Buffer>((resolve) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-    return await this.generatePDF(finalHTML);
+      const studentList = Object.values(grouped);
+      studentList.forEach((student: any, index) => {
+        if (index > 0) doc.addPage();
+        const studentDetails = {
+          name: student.student_name,
+          class: student.class,
+          roll: student.roll,
+          year: student.year,
+        };
+        this.drawProperBackground(doc);
+        this.drawWatermark(doc);
+        this.drawProperHeader(doc);
+        this.drawProperStudentInfo(doc, studentDetails);
+
+        const examHeaders = student.subjects.length > 0 ? Object.keys(student.subjects[0].exam_marks) : [];
+        const totals: any = {};
+        examHeaders.forEach(exam => {
+          totals[exam] = totalMarksByStudentExam[`${student.student_id}_${exam}`] || 0;
+        });
+        this.drawTableGrid(doc, doc.y, ["Subject", ...examHeaders], student.subjects, examHeaders, totals);
+      });
+      doc.end();
+    });
   }
 
-  private static async generatePDF(html: string) {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  private static async renderStudentReportPDF(
+    student: any,
+    tableData: any[],
+    exams?: string[],
+    totalMarksByExam?: any,
+  ): Promise<Buffer> {
+    const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+    return new Promise<Buffer>((resolve) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+
+      this.drawProperBackground(doc);
+      this.drawWatermark(doc);
+      this.drawProperHeader(doc);
+      this.drawProperStudentInfo(doc, student);
+
+      const y = doc.y + 5;
+      if (exams && exams.length > 0) {
+        const headers = ["Subject", ...exams];
+        this.drawTableGrid(doc, y, headers, tableData, exams, totalMarksByExam);
+      } else {
+        const headers = ["Subject", "Full Marks", "Obtained"];
+        this.drawProperTable(doc, y, headers, tableData);
+      }
+
+      doc.end();
     });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      const buffer = await page.pdf({
-        format: "A4",
-        margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
-        printBackground: true,
-      });
-      return buffer;
-    } finally {
-      await browser.close();
+  }
+
+  private static drawProperBackground(doc: any) {
+    // Draw Main Border
+    doc.rect(20, 20, 555, 802).lineWidth(2).stroke("#000000");
+    doc.rect(25, 25, 545, 792).lineWidth(0.5).stroke("#666666");
+  }
+
+  private static drawProperHeader(doc: any) {
+    doc.font("Times-Bold").fontSize(10).text("Government of the People's Republic of Bangladesh", 120, 40, { align: "center", width: 350 });
+    
+    const schoolName = "PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL";
+    const maxWidth = 400;
+    let fontSize = 18;
+    doc.font("Times-Bold");
+    while (doc.fontSize(fontSize).widthOfString(schoolName) > maxWidth && fontSize > 8) {
+      fontSize--;
     }
+    doc.fontSize(fontSize).text(schoolName, 100, 55, { align: "center", width: 400 });
+    doc.font("Times-Italic").fontSize(11).text("Panchbibi, Joypurhat", 120, 75, { align: "center", width: 350 });
+    doc.font("Times-Bold").fontSize(10).text("EIIN: 121983, School Code: 5100", 120, 90, { align: "center", width: 350 });
+    
+    doc.moveDown(2);
+    doc.rect(210, 115, 175, 25).fill("#f3f4f6").stroke("#000000");
+    doc.fillColor("#000000").font("Times-Bold").fontSize(14).text("ACADEMIC TRANSCRIPT", 210, 122, { align: "center", width: 175 });
+    
+    doc.moveDown(4);
+  }
+
+  private static drawWatermark(doc: any) {
+    const logoPath = path.join("public", "icon.jpg");
+    if (fs.existsSync(logoPath)) {
+      doc.save();
+      doc.opacity(0.1);
+      doc.image(logoPath, 150, 300, { width: 300 });
+      doc.restore();
+    }
+  }
+
+  private static drawProperStudentInfo(doc: any, student: any) {
+    const startY = 160;
+    doc.font("Times-Bold").fontSize(11).fillColor("#000000");
+    
+    // Left Column
+    doc.text("Student's Name", 50, startY);
+    doc.font("Times-Roman").text(`: ${student.name}`, 150, startY);
+    
+    doc.font("Times-Bold").text("Class", 50, startY + 18);
+    doc.font("Times-Roman").text(`: ${student.class}`, 150, startY + 18);
+    
+    doc.font("Times-Bold").text("Roll No", 50, startY + 36);
+    doc.font("Times-Roman").text(`: ${student.roll}`, 150, startY + 36);
+
+    // Right Column
+    doc.font("Times-Bold").text("Academic Year", 350, startY);
+    doc.font("Times-Roman").text(`: ${student.year}`, 450, startY);
+    
+    if (student.exam) {
+      doc.font("Times-Bold").text("Examination", 350, startY + 18);
+      doc.font("Times-Roman").text(`: ${student.exam}`, 450, startY + 18);
+    }
+  }
+
+
+
+  private static drawProperTable(doc: any, y: number, headers: string[], data: any[]) {
+    const { startX, contentWidth, rowHeight, headerFontSize, rowFontSize, fontBold, fontRegular } = PDF_STYLES;
+    const colWidths = [250, 120, 125];
+
+    // Header
+    doc.rect(startX, y, contentWidth, rowHeight).fill("#f3f4f6").stroke();
+    doc.fillColor("#000000").font(fontBold).fontSize(headerFontSize);
+    
+    let currentX = startX;
+    headers.forEach((h, i) => {
+      doc.text(h, currentX + 5, y + 5, { width: colWidths[i] - 10, align: i === 0 ? "left" : "center" });
+      currentX += colWidths[i];
+    });
+
+    y += rowHeight;
+    doc.font(fontRegular).fontSize(rowFontSize);
+    
+
+    data.forEach((row: any) => {
+      if (y > 780) { doc.addPage(); this.drawProperBackground(doc); y = 50; }
+      doc.rect(startX, y, contentWidth, rowHeight).stroke();
+      
+      const cols = [row.subject, "100", String(row.marks ?? "-")];
+      
+      currentX = startX;
+      cols.forEach((c, i) => {
+        doc.text(c, currentX + 5, y + 5, { width: colWidths[i] - 10, align: i === 0 ? "left" : "center" });
+        currentX += colWidths[i];
+      });
+      y += rowHeight;
+    });
+
+    // No GPA summary as requested
+  }
+
+
+  private static drawTableGrid(doc: any, y: number, headers: string[], data: any[], exams: string[], totals: any) {
+    const { startX, contentWidth, rowHeight, headerFontSize, rowFontSize, fontBold, fontRegular } = PDF_STYLES;
+    const subjectWidth = 150;
+    const colWidth = (contentWidth - subjectWidth) / (exams.length || 1);
+
+    doc.rect(startX, y, contentWidth, rowHeight).fill("#f3f4f6").stroke();
+    doc.fillColor("#000000").font(fontBold).fontSize(headerFontSize);
+    doc.text(headers[0], startX + 5, y + 5);
+    
+    exams.forEach((exam, i) => {
+      doc.text(exam, startX + subjectWidth + (i * colWidth), y + 5, { width: colWidth, align: "center" });
+    });
+
+    y += rowHeight;
+
+    doc.font(fontRegular).fontSize(rowFontSize);
+    data.forEach((row: any) => {
+      if (y > 780) { doc.addPage(); this.drawProperBackground(doc); y = 50; }
+      doc.rect(startX, y, contentWidth, rowHeight).stroke();
+      doc.text(row.subject, startX + 5, y + 5, { width: subjectWidth });
+      exams.forEach((exam, i) => {
+        doc.text(String(row.exam_marks[exam] ?? "-"), startX + subjectWidth + (i * colWidth), y + 5, { width: colWidth, align: "center" });
+      });
+      y += rowHeight;
+    });
+
+    doc.rect(startX, y, contentWidth, rowHeight).fill("#f9fafb").stroke();
+    doc.fillColor("#000000").font(fontBold);
+    doc.text("TOTAL", startX + 5, y + 5, { width: subjectWidth, align: "right" });
+    exams.forEach((exam, i) => {
+      doc.text(String(totals[exam] ?? "-"), startX + subjectWidth + (i * colWidth), y + 5, { width: colWidth, align: "center" });
+    });
   }
 }
