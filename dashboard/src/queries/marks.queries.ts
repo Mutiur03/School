@@ -13,10 +13,10 @@ export interface Student {
 
 export interface SubjectMark {
   subjectId: number;
-  cq_marks: number;
-  mcq_marks: number;
-  practical_marks: number;
-  marks: number;
+  cq_marks?: number | null;
+  mcq_marks?: number | null;
+  practical_marks?: number | null;
+  marks?: number | null;
 }
 
 export interface MarksData {
@@ -29,10 +29,10 @@ export interface StudentMarkResponse {
   student_id: number;
   marks?: Array<{
     subject_id: number;
-    cq_marks: number;
-    mcq_marks: number;
-    practical_marks: number;
-    marks: number;
+    cq_marks: number | null;
+    mcq_marks: number | null;
+    practical_marks: number | null;
+    marks: number | null;
   }>;
 }
 
