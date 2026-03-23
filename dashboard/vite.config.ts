@@ -22,9 +22,6 @@ export default defineConfig({
     preserveSymlinks: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // "@school/client-ui": path.resolve(__dirname, "../packages/client-ui/src/index.ts"),
-      // "@school/common-ui": path.resolve(__dirname, "../packages/common-ui/src/index.ts"),
-      // "@school/shared-schemas": path.resolve(__dirname, "../packages/shared-schemas/index.ts"),
     },
   },
 });
