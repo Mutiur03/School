@@ -56,23 +56,32 @@ const AddMarks = () => {
 
   const subjectsForClass = useMemo(() => {
     return subjects
-      .filter((s) => s.class.toString() == level)
-      .filter((s) => s.subject_type !== "main");
-  }, [subjects, level]);
+      .filter((s) => s.class.toString() === level)
+      .filter((s) => s.subject_type !== "main")
+      .filter((s) => {
+        if (!group) return true;
+        return !s.group || s.group === "" || s.group === group;
+      });
+  }, [subjects, level, group]);
 
   const selectedSubject = useMemo(() => {
     return subjectsForClass.find((s) => s.id === Number(specific));
   }, [subjectsForClass, specific]);
 
   const examList = useMemo(() => exams.filter(e => e.exam_year === Number(year)).map(e => e.exam_name), [exams, year]);
-  const classList = useMemo(() => exams.filter(e => e.exam_year === Number(year)).map(e => e.levels || []), [exams, year]);
+  const classListMap = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    exams.filter(e => e.exam_year === Number(year)).forEach(e => {
+      if (!map[e.exam_name]) map[e.exam_name] = e.levels || [];
+    });
+    return map;
+  }, [exams, year]);
 
   useEffect(() => {
     setValue("level", "");
     setValue("group", "");
     setValue("section", "");
     setValue("specific", 0);
-    if (examName === "JSC" || examName === "SSC") setValue("level", "");
   }, [examName, setValue]);
 
   useEffect(() => {
@@ -96,13 +105,10 @@ const AddMarks = () => {
   }, [subjectsForClass, specific, setValue]);
 
   useEffect(() => {
-    if (selectedSubject) {
-      const subjectGroup = selectedSubject.group;
-      setValue("group", subjectGroup && subjectGroup !== "" ? subjectGroup : "");
-    } else if (specific === 0) {
-      setValue("group", "");
+    if (selectedSubject && selectedSubject.group && selectedSubject.group !== "") {
+      setValue("group", selectedSubject.group);
     }
-  }, [selectedSubject, specific, setValue]);
+  }, [selectedSubject, setValue]);
 
   useEffect(() => {
     if (existingMarks.length > 0) {
@@ -200,13 +206,16 @@ const AddMarks = () => {
           s.roll.toString().includes(query)
         );
       })
-      .sort((a: Student, b: Student) => a.roll - b.roll);
+      .sort((a: Student, b: Student) => {
+        const secCmp = a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" });
+        return secCmp !== 0 ? secCmp : a.roll - b.roll;
+      });
   }, [students, group, section, searchQuery]);
 
 
   const onSubmit = async () => {
     const visibleSubjects = subjectsForClass.filter(
-      (s) => !specific || s.id == specific
+      (s) => !specific || s.id === specific
     );
 
     const submissionData = filteredStudents.map((student) => {
@@ -255,7 +264,7 @@ const AddMarks = () => {
         description="Enter and manage student marks for different examinations."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
         <StatsCard
           label="Selected Class"
           value={level ? `Class ${level}` : "None"}
@@ -325,8 +334,8 @@ const AddMarks = () => {
               >
                 <option value="">Select Class</option>
                 {examName &&
-                  classList[examList.indexOf(examName)]
-                    ?.slice().sort((a, b) => a - b)
+                  (classListMap[examName] || [])
+                    .slice().sort((a, b) => a - b)
                     .filter((cls) => {
                       if (user?.role === "admin") return true;
                       if (user?.role === "teacher") {
@@ -413,19 +422,19 @@ const AddMarks = () => {
         </SectionCard>
 
         {isLoading ? (
-          <SectionCard className="flex flex-col justify-center items-center h-32 sm:h-64">
+          <SectionCard className="flex flex-col justify-center items-center h-40 sm:h-64">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
-            <span className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground text-center px-4">
+            <span className="mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground text-center px-4">
               {isLoadingSubjects || isLoadingExams ? "Loading initial data..." : isLoadingStudents ? "Loading students..." : "Loading marks data..."}
             </span>
           </SectionCard>
-        ) : filteredStudents.length > 0 ? (
+        ) : students.length > 0 ? (
           <SectionCard className="p-0 overflow-hidden">
-            <div className="p-4 bg-muted/20 border-b border-border flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="relative w-full md:w-72">
+            <div className="p-3 sm:p-4 bg-muted/20 border-b border-border flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4">
+              <div className="relative w-full sm:w-72">
                 <input
                   type="text"
-                  placeholder="Search student name or roll..."
+                  placeholder="Search name or roll..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
@@ -445,96 +454,128 @@ const AddMarks = () => {
                   />
                 </svg>
               </div>
-              <div className="text-xs text-muted-foreground font-medium">
+              <div className="text-xs text-muted-foreground font-medium text-right sm:text-left">
                 Showing {filteredStudents.length} of {students.length} students
               </div>
             </div>
 
-            {specific && specific !== 0 ? (
-              <div className="overflow-x-auto">
-                <div className="bg-primary/5 p-4 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-primary">
-                      {subjectsForClass.find((sub) => sub.id == specific)?.name}
+            {filteredStudents.length === 0 ? (
+              <div className="p-6 sm:p-12 text-center">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  No students match your search{searchQuery ? ` "${searchQuery}"` : " or filters"}.
+                </p>
+              </div>
+            ) : specific && specific !== 0 ? (
+              <>
+                <div className="bg-primary/5 p-3 sm:p-4 border-b border-border flex justify-between items-center gap-2 sm:gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-lg font-bold text-primary truncate">
+                      {subjectsForClass.find((sub) => sub.id === specific)?.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Subject Mark Entry</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Subject Mark Entry</p>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="text-center sm:text-right">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Marks</span>
-                      <span className="text-sm font-bold">{subjectsForClass.find((sub) => sub.id == specific)?.full_mark || 0}</span>
+                  <div className="shrink-0">
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total</span>
+                      <span className="text-sm font-bold">{subjectsForClass.find((sub) => sub.id === specific)?.full_mark || 0}</span>
                     </div>
                   </div>
                 </div>
 
-                <table className="min-w-[800px] w-full divide-y divide-border">
-                  <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Student Information
-                      </th>
-                      {selectedSubject && selectedSubject.marking_scheme === "BREAKDOWN" ? (
-                        <>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                            CQ Marks ({selectedSubject.cq_mark || 0})
-                          </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                            MCQ Marks ({selectedSubject.mcq_mark || 0})
-                          </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                            Practical ({selectedSubject.practical_mark || 0})
-                          </th>
-                        </>
-                      ) : (
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
-                          Total Marks ({selectedSubject?.full_mark || 0})
+                {/* Mobile card layout */}
+                <div className="sm:hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b border-border">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Roll / Sec</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      {selectedSubject?.marking_scheme === "BREAKDOWN" ? "CQ / MCQ / Prac" : `Marks (${selectedSubject?.full_mark || 0})`}
+                    </span>
+                  </div>
+                  {filteredStudents.map((student) => {
+                    const studentMarksEntry = marksData[student.student_id];
+                    const subjectMark = studentMarksEntry?.subjectMarks?.find(
+                      (m) => m.subjectId === selectedSubject!.id
+                    );
+                    return (
+                      <StudentMarkRow
+                        key={student.student_id}
+                        variant="card"
+                        student={student}
+                        selectedSubject={selectedSubject!}
+                        studentSubject={subjectMark}
+                        onMarkChange={handleMarksChange}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table layout */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full divide-y divide-border">
+                    <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Student
                         </th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-card">
-                    {filteredStudents.map((student) => {
-                      const studentMarksEntry = marksData[student.student_id];
-                      const subjectMark = studentMarksEntry?.subjectMarks?.find(
-                        (m) => m.subjectId === selectedSubject!.id
-                      );
-                      return (
-                        <StudentMarkRow
-                          key={student.student_id}
-                          student={student}
-                          selectedSubject={selectedSubject!}
-                          studentSubject={subjectMark}
-                          onMarkChange={handleMarksChange}
-                        />
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        {selectedSubject && selectedSubject.marking_scheme === "BREAKDOWN" ? (
+                          <>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                              CQ ({selectedSubject.cq_mark || 0})
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                              MCQ ({selectedSubject.mcq_mark || 0})
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                              Prac ({selectedSubject.practical_mark || 0})
+                            </th>
+                          </>
+                        ) : (
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">
+                            Marks ({selectedSubject?.full_mark || 0})
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border bg-card">
+                      {filteredStudents.map((student) => {
+                        const studentMarksEntry = marksData[student.student_id];
+                        const subjectMark = studentMarksEntry?.subjectMarks?.find(
+                          (m) => m.subjectId === selectedSubject!.id
+                        );
+                        return (
+                          <StudentMarkRow
+                            key={student.student_id}
+                            variant="table"
+                            student={student}
+                            selectedSubject={selectedSubject!}
+                            studentSubject={subjectMark}
+                            onMarkChange={handleMarksChange}
+                          />
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
-              <div className="p-12 text-center">
-                <p className="text-sm text-muted-foreground">
+              <div className="p-6 sm:p-12 text-center">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Please select a subject from the filters above to continue.
                 </p>
               </div>
             )}
           </SectionCard>
         ) : (
-          <SectionCard className="p-12 text-center">
-            <p className="text-sm text-muted-foreground">
+          <SectionCard className="p-6 sm:p-12 text-center">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {!level
                 ? "Please select a class to view students"
-                : students.length === 0
-                  ? "No students found for the selected class."
-                  : "No students match the current filters."}
+                : "No students found for the selected class."}
             </p>
           </SectionCard>
         )}
 
         {filteredStudents.length > 0 &&
-          (examName === "JSC" ||
-            examName === "SSC" ||
-            (specific && specific !== 0)) &&
+          (specific && specific !== 0) &&
           selectedSubject &&
           selectedSubject.full_mark > 0 && (
             selectedSubject.marking_scheme === "TOTAL" ||
@@ -542,7 +583,7 @@ const AddMarks = () => {
             (selectedSubject.mcq_mark || 0) > 0 ||
             (selectedSubject.practical_mark || 0) > 0
           ) && (
-            <div className="flex justify-end pt-4">
+            <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t sm:border-t-0 border-border -mx-4 px-4 py-3 sm:mx-0 sm:px-0 sm:py-0 sm:static sm:bg-transparent sm:backdrop-blur-none flex justify-end pt-0 sm:pt-4">
               <Button
                 type="submit"
                 size="lg"
