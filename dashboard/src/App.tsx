@@ -49,13 +49,14 @@ import Login from "./pages/Common/Login.tsx";
 import { TeacherSettings } from "./pages/Teachers/index.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
+import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import envPreferredRole from "./lib/role.ts";
 import Loading from "./components/Loading.tsx";
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(
     window.innerWidth >= 768
   );
-  const { user, loading } = useAuth();
+  const { user, loading, serverOffline } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navbarRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -120,7 +121,9 @@ function App() {
 
                 {/* Redirects for Unauthenticated users */}
                 {!loading && !user && (
-                  <Route path="*" element={<Navigate to={`/${envPreferredRole}/login`} replace />} />
+                  <Route path="*" element={
+                    serverOffline ? <ServerOffline /> : <Navigate to={`/${envPreferredRole}/login`} state={{ from: location.pathname }} replace />
+                  } />
                 )}
 
                 {/* Redirects for Authenticated users based on role alignment */}
@@ -150,9 +153,9 @@ function App() {
                 {/* Unauthenticated access to role subpaths redirects to respective login */}
                 {!loading && !user && (
                   <>
-                    <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
-                    <Route path="/teacher/*" element={<Navigate to="/teacher/login" replace />} />
-                    <Route path="/student/*" element={<Navigate to="/student/login" replace />} />
+                    <Route path="/admin/*" element={serverOffline ? <ServerOffline /> : <Navigate to="/admin/login" state={{ from: location.pathname }} replace />} />
+                    <Route path="/teacher/*" element={serverOffline ? <ServerOffline /> : <Navigate to="/teacher/login" state={{ from: location.pathname }} replace />} />
+                    <Route path="/student/*" element={serverOffline ? <ServerOffline /> : <Navigate to="/student/login" state={{ from: location.pathname }} replace />} />
                     {/* Catch-all for unauthenticated visits to root or other paths */}
                     <Route path="*" element={<NotFound />} />
                   </>

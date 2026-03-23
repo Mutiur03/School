@@ -2,9 +2,10 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "@/context/useAuth";
 import Loading from "./Loading";
+import ServerOffline from "@/pages/Common/ServerOffline";
 
 const PrivateRoute = ({ element }: { element: ReactNode }) => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, serverOffline } = useAuth();
 
   if (loading) {
     return (
@@ -13,6 +14,8 @@ const PrivateRoute = ({ element }: { element: ReactNode }) => {
       </div>
     );
   }
+
+  if (serverOffline) return <ServerOffline />;
 
   return user && isAdmin() ? element : <Navigate to="/login" />;
 };
