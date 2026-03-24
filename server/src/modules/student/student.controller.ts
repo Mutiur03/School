@@ -139,24 +139,6 @@ export class StudentController {
     },
   );
 
-  static getStudentController = asyncHandler(
-    async (req: Request, res: Response) => {
-      if (!req.user) {
-        throw new ApiError(401, "Unauthorized");
-      }
-      const responseData = await StudentService.getStudentById(req.user.id);
-      res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            responseData,
-            "Student details fetched successfully",
-          ),
-        );
-    },
-  );
-
   static addStudentController = asyncHandler(
     async (req: Request, res: Response) => {
       const parsedRequest = addStudentsRequestSchema.safeParse(req.body);

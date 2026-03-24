@@ -1,7 +1,7 @@
 import generatePassword from "@/utils/pwgenerator.js";
 import * as bcrypt from "bcrypt";
 import { prisma } from "@/config/prisma.js";
-import { deleteFromR2, getFileBuffer } from "@/config/r2.js";
+import { deleteFromR2 } from "@/config/r2.js";
 import * as XLSX from "xlsx";
 import { removeInitialZeros, VALID_GROUPS } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
@@ -30,22 +30,16 @@ export class StudentService {
     return students.map(sanitizeStudent);
   }
 
-  static async getStudentsPaginated(
-    params: {
-      year: number;
-      page: number;
-      limit: number;
-      level?: number;
-      section?: string;
-      search?: string;
-      religion?: string;
-      roll?: number;
-    },
-    // userOptions: {
-    //   role?: string;
-    //   levels?: Array<{ class_name: number; section: string; year: number }>;
-    // } = {},
-  ) {
+  static async getStudentsPaginated(params: {
+    year: number;
+    page: number;
+    limit: number;
+    level?: number;
+    section?: string;
+    search?: string;
+    religion?: string;
+    roll?: number;
+  }) {
     const { year, page, limit, level, section, search, religion, roll } =
       params;
 
@@ -72,41 +66,6 @@ export class StudentService {
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
       year,
     };
-
-    // if (userOptions.role === "teacher") {
-    //   if (!userOptions.levels || userOptions.levels.length === 0) {
-    //     return {
-    //       data: [],
-    //       meta: {
-    //         total: 0,
-    //         filtered: 0,
-    //         page: normalizedPage,
-    //         limit: normalizedLimit,
-    //         totalPages: 0,
-    //       },
-    //     };
-    //   }
-
-    //   const teacherLevels = userOptions.levels
-    //     .filter((l) => l.year === year)
-    //     .map((l) => ({ class: l.class_name, section: l.section }));
-
-    //   if (teacherLevels.length === 0) {
-    //     return {
-    //       data: [],
-    //       meta: {
-    //         total: 0,
-    //         filtered: 0,
-    //         page: normalizedPage,
-    //         limit: normalizedLimit,
-    //         totalPages: 0,
-    //       },
-    //     };
-    //   }
-
-    //   baseWhere.OR = teacherLevels;
-    //   enrollmentWhere.OR = teacherLevels;
-    // }
 
     if (normalizedSearch) {
       enrollmentWhere.student = {
@@ -280,7 +239,9 @@ export class StudentService {
 
     const where: Prisma.student_enrollmentsWhereInput = {
       year,
-      ...(typeof level === "number" && !Number.isNaN(level) ? { class: level } : {}),
+      ...(typeof level === "number" && !Number.isNaN(level)
+        ? { class: level }
+        : {}),
       ...(section ? { section } : {}),
     };
 
@@ -362,14 +323,16 @@ export class StudentService {
 
         const class6Year = studentYear - (classNum - 6);
         let secValue = 1;
-        if (section >= 'A' && section <= 'Z') {
+        if (section >= "A" && section <= "Z") {
           secValue = section.charCodeAt(0) - 64;
         } else if (!isNaN(Number(section))) {
           secValue = Number(section);
         }
-        const sectionCode = String(secValue).padStart(2, '0');
-        const rollCode = String(roll).padStart(2, '0');
-        const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+        const sectionCode = String(secValue).padStart(2, "0");
+        const rollCode = String(roll).padStart(2, "0");
+        const login_id = BigInt(
+          `${String(class6Year).slice(-2)}${sectionCode}${rollCode}`,
+        );
 
         return {
           ...student,
@@ -641,14 +604,16 @@ export class StudentService {
 
       const class6Year = studentYear - (classNum - 6);
       let secValue = 1;
-      if (section >= 'A' && section <= 'Z') {
+      if (section >= "A" && section <= "Z") {
         secValue = section.charCodeAt(0) - 64;
       } else if (!isNaN(Number(section))) {
         secValue = Number(section);
       }
-      const sectionCode = String(secValue).padStart(2, '0');
-      const rollCode = String(roll).padStart(2, '0');
-      const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+      const sectionCode = String(secValue).padStart(2, "0");
+      const rollCode = String(roll).padStart(2, "0");
+      const login_id = BigInt(
+        `${String(class6Year).slice(-2)}${sectionCode}${rollCode}`,
+      );
       const batch = String(studentYear + 11 - classNum);
 
       return {
@@ -683,8 +648,8 @@ export class StudentService {
             name: s.name,
             class: s.class,
             section: s.section,
-            roll: s.roll
-          }))
+            roll: s.roll,
+          })),
         });
       }
     }
@@ -693,7 +658,7 @@ export class StudentService {
       throw new ApiError(
         400,
         "Duplicate login IDs generated for some students. Ensure class, section, and roll combinations are unique.",
-        duplicateErrors
+        duplicateErrors,
       );
     }
 
@@ -701,13 +666,13 @@ export class StudentService {
       idMappedStudents.map(async (student) => {
         const password = generatePassword();
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         return {
           ...student,
           password,
           hashedPassword,
         };
-      })
+      }),
     );
 
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -815,17 +780,19 @@ export class StudentService {
           const classNum = enrollment.class;
           const section = (enrollment.section?.trim() || "A").toUpperCase();
           const roll = enrollment.roll;
-          
+
           const class6Year = studentYear - (classNum - 6);
           let secValue = 1;
-          if (section >= 'A' && section <= 'Z') {
+          if (section >= "A" && section <= "Z") {
             secValue = section.charCodeAt(0) - 64;
           } else if (!isNaN(Number(section))) {
             secValue = Number(section);
           }
-          const sectionCode = String(secValue).padStart(2, '0');
-          const rollCode = String(roll).padStart(2, '0');
-          newLoginId = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+          const sectionCode = String(secValue).padStart(2, "0");
+          const rollCode = String(roll).padStart(2, "0");
+          newLoginId = BigInt(
+            `${String(class6Year).slice(-2)}${sectionCode}${rollCode}`,
+          );
 
           updatedStudent = await tx.students.update({
             where: { id: enrollment.student_id },
@@ -945,6 +912,14 @@ export class StudentService {
       formattedDob = `${d}/${m}/${y}`;
     }
 
+    const addressParts = [
+      result.village,
+      result.post_office,
+      result.upazila,
+      result.district,
+    ].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(", ") : null;
+
     const data = {
       school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
       school_location: "Panchbibi, Joypurhat.",
@@ -960,6 +935,7 @@ export class StudentService {
       student_id: result.login_id ? result.login_id.toString() : "N/A",
       id: result.id,
       imageKey: result.image || null,
+      address,
     };
 
     return await generatePDF(data);
@@ -980,6 +956,7 @@ async function generatePDF(data: {
   student_id: string;
   id: number;
   imageKey?: string | null;
+  address?: string | null;
 }): Promise<{ pdfBuffer: Buffer; studentName: string }> {
   const classNames: Record<number, string> = {
     1: "one",
@@ -995,14 +972,12 @@ async function generatePDF(data: {
   };
   const classStr = classNames[Number(data.class)] || String(data.class);
 
-  // Pre-generate QR Code Data URL (so we can await it outside the synchronous Promise executor)
   const qrText = `Name: ${data.name}\nRoll: ${data.roll}\nClass: ${classStr}\nSection: ${data.section}\nSession: ${data.session}\nSchool: ${data.school_name}`;
   const qrDataUrl = await QRCode.toDataURL(qrText, {
     margin: 1,
     width: 200,
   }).catch(() => null);
 
-  // Pre-generate Grayscale Watermark (outside the synchronous Promise executor)
   const logoPath = path.join("public", "icon.jpg");
   let logoBuffer: Buffer | null = null;
   if (fs.existsSync(logoPath)) {
@@ -1010,19 +985,6 @@ async function generatePDF(data: {
       logoBuffer = await sharp(logoPath).grayscale().toBuffer();
     } catch (e) {
       console.error("Failed to process watermark logo with sharp:", e);
-    }
-  }
-
-  // Pre-fetch and process student passport image
-  let passportBuffer: Buffer | null = null;
-  if (data.imageKey) {
-    try {
-      const rawPassport = await getFileBuffer(data.imageKey);
-      if (rawPassport) {
-        passportBuffer = rawPassport;
-      }
-    } catch (e) {
-      console.error("Failed to process passport image:", e);
     }
   }
 
@@ -1037,12 +999,9 @@ async function generatePDF(data: {
     doc.on("error", reject);
 
     const W = doc.page.width;
-    const M = 40; // margin
-    const studentPartHeight = 648; // 9 inches (9 * 72)
+    const M = 40;
+    const studentPartHeight = 504;
 
-    // --- STUDENT PART (Top 9 Inches) ---
-
-    // Official Header (Centered - Original Design)
     let y = M - 5;
     const contentWidth = W - M * 2;
     doc.font("Times-Roman").fontSize(12).fillColor("#000000");
@@ -1052,32 +1011,20 @@ async function generatePDF(data: {
     });
 
     y += 20;
-    doc
-      .fontSize(14)
-      .text("The office of the Headmaster", M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.fontSize(14).text("The office of the Headmaster", M, y, {
+      align: "center",
+      width: contentWidth,
+    });
 
     y += 26;
-    
-    if (passportBuffer) {
-      // Scale Puppeteer CSS pixels (96dpi) to PDFKit points (72dpi): 90x110 -> 68x83
-      const imgW = 68;
-      const imgH = 83;
-      const imgX = W - M - imgW;
-      const imgY = M + 10;
-      doc.save();
-      doc.rect(imgX, imgY, imgW, imgH).clip();
-      doc.image(passportBuffer, imgX, imgY, { cover: [imgW, imgH], align: 'center', valign: 'center' });
-      doc.restore();
-      doc.rect(imgX, imgY, imgW, imgH).lineWidth(1).stroke("#bbbbbb");
-    }
 
     let schoolNameFontSize = 24;
     doc.font("Times-Bold").fontSize(schoolNameFontSize);
-    const maxSchoolNameWidth = passportBuffer ? 350 : contentWidth;
-    while (doc.widthOfString(data.school_name) > maxSchoolNameWidth && schoolNameFontSize > 10) {
+    const maxSchoolNameWidth = contentWidth;
+    while (
+      doc.widthOfString(data.school_name) > maxSchoolNameWidth &&
+      schoolNameFontSize > 10
+    ) {
       schoolNameFontSize -= 1;
       doc.fontSize(schoolNameFontSize);
     }
@@ -1085,60 +1032,47 @@ async function generatePDF(data: {
     doc.text(data.school_name, M, y, { align: "center", width: contentWidth });
 
     y += Math.max(schoolNameFontSize + 6, 26);
-    doc
-      .font("Times-Roman")
-      .fontSize(14)
-      .text(data.school_location, M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.font("Times-Roman").fontSize(14).text(data.school_location, M, y, {
+      align: "center",
+      width: contentWidth,
+    });
 
     y += 20;
-    doc
-      .fontSize(13)
-      .text(data.school_website, M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.fontSize(13).text(data.school_website, M, y, {
+      align: "center",
+      width: contentWidth,
+    });
 
     y += 20;
-    doc
-      .fontSize(13)
-      .text("EIIN: 121983, School Code: 5100", M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.fontSize(13).text("EIIN: 121983, School Code: 5100", M, y, {
+      align: "center",
+      width: contentWidth,
+    });
 
     y += 26;
-    // Double line divider
+
     const dividerY = y;
+    doc.moveTo(0, y).lineTo(W, y).lineWidth(2).stroke("#000000");
     doc
-      .moveTo(M, y)
-      .lineTo(W - M, y)
-      .lineWidth(2)
-      .stroke("#000000");
-    doc
-      .moveTo(M, y + 3)
-      .lineTo(W - M, y + 3)
+      .moveTo(0, y + 3)
+      .lineTo(W, y + 3)
       .lineWidth(1)
       .stroke("#000000");
 
     y += 12;
 
-    // SL No & Date (Positioned after the header divider)
     doc.font("Times-Bold").fontSize(10).fillColor("#333333");
     doc.text(
       `Date: ${new Date().toLocaleDateString("en-GB")}`,
-      W - M - 150,
+      W - M - 160,
       y,
       { align: "right", width: 150 },
     );
 
-    // Watermark drawing (Centered between divider and cutting line)
     try {
       doc.save();
-      doc.opacity(0.05); // Professional subtle watermark
-      const watermarkWidth = 300;
+      doc.opacity(0.1);
+      const watermarkWidth = 250;
       const centerY = (dividerY + studentPartHeight) / 2;
       if (logoBuffer) {
         doc.image(logoBuffer, W / 2 - watermarkWidth / 2, centerY - 150, {
@@ -1146,23 +1080,20 @@ async function generatePDF(data: {
         });
       }
       doc.restore();
-    } catch (e) {
-      /* ignore */
-    }
+    } catch (e) {}
 
-    y += 35;
-    // Professional Title
+    y += 25;
+
     doc
       .font("Times-Bold")
       .fontSize(22)
       .text("Certificate", M, y, { align: "center", width: contentWidth });
 
-    y += 45;
+    y += 35;
 
-    // Paragraph 1
     const bodyFont = "Times-Roman";
     const bodyFontBold = "Times-Bold";
-    const bodySize = 13;
+    const bodySize = 12;
     const textX = M + 20;
     const textWidth = W - (M + 20) * 2;
 
@@ -1170,97 +1101,65 @@ async function generatePDF(data: {
     doc.text("This is to certify that ", textX, y, {
       continued: true,
       width: textWidth,
-      lineGap: 12,
+      lineGap: 3,
+      align: "justify",
     });
-    doc.font(bodyFontBold).text(data.name, { continued: true });
-    doc.font(bodyFont).text(" son of ", { continued: true });
-    doc.font(bodyFontBold).text(data.father_name, { continued: true });
-    doc.font(bodyFont).text(" and ", { continued: true });
-    doc.font(bodyFontBold).text(data.mother_name, { continued: true });
-    doc.font(bodyFont).text(" is a student of class ", { continued: true });
-    doc.font(bodyFontBold).text(classStr, { continued: true });
-    doc.font(bodyFont).text(", section ", { continued: true });
-    doc.font(bodyFontBold).text(data.section, { continued: true });
+    doc.font(bodyFontBold).text(data.name + " ", { continued: true });
+    doc.font(bodyFont).text("son of ", { continued: true });
+    doc.font(bodyFontBold).text(data.father_name + " ", { continued: true });
+    doc.font(bodyFont).text("and ", { continued: true });
+    doc.font(bodyFontBold).text(data.mother_name + " ", { continued: true });
+
+    if (data.address) {
+      doc.font(bodyFont).text("of ", { continued: true });
+      doc.font(bodyFontBold).text(data.address + " ", { continued: true });
+    }
+
+    doc.font(bodyFont).text("is a student of class ", { continued: true });
+    doc.font(bodyFontBold).text(classStr + ", ", { continued: true });
+    doc.font(bodyFont).text("section ", { continued: true });
+    doc.font(bodyFontBold).text(data.section + " ", { continued: true });
     doc
       .font(bodyFont)
       .text(
-        " of this school. According to the admission information his date of birth is ",
+        "of this school. According to the admission information his date of birth is ",
         { continued: true },
       );
-    doc.font(bodyFontBold).text(data.dob, { continued: false });
+    doc.font(bodyFontBold).text(data.dob + ".", { continued: false });
 
-    y = doc.y + 18;
+    y = doc.y + 6;
     doc
       .font(bodyFont)
       .text(
         "His behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.",
         textX,
         y,
-        { width: textWidth, lineGap: 12 },
+        { width: textWidth, lineGap: 1.5, align: "left" },
       );
 
-    y = doc.y + 18;
-    doc
-      .font(bodyFont)
-      .text("I wish his all success in life.", textX, y, {
-        width: textWidth,
-        lineGap: 12,
-      });
+    y = doc.y + 6;
+    doc.font(bodyFont).text("I wish his all success in life.", textX, y, {
+      width: textWidth,
+      lineGap: 1.5,
+      align: "left",
+    });
 
-    y = studentPartHeight - 50;
-    const sigWidth = 180; // Longer signature line
-
-    // QR Code Placement (using pre-generated qrDataUrl)
     if (qrDataUrl) {
-      doc.image(qrDataUrl, M + 30, y - 90, { width: 80 });
+      doc.image(qrDataUrl, M + 15, studentPartHeight - 110, { width: 75 });
     }
 
     doc
-      .moveTo(W - M - sigWidth, y)
-      .lineTo(W - M, y)
-      .lineWidth(1)
-      .stroke("#000000");
-    doc
-      .font("Times-Bold")
-      .fontSize(12)
-      .text("Headmaster", W - M - sigWidth, y + 8, {
-        width: sigWidth,
-        align: "center",
-      });
-
-    // --- CUTTING SECTION ---
-    const drawScissor = (x: number, y: number, angle: number = 0) => {
-      doc
-        .save()
-        .translate(x, y)
-        .rotate(angle)
-        .scale(0.4)
-        .lineWidth(1.2)
-        .strokeColor("#666666");
-      doc.circle(-8, -6, 6).stroke(); // Handles
-      doc.circle(-8, 6, 6).stroke();
-      doc.moveTo(-4, 0).lineTo(24, -8).stroke(); // Blades
-      doc.moveTo(-4, 0).lineTo(24, 8).stroke();
-      doc.restore();
-    };
-
-    drawScissor(M + 25, studentPartHeight, 0); // Lying along the line
-    drawScissor(W - M - 25, studentPartHeight, 0);
-
-    doc
-      .moveTo(M + 45, studentPartHeight)
-      .lineTo(W - M - 45, studentPartHeight)
+      .moveTo(M + 15, studentPartHeight)
+      .lineTo(W - M - 15, studentPartHeight)
       .lineWidth(1)
       .dash(2, { space: 2 })
       .stroke("#666666")
       .undash();
-    doc.fillColor("#000000"); // Reset
+    doc.fillColor("#000000");
 
-    // --- SCHOOL RECEIPT (OFFICE COPY) ---
     const receiptTop = studentPartHeight + 25;
-    const receiptHeight = 110;
+    const receiptHeight = 135;
 
-    // Receipt Border Box
     doc
       .rect(M, receiptTop, contentWidth, receiptHeight)
       .lineWidth(0.5)
@@ -1282,11 +1181,7 @@ async function generatePDF(data: {
     doc
       .font("Times-Bold")
       .fontSize(9)
-      .text(
-        `Date: ${new Date().toLocaleDateString("en-GB")}`,
-        M + 15,
-        y,
-      );
+      .text(`Date: ${new Date().toLocaleDateString("en-GB")}`, M + 15, y);
 
     y += 18;
     doc.font("Times-Roman").fontSize(10);
@@ -1308,6 +1203,22 @@ async function generatePDF(data: {
       .font("Times-Roman")
       .text("Father's Name: ", M + 15, y, { continued: true });
     doc.font("Times-Bold").text(data.father_name);
+
+    y += 16;
+    const labelWidth = 260;
+    const rightX = W - M - labelWidth - 15;
+    doc.font("Times-Roman").fontSize(10);
+    doc.text(
+      "RECEIPT by: ...........................................",
+      rightX,
+      y,
+      { width: labelWidth, align: "right" },
+    );
+    y += 18;
+    doc.text("Mobile: ...........................................", rightX, y, {
+      width: labelWidth,
+      align: "right",
+    });
 
     doc.end();
   });
