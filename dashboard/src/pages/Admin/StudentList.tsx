@@ -220,7 +220,7 @@ function StudentList() {
       const contentType = (response.headers["content-type"] as string) ?? "";
 
       if (!contentType.includes("application/pdf")) {
-        throw new Error("Failed to generate testimonial: Incorrect content type");
+        throw new Error("Failed to generate Certificate: Incorrect content type");
       }
 
       return { blob: response.data as Blob, headers: response.headers };
@@ -231,14 +231,14 @@ function StudentList() {
       // Note: We don't revokeObjectURL here because the new tab needs it to load.
       // Most browsers will handle the blob URL cleanup once the tab is closed
       // or after some time.
-      toast.success("Testimonial opened in new tab!");
+      toast.success("Certificate opened in new tab!");
     },
     onError: (err: any) => {
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
-        "Failed to generate testimonial";
+        "Failed to generate Certificate";
       toast.error(message);
     },
   });
@@ -1721,7 +1721,7 @@ function StudentList() {
                       Generating…
                     </span>
                   ) : (
-                    "Generate Testimonial"
+                    "Generate Certificate"
                   )}
                 </Button>
                 <Button onClick={closePopup} variant="outline" type="button">

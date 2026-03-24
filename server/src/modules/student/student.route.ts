@@ -22,12 +22,6 @@ router.get(
   StudentController.getAlumniController,
 );
 
-router.get(
-  "/me",
-  AuthMiddleware.authenticate(["student"]),
-  StudentController.getStudentController,
-);
-
 router.post(
   "/bulk",
   AuthMiddleware.authenticate(["admin"]),
