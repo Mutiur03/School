@@ -1018,7 +1018,6 @@ export class MarksService {
     // Dotted lines for signatures
     doc.lineWidth(0.5).dash(1, { space: 1 });
 
-    const gStartX = 65;
     const tStartX = 252.5;
     const hStartX = 440;
 
