@@ -442,7 +442,7 @@ const Sidebar = ({
         }}
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar backdrop-blur-sm flex-col z-50 border-r border-border shadow-sm`}
+        className={`fixed top-14 h-[calc(100vh-3.5rem)] flex bg-sidebar backdrop-blur-sm flex-col z-50 border-r border-border shadow-sm`}
       >
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
@@ -467,7 +467,7 @@ const Sidebar = ({
                             }
                           }}
                         >
-                          <item.icon className="flex-shrink-0 h-4 w-4" />
+                          <item.icon className="shrink-0 h-4 w-4" />
                           {sidebarExpanded && (
                             <motion.span
                               initial={{ opacity: 0 }}
@@ -494,7 +494,7 @@ const Sidebar = ({
                               className={`flex items-center ${sidebarExpanded ? "gap-3" : ""
                                 }`}
                             >
-                              <item.icon className="flex-shrink-0 h-4 w-4" />
+                              <item.icon className="shrink-0 h-4 w-4" />
                               {sidebarExpanded && (
                                 <motion.span
                                   initial={{ opacity: 0 }}
