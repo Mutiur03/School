@@ -153,6 +153,7 @@ model teachers {
   designation  String?    @db.VarChar(100)
   password     String
   image        String?
+  signature    String?
   address      String?
   available    Boolean    @default(true)
   created_at   DateTime   @default(now())

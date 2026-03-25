@@ -11,7 +11,7 @@ export const SUBJECT_NAME =
   /^[A-Za-z0-9][A-Za-z0-9 .()&\/'-]{1,98}[A-Za-z0-9).]$/;
 export const CLASS_NUM = /^(?:[1-9]|10)$/;
 export const SECTION = /^[A-Za-z]$/;
-export const ADDRESS_TEXT = /^[A-Za-z0-9\s,\/()]{2,100}$/;
+export const ADDRESS_TEXT = /^[A-Za-z0-9\s,.\/()]{2,100}$/;
 export const DESIGNATION = /^[A-Za-z][A-Za-z0-9\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{0,49}$/;
 export const USERNAME = /^[A-Za-z0-9_.@-]+$/;
 export const ASCII_ONLY = /^[\x00-\x7F]+$/;
@@ -19,7 +19,7 @@ export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const LOGIN_ID = /^\d{6}$/;
 
 export const ENGLISH_FILTER = /[^A-Za-z.():\s]/g;
-export const ADDRESS_FILTER = /[^A-Za-z0-9\s,\/()]/g;
+export const ADDRESS_FILTER = /[^A-Za-z0-9\s,.\/()]/g;
 export const BANGLA_FILTER = /[^\u0980-\u09FF.():\s]/g;
 export const NUMERIC_FILTER = /[^\d]/g;
 

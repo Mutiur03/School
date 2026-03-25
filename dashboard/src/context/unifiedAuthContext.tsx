@@ -50,6 +50,7 @@ interface TeacherUser extends BaseUser {
     designation?: string;
     address?: string;
     image?: string;
+    signature?: string;
     levels?: Level[];
 }
 

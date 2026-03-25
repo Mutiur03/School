@@ -1,4 +1,5 @@
 import { prisma } from "@/config/prisma.js";
+import { getFileBuffer } from "@/config/r2.js";
 import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
@@ -509,19 +510,40 @@ export class MarksService {
     const studentRoll = result[0].enrollment.roll;
     const studentSection = result[0].enrollment.section;
 
-    // Fetch class highest marks for the same exam
-    const allMarks = await prisma.marks.findMany({
-      where: {
-        enrollment: { class: studentClass, year: parseInt(year) },
-        exam: { exam_name: exam },
-      },
-      select: {
-        marks: true,
-        subject_id: true,
-        subject: { select: { assessment_type: true } },
-        enrollment: { select: { student_id: true } },
-      },
-    });
+    // Fetch class highest marks and signatures
+    const [allMarks, level, headMsg] = await Promise.all([
+      prisma.marks.findMany({
+        where: {
+          enrollment: { class: studentClass, year: parseInt(year) },
+          exam: { exam_name: exam },
+        },
+        select: {
+          marks: true,
+          subject_id: true,
+          subject: { select: { assessment_type: true } },
+          enrollment: { select: { student_id: true } },
+        },
+      }),
+      prisma.levels.findFirst({
+        where: {
+          class_name: studentClass,
+          section: studentSection,
+          year: parseInt(year),
+        },
+        include: { teacher: true },
+      }),
+      prisma.head_msg.findUnique({
+        where: { id: 1 },
+        include: { teacher: true },
+      }),
+    ]);
+
+    const teacherSignature = level?.teacher?.signature
+      ? await getFileBuffer(level.teacher.signature)
+      : null;
+    const headSignature = headMsg?.teacher?.signature
+      ? await getFileBuffer(headMsg.teacher.signature)
+      : null;
 
     const highestMarksMap: Record<string, number> = {};
     const totalByStudent: Record<number, number> = {};
@@ -646,6 +668,7 @@ export class MarksService {
     const buffer = await this.renderStudentReportPDF(
       studentDetails,
       finalTableData,
+      { teacher: teacherSignature, head: headSignature },
     );
     return { buffer, studentName };
   }
@@ -729,6 +752,16 @@ export class MarksService {
     return new Promise<Buffer>(async (resolve) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
 
+      const headMsg = await prisma.head_msg.findUnique({
+        where: { id: 1 },
+        include: { teacher: true },
+      });
+      const headSignature = headMsg?.teacher?.signature
+        ? await getFileBuffer(headMsg.teacher.signature)
+        : null;
+
+      const teacherSignaturesCache: Record<string, Buffer | null> = {};
+
       const studentList = Object.values(grouped);
       for (let i = 0; i < studentList.length; i++) {
         const student: any = studentList[i];
@@ -741,6 +774,23 @@ export class MarksService {
           year: student.year,
           exam: "Consolidated Report",
         };
+
+        const levelKey = `${student.class}_${student.section}_${student.year}`;
+        if (!(levelKey in teacherSignaturesCache)) {
+          const level = await prisma.levels.findFirst({
+            where: {
+              class_name: student.class,
+              section: student.section,
+              year: student.year,
+            },
+            include: { teacher: true },
+          });
+          teacherSignaturesCache[levelKey] = level?.teacher?.signature
+            ? await getFileBuffer(level.teacher.signature)
+            : null;
+        }
+        const teacherSignature = teacherSignaturesCache[levelKey];
+
         this.drawProperBackground(doc);
         await this.drawWatermark(doc);
         this.drawGradingSystemTable(doc, 440, 75);
@@ -764,6 +814,11 @@ export class MarksService {
           examHeaders,
           totals,
         );
+
+        this.drawSignatures(doc, {
+          teacher: teacherSignature,
+          head: headSignature,
+        });
       }
       doc.end();
     });
@@ -772,8 +827,7 @@ export class MarksService {
   private static async renderStudentReportPDF(
     student: any,
     tableData: any[],
-    // exams?: string[],
-    // totalMarksByExam?: any,
+    signatures?: { teacher?: Buffer | null; head?: Buffer | null },
   ): Promise<Buffer> {
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
     const chunks: Buffer[] = [];
@@ -789,30 +843,26 @@ export class MarksService {
       this.drawProperStudentInfo(doc, student);
 
       const y = doc.y + 5;
-      // if (exams && exams.length > 0) {
-      //   const headers = ["Subject", ...exams];
-      //   // this.drawTableGrid(doc, y, headers, tableData, exams, totalMarksByExam);
-      // } else {
-      const isClass9or10 = student.class === 9 || student.class === 10;
-      const headers = isClass9or10
-        ? [
-            "Subjects",
-            "CQ",
-            "MCQ",
-            "PRAC",
-            "Total",
-            "Letter Grade",
-            "Grade Point",
-            "Highest",
-          ]
-        : [
-            "Subjects",
-            "Obtained",
-            "Total",
-            "Letter Grade",
-            "Grade Point",
-            "Highest",
-          ];
+      const headers =
+        student.class === 9 || student.class === 10
+          ? [
+              "Subjects",
+              "CQ",
+              "MCQ",
+              "PRAC",
+              "Total",
+              "Letter Grade",
+              "Grade Point",
+              "Highest",
+            ]
+          : [
+              "Subjects",
+              "Obtained",
+              "Total",
+              "Letter Grade",
+              "Grade Point",
+              "Highest",
+            ];
 
       const finalY = this.drawProperTable(
         doc,
@@ -829,7 +879,8 @@ export class MarksService {
         student.class,
         student.classHighestTotal,
       );
-      // }
+
+      this.drawSignatures(doc, signatures);
 
       doc.end();
     });
@@ -955,30 +1006,50 @@ export class MarksService {
     return y;
   }
 
-  private static drawSignatures(doc: any) {
+  private static drawSignatures(
+    doc: any,
+    signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+  ) {
     doc.fontSize(10).font("Times-Bold").fillColor("#000000");
     const lineY = 780;
     const textY = 788;
     const lineWidth = 90;
 
+    // Dotted lines for signatures
     doc.lineWidth(0.5).dash(1, { space: 1 });
+
+    const gStartX = 65;
+    const tStartX = 252.5;
+    const hStartX = 440;
+
+    // Render Teacher signature if provided
+    if (signatures?.teacher) {
+      try {
+        doc.image(signatures.teacher, tStartX + (lineWidth - 60) / 2, lineY - 40, { width: 60 });
+      } catch (err) {
+        console.error("Teacher signature image error:", err);
+      }
+    }
+
+    // Render Headmaster signature if provided
+    if (signatures?.head) {
+      try {
+        doc.image(signatures.head, hStartX + (lineWidth - 60) / 2, lineY - 40, { width: 60 });
+      } catch (err) {
+        console.error("Head signature image error:", err);
+      }
+    }
 
     doc.moveTo(65, lineY).lineTo(65 + lineWidth, lineY).stroke();
     doc.text("Guardian", 65, textY, { width: lineWidth, align: "center" });
 
-    doc
-      .moveTo(252.5, lineY)
-      .lineTo(252.5 + lineWidth, lineY)
-      .stroke();
+    doc.moveTo(252.5, lineY).lineTo(252.5 + lineWidth, lineY).stroke();
     doc.text("Class Teacher", 252.5, textY, {
       width: lineWidth,
       align: "center",
     });
 
-    doc
-      .moveTo(440, lineY)
-      .lineTo(440 + lineWidth, lineY)
-      .stroke();
+    doc.moveTo(440, lineY).lineTo(440 + lineWidth, lineY).stroke();
     doc.text("Headmaster", 440, textY, { width: lineWidth, align: "center" });
 
     doc.undash();
