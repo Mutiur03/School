@@ -38,6 +38,22 @@ const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => 
   await axios.put(`/api/teachers/${teacherId}/image`, { key: r2Key });
 };
 
+const uploadSignatureToR2 = async (file: File, teacherId: number): Promise<void> => {
+  const key = `signature-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+  const { data } = await axios.post("/api/teachers/signature/upload-url", {
+    id: teacherId,
+    key,
+    contentType: file.type,
+  });
+  const { uploadUrl, key: r2Key } = data.data;
+  await fetch(uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  await axios.put(`/api/teachers/${teacherId}/signature`, { key: r2Key });
+};
+
 const TeacherList = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,7 +86,9 @@ const TeacherList = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [image, setImage] = useState<File | null>(null);
+  const [signature, setSignature] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<number>>(() => new Set());
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
@@ -92,16 +110,21 @@ const TeacherList = () => {
     mutationFn: async ({
       formValues,
       imageFile,
+      signatureFile,
     }: {
       formValues: TeacherFormSchemaData;
       imageFile: File | null;
+      signatureFile: File | null;
     }) => {
       const response = await axios.post("/api/teachers", {
         teachers: [formValues],
       });
+      const newTeacher = response.data.data.teachers[0];
       if (imageFile) {
-        const newTeacher = response.data.data.teachers[0];
         await uploadImageToR2(imageFile, newTeacher.id);
+      }
+      if (signatureFile) {
+        await uploadSignatureToR2(signatureFile, newTeacher.id);
       }
       return response.data;
     },
@@ -109,6 +132,7 @@ const TeacherList = () => {
       toast.success(data.message || "Teacher added successfully.");
       reset(defaultValues);
       setImage(null);
+      setSignature(null);
       setShowForm(false);
       invalidateTeachers();
     },
@@ -122,10 +146,12 @@ const TeacherList = () => {
       teacher,
       formValues,
       imageFile,
+      signatureFile,
     }: {
       teacher: Teacher;
       formValues: TeacherFormSchemaData;
       imageFile: File | null;
+      signatureFile: File | null;
     }) => {
       const response = await axios.put(
         `/api/teachers/${teacher.id}`,
@@ -134,12 +160,16 @@ const TeacherList = () => {
       if (imageFile) {
         await uploadImageToR2(imageFile, teacher.id);
       }
+      if (signatureFile) {
+        await uploadSignatureToR2(signatureFile, teacher.id);
+      }
       return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || "Teacher updated successfully.");
       reset(defaultValues);
       setImage(null);
+      setSignature(null);
       setIsEditing(false);
       setShowForm(false);
       setPopup({ visible: false, type: "", teacher: null });
@@ -173,6 +203,19 @@ const TeacherList = () => {
     },
     onError: () => {
       toast.error("Failed to remove image.");
+    },
+  });
+
+  const removeSignatureMutation = useMutation({
+    mutationFn: async (teacherId: number) => {
+      await axios.delete(`/api/teachers/${teacherId}/signature`);
+    },
+    onSuccess: () => {
+      toast.success("Signature removed.");
+      invalidateTeachers();
+    },
+    onError: () => {
+      toast.error("Failed to remove signature.");
     },
   });
 
@@ -244,11 +287,11 @@ const TeacherList = () => {
 
   const onValidSubmit = useCallback(async (formValues: TeacherFormSchemaData) => {
     if (isEditing && popup.teacher) {
-      updateMutation.mutate({ teacher: popup.teacher, formValues, imageFile: image });
+      updateMutation.mutate({ teacher: popup.teacher, formValues, imageFile: image, signatureFile: signature });
     } else {
-      addMutation.mutate({ formValues, imageFile: image });
+      addMutation.mutate({ formValues, imageFile: image, signatureFile: signature });
     }
-  }, [isEditing, popup.teacher, updateMutation, addMutation, image]);
+  }, [isEditing, popup.teacher, updateMutation, addMutation, image, signature]);
 
   const filteredTeachers = useMemo(
     () => teachers.filter((teacher: Teacher) => teacher.available),
@@ -369,6 +412,50 @@ const TeacherList = () => {
                       className="mt-2 text-sm text-destructive hover:underline"
                     >
                       Remove Current Image
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex justify-center flex-col items-center">
+                  <p className="text-sm font-medium mb-2">Digital Signature</p>
+                  <input
+                    ref={signatureInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setSignature(file);
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    onClick={() => signatureInputRef.current?.click()}
+                    className="w-40 h-24 bg-card border border-border border-dashed rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-primary/50 transition-colors"
+                  >
+                    {signature ? (
+                      <img src={URL.createObjectURL(signature)} alt="Signature Preview" className="w-full h-full object-contain p-2" />
+                    ) : isEditing && popup.teacher?.signature ? (
+                      <img src={getFileUrl(popup.teacher.signature)} alt="Current Signature" className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <span className="text-muted-foreground text-xs text-center px-1">Click to upload signature</span>
+                    )}
+                  </label>
+                  {signature && (
+                    <button
+                      type="button"
+                      onClick={() => { setSignature(null); if (signatureInputRef.current) signatureInputRef.current.value = ""; }}
+                      className="mt-2 text-sm text-destructive hover:underline"
+                    >
+                      Remove Signature
+                    </button>
+                  )}
+                  {!signature && isEditing && popup.teacher?.signature && (
+                    <button
+                      type="button"
+                      onClick={() => removeSignatureMutation.mutate(Number(popup.teacher!.id))}
+                      className="mt-2 text-sm text-destructive hover:underline"
+                    >
+                      Remove Current Signature
                     </button>
                   )}
                 </div>
@@ -738,6 +825,15 @@ const TeacherList = () => {
                     <span className="font-medium">{value}</span>
                   </div>
                 ))}
+
+                {popup.teacher.signature && (
+                  <div className="flex text-sm pt-2">
+                    <span className="w-28 text-muted-foreground shrink-0">Signature</span>
+                    <div className="h-12 border rounded-sm bg-white overflow-hidden p-1">
+                      <img src={getFileUrl(popup.teacher.signature)} alt="Signature" className="h-full object-contain" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
