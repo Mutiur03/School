@@ -465,7 +465,7 @@ const AddMarks = () => {
                   No students match your search{searchQuery ? ` "${searchQuery}"` : " or filters"}.
                 </p>
               </div>
-            ) : specific && specific !== 0 ? (
+            ) : (specific && specific !== 0 && selectedSubject) ? (
               <>
                 <div className="bg-primary/5 p-3 sm:p-4 border-b border-border flex justify-between items-center gap-2 sm:gap-4">
                   <div className="min-w-0">
@@ -493,14 +493,14 @@ const AddMarks = () => {
                   {filteredStudents.map((student) => {
                     const studentMarksEntry = marksData[student.student_id];
                     const subjectMark = studentMarksEntry?.subjectMarks?.find(
-                      (m) => m.subjectId === selectedSubject!.id
+                      (m) => m.subjectId === selectedSubject.id
                     );
                     return (
                       <StudentMarkRow
                         key={student.student_id}
                         variant="card"
                         student={student}
-                        selectedSubject={selectedSubject!}
+                        selectedSubject={selectedSubject}
                         studentSubject={subjectMark}
                         onMarkChange={handleMarksChange}
                       />
@@ -539,14 +539,14 @@ const AddMarks = () => {
                       {filteredStudents.map((student) => {
                         const studentMarksEntry = marksData[student.student_id];
                         const subjectMark = studentMarksEntry?.subjectMarks?.find(
-                          (m) => m.subjectId === selectedSubject!.id
+                          (m) => m.subjectId === selectedSubject.id
                         );
                         return (
                           <StudentMarkRow
                             key={student.student_id}
                             variant="table"
                             student={student}
-                            selectedSubject={selectedSubject!}
+                            selectedSubject={selectedSubject}
                             studentSubject={subjectMark}
                             onMarkChange={handleMarksChange}
                           />

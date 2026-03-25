@@ -13,6 +13,7 @@ import backend from "./lib/backend.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import envPreferredRole from "./lib/role.ts";
 import Loading from "./components/Loading.tsx";
+import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
@@ -105,7 +106,7 @@ function App() {
         toastOptions={{ style: { marginTop: "50px" } }}
       />
       <div className="flex flex-col h-screen">
-        <Suspense fallback={<div className="flex items-center justify-center h-screen bg-background"><Loading /></div>}>
+        <Suspense fallback={<><TopLoadingBar /><div className="flex items-center justify-center h-screen bg-background"><Loading /></div></>}>
           <Routes>
             <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
             <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
@@ -144,7 +145,7 @@ function App() {
             )}
 
             {/* ROLE SPECIFIC PROTECTED ROUTES */}
-            
+
             {/* Teacher Routes */}
             {user?.role === "teacher" && (!envPreferredRole || envPreferredRole === 'teacher') && (
               <Route path="/teacher/*" element={
