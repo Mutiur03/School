@@ -912,18 +912,18 @@ export class StudentService {
       formattedDob = `${d}/${m}/${y}`;
     }
 
-    const addressParts = [
-      result.village,
-      result.post_office,
-      result.upazila,
-      result.district,
-    ].filter(Boolean);
-    const address = addressParts.length > 0 ? addressParts.join(", ") : null;
+    const parts = [];
+    if (result.village)
+      parts.push(`Village / Road No / House No: ${result.village}`);
+    if (result.post_office) parts.push(`Post Office: ${result.post_office}`);
+    if (result.upazila) parts.push(`Upazila / Thana: ${result.upazila}`);
+    if (result.district) parts.push(`District: ${result.district}`);
+    const address = parts.length > 0 ? parts.join(", ") : "N/A";
 
     const data = {
       school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
       school_location: "Panchbibi, Joypurhat.",
-      school_website: "www.lbphs.gov.bd",
+      school_website: "https://lbphs.gov.bd",
       name: result.name || "N/A",
       father_name: result.father_name || "N/A",
       mother_name: result.mother_name || "N/A",
@@ -972,7 +972,7 @@ async function generatePDF(data: {
   };
   const classStr = classNames[Number(data.class)] || String(data.class);
 
-  const qrText = `Name: ${data.name}\nRoll: ${data.roll}\nClass: ${classStr}\nSection: ${data.section}\nSession: ${data.session}\nSchool: ${data.school_name}`;
+  const qrText = `Name: ${data.name}\nClass: ${classStr}\nSection: ${data.section}\nRoll: ${data.roll}\${data.address}\nSession: ${data.session}\nSchool: ${data.school_name}`;
   const qrDataUrl = await QRCode.toDataURL(qrText, {
     margin: 1,
     width: 200,
@@ -1064,14 +1064,14 @@ async function generatePDF(data: {
     doc.font("Times-Bold").fontSize(10).fillColor("#333333");
     doc.text(
       `Date: ${new Date().toLocaleDateString("en-GB")}`,
-      W - M - 160,
+      W - M - 180,
       y,
       { align: "right", width: 150 },
     );
 
     try {
       doc.save();
-      doc.opacity(0.1);
+      doc.opacity(0.15);
       const watermarkWidth = 250;
       const centerY = (dividerY + studentPartHeight) / 2;
       if (logoBuffer) {
@@ -1097,44 +1097,84 @@ async function generatePDF(data: {
     const textX = M + 20;
     const textWidth = W - (M + 20) * 2;
 
-    doc.font(bodyFont).fontSize(bodySize).fillColor("#000000");
-    doc.text("This is to certify that ", textX, y, {
-      continued: true,
-      width: textWidth,
-      lineGap: 3,
-      align: "justify",
-    });
-    doc.font(bodyFontBold).text(data.name + " ", { continued: true });
-    doc.font(bodyFont).text("son of ", { continued: true });
-    doc.font(bodyFontBold).text(data.father_name + " ", { continued: true });
-    doc.font(bodyFont).text("and ", { continued: true });
-    doc.font(bodyFontBold).text(data.mother_name + " ", { continued: true });
-
+    const fragments = [
+      { text: "This is to certify that", font: bodyFont },
+      { text: data.name, font: bodyFontBold },
+      { text: "son of", font: bodyFont },
+      { text: data.father_name, font: bodyFontBold },
+      { text: "and", font: bodyFont },
+      { text: data.mother_name, font: bodyFontBold },
+    ];
     if (data.address) {
-      doc.font(bodyFont).text("of ", { continued: true });
-      doc.font(bodyFontBold).text(data.address + " ", { continued: true });
+      fragments.push({ text: "of", font: bodyFont });
+      fragments.push({ text: data.address, font: bodyFontBold });
+    }
+    fragments.push({ text: "is a student of class", font: bodyFont });
+    fragments.push({ text: classStr + ",", font: bodyFontBold });
+    fragments.push({ text: "section", font: bodyFont });
+    fragments.push({ text: data.section, font: bodyFontBold });
+    fragments.push({ text: "of this school. According to the admission information his date of birth is", font: bodyFont });
+    fragments.push({ text: data.dob + ".", font: bodyFontBold });
+
+    const tokens: { text: string; font: string }[] = [];
+    fragments.forEach((frag) => {
+      const words = frag.text.split(/(\s+)/);
+      words.forEach((w) => {
+        if (w.trim().length > 0) tokens.push({ text: w.trim(), font: frag.font });
+      });
+    });
+
+    let currentLine: { text: string; font: string; width: number }[] = [];
+    let currentLineWidth = 0;
+    
+    doc.font(bodyFont).fontSize(bodySize).fillColor("#000000");
+    const defaultSpaceWidth = doc.widthOfString(" ");
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      doc.font(token.font);
+      const w = doc.widthOfString(token.text);
+      
+      const spaceToAdd = currentLine.length === 0 ? 0 : defaultSpaceWidth;
+      
+      if (currentLineWidth + spaceToAdd + w > textWidth && currentLine.length > 0) {
+        const totalWordsWidth = currentLine.reduce((sum, t) => sum + t.width, 0);
+        const spaceWidth = currentLine.length > 1 ? (textWidth - totalWordsWidth) / (currentLine.length - 1) : 0;
+        
+        let curX = textX;
+        currentLine.forEach((t) => {
+          doc.font(t.font).text(t.text, curX, y);
+          curX += t.width + spaceWidth;
+        });
+        
+        y += doc.currentLineHeight() + 3;
+        currentLine = [{ text: token.text, font: token.font, width: w }];
+        currentLineWidth = w;
+      } else {
+        currentLine.push({ text: token.text, font: token.font, width: w });
+        currentLineWidth += spaceToAdd + w;
+      }
     }
 
-    doc.font(bodyFont).text("is a student of class ", { continued: true });
-    doc.font(bodyFontBold).text(classStr + ", ", { continued: true });
-    doc.font(bodyFont).text("section ", { continued: true });
-    doc.font(bodyFontBold).text(data.section + " ", { continued: true });
-    doc
-      .font(bodyFont)
-      .text(
-        "of this school. According to the admission information his date of birth is ",
-        { continued: true },
-      );
-    doc.font(bodyFontBold).text(data.dob + ".", { continued: false });
+    if (currentLine.length > 0) {
+      let curX = textX;
+      currentLine.forEach((t) => {
+        doc.font(t.font).text(t.text, curX, y);
+        curX += t.width + defaultSpaceWidth;
+      });
+      doc.font(bodyFont);
+      y += doc.currentLineHeight() + 3;
+    }
+    doc.y = y - 3; // Align PDFKit's internal cursor with our final custom Y
 
     y = doc.y + 6;
     doc
       .font(bodyFont)
       .text(
-        "His behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.",
+        "To the best of my knowledge, his behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.",
         textX,
         y,
-        { width: textWidth, lineGap: 1.5, align: "left" },
+        { width: textWidth, lineGap: 1.5, align: "justify" },
       );
 
     y = doc.y + 6;
@@ -1143,6 +1183,27 @@ async function generatePDF(data: {
       lineGap: 1.5,
       align: "left",
     });
+
+    const verifiedLineY = studentPartHeight - 45;
+    const verifiedLineWidth = 50;
+    const verifiedLineStartX = (W - verifiedLineWidth) / 2;
+    const verifiedLabelY = verifiedLineY + 6;
+
+    doc
+      .moveTo(verifiedLineStartX, verifiedLineY)
+      .lineTo(verifiedLineStartX + verifiedLineWidth, verifiedLineY)
+      .lineWidth(1)
+      .dash(2, { space: 2 })
+      .stroke("#000000")
+      .undash();
+    doc
+      .font("Times-Roman")
+      .fontSize(11)
+      .fillColor("#000000")
+      .text("Verified by", verifiedLineStartX, verifiedLabelY, {
+        width: verifiedLineWidth,
+        align: "center",
+      });
 
     if (qrDataUrl) {
       doc.image(qrDataUrl, M + 15, studentPartHeight - 110, { width: 75 });
@@ -1158,21 +1219,26 @@ async function generatePDF(data: {
     doc.fillColor("#000000");
 
     const receiptTop = studentPartHeight + 25;
-    const receiptHeight = 135;
-
+    y = receiptTop + 8;
     doc
-      .rect(M, receiptTop, contentWidth, receiptHeight)
-      .lineWidth(0.5)
-      .dash(3, { space: 3 })
-      .stroke("#999999")
-      .undash();
+      .font("Times-Bold")
+      .fontSize(14)
+      .fillColor("#000000")
+      .text(data.school_name, M, y, { align: "center", width: contentWidth });
+    y += 18;
+    doc
+      .font("Times-Roman")
+      .fontSize(11)
+      .text(data.school_location, M, y, {
+        align: "center",
+        width: contentWidth,
+      });
 
-    y = receiptTop + 15;
+    y += 28;
     doc
       .font("Times-Bold")
       .fontSize(12)
-      .fillColor("#000000")
-      .text("OFFICE COPY (RECEIPT / ACKNOWLEDGEMENT)", M, y, {
+      .text("Office Copy (Receipt / Acknowledgement)", M, y, {
         align: "center",
         width: contentWidth,
       });
@@ -1187,6 +1253,16 @@ async function generatePDF(data: {
     doc.font("Times-Roman").fontSize(10);
     doc.text("Name: ", M + 15, y, { continued: true });
     doc.font("Times-Bold").text(data.name);
+    y += 16;
+    doc
+      .font("Times-Roman")
+      .text("Father's Name: ", M + 15, y, { continued: true });
+    doc.font("Times-Bold").text(data.father_name);
+    y += 16;
+    doc
+      .font("Times-Roman")
+      .text("Mother's Name: ", M + 15, y, { continued: true });
+    doc.font("Times-Bold").text(data.mother_name);
 
     y += 16;
     doc.font("Times-Roman").text("Class: ", M + 15, y, { continued: true });
@@ -1197,19 +1273,18 @@ async function generatePDF(data: {
     doc.font("Times-Bold").text(data.section, { continued: true });
     doc.font("Times-Roman").text(" | Roll: ", { continued: true });
     doc.font("Times-Bold").text(String(data.roll));
-
     y += 16;
     doc
       .font("Times-Roman")
-      .text("Father's Name: ", M + 15, y, { continued: true });
-    doc.font("Times-Bold").text(data.father_name);
+      .text("Date of Birth: ", M + 15, y, { continued: true });
+    doc.font("Times-Bold").text(data.dob);
 
     y += 16;
     const labelWidth = 260;
     const rightX = W - M - labelWidth - 15;
     doc.font("Times-Roman").fontSize(10);
     doc.text(
-      "RECEIPT by: ...........................................",
+      "Received by: ...........................................",
       rightX,
       y,
       { width: labelWidth, align: "right" },
