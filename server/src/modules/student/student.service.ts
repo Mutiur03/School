@@ -1059,7 +1059,7 @@ async function generatePDF(data: {
       .lineWidth(1)
       .stroke("#000000");
 
-    y += 12;
+    /*y += 12;
 
     doc.font("Times-Bold").fontSize(10).fillColor("#333333");
     doc.text(
@@ -1067,7 +1067,7 @@ async function generatePDF(data: {
       W - M - 180,
       y,
       { align: "right", width: 150 },
-    );
+    );*/
 
     try {
       doc.save();
