@@ -912,13 +912,13 @@ export class StudentService {
       formattedDob = `${d}/${m}/${y}`;
     }
 
-    const parts = [];
+    const addressParts = [];
     if (result.village)
-      parts.push(`Village / Road No / House No: ${result.village}`);
-    if (result.post_office) parts.push(`Post Office: ${result.post_office}`);
-    if (result.upazila) parts.push(`Upazila / Thana: ${result.upazila}`);
-    if (result.district) parts.push(`District: ${result.district}`);
-    const address = parts.length > 0 ? parts.join(", ") : "N/A";
+      addressParts.push({ title: "Village/ Road No / House No:", value: result.village });
+    if (result.post_office) addressParts.push({ title: "Post Office:", value: result.post_office });
+    if (result.upazila) addressParts.push({ title: "Upazila/ Thana:", value: result.upazila });
+    if (result.district) addressParts.push({ title: "District:", value: result.district });
+    const address = addressParts.length > 0 ? addressParts : null;
 
     const data = {
       school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
@@ -956,7 +956,7 @@ async function generatePDF(data: {
   student_id: string;
   id: number;
   imageKey?: string | null;
-  address?: string | null;
+  address?: { title: string; value: string }[] | null;
 }): Promise<{ pdfBuffer: Buffer; studentName: string }> {
   const classNames: Record<number, string> = {
     1: "one",
@@ -972,7 +972,8 @@ async function generatePDF(data: {
   };
   const classStr = classNames[Number(data.class)] || String(data.class);
 
-  const qrText = `Name: ${data.name}\nClass: ${classStr}\nSection: ${data.section}\nRoll: ${data.roll}\${data.address}\nSession: ${data.session}\nSchool: ${data.school_name}`;
+  const addressStr = data.address ? data.address.map(a => `${a.title} ${a.value}`).join(", ") : "N/A";
+  const qrText = `Name: ${data.name}\nClass: ${classStr}\nSection: ${data.section}\nRoll: ${data.roll}\nAddress: ${addressStr}\nSession: ${data.session}\nSchool: ${data.school_name}`;
   const qrDataUrl = await QRCode.toDataURL(qrText, {
     margin: 1,
     width: 200,
@@ -1105,9 +1106,13 @@ async function generatePDF(data: {
       { text: "and", font: bodyFont },
       { text: data.mother_name, font: bodyFontBold },
     ];
-    if (data.address) {
+    if (data.address && data.address.length > 0) {
       fragments.push({ text: "of", font: bodyFont });
-      fragments.push({ text: data.address, font: bodyFontBold });
+      data.address.forEach((addrPart, index) => {
+        fragments.push({ text: addrPart.title, font: bodyFont });
+        const valText = index < data.address!.length - 1 ? addrPart.value + "," : addrPart.value;
+        fragments.push({ text: valText, font: bodyFontBold });
+      });
     }
     fragments.push({ text: "is a student of class", font: bodyFont });
     fragments.push({ text: classStr + ",", font: bodyFontBold });
