@@ -85,8 +85,9 @@ jobs:
             # Login to GHCR (once for both deployments)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Get image name
-            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
+            # Get image name (lowercased repository)
+            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_NAME="ghcr.io/$REPO:latest"
 
             echo "Pulling image: $IMAGE_NAME"
             docker pull $IMAGE_NAME
