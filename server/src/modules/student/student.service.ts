@@ -914,7 +914,7 @@ export class StudentService {
 
     const addressParts = [];
     if (result.village)
-      addressParts.push({ title: "Village/ Road No / House No:", value: result.village });
+      addressParts.push({ title: "Village/ Road No/ House No:", value: result.village });
     if (result.post_office) addressParts.push({ title: "Post Office:", value: result.post_office });
     if (result.upazila) addressParts.push({ title: "Upazila/ Thana:", value: result.upazila });
     if (result.district) addressParts.push({ title: "District:", value: result.district });
