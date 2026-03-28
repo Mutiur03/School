@@ -20,6 +20,7 @@ export interface Student {
   available: boolean;
   image?: string;
   enrollment_id: number;
+  fourth_subject_id?: number | null;
 }
 
 

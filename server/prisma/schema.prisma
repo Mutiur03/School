@@ -88,8 +88,10 @@ model student_enrollments {
   final_merit       Int      @default(0)
   next_year_roll    Int      @default(0)
   next_year_section String?  @db.Char(1)
+  fourth_subject_id Int?
   created_at        DateTime @default(now())
   marks             marks[]
+  fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
   student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, class, year])
@@ -213,6 +215,7 @@ model subjects {
   subject_type        String     @default("single")
   marking_scheme      MarkingScheme @default(TOTAL)
   marks               marks[]
+  enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
   parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children            subjects[] @relation("SubjectHierarchy")
 

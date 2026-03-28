@@ -25,7 +25,10 @@ import ErrorMessage from "@/components/ErrorMessage";
 import { getFileUrl } from "@/lib/backend";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Student } from "@/types/students";
+import type { Subject } from "@/types/subjects";
 import { useStudents } from "@/queries/students.queries";
+import { useSubjects } from "@/queries/subject.queries";
+import { useUpdateFourthSubjectMutation } from "@/queries/marks.queries";
 
 
 
@@ -40,6 +43,10 @@ const StudentRow = React.memo(
     onEdit,
     onView,
     onDelete,
+    allSubjects,
+    onFourthSubjectChange,
+    isUpdatingFourthSubject,
+    showSeniorColumns,
   }: {
     student: Student;
     isSelected: boolean;
@@ -48,6 +55,10 @@ const StudentRow = React.memo(
     onEdit: (student: Student) => void;
     onView: (student: Student) => void;
     onDelete: (student: Student) => void;
+    allSubjects: Subject[];
+    onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
+    isUpdatingFourthSubject?: boolean;
+    showSeniorColumns?: boolean;
   }) => {
     return (
       <tr key={student.id} className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
@@ -90,9 +101,38 @@ const StudentRow = React.memo(
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
           {student.section}
         </td>
-        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-          {student.group || ""}
-        </td>
+        {showSeniorColumns && (
+          <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+            {student.group || ""}
+          </td>
+        )}
+        {showSeniorColumns && (
+          <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+            {Number(student.class) >= 9 ? (
+              <select
+                className="px-2 py-1 border rounded bg-card text-xs focus:ring-1 focus:ring-primary outline-none min-w-[120px]"
+                value={student.fourth_subject_id || ""}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : null;
+                  onFourthSubjectChange(student.id, val);
+                }}
+                disabled={isUpdatingFourthSubject}
+              >
+                <option value="">Select 4th Sub</option>
+                {allSubjects
+                  .filter((s: Subject) => s.class === Number(student.class))
+                  .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
+                  .map((sub: Subject) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <span className="text-muted-foreground opacity-50">-</span>
+            )}
+          </td>
+        )}
 
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
           <div className="flex justify-end flex-wrap gap-1.5">
@@ -118,7 +158,11 @@ const StudentRow = React.memo(
   (prev, next) =>
     prev.isSelected === next.isSelected &&
     prev.student === next.student &&
-    prev.onToggleSelect === next.onToggleSelect,
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.allSubjects === next.allSubjects &&
+    prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
+    prev.onFourthSubjectChange === next.onFourthSubjectChange &&
+    prev.showSeniorColumns === next.showSeniorColumns,
 );
 
 const defaultFormValues: StudentFormData = {
@@ -207,6 +251,9 @@ function StudentList() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
+  const { data: allSubjectsData = [] } = useSubjects();
+  const updateFourthSubjectMutation = useUpdateFourthSubjectMutation();
+
   const testimonialMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const response = await axios.post(
@@ -278,7 +325,7 @@ function StudentList() {
   const invalidateStudents = () =>
     queryClient.invalidateQueries({ queryKey: ["students", year] });
 
-  const { data: studentsResponse, isLoading: loading, error: studentsError } = useStudents({
+  const { data: studentsResponse, isLoading: loading, error: studentsError, refetch: refetchStudents } = useStudents({
     year,
     page,
     limit,
@@ -288,6 +335,10 @@ function StudentList() {
     search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
   });
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
+
+  const showSeniorColumns = useMemo(() => {
+    return students.some((s) => Number(s.class) >= 9);
+  }, [students]);
   const meta = studentsResponse?.meta;
   const errorMessage = studentsError
     ? ((studentsError as { response?: { status?: number } }).response?.status === 404
@@ -1466,9 +1517,10 @@ function StudentList() {
                   "Roll",
                   "Class",
                   "Section",
-                   "Group",
+                  "Group",
+                  "4th Subject",
                   "Actions",
-                ].map((header) => (
+                ].filter(header => (header !== "4th Subject" && header !== "Group") || showSeniorColumns).map((header) => (
                   <th
                     key={header}
                     className={`px-4 py-3 text-xs font-semibold text-foreground/70 uppercase tracking-wider ${header === "Actions" ? "text-center" : "text-center sm:text-left"}`}
@@ -1481,7 +1533,7 @@ function StudentList() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={showSeniorColumns ? 8 : 6} className="py-12 text-center">
                     <Loading />
                   </td>
                 </tr>
@@ -1493,15 +1545,27 @@ function StudentList() {
                     isSelected={selectedStudentIds.has(student.id)}
                     onToggleSelect={onToggleSelect}
                     onImageUpload={handleIndivisualImageUpload}
-                    onView={onViewStudent}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                        onEdit={handleEdit}
+                        onView={onViewStudent}
+                        onDelete={handleDelete}
+                        allSubjects={allSubjectsData}
+                        onFourthSubjectChange={(studentId, subjectId) => {
+                          updateFourthSubjectMutation.mutate({
+                            studentId,
+                            year,
+                            subjectId,
+                          }, {
+                             onSuccess: () => refetchStudents()
+                          });
+                        }}
+                        isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
+                        showSeniorColumns={showSeniorColumns}
+                      />
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={showSeniorColumns ? 8 : 6}
                     className="px-4 py-12 text-center text-sm text-muted-foreground dark:text-gray-400"
                   >
                     {errorMessage ||

@@ -111,16 +111,69 @@ const ViewMarks = () => {
 
   const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    const loadingToast = toast.loading("Generating transcript...");
+    
+    // Create new window immediately to bypass popup blockers
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write("Loading marksheet... If this takes too long, please check for errors.");
+    }
+
     try {
       const response = await axios.get(
         `/api/marks/${id}/${year}/${exam}/download`,
         { responseType: "blob" }
       );
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      
+      if (newWindow) {
+        newWindow.location.href = url;
+      } else {
+        // Fallback to direct window.open if initial window was null
+        window.open(url, "_blank");
+      }
+
+      toast.dismiss(loadingToast);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch {
+      toast.dismiss(loadingToast);
+      if (newWindow) newWindow.close();
       toast.error("Failed to download marksheet");
+    }
+  };
+
+  const downloadAllExamPDFs = async () => {
+    if (!className || !year || !exam) {
+      toast.error("Please select Class, Year and Exam");
+      return;
+    }
+    const loadingToast = toast.loading("Generating bulk PDFs...");
+    
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write("Generating all student marksheets... Please wait.");
+    }
+
+    try {
+      const response = await axios.get(
+        `/api/marks/class-exam/${className}/${year}/${exam}/download`,
+        { responseType: "blob" }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      
+      if (newWindow) {
+        newWindow.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      
+      toast.dismiss(loadingToast);
+      toast.success("PDFs generated successfully");
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch {
+      toast.dismiss(loadingToast);
+      if (newWindow) newWindow.close();
+      toast.error("Failed to download all exam marksheets");
     }
   };
 
@@ -279,6 +332,18 @@ const ViewMarks = () => {
         title="Student Marks"
         icon={<FileSpreadsheet className="w-5 h-5 text-primary" />}
         description={`Showing ${filteredData.length} records`}
+        headerAction={
+          className && exam && filteredData.length > 0 && (
+            <Button
+              size="sm"
+              onClick={downloadAllExamPDFs}
+              className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              Download All Exam PDFs
+            </Button>
+          )
+        }
       >
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-sm text-left border-collapse">
@@ -367,7 +432,7 @@ const ViewMarks = () => {
                             onClick={(e) => downloadMarksheet(data.student_id, e)}
                           >
                             <Download className="w-3.5 h-3.5" />
-                            Download
+                            Exam PDF
                           </Button>
                         </div>
                       </td>

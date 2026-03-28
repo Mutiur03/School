@@ -177,7 +177,9 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh) {
                     originalRequest._retry = true;
                     try {
-                        const { data } = await axios.post("/api/auth/sessions/refresh");
+                        const { data } = await axios.post("/api/auth/sessions/refresh", {}, {
+                            _skipAuthRefresh: true
+                        });
                         const accessToken = data?.data?.accessToken;
                         const refreshedUser = data?.data?.user;
                         if (data.success && accessToken) {
@@ -233,6 +235,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 setLoading(false);
                 return;
             }
+
+            // Auth failure — no active session
+            console.log("No active refresh session found");
+            setUser(null);
+            setServerOffline(false);
         } catch (error: any) {
             // Distinguish: network error vs auth failure
             if (isNetworkError(error)) {
@@ -299,8 +306,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 setAccessToken(res.data?.data?.accessToken);
                 setUser(res.data?.data?.user);
             } else {
-                toast.error(res.data.message || "Invalid Credentials");
-                throw new Error(res.data.message || "Login failed");
+                throw { response: { data: res.data } };
             }
         } catch (error) {
             console.error("Error logging in:", error);
@@ -321,6 +327,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 toast.success(res.data.message || "Login successful");
                 setAccessToken(res.data?.data?.accessToken);
                 setUser(res.data?.data?.user);
+            } else {
+                throw { response: { data: res.data } };
             }
         } catch (error) {
             console.error("Error logging in:", error);
@@ -337,14 +345,16 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 login_id,
                 password,
             });
-            toast.success(res.data.message || "Login successful");
-            setAccessToken(res.data?.data?.accessToken);
-            setUser(res.data?.data?.user);
-        } catch (error) {
-            if (isAxiosError(error)) {
-                console.error("Error logging in:", error);
-                toast.error(error.response?.data.message || "Login failed");
+            if (res.data.success) {
+                toast.success(res.data.message || "Login successful");
+                setAccessToken(res.data?.data?.accessToken);
+                setUser(res.data?.data?.user);
+            } else {
+                throw { response: { data: res.data } };
             }
+        } catch (error) {
+            console.error("Error logging in:", error);
+            toast.error(getErrorMessage(error));
             throw error;
         }
     };
@@ -359,6 +369,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Error logging out:", error);
             toast.error("Error logging out");
+            setUser(null);
+            setAccessToken(null);
         }
     };
 

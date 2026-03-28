@@ -13,7 +13,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { subjectFormSchema, type SubjectFormSchemaData, VALID_GROUPS } from "@school/shared-schemas";
 import ErrorMessage from "@/components/ErrorMessage";
-import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject } from "@/queries/subject.queries";
+import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject, useCloneSubjects } from "@/queries/subject.queries";
 import type { Subject } from "@/types/subjects";
 
 // --- Sub-components (Memoized for performance) ---
@@ -548,6 +548,7 @@ const NewSubject: React.FC = () => {
   const addSubjectsMutation = useAddSubjects();
   const updateSubjectMutation = useUpdateSubject();
   const deleteSubjectMutation = useDeleteSubject();
+  const cloneSubjectsMutation = useCloneSubjects();
 
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterClass, setFilterClass] = useState<number | "all">("all");
@@ -1023,6 +1024,21 @@ const NewSubject: React.FC = () => {
   const handleDelete = useCallback((id: number) => deleteSubject(id), []);
   const handleShowInfo = useCallback((subject: Subject) => showSubjectInfo(subject), []);
 
+  const handleClone = useCallback(async () => {
+    const fromYear = filterYear - 1;
+    const toYear = filterYear;
+
+    if (!window.confirm(`Clone all subjects from ${fromYear} to ${toYear}? This will only work if ${toYear} has no subjects yet.`)) {
+      return;
+    }
+
+    try {
+      await cloneSubjectsMutation.mutateAsync({ fromYear, toYear });
+    } catch (error) {
+      console.error("Clone error:", error);
+    }
+  }, [filterYear, cloneSubjectsMutation]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
@@ -1030,13 +1046,24 @@ const NewSubject: React.FC = () => {
         description="Manage school subjects, marks, and groups."
       >
         {!showForm && (
-          <Button
-            type="button"
-            onClick={() => setShowForm((prev) => !prev)}
-            disabled={isLoading}
-          >
-            {isLoading ? "Loading..." : "+ Add New Subject"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClone}
+              disabled={isLoading || stats.total > 0}
+              title={stats.total > 0 ? "Year already has subjects" : `Clone from ${filterYear - 1}`}
+            >
+              {cloneSubjectsMutation.isPending ? "Cloning..." : `Clone from ${filterYear - 1}`}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setShowForm((prev) => !prev)}
+              disabled={isLoading}
+            >
+              {isLoading ? "Loading..." : "+ Add New Subject"}
+            </Button>
+          </div>
         )}
       </PageHeader>
 

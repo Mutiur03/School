@@ -9,6 +9,7 @@ export interface Student {
   section: string;
   class: number;
   group: string;
+  fourth_subject_id?: number | null;
 }
 
 export interface SubjectMark {
@@ -32,6 +33,7 @@ export interface StudentMarkResponse {
   class: number;
   section?: string;
   group?: string;
+  fourth_subject_id?: number | null;
   marks?: Array<{
     subject_id: number;
     subject: string;
@@ -123,6 +125,32 @@ export const useAddMarksMutation = () => {
     onError: (error: any) => {
       toast.error(
         error.response?.data?.error || "Failed to save marks"
+      );
+    },
+  });
+};
+
+export const useUpdateFourthSubjectMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      studentId: number;
+      year: number;
+      subjectId: number | null;
+    }) => {
+      const response = await axios.post("/api/marks/update-fourth-subject", data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["class-marks"] });
+      queryClient.invalidateQueries({ queryKey: ["marks-students"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["student-preview"] });
+      toast.success(data.message || "4th subject updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.error || "Failed to update 4th subject"
       );
     },
   });

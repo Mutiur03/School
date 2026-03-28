@@ -1,32 +1,49 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
-import { SquareKanban, Download } from "lucide-react";
+import { 
+  Download, 
+  Search, 
+  Users, 
+  Calendar, 
+  GraduationCap, 
+  Layers,
+  FileSpreadsheet,
+  RefreshCw,
+  Trophy
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Student {
-  id: string;
-  name: string;
-  roll: number;
-  section: string;
-  class: number;
-  group?: string; 
-  final_merit?: number;
-  next_year_roll?: number;
-  next_year_section?: string;
-}
+import { Label } from "@/components/ui/label";
+import { PageHeader, SectionCard } from "@/components";
+import Loading from "@/components/Loading";
+import { motion } from "framer-motion";
+import { useStudents } from "@/queries/students.queries";
+import { 
+  useUpdatePromotionStatus, 
+  useGeneratePromotionRoll 
+} from "@/queries/promotion.queries";
 
 const GenerateResult = () => {
   const currentYear = new Date().getFullYear();
-  const navigate = useNavigate();
-
   const [year, setYear] = useState<number>(currentYear);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string>("");
   const [classSection, setClassSection] = useState<string>("");
   const [group, setGroup] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
+
+  // React Queries & Mutations
+  const { data: studentsResponse, isLoading: studentsLoading, error: studentsError } = useStudents({
+    year,
+    page: 1,
+    limit: 1000, // Fetch all for result generation
+    level: selectedClass ? Number(selectedClass) : undefined,
+    section: classSection || undefined,
+  });
+
+  const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdatePromotionStatus();
+  const { mutate: generateRoll, isPending: isGeneratingRoll } = useGeneratePromotionRoll();
+
+  const students = studentsResponse?.data || [];
+  const loading = studentsLoading || isUpdatingStatus || isGeneratingRoll;
 
   useEffect(() => {
     const storedYear = sessionStorage.getItem("generateResultYear");
@@ -63,192 +80,197 @@ const GenerateResult = () => {
   };
 
   const handleGenerateResult = () => {
-    axios
-      .post(`/api/promotion/updateStatus/${year}`)
-      .then(() => {
-        getStudentList();
-        toast.success("Status Generated Successfully");
-      })
-      .catch(() => {
-        toast.error("Failed to generate result");
-      });
+    updateStatus(year);
   };
 
   const handleGenerateRoll = () => {
-    if (!confirm("Are you sure you want to generate roll?")) return;
-    if (
-      !confirm(
-        "This action will overwrite the existing roll numbers. You can't undone this action. Are you sure you want to continue?"
-      )
-    )
-      return;
-    axios
-      .post(`/api/promotion/addPromotion/${year}`)
-      .then((response) => {
-        toast.success(response.data.message);
-        getStudentList();
-      })
-      .catch(() => {
-        toast.error("Failed to generate roll");
-      });
+    if (!confirm("Are you sure you want to generate roll? This action will overwrite existing roll numbers and cannot be undone.")) return;
+    generateRoll(year);
   };
 
-  const getStudentList = async () => {
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter((s) => !group || s.group === group)
+      .sort((a, b) => (a.section || "").localeCompare(b.section || "") || (a.roll || 0) - (b.roll || 0));
+  }, [students, group]);
+
+  const downloadSessionMarksheet = async (studentId: string) => {
     try {
-      const response = await axios.get(`/api/students`, {
-        params: { year },
-      });
-      const filtered = (response.data.data || []).filter(
-        (s: Student) => s.class >= 1 && s.class <= 10
+      const response = await axios.get(
+        `/api/marks/${studentId}/${year}/download`,
+        { responseType: "blob" }
       );
-      if (filtered.length === 0) {
-        setErrorMessage("No students found for the selected year.");
-      } else {
-        setErrorMessage("");
-      }
-      setStudents(filtered);
-    } catch (error) {
-      setStudents([]);
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        setErrorMessage("No students found for the selected year.");
-      } else {
-        setErrorMessage("An error occurred while fetching students.");
-      }
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      toast.error("Failed to download session marksheet");
     }
   };
 
-  useEffect(() => {
-    getStudentList();
-  }, [year]);
-
-  const filteredStudents = students
-    .filter(
-      (s) =>
-        s.class === parseInt(selectedClass) &&
-        (!classSection || s.section === classSection) &&
-        (!group || s.group === group)
-    )
-    .sort((a, b) => a.section.localeCompare(b.section) || a.roll - b.roll);
-
-  const handleViewFinalMarksheet = (studentId: string) => {
-    navigate(`/finalmarkSheet/${studentId}/${year}`);
-  };
-
-  const downloadAllMarksheetPDF = () => {
-    const host = import.meta.env.VITE_BACKEND_URL;
-    const url = `${host}/api/marks/all/${year}`;
-    window.open(url, "_blank");
+  const downloadAllMarksheetPDF = async () => {
+    try {
+      const response = await axios.get(`/api/marks/all/${year}`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      toast.error("Failed to download all marksheets");
+    }
   };
 
   return (
-    <div className="max-w-7xl mx-auto font-sans">
-      <div className="grid sm:grid-cols-2 gap-6 mt-10 bg-card text-card-foreground p-6 border rounded-xl shadow-md">
-        <div>
-          <label className="block font-semibold mb-2">
-            Select Year to Generate Result:{" "}
-            <span className="text-sm font-light">
-              (This will generate the pass fand fail status. If want to
-              customize then first generate then customize the status)
-            </span>
-          </label>
-          <select
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="w-full p-2 mb-4 border dark:bg-accent rounded-md"
-          >
-            {Array.from({ length: 3 }, (_, i) => (
-              <option key={i} value={currentYear - i}>
-                {currentYear - i}
-              </option>
-            ))}
-          </select>
-          <Button
-            onClick={handleGenerateResult}
-            className="w-full py-2 font-bold rounded-md"
-          >
-            Generate Result
-          </Button>
-        </div>
-        <div>
-          <label className="block font-semibold mb-2">
-            Select Year to Generate Roll:{" "}
-            <span className="text-sm font-light">
-              (This will generate the roll for the next year according to the
-              status)
-            </span>
-          </label>
-          <select
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="w-full p-2 mb-4 border dark:bg-accent rounded-md"
-          >
-            {Array.from({ length: 3 }, (_, i) => (
-              <option key={i} value={currentYear - i}>
-                {currentYear - i}
-              </option>
-            ))}
-          </select>
-          <Button
-            onClick={handleGenerateRoll}
-            className="w-full py-2 font-bold rounded-md"
-          >
-            Generate Roll
-          </Button>
-        </div>
+    <div className="p-4 sm:p-6 space-y-6 max-w-[1600px] mx-auto overflow-hidden">
+      <PageHeader 
+        title="Generate & Manage Results" 
+        description="Automate merit ranking, generate promotional status, and download student marksheets."
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SectionCard
+          title="Merit & Progress"
+          icon={<Trophy className="w-5 h-5 text-amber-500" />}
+          description="Calculate merit positions and generate promotional status (Pass/Fail) for the current year."
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Calendar className="w-3 h-3" /> Select Academic Year
+              </Label>
+              <select
+                value={year}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              >
+                {Array.from({ length: 5 }, (_, i) => (
+                  <option key={i} value={currentYear - i}>
+                    {currentYear - i}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              onClick={handleGenerateResult}
+              disabled={isUpdatingStatus}
+              className="w-full h-11 font-bold shadow-sm transition-all hover:shadow-md"
+            >
+              {isUpdatingStatus ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Generate Pass/Fail Status
+            </Button>
+            <p className="text-[11px] text-muted-foreground italic text-center px-4">
+              Tip: Generate status first, then refine manually in "Customize Result" if needed.
+            </p>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Annual Promotion"
+          icon={<Users className="w-5 h-5 text-indigo-500" />}
+          description="Finalize transitions by generating new roll numbers for the next academic year."
+        >
+          <div className="space-y-4">
+             <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Calendar className="w-3 h-3" /> Select Promotion Year
+              </Label>
+              <select
+                value={year}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              >
+                {Array.from({ length: 5 }, (_, i) => (
+                  <option key={i} value={currentYear - i}>
+                    {currentYear - i}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              onClick={handleGenerateRoll}
+              disabled={isGeneratingRoll}
+              variant="secondary"
+              className="w-full h-11 font-bold shadow-sm transition-all hover:shadow-md border border-border"
+            >
+              {isGeneratingRoll ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Generate Next Year Rolls
+            </Button>
+            <p className="text-[11px] text-destructive/80 font-medium text-center px-4">
+               Warning: This will overwrite existing roll numbers for the next year.
+            </p>
+          </div>
+        </SectionCard>
       </div>
 
-      <h1 className="text-center text-3xl sm:text-4xl font-semibold mt-12 mb-6">
-        Marksheet Generation
-      </h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div>
-          <label className="block mb-1 font-medium">Year:</label>
-          <input
-            type="number"
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="p-2 border dark:bg-accent rounded-md w-full"
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Class:</label>
-          <select
-            value={selectedClass}
-            onChange={(e) => handleClassChange(e.target.value)}
-            className="p-2 border dark:bg-accent rounded-md w-full"
-          >
-            <option value="">Select Class</option>
-            {[6, 7, 8, 9, 10].map((num) => (
-              <option key={num} value={num}>
-                {num}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Section:</label>
-          <select
-            value={classSection}
-            onChange={(e) => handleSectionChange(e.target.value)}
-            className="p-2 border dark:bg-accent rounded-md w-full"
-            disabled={!selectedClass}
-          >
-            <option value="">All Sections</option>
-            {["A", "B"].map((section) => (
-              <option key={section} value={section}>
-                {section}
-              </option>
-            ))}
-          </select>
-        </div>
-        {selectedClass > "8" && (
-          <div>
-            <label className="block mb-1 font-medium">Group:</label>
+      <SectionCard
+        title="Data Filters"
+        icon={<Search className="w-5 h-5" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Calendar className="w-3 h-3" /> Year
+            </Label>
+            <select
+              value={year}
+              onChange={(e) => handleYearChange(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+            >
+              {Array.from({ length: 5 }, (_, i) => (
+                <option key={i} value={currentYear - i}>
+                  {currentYear - i}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <GraduationCap className="w-3 h-3" /> Class
+            </Label>
+            <select
+              value={selectedClass}
+              onChange={(e) => handleClassChange(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+            >
+              <option value="">All Classes</option>
+              {[6, 7, 8, 9, 10].map((num) => (
+                <option key={num} value={num}>
+                  {num}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Users className="w-3 h-3" /> Section
+            </Label>
+            <select
+              value={classSection}
+              onChange={(e) => handleSectionChange(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              disabled={!selectedClass}
+            >
+              <option value="">All Sections</option>
+              {["A", "B", "C", "D"].map((section) => (
+                <option key={section} value={section}>
+                  {section}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Layers className="w-3 h-3" /> Group
+            </Label>
             <select
               value={group}
               onChange={(e) => handleGroupChange(e.target.value)}
-              className="p-2 border dark:bg-accent rounded-md w-full"
-              disabled={!selectedClass}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              disabled={Number(selectedClass) < 9}
             >
               <option value="">All Groups</option>
               {["Science", "Humanities", "Commerce"].map((dept) => (
@@ -258,63 +280,103 @@ const GenerateResult = () => {
               ))}
             </select>
           </div>
-        )}
-      </div>
+        </div>
+      </SectionCard>
 
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={downloadAllMarksheetPDF}
-          className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-md"
-        >
-          <Download className="w-4 h-4" />
-          Download All PDFs
-        </button>
-      </div>
-
-      {errorMessage && <p className="text-center mb-5">{errorMessage}</p>}
-
-      <div className="rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full border divide-y divide-gray-200">
-            <thead className="bg-popover">
-              <tr>
-                <th className="p-3">Name</th>
-                <th className="p-3">Roll</th>
-                <th className="p-3">Section</th>
-                <th className="p-3">Merit</th>
-                <th className="p-3">Next Roll</th>
-                <th className="p-3">Next Section</th>
-                <th className="p-3">Action</th>
+      <SectionCard 
+        noPadding 
+        title="Student Merit List"
+        icon={<FileSpreadsheet className="w-5 h-5 text-primary" />}
+        description={studentsError ? "Failed to load students" : `Showing ${filteredStudents.length} records`}
+        headerAction={
+          filteredStudents.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadAllMarksheetPDF}
+              className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-none"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download All PDFs
+            </Button>
+          )
+        }
+      >
+        <div className="overflow-x-auto min-h-[300px]">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border shadow-sm">
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-16 text-center">Merit</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic">Student Name</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-20">Roll</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-24">Section</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-24 bg-primary/5">Next Roll</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-28 bg-primary/5">Next Sec</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-32">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y text-center divide-gray-200">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
-                  <tr key={student.id}>
-                    <td className="p-3">{student.name || "N/A"}</td>
-                    <td className="p-3">{student.roll || "N/A"}</td>
-                    <td className="p-3">{student.section || "N/A"}</td>
-                    <td className="p-3">{student.final_merit || "N/A"}</td>
-                    <td className="p-3">{student.next_year_roll || "N/A"}</td>
-                    <td className="p-3">{student.next_year_section || "N/A"}</td>
-                    <td className="p-3 text-sky-500 text-center">
-                      <button onClick={() => handleViewFinalMarksheet(student.id)}>
-                        <SquareKanban className="w-5 h-5 mx-auto" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+            <tbody className="divide-y divide-border">
+              {loading && students.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center p-4 text-muted-foreground">
-                    No students available.
+                  <td colSpan={7} className="py-20 text-center">
+                    <Loading />
                   </td>
                 </tr>
+              ) : filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-20 text-center text-muted-foreground italic">
+                    {studentsError ? "An error occurred while fetching students." : "No students matching your filters found."}
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((student, idx) => (
+                  <motion.tr 
+                    key={student.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: Math.min(idx * 0.03, 0.5) }}
+                    className="hover:bg-muted/30 transition-all group"
+                  >
+                    <td className="px-6 py-4 text-center border-r border-border/50">
+                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold ${
+                        student.final_merit === 1 ? 'bg-amber-500 text-white' : 
+                        student.final_merit === 2 ? 'bg-zinc-400 text-white' : 
+                        student.final_merit === 3 ? 'bg-amber-700 text-white' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {student.final_merit || "-"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors border-r border-border/50 uppercase">
+                      {student.name || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-center tabular-nums border-r border-border/50">{student.roll || "N/A"}</td>
+                    <td className="px-6 py-4 text-center font-medium border-r border-border/50">{student.section || "N/A"}</td>
+                    <td className="px-6 py-4 text-center font-bold text-primary bg-primary/5 border-r border-border/50 tabular-nums">
+                      {student.next_year_roll || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold text-primary bg-primary/5 border-r border-border/50">
+                      {student.next_year_section || "N/A"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-none"
+                          onClick={() => downloadSessionMarksheet(student.id)}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Session PDF
+                        </Button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 };
