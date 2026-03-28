@@ -58,4 +58,27 @@ export class SubjectController {
         .json(new ApiResponse(200, result, "Subject updated successfully"));
     },
   );
+
+  static cloneSubController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { fromYear, toYear } = req.body;
+
+      if (!fromYear || !toYear) {
+        throw new ApiError(400, "fromYear and toYear are required");
+      }
+
+      const result = await SubjectService.cloneSubjects(
+        parseInt(fromYear as string),
+        parseInt(toYear as string),
+      );
+
+      if (!result.success) {
+        throw new ApiError(400, result.message || "Failed to clone subjects");
+      }
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, result.mapping, "Subjects cloned successfully"));
+    },
+  );
 }

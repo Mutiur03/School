@@ -24,6 +24,18 @@ router.get(
   AuthMiddleware.authenticate(["admin", "teacher"]),
   MarksController.getClassMarksController,
 );
+
+router.get(
+  "/:id/:year/preview",
+  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  MarksController.getIndividualSessionMarksPreviewController,
+);
+router.get(
+  "/:id/:year/download",
+  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  MarksController.downloadIndividualSessionMarksheetController,
+);
+
 router.get(
   "/:id/:year/:exam/download",
   AuthMiddleware.authenticate(["admin", "teacher", "student"]),
@@ -33,6 +45,18 @@ router.get(
   "/all/:year",
   AuthMiddleware.authenticate(["admin"]),
   MarksController.downloadAllMarksheetPDFController,
+);
+
+router.get(
+  "/class-exam/:className/:year/:exam/download",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  MarksController.downloadClassExamMarksheetPDFController,
+);
+
+router.post(
+  "/update-fourth-subject",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  MarksController.updateFourthSubjectController,
 );
 
 const marksRouter = express.Router();

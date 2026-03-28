@@ -20,11 +20,13 @@ const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 const r2Client = new S3Client({
   region: "auto",
   endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY_ID!,
     secretAccessKey: R2_SECRET_ACCESS_KEY!,
   },
 });
+
 
 export const getUploadUrl = async (key: string, contentType: string) => {
   const command = new PutObjectCommand({

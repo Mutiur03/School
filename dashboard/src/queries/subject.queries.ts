@@ -82,3 +82,20 @@ export const useDeleteSubject = () => {
     },
   });
 };
+
+export const useCloneSubjects = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fromYear, toYear }: { fromYear: number; toYear: number }) => {
+      const response = await axios.post("/api/sub/clone", { fromYear, toYear });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["subjects"] });
+      toast.success(data.message || "Subjects cloned successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Error cloning subjects");
+    },
+  });
+};

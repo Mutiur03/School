@@ -76,6 +76,29 @@ export class MarksController {
     },
   );
 
+  static getIndividualSessionMarksPreviewController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id, year } = req.params;
+      if (!id || !year) {
+        throw new ApiError(400, "Student id and year are required");
+      }
+      const data = await MarksService.getIndividualSessionMarksPreview(
+        id as string,
+        year as string,
+        req.user,
+      );
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            data,
+            "Individual session marks preview fetched",
+          ),
+        );
+    },
+  );
+
   static generateMarksheetController = asyncHandler(
     async (req: Request, res: Response) => {
       const { id, year, exam } = req.params;
@@ -95,7 +118,7 @@ export class MarksController {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${filename}"`,
+        `inline; filename="${filename}"`,
       );
       res.end(buffer);
     },
@@ -114,9 +137,73 @@ export class MarksController {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${filename}"`,
+        `inline; filename="${filename}"`,
       );
       res.end(pdfBuffer);
+    },
+  );
+
+  static downloadIndividualSessionMarksheetController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id, year } = req.params;
+      if (!id || !year) {
+        throw new ApiError(400, "Student id and year are required");
+      }
+      const pdfBuffer = await MarksService.generateAllMarksheetsPDF(
+        year as string,
+        id as string,
+      );
+      const filename = `session_marksheet_${id}_${year}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${filename}"`,
+      );
+      res.end(pdfBuffer);
+    },
+  );
+
+  static downloadClassExamMarksheetPDFController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { className, year, exam } = req.params;
+      if (!className || !year || !exam) {
+        throw new ApiError(
+          400,
+          "className, year, and exam are required parameters",
+        );
+      }
+      const pdfBuffer = await MarksService.generateBulkExamMarksheetsPDF(
+        year as string,
+        className as string,
+        exam as string,
+      );
+      const filename = `class_${className}_${exam}_${year}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${filename}"`,
+      );
+      res.end(pdfBuffer);
+    },
+  );
+
+  static updateFourthSubjectController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { studentId, year, subjectId } = req.body;
+      if (!studentId || !year) {
+        throw new ApiError(400, "studentId and year are required");
+      }
+      const result = await MarksService.updateFourthSubject(
+        studentId,
+        year,
+        subjectId,
+        req.user,
+      );
+      res
+        .status(200)
+        .json(
+          new ApiResponse(200, result, "4th subject updated successfully"),
+        );
     },
   );
 }

@@ -33,10 +33,10 @@ export const formatDateWithTime = (dateStr: string) => {
 
 export const getErrorMessage = (error: any) => {
   const data = error.response?.data;
-  if (data?.errors && Array.isArray(data.errors)) {
+  if (typeof data === "string") return data;
+  if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
     // If it's Zod issues (array of objects with message property)
     if (
-      data.errors.length > 0 &&
       typeof data.errors[0] === "object" &&
       data.errors[0].message
     ) {
