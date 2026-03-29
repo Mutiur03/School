@@ -348,7 +348,7 @@ export class MarksService {
     id: string,
     year: string,
     exam: string,
-    user: any,
+    // user: any,
   ) {
     const marks = await prisma.marks.findMany({
       where: {
@@ -2002,162 +2002,162 @@ export class MarksService {
     });
   }
 
-  private static drawTableGrid(
-    doc: any,
-    y: number,
-    headers: string[],
-    data: any[],
-    exams: string[],
-    totals: any,
-    gpas: any,
-  ) {
-    const {
-      startX,
-      contentWidth,
-      rowHeight,
-      headerFontSize,
-      rowFontSize,
-      fontBold,
-      fontRegular,
-    } = PDF_STYLES;
-    const subjectWidth = 150;
-    const colWidth = (contentWidth - subjectWidth) / (exams.length || 1);
+  // private static drawTableGrid(
+  //   doc: any,
+  //   y: number,
+  //   headers: string[],
+  //   data: any[],
+  //   exams: string[],
+  //   totals: any,
+  //   gpas: any,
+  // ) {
+  //   const {
+  //     startX,
+  //     contentWidth,
+  //     rowHeight,
+  //     headerFontSize,
+  //     rowFontSize,
+  //     fontBold,
+  //     fontRegular,
+  //   } = PDF_STYLES;
+  //   const subjectWidth = 150;
+  //   const colWidth = (contentWidth - subjectWidth) / (exams.length || 1);
 
-    doc
-      .fillColor("#000000")
-      .font(fontBold)
-      .fontSize(headerFontSize)
-      .lineWidth(0.5);
+  //   doc
+  //     .fillColor("#000000")
+  //     .font(fontBold)
+  //     .fontSize(headerFontSize)
+  //     .lineWidth(0.5);
 
-    doc
-      .rect(startX, y, contentWidth, rowHeight)
-      .fillAndStroke("#f3f4f6", "#000000");
+  //   doc
+  //     .rect(startX, y, contentWidth, rowHeight)
+  //     .fillAndStroke("#f3f4f6", "#000000");
     
-    this.drawDynamicText(doc, headers[0], startX + 5, y, subjectWidth - 10, rowHeight, {
-      fontSize: headerFontSize,
-      bold: true,
-    });
+  //   this.drawDynamicText(doc, headers[0], startX + 5, y, subjectWidth - 10, rowHeight, {
+  //     fontSize: headerFontSize,
+  //     bold: true,
+  //   });
 
-    doc
-      .moveTo(startX + subjectWidth, y)
-      .lineTo(startX + subjectWidth, y + rowHeight)
-      .stroke();
+  //   doc
+  //     .moveTo(startX + subjectWidth, y)
+  //     .lineTo(startX + subjectWidth, y + rowHeight)
+  //     .stroke();
 
-    exams.forEach((exam, i) => {
-      const curX = startX + subjectWidth + i * colWidth;
-      if (i < exams.length - 1) {
-        doc
-          .moveTo(curX + colWidth, y)
-          .lineTo(curX + colWidth, y + rowHeight)
-          .stroke();
-      }
-      this.drawDynamicText(doc, exam, curX, y, colWidth, rowHeight, {
-        fontSize: headerFontSize,
-        align: "center",
-        bold: true,
-      });
-    });
+  //   exams.forEach((exam, i) => {
+  //     const curX = startX + subjectWidth + i * colWidth;
+  //     if (i < exams.length - 1) {
+  //       doc
+  //         .moveTo(curX + colWidth, y)
+  //         .lineTo(curX + colWidth, y + rowHeight)
+  //         .stroke();
+  //     }
+  //     this.drawDynamicText(doc, exam, curX, y, colWidth, rowHeight, {
+  //       fontSize: headerFontSize,
+  //       align: "center",
+  //       bold: true,
+  //     });
+  //   });
 
-    y += rowHeight;
+  //   y += rowHeight;
 
-    doc.font(fontRegular).fontSize(rowFontSize);
-    data.forEach((row: any) => {
-      if (y > 780) {
-        doc.addPage();
-        this.drawProperBackground(doc);
-        y = 50;
-      }
+  //   doc.font(fontRegular).fontSize(rowFontSize);
+  //   data.forEach((row: any) => {
+  //     if (y > 780) {
+  //       doc.addPage();
+  //       this.drawProperBackground(doc);
+  //       y = 50;
+  //     }
 
-      doc.lineWidth(0.5).rect(startX, y, contentWidth, rowHeight).stroke();
-      this.drawDynamicText(doc, row.subject, startX + 5, y, subjectWidth - 10, rowHeight, {
-        fontSize: rowFontSize,
-      });
+  //     doc.lineWidth(0.5).rect(startX, y, contentWidth, rowHeight).stroke();
+  //     this.drawDynamicText(doc, row.subject, startX + 5, y, subjectWidth - 10, rowHeight, {
+  //       fontSize: rowFontSize,
+  //     });
 
-      doc
-        .moveTo(startX + subjectWidth, y)
-        .lineTo(startX + subjectWidth, y + rowHeight)
-        .stroke();
+  //     doc
+  //       .moveTo(startX + subjectWidth, y)
+  //       .lineTo(startX + subjectWidth, y + rowHeight)
+  //       .stroke();
       
-      exams.forEach((exam, i) => {
-        const curX = startX + subjectWidth + i * colWidth;
-        if (i < exams.length - 1) {
-          doc
-            .moveTo(curX + colWidth, y)
-            .lineTo(curX + colWidth, y + rowHeight)
-            .stroke();
-        }
-        this.drawDynamicText(doc, String(row.exam_marks[exam] ?? "-"), curX, y, colWidth, rowHeight, {
-          fontSize: rowFontSize,
-          align: "center",
-        });
-      });
-      y += rowHeight;
-    });
+  //     exams.forEach((exam, i) => {
+  //       const curX = startX + subjectWidth + i * colWidth;
+  //       if (i < exams.length - 1) {
+  //         doc
+  //           .moveTo(curX + colWidth, y)
+  //           .lineTo(curX + colWidth, y + rowHeight)
+  //           .stroke();
+  //       }
+  //       this.drawDynamicText(doc, String(row.exam_marks[exam] ?? "-"), curX, y, colWidth, rowHeight, {
+  //         fontSize: rowFontSize,
+  //         align: "center",
+  //       });
+  //     });
+  //     y += rowHeight;
+  //   });
 
-    doc
-      .lineWidth(0.5)
-      .rect(startX, y, contentWidth, rowHeight)
-      .fillAndStroke("#f9fafb", "#000000");
-    doc.fillColor("#000000").font(fontBold);
-    this.drawDynamicText(doc, "TOTAL", startX + 5, y, subjectWidth - 10, rowHeight, {
-      fontSize: rowFontSize,
-      align: "right",
-      bold: true,
-    });
+  //   doc
+  //     .lineWidth(0.5)
+  //     .rect(startX, y, contentWidth, rowHeight)
+  //     .fillAndStroke("#f9fafb", "#000000");
+  //   doc.fillColor("#000000").font(fontBold);
+  //   this.drawDynamicText(doc, "TOTAL", startX + 5, y, subjectWidth - 10, rowHeight, {
+  //     fontSize: rowFontSize,
+  //     align: "right",
+  //     bold: true,
+  //   });
 
-    doc
-      .moveTo(startX + subjectWidth, y)
-      .lineTo(startX + subjectWidth, y + rowHeight)
-      .stroke();
+  //   doc
+  //     .moveTo(startX + subjectWidth, y)
+  //     .lineTo(startX + subjectWidth, y + rowHeight)
+  //     .stroke();
     
-    exams.forEach((exam, i) => {
-      const curX = startX + subjectWidth + i * colWidth;
-      if (i < exams.length - 1) {
-        doc
-          .moveTo(curX + colWidth, y)
-          .lineTo(curX + colWidth, y + rowHeight)
-          .stroke();
-      }
-      this.drawDynamicText(doc, String(totals[exam] ?? "-"), curX, y, colWidth, rowHeight, {
-        fontSize: rowFontSize,
-        align: "center",
-        bold: true,
-      });
-    });
-    y += rowHeight;
+  //   exams.forEach((exam, i) => {
+  //     const curX = startX + subjectWidth + i * colWidth;
+  //     if (i < exams.length - 1) {
+  //       doc
+  //         .moveTo(curX + colWidth, y)
+  //         .lineTo(curX + colWidth, y + rowHeight)
+  //         .stroke();
+  //     }
+  //     this.drawDynamicText(doc, String(totals[exam] ?? "-"), curX, y, colWidth, rowHeight, {
+  //       fontSize: rowFontSize,
+  //       align: "center",
+  //       bold: true,
+  //     });
+  //   });
+  //   y += rowHeight;
 
-    // Add GPA row
-    doc
-      .lineWidth(0.5)
-      .rect(startX, y, contentWidth, rowHeight)
-      .fillAndStroke("#f1f5f9", "#000000");
-    doc.fillColor("#000000").font(fontBold);
-    this.drawDynamicText(doc, "GPA", startX + 5, y, subjectWidth - 10, rowHeight, {
-      fontSize: rowFontSize,
-      align: "right",
-      bold: true,
-    });
+  //   // Add GPA row
+  //   doc
+  //     .lineWidth(0.5)
+  //     .rect(startX, y, contentWidth, rowHeight)
+  //     .fillAndStroke("#f1f5f9", "#000000");
+  //   doc.fillColor("#000000").font(fontBold);
+  //   this.drawDynamicText(doc, "GPA", startX + 5, y, subjectWidth - 10, rowHeight, {
+  //     fontSize: rowFontSize,
+  //     align: "right",
+  //     bold: true,
+  //   });
 
-    doc
-      .moveTo(startX + subjectWidth, y)
-      .lineTo(startX + subjectWidth, y + rowHeight)
-      .stroke();
+  //   doc
+  //     .moveTo(startX + subjectWidth, y)
+  //     .lineTo(startX + subjectWidth, y + rowHeight)
+  //     .stroke();
     
-    exams.forEach((exam, i) => {
-      const curX = startX + subjectWidth + i * colWidth;
-      if (i < exams.length - 1) {
-        doc
-          .moveTo(curX + colWidth, y)
-          .lineTo(curX + colWidth, y + rowHeight)
-          .stroke();
-      }
-      this.drawDynamicText(doc, String(gpas[exam] ?? "-"), curX, y, colWidth, rowHeight, {
-        fontSize: rowFontSize,
-        align: "center",
-        bold: true,
-      });
-    });
-  }
+  //   exams.forEach((exam, i) => {
+  //     const curX = startX + subjectWidth + i * colWidth;
+  //     if (i < exams.length - 1) {
+  //       doc
+  //         .moveTo(curX + colWidth, y)
+  //         .lineTo(curX + colWidth, y + rowHeight)
+  //         .stroke();
+  //     }
+  //     this.drawDynamicText(doc, String(gpas[exam] ?? "-"), curX, y, colWidth, rowHeight, {
+  //       fontSize: rowFontSize,
+  //       align: "center",
+  //       bold: true,
+  //     });
+  //   });
+  // }
 
   static async updateFourthSubject(
 
