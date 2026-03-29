@@ -522,7 +522,7 @@ const ViewMarks = () => {
                                   </>
                                 )}
                                 <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Total</th>
-                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Status</th>
+                                {/* <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Status</th> */}
                               </tr>
                             );
                           })()}
@@ -564,7 +564,7 @@ const ViewMarks = () => {
                                     <td className="px-4 py-3 text-center tabular-nums font-bold text-primary">
                                       {mark.marks ?? "-"}
                                     </td>
-                                    <td className="px-4 py-3 text-center">
+                                    {/* <td className="px-4 py-3 text-center">
                                       <span
                                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                                           percentage >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
@@ -575,7 +575,7 @@ const ViewMarks = () => {
                                       >
                                         {percentage >= 33 ? "Passed" : "Failed"}
                                       </span>
-                                    </td>
+                                    </td> */}
                                   </tr>
                                 );
                               });
