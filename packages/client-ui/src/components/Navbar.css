@@ -281,6 +281,12 @@ header#masthead {
     animation: fadeIn 0.2s ease-in-out;
 }
 
+/* Align dropdown to the right of the parent (expands left) */
+#TF-Navbar>ul>li.dropdown-left>.dropdown-menu {
+    left: auto;
+    right: 0;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -339,6 +345,13 @@ header#masthead {
         left: 100%;
         min-width: 210px;
         z-index: 45;
+    }
+
+    /* Sub-dropdowns within a dropdown-left should expand to the left */
+    #TF-Navbar>ul>li.dropdown-left .dropdown-menu li.show>.dropdown-menu,
+    #TF-Navbar>ul>li.dropdown-left .dropdown-menu li:hover>.dropdown-menu {
+        left: auto;
+        right: 100%;
     }
 
     .mobile-nav {

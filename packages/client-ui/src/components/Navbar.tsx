@@ -273,13 +273,23 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         href: String(school?.links?.results ?? "#"),
         text: "Results",
       },
-
       {
         id: "menu-item-3384",
         className:
           "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item",
         href: "at-a-glance",
         text: "Contact",
+      },
+      {
+        id: "menu-item-3542",
+        className:
+          "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left",
+        href: "#",
+        text: "Login",
+        dropdown: [
+          { id: "menu-item-3548", href: String(school?.links?.teacherLogin ?? "#"), text: "Teacher" },
+          { id: "menu-item-3549", href: String(school?.links?.studentLogin ?? "#"), text: "Student" },
+        ],
       },
     ];
 

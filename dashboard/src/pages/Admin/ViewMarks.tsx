@@ -536,9 +536,9 @@ const ViewMarks = () => {
                               return selectedStudent.marks
                                 .filter((mark) => mark.marks !== null)
                                 .map((mark, index) => {
-                                const percentage = mark.subject_info?.full_mark && mark.marks !== null
-                                  ? (mark.marks / mark.subject_info.full_mark) * 100
-                                  : 0;
+                                // const percentage = mark.subject_info?.full_mark && mark.marks !== null
+                                //   ? (mark.marks / mark.subject_info.full_mark) * 100
+                                //   : 0;
 
                                 return (
                                   <tr
