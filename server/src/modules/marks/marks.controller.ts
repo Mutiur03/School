@@ -66,7 +66,7 @@ export class MarksController {
         id as string,
         year as string,
         exam as string,
-        req.user,
+        // req.user,
       );
       res
         .status(200)

@@ -1,5 +1,5 @@
 import envPreferredRole from "@/lib/role";
-import axios, { isAxiosError } from "axios";
+import axios from "axios";
 import { createContext, useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";

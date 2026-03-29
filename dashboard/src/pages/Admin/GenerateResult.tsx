@@ -94,7 +94,7 @@ const GenerateResult = () => {
       .sort((a, b) => (a.section || "").localeCompare(b.section || "") || (a.roll || 0) - (b.roll || 0));
   }, [students, group]);
 
-  const downloadSessionMarksheet = async (studentId: string) => {
+  const downloadSessionMarksheet = async (studentId: number) => {
     try {
       const response = await axios.get(
         `/api/marks/${studentId}/${year}/download`,
