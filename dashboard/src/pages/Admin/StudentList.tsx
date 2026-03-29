@@ -120,6 +120,7 @@ const StudentRow = React.memo(
               >
                 <option value="">Select 4th Sub</option>
                 {allSubjects
+                  .filter((s: Subject) => s.subject_type !== "main")
                   .filter((s: Subject) => s.class === Number(student.class))
                   .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
                   .map((sub: Subject) => (
