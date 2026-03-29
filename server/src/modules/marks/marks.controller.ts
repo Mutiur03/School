@@ -176,6 +176,8 @@ export class MarksController {
         year as string,
         className as string,
         exam as string,
+        undefined,
+        req.user,
       );
       const filename = `class_${className}_${exam}_${year}.pdf`;
       res.setHeader("Content-Type", "application/pdf");

@@ -304,10 +304,21 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
     {
       label: "Mark Management",
       icon: FaClipboardList,
-      dropdown: false,
+      dropdown: true,
       id: "mark-management",
       roles: ["teacher"],
-      link: "/teacher/mark-management",
+      items: [
+        {
+          label: "Add Marks",
+          link: "/teacher/mark-management",
+          id: "add-marks",
+        },
+        {
+          label: "View Result",
+          link: "/teacher/result/view-marks",
+          id: "view-marks",
+        },
+      ],
     },
     {
       label: "Settings",

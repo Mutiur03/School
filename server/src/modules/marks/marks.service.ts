@@ -702,13 +702,42 @@ export class MarksService {
     className: string,
     examName: string,
     section?: string,
+    user?: any,
   ) {
     const yearInt = parseInt(year);
     const classNum = parseInt(className);
 
+    const where: any = {
+      class: classNum,
+      year: yearInt,
+    };
+
+    if (user && user.role === "teacher") {
+      const assignedSections = user.levels
+        ?.filter(
+          (l: any) => l.class_name === classNum && l.year === yearInt
+        )
+        .map((l: any) => l.section);
+
+      if (!assignedSections || assignedSections.length === 0) {
+        throw new Error("You are not assigned to this class.");
+      }
+
+      if (section) {
+        if (!assignedSections.includes(section)) {
+          throw new Error("You are not assigned to this section.");
+        }
+        where.section = section;
+      } else {
+        where.section = { in: assignedSections };
+      }
+    } else if (section) {
+      where.section = section;
+    }
+
     const [enrollments, allExamMarks, headMsg] = await Promise.all([
       prisma.student_enrollments.findMany({
-        where: { class: classNum, year: yearInt, ...(section ? { section } : {}) },
+        where,
         include: { student: { select: { id: true, name: true } } },
         orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
       }),
