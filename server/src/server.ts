@@ -87,7 +87,7 @@ app.use(
 const limitStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 5000 : 500,
+  max: process.env.NODE_ENV === "development" ? 5000 : 1000,
   message: {
     message: "Too many requests, please try again after an hour",
   },
@@ -179,10 +179,14 @@ app.use(
     const statusCode = error.statusCode || 500;
     const message = error.message || "Internal server error";
 
-    logger.error("Unhandled server error", {
+    const logMethod = statusCode >= 500 ? "error" : "warn";
+    const logTitle =
+      statusCode >= 500 ? "Unhandled server error" : "Client error response";
+
+    (logger as any)[logMethod](logTitle, {
       status: statusCode,
       message,
-      stack: error.stack,
+      stack: statusCode >= 500 ? error.stack : undefined,
       url: req.originalUrl,
       method: req.method,
       ip:

@@ -258,6 +258,7 @@ export class AuthController {
             designation: user.designation,
             address: user.address,
             image: user.image,
+            signature: user.signature,
             levels: (user as any).levels,
           },
         },
@@ -327,6 +328,7 @@ export class AuthController {
       responseUser.designation = (user as any).designation;
       responseUser.address = (user as any).address;
       responseUser.image = (user as any).image;
+      responseUser.signature = (user as any).signature;
       responseUser.levels = (user as any).levels;
       console.log(
         "[Refresh Token] Teacher User from DB:",

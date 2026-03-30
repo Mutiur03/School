@@ -105,14 +105,19 @@ export const deleteFromR2 = async (key: string) => {
 
 export const getFileBuffer = async (key: string) => {
   if (!key) return null;
-  const command = new GetObjectCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-  });
-  const response = await r2Client.send(command);
-  if (!response.Body) return null;
-  const bodyContents = await response.Body.transformToByteArray();
-  return Buffer.from(bodyContents);
+  try {
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+    const response = await r2Client.send(command);
+    if (!response.Body) return null;
+    const bodyContents = await response.Body.transformToByteArray();
+    return Buffer.from(bodyContents);
+  } catch (error) {
+    console.error(`Error fetching file from R2 (${key}):`, error);
+    return null;
+  }
 };
 
 export { r2Client };

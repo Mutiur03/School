@@ -461,6 +461,101 @@ export class MarksService {
     return grouped.sort((a, b) => a.priority - b.priority);
   }
 
+  static aggregatePaperMarks(marksList: any[]) {
+    const aggregatedData: Record<number, any> = {};
+    const finalData: any[] = [];
+
+    marksList.forEach((mark) => {
+      const sub = mark.subject;
+      if (sub.subject_type === "paper" && sub.parent_id) {
+        const pid = sub.parent_id;
+        if (!aggregatedData[pid]) {
+          aggregatedData[pid] = {
+            subject: sub.parent?.name || "Main Subject",
+            marks: 0,
+            cq_marks: 0,
+            mcq_marks: 0,
+            practical_marks: 0,
+            full_mark: 0,
+            cq_mark: 0,
+            mcq_mark: 0,
+            practical_mark: 0,
+            cq_pass_mark: 0,
+            mcq_pass_mark: 0,
+            practical_pass_mark: 0,
+            pass_mark: 0,
+            priority: sub.priority,
+            assessment_type: sub.assessment_type,
+            papers: [],
+            isGroup: true,
+            subject_id: pid,
+          };
+        }
+        const g = aggregatedData[pid];
+        g.marks += mark.marks || 0;
+        g.cq_marks += mark.cq_marks || 0;
+        g.mcq_marks += mark.mcq_marks || 0;
+        g.practical_marks += mark.practical_marks || 0;
+        g.full_mark += sub.full_mark || 0;
+        g.cq_mark += sub.cq_mark || 0;
+        g.mcq_mark += sub.mcq_mark || 0;
+        g.practical_mark += sub.practical_mark || 0;
+        g.cq_pass_mark += sub.cq_pass_mark || 0;
+        g.mcq_pass_mark += sub.mcq_pass_mark || 0;
+        g.practical_pass_mark += sub.practical_pass_mark || 0;
+        g.pass_mark += sub.pass_mark || 0;
+        g.priority = Math.min(g.priority, sub.priority);
+        
+        // Push simplified mark data for the paper
+        g.papers.push({
+          subject: sub.name,
+          marks: mark.marks,
+          cq_marks: mark.cq_marks,
+          mcq_marks: mark.mcq_marks,
+          practical_marks: mark.practical_marks,
+          highest_mark: mark.highest_mark || 0,
+          subject_id: mark.subject_id,
+          priority: sub.priority,
+        });
+      } else {
+        finalData.push({
+          subject: sub.name,
+          marks: mark.marks,
+          cq_marks: mark.cq_marks,
+          mcq_marks: mark.mcq_marks,
+          practical_marks: mark.practical_marks,
+          full_mark: sub.full_mark,
+          cq_mark: sub.cq_mark,
+          mcq_mark: sub.mcq_mark,
+          practical_mark: sub.practical_mark,
+          cq_pass_mark: sub.cq_pass_mark,
+          mcq_pass_mark: sub.mcq_pass_mark,
+          practical_pass_mark: sub.practical_pass_mark,
+          pass_mark: sub.pass_mark,
+          priority: sub.priority,
+          assessment_type: sub.assessment_type,
+          isGroup: false,
+          highest_mark: mark.highest_mark || 0,
+          subject_id: mark.subject_id,
+        });
+      }
+    });
+
+    Object.values(aggregatedData).forEach((g) => {
+      // Sort papers within the group by priority
+      g.papers.sort((a: any, b: any) => (a.priority || 0) - (b.priority || 0));
+      finalData.push(g);
+    });
+
+    return finalData.sort((a, b) => {
+      if (a.assessment_type === "exam" && b.assessment_type !== "exam")
+        return -1;
+      if (a.assessment_type !== "exam" && b.assessment_type === "exam")
+        return 1;
+      return (a.priority || 0) - (b.priority || 0);
+    });
+  }
+
   static async generateMarksheetPDF(
     id: string,
     year: string,
@@ -603,90 +698,12 @@ export class MarksService {
       fourth_subject_id: enrollment.fourth_subject_id,
     };
 
-    const aggregatedData: Record<string, any> = {};
-    const finalTableData: any[] = [];
+    const finalTableData = this.aggregatePaperMarks(result.map(m => ({
+      ...m,
+      highest_mark: highestMarksMap[m.subject_id] || 0
+    })));
 
-    result.forEach((mark) => {
-      const sub = mark.subject;
-      const markData = {
-        subject: sub.name,
-        marks: mark.marks,
-        cq_marks: mark.cq_marks,
-        mcq_marks: mark.mcq_marks,
-        practical_marks: mark.practical_marks,
-        full_mark: sub.full_mark,
-        cq_mark: sub.cq_mark,
-        mcq_mark: sub.mcq_mark,
-        practical_mark: sub.practical_mark,
-        cq_pass_mark: sub.cq_pass_mark,
-        mcq_pass_mark: sub.mcq_pass_mark,
-        practical_pass_mark: sub.practical_pass_mark,
-        pass_mark: sub.pass_mark,
-        priority: sub.priority,
-        assessment_type: sub.assessment_type,
-        isGroup: false,
-        highest_mark: highestMarksMap[mark.subject_id] || 0,
-        subject_id: mark.subject_id,
-      };
-
-      if (sub.subject_type === "paper" && sub.parent_id) {
-        const parentId = sub.parent_id;
-        const parentName = sub.parent?.name || "Main Subject";
-        if (!aggregatedData[parentId]) {
-          aggregatedData[parentId] = {
-            subject: parentName,
-            marks: 0,
-            cq_marks: 0,
-            mcq_marks: 0,
-            practical_marks: 0,
-            full_mark: 0,
-            cq_mark: 0,
-            mcq_mark: 0,
-            practical_mark: 0,
-            cq_pass_mark: 0,
-            mcq_pass_mark: 0,
-            practical_pass_mark: 0,
-            pass_mark: 0,
-            priority: sub.priority,
-            assessment_type: sub.assessment_type,
-            papers: [],
-            isGroup: true,
-          };
-        }
-        aggregatedData[parentId].marks += mark.marks || 0;
-        aggregatedData[parentId].cq_marks += mark.cq_marks || 0;
-        aggregatedData[parentId].mcq_marks += mark.mcq_marks || 0;
-        aggregatedData[parentId].practical_marks += mark.practical_marks || 0;
-        aggregatedData[parentId].full_mark += sub.full_mark || 0;
-        aggregatedData[parentId].cq_mark += sub.cq_mark || 0;
-        aggregatedData[parentId].mcq_mark += sub.mcq_mark || 0;
-        aggregatedData[parentId].practical_mark += sub.practical_mark || 0;
-        aggregatedData[parentId].cq_pass_mark += sub.cq_pass_mark || 0;
-        aggregatedData[parentId].mcq_pass_mark += sub.mcq_pass_mark || 0;
-        aggregatedData[parentId].practical_pass_mark +=
-          sub.practical_pass_mark || 0;
-        aggregatedData[parentId].pass_mark += sub.pass_mark || 0;
-        aggregatedData[parentId].priority = Math.min(
-          aggregatedData[parentId].priority,
-          sub.priority,
-        );
-        aggregatedData[parentId].papers.push(markData);
-      } else {
-        finalTableData.push(markData);
-      }
-    });
-
-    Object.values(aggregatedData).forEach((group) => {
-      finalTableData.push(group);
-    });
-
-    finalTableData.sort((a, b) => {
-      if (a.assessment_type === "exam" && b.assessment_type !== "exam")
-        return -1;
-      if (a.assessment_type !== "exam" && b.assessment_type === "exam")
-        return 1;
-      return (a.priority || 0) - (b.priority || 0);
-    });
+    console.log(finalTableData);
     console.log(finalTableData);
     console.log(studentDetails);
     const buffer = await this.renderStudentReportPDF(
@@ -767,6 +784,11 @@ export class MarksService {
             },
           },
         },
+        orderBy: {
+          subject: {
+            priority: "asc"
+          }
+        }
       }),
       prisma.head_msg.findUnique({
         where: { id: 1 },
@@ -825,67 +847,10 @@ export class MarksService {
           fourth_subject_id: enrollment.fourth_subject_id,
         };
 
-        const aggregatedData: Record<string, any> = {};
-        const finalTableData: any[] = [];
-        studentMarks.forEach((mark) => {
-          const sub = mark.subject;
-          const markData = {
-            subject: sub.name,
-            marks: mark.marks,
-            cq_marks: mark.cq_marks,
-            mcq_marks: mark.mcq_marks,
-            practical_marks: mark.practical_marks,
-            full_mark: sub.full_mark,
-            cq_mark: sub.cq_mark,
-            mcq_mark: sub.mcq_mark,
-            practical_mark: sub.practical_mark,
-            cq_pass_mark: sub.cq_pass_mark,
-            mcq_pass_mark: sub.mcq_pass_mark,
-            practical_pass_mark: sub.practical_pass_mark,
-            pass_mark: sub.pass_mark,
-            priority: sub.priority,
-            assessment_type: sub.assessment_type,
-            isGroup: false,
-            highest_mark: highestMarksMap[mark.subject_id] || 0,
-            subject_id: mark.subject_id,
-          };
-
-          if (sub.subject_type === "paper" && sub.parent_id) {
-            const parentId = sub.parent_id;
-            if (!aggregatedData[parentId]) {
-              aggregatedData[parentId] = {
-                subject: sub.parent?.name || "Main Subject",
-                marks: 0, cq_marks: 0, mcq_marks: 0, practical_marks: 0,
-                full_mark: 0, cq_mark: 0, mcq_mark: 0, practical_mark: 0,
-                cq_pass_mark: 0, mcq_pass_mark: 0, practical_pass_mark: 0,
-                pass_mark: 0, priority: sub.priority, assessment_type: sub.assessment_type,
-                papers: [], isGroup: true,
-              };
-            }
-            aggregatedData[parentId].marks += mark.marks || 0;
-            aggregatedData[parentId].cq_marks += mark.cq_marks || 0;
-            aggregatedData[parentId].mcq_marks += mark.mcq_marks || 0;
-            aggregatedData[parentId].practical_marks += mark.practical_marks || 0;
-            aggregatedData[parentId].full_mark += sub.full_mark || 0;
-            aggregatedData[parentId].cq_mark += sub.cq_mark || 0;
-            aggregatedData[parentId].mcq_mark += sub.mcq_mark || 0;
-            aggregatedData[parentId].practical_mark += sub.practical_mark || 0;
-            aggregatedData[parentId].cq_pass_mark += sub.cq_pass_mark || 0;
-            aggregatedData[parentId].mcq_pass_mark += sub.mcq_pass_mark || 0;
-            aggregatedData[parentId].practical_pass_mark += sub.practical_pass_mark || 0;
-            aggregatedData[parentId].pass_mark += sub.pass_mark || 0;
-            aggregatedData[parentId].papers.push(markData);
-          } else {
-            finalTableData.push(markData);
-          }
-        });
-
-        Object.values(aggregatedData).forEach(g => finalTableData.push(g));
-        finalTableData.sort((a, b) => {
-          if (a.assessment_type === "exam" && b.assessment_type !== "exam") return -1;
-          if (a.assessment_type !== "exam" && b.assessment_type === "exam") return 1;
-          return (a.priority || 0) - (b.priority || 0);
-        });
+        const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
+          ...m,
+          highest_mark: highestMarksMap[m.subject_id] || 0
+        })));
 
         const sigKey = `${enrollment.class}_${enrollment.section}_${yearInt}`;
         if (!(sigKey in teacherSigs)) {
@@ -940,6 +905,11 @@ export class MarksService {
         },
         exam: { select: { id: true, exam_name: true } },
       },
+      orderBy: {
+        subject: {
+          priority: "asc"
+        }
+      }
     });
 
     if (marks.length === 0) throw new Error("No marks found");
@@ -1080,71 +1050,10 @@ export class MarksService {
           const examName = exams[j];
           const studentMarks = studentGrouped[sid][examName];
 
-          const aggregatedData: Record<string, any> = {};
-          const finalTableData: any[] = [];
-          studentMarks.forEach((mark) => {
-            const sub = mark.subject;
-            const markDataItem = {
-              subject: sub.subject_type === "paper" && sub.parent_id
-                ? `${sub.name} (${sub.full_mark})`
-                : sub.name,
-              marks: mark.marks,
-              cq_marks: mark.cq_marks,
-              mcq_marks: mark.mcq_marks,
-              practical_marks: mark.practical_marks,
-              full_mark: sub.full_mark,
-              cq_mark: sub.cq_mark,
-              mcq_mark: sub.mcq_mark,
-              practical_mark: sub.practical_mark,
-              cq_pass_mark: sub.cq_pass_mark,
-              mcq_pass_mark: sub.mcq_pass_mark,
-              practical_pass_mark: sub.practical_pass_mark,
-              pass_mark: sub.pass_mark,
-              priority: sub.priority,
-              assessment_type: sub.assessment_type,
-              isGroup: false,
-              highest_mark: highestMarksMap[examName]?.[mark.subject_id] || 0,
-              subject_id: mark.subject_id,
-            };
-
-            if (sub.subject_type === "paper" && sub.parent_id) {
-              const pid = sub.parent_id;
-              if (!aggregatedData[pid]) {
-                aggregatedData[pid] = {
-                  subject: sub.parent?.name || "Main Subject",
-                  marks: 0, cq_marks: 0, mcq_marks: 0, practical_marks: 0,
-                  full_mark: 0, cq_mark: 0, mcq_mark: 0, practical_mark: 0,
-                  cq_pass_mark: 0, mcq_pass_mark: 0, practical_pass_mark: 0,
-                  pass_mark: 0, priority: sub.priority, assessment_type: sub.assessment_type,
-                  papers: [], isGroup: true,
-                };
-              }
-              const g = aggregatedData[pid];
-              g.marks += mark.marks || 0;
-              g.cq_marks += mark.cq_marks || 0;
-              g.mcq_marks += mark.mcq_marks || 0;
-              g.practical_marks += mark.practical_marks || 0;
-              g.full_mark += sub.full_mark || 0;
-              g.cq_mark += sub.cq_mark || 0;
-              g.mcq_mark += sub.mcq_mark || 0;
-              g.practical_mark += sub.practical_mark || 0;
-              g.cq_pass_mark += sub.cq_pass_mark || 0;
-              g.mcq_pass_mark += sub.mcq_pass_mark || 0;
-              g.practical_pass_mark += sub.practical_pass_mark || 0;
-              g.pass_mark += sub.pass_mark || 0;
-              g.priority = Math.min(g.priority, sub.priority);
-              g.papers.push(markDataItem);
-            } else {
-              finalTableData.push(markDataItem);
-            }
-          });
-
-          Object.values(aggregatedData).forEach((g) => finalTableData.push(g));
-          finalTableData.sort((a, b) => {
-            if (a.assessment_type === "exam" && b.assessment_type !== "exam") return -1;
-            if (a.assessment_type !== "exam" && b.assessment_type === "exam") return 1;
-            return (a.priority || 0) - (b.priority || 0);
-          });
+          const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
+            ...m,
+            highest_mark: highestMarksMap[examName]?.[m.subject_id] || 0
+          })));
 
           // Check for space before rendering this exam's table
           const estimatedHeight = 50 + finalTableData.length * 20 + 40; // title + table + summary
@@ -1334,6 +1243,7 @@ export class MarksService {
     return {
       gpa: Math.min(gpaResult, 5.0),
       totalMarks,
+      isFailed: isFailed && subjectCount > 0,
     };
   }
 
