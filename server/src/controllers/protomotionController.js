@@ -18,7 +18,13 @@ export const passStatusController = async (req, res) => {
       where: { year: parseInt(year) },
       include: {
         student: true,
-        marks: true,
+        marks: {
+          include: {
+            subject: {
+              include: { parent: true }
+            }
+          }
+        },
       },
     });
 
@@ -30,32 +36,38 @@ export const passStatusController = async (req, res) => {
       });
     }
 
+    // Pre-calculate bonus status for all classes in this year to avoid redundant DB calls
+    const classBonusStatus = {};
+    const classes = [...new Set(students.map(s => s.class))];
+    for (const c of classes) {
+      classBonusStatus[c] = await MarksService.shouldApplyFourthSubjectBonus(c, parseInt(year));
+    }
+
     for (const student of students) {
       const {
         id: enrollmentId,
         student_id: _student_id,
         class: studentClass,
-        student: studentData,
+        marks: rawMarks,
       } = student;
 
-      let failed;
-
-        const failCount = await prisma.marks.count({
-          where: {
-            enrollment_id: enrollmentId,
-            marks: { lt: 33 },
-          },
-        });
-        failed = failCount > 0;
-
-        await prisma.student_enrollments.update({
-          where: { id: enrollmentId },
-          data: { fail_count: failCount },
-        });
+      // Ensure marks have subjects included (we already included them in findMany below)
+      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
+      const { gpa, isFailed, totalMarks } = MarksService.calculateGPA(
+        processedMarks,
+        student.fourth_subject_id || null,
+        classBonusStatus[studentClass],
+        studentClass
+      );
 
       await prisma.student_enrollments.update({
         where: { id: enrollmentId },
-        data: { status: failed ? "Failed" : "Passed" },
+        data: { 
+          status: isFailed ? "Failed" : "Passed",
+          // Optionally update GPA/Total marks in the enrollment for easier merit list viewing
+          // gpa, 
+          // total_marks: totalMarks 
+        },
       });
     }
 
@@ -85,7 +97,9 @@ export const promoteStudentController = async (req, res) => {
         student: true,
         marks: {
           include: {
-            subject: true,
+            subject: {
+              include: { parent: true }
+            },
           },
         },
       },
@@ -145,23 +159,11 @@ export const promoteStudentController = async (req, res) => {
     const studentsWithMerit = students.map((student) => {
       const applyBonus = classBonusStatus[`${student.class}-${student.year}`];
 
-      // Format marks for calculateGPA
-      const marksData = student.marks.map((m) => ({
-        subject_id: m.subject_id,
-        marks: m.marks,
-        full_mark: m.subject.full_mark,
-        pass_mark: m.subject.pass_mark,
-        cq_marks: m.cq_marks,
-        cq_pass_mark: m.subject.cq_pass_mark,
-        mcq_marks: m.mcq_marks,
-        mcq_pass_mark: m.subject.mcq_pass_mark,
-        practical_marks: m.practical_marks,
-        practical_pass_mark: m.subject.practical_pass_mark,
-        assessment_type: m.subject.assessment_type,
-      }));
+      // Format marks for calculateGPA (using MarksService.aggregatePaperMarks)
+      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
 
-      const { gpa, totalMarks } = MarksService.calculateGPA(
-        marksData,
+      const { gpa, totalMarks, isFailed } = MarksService.calculateGPA(
+        processedMarks,
         student.fourth_subject_id || null,
         applyBonus,
         student.class
