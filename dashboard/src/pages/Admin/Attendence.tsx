@@ -22,7 +22,6 @@ import {
   Filter,
   Eye,
   EyeOff,
-  X,
   Clock,
   Send,
 } from "lucide-react";
@@ -63,7 +62,6 @@ function Attendance() {
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, "present" | "absent">>({});
-  const [lastSaveResult, setLastSaveResult] = useState<any>(null);
   const { data: smsSettings } = useSmsSettings(selectedSection);
 
   const { data: attendanceRecords } = useAttendance({
@@ -91,7 +89,7 @@ function Attendance() {
 
   const addAttendanceMutation = useAddAttendance();
   const sendSmsMutation = useSendAttendanceSms();
-  const statsToDisplay = lastSaveResult || persistentStats?.data;
+  const statsToDisplay = persistentStats?.data;
 
   const classes = [6, 7, 8, 9, 10];
   const sections = ["A", "B"];
@@ -215,8 +213,7 @@ function Attendance() {
     });
 
     addAttendanceMutation.mutate(recordsToSave, {
-      onSuccess: (data) => {
-        setLastSaveResult(data.data);
+      onSuccess: () => {
         setLocalAttendance({});
       },
     });
@@ -313,18 +310,8 @@ function Attendance() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
               <RefreshCcw className="w-4 h-4" />
-              {lastSaveResult ? "Last Submission Results" : "Today's Attendance Overview"}
+              Today's Attendance Overview
             </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setLastSaveResult(null);
-              }}
-              className="h-8 w-8 p-0 rounded-full hover:bg-muted"
-            >
-              <X className="w-4 h-4" />
-            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatsCard
@@ -458,7 +445,7 @@ function Attendance() {
                 <button
                   key={day}
                   onClick={() => toggleVisibleDay(day)}
-                  className={`flex-shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-all ${visibleDays.includes(day)
+                  className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-all ${visibleDays.includes(day)
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "bg-background text-muted-foreground border-input hover:border-primary/50"
                     }`}
