@@ -28,6 +28,7 @@ export const registrationSchemaClass8 = registrationObjectShape
       .string()
       .min(1, "Class 6 Academic Session is required")
       .default(""),
+    class8_year: z.union([z.string(), z.number()]).optional(),
   })
   .superRefine(registrationSuperRefine);
 
@@ -104,6 +105,7 @@ export const registrationDefaultValuesClass8: Class8Registration = {
   class6_academic_session: "",
   scout_status: "",
   photo: "",
+  class8_year: "",
 };
 
 export type Class8RegistrationRecord = Class8Registration & {
