@@ -40,4 +40,20 @@ export class AttendenceController {
 
     res.status(200).json(new ApiResponse(200, result, "Attendance statistics fetched successfully"));
   });
+
+  static sendAttendanceSMSController = asyncHandler(async (req: Request, res: Response) => {
+    const { date, level, section, year } = req.body;
+    if (!date || !level || !section || !year) {
+      throw new ApiError(400, "Missing required parameters");
+    }
+
+    const result = await AttendenceService.sendAttendanceSMS({
+      date: date as string,
+      level: parseInt(level as string),
+      section: section as string,
+      year: parseInt(year as string),
+    });
+
+    res.status(200).json(new ApiResponse(200, result, "Attendance SMS process completed"));
+  });
 }
