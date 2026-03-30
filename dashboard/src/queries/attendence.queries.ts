@@ -70,3 +70,21 @@ export const useSmsSettings = (section: string) => {
     staleTime: 5000,
   });
 };
+export const useSendAttendanceSms = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { date: string; level: number; section: string; year: number }) => {
+      const response = await axios.post("/api/attendance/send-sms", params);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      toast.success(data.message || "Attendance SMS process completed");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to send attendance SMS");
+    },
+  });
+};

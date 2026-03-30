@@ -94,6 +94,13 @@ const LimitReq = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: limitStore,
+  skip: (req) => {
+    const url = req.originalUrl || req.url;
+    return (
+      url.includes("/api/sms-settings/public") || 
+      url.includes("/api/health")
+    );
+  },
 });
 app.use(
   (expressStatusMonitor as any)({

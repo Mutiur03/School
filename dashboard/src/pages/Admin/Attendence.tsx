@@ -7,6 +7,7 @@ import {
   useAddAttendance,
   useAttendanceStats,
   useSmsSettings,
+  useSendAttendanceSms,
 } from "@/queries/attendence.queries.js";
 import PageHeader from "@/components/PageHeader.js";
 import SectionCard from "@/components/SectionCard.js";
@@ -23,6 +24,7 @@ import {
   EyeOff,
   X,
   Clock,
+  Send,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateSMSCount } from "@school/shared-schemas";
@@ -88,6 +90,7 @@ function Attendance() {
   });
 
   const addAttendanceMutation = useAddAttendance();
+  const sendSmsMutation = useSendAttendanceSms();
   const statsToDisplay = lastSaveResult || persistentStats?.data;
 
   const classes = [6, 7, 8, 9, 10];
@@ -233,6 +236,19 @@ function Attendance() {
     setVisibleDays([currentDate.getDate()]);
   };
 
+  const handleSendSms = () => {
+    if (!selectedClass || !selectedSection || !selectedYear) return;
+
+    const todayDay = currentDate.getDate();
+    const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
+
+    sendSmsMutation.mutate({
+      date,
+      level: selectedClass as number,
+      section: selectedSection,
+      year: selectedYear,
+    });
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
@@ -250,24 +266,45 @@ function Attendance() {
               {smsSettings?.sms_balance < smsEstimate.cost && " (Insufficient Balance!)"}
             </div>
           )}
-          <Button
-            onClick={saveAttendance}
-            disabled={
-              addAttendanceMutation.isPending ||
-              !selectedClass ||
-              !selectedSection ||
-              !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()) ||
-              (hasTodayRecords && Object.keys(localAttendance).length === 0) || !students.length
-            }
-            className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            {addAttendanceMutation.isPending ? (
-              <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {addAttendanceMutation.isPending ? "Saving..." : "Save Attendance"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSendSms}
+              disabled={
+                sendSmsMutation.isPending ||
+                !selectedClass ||
+                !selectedSection ||
+                !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()) ||
+                !hasTodayRecords
+              }
+              className="shadow-sm"
+            >
+              {sendSmsMutation.isPending ? (
+                <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              {sendSmsMutation.isPending ? "Sending..." : "Send SMS"}
+            </Button>
+            <Button
+              onClick={saveAttendance}
+              disabled={
+                addAttendanceMutation.isPending ||
+                !selectedClass ||
+                !selectedSection ||
+                !(selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear()) ||
+                (hasTodayRecords && Object.keys(localAttendance).length === 0) || !students.length
+              }
+              className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {addAttendanceMutation.isPending ? (
+                <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {addAttendanceMutation.isPending ? "Saving..." : "Save Attendance"}
+            </Button>
+          </div>
         </div>
       </PageHeader>
 
@@ -306,21 +343,21 @@ function Attendance() {
             />
             <StatsCard
               label="SMS Success"
-              value={statsToDisplay.sms.successful}
+              value={statsToDisplay.sms?.successful || 0}
               color="blue"
               icon={<RefreshCcw className="w-5 h-5" />}
               loading={false}
             />
             <StatsCard
               label="SMS Failed"
-              value={statsToDisplay.sms.failed}
+              value={statsToDisplay.sms?.failed || 0}
               color="amber"
               icon={<Filter className="w-5 h-5" />}
               loading={false}
             />
             <StatsCard
               label="Pending SMS"
-              value={statsToDisplay.sms.pending}
+              value={statsToDisplay.sms?.pending || 0}
               color="violet"
               icon={<Clock className="w-5 h-5" />}
               loading={false}
