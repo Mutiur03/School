@@ -20,6 +20,7 @@ import FieldRow from "@/components/Form/FieldRow";
 import AddressFields from "@/components/Form/AddressFields";
 import GuardianSection from "@/components/Form/GuardianSection";
 import FormInput from "@/components/Form/FormInput";
+import { useSchoolConfig } from "@/index";
 
 export default function RegistrationClass8() {
     useEffect(() => {
@@ -42,6 +43,8 @@ export default function RegistrationClass8() {
     const [initialPrevSchoolUpazila, setInitialPrevSchoolUpazila] = useState<string | null>(null);
     const [initialUpazilasApplied, setInitialUpazilasApplied] = useState(false);
     const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
+    const schoolConfig = useSchoolConfig();
+    const [prevSchoolOption, setPrevSchoolOption] = useState(schoolConfig.name.en);
     
     const {
         register,
@@ -50,6 +53,7 @@ export default function RegistrationClass8() {
         control,
         clearErrors,
         reset,
+        getValues,
         formState: { errors, isSubmitting },
     } = useForm<Class8Registration>({
         resolver: zodResolver(registrationSchemaClass8) as any,
@@ -173,8 +177,10 @@ export default function RegistrationClass8() {
                         navigate("/registration/class-8", { replace: true });
                     }
                 } else {
-                    setInitialRollApplied(true);
-                    setInitialUpazilasApplied(true);
+                    // Pre-populate default school for new registration
+                    setValue("prev_school_name", schoolConfig.name.en, { shouldValidate: true });
+                    setValue("prev_school_district", schoolConfig.contact.district, { shouldValidate: true });
+                    // Upazila will be set by the useEffect watching prev_school_district
                 }
             } catch (error) {
                 console.error("Failed to initialize data:", error);
@@ -186,6 +192,29 @@ export default function RegistrationClass8() {
 
         initializeData();
     }, [isEditMode, id, navigate, reset, setValue]);
+
+    const prev_school_name = useWatch({ control, name: "prev_school_name" });
+
+    useEffect(() => {
+        if (prev_school_name === schoolConfig.name.en) {
+            setPrevSchoolOption(schoolConfig.name.en);
+        } else if (prev_school_name && prev_school_name !== "") {
+            setPrevSchoolOption("Others");
+        }
+    }, [prev_school_name, schoolConfig.name.en]);
+
+    const handlePrevSchoolOptionChange = (value: string) => {
+        setPrevSchoolOption(value);
+        if (value === schoolConfig.name.en) {
+            setValue("prev_school_name", schoolConfig.name.en, { shouldValidate: true });
+            setValue("prev_school_district", schoolConfig.contact.district, { shouldValidate: true });
+            // Upazila will be handled by useEffect
+        } else if (value === "Others") {
+            setValue("prev_school_name", "");
+            setValue("prev_school_district", "");
+            setValue("prev_school_upazila", "");
+        }
+    };
 
 
     const parseRollRange = (rollRange: string | null): string[] => {
@@ -303,6 +332,23 @@ export default function RegistrationClass8() {
         const upazilas = getUpazilasByDistrict(selectedDistrictId);
         setPrevSchoolUpazilas(upazilas);
     }, [prev_school_district]);
+
+    useEffect(() => {
+        // If default school is selected and district matches, auto-fill upazila when options are available
+        if (prevSchoolOption === schoolConfig.name.en && 
+            prev_school_district === schoolConfig.contact.district &&
+            prevSchoolUpazilas.length > 0) {
+            
+            const currentUpazila = getValues("prev_school_upazila");
+            if (!currentUpazila || currentUpazila === "") {
+                const targetUpazila = schoolConfig.contact.upazila;
+                const exists = prevSchoolUpazilas.some(u => u.id === targetUpazila);
+                if (exists) {
+                    setValue("prev_school_upazila", targetUpazila, { shouldValidate: true });
+                }
+            }
+        }
+    }, [prevSchoolUpazilas, prev_school_district, prevSchoolOption, schoolConfig, setValue, getValues]);
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -429,6 +475,7 @@ export default function RegistrationClass8() {
             const submissionData = {
                 ...data,
                 photo,
+                class8_year: settings?.class8_year,
             };
             const endpoint = isEditMode ? `/api/reg/class-8/form/${id}` : "/api/reg/class-8/form";
             const method = isEditMode ? "put" : "post";
@@ -833,11 +880,26 @@ export default function RegistrationClass8() {
                         isRequired
                         error={errors.prev_school_name}
                     >
-                        <input
-                            {...register("prev_school_name")}
-                            className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
-                            placeholder="Enter the name of your previous school"
-                        />
+                        <div className="space-y-3">
+                            <select
+                                value={prevSchoolOption}
+                                onChange={(e) => handlePrevSchoolOptionChange(e.target.value)}
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            >
+                                <option value={schoolConfig.name.en}>
+                                    {schoolConfig.name.en}
+                                </option>
+                                <option value="Others">Others</option>
+                            </select>
+
+                            {prevSchoolOption === "Others" && (
+                                <input
+                                    {...register("prev_school_name")}
+                                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    placeholder="Enter the name of your previous school"
+                                />
+                            )}
+                        </div>
                     </FieldRow>
                     
                     <AddressFields
