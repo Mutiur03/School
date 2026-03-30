@@ -96,7 +96,7 @@ export class AttendenceService {
       processed: processed.length,
       present: presentCount,
       absent: absentCount,
-      sms: { successful: 0, failed: 0, pending: 0 },
+      // sms: { successful: 0, failed: 0, pending: 0 },
     };
   }
 
