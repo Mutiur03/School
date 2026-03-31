@@ -37,4 +37,16 @@ export class SmsLogsController {
     const result = await SmsLogsService.getSmsUsageStats(days ? Number(days) : 30);
     res.status(result.status).json(result.body);
   });
+
+  static sendBulkSmsByClass = asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const { classNames, message } = req.body;
+    const result = await SmsLogsService.sendBulkSmsByClass(classNames, message);
+    res.status(200).json(result);
+  });
+
+  static getStudentCountByClasses = asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const classNames = (req.query.classes as string || "").split(",").map(Number).filter(n => !isNaN(n));
+    const result = await SmsLogsService.getStudentCountByClasses(classNames);
+    res.status(200).json(result);
+  });
 }

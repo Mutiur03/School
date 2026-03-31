@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,8 +139,8 @@ function SmsManagement() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"logs" | "settings">(
-    tabParam === "settings" ? "settings" : "logs",
+  const [activeTab, setActiveTab] = useState<"logs" | "settings" | "bulk">(
+    tabParam === "settings" ? "settings" : (tabParam === "bulk" ? "bulk" : "logs"),
   );
   const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -150,14 +151,14 @@ function SmsManagement() {
   });
 
   const handleTabChange = (id: string) => {
-    const next = id as "logs" | "settings";
+    const next = id as "logs" | "settings" | "bulk";
     setActiveTab(next);
     setSearchParams({ tab: next }, { replace: true });
   };
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "settings" || tab === "logs") {
+    if (tab === "settings" || tab === "bulk" || tab === "logs") {
       setActiveTab(tab);
     } else {
       setActiveTab("logs");
@@ -174,6 +175,24 @@ function SmsManagement() {
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [requiredPlaceholders, setRequiredPlaceholders] = useState<string[]>([]);
+
+  // Bulk SMS State
+  const [selectedClasses, setSelectedClasses] = useState<number[]>([]);
+  const [bulkMessage, setBulkMessage] = useState<string>("");
+  const availableClasses = [6, 7, 8, 9, 10];
+
+  const { data: studentCount, isLoading: studentCountLoading } = useQuery({
+    queryKey: ["studentCount", selectedClasses],
+    queryFn: async () => {
+      const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(",")}`);
+      return res.data as { 
+        totalStudents: number; 
+        withPhone: number; 
+        classBreakdown: Record<number, { total: number; withPhone: number }>;
+      };
+    },
+    enabled: selectedClasses.length > 0,
+  });
 
   const statusColors: Record<string, string> = {
     sent: "bg-green-500",
@@ -349,6 +368,27 @@ function SmsManagement() {
     },
   });
 
+  const bulkSmsMutation = useMutation({
+    mutationFn: async (payload: { classNames: number[]; message: string }) => {
+      const response = await axios.post("/api/sms/bulk-sms", payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Bulk SMS sent successfully");
+      setSelectedClasses([]);
+      setBulkMessage("");
+      setActiveTab("logs");
+      setSearchParams({ tab: "logs" }, { replace: true });
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || "Failed to send bulk SMS";
+      toast.error(errorMessage);
+    },
+  });
+
   useEffect(() => {
     if (smsLogsQuery.isError) toast.error("Failed to fetch SMS logs");
   }, [smsLogsQuery.isError]);
@@ -384,6 +424,10 @@ function SmsManagement() {
   useEffect(() => {
     calculateEstimate("test", testForm.message || "");
   }, [testForm.message, calculateEstimate]);
+
+  useEffect(() => {
+    calculateEstimate("bulk", bulkMessage || "");
+  }, [bulkMessage, calculateEstimate]);
 
   const handleAddBalance = async () => {
     const amount = parseInt(addBalanceAmount);
@@ -528,6 +572,12 @@ function SmsManagement() {
       label: "Delivery Logs",
       icon: <Inbox size={16} />,
       href: `${location.pathname}?tab=logs`,
+    },
+    {
+      id: "bulk",
+      label: "Bulk SMS",
+      icon: <Send size={16} />,
+      href: `${location.pathname}?tab=bulk`,
     },
     {
       id: "settings",
@@ -905,6 +955,166 @@ function SmsManagement() {
               </div>
             )}
           </SectionCard>
+        </div>
+      ) : activeTab === "bulk" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SectionCard
+              title="Select Classes"
+              icon={<Filter className="w-5 h-5 text-primary" />}
+              className="lg:col-span-1"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Select the classes you want to send this SMS to.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {availableClasses.map((className) => (
+                    <div key={className} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`class-${className}`}
+                        checked={selectedClasses.includes(className)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedClasses([...selectedClasses, className]);
+                          } else {
+                            setSelectedClasses(selectedClasses.filter((c) => c !== className));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`class-${className}`}>Class {className}</Label>
+                    </div>
+                  ))}
+                </div>
+                {selectedClasses.length > 0 && (
+                  <div className="pt-3 space-y-2">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border text-sm space-y-1">
+                      {studentCountLoading ? (
+                        <Skeleton className="h-4 w-full" />
+                      ) : studentCount ? (
+                        <>
+                          <div className="space-y-2 pb-2 border-b border-border">
+                            {Object.entries(studentCount.classBreakdown as Record<number, { total: number; withPhone: number }>).map(([cls, info]) => (
+                              <div key={cls} className="flex justify-between items-center text-xs">
+                                <span className="text-muted-foreground font-medium">Class {cls}:</span>
+                                <span className="text-foreground">
+                                  {info.total} students ({info.withPhone} w/ phone)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-between pt-1">
+                            <span className="text-muted-foreground">Total Students:</span>
+                            <span className="font-semibold">{studentCount.totalStudents}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground italic">Target SMS (Unique):</span>
+                            <span className="font-semibold text-primary">{studentCount.withPhone}</span>
+                          </div>
+                          {estimates.bulk && (
+                            <div className="flex justify-between pt-1 border-t border-border mt-1">
+                              <span className="text-muted-foreground font-medium underline decoration-dotted">Total Credits:</span>
+                              <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedClasses([])}
+                      className="text-xs text-red-500 hover:text-red-700 p-0 h-auto"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Compose Message"
+              icon={<MessageSquare className="w-5 h-5 text-primary" />}
+              className="lg:col-span-2"
+            >
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-message">Message Content</Label>
+                  <Textarea
+                    id="bulk-message"
+                    placeholder="Type your bulk SMS message here..."
+                    rows={6}
+                    value={bulkMessage}
+                    onChange={(e) => setBulkMessage(e.target.value)}
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Note: This message will be sent to all students in the selected classes.
+                    </p>
+                    {estimates.bulk && (
+                      <div className="text-[10px] font-medium text-primary">
+                        Est: <span className="font-bold">{estimates.bulk.count}</span> credit{estimates.bulk.count !== 1 ? 's' : ''} ({estimates.bulk.encoding}) {estimates.bulk.length} chars
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        disabled={selectedClasses.length === 0 || !bulkMessage.trim() || bulkSmsMutation.isPending}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {bulkSmsMutation.isPending ? (
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Send Bulk SMS
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>This will send the SMS to all students in <strong className="text-foreground">Class {selectedClasses.sort((a,b)=>a-b).join(", ")}</strong>.</p>
+                            {studentCount && estimates.bulk && (
+                              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border space-y-1">
+                                <div className="flex justify-between">
+                                  <span>Students with phone:</span>
+                                  <span className="font-semibold text-foreground">{studentCount.withPhone}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Credits per student:</span>
+                                  <span className="font-semibold text-foreground">{estimates.bulk.count}</span>
+                                </div>
+                                <div className="flex justify-between pt-1 border-t border-border mt-1">
+                                  <span className="font-medium">Total credits needed:</span>
+                                  <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => bulkSmsMutation.mutate({ classNames: selectedClasses, message: bulkMessage })}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          Continue
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </SectionCard>
+          </div>
         </div>
       ) : (
         <>
