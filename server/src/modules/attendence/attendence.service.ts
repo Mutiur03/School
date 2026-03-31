@@ -15,11 +15,12 @@ export class AttendenceService {
     const where: any = {};
 
     if (year !== undefined && month !== undefined) {
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0);
+      const startDayString = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDayString = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
       where.date = {
-        gte: startDate.toISOString().split("T")[0],
-        lte: endDate.toISOString().split("T")[0],
+        gte: startDayString,
+        lte: endDayString,
       };
     } else if (year !== undefined) {
       where.date = {
