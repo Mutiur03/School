@@ -867,7 +867,7 @@ export default function RegistrationClass8() {
                         >
                             <option value="">Select Session</option>
                             {Array.from({ length: 5 }, (_, i) =>
-                                String(new Date().getFullYear() - i),
+                                String(new Date().getFullYear() - i - 2),
                             ).map((y) => (
                                 <option key={y} value={y}>
                                     {y}

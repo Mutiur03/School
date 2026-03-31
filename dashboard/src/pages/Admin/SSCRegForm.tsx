@@ -13,6 +13,7 @@ import {
   Settings,
   RefreshCw,
 } from "lucide-react";
+import { getFileUrl } from "@/lib/backend";
 
 interface Registration {
   id: string;
@@ -124,7 +125,6 @@ const SSCRegForm = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [activeTab, setActiveTab] = useState("registrations");
   const [pdfDownloading, setPdfDownloading] = useState(false);
-  const host = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
     fetchAllRegistrations();
@@ -1067,7 +1067,7 @@ const SSCRegForm = () => {
                               {registration.photo_path && (
                                 <img
                                   className="h-10 w-10 rounded-full object-cover border border-border dark:border-gray-600"
-                                  src={`${host}/${registration.photo_path}`}
+                                  src={getFileUrl(registration.photo_path)}
                                   alt=""
                                 />
                               )}
@@ -1135,7 +1135,7 @@ const SSCRegForm = () => {
           {showModal && selectedRegistration && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white text-black rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-6 border-b border-border bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
+                <div className="flex justify-between items-center p-6 border-b border-border bg-linear-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
                   <div>
                     <h3 className="text-lg font-semibold">
                       Registration Details
@@ -1171,7 +1171,7 @@ const SSCRegForm = () => {
                         Student's Photo
                       </h4>
                       <img
-                        src={`${host}/${selectedRegistration.photo_path}`}
+                        src={getFileUrl(selectedRegistration.photo_path)}
                         alt="Student Photo"
                         className="w-28 h-28 object-cover border-2 border-border rounded-lg shadow"
                         onError={(e) => {
