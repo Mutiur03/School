@@ -82,6 +82,12 @@ router.post(
   StudentController.generateTestimonialsController,
 );
 
+router.post(
+  "/:id/tc",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.giveTransferCertificateController,
+);
+
 const studentRouter = express.Router();
 studentRouter.use("/api/students", router);
 

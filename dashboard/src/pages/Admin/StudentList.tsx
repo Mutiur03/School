@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Search } from "lucide-react";
+import { Search, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
@@ -251,9 +251,26 @@ function StudentList() {
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
+  const [tcConfirmOpen, setTcConfirmOpen] = useState(false);
 
   const { data: allSubjectsData = [] } = useSubjects();
   const updateFourthSubjectMutation = useUpdateFourthSubjectMutation();
+
+  const tcMutation = useMutation({
+    mutationFn: async (studentId: number) => {
+      const response = await axios.post(`/api/students/${studentId}/tc`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Transfer Certificate issued successfully.");
+      invalidateStudents();
+      closePopup();
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.error || err.message || "Failed to issue Transfer Certificate";
+      toast.error(message);
+    },
+  });
 
   const testimonialMutation = useMutation({
     mutationFn: async (studentId: number) => {
@@ -1770,28 +1787,56 @@ function StudentList() {
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-border flex justify-between items-center">
-                <Button
-                  type="button"
-                  variant="default"
-                  disabled={testimonialMutation.isPending}
-                  onClick={() => testimonialMutation.mutate(popup.student!.id)}
-                >
-                  {testimonialMutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      Generating…
-                    </span>
-                  ) : (
-                    "Generate Certificate"
+              <div className="px-5 py-3 border-t border-border flex flex-wrap gap-2 justify-between items-center">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={testimonialMutation.isPending}
+                    onClick={() => testimonialMutation.mutate(popup.student!.id)}
+                  >
+                    {testimonialMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        Generating…
+                      </span>
+                    ) : (
+                      "Generate Certificate"
+                    )}
+                  </Button>
+                  
+                  {popup.student.available && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 shadow-sm"
+                      disabled={tcMutation.isPending}
+                      onClick={() => setTcConfirmOpen(true)}
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      Give TC
+                    </Button>
                   )}
-                </Button>
+                </div>
+                
                 <Button onClick={closePopup} variant="outline" type="button">
                   Close
                 </Button>
+
+                <ConfirmationPopup
+                  open={tcConfirmOpen}
+                  onOpenChange={setTcConfirmOpen}
+                  onConfirm={() => {
+                    setTcConfirmOpen(false);
+                    if (popup.student) tcMutation.mutate(popup.student.id);
+                  }}
+                  confirmLabel="Confirm Issue TC"
+                  variant="destructive"
+                  msg={`Are you sure you want to issue a Transfer Certificate (TC) to ${popup.student.name}? This will mark them as inactive and they will no longer appear in active student lists.`}
+                />
               </div>
             </>
           )}

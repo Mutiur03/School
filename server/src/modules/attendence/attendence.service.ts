@@ -128,7 +128,12 @@ export class AttendenceService {
     };
 
     const enrollments = await prisma.student_enrollments.findMany({
-      where: { class: level, section, year },
+      where: { 
+        class: level, 
+        section, 
+        year,
+        student: { available: true }
+      },
       include: {
         student: {
           select: {

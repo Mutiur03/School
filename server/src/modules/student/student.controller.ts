@@ -400,4 +400,24 @@ export class StudentController {
       res.status(200).send(pdfBuffer);
     },
   );
+
+  static giveTransferCertificateController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedId = enrollmentIdParamSchema.safeParse(req.params.id);
+      if (!parsedId.success) {
+        throw new ApiError(400, "Invalid student id", parsedId.error.issues);
+      }
+
+      const result = await StudentService.giveTransferCertificate(parsedId.data);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Transfer Certificate issued successfully. Student marked as inactive.",
+          ),
+        );
+    },
+  );
 }

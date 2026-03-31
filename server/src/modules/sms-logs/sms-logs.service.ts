@@ -453,6 +453,7 @@ export class SmsLogsService {
       where: {
         year: currentYear,
         class: { in: classNames },
+        student: { available: true },
       },
       include: {
         student: {
@@ -506,6 +507,7 @@ export class SmsLogsService {
     const where: any = {
       year: currentYear,
       class: { in: classNames },
+      student: { available: true },
     };
 
     const enrollments = await prisma.student_enrollments.findMany({
