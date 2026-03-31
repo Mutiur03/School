@@ -235,7 +235,7 @@ export class AttendenceService {
     let smsFailedCount = 0;
 
     try {
-      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
+      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
       if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
         const processRes = await SmsLogsService.processBatchResults(
           bulkSmsResponse.data.results,

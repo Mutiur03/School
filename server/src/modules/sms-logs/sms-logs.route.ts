@@ -7,6 +7,8 @@ router.use(AuthMiddleware.authenticate(["admin"]));
 router.get("/sms-logs", SmsLogsController.getSmsLogs);
 router.get("/usage-stats", SmsLogsController.getSmsUsageStats);
 router.post("/retry-sms", SmsLogsController.retrySms);
+router.post("/bulk-sms", SmsLogsController.sendBulkSmsByClass);
+router.get("/student-count", SmsLogsController.getStudentCountByClasses);
 router.delete("/sms-logs", SmsLogsController.deleteSmsLogs);
 
 const smsRouter = Router();
