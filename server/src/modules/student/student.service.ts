@@ -463,6 +463,23 @@ export class StudentService {
     return { message: "Student deleted successfully" };
   }
 
+  static async giveTransferCertificate(id: number) {
+    const student = await prisma.students.findUnique({
+      where: { id },
+    });
+
+    if (!student) {
+      throw new ApiError(404, "Student not found");
+    }
+
+    const result = await prisma.students.update({
+      where: { id },
+      data: { available: false },
+    });
+
+    return sanitizeStudent(result);
+  }
+
   static async deleteStudentsBulk(studentIds: number[]) {
     const students = await prisma.students.findMany({
       where: { id: { in: studentIds } },

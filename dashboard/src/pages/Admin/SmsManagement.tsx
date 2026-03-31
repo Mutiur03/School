@@ -33,7 +33,7 @@ import { formatDobForDateInput as toDateInputValue, calculateSMSCount, PHONE_NUM
 import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { TabItem } from "@/components";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation, useSearchParams } from "react-router-dom";
 
@@ -192,6 +192,7 @@ function SmsManagement() {
       };
     },
     enabled: selectedClasses.length > 0,
+    placeholderData: keepPreviousData,
   });
 
   const statusColors: Record<string, string> = {
@@ -989,8 +990,10 @@ function SmsManagement() {
                 {selectedClasses.length > 0 && (
                   <div className="pt-3 space-y-2">
                     <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border text-sm space-y-1">
-                      {studentCountLoading ? (
-                        <Skeleton className="h-4 w-full" />
+                      {studentCountLoading && !studentCount ? (
+                        <div className="flex items-center justify-center py-4">
+                          <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                        </div>
                       ) : studentCount ? (
                         <>
                           <div className="space-y-2 pb-2 border-b border-border">
@@ -1021,11 +1024,12 @@ function SmsManagement() {
                       ) : null}
                     </div>
                     <Button 
-                      variant="ghost" 
+                      variant="outline" 
                       size="sm" 
                       onClick={() => setSelectedClasses([])}
-                      className="text-xs text-red-500 hover:text-red-700 p-0 h-auto"
+                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
                     >
+                      <Trash2 className="w-3 h-3 mr-1" />
                       Clear Selection
                     </Button>
                   </div>
