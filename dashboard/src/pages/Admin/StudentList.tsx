@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Search, UserMinus } from "lucide-react";
+import { Search, UserMinus, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
@@ -272,6 +272,21 @@ function StudentList() {
     },
   });
 
+  const reactivateMutation = useMutation({
+    mutationFn: async (studentId: number) => {
+      const response = await axios.post(`/api/students/${studentId}/reactivate`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Student reactivated successfully.");
+      invalidateStudents();
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.error || err.message || "Failed to reactivate student";
+      toast.error(message);
+    },
+  });
+
   const testimonialMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const response = await axios.post(
@@ -470,6 +485,10 @@ function StudentList() {
 
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
+
+  const handleReactivate = useCallback((student: Student) => {
+    reactivateMutation.mutate(student.id);
+  }, [reactivateMutation]);
 
   const sortedUniqueClasses = useMemo(() => {
     return (meta?.availableClasses || []).sort((a, b) => a - b);
@@ -1818,6 +1837,19 @@ function StudentList() {
                     >
                       <UserMinus className="w-4 h-4 mr-2" />
                       Give TC
+                    </Button>
+                  )}
+
+                  {!popup.student.available && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all duration-200 shadow-sm"
+                      disabled={reactivateMutation.isPending}
+                      onClick={() => handleReactivate(popup.student!)}
+                    >
+                      <RotateCw className="w-4 h-4 mr-2" />
+                      Reactivate
                     </Button>
                   )}
                 </div>
