@@ -32,7 +32,6 @@ import fileUploadRouter from "./routes/fileUpload.js";
 import routerStaff from "./routes/staffRoutes.js";
 import regSSCRouter from "./routes/regSSCRoutes.js";
 import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
-import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
@@ -50,10 +49,8 @@ import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-const storagePath = path.join(__dirname, "uploads");
+const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
@@ -223,12 +220,13 @@ app.listen(PORT, () => {
       logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  fs.mkdir(path.join(__dirname, "logs"), { recursive: true }, (err) => {
+  const logsPath = path.resolve("logs");
+  fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
       logger.error("Error creating logs directory", { error: err.message });
     } else {
       logger.info("Logs directory ready", {
-        path: path.join(__dirname, "logs"),
+        path: logsPath,
       });
     }
   });
