@@ -420,4 +420,24 @@ export class StudentController {
         );
     },
   );
+
+  static reactivateStudentController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedId = enrollmentIdParamSchema.safeParse(req.params.id);
+      if (!parsedId.success) {
+        throw new ApiError(400, "Invalid student id", parsedId.error.issues);
+      }
+
+      const result = await StudentService.reactivateStudent(parsedId.data);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Student reactivated successfully.",
+          ),
+        );
+    },
+  );
 }

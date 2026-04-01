@@ -1,4 +1,3 @@
-export { default as AddMarks } from "./AddMarks";
 export { default as NewSubject } from "./NewSubject";
 export { default as AddLevel } from "./AddLevel";
 export { default as UpdateStatus } from "./UpdateStatus";
@@ -14,7 +13,6 @@ export { default as TeacherList } from "./TeacherList";
 export { default as StudentList } from "./StudentList";
 export { default as ShowMarkSheet } from "./ShowMarkSheet";
 export { default as GenerateResult } from "./GenerateResult";
-export { default as ViewMarks } from "./ViewMarks";
 export { default as AlumniList } from "./AlumniList";
 export { default as SmsManagement } from "./SmsManagement";
 export { default as Syllabus } from "./Syllabus";
@@ -29,3 +27,5 @@ export { default as AdmissionResult } from "./AdmissionResult";
 export { default as SSCRegForm } from "./SSCRegForm";
 export { default as Class6RegForm } from "./Class6RegForm";
 export { default as Class8RegForm } from "./Class8RegForm";
+export { default as AddMarks } from "./AddMarks";
+export { default as ViewMarks } from "./ViewMarks";

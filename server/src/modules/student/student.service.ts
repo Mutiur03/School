@@ -239,6 +239,7 @@ export class StudentService {
 
     const where: Prisma.student_enrollmentsWhereInput = {
       year,
+      student: { available: true },
       ...(typeof level === "number" && !Number.isNaN(level)
         ? { class: level }
         : {}),
@@ -475,6 +476,23 @@ export class StudentService {
     const result = await prisma.students.update({
       where: { id },
       data: { available: false },
+    });
+
+    return sanitizeStudent(result);
+  }
+
+  static async reactivateStudent(id: number) {
+    const student = await prisma.students.findUnique({
+      where: { id },
+    });
+
+    if (!student) {
+      throw new ApiError(404, "Student not found");
+    }
+
+    const result = await prisma.students.update({
+      where: { id },
+      data: { available: true },
     });
 
     return sanitizeStudent(result);

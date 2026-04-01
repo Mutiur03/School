@@ -88,6 +88,12 @@ router.post(
   StudentController.giveTransferCertificateController,
 );
 
+router.post(
+  "/:id/reactivate",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.reactivateStudentController,
+);
+
 const studentRouter = express.Router();
 studentRouter.use("/api/students", router);
 

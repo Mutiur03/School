@@ -1,9 +1,9 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Eye, Pencil, Trash2, Upload } from "lucide-react";
+import { Eye, Pencil, Trash2, Upload, RotateCw } from "lucide-react";
 
 type ActionVariant = "blue" | "emerald" | "gray" | "red" | "amber";
-type ActionType = "view" | "edit" | "delete" | "photo";
+type ActionType = "view" | "edit" | "delete" | "photo" | "reactivate";
 
 const variantClasses: Record<ActionVariant, string> = {
     blue: "text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:hover:bg-blue-900/30",
@@ -18,6 +18,7 @@ const actionDefaults: Record<ActionType, { variant: ActionVariant; icon: React.R
     edit: { variant: "emerald", icon: <Pencil size={14} />, label: "Edit" },
     delete: { variant: "red", icon: <Trash2 size={14} />, label: "Delete" },
     photo: { variant: "gray", icon: <Upload size={14} />, label: "Photo" },
+    reactivate: { variant: "amber", icon: <RotateCw size={14} />, label: "Reactivate" },
 };
 
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

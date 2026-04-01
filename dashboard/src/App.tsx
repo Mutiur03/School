@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense, lazy } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -17,49 +17,55 @@ import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
+// Normal imports
+import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
+import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, SSCRegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
+import { StudentDashboard, Result } from "./pages/Students/index.ts";
+// Normal imports end
 
 // --- Lazy-loaded Components ---
 
 // Admin Pages
-const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
-const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
-const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
-const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
-const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
-const Attendence = lazy(() => import("./pages/Admin/Attendence"));
-const Notice = lazy(() => import("./pages/Admin/Notice"));
-const Holidays = lazy(() => import("./pages/Admin/Holidays"));
-const Events = lazy(() => import("./pages/Admin/Events"));
-const Gallery = lazy(() => import("./pages/Admin/Gallery"));
-const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
-const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
-const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
-const StudentList = lazy(() => import("./pages/Admin/StudentList"));
-const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
-const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
-const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
-const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
-const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
-const Head = lazy(() => import("./pages/Admin/Head"));
-const StaffList = lazy(() => import("./pages/Admin/StaffList"));
-const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
-const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
-const Admission = lazy(() => import("./pages/Admin/Admission"));
-const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
-const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
-const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
-const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
-const SSCRegForm = lazy(() => import("./pages/Admin/SSCRegForm"));
-const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
-const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
+// const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
+// const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
+// const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
+// const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
+// const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
+// const Attendence = lazy(() => import("./pages/Admin/Attendence"));
+// const Notice = lazy(() => import("./pages/Admin/Notice"));
+// const Holidays = lazy(() => import("./pages/Admin/Holidays"));
+// const Events = lazy(() => import("./pages/Admin/Events"));
+// const Gallery = lazy(() => import("./pages/Admin/Gallery"));
+// const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
+// const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
+// const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
+// const StudentList = lazy(() => import("./pages/Admin/StudentList"));
+// const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
+// const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
+// const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
+// const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
+// const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
+// const Head = lazy(() => import("./pages/Admin/Head"));
+// const StaffList = lazy(() => import("./pages/Admin/StaffList"));
+// const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
+// const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
+// const Admission = lazy(() => import("./pages/Admin/Admission"));
+// const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
+// const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
+// const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
+// const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
+// const SSCRegForm = lazy(() => import("./pages/Admin/SSCRegForm"));
+// const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
+// const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
 
-// Teacher Pages
-const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard.tsx"));
-const TeacherSettings = lazy(() => import("./pages/Teachers/index.ts").then(m => ({ default: m.TeacherSettings })));
+// // Teacher Pages
+// const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard.tsx"));
+// const TeacherSettings = lazy(() => import("./pages/Teachers/index.ts").then(m => ({ default: m.TeacherSettings })));
 
-// Student Pages
-const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard.tsx"));
-const Result = lazy(() => import("./pages/Students/Result.tsx"));
+// // Student Pages
+// const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard.tsx"));
+// const Result = lazy(() => import("./pages/Students/Result.tsx"));
+// Lazy import ends
 
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth >= 768);
