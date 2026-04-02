@@ -53,15 +53,23 @@ export const getAllDashboardData = async (req, res) => {
 
     try {
       attendanceData = await prisma.$queryRaw`
+        WITH LatestDates AS (
+          SELECT DISTINCT date 
+          FROM attendence 
+          WHERE status IN ('present', 'absent')
+          ORDER BY date DESC 
+          LIMIT 15
+        )
         SELECT 
-          TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'Mon') as name,
-          COUNT(CASE WHEN status = 'present' THEN 1 END)::integer as present,
-          COUNT(CASE WHEN status = 'absent' THEN 1 END)::integer as absent
-        FROM attendence 
-        WHERE date LIKE ${year + "%"}
-          AND status IN ('present', 'absent')
-        GROUP BY TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'Mon'), EXTRACT(MONTH FROM TO_DATE(date, 'YYYY-MM-DD'))
-        ORDER BY EXTRACT(MONTH FROM TO_DATE(date, 'YYYY-MM-DD'))
+          TO_CHAR(TO_DATE(a.date, 'YYYY-MM-DD'), 'DD Mon') as name,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END)::integer as present,
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::integer as absent,
+          a.date as sort_date
+        FROM attendence a
+        JOIN LatestDates ld ON a.date = ld.date
+        WHERE a.status IN ('present', 'absent')
+        GROUP BY a.date
+        ORDER BY a.date ASC
       `;
     } catch (error) {
       console.warn("Error fetching attendance data:", error.message);

@@ -11,6 +11,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { Users, UserCheck, Calendar, Bell, GraduationCap, ClipboardList } from "lucide-react";
+import { PageHeader, SectionCard, StatsCard } from "@/components";
 
 interface Announcement {
   id: number;
@@ -53,23 +55,13 @@ interface DashboardData {
 interface Tab {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
-interface StatCardProps {
-  title: string;
-  value: number;
-  icon: string;
-  color: string;
-}
-
-interface AnnouncementCardProps {
-  announcement: Announcement;
-}
-
-interface EventCardProps {
-  event: Event;
-}
+const COLORS = {
+  present: "#3b82f6", // Blue
+  absent: "#ef4444",  // Red
+};
 
 function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
@@ -108,70 +100,27 @@ function Dashboard() {
   };
 
   const tabs: Tab[] = [
-    { id: "overview", label: "Overview", icon: "📊" },
-    { id: "attendance", label: "Attendance", icon: "📈" },
-    { id: "announcements", label: "Notices", icon: "📢" },
-    { id: "events", label: "Events", icon: "📅" },
-    { id: "exams", label: "Exams", icon: "📝" },
+    { id: "overview", label: "Overview", icon: <GraduationCap className="w-4 h-4" /> },
+    { id: "attendance", label: "Attendance", icon: <UserCheck className="w-4 h-4" /> },
+    { id: "announcements", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+    { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
+    { id: "exams", label: "Exams", icon: <ClipboardList className="w-4 h-4" /> },
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen p-2 sm:p-4 lg:p-6 xl:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4 sm:mb-6 animate-pulse"></div>
-
-          <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto">
-            {[...Array(5)].map((_, index) => (
-              <div
-                key={index}
-                className="h-8 sm:h-10 w-20 sm:w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse flex-shrink-0"
-              ></div>
+      <div className="min-h-screen p-4 sm:p-6 lg:p-8 animate-pulse text-gray-500">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="h-12 w-64 bg-muted rounded-lg"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 bg-muted rounded-xl"></div>
             ))}
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            {[...Array(3)].map((_, index) => (
-              <StatCardSkeleton key={index} />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-            <div className="space-y-4 sm:space-y-6">
-              <ChartSkeleton />
-              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
-                <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
-                <div className="space-y-2 sm:space-y-3">
-                  {[...Array(3)].map((_, index) => (
-                    <AnnouncementSkeleton key={index} />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4 sm:space-y-6">
-              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
-                <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
-                <div className="space-y-2 sm:space-y-3">
-                  {[...Array(3)].map((_, index) => (
-                    <EventSkeleton key={index} />
-                  ))}
-                </div>
-              </div>
-              <div className="bg-card rounded-lg shadow p-3 sm:p-6">
-                <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
-                <div className="space-y-2 sm:space-y-3">
-                  {[...Array(3)].map((_, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between border-b border-border dark:border-gray-700 pb-2"
-                    >
-                      <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 sm:w-24 animate-pulse"></div>
-                      <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 sm:w-32 animate-pulse"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="h-10 w-full max-w-md bg-muted rounded-lg"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="h-96 bg-muted rounded-xl"></div>
+            <div className="h-96 bg-muted rounded-xl"></div>
           </div>
         </div>
       </div>
@@ -180,277 +129,272 @@ function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-muted/50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="text-xl text-red-600 dark:text-red-400 text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <div>Error: {error}</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <SectionCard className="max-w-md w-full text-center p-8">
+          <div className="text-destructive text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-primary text-white rounded-lg hover:shadow-lg transition-all"
+          >
+            Try Again
+          </button>
+        </SectionCard>
       </div>
     );
   }
+
+  const renderAttendanceSection = (title: string) => {
+    const hasData = dashboardData.attendanceData && dashboardData.attendanceData.length > 0;
+
+    return (
+      <SectionCard title={title} className="w-full">
+        {hasData ? (
+          <div className="flex flex-col">
+            <div className="h-64 sm:h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dashboardData.attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    align="center" 
+                    content={(props) => {
+                      const { payload } = props;
+                      return (
+                        <div className="flex justify-center gap-6 mt-6">
+                          {payload?.map((entry: any, index: number) => (
+                            <div key={`item-${index}`} className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full border-2 bg-white shadow-sm" 
+                                style={{ borderColor: entry.color }}
+                              />
+                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{entry.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="present"
+                    stroke={COLORS.present}
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#fff', stroke: COLORS.present, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: COLORS.present, stroke: '#fff', strokeWidth: 2 }}
+                    name="Present"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="absent"
+                    stroke={COLORS.absent}
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#fff', stroke: COLORS.absent, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: COLORS.absent, stroke: '#fff', strokeWidth: 2 }}
+                    name="Absent"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <GraduationCap className="w-16 h-16 mb-4 opacity-20" />
+            <p>No attendance data recorded yet.</p>
+          </div>
+        )}
+      </SectionCard>
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "overview":
         return (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-            <div className="space-y-4 sm:space-y-6">
-              {dashboardData.attendanceData && dashboardData.attendanceData.length > 0 ? (
-                <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
-                    Attendance Overview
-                  </h3>
-                  <div className="h-48 sm:h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dashboardData.attendanceData}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="opacity-30"
-                        />
-                        <XAxis dataKey="name" className="text-xs sm:text-sm" tick={{ fontSize: 12 }} />
-                        <YAxis className="text-xs sm:text-sm" tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="present"
-                          stroke="#3b82f6"
-                          activeDot={{ r: 4 }}
-                          name="Present"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="absent"
-                          stroke="#ef4444"
-                          name="Absent"
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+            <div className="space-y-6 lg:space-y-8">
+              {renderAttendanceSection("Attendance Overview")}
+              <SectionCard title="Quick Summary">
+                <div className="space-y-4">
+                  {[
+                    { label: "Total Students", value: dashboardData.quickStats.students, icon: <Users className="w-4 h-4 text-blue-500" /> },
+                    { label: "Active Teachers", value: dashboardData.quickStats.teachers, icon: <UserCheck className="w-4 h-4 text-green-500" /> },
+                    { label: "Upcoming Events", value: dashboardData.quickStats.events, icon: <Calendar className="w-4 h-4 text-yellow-500" /> },
+                  ].map((stat) => (
+                    <div key={stat.label} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-background border border-border shadow-sm">
+                          {stat.icon}
+                        </div>
+                        <span className="font-medium text-sm sm:text-base">{stat.label}</span>
+                      </div>
+                      <span className="text-lg font-bold">{stat.value}</span>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
-                    Attendance Overview
-                  </h3>
-                  <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
-                    <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📊</div>
-                    <div className="text-sm sm:text-base">No attendance data available</div>
-                  </div>
-                </div>
-              )}
+              </SectionCard>
             </div>
-            <div className="space-y-4 sm:space-y-6">
-              <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
-                  Quick Summary
-                </h3>
-                <div className="space-y-3 sm:space-y-4 text-gray-700 dark:text-gray-300">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm sm:text-base">Total Students</span>
-                    <span className="font-medium text-sm sm:text-base">
-                      {dashboardData.quickStats.students}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm sm:text-base">Active Teachers</span>
-                    <span className="font-medium text-sm sm:text-base">
-                      {dashboardData.quickStats.teachers}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm sm:text-base">Upcoming Events</span>
-                    <span className="font-medium text-sm sm:text-base">
-                      {dashboardData.quickStats.events}
-                    </span>
-                  </div>
+            <div className="space-y-6 lg:space-y-8">
+              <SectionCard
+                title="Recent Notices"
+                headerAction={
+                  <button onClick={() => navigate('/notice')} className="text-primary text-sm font-medium hover:underline">
+                    View All
+                  </button>
+                }
+              >
+                <div className="space-y-4">
+                  {dashboardData.announcements.length > 0 ? (
+                    dashboardData.announcements.slice(0, 3).map((notice) => (
+                      <div key={notice.id} className="border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold text-sm sm:text-base group-hover:text-primary transition-colors line-clamp-1">{notice.title}</h4>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">{new Date(notice.date).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{notice.content}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No recent notices.</p>
+                  )}
                 </div>
-              </div>
+              </SectionCard>
+              <SectionCard
+                title="Upcoming Events"
+                headerAction={
+                  <button onClick={() => navigate('/events')} className="text-primary text-sm font-medium hover:underline">
+                    View All
+                  </button>
+                }
+              >
+                <div className="space-y-4">
+                  {dashboardData.events.length > 0 ? (
+                    dashboardData.events.slice(0, 3).map((event) => (
+                      <div key={event.id} className="flex gap-4 p-3 rounded-lg hover:bg-muted/30 transition-colors border border-transparent hover:border-border">
+                        <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
+                          <span className="text-xs font-bold uppercase">{new Date(event.date).toLocaleString('default', { month: 'short' })}</span>
+                          <span className="text-lg font-bold leading-tight">{new Date(event.date).getDate()}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm sm:text-base line-clamp-1">{event.title}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {event.location}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No upcoming events.</p>
+                  )}
+                </div>
+              </SectionCard>
             </div>
           </div>
         );
       case "attendance":
-        return (
-          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-white">
-              Attendance Trend Analysis
-            </h3>
-            {dashboardData.attendanceData && dashboardData.attendanceData.length > 0 ? (
-              <div className="h-64 sm:h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardData.attendanceData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="opacity-30"
-                    />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="present"
-                      stroke="#10b981"
-                      activeDot={{ r: 6 }}
-                      name="Present"
-                      strokeWidth={3}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="absent"
-                      stroke="#f59e0b"
-                      name="Absent"
-                      strokeWidth={3}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
-                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📊</div>
-                <div className="text-sm sm:text-base">No attendance data available</div>
-              </div>
-            )}
-          </div>
-        );
+        return renderAttendanceSection("Attendance Trend Analysis");
       case "announcements":
         return (
-          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                Recent Notices & Announcements
-              </h3>
-              <button
-                onClick={() => navigate('/notice')}
-                className="px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
-              >
-                <span>View All</span>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 5l7 7-7 7"
-                  ></path>
-                </svg>
-              </button>
+          <SectionCard title="Notices & Announcements">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {dashboardData.announcements.map((notice) => (
+                <div key={notice.id} className="p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider">Notice</span>
+                    <span className="text-xs text-muted-foreground">{new Date(notice.date).toLocaleDateString()}</span>
+                  </div>
+                  <h4 className="font-bold mb-2 group-hover:text-primary transition-colors">{notice.title}</h4>
+                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{notice.content}</p>
+                </div>
+              ))}
             </div>
-            {dashboardData.announcements.length > 0 ? (
-              <div className="space-y-3 sm:space-y-4">
-                {dashboardData.announcements.map((announcement) => (
-                  <AnnouncementCard
-                    key={announcement.id}
-                    announcement={announcement}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
-                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📢</div>
-                <div className="text-sm sm:text-base">No announcements available</div>
-              </div>
-            )}
-          </div>
+          </SectionCard>
         );
       case "events":
         return (
-          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                Upcoming Events
-              </h3>
-              <button
-                onClick={() => navigate('/events')}
-                className="px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
-              >
-                <span>View All</span>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 5l7 7-7 7"
-                  ></path>
-                </svg>
-              </button>
+          <SectionCard title="Scheduled Events">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {dashboardData.events.map((event) => (
+                <div key={event.id} className="group overflow-hidden rounded-xl border border-border bg-card hover:shadow-lg transition-all">
+                  <div className="h-32 bg-primary/5 flex items-center justify-center border-b border-border transition-colors group-hover:bg-primary/10">
+                    <Calendar className="w-12 h-12 text-primary opacity-20" />
+                  </div>
+                  <div className="p-5">
+                    <h4 className="font-bold mb-3 line-clamp-2">{event.title}</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(event.date).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Users className="w-3.5 h-3.5" />
+                        {event.location}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            {dashboardData.events.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                {dashboardData.events.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
-                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📅</div>
-                <div className="text-sm sm:text-base">No upcoming events</div>
-              </div>
-            )}
-          </div>
+          </SectionCard>
         );
       case "exams":
         return (
-          <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-white">
-              Examination Schedule
-            </h3>
-            {dashboardData.examSchedule.length > 0 ? (
-              <div className="overflow-x-auto -mx-3 sm:mx-0">
-                <div className="inline-block min-w-full px-3 sm:px-0">
-                  <table className="w-full text-left min-w-[500px] sm:min-w-0">
-                    <thead>
-                      <tr className="border-b border-border dark:border-gray-700">
-                        <th className="pb-2 sm:pb-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
-                          Exam Name
-                        </th>
-                        <th className="pb-2 sm:pb-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
-                          Start Date
-                        </th>
-                        <th className="pb-2 sm:pb-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
-                          End Date
-                        </th>
+          <SectionCard title="Examination Schedule">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Exam Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Start Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">End Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {dashboardData.examSchedule.map((exam, index) => {
+                    const now = new Date();
+                    const start = new Date(exam.start_date);
+                    const end = new Date(exam.end_date);
+                    const isUpcoming = start > now;
+                    const isOngoing = now >= start && now <= end;
+
+                    return (
+                      <tr key={index} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-sm">{exam.name}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{start.toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{end.toLocaleDateString()}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${isOngoing ? 'bg-green-500/10 text-green-500' : isUpcoming ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}>
+                            {isOngoing ? 'Ongoing' : isUpcoming ? 'Upcoming' : 'Completed'}
+                          </span>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardData.examSchedule.map((exam, index) => (
-                        <tr
-                          key={index}
-                          className="border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                        >
-                          <td className="py-2 sm:py-3 text-gray-900 dark:text-white font-medium text-sm sm:text-base">
-                            {exam.name}
-                          </td>
-                          <td className="py-2 sm:py-3 text-muted-foreground dark:text-gray-400 text-sm sm:text-base">
-                            {new Date(exam.start_date).toLocaleDateString()}
-                          </td>
-                          <td className="py-2 sm:py-3 text-muted-foreground dark:text-gray-400 text-sm sm:text-base">
-                            {new Date(exam.end_date).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12 text-muted-foreground dark:text-gray-400">
-                <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">📝</div>
-                <div className="text-sm sm:text-base">No exams scheduled</div>
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {dashboardData.examSchedule.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">No exams scheduled.</div>
+              )}
+            </div>
+          </SectionCard>
         );
       default:
         return null;
@@ -458,195 +402,58 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen p-2 sm:p-4 lg:p-6 xl:p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-white px-1">
-          School Dashboard
-        </h1>
+    <div className="min-h-screen p-4 sm:p-6 lg:p-10 bg-muted/10 dark:bg-zinc-950/20">
+      <div className="max-w-7xl mx-auto space-y-8 lg:space-y-10">
+        <PageHeader
+          title="Campus Dashboard"
+          description={`Welcome back, Administrator. Last updated: ${new Date().toLocaleTimeString()}.`}
+        />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <StatCard
-            title="Total Students"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <StatsCard
+            label="Total Students"
             value={dashboardData.quickStats.students}
-            icon="👨‍🎓"
-            color="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-300"
+            icon={<Users className="w-6 h-6" />}
+            color="blue"
+            loading={false}
           />
-          <StatCard
-            title="Teachers"
+          <StatsCard
+            label="Active Faculty"
             value={dashboardData.quickStats.teachers}
-            icon="👩‍🏫"
-            color="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300"
+            icon={<UserCheck className="w-6 h-6" />}
+            color="emerald"
+            loading={false}
           />
-          <StatCard
-            title="Upcoming Events"
+          <StatsCard
+            label="Scheduled Events"
             value={dashboardData.quickStats.events}
-            icon="📅"
-            color="bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-300"
+            icon={<Calendar className="w-6 h-6" />}
+            color="amber"
+            loading={false}
           />
         </div>
 
-        <div className="mb-4 sm:mb-6">
-          <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 px-1 scrollbar-hide">
+        <div className="space-y-6">
+          <div className="flex gap-2 p-1 bg-muted/50 rounded-xl w-fit overflow-x-auto scrollbar-hide max-w-full">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-shrink-0 text-sm sm:text-base ${activeTab === tab.id
-                  ? "bg-primary text-white shadow-md"
-                  : "bg-card text-gray-700 dark:text-gray-300 hover:bg-muted dark:hover:bg-gray-700 shadow-sm"
+                className={`px-4 sm:px-6 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center gap-2 shrink-0 ${activeTab === tab.id
+                  ? "bg-card text-primary shadow-sm border border-border"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/5"
                   }`}
               >
-                <span className="text-xs sm:text-sm">{tab.icon}</span>
-                <span>{tab.label}</span>
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>
+
+          <div key={activeTab} className="animate-fade-in-up">
+            {renderTabContent()}
+          </div>
         </div>
-
-        <div className="mb-4 sm:mb-6">{renderTabContent()}</div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon, color }: StatCardProps) {
-  return (
-    <div
-      className={`p-3 sm:p-4 lg:p-6 rounded-lg shadow-md ${color} transition-transform hover:scale-105`}
-    >
-      <div className="flex justify-between items-center">
-        <div>
-          <p className="text-xs sm:text-sm font-medium mb-1">{title}</p>
-          <p className="text-xl sm:text-2xl font-bold">{value}</p>
-        </div>
-        <div className="text-2xl sm:text-3xl">{icon}</div>
-      </div>
-    </div>
-  );
-}
-
-function AnnouncementCard({ announcement }: AnnouncementCardProps) {
-  return (
-    <div
-      className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-card cursor-pointer"
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
-          <h4 className="font-medium text-base sm:text-lg text-gray-900 dark:text-white line-clamp-2 sm:truncate">
-            {announcement.title}
-          </h4>
-          <span className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400 flex-shrink-0">
-            {new Date(announcement.date).toLocaleDateString()}
-          </span>
-        </div>
-        <p className="text-sm sm:text-base text-muted-foreground dark:text-gray-300 line-clamp-3">
-          {announcement.content}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function EventCard({ event }: EventCardProps) {
-  return (
-    <div
-      className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:shadow-md transition-all duration-200 bg-card cursor-pointer"
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
-          <h3 className="font-medium text-base sm:text-lg text-gray-900 dark:text-white line-clamp-2">
-            {event.title}
-          </h3>
-          <span className="text-xs sm:text-sm text-muted-foreground dark:text-gray-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded flex-shrink-0 self-start">
-            {new Date(event.date).toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex items-center text-muted-foreground dark:text-gray-400">
-          <svg
-            className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            ></path>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            ></path>
-          </svg>
-          <span className="truncate text-sm sm:text-base">{event.location}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCardSkeleton() {
-  return (
-    <div className="p-3 sm:p-4 lg:p-6 rounded-lg shadow-md bg-muted dark:bg-gray-800 animate-pulse">
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1 sm:mb-2 w-20 sm:w-24"></div>
-          <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16"></div>
-        </div>
-        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
-      </div>
-    </div>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="bg-card rounded-lg shadow-md p-3 sm:p-6">
-      <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded mb-3 sm:mb-4 w-28 sm:w-32 animate-pulse"></div>
-      <div className="h-48 sm:h-64 bg-muted dark:bg-gray-700 rounded animate-pulse flex items-end justify-around p-2 sm:p-4">
-        {[...Array(6)].map((_, index) => (
-          <div
-            key={index}
-            className="bg-gray-200 dark:bg-gray-600 rounded-t"
-            style={{
-              height: `${Math.random() * 80 + 20}%`,
-              width: "12%",
-            }}
-          ></div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnnouncementSkeleton() {
-  return (
-    <div className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-card">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1 sm:gap-2">
-        <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded w-40 sm:w-48"></div>
-        <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20"></div>
-      </div>
-      <div className="space-y-1 sm:space-y-2">
-        <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-        <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-      </div>
-    </div>
-  );
-}
-
-function EventSkeleton() {
-  return (
-    <div className="border border-border dark:border-gray-700 rounded-lg p-3 sm:p-4 animate-pulse bg-card">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1 sm:gap-2">
-        <div className="h-4 sm:h-5 bg-gray-200 dark:bg-gray-700 rounded w-28 sm:w-32"></div>
-        <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20"></div>
-      </div>
-      <div className="flex items-center">
-        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded mr-2"></div>
-        <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 sm:w-24"></div>
       </div>
     </div>
   );
