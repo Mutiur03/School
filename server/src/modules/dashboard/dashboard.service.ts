@@ -1,29 +1,29 @@
-import { prisma } from "../config/prisma.js";
+import { prisma } from "@/config/prisma.js";
 
-export const getAllDashboardData = async (req, res) => {
-  try {
+export class DashboardService {
+  static async getDashboardData() {
     const year = new Date().getFullYear();
     const currentDate = new Date();
 
     // Helper function to convert MM-DD-YYYY to Date object
-    const parseEventDate = (dateStr) => {
+    const parseEventDate = (dateStr: string) => {
       const [month, day, year] = dateStr.split("-");
-      return new Date(year, month - 1, day);
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     };
 
     // Execute queries with individual error handling
     let studentCount = 0;
     let teacherCount = 0;
-    let announcements = [];
-    let attendanceData = [];
-    let events = [];
-    let examSchedule = [];
+    let announcements = [] as any[];
+    let attendanceData = [] as any[];
+    let events = [] as any[];
+    let examSchedule = [] as any[];
 
     try {
       studentCount = await prisma.student_enrollments.count({
         where: { year: year },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching student count:", error.message);
     }
 
@@ -31,11 +31,9 @@ export const getAllDashboardData = async (req, res) => {
       teacherCount = await prisma.teachers.count({
         where: { available: true },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching teacher count:", error.message);
     }
-
-
 
     try {
       announcements = await prisma.notices.findMany({
@@ -48,7 +46,7 @@ export const getAllDashboardData = async (req, res) => {
         orderBy: { created_at: "desc" },
         take: 5,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching announcements:", error.message);
     }
 
@@ -72,7 +70,7 @@ export const getAllDashboardData = async (req, res) => {
         GROUP BY a.date
         ORDER BY a.date ASC
       `;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching attendance data:", error.message);
     }
 
@@ -87,7 +85,7 @@ export const getAllDashboardData = async (req, res) => {
         },
         orderBy: { date: "asc" },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching events:", error.message);
     }
 
@@ -105,7 +103,7 @@ export const getAllDashboardData = async (req, res) => {
         orderBy: { start_date: "asc" },
         take: 5,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Error fetching exam schedule:", error.message);
     }
 
@@ -138,13 +136,13 @@ export const getAllDashboardData = async (req, res) => {
       (announcement) => ({
         id: announcement.id,
         title: announcement.title || "No title",
-        content: announcement.details || "No details available",
+        content: "No details available",
         date: announcement.created_at,
         url: announcement.file,
       })
     );
 
-    const allData = {
+    return {
       quickStats: {
         students: studentCount || 0,
         teachers: teacherCount || 0,
@@ -159,30 +157,5 @@ export const getAllDashboardData = async (req, res) => {
         end_date: exam.end_date,
       })),
     };
-
-    res.status(200).json({
-      success: true,
-      data: allData,
-      message:
-        allData.announcements.length === 0 &&
-          allData.events.length === 0 &&
-          allData.examSchedule.length === 0
-          ? "Dashboard data retrieved successfully (no announcements, events, or exams found)"
-          : "All dashboard data retrieved successfully",
-    });
-  } catch (error) {
-    console.error("Dashboard error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error retrieving dashboard data",
-      error: error.message,
-      data: {
-        quickStats: { students: 0, teachers: 0, events: 0 },
-        announcements: [],
-        attendanceData: [],
-        events: [],
-        examSchedule: [],
-      },
-    });
   }
-};
+}
