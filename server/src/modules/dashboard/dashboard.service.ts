@@ -58,18 +58,28 @@ export class DashboardService {
           WHERE status IN ('present', 'absent')
           ORDER BY date DESC 
           LIMIT 15
+        ),
+        DateRange AS (
+          SELECT 
+            MIN(TO_DATE(date, 'YYYY-MM-DD')) as start_date,
+            MAX(TO_DATE(date, 'YYYY-MM-DD')) as end_date
+          FROM LatestDates
+        ),
+        GeneratedDates AS (
+          SELECT generate_series(start_date, end_date, '1 day'::interval)::date as g_date
+          FROM DateRange
         )
         SELECT 
-          TO_CHAR(TO_DATE(a.date, 'YYYY-MM-DD'), 'DD Mon') as name,
+          TO_CHAR(gd.g_date, 'DD Mon') as name,
           COUNT(CASE WHEN a.status = 'present' THEN 1 END)::integer as present,
           COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::integer as absent,
-          a.date as sort_date
-        FROM attendence a
-        JOIN LatestDates ld ON a.date = ld.date
-        WHERE a.status IN ('present', 'absent')
-        GROUP BY a.date
-        ORDER BY a.date ASC
+          TO_CHAR(gd.g_date, 'YYYY-MM-DD') as sort_date
+        FROM GeneratedDates gd
+        LEFT JOIN attendence a ON a.date = TO_CHAR(gd.g_date, 'YYYY-MM-DD') AND a.status IN ('present', 'absent')
+        GROUP BY gd.g_date
+        ORDER BY gd.g_date ASC
       `;
+
     } catch (error: any) {
       console.warn("Error fetching attendance data:", error.message);
     }
