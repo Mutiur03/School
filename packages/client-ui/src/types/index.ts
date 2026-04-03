@@ -15,7 +15,7 @@ export type NoticeItem = {
   title: string;
   created_at: string;
   download_url: string;
-  file?: string;
+  file: string;
 };
 
 export type Head = {

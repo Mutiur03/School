@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { Users, UserCheck, Calendar, Bell, GraduationCap, ClipboardList } from "lucide-react";
 import { PageHeader, SectionCard, StatsCard } from "@/components";
+import { getFileUrl } from "@/lib/backend";
 
 interface Announcement {
   id: number;
@@ -263,7 +264,7 @@ function Dashboard() {
                 <div className="space-y-4">
                   {dashboardData.announcements.length > 0 ? (
                     dashboardData.announcements.slice(0, 3).map((notice) => (
-                      <a href={notice.url} target="_blank" key={notice.id} className="block border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all">
+                      <a href={getFileUrl(notice.url)} target="_blank" key={notice.id} className="block border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-sm sm:text-base group-hover:text-primary transition-colors line-clamp-1">{notice.title}</h4>
                           <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">{new Date(notice.date).toLocaleDateString()}</span>
@@ -315,7 +316,7 @@ function Dashboard() {
           <SectionCard title="Notices & Announcements">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {dashboardData.announcements.map((notice) => (
-                <a href={notice.url} target="_blank" key={notice.id} className="block p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card">
+                <a href={getFileUrl(notice.url)} target="_blank" key={notice.id} className="block p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card">
                   <div className="flex justify-between items-start mb-3">
                     <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider">Notice</span>
                     <span className="text-xs text-muted-foreground">{new Date(notice.date).toLocaleDateString()}</span>

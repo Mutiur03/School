@@ -1,4 +1,5 @@
 import { useNotices } from "@/hooks/useSchoolData";
+import { getFileUrl } from "@/lib/backend";
 import { useEffect, useMemo, useState } from "react";
 
 function formatDate(iso?: string) {
@@ -120,7 +121,7 @@ function Notice() {
                       <a
                         className="m-0 text-gray-900 text-sm leading-6 wrap-break-word transition-opacity duration-200"
                         title={n?.title || ""}
-                        href={n?.file || "#"}
+                        href={getFileUrl(n.file)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -133,7 +134,7 @@ function Notice() {
                     <td className="px-4 py-3">
                       <div className="flex justify-center">
                         <a
-                          href={n.download_url}
+                          href={getFileUrl(n.file)}
                           target="_blank"
                           rel="noopener noreferrer"
                         >

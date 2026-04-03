@@ -79,8 +79,8 @@ export const abortMultipartUpload = async (key: string, uploadId: string) => {
 };
 
 export const getDownloadUrl = async (key: string) => {
-  if (process.env.R2_PUBLIC_URL) {
-    return `${process.env.R2_PUBLIC_URL}/${key}`;
+  if (env.R2_PUBLIC_URL) {
+    return `${env.R2_PUBLIC_URL}/${key}`;
   }
   const command = new GetObjectCommand({
     Bucket: R2_BUCKET_NAME,
