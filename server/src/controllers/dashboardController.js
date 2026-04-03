@@ -43,6 +43,7 @@ export const getAllDashboardData = async (req, res) => {
           id: true,
           title: true,
           created_at: true,
+          file: true,
         },
         orderBy: { created_at: "desc" },
         take: 5,
@@ -139,6 +140,7 @@ export const getAllDashboardData = async (req, res) => {
         title: announcement.title || "No title",
         content: announcement.details || "No details available",
         date: announcement.created_at,
+        url: announcement.file,
       })
     );
 

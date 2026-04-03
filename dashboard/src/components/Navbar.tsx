@@ -8,6 +8,7 @@ import { useAuth } from "@/context/useAuth";
 import { getInitials } from "@/lib/utils";
 import envPreferredRole from "@/lib/role";
 import { getFileUrl } from "@/lib/backend";
+import useNavigationStore from "@/store/navigation.Store";
 
 interface NavbarProps {
   onBurgerClick?: () => void;
@@ -16,7 +17,24 @@ interface NavbarProps {
 const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const { isDirty, resetDirty } = useNavigationStore();
+
+  const handleNavigation = (e?: React.MouseEvent) => {
+    if (isDirty) {
+      const proceed = window.confirm(
+        "You have unsaved attendance changes. Leaving this page will discard them. Are you sure you want to proceed?"
+      );
+      if (!proceed) {
+        if (e) e.preventDefault();
+        return false;
+      }
+      resetDirty();
+    }
+    return true;
+  };
+
   const handleLogout = async () => {
+    if (!handleNavigation()) return;
     try {
       await logout();
       navigate(`/${envPreferredRole ? envPreferredRole : user?.role}/login`);
@@ -45,15 +63,15 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
         <Menu className="w-6 h-6" />
       </button>
       {user && user.role === "admin" &&
-        <Link to="/admin" className="text-xl text-nowrap flex items-center">
+        <Link to="/admin" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
           Admin
         </Link>}
       {user && user.role === "teacher" &&
-        <Link to="/teacher" className="text-xl text-nowrap flex items-center">
+        <Link to="/teacher" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
           Teacher's Dashboard
         </Link>}
       {user && user.role === "student" &&
-        <Link to="/student" className="text-xl text-nowrap flex items-center">
+        <Link to="/student" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
           Student's Dashboard
         </Link>}
       <div className="flex items-center justify-between">

@@ -23,6 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
+import useNavigationStore from "@/store/navigation.Store";
 
 interface SidebarProps {
   sidebarExpanded: boolean;
@@ -367,6 +368,7 @@ const Sidebar = ({
   const location = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const { isDirty, resetDirty } = useNavigationStore();
 
   const sidebarItems = useMemo(() => (user ? getRoutesByRole(user.role) : []), [user]);
 
@@ -442,6 +444,20 @@ const Sidebar = ({
       setSidebarExpanded(true);
     }
   };
+  
+  const handleNavigation = (e: React.MouseEvent) => {
+    if (isDirty) {
+      const proceed = window.confirm(
+        "You have unsaved attendance changes. Leaving this page will discard them. Are you sure you want to proceed?"
+      );
+      if (!proceed) {
+        e.preventDefault();
+        return false;
+      }
+      resetDirty();
+    }
+    return true;
+  };
 
   return (
     <>
@@ -471,7 +487,8 @@ const Sidebar = ({
                               : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
-                          onClick={() => {
+                          onClick={(e) => {
+                            if (!handleNavigation(e)) return;
                             setOpenDropdown(null);
                             if (window.innerWidth < 768 && onClose) {
                               onClose();
@@ -551,7 +568,8 @@ const Sidebar = ({
                                             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                           }`
                                         }
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                          if (!handleNavigation(e)) return;
                                           if (
                                             window.innerWidth < 768 &&
                                             onClose
