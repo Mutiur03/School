@@ -29,6 +29,15 @@ is_wsl() {
 }
 
 kill_all() {
+  echo -e "${RED}Cleaning all builds...${NC}"
+  rm -rf packages/*/dist
+  rm -rf dashboard/dist
+  rm -rf server/dist
+  rm -rf client/dist
+  rm -rf client-ui/dist
+  rm -rf common-ui/dist
+  rm -rf shared-schemas/dist
+  echo -e "${GREEN}All builds cleaned.${NC}"
   if is_wsl; then
     # ── WSL: use taskkill + netstat to kill Windows processes ──
     for PORT in "${PORTS[@]}"; do

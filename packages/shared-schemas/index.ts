@@ -10,3 +10,4 @@ export * from "./utils.js";
 export * from "./types.js";
 export * from "./superAdminSchema.js";
 export * from "./levelSchemas.js";
+export * from "./noticeSchemas.js";
