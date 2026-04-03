@@ -81,6 +81,7 @@ export const useSendAttendanceSms = () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
       queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
       queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
       toast.success(data.message || "Attendance SMS process completed");
     },
     onError: (error: any) => {

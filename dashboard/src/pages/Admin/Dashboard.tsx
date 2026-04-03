@@ -19,6 +19,7 @@ interface Announcement {
   title: string;
   content: string;
   date: string;
+  url: string;
 }
 
 interface Event {
@@ -254,7 +255,7 @@ function Dashboard() {
               <SectionCard
                 title="Recent Notices"
                 headerAction={
-                  <button onClick={() => navigate('/notice')} className="text-primary text-sm font-medium hover:underline">
+                  <button onClick={() => navigate('/admin/notice')} className="text-primary text-sm font-medium hover:underline">
                     View All
                   </button>
                 }
@@ -262,13 +263,12 @@ function Dashboard() {
                 <div className="space-y-4">
                   {dashboardData.announcements.length > 0 ? (
                     dashboardData.announcements.slice(0, 3).map((notice) => (
-                      <div key={notice.id} className="border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all">
+                      <a href={notice.url} target="_blank" key={notice.id} className="block border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-sm sm:text-base group-hover:text-primary transition-colors line-clamp-1">{notice.title}</h4>
                           <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">{new Date(notice.date).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{notice.content}</p>
-                      </div>
+                      </a>
                     ))
                   ) : (
                     <p className="text-center py-8 text-muted-foreground">No recent notices.</p>
@@ -278,7 +278,7 @@ function Dashboard() {
               <SectionCard
                 title="Upcoming Events"
                 headerAction={
-                  <button onClick={() => navigate('/events')} className="text-primary text-sm font-medium hover:underline">
+                  <button onClick={() => navigate('/admin/events')} className="text-primary text-sm font-medium hover:underline">
                     View All
                   </button>
                 }
@@ -315,14 +315,13 @@ function Dashboard() {
           <SectionCard title="Notices & Announcements">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {dashboardData.announcements.map((notice) => (
-                <div key={notice.id} className="p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card">
+                <a href={notice.url} target="_blank" key={notice.id} className="block p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card">
                   <div className="flex justify-between items-start mb-3">
                     <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider">Notice</span>
                     <span className="text-xs text-muted-foreground">{new Date(notice.date).toLocaleDateString()}</span>
                   </div>
                   <h4 className="font-bold mb-2 group-hover:text-primary transition-colors">{notice.title}</h4>
-                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{notice.content}</p>
-                </div>
+                </a>
               ))}
             </div>
           </SectionCard>

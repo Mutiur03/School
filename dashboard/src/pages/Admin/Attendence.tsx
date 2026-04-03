@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import {
@@ -9,6 +9,7 @@ import {
   useSmsSettings,
   useSendAttendanceSms,
 } from "@/queries/attendence.queries.js";
+import useNavigationStore from "@/store/navigation.Store";
 import PageHeader from "@/components/PageHeader.js";
 import SectionCard from "@/components/SectionCard.js";
 import StatsCard from "@/components/StatsCard.js";
@@ -62,6 +63,7 @@ function Attendance() {
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, "present" | "absent">>({});
+  const { setDirty, resetDirty } = useNavigationStore();
   const { data: smsSettings } = useSmsSettings(selectedSection);
 
   const { data: attendanceRecords } = useAttendance({
@@ -148,6 +150,80 @@ function Attendance() {
     return localAttendance[key] || attendanceMap[key] || "absent";
   };
 
+  const realtimeStats = useMemo(() => {
+    const todayDay = currentDate.getDate();
+    const isToday =
+      selectedMonth === currentDate.getMonth() &&
+      selectedYear === currentDate.getFullYear();
+
+    if (!students.length || !isToday) {
+      return {
+        present: persistentStats?.data?.present || 0,
+        absent: persistentStats?.data?.absent || 0,
+        total:
+          (persistentStats?.data?.present || 0) +
+          (persistentStats?.data?.absent || 0),
+      };
+    }
+
+    const todayKeys = students.map((s) => `${s.id}-${todayDay}`);
+    const hasAnyData = todayKeys.some(
+      (key) => !!attendanceMap[key] || !!localAttendance[key]
+    );
+
+    if (!hasAnyData) {
+      return {
+        present: 0,
+        absent: 0,
+        total: students.length,
+      };
+    }
+
+    let presentCount = 0;
+    let absentCount = 0;
+
+    students.forEach((student) => {
+      const status = getStatus(student.id, todayDay);
+      if (status === "present") presentCount++;
+      else absentCount++;
+    });
+
+    return {
+      present: presentCount,
+      absent: absentCount,
+      total: students.length,
+    };
+  }, [
+    students,
+    localAttendance,
+    attendanceMap,
+    persistentStats,
+    selectedMonth,
+    selectedYear,
+    currentDate,
+  ]);
+
+  // 1. Browser navigation guard (Reload/Close tab)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(localAttendance).length > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [localAttendance]);
+
+  // Sync with global navigation store
+  useEffect(() => {
+    const hasUnsavedChanges = Object.keys(localAttendance).length > 0;
+    setDirty(hasUnsavedChanges);
+    
+    // Reset dirty state when component unmounts (optional, but good for cleanliness)
+    return () => resetDirty();
+  }, [localAttendance, setDirty, resetDirty]);
+
   const smsEstimate = useMemo(() => {
     if (!smsSettings || !smsSettings.is_active || students.length === 0) return { count: 0, cost: 0 };
 
@@ -215,8 +291,54 @@ function Attendance() {
     addAttendanceMutation.mutate(recordsToSave, {
       onSuccess: () => {
         setLocalAttendance({});
+        resetDirty();
       },
     });
+  };
+
+  const handleClassChange = (newClass: number | "") => {
+    if (Object.keys(localAttendance).length > 0) {
+      const proceed = window.confirm(
+        "You have unsaved changes. Changing the class will discard them. Proceed?"
+      );
+      if (!proceed) return;
+    }
+    setLocalAttendance({});
+    setSelectedClass(newClass);
+    setSelectedSection("");
+  };
+
+  const handleSectionChange = (newSection: string) => {
+    if (Object.keys(localAttendance).length > 0) {
+      const proceed = window.confirm(
+        "You have unsaved changes. Changing the section will discard them. Proceed?"
+      );
+      if (!proceed) return;
+    }
+    setLocalAttendance({});
+    setSelectedSection(newSection);
+  };
+
+  const handleMonthChange = (newMonth: number) => {
+    if (Object.keys(localAttendance).length > 0) {
+      const proceed = window.confirm(
+        "You have unsaved changes. Changing the month will discard them. Proceed?"
+      );
+      if (!proceed) return;
+    }
+    setLocalAttendance({});
+    setSelectedMonth(newMonth);
+  };
+
+  const handleYearChange = (newYear: number) => {
+    if (Object.keys(localAttendance).length > 0) {
+      const proceed = window.confirm(
+        "You have unsaved changes. Changing the year will discard them. Proceed?"
+      );
+      if (!proceed) return;
+    }
+    setLocalAttendance({});
+    setSelectedYear(newYear);
   };
 
   const toggleVisibleDay = (day: number) => {
@@ -305,53 +427,58 @@ function Attendance() {
         </div>
       </PageHeader>
 
-      {statsToDisplay && (statsToDisplay.present > 0 || statsToDisplay.absent > 0) && (
-        <div className="relative space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-              <RefreshCcw className="w-4 h-4" />
-              Today's Attendance Overview
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatsCard
-              label="Present"
-              value={statsToDisplay.present}
-              color="emerald"
-              icon={<CheckCircle2 className="w-5 h-5" />}
-              loading={false}
-            />
-            <StatsCard
-              label="Absent"
-              value={statsToDisplay.absent}
-              color="red"
-              icon={<XCircle className="w-5 h-5" />}
-              loading={false}
-            />
-            <StatsCard
-              label="SMS Success"
-              value={statsToDisplay.sms?.successful || 0}
-              color="blue"
-              icon={<RefreshCcw className="w-5 h-5" />}
-              loading={false}
-            />
-            <StatsCard
-              label="SMS Failed"
-              value={statsToDisplay.sms?.failed || 0}
-              color="amber"
-              icon={<Filter className="w-5 h-5" />}
-              loading={false}
-            />
-            <StatsCard
-              label="Pending SMS"
-              value={statsToDisplay.sms?.pending || 0}
-              color="violet"
-              icon={<Clock className="w-5 h-5" />}
-              loading={false}
-            />
-          </div>
+      <div className="relative space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
+            <RefreshCcw className="w-4 h-4" />
+            Today's Attendance Overview
+          </h3>
         </div>
-      )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <StatsCard
+            label="Total Students"
+            value={realtimeStats.total}
+            color="indigo"
+            icon={<Users className="w-5 h-5" />}
+            loading={studentsLoading}
+          />
+          <StatsCard
+            label="Present"
+            value={realtimeStats.present}
+            color="emerald"
+            icon={<CheckCircle2 className="w-5 h-5" />}
+            loading={studentsLoading}
+          />
+          <StatsCard
+            label="Absent"
+            value={realtimeStats.absent}
+            color="red"
+            icon={<XCircle className="w-5 h-5" />}
+            loading={studentsLoading}
+          />
+          <StatsCard
+            label="SMS Success"
+            value={statsToDisplay?.sms?.successful || 0}
+            color="blue"
+            icon={<RefreshCcw className="w-5 h-5" />}
+            loading={false}
+          />
+          <StatsCard
+            label="SMS Failed"
+            value={statsToDisplay?.sms?.failed || 0}
+            color="amber"
+            icon={<Filter className="w-5 h-5" />}
+            loading={false}
+          />
+          <StatsCard
+            label="Pending SMS"
+            value={statsToDisplay?.sms?.pending || 0}
+            color="violet"
+            icon={<Clock className="w-5 h-5" />}
+            loading={false}
+          />
+        </div>
+      </div>
 
       <SectionCard title="Search & Filters" icon={<Filter className="w-5 h-5" />}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -360,7 +487,7 @@ function Attendance() {
             <select
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              onChange={(e) => handleMonthChange(parseInt(e.target.value))}
             >
               {months.map((month, index) => (
                 <option key={month} value={index}>
@@ -375,7 +502,7 @@ function Attendance() {
             <select
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              onChange={(e) => handleYearChange(parseInt(e.target.value))}
             >
               {[currentDate.getFullYear() - 1, currentDate.getFullYear(), currentDate.getFullYear() + 1].map((year) => (
                 <option key={year} value={year}>
@@ -391,8 +518,9 @@ function Attendance() {
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={selectedClass}
               onChange={(e) => {
-                setSelectedClass(e.target.value ? parseInt(e.target.value) : "");
-                setSelectedSection("");
+                handleClassChange(
+                  e.target.value ? parseInt(e.target.value) : ""
+                );
               }}
             >
               <option value="">Select Class</option>
@@ -409,7 +537,7 @@ function Attendance() {
             <select
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
+              onChange={(e) => handleSectionChange(e.target.value)}
               disabled={!selectedClass}
             >
               <option value="">Select Section</option>
