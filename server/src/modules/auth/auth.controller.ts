@@ -11,50 +11,7 @@ import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
 import { SMSService } from "@/utils/sms.service.js";
 
-type AuthUser = {
-  id: number;
-  role: string;
-  username?: string | null;
-  email?: string | null;
-  login_id?: bigint | null;
-  tokenVersion?: number | null;
-};
-
-const generateTokens = (user: AuthUser) => {
-  const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
-  const accessToken = jwt.sign(
-    {
-      id: user.id,
-      role: user.role,
-      username: user.username,
-      email: user.email,
-      login_id: user.login_id,
-    },
-    env.JWT_SECRET,
-    { expiresIn: env.NODE_ENV === "development" ? "1m" : "15m" },
-  );
-  const refreshToken = jwt.sign(
-    { id: user.id, role: user.role, version: user.tokenVersion || 0 },
-    secret,
-    { expiresIn: "7d" },
-  );
-  return { accessToken, refreshToken };
-};
-
-const sendRefreshToken = (res: Response, token: string) => {
-  const isProduction = process.env.NODE_ENV === "production";
-  // const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
-
-  res.cookie("refreshToken", token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    // domain: cookieDomain || undefined,
-    partitioned: isProduction,
-  });
-};
+import { AuthService } from "./auth.service.js";
 
 export class AuthController {
   static setupSuperAdmin = asyncHandler(async (req: Request, res: Response) => {
@@ -126,11 +83,11 @@ export class AuthController {
       throw new ApiError(401, "Invalid credentials");
     }
 
-    const { accessToken, refreshToken } = generateTokens({
+    const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
       role: "admin",
     });
-    sendRefreshToken(res, refreshToken);
+    AuthService.sendRefreshToken(res, refreshToken);
 
     res.status(200).json(
       new ApiResponse(
@@ -172,11 +129,11 @@ export class AuthController {
       throw new ApiError(401, "Invalid password");
     }
 
-    const { accessToken, refreshToken } = generateTokens({
+    const { accessToken, refreshToken } = AuthService.generateTokens({
       ...student,
       role: "student",
     });
-    sendRefreshToken(res, refreshToken);
+    AuthService.sendRefreshToken(res, refreshToken);
 
     const studentAddress = [
       student.village,
@@ -238,11 +195,11 @@ export class AuthController {
       throw new ApiError(401, "Invalid credentials");
     }
 
-    const { accessToken, refreshToken } = generateTokens({
+    const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
       role: "teacher",
     });
-    sendRefreshToken(res, refreshToken);
+    AuthService.sendRefreshToken(res, refreshToken);
 
     res.status(200).json(
       new ApiResponse(
@@ -308,11 +265,11 @@ export class AuthController {
       throw new ApiError(401, "Unauthorized");
     }
 
-    const { accessToken, refreshToken } = generateTokens({
+    const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
       role: payload.role,
     });
-    sendRefreshToken(res, refreshToken);
+    AuthService.sendRefreshToken(res, refreshToken);
 
     let responseUser = {
       id: user.id,
@@ -401,17 +358,7 @@ export class AuthController {
       }
     }
 
-    const isProduction = process.env.NODE_ENV === "production";
-    const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
-
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
-      domain: cookieDomain,
-      partitioned: isProduction,
-    });
+    AuthService.clearRefreshToken(res);
 
     res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
   });
