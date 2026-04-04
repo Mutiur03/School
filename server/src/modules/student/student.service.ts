@@ -239,7 +239,6 @@ export class StudentService {
 
     const where: Prisma.student_enrollmentsWhereInput = {
       year,
-      student: { available: true },
       ...(typeof level === "number" && !Number.isNaN(level)
         ? { class: level }
         : {}),
@@ -255,6 +254,7 @@ export class StudentService {
             name: true,
             image: true,
             login_id: true,
+            available: true,
           },
         },
       },
@@ -266,6 +266,7 @@ export class StudentService {
       name: enrollment.student.name,
       image: enrollment.student.image,
       login_id: enrollment.student.login_id.toString(),
+      available: enrollment.student.available,
       class: enrollment.class,
       section: enrollment.section,
       roll: enrollment.roll,

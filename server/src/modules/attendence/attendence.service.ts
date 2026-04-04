@@ -306,7 +306,6 @@ export class AttendenceService {
         class: level,
         section: section,
         year: year,
-        student: { available: true },
       },
       select: { student_id: true },
     });
