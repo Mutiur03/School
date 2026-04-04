@@ -38,6 +38,7 @@ interface StudentOverview {
   roll: number;
   enrollment_id: number;
   login_id: number;
+  available: boolean;
 }
 
 const months = [
@@ -245,7 +246,7 @@ function Attendance() {
         (status === "absent" && smsSettings.send_to_absent);
 
       const alreadySent = sentMap[`${student.id}-${todayDay}`];
-      if (alreadySent) return;
+      if (alreadySent || !student.available) return;
 
       if (shouldSend) {
         const template = status === "present" ? smsSettings.present_template : smsSettings.absent_template;
@@ -631,41 +632,49 @@ function Attendance() {
                 </tr>
               ) : (
                 students.map((student) => (
-                  <tr key={student.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
-                      {student.section}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
-                      {student.roll}
-                    </td>
-                    {visibleDays.map((day) => {
-                      const isToday = day === currentDate.getDate() && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
-                      const status = getStatus(student.id, day);
-                      return (
-                        <td key={day} className="px-2 py-3 text-center">
-                          {isToday ? (
-                            <input
-                              type="checkbox"
-                              checked={status === "present"}
-                              onChange={(e) => handleAttendanceChange(student.id, day, e.target.checked)}
-                              className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              {status === "present" ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                              ) : (
-                                <XCircle className="w-4 h-4 text-red-400" />
-                              )}
-                            </div>
+                    <tr key={student.id} className={`hover:bg-muted/30 transition-colors ${!student.available ? "opacity-60 bg-muted/20" : ""}`}>
+                      <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
+                        {student.section}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
+                        {student.roll}
+                      </td>
+                      {visibleDays.map((day) => {
+                        const isToday = day === currentDate.getDate() && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+                        const status = getStatus(student.id, day);
+                        return (
+                          <td key={day} className="px-2 py-3 text-center">
+                            {isToday ? (
+                              <input
+                                type="checkbox"
+                                checked={status === "present"}
+                                disabled={!student.available}
+                                onChange={(e) => handleAttendanceChange(student.id, day, e.target.checked)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                {status === "present" ? (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-red-400" />
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-3 text-sm font-semibold sticky right-0 bg-background z-10 border-l border-border/50 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span>{student.name}</span>
+                          {!student.available && (
+                            <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight bg-red-50 px-1 rounded border border-red-100">
+                              Inactive
+                            </span>
                           )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-3 text-sm font-semibold sticky right-0 bg-background z-10 border-l border-border/50 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]">
-                      {student.name}
-                    </td>
-                  </tr>
+                        </div>
+                      </td>
+                    </tr>
                 ))
               )}
             </tbody>
