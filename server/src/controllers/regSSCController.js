@@ -51,6 +51,8 @@ export const createOrUpdateSSCReg = async (req, res) => {
       instruction_for_a,
       instruction_for_b,
       attachment_instruction,
+      classmates,
+      classmates_source,
     } = req.body;
     let updateData = {
       a_sec_roll: a_sec_roll || null,
@@ -63,6 +65,8 @@ export const createOrUpdateSSCReg = async (req, res) => {
         instruction_for_b || "Please follow the instructions carefully",
       attachment_instruction:
         attachment_instruction || "Please attach all required documents",
+      classmates: classmates || null,
+      classmates_source: classmates_source || "default",
     };
 
     if (req.file) {
@@ -160,9 +164,45 @@ export const getSSCReg = async (req, res) => {
       });
     }
 
+    let resolvedClassmates = "";
+    if (sscReg.classmates_source === "custom") {
+      resolvedClassmates = sscReg.classmates || "";
+    } else if (sscReg.classmates_source === "default") {
+      // For SSC (Class 9) registration, typically we pull from Class 8 of the previous year
+      const previousYear = sscReg.ssc_year - 1;
+      const students = await prisma.student_enrollments.findMany({
+        where: {
+          year: previousYear,
+          class: 8,
+        },
+        include: {
+          student: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: [
+          { section: "asc" },
+          { roll: "asc" },
+        ],
+      });
+
+      resolvedClassmates = students
+        .map((enrollment) =>
+          enrollment.section && enrollment.roll
+            ? `${enrollment.student.name}/${enrollment.section}-${enrollment.roll}`
+            : enrollment.student.name
+        )
+        .join(", ");
+    }
+
     res.status(200).json({
       success: true,
-      data: sscReg,
+      data: {
+        ...sscReg,
+        resolvedClassmates,
+      },
     });
   } catch (error) {
     res.status(500).json({

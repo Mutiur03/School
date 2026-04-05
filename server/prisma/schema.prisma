@@ -76,23 +76,23 @@ model students {
 }
 
 model student_enrollments {
-  id                Int      @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   student_id        Int
   class             Int
   roll              Int
-  section           String   @db.Char(1)
+  section           String    @db.Char(1)
   year              Int
-  group             String?  @db.VarChar(100)
-  fail_count        Int      @default(0)
-  status            String   @default("Passed") @db.VarChar(100)
-  final_merit       Int      @default(0)
-  next_year_roll    Int      @default(0)
-  next_year_section String?  @db.Char(1)
+  group             String?   @db.VarChar(100)
+  fail_count        Int       @default(0)
+  status            String    @default("Passed") @db.VarChar(100)
+  final_merit       Int       @default(0)
+  next_year_roll    Int       @default(0)
+  next_year_section String?   @db.Char(1)
+  created_at        DateTime  @default(now())
   fourth_subject_id Int?
-  created_at        DateTime @default(now())
   marks             marks[]
   fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
-  student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, class, year])
   @@index([student_id])
@@ -155,11 +155,11 @@ model teachers {
   designation  String?    @db.VarChar(100)
   password     String
   image        String?
-  signature    String?
   address      String?
   available    Boolean    @default(true)
   created_at   DateTime   @default(now())
   tokenVersion Int        @default(0)
+  signature    String?
   head_msgs    head_msg[]
   levels       levels[]
 
@@ -195,29 +195,29 @@ model levels {
 }
 
 model subjects {
-  id                  Int        @id @default(autoincrement())
-  name                String     @db.VarChar(100)
-  class               Int
-  full_mark           Int        @default(0)
-  pass_mark           Int        @default(0)
-  cq_mark             Int        @default(0)
-  mcq_mark            Int        @default(0)
-  practical_mark      Int        @default(0)
-  cq_pass_mark        Int        @default(0)
-  mcq_pass_mark       Int        @default(0)
-  practical_pass_mark Int        @default(0)
-  year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  group               String?    @db.VarChar(100)
-  created_at          DateTime   @default(now())
-  assessment_type     String     @default("exam")
-  parent_id           Int?
-  priority            Int        @default(0)
-  subject_type        String     @default("single")
-  marking_scheme      MarkingScheme @default(TOTAL)
-  marks               marks[]
+  id                    Int                   @id @default(autoincrement())
+  name                  String                @db.VarChar(100)
+  class                 Int
+  full_mark             Int                   @default(0)
+  pass_mark             Int                   @default(0)
+  cq_mark               Int                   @default(0)
+  mcq_mark              Int                   @default(0)
+  practical_mark        Int                   @default(0)
+  cq_pass_mark          Int                   @default(0)
+  mcq_pass_mark         Int                   @default(0)
+  practical_pass_mark   Int                   @default(0)
+  year                  Int                   @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  group                 String?               @db.VarChar(100)
+  created_at            DateTime              @default(now())
+  assessment_type       String                @default("exam")
+  parent_id             Int?
+  priority              Int                   @default(0)
+  subject_type          String                @default("single")
+  marking_scheme        MarkingScheme         @default(TOTAL)
+  marks                 marks[]
   enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
-  parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
-  children            subjects[] @relation("SubjectHierarchy")
+  parent                subjects?             @relation("SubjectHierarchy", fields: [parent_id], references: [id])
+  children              subjects[]            @relation("SubjectHierarchy")
 
   @@unique([name, class, group, year])
   @@index([class, year])
@@ -404,6 +404,8 @@ model ssc_reg {
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
+  classmates             String?
+  classmates_source      String   @default("default")
 }
 
 model student_registration_ssc {

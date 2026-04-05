@@ -230,7 +230,7 @@ function App() {
                         <Route path="/gallery/upload" element={<Gallery />} />
                         <Route path="/gallery/pending" element={<PendingImages />} />
                         <Route path="/gallery/rejected" element={<RejectedImages />} />
-                        <Route path="/registration/ssc" element={<SSCRegForm />} />
+                        <Route path="/registration/class-9" element={<SSCRegForm />} />
                         <Route path="/registration/class-6" element={<Class6RegForm />} />
                         <Route path="/registration/class-8" element={<Class8RegForm />} />
                         <Route path="*" element={<Navigate to="/admin/dashboard" />} />

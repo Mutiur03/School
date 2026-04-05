@@ -8,6 +8,7 @@ export interface SSCRegData {
   notice: string | null;
   createdAt: string;
   updatedAt: string;
+  resolvedClassmates: string | null;
 }
 
 export const fetchSSCRegData = async (): Promise<SSCRegData | null> => {

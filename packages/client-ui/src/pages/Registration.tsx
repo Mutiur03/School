@@ -288,9 +288,6 @@ function Registration() {
   const [shouldNavigate, setShouldNavigate] = useState(false); // Add navigation state
   const [sscRegData, setSSCRegData] = useState<SSCRegData | null>(null);
   const [availableRolls, setAvailableRolls] = useState<string[]>([]);
-  const [classNineStudents, setClassNineStudents] = useState<
-    { name: string; roll: string; section: string }[]
-  >([]);
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [ssc_batch, set_ssc_batch] = useState("");
@@ -318,11 +315,6 @@ function Registration() {
           return;
         }
 
-        const current_year = new Date().getFullYear();
-        const nine_list = await axios.get(
-          `/api/students/getStudentsByClass/${current_year}/${9}/`,
-        );
-        setClassNineStudents(nine_list.data.data);
         const data = await fetchSSCRegData();
         setSSCRegData(data);
 
@@ -2862,25 +2854,14 @@ function Registration() {
                   aria-invalid={!!errors.nearbyNineStudentInfo}
                 >
                   <option value="">Select Option</option>
-                  {classNineStudents
-                    .slice()
-                    .sort((a, b) => {
-                      // Sort by name (dictionary order), then by section, then by roll
-                      if (a.name.toLowerCase() < b.name.toLowerCase())
-                        return -1;
-                      if (a.name.toLowerCase() > b.name.toLowerCase()) return 1;
-                      if (a.section < b.section) return -1;
-                      if (a.section > b.section) return 1;
-                      return Number(a.roll) - Number(b.roll);
-                    })
-                    .map((opt) => (
-                      <option
-                        key={`${opt.name}-${opt.section}/${opt.roll}`}
-                        value={`${opt.name}-${opt.section}/${opt.roll}`}
-                      >
-                        {`${opt.name}-${opt.section}/${opt.roll}`}
+                  {sscRegData?.resolvedClassmates && sscRegData.resolvedClassmates.split(',').map((name: string, idx: number) => {
+                    const trimmedName = name.trim();
+                    return trimmedName ? (
+                      <option key={idx} value={trimmedName}>
+                        {trimmedName}
                       </option>
-                    ))}
+                    ) : null;
+                  })}
                 </select>
               </>
             </FieldRow>
