@@ -84,6 +84,8 @@ interface FormData {
   instruction_for_a: string;
   instruction_for_b: string;
   attachment_instruction: string;
+  classmates: string;
+  classmates_source: string;
 }
 
 interface Filters {
@@ -117,6 +119,8 @@ const SSCRegForm = () => {
     instruction_for_a: "Please follow the instructions carefully",
     instruction_for_b: "Please follow the instructions carefully",
     attachment_instruction: "Please attach all required documents",
+    classmates: "",
+    classmates_source: "default",
   });
   const [noticeFile, setNoticeFile] = useState<File | null>(null);
   const [currentNotice, setCurrentNotice] = useState<{ url: string; download_url: string } | null>(null);
@@ -192,6 +196,8 @@ const SSCRegForm = () => {
           attachment_instruction:
             data.attachment_instruction ||
             "Please attach all required documents",
+          classmates: data.classmates || "",
+          classmates_source: data.classmates_source || "default",
         });
         setCurrentNotice(
           data.notice ? { url: data.notice, download_url: data.notice } : null
@@ -206,6 +212,8 @@ const SSCRegForm = () => {
           instruction_for_a: "Please follow the instructions carefully",
           instruction_for_b: "Please follow the instructions carefully",
           attachment_instruction: "Please attach all required documents",
+          classmates: "",
+          classmates_source: "default",
         });
         setIsEdit(false);
       }
@@ -489,6 +497,8 @@ const SSCRegForm = () => {
         "attachment_instruction",
         formData.attachment_instruction
       );
+      formDataToSend.append("classmates", formData.classmates);
+      formDataToSend.append("classmates_source", formData.classmates_source);
 
       if (noticeFile) {
         formDataToSend.append("notice", noticeFile);
@@ -766,6 +776,51 @@ const SSCRegForm = () => {
                   These instructions will guide students on what documents to
                   attach
                 </p>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-border">
+                <h3 className="text-md font-medium text-foreground dark:text-gray-200">
+                  Classmate Reference List Settings
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Student Names Source
+                  </label>
+                  <select
+                    name="classmates_source"
+                    value={formData.classmates_source}
+                    onChange={(e) => setFormData(prev => ({ ...prev, classmates_source: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  >
+                    <option value="default">Default (Resolved from Enrollments)</option>
+                    <option value="custom">Manual (Custom List)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formData.classmates_source === 'default' 
+                      ? "Automatically uses names from the Class 8 enrollment list of the previous year." 
+                      : "Enter a custom list of names for students to choose from."}
+                  </p>
+                </div>
+
+                {formData.classmates_source === "custom" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Custom Classmates List (Comma separated)
+                    </label>
+                    <textarea
+                      name="classmates"
+                      value={formData.classmates}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Student 1, Student 2, Student 3"
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                      rows={5}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Separate names with commas. These will appear in the "Nearby Student" dropdown on the registration form.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -159,9 +159,9 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
           id: "class-8-registration",
         },
         {
-          label: "SSC Registration",
-          link: "/admin/registration/ssc",
-          id: "ssc-registration",
+          label: "Class Nine Registration",
+          link: "/admin/registration/class-9",
+          id: "class-9-registration",
         },
       ],
     },

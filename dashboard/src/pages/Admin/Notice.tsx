@@ -380,16 +380,18 @@ const NoticeUploadPage = () => {
             </div>
 
             {/* Mobile Card View */}
-            <div className="lg:hidden p-4 space-y-4">
-              <AnimatePresence>
+            <div className="lg:hidden">
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="p-4 space-y-4"
+              >
                 {filteredNotices.map((notice) => (
                   <motion.div
                     key={notice.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-4"
+                    variants={itemVariants}
+                    className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-4 relative overflow-hidden group"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -405,7 +407,7 @@ const NoticeUploadPage = () => {
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
                       <div className="flex gap-1.5">
-                        <ActionButton action="view" onClick={() => window.open(notice.file, "_blank")} />
+                        <ActionButton action="view" onClick={() => window.open(getFileUrl(notice.file), "_blank")} />
                         <ActionButton action="edit" onClick={() => {
                              setIsEditing(true);
                              setEditId(notice.id);
@@ -419,16 +421,16 @@ const NoticeUploadPage = () => {
                            }} />
                         <DeleteConfirmation
                           onDelete={() => handleDelete(notice.id)}
-                          msg={`Are you sure you want to delete "${notice.title}"?`}
+                          msg={`Are you sure you want to delete "${notice.title}"? This will permanently remove the PDF from storage.`}
                         />
                       </div>
-                      <a href={notice.file} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-primary flex items-center gap-1 uppercase tracking-tight hover:underline">
+                      <a href={getFileUrl(notice.file)} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-primary flex items-center gap-1 uppercase tracking-tight hover:underline">
                         DIRECT Link <FiExternalLink size={10} />
                       </a>
                     </div>
                   </motion.div>
                 ))}
-              </AnimatePresence>
+              </motion.div>
             </div>
           </div>
         )}

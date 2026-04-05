@@ -387,13 +387,13 @@ export function Chart({
                   <div className="box-text">
                     <ul>
                       <li>
-                        <Link to="/registraion/class-6">ষষ্ঠ শ্রেণি</Link>
+                        <Link to="/registration/class-6">ষষ্ঠ শ্রেণি</Link>
                       </li>
                       {/* <li>
                         <a>সপ্তম শ্রেণি</a>
                       </li> */}
                       <li>
-                        <Link to="/registraion/class-8">অষ্টম শ্রেণি</Link>
+                        <Link to="/registration/class-8">অষ্টম শ্রেণি</Link>
                       </li>
                       <li>
                         <Link to="/reg/ssc">নবম শ্রেণি</Link>
