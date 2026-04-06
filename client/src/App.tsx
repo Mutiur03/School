@@ -24,14 +24,14 @@ import {
   Notice,
   RegClass6,
   RegClass8,
-  RegSSC,
-  Registration,
+  RegClass9,
+  RegistrationClass9,
   RegistrationClass6,
   RegistrationClass8,
   StaffList,
   TeacherList,
 } from "@school/client-ui";
-import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
+import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/common-ui";
 
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
@@ -54,6 +54,11 @@ function App() {
           element={<Class8PdfPreview />}
         />
 
+        <Route
+          path="/preview/class9/:id"
+          element={<Class9PdfPreview />}
+        />
+
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/notices" element={<Notice />} />
@@ -65,10 +70,10 @@ function App() {
           <Route path="/at-a-glance" element={<AtAGlance />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/gallery/:type/:id" element={<Images />} />
-          <Route path="/reg/ssc" element={<RegSSC />} />
-          <Route path="/registration/ssc" element={<Registration />} />
-          <Route path="/registration/ssc/:id" element={<Registration />} />
-          <Route path="/registration/ssc/confirm/:id" element={<ConfirmationReg />} />
+          <Route path="/registration/class-9" element={<RegClass9 />} />
+          <Route path="/registration/class-9/form" element={<RegistrationClass9 />} />
+          <Route path="/registration/class-9/form/:id" element={<RegistrationClass9 />} />
+          <Route path="/registration/class-9/confirm/:id" element={<ConfirmationReg />} />
           <Route path="/registration/class-6" element={<RegClass6 />} />
           <Route path="/registration/class-6/form" element={<RegistrationClass6 />} />
           <Route path="/registration/class-6/form/:id" element={<RegistrationClass6 />} />

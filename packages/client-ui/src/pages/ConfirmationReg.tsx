@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useSchoolConfig } from "@/context/school";
 import type { SchoolConfig } from "@/types";
-import backend from "@/lib/backend";
+import backend, { getFileUrl } from "@/lib/backend";
 import DownloadPDF from "@/components/DownloadPDF";
 
 interface RegistrationData {
@@ -100,8 +100,8 @@ function ConfirmationReg() {
     try {
       setLoading(true);
       const [response, regStatusRes] = await Promise.all([
-        axios.get(`/api/reg/ssc/form/${registrationId}`),
-        axios.get("/api/reg/ssc"),
+        axios.get(`/api/reg/class-9/form/${registrationId}`),
+        axios.get("/api/reg/class-9"),
       ]);
 
       const regOpen = regStatusRes.data?.data?.reg_open ?? true;
@@ -143,7 +143,7 @@ function ConfirmationReg() {
       setConfirming(true);
 
       const response = await axios.put(
-        `/api/reg/ssc/form/${registration.id}/status`,
+        `/api/reg/class-9/form/${registration.id}/status`,
         {
           status: "approved",
         },
@@ -180,14 +180,14 @@ function ConfirmationReg() {
     try {
       setDownloadingPDF(true);
       const response = await axios.get(
-        `/api/reg/ssc/form/${registration.id}/pdf`,
+        `/api/reg/class-9/form/${registration.id}/pdf`,
         { responseType: "blob" },
       );
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SSC_Registration_${registration.student_name_en || registration.roll}.pdf`;
+      a.download = `Class_9_Registration_${registration.student_name_en || registration.roll}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -405,7 +405,7 @@ function ConfirmationReg() {
     return (
       <DownloadPDF
         title1={"Registration Confirmed!"}
-        title2={"Download Your Registration Form"}
+        title2={"Download Your Class 9 Registration Form"}
         handleDownloadPDF={handleDownloadPDF}
         downloadingPDF={downloadingPDF}
       />
@@ -432,9 +432,9 @@ function ConfirmationReg() {
               Student's Photo
             </h3>
             <img
-              src={`${backend}/${registration.photo_path}`}
+              src={getFileUrl(registration.photo_path)}
               alt="Student Photo"
-              className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
+              className="w-28 aspect-15/19  object-cover border-2 border-gray-300 rounded shadow-sm"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
@@ -444,6 +444,7 @@ function ConfirmationReg() {
 
         <div className="bg-white p-4 sm:p-8 space-y-8">
           <div className="text-sm font-medium text-gray-800 border border-gray-200 rounded px-3 py-2 bg-gray-50 flex flex-wrap gap-x-4 gap-y-1">
+            <span>Batch: {registration.ssc_batch || "-"}</span>
             <span>Section: {registration.section || "-"}</span>
             <span>Roll No: {registration.roll || "-"}</span>
             <span>Religion: {registration.religion || "-"}</span>
@@ -578,17 +579,13 @@ function ConfirmationReg() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <button
-                  onClick={() => {
-                    if (registration?.id) {
-                      window.location.href = `/registration/ssc/${registration.id}`;
-                    }
-                  }}
-                  className="px-6 py-3 rounded font-medium transition-all duration-200 bg-gray-600 hover:bg-gray-700 text-white text-lg focus:outline-none flex items-center justify-center"
+                <Link
+                  to={`/registration/class-9/form/${registration.id}`}
+                  className="px-6 py-3 rounded font-medium transition-all duration-200 cursor-pointer bg-gray-600 hover:bg-gray-700 text-white! text-lg focus:outline-none flex items-center justify-center"
                 >
                   <span className="mr-2">✏️</span>
-                  Edit Registration
-                </button>
+                  Edit registration
+                </Link>
                 <button
                   onClick={handleConfirmRegistration}
                   disabled={confirming}

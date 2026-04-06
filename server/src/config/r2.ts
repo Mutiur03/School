@@ -114,8 +114,12 @@ export const getFileBuffer = async (key: string) => {
     if (!response.Body) return null;
     const bodyContents = await response.Body.transformToByteArray();
     return Buffer.from(bodyContents);
-  } catch (error) {
-    console.error(`Error fetching file from R2 (${key}):`, error);
+  } catch (error: any) {
+    if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+      console.warn(`File not found in R2: ${key}`);
+    } else {
+      console.error(`Error fetching file from R2 (${key}):`, error);
+    }
     return null;
   }
 };

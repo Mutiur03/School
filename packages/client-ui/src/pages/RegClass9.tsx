@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import axios from 'axios'
+import { getFileUrl } from '@/lib/backend'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 
-interface SSCRegData {
+interface Class9RegData {
     id: number
     a_sec_roll: string | null
     b_sec_roll: string | null
-    ssc_year: number | null
+    class9_year: number | null
     reg_open: boolean
     instructions: string | null
     notice: string | null
@@ -13,42 +16,17 @@ interface SSCRegData {
     updated_at: string
 }
 
-function RegSSC() {
+function RegClass9() {
     useEffect(() => {
-        document.title = "SSC Registration Notice";
+        document.title = "Class Nine Registration Notice";
     }, []);
-    const [regData, setRegData] = useState<SSCRegData | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
-        fetchRegData()
-    }, [])
+    const { data: regData, isLoading, error, refetch } = useQuery({
+        queryKey: ['reg-class9-settings'],
+        queryFn: () => axios.get('/api/reg/class-9').then(res => res.data.data),
+    })
 
-    const fetchRegData = async () => {
-        try {
-            setLoading(true)
-            const response = await axios.get('/api/reg/ssc')
-
-            if (response.data.success) {
-                setRegData(response.data.data)
-            } else {
-                setError(response.data.message || 'Failed to fetch registration data')
-            }
-        } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                setError(err.response?.data?.message || err.message || 'Network error occurred')
-            } else if (err instanceof Error) {
-                setError(err.message)
-            } else {
-                setError('Network error occurred')
-            }
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
@@ -64,9 +42,9 @@ function RegSSC() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-                    <p className="text-gray-600">{error}</p>
+                    <p className="text-gray-600">Failed to fetch registration data</p>
                     <button
-                        onClick={fetchRegData}
+                        onClick={() => refetch()}
                         className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                         Retry
@@ -76,6 +54,8 @@ function RegSSC() {
         )
     }
 
+    const noticeUrl = regData?.notice ? getFileUrl(regData.notice) : null;
+
     return (
         <div className="min-h-screen bg-gray-50 py-8">
             <div className="max-w-4xl mx-auto px-4">
@@ -84,26 +64,26 @@ function RegSSC() {
                         SSC Registration Notice
                     </h1>
 
-                    {regData?.ssc_year && (
+                    {regData?.class9_year && (
                         <div className="text-center mb-6">
                             <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                SSC Batch: {regData.ssc_year}
+                                Academic Year: {regData.class9_year}
                             </span>
                         </div>
                     )}
 
-                    {regData?.notice ? (
+                    {noticeUrl ? (
                         <div className="mb-6">
                             <div className="border rounded-lg overflow-hidden">
                                 <iframe
-                                    src={`${regData.notice}#navpanes=0&scrollbar=0`}
+                                    src={`${noticeUrl}#navpanes=0&scrollbar=0`}
                                     className="w-full h-250"
-                                    title="SSC Registration Notice"
+                                    title="Class Nine Registration Notice"
                                 />
                             </div>
                             <div className="mt-2 text-center">
                                 <a
-                                    href={regData.notice}
+                                    href={noticeUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-800 underline text-sm"
@@ -121,14 +101,12 @@ function RegSSC() {
 
                     <div className="text-center mt-8">
                         {regData?.reg_open ? (
-                            <button
-                                onClick={()=>{
-                                    window.location.href = '/registration/ssc'
-                                }}
-                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200 text-lg"
+                            <Link
+                                to="/registration/class-9/form"
+                                className="bg-green-600 hover:bg-green-700 text-white! font-bold py-3 px-8 rounded-lg transition-colors duration-200 text-lg"
                             >
                                 Proceed to Registration Form
-                            </button>
+                            </Link>
                         ) : (
                             <div className="text-center">
                                 <button
@@ -149,4 +127,4 @@ function RegSSC() {
     )
 }
 
-export default RegSSC
+export default RegClass9
