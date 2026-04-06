@@ -73,7 +73,7 @@ interface RegistrationData {
   roll_in_class_8: string;
 }
 
-function ConfirmationReg() {
+function ConfirmationClass9() {
   useEffect(() => {
     document.title = "Registration Confirmation";
   }, []);
@@ -405,7 +405,7 @@ function ConfirmationReg() {
     return (
       <DownloadPDF
         title1={"Registration Confirmed!"}
-        title2={"Download Your Class 9 Registration Form"}
+        title2={"Download Your SSC Registration Form"}
         handleDownloadPDF={handleDownloadPDF}
         downloadingPDF={downloadingPDF}
       />
@@ -633,4 +633,4 @@ function ConfirmationReg() {
   );
 }
 
-export default ConfirmationReg;
+export default ConfirmationClass9;

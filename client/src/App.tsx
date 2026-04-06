@@ -14,7 +14,7 @@ import {
   ConfirmationAdmission,
   ConfirmationClass6,
   ConfirmationClass8,
-  ConfirmationReg,
+  ConfirmationClass9,
   Event,
   ExamRoutinePage,
   Gallery,
@@ -73,7 +73,7 @@ function App() {
           <Route path="/registration/class-9" element={<RegClass9 />} />
           <Route path="/registration/class-9/form" element={<RegistrationClass9 />} />
           <Route path="/registration/class-9/form/:id" element={<RegistrationClass9 />} />
-          <Route path="/registration/class-9/confirm/:id" element={<ConfirmationReg />} />
+          <Route path="/registration/class-9/confirm/:id" element={<ConfirmationClass9 />} />
           <Route path="/registration/class-6" element={<RegClass6 />} />
           <Route path="/registration/class-6/form" element={<RegistrationClass6 />} />
           <Route path="/registration/class-6/form/:id" element={<RegistrationClass6 />} />
