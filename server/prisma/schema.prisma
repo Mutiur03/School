@@ -471,6 +471,7 @@ model student_registration_ssc {
   upobritti                String?   @db.VarChar(10)
   roll_in_class_8          String?   @db.VarChar(20)
   section_in_class_8       String?   @db.VarChar(10)
+  scout_status             String?   @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])

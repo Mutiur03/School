@@ -7,7 +7,7 @@ import PrivateRoute from "./components/PrivateRoute.tsx";
 import TeacherRoute from "./components/TeacherRoute.tsx";
 import StudentRoute from "./components/StudentRoute.tsx";
 import axios from "axios";
-import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
+import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/common-ui";
 
 import backend from "./lib/backend.ts";
 import { useAuth } from "./context/useAuth.tsx";
@@ -19,7 +19,7 @@ import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
 // Normal imports
 import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
-import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, SSCRegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
+import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
 import { StudentDashboard, Result } from "./pages/Students/index.ts";
 // Normal imports end
 
@@ -116,6 +116,7 @@ function App() {
           <Routes>
             <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
             <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
+            <Route path="/preview/class9/:id" element={<Class9PdfPreview />} />
 
             {/* CASE 1: envPreferredRole IS PRESENT */}
             {envPreferredRole && (
@@ -230,7 +231,7 @@ function App() {
                         <Route path="/gallery/upload" element={<Gallery />} />
                         <Route path="/gallery/pending" element={<PendingImages />} />
                         <Route path="/gallery/rejected" element={<RejectedImages />} />
-                        <Route path="/registration/class-9" element={<SSCRegForm />} />
+                        <Route path="/registration/class-9" element={<Class9RegForm />} />
                         <Route path="/registration/class-6" element={<Class6RegForm />} />
                         <Route path="/registration/class-8" element={<Class8RegForm />} />
                         <Route path="*" element={<Navigate to="/admin/dashboard" />} />

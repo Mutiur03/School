@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUBJECT_NAME, CLASS_NUM, VALID_GROUPS } from "./regex.js";
+import { SUBJECT_NAME, VALID_GROUPS } from "./regex.js";
 
 // Helper for numeric fields that can be empty or null
 const numericCoerce = z.preprocess((val) => {

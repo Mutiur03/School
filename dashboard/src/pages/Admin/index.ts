@@ -24,7 +24,7 @@ export { default as Head } from "./Head";
 export { default as Admission } from "./Admission";
 export { default as AdmissionSettings } from "./AdmissionSettings";
 export { default as AdmissionResult } from "./AdmissionResult";
-export { default as SSCRegForm } from "./SSCRegForm";
+export { default as Class9RegForm } from "./Class9RegForm";
 export { default as Class6RegForm } from "./Class6RegForm";
 export { default as Class8RegForm } from "./Class8RegForm";
 export { default as AddMarks } from "./AddMarks";
