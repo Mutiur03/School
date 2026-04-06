@@ -41,7 +41,7 @@ export { default as AtAGlance } from "./pages/At_a_glance";
 export { default as Gallery } from "./pages/Gallery";
 export { default as Images } from "./pages/Images";
 export { default as RegistrationClass9 } from "./pages/RegistrationClass9";
-export { default as ConfirmationReg } from "./pages/ConfirmationReg";
+export { default as ConfirmationClass9 } from "./pages/ConfirmationClass9";
 export { default as RegClass9 } from "./pages/RegClass9";
 export { default as Admission } from "./pages/admission";
 export { default as AdmissionForm } from "./pages/AdmissionForm";
