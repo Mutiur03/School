@@ -29,3 +29,5 @@ export { default as Class6RegForm } from "./Class6RegForm";
 export { default as Class8RegForm } from "./Class8RegForm";
 export { default as AddMarks } from "./AddMarks";
 export { default as ViewMarks } from "./ViewMarks";
+export { default as StayCheck } from "./StayCheck";
+
