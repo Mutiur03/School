@@ -19,7 +19,7 @@ import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
 // Normal imports
 import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
-import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
+import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, StayCheck, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
 import { StudentDashboard, Result } from "./pages/Students/index.ts";
 // Normal imports end
 
@@ -167,6 +167,7 @@ function App() {
                         <Route path="/mark-management" element={<AddMarks />} />
                         <Route path="/result/view-marks" element={<ViewMarks />} />
                         <Route path="/attendance" element={<Attendence />} />
+                        <Route path="/attendance-double" element={<StayCheck />} />
                         <Route path="*" element={<Navigate to="/teacher/dashboard" />} />
                       </Routes>
                     </div>
@@ -219,6 +220,7 @@ function App() {
                         <Route path="/result/assigned-teachers" element={<AddLevel />} />
                         <Route path="/result/customize-result" element={<UpdateStatus />} />
                         <Route path="/attendance" element={<Attendence />} />
+                        <Route path="/attendance-double" element={<StayCheck />} />
                         <Route path="/sms-management" element={<SmsManagement />} />
                         <Route path="/notice" element={<Notice />} />
                         <Route path="/holiday" element={<Holidays />} />

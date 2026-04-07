@@ -26,6 +26,9 @@ export class SmsSettingsService {
     if (updateData.absent_template) {
       this.validateTemplate(updateData.absent_template, "Absent Notification", requiredPlaceholders);
     }
+    if (updateData.run_awayed_template) {
+      this.validateTemplate(updateData.run_awayed_template, "Run Awayed Notification", requiredPlaceholders);
+    }
 
     // Filter out restricted fields for regular admin updates
     const { api_key, api_url, sender_id, service_type, sms_balance, ...safeData } = updateData;

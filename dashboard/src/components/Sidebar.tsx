@@ -228,6 +228,14 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       roles: ["admin"],
     },
     {
+      label: "Stay Check",
+      icon: CalendarClock,
+      dropdown: false,
+      link: "/admin/attendance-double",
+      id: "stay-check",
+      roles: ["admin"],
+    },
+    {
       label: "SMS Management",
       icon: Megaphone,
       dropdown: false,
@@ -300,6 +308,14 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       dropdown: false,
       link: "/teacher/attendance",
       id: "attendance",
+      roles: ["teacher"],
+    },
+    {
+      label: "Stay Check",
+      icon: CalendarClock,
+      dropdown: false,
+      link: "/teacher/attendance-double",
+      id: "stay-check",
       roles: ["teacher"],
     },
     {

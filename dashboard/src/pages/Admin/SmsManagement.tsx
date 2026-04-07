@@ -88,16 +88,20 @@ interface SmsBalance {
 interface SmsSettings {
   present_template: string;
   absent_template: string;
+  run_awayed_template: string;
   send_to_present: boolean;
   send_to_absent: boolean;
+  send_to_run_awayed: boolean;
   is_active: boolean;
 }
 
 const EMPTY_SETTINGS: SmsSettings = {
   present_template: "",
   absent_template: "",
+  run_awayed_template: "",
   send_to_present: false,
   send_to_absent: false,
+  send_to_run_awayed: false,
   is_active: false,
 };
 
@@ -169,7 +173,7 @@ function SmsManagement() {
   // Settings State
   const [testForm, setTestForm] = useState({ phoneNumber: "", message: "" });
   const [testErrors, setTestErrors] = useState<{ phoneNumber?: string; message?: string }>({});
-  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string }>({});
+  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string; run_awayed_template?: string }>({});
   const [addBalanceAmount, setAddBalanceAmount] = useState<string>("");
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
@@ -227,6 +231,7 @@ function SmsManagement() {
       ...(prev || EMPTY_SETTINGS),
       present_template: getSms("present"),
       absent_template: getSms("absent"),
+      run_awayed_template: getSms("run awayed"),
     }));
     setSettingsDirty(true);
   };
@@ -407,7 +412,9 @@ function SmsManagement() {
       setSettingsDraft(smsSettingsQuery.data);
       
       // Sync elective placeholders from existing templates
-      const templates = (smsSettingsQuery.data.present_template || "") + (smsSettingsQuery.data.absent_template || "");
+      const templates = (smsSettingsQuery.data.present_template || "") + 
+                        (smsSettingsQuery.data.absent_template || "") + 
+                        (smsSettingsQuery.data.run_awayed_template || "");
       const initial = ELECTIVE_TOKENS
         .map(t => t.id)
         .filter(token => templates.includes(token));
@@ -419,6 +426,7 @@ function SmsManagement() {
     if (activeTab === "settings" && smsSettingsQuery.data) {
       calculateEstimate("present", smsSettingsQuery.data.present_template || "");
       calculateEstimate("absent", smsSettingsQuery.data.absent_template || "");
+      calculateEstimate("run_awayed", smsSettingsQuery.data.run_awayed_template || "");
     }
   }, [activeTab, smsSettingsQuery.data, calculateEstimate]);
 
@@ -445,7 +453,8 @@ function SmsManagement() {
 
     const presentValidation = validateTemplate(settingsDraft.present_template || "", requiredPlaceholders);
     const absentValidation = validateTemplate(settingsDraft.absent_template || "", requiredPlaceholders);
-    const nextErrors: { present_template?: string; absent_template?: string } = {};
+    const runAwayValidation = validateTemplate(settingsDraft.run_awayed_template || "", requiredPlaceholders);
+    const nextErrors: { present_template?: string; absent_template?: string; run_awayed_template?: string } = {};
 
     if (settingsDraft.is_active && settingsDraft.send_to_present && !presentValidation.isValid) {
       const parts = [];
@@ -459,6 +468,13 @@ function SmsManagement() {
       if (absentValidation.missing.length > 0) parts.push(`missing mandatory ${absentValidation.missing.join(", ")}`);
       if (absentValidation.forbidden.length > 0) parts.push(`contains forbidden ${absentValidation.forbidden.join(", ")}`);
       nextErrors.absent_template = `Absent template ${parts.join(" and ")}.`;
+    }
+
+    if (settingsDraft.is_active && settingsDraft.send_to_run_awayed && !runAwayValidation.isValid) {
+      const parts = [];
+      if (runAwayValidation.missing.length > 0) parts.push(`missing mandatory ${runAwayValidation.missing.join(", ")}`);
+      if (runAwayValidation.forbidden.length > 0) parts.push(`contains forbidden ${runAwayValidation.forbidden.join(", ")}`);
+      nextErrors.run_awayed_template = `Run Awayed template ${parts.join(" and ")}.`;
     }
 
     setSettingsErrors(nextErrors);
@@ -887,6 +903,80 @@ function SmsManagement() {
                         {estimates.absent && (
                           <div className="text-[10px] font-medium text-primary">
                             Est: <span className="font-bold">{estimates.absent.count}</span> credit{estimates.absent.count !== 1 ? 's' : ''} ({estimates.absent.encoding})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-600">
+                          <MessageSquare className="w-4 h-4" />
+                        </div>
+                        Run Awayed Student SMS
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="send_to_run_awayed"
+                          checked={settings.send_to_run_awayed}
+                          onCheckedChange={(checked) => {
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              send_to_run_awayed: !!checked,
+                            }));
+                            if (!checked && settingsErrors.run_awayed_template) {
+                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                            }
+                          }}
+                        />
+                        <Label htmlFor="send_to_run_awayed">Enable</Label>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="run_awayed_template">Message Template</Label>
+                      <Textarea
+                        id="run_awayed_template"
+                        rows={4}
+                        value={settings.run_awayed_template}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          if (!settingsDirty) setSettingsDirty(true);
+                          setSettingsDraft((prev) => ({
+                            ...(prev || EMPTY_SETTINGS),
+                            run_awayed_template: nextValue,
+                          }));
+                          calculateEstimate("run_awayed", nextValue);
+                          if (settingsErrors.run_awayed_template) {
+                            const validation = validateTemplate(nextValue, requiredPlaceholders);
+                            if (validation.isValid) {
+                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                            }
+                          }
+                        }}
+                      />
+                      {settingsErrors.run_awayed_template && (
+                        <p className="text-xs text-red-500">{settingsErrors.run_awayed_template}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-red-500">Mandatory:</span>
+                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
+                          {requiredPlaceholders.map(p => (
+                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
+                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
+                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
+                          ))}
+                        </div>
+                        {estimates.run_awayed && (
+                          <div className="text-[10px] font-medium text-primary">
+                            Est: <span className="font-bold">{estimates.run_awayed.count}</span> credit{estimates.run_awayed.count !== 1 ? 's' : ''} ({estimates.run_awayed.encoding})
                           </div>
                         )}
                       </div>

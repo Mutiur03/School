@@ -178,20 +178,23 @@ export class AttendenceService {
         status === "present" && smsSettings.send_to_present;
       const shouldSendAbsent =
         status === "absent" && smsSettings.send_to_absent;
+      const shouldSendRunAwayed =
+        status === "run-awayed" && smsSettings.send_to_run_awayed;
 
       if (
-        (shouldSendPresent || shouldSendAbsent) &&
+        (shouldSendPresent || shouldSendAbsent || shouldSendRunAwayed) &&
         enrollment.student.father_phone
       ) {
-        const template =
-          status === "present"
-            ? smsSettings.present_template
-            : smsSettings.absent_template;
+        let template = smsSettings.present_template;
+        if (status === "absent") template = smsSettings.absent_template;
+        else if (status === "run-awayed") template = smsSettings.run_awayed_template;
+
+        const formattedDisplayDate = date.split('-').reverse().join('/');
 
         const message = interpolate(template, {
           student_name: enrollment.student.name,
           login_id: enrollment.student.login_id.toString(),
-          date,
+          date: formattedDisplayDate,
           class: enrollment.class.toString(),
           section: enrollment.section,
           roll: enrollment.roll.toString(),
