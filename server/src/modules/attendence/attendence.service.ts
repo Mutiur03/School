@@ -70,9 +70,13 @@ export class AttendenceService {
         });
 
         if (existingRecord) {
+          const hasStatusChanged = existingRecord.status !== status;
           await tx.attendence.update({
             where: { id: existingRecord.id },
-            data: { status },
+            data: {
+              status,
+              ...(hasStatusChanged ? { send_msg: false } : {}),
+            },
           });
         } else {
           await tx.attendence.create({
@@ -128,9 +132,9 @@ export class AttendenceService {
     };
 
     const enrollments = await prisma.student_enrollments.findMany({
-      where: { 
-        class: level, 
-        section, 
+      where: {
+        class: level,
+        section,
         year,
         student: { available: true }
       },
@@ -251,18 +255,6 @@ export class AttendenceService {
         );
         smsSuccessCount = processRes.successCount;
         smsFailedCount = processRes.failedCount;
-
-        const sentStudentIds = Array.from(smsLogMap.values())
-          .flat()
-          .map((info) => info.studentId);
-
-        await prisma.attendence.updateMany({
-          where: {
-            date,
-            student_id: { in: sentStudentIds },
-          },
-          data: { send_msg: true },
-        });
 
         let totalActualUsed = 0;
         for (const res of bulkSmsResponse.data.results) {

@@ -120,7 +120,7 @@ const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, "");
 const validateTemplate = (template: string, requiredPlaceholders: string[]) => {
   const allRequired = [...CORE_TOKENS, ...requiredPlaceholders];
   const missing = allRequired.filter((token) => !template.includes(token));
-  
+
   const allPossibleElectives = ELECTIVE_TOKENS.map(t => t.id);
   const forbidden = allPossibleElectives.filter(token => !requiredPlaceholders.includes(token) && template.includes(token));
 
@@ -189,9 +189,9 @@ function SmsManagement() {
     queryKey: ["studentCount", selectedClasses],
     queryFn: async () => {
       const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(",")}`);
-      return res.data as { 
-        totalStudents: number; 
-        withPhone: number; 
+      return res.data as {
+        totalStudents: number;
+        withPhone: number;
         classBreakdown: Record<number, { total: number; withPhone: number }>;
       };
     },
@@ -212,29 +212,6 @@ function SmsManagement() {
   };
 
   const [estimates, setEstimates] = useState<{ [key: string]: { count: number; encoding: string; length: number } }>({});
-
-  const generateTemplates = (placeholders: string[]) => {
-    const getSms = (status: string) => {
-      let optional = "";
-      if (placeholders.includes("{login_id}")) optional += " (ID: {login_id})";
-      if (placeholders.includes("{class}")) optional += ", Class: {class}";
-      if (placeholders.includes("{section}")) optional += ", Section: {section}";
-      if (placeholders.includes("{roll}")) optional += ", Roll: {roll}";
-      
-      const datePart = placeholders.includes("{date}") ? " today ({date})" : "";
-      const schoolPart = placeholders.includes("{school_name}") ? "\nThank you.\n{school_name}" : "";
-      
-      return `Dear Parent,\nYour child {student_name}${optional} is ${status}${datePart}.${schoolPart}`;
-    };
-
-    setSettingsDraft(prev => ({
-      ...(prev || EMPTY_SETTINGS),
-      present_template: getSms("present"),
-      absent_template: getSms("absent"),
-      run_awayed_template: getSms("run awayed"),
-    }));
-    setSettingsDirty(true);
-  };
 
   const calculateEstimate = useCallback((key: string, text: string) => {
     const raw = text ?? "";
@@ -410,11 +387,11 @@ function SmsManagement() {
   useEffect(() => {
     if (smsSettingsQuery.data && !settingsDirty) {
       setSettingsDraft(smsSettingsQuery.data);
-      
+
       // Sync elective placeholders from existing templates
-      const templates = (smsSettingsQuery.data.present_template || "") + 
-                        (smsSettingsQuery.data.absent_template || "") + 
-                        (smsSettingsQuery.data.run_awayed_template || "");
+      const templates = (smsSettingsQuery.data.present_template || "") +
+        (smsSettingsQuery.data.absent_template || "") +
+        (smsSettingsQuery.data.run_awayed_template || "");
       const initial = ELECTIVE_TOKENS
         .map(t => t.id)
         .filter(token => templates.includes(token));
@@ -988,7 +965,7 @@ function SmsManagement() {
                   <div className="space-y-4">
                     <Label className="text-sm font-semibold">Required Placeholders</Label>
                     <div className="flex flex-wrap gap-x-6 gap-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-border">
-                       <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                      <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
                         <Checkbox checked disabled />
                         <span className="text-sm">Student Name</span>
                       </div>
@@ -999,11 +976,10 @@ function SmsManagement() {
                             checked={requiredPlaceholders.includes(token.id)}
                             onCheckedChange={(checked) => {
                               if (!settingsDirty) setSettingsDirty(true);
-                              const next = checked 
-                                ? [...requiredPlaceholders, token.id] 
+                              const next = checked
+                                ? [...requiredPlaceholders, token.id]
                                 : requiredPlaceholders.filter(p => p !== token.id);
                               setRequiredPlaceholders(next);
-                              generateTemplates(next);
                             }}
                           />
                           <Label htmlFor={`req_${token.id}`} className="text-sm cursor-pointer">{token.label}</Label>
@@ -1113,9 +1089,9 @@ function SmsManagement() {
                         </>
                       ) : null}
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setSelectedClasses([])}
                       className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
                     >
@@ -1157,7 +1133,7 @@ function SmsManagement() {
                 <div className="pt-4 flex justify-end">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button 
+                      <Button
                         disabled={selectedClasses.length === 0 || !bulkMessage.trim() || bulkSmsMutation.isPending}
                         className="bg-primary hover:bg-primary/90"
                       >
@@ -1174,7 +1150,7 @@ function SmsManagement() {
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription asChild>
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>This will send the SMS to all students in <strong className="text-foreground">Class {selectedClasses.sort((a,b)=>a-b).join(", ")}</strong>.</p>
+                            <p>This will send the SMS to all students in <strong className="text-foreground">Class {selectedClasses.sort((a, b) => a - b).join(", ")}</strong>.</p>
                             {studentCount && estimates.bulk && (
                               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border space-y-1">
                                 <div className="flex justify-between">
@@ -1196,7 +1172,7 @@ function SmsManagement() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                           onClick={() => bulkSmsMutation.mutate({ classNames: selectedClasses, message: bulkMessage })}
                           className="bg-primary hover:bg-primary/90"
                         >
