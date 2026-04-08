@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-import { 
-  FiSearch, 
-  FiFileText, 
-  FiCalendar, 
+import {
+  FiSearch,
+  FiFileText,
+  FiCalendar,
   FiExternalLink,
   FiX,
   FiPlus
 } from "react-icons/fi";
-import { 
-  Loader2, 
+import {
+  Loader2,
   Inbox,
   List as ListIcon
 } from "lucide-react";
@@ -180,7 +180,7 @@ const NoticeUploadPage = () => {
                   <legend className="px-2 text-sm sm:text-base font-semibold border-l-2 border-primary">
                     Notice Details
                   </legend>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium">Notice Title <span className="text-destructive">*</span></label>
@@ -201,58 +201,58 @@ const NoticeUploadPage = () => {
                         className="bg-background focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     </div>
-                    
-                     <div className="space-y-2 md:col-span-2">
-                       <label className="block text-sm font-medium text-foreground px-0.5">
-                         {isEditing ? "Notice File (PDF)" : "Document (PDF Only) *"}
-                       </label>
-                       
-                       <div 
-                         className={`flex items-center justify-between gap-3 p-1.5 rounded-2xl border bg-slate-50/10 min-h-[58px] transition-all ${errors.file ? 'border-destructive' : 'border-slate-200 dark:border-slate-800'}`}
-                       >
-                         <div className="flex items-center gap-4">
-                           <input
-                             id="file"
-                             type="file"
-                             accept=".pdf"
-                             ref={fileref}
-                             className="hidden"
-                             onChange={(e) => setValue("file", e.target.files?.[0] || null, { shouldValidate: true })}
-                           />
-                           <button
-                             type="button"
-                             onClick={() => fileref.current?.click()}
-                             className="bg-slate-100 dark:bg-slate-800 text-[#2D5BFF] dark:text-[#4A7DFF] hover:bg-slate-200 dark:hover:bg-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm transition-colors shrink-0 whitespace-nowrap ml-1"
-                           >
-                             Choose File
-                           </button>
-                           <span className="text-sm text-slate-500 dark:text-slate-400 font-medium truncate max-w-[140px] sm:max-w-md">
-                             {formFile instanceof File ? formFile.name : "No file chosen"}
-                           </span>
-                         </div>
 
-                         {isEditing && typeof formFile === "string" ? (
-                           <a
-                             href={getFileUrl(formFile)}
-                             target="_blank"
-                             rel="noopener noreferrer"
-                             className="flex items-center gap-2 group px-3 py-1.5 hover:bg-primary/5 rounded-lg transition-colors mr-2"
-                           >
-                             <FiFileText className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" />
-                             <span className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-primary transition-colors hidden sm:inline">
-                               Current Notice
-                             </span>
-                           </a>
-                         ) : (
-                           <div className="pr-4">
-                             <FiFileText className="w-5 h-5 text-slate-400" />
-                           </div>
-                         )}
-                       </div>
-                       {errors.file && (
-                         <p className="text-xs text-destructive mt-1 font-medium ml-1">{errors.file.message as string}</p>
-                       )}
-                     </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="block text-sm font-medium text-foreground px-0.5">
+                        {isEditing ? "Notice File (PDF)" : "Document (PDF Only) *"}
+                      </label>
+
+                      <div
+                        className={`flex items-center justify-between gap-3 p-1.5 rounded-2xl border bg-slate-50/10 min-h-[58px] transition-all ${errors.file ? 'border-destructive' : 'border-slate-200 dark:border-slate-800'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <input
+                            id="file"
+                            type="file"
+                            accept=".pdf"
+                            ref={fileref}
+                            className="hidden"
+                            onChange={(e) => setValue("file", e.target.files?.[0] || null, { shouldValidate: true })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => fileref.current?.click()}
+                            className="bg-slate-100 dark:bg-slate-800 text-[#2D5BFF] dark:text-[#4A7DFF] hover:bg-slate-200 dark:hover:bg-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm transition-colors shrink-0 whitespace-nowrap ml-1"
+                          >
+                            Choose File
+                          </button>
+                          <span className="text-sm text-slate-500 dark:text-slate-400 font-medium truncate max-w-[140px] sm:max-w-md">
+                            {formFile instanceof File ? formFile.name : "No file chosen"}
+                          </span>
+                        </div>
+
+                        {isEditing && typeof formFile === "string" ? (
+                          <a
+                            href={getFileUrl(formFile)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 group px-3 py-1.5 hover:bg-primary/5 rounded-lg transition-colors mr-2"
+                          >
+                            <FiFileText className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" />
+                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400 group-hover:text-primary transition-colors hidden sm:inline">
+                              Current Notice
+                            </span>
+                          </a>
+                        ) : (
+                          <div className="pr-4">
+                            <FiFileText className="w-5 h-5 text-slate-400" />
+                          </div>
+                        )}
+                      </div>
+                      {errors.file && (
+                        <p className="text-xs text-destructive mt-1 font-medium ml-1">{errors.file.message as string}</p>
+                      )}
+                    </div>
                   </div>
                 </fieldset>
 
@@ -283,7 +283,7 @@ const NoticeUploadPage = () => {
         )}
       </AnimatePresence>
 
-      <SectionCard 
+      <SectionCard
         title="Notices"
         icon={<ListIcon className="w-5 h-5" />}
         noPadding
@@ -326,7 +326,7 @@ const NoticeUploadPage = () => {
                     <th className="text-right p-4 pr-6 text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <motion.tbody 
+                <motion.tbody
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
@@ -357,16 +357,16 @@ const NoticeUploadPage = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           <ActionButton action="view" onClick={() => window.open(getFileUrl(notice.file), "_blank")} />
                           <ActionButton action="edit" onClick={() => {
-                             setIsEditing(true);
-                             setEditId(notice.id);
-                             reset({
-                               title: notice.title,
-                               file: notice.file,
-                               created_at: notice.created_at ? notice.created_at.split("T")[0] : "",
-                             });
-                             setShowForm(true);
-                             window.scrollTo({ top: 0, behavior: "auto" });
-                           }} />
+                            setIsEditing(true);
+                            setEditId(notice.id);
+                            reset({
+                              title: notice.title,
+                              file: notice.file,
+                              created_at: notice.created_at ? notice.created_at.split("T")[0] : "",
+                            });
+                            setShowForm(true);
+                            window.scrollTo({ top: 0, behavior: "auto" });
+                          }} />
                           <DeleteConfirmation
                             onDelete={() => handleDelete(notice.id)}
                             msg={`Are you sure you want to delete "${notice.title}"? This will permanently remove the PDF from storage.`}
@@ -381,7 +381,7 @@ const NoticeUploadPage = () => {
 
             {/* Mobile Card View */}
             <div className="lg:hidden">
-              <motion.div 
+              <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -409,16 +409,16 @@ const NoticeUploadPage = () => {
                       <div className="flex gap-1.5">
                         <ActionButton action="view" onClick={() => window.open(getFileUrl(notice.file), "_blank")} />
                         <ActionButton action="edit" onClick={() => {
-                             setIsEditing(true);
-                             setEditId(notice.id);
-                             reset({
-                               title: notice.title,
-                               file: notice.file,
-                               created_at: notice.created_at ? notice.created_at.split("T")[0] : "",
-                             });
-                             setShowForm(true);
-                             window.scrollTo({ top: 0, behavior: "auto" });
-                           }} />
+                          setIsEditing(true);
+                          setEditId(notice.id);
+                          reset({
+                            title: notice.title,
+                            file: notice.file,
+                            created_at: notice.created_at ? notice.created_at.split("T")[0] : "",
+                          });
+                          setShowForm(true);
+                          window.scrollTo({ top: 0, behavior: "auto" });
+                        }} />
                         <DeleteConfirmation
                           onDelete={() => handleDelete(notice.id)}
                           msg={`Are you sure you want to delete "${notice.title}"? This will permanently remove the PDF from storage.`}
