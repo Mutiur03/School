@@ -228,7 +228,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       roles: ["admin"],
     },
     {
-      label: "Stay Check",
+      label: "Running Away",
       icon: CalendarClock,
       dropdown: false,
       link: "/admin/attendance-double",
@@ -311,7 +311,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       roles: ["teacher"],
     },
     {
-      label: "Stay Check",
+      label: "Running Away",
       icon: CalendarClock,
       dropdown: false,
       link: "/teacher/attendance-double",
@@ -460,7 +460,7 @@ const Sidebar = ({
       setSidebarExpanded(true);
     }
   };
-  
+
   const handleNavigation = (e: React.MouseEvent) => {
     if (isDirty) {
       const proceed = window.confirm(

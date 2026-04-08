@@ -139,7 +139,7 @@ function Attendance() {
     // Run Awayed is set from the Stay Check page.
     const nextStatus: AttendanceStatus = isPresent ? "present" : "absent";
     const currentStatus = attendanceMap[key] || "absent";
-    
+
     setLocalAttendance((prev) => {
       if (nextStatus === currentStatus) {
         const { [key]: _removed, ...rest } = prev;
@@ -232,7 +232,7 @@ function Attendance() {
   useEffect(() => {
     const hasUnsavedChanges = Object.keys(localAttendance).length > 0;
     setDirty(hasUnsavedChanges);
-    
+
     // Reset dirty state when component unmounts (optional, but good for cleanliness)
     return () => resetDirty();
   }, [localAttendance, setDirty, resetDirty]);
@@ -480,7 +480,7 @@ function Attendance() {
             loading={studentsLoading}
           />
           <StatsCard
-            label="Run Awayed"
+            label="Running Away"
             value={realtimeStats.runAwayed}
             color="amber"
             icon={<AlertTriangle className="w-5 h-5" />}
@@ -661,62 +661,62 @@ function Attendance() {
                 </tr>
               ) : (
                 students.map((student) => (
-                    <tr key={student.id} className={`hover:bg-muted/30 transition-colors ${!student.available ? "opacity-60 bg-muted/20" : ""}`}>
-                      <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
-                        {student.section}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
-                        {student.roll}
-                      </td>
-                      {visibleDays.map((day) => {
-                        const isToday = day === currentDate.getDate() && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
-                        const status = getStatus(student.id, day);
-                        return (
-                          <td key={day} className="px-2 py-3 text-center">
-                            {isToday ? (
-                              status === "run-awayed" ? (
-                                <div className="flex items-center justify-center">
-                                  <AlertTriangle className="w-5 h-5 text-amber-500 animate-pulse" />
-                                </div>
-                              ) : (
-                                <input
-                                  type="checkbox"
-                                  checked={status === "present"}
-                                  disabled={!student.available}
-                                  onChange={(e) => handleAttendanceChange(student.id, day, e.target.checked)}
-                                  className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                              )
-                            ) : (
+                  <tr key={student.id} className={`hover:bg-muted/30 transition-colors ${!student.available ? "opacity-60 bg-muted/20" : ""}`}>
+                    <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
+                      {student.section}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50" style={{ left: '64px' }}>
+                      {student.roll}
+                    </td>
+                    {visibleDays.map((day) => {
+                      const isToday = day === currentDate.getDate() && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+                      const status = getStatus(student.id, day);
+                      return (
+                        <td key={day} className="px-2 py-3 text-center">
+                          {isToday ? (
+                            status === "run-awayed" ? (
                               <div className="flex items-center justify-center">
-                                {status === "present" ? (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                ) : status === "run-awayed" ? (
-                                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                ) : (
-                                  <XCircle className="w-4 h-4 text-red-400" />
-                                )}
+                                <AlertTriangle className="w-5 h-5 text-amber-500 animate-pulse" />
                               </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-4 py-3 text-sm font-semibold sticky left-0 bg-background z-10 border-l border-border/50 text-left shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]" style={{ left: '128px' }}>
-                        <div className="flex flex-col items-start gap-0.5">
-                          <span>{student.name}</span>
-                          {!student.available && (
-                            <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight bg-red-50 px-1 rounded border border-red-100">
-                              Inactive
-                            </span>
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={status === "present"}
+                                disabled={!student.available}
+                                onChange={(e) => handleAttendanceChange(student.id, day, e.target.checked)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              />
+                            )
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              {status === "present" ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              ) : status === "run-awayed" ? (
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                            </div>
                           )}
-                          {getStatus(student.id, currentDate.getDate()) === "run-awayed" && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear() && (
-                            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight bg-amber-50 px-1 rounded border border-amber-100">
-                              Run Awayed
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-sm font-semibold sticky left-0 bg-background z-10 border-l border-border/50 text-left shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]" style={{ left: '128px' }}>
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span>{student.name}</span>
+                        {!student.available && (
+                          <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight bg-red-50 px-1 rounded border border-red-100">
+                            Inactive
+                          </span>
+                        )}
+                        {getStatus(student.id, currentDate.getDate()) === "run-awayed" && selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear() && (
+                          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight bg-amber-50 px-1 rounded border border-amber-100">
+                            Running Away
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>
