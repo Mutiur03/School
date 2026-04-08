@@ -37,15 +37,15 @@ interface StudentOverview {
 }
 
 // Memoized row component to prevent unnecessary re-renders
-const StudentRow = memo(({ 
-  student, 
-  persistedStatus, 
-  currentStatus, 
-  onToggle 
-}: { 
-  student: StudentOverview; 
-  persistedStatus: string; 
-  currentStatus: string; 
+const StudentRow = memo(({
+  student,
+  persistedStatus,
+  currentStatus,
+  onToggle
+}: {
+  student: StudentOverview;
+  persistedStatus: string;
+  currentStatus: string;
   onToggle: (id: number, checked: boolean) => void;
 }) => {
   const isRunAwayed = currentStatus === "run-awayed";
@@ -56,9 +56,9 @@ const StudentRow = memo(({
       <td className="px-6 py-4 text-sm font-medium">{student.roll}</td>
       <td className="px-6 py-4">
         <div className="flex items-center justify-center">
-          <Checkbox 
-            id={`run-away-${student.id}`} 
-            checked={isRunAwayed} 
+          <Checkbox
+            id={`run-away-${student.id}`}
+            checked={isRunAwayed}
             onCheckedChange={(checked) => !isAbsent && onToggle(student.id, !!checked)}
             disabled={isAbsent}
             className={`h-5 w-5 border-2 transition-all ${isAbsent ? "border-muted opacity-50" : isRunAwayed ? "bg-amber-500 border-amber-600 scale-110 shadow-md" : "border-slate-400 bg-white hover:border-amber-500 hover:scale-110 shadow-sm"}`}
@@ -223,15 +223,15 @@ function StayCheck() {
   const sections = ["A", "B"];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-400 mx-auto space-y-8">
       <PageHeader
-        title="Stay Check (Run Awayed)"
+        title="Running Away"
         description="Daily monitoring for student departures. Check the box if a student has left without permission."
       >
         <div className="flex flex-col items-end gap-2">
           {smsEstimateCsv > 0 && (
             <div className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${smsSettings?.sms_balance < smsEstimateCsv ? "bg-red-100 text-red-700 animate-pulse" : "bg-primary/10 text-primary"}`}>
-              Est. Run Awayed SMS Cost: {smsEstimateCsv} credits
+              Est. Running Away SMS Cost: {smsEstimateCsv} credits
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -248,15 +248,15 @@ function StayCheck() {
       </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatsCard 
-          label="Initially Present" 
-          value={initiallyPresentCount} 
-          icon={<Users className="w-5 h-5" />} 
-          color="indigo" 
-          loading={studentsLoading} 
+        <StatsCard
+          label="Initially Present"
+          value={initiallyPresentCount}
+          icon={<Users className="w-5 h-5" />}
+          color="indigo"
+          loading={studentsLoading}
         />
         <StatsCard label="Still Here" value={stats.present} icon={<CheckCircle2 className="w-5 h-5" />} color="emerald" loading={studentsLoading} />
-        <StatsCard label="Run Awayed" value={stats.runAwayed} icon={<AlertTriangle className="w-5 h-5" />} color="amber" loading={studentsLoading} />
+        <StatsCard label="Running Away" value={stats.runAwayed} icon={<AlertTriangle className="w-5 h-5" />} color="amber" loading={studentsLoading} />
       </div>
 
       <SectionCard title="Filter Selection" icon={<Filter className="w-5 h-5" />}>
@@ -287,9 +287,9 @@ function StayCheck() {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Stay Check List" 
-        description="Select the checkbox if a student has run away. Students marked absent in the morning are disabled."
+      <SectionCard
+        title="Running Away List"
+        description="Select the checkbox if a student is running away. Students marked absent in the morning are disabled."
         noPadding
       >
         <div className="overflow-x-auto min-h-[400px]">
@@ -297,7 +297,7 @@ function StayCheck() {
             <thead>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">Roll</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Run Awayed?</th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Running Away?</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Student Name</th>
               </tr>
             </thead>
@@ -309,7 +309,7 @@ function StayCheck() {
               ) : students.length === 0 ? (
                 <tr><td colSpan={3} className="px-6 py-12 text-center text-muted-foreground italic">No students found or filters not applied.</td></tr>
               ) : students.map((s) => (
-                <StudentRow 
+                <StudentRow
                   key={s.id}
                   student={s}
                   persistedStatus={attendanceMap[s.id] || "absent"}

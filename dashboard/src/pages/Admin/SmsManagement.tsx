@@ -451,7 +451,7 @@ function SmsManagement() {
       const parts = [];
       if (runAwayValidation.missing.length > 0) parts.push(`missing mandatory ${runAwayValidation.missing.join(", ")}`);
       if (runAwayValidation.forbidden.length > 0) parts.push(`contains forbidden ${runAwayValidation.forbidden.join(", ")}`);
-      nextErrors.run_awayed_template = `Run Awayed template ${parts.join(" and ")}.`;
+      nextErrors.run_awayed_template = `Running Away template ${parts.join(" and ")}.`;
     }
 
     setSettingsErrors(nextErrors);
@@ -892,7 +892,7 @@ function SmsManagement() {
                         <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-600">
                           <MessageSquare className="w-4 h-4" />
                         </div>
-                        Run Awayed Student SMS
+                        Running Away Student SMS
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox
