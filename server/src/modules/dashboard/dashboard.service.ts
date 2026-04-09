@@ -55,7 +55,7 @@ export class DashboardService {
         WITH LatestDates AS (
           SELECT DISTINCT date 
           FROM attendence 
-          WHERE status IN ('present', 'absent')
+          WHERE status IN ('present', 'absent', 'run-awayed')
           ORDER BY date DESC 
           LIMIT 15
         ),
@@ -73,13 +73,13 @@ export class DashboardService {
           TO_CHAR(gd.g_date, 'DD Mon') as name,
           COUNT(CASE WHEN a.status = 'present' THEN 1 END)::integer as present,
           COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::integer as absent,
+          COUNT(CASE WHEN a.status = 'run-awayed' THEN 1 END)::integer as run_awayed,
           TO_CHAR(gd.g_date, 'YYYY-MM-DD') as sort_date
         FROM GeneratedDates gd
-        LEFT JOIN attendence a ON a.date = TO_CHAR(gd.g_date, 'YYYY-MM-DD') AND a.status IN ('present', 'absent')
+        LEFT JOIN attendence a ON a.date = TO_CHAR(gd.g_date, 'YYYY-MM-DD') AND a.status IN ('present', 'absent', 'run-awayed')
         GROUP BY gd.g_date
         ORDER BY gd.g_date ASC
       `;
-
     } catch (error: any) {
       console.warn("Error fetching attendance data:", error.message);
     }
@@ -149,7 +149,7 @@ export class DashboardService {
         content: "No details available",
         date: announcement.created_at,
         url: announcement.file,
-      })
+      }),
     );
 
     return {

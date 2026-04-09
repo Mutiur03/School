@@ -136,7 +136,7 @@ export class AttendenceService {
         class: level,
         section,
         year,
-        student: { available: true }
+        student: { available: true },
       },
       include: {
         student: {
@@ -191,9 +191,10 @@ export class AttendenceService {
       ) {
         let template = smsSettings.present_template;
         if (status === "absent") template = smsSettings.absent_template;
-        else if (status === "run-awayed") template = smsSettings.run_awayed_template;
+        else if (status === "run-awayed")
+          template = smsSettings.run_awayed_template;
 
-        const formattedDisplayDate = date.split('-').reverse().join('/');
+        const formattedDisplayDate = date.split("-").reverse().join("/");
 
         const message = interpolate(template, {
           student_name: enrollment.student.name,
@@ -247,7 +248,9 @@ export class AttendenceService {
     let smsFailedCount = 0;
 
     try {
-      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
+      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, {
+        skipBalanceUpdate: true,
+      });
       if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
         const processRes = await SmsLogsService.processBatchResults(
           bulkSmsResponse.data.results,
@@ -301,6 +304,7 @@ export class AttendenceService {
         class: level,
         section: section,
         year: year,
+        student: { available: true },
       },
       select: { student_id: true },
     });
@@ -331,7 +335,7 @@ export class AttendenceService {
         acc[curr.status] = curr._count.status;
         return acc;
       },
-      { present: 0, absent: 0 },
+      { present: 0, absent: 0, "run-awayed": 0 },
     );
 
     const smsSummary = smsLogsStats.reduce(
