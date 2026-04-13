@@ -94,8 +94,7 @@ const LimitReq = rateLimit({
   skip: (req) => {
     const url = req.originalUrl || req.url;
     return (
-      url.includes("/api/sms-settings/public") || 
-      url.includes("/api/health")
+      url.includes("/api/sms-settings/public") || url.includes("/api/health")
     );
   },
 });

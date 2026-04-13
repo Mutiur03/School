@@ -1,25 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import axios from "axios";
 import { toast } from "react-hot-toast";
 import DatePicker from "@/components/DatePickerF";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { format } from "date-fns";
-import backend from "@/lib/backend";
-
-interface Event {
-  id: string;
-  title: string;
-  details: string;
-  location: string;
-  file: string;
-  image: string;
-  date: string;
-}
+import { getFileUrl } from "@/lib/backend";
+import { useEvents, useAddEvent, useUpdateEvent, useDeleteEvent, type Event } from "@/queries/events.queries";
 
 interface FormValues {
   title: string;
@@ -37,7 +27,6 @@ interface PopupState {
 }
 
 const Events: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
   const [popup, setPopup] = useState<PopupState>({
     visible: false,
     type: "",
@@ -45,8 +34,9 @@ const Events: React.FC = () => {
   });
   const [showForm, setShowForm] = useState<boolean>(false);
   const fileref = useRef<HTMLInputElement>(null);
+  const imageref = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [formValues, setFormValues] = useState<FormValues>({
     title: "",
     details: "",
@@ -55,32 +45,19 @@ const Events: React.FC = () => {
     image: null,
     date: null,
   });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [deleting, setDeleting] = useState<boolean>(false);
   const [dateError, setDateError] = useState<string | null>(null);
-  const host = backend;;
 
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get<Event[]>("/api/events/getEvents");
-      setEvents(response.data || []);
-    } catch (error) {
-      console.error("Error fetching notices:", error);
-    }
-    setLoading(false);
-  };
+  const { data: events = [], isLoading } = useEvents();
+  const addMutation = useAddEvent();
+  const updateMutation = useUpdateEvent();
+  const deleteMutation = useDeleteEvent();
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
+  const submitting = addMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submitting) return;
 
-    // Validate required date field
     if (!formValues.date) {
       setDateError("Event date is required.");
       toast.error("Please select event date.");
@@ -88,43 +65,49 @@ const Events: React.FC = () => {
     }
     setDateError(null);
 
-    setSubmitting(true);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    // Ensure date is included even if DatePicker doesn't set a named input
-    formData.set("date", String(formValues.date));
-
     try {
       if (isEditing) {
-        await axios.put(`/api/events/updateEvent/${editId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        await updateMutation.mutateAsync({
+          id: editId!,
+          data: {
+            title: formValues.title,
+            details: formValues.details,
+            location: formValues.location,
+            date: formValues.date,
+            image: formValues.image instanceof File ? formValues.image : undefined,
+            file: formValues.file instanceof File ? formValues.file : undefined,
+          },
         });
-        toast.success("Notice updated successfully!");
       } else {
-        await axios.post("/api/events/addEvent", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        await addMutation.mutateAsync({
+          title: formValues.title,
+          details: formValues.details,
+          location: formValues.location,
+          date: formValues.date,
+          image: formValues.image instanceof File ? formValues.image : undefined,
+          file: formValues.file instanceof File ? formValues.file : undefined,
         });
-        toast.success("Notice uploaded successfully!");
       }
-      setFormValues({
-        title: "",
-        details: "",
-        location: "",
-        file: null,
-        image: null,
-        date: null,
-      });
-      form.reset();
-      setIsEditing(false);
-      setEditId(null);
-      setShowForm(false);
-      fetchEvents();
+      handleCancel();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to upload notice.");
-    } finally {
-      setSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    setFormValues({
+      title: "",
+      details: "",
+      location: "",
+      file: null,
+      image: null,
+      date: null,
+    });
+    if (fileref.current) fileref.current.value = "";
+    if (imageref.current) imageref.current.value = "";
+    setIsEditing(false);
+    setEditId(null);
+    setShowForm(false);
   };
 
   const openPopup = (type: string, event: Event) => {
@@ -135,19 +118,11 @@ const Events: React.FC = () => {
     setPopup({ visible: false, type: "", event: null });
   };
 
-  const handleDelete = async (id: string) => {
-    if (deleting) return;
-
-    setDeleting(true);
+  const handleDelete = async (id: string | number) => {
     try {
-      await axios.delete(`/api/events/deleteEvent/${id}`);
-      fetchEvents();
-      toast.success("Notice deleted successfully!");
+      await deleteMutation.mutateAsync(id);
     } catch (error) {
-      console.error("Error deleting notice:", error);
-      toast.error("Failed to delete notice.");
-    } finally {
-      setDeleting(false);
+      console.error("Error deleting event:", error);
     }
     closePopup();
   };
@@ -223,7 +198,7 @@ const Events: React.FC = () => {
                         formValues.file.name.slice(0, 20) +
                         "..."
                         : "Uploaded file: " +
-                        formValues.file.slice(0, 20) +
+                        (formValues.file as string).slice(0, 20) +
                         "..."}
                     </p>
                   )}
@@ -235,7 +210,7 @@ const Events: React.FC = () => {
                     type="file"
                     name="image"
                     accept="image/*"
-                    ref={fileref}
+                    ref={imageref}
                     onChange={(e) =>
                       setFormValues({
                         ...formValues,
@@ -250,13 +225,7 @@ const Events: React.FC = () => {
                         formValues.image.name.slice(0, 20) +
                         "..."
                         : "Uploaded file: " +
-                        formValues.image
-                          .split("\\")
-                          .pop()
-                          ?.split("-")
-                          .slice(2)
-                          .join("-")
-                          .slice(0, 20) +
+                        (formValues.image as string).slice(0, 20) +
                         "..."}
                     </p>
                   )}
@@ -267,7 +236,7 @@ const Events: React.FC = () => {
                   <Label htmlFor="date">Event Date <span className="text-red-500">*</span></Label>
                   <DatePicker
                     value={formValues.date}
-                    onChange={(e) => {
+                    onChange={(e: any) => {
                       setFormValues({ ...formValues, date: e.target.value });
                       setDateError(null);
                     }}
@@ -297,22 +266,7 @@ const Events: React.FC = () => {
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditId(null);
-                    setFormValues({
-                      title: "",
-                      details: "",
-                      location: "",
-                      file: null,
-                      image: null,
-                      date: null,
-                    });
-                    if (fileref.current) {
-                      fileref.current.value = "";
-                    }
-                    setShowForm(false);
-                  }}
+                  onClick={handleCancel}
                 >
                   {isEditing ? "Cancel Update" : "Cancel"}
                 </Button>
@@ -330,7 +284,7 @@ const Events: React.FC = () => {
           </CardContent>
         </Card>
       )}
-      {loading ? (
+      {isLoading ? (
         <div className="max-w-6xl mx-auto mt-10 px-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -357,11 +311,7 @@ const Events: React.FC = () => {
               >
                 <div className="relative h-40">
                   <img
-                    src={
-                      event.image
-                        ? `${host}/${event.image}`
-                        : "/placeholder.svg"
-                    }
+                    src={getFileUrl(event.image) || "/placeholder.svg"}
                     alt={event.title}
                     className="object-cover w-full h-full"
                   />
@@ -392,55 +342,72 @@ const Events: React.FC = () => {
           <div className="rounded-lg bg-card shadow-lg w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             {popup.type === "view" && (
               <>
-                <h2 className="text-xl font-bold mb-4">Event Details</h2>
-                <div className="space-y-2 ">
-                  <div className=" flex justify-center ">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Event Details</h2>
+                  <button onClick={closePopup} className="text-gray-500 hover:text-gray-700">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-center bg-gray-100 rounded-lg p-4">
                     <img
-                      src={`${host}/${popup.event.image}`}
+                      src={getFileUrl(popup.event.image) || "/placeholder.svg"}
                       alt=""
-                      className="max-w-40 max-h-40"
+                      className="max-w-full max-h-64 object-contain rounded-md shadow-sm"
                     />
                   </div>
-                  <div>
-                    <strong>Title:</strong> {popup.event.title}
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <strong className="text-gray-700">Title:</strong> 
+                      <p className="mt-1">{popup.event.title}</p>
+                    </div>
+                    {popup.event.details && (
+                      <div>
+                        <strong className="text-gray-700">Details:</strong>
+                        <p className="mt-1 text-gray-600 italic">"{popup.event.details}"</p>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <div>
+                        <strong className="text-gray-700">Date:</strong>
+                        <p className="mt-1">{format(new Date(popup.event.date), "dd MMM yyyy")}</p>
+                      </div>
+                      {popup.event.location && (
+                        <div className="text-right">
+                          <strong className="text-gray-700">Location:</strong>
+                          <p className="mt-1">{popup.event.location}</p>
+                        </div>
+                      )}
+                    </div>
+                    {popup.event.file && (
+                      <div>
+                        <strong className="text-gray-700">Notice:</strong>
+                        <div className="mt-2 text-center">
+                          <a
+                            href={getFileUrl(popup.event.file)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full font-semibold text-sm hover:bg-primary/20 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            View PDF Document
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {popup.event.details && (
-                    <div>
-                      <strong>Details:</strong> {popup.event.details}
-                    </div>
-                  )}
-                  <div>
-                    <strong>Date:</strong>{" "}
-                    {format(new Date(popup.event.date), "dd MMM yyyy")}
-                  </div>
-                  {popup.event.location && (
-                    <div>
-                      <strong>Location:</strong> {popup.event.location}
-                    </div>
-                  )}
-                  {popup.event.file && (
-                    <div>
-                      <strong>File:</strong>{" "}
-                      <a
-                        href={`${popup.event.file}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline"
-                      >
-                        View PDF
-                      </a>
-                    </div>
-                  )}
-
                 </div>
-                <div className="flex justify-between pt-4">
-                  <div className="flex gap-2">
+                <div className="flex justify-between pt-6 mt-6 border-t">
+                  <div className="flex gap-3">
                     <DeleteConfirmation
                       onDelete={() => popup.event && handleDelete(popup.event.id)}
                     />
                     <Button
                       type="button"
-                      disabled={deleting}
                       onClick={() => {
                         if (popup.event) {
                           setFormValues({
@@ -449,7 +416,7 @@ const Events: React.FC = () => {
                             file: popup.event.file,
                             image: popup.event.image,
                             date: popup.event.date,
-                            location: popup.event.location,
+                            location: popup.event.location || "",
                           });
                           setIsEditing(true);
                           setEditId(popup.event.id);
@@ -458,12 +425,11 @@ const Events: React.FC = () => {
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }
                       }}
-                      className=""
                     >
-                      Edit
+                      Edit Event
                     </Button>
                   </div>
-                  <Button variant="outline" onClick={closePopup} className="">
+                  <Button variant="outline" onClick={closePopup}>
                     Close
                   </Button>
                 </div>
