@@ -1,16 +1,27 @@
-import fs from "fs";
-import {
-  uploadPDFToCloudinary,
-  deletePDFFromCloudinary,
-} from "./noticeController.js";
 import { prisma } from "../config/prisma.js";
-import { fixUrl } from "../utils/fixURL.js";
+import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
+
+export const getPresignedUrlController = async (req, res) => {
+  try {
+    const { filename, contentType, type } = req.query;
+    if (!filename || !contentType || !type) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    const folder = type === "image" ? "events/images" : "events/files";
+    const key = `${folder}/${Date.now()}-${filename}`;
+    const uploadUrl = await getUploadUrl(key, contentType);
+
+    res.json({ uploadUrl, key });
+  } catch (error) {
+    console.error("Error generating presigned URL:", error);
+    res.status(500).json({ error: "Error generating presigned URL" });
+  }
+};
 
 export const addEventController = async (req, res) => {
   try {
-    let { title, details, date, location } = req.body;
-    const image = req.files?.image?.[0];
-    const file = req.files?.file?.[0];
+    let { title, details, date, location, imageKey, fileKey } = req.body;
 
     date = new Date(date)
       .toLocaleDateString("en-US", {
@@ -20,38 +31,22 @@ export const addEventController = async (req, res) => {
       })
       .replace(/\//g, "-");
 
-    let uploadResult = {};
-    if (file) {
-      uploadResult = await uploadPDFToCloudinary(file);
-      // Remove local PDF file after upload
-      const filePath = file.path.startsWith("uploads")
-        ? `${process.cwd()}/${file.path}`
-        : file.path;
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (err) {
-          console.error("Error deleting local file:", err);
-        }
-      }
-    }
-
     const result = await prisma.events.create({
       data: {
         title,
         details,
         date,
         location,
-        image: image ? fixUrl(image.path) : null,
-        file: uploadResult.previewUrl || null,
-        download_url: uploadResult.downloadUrl || null,
-        public_id: uploadResult.public_id || null,
+        image: imageKey || null,
+        file: fileKey || null,
+        download_url: fileKey || null,
+        public_id: fileKey || null,
       },
     });
 
     res.json([result]);
   } catch (error) {
-    console.log(error);
+    console.error("Error adding event:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -63,15 +58,9 @@ export const getEventsController = async (req, res) => {
         date: "desc",
       },
     });
-    const thumbnails = result.map((event) => {
-      return {
-        ...event,
-        thumbnail: event.image ? fixUrl(event.image).replace(/\\/g, "/") : "",
-      };
-    });
-    res.json(thumbnails);
+    res.json(result);
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching events:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -83,17 +72,12 @@ export const deleteEventController = async (req, res) => {
       where: { id: parseInt(id) },
     });
 
-    const imagePath = result.image;
-    if (imagePath && fs.existsSync(imagePath)) {
-      try {
-        fs.unlinkSync(imagePath);
-      } catch (err) {
-        console.error("Error deleting local image:", err);
-      }
+    if (result.image) {
+      await deleteFromR2(result.image);
     }
 
-    if (result.public_id) {
-      await deletePDFFromCloudinary(result.public_id);
+    if (result.file) {
+      await deleteFromR2(result.file);
     }
 
     res
@@ -103,7 +87,7 @@ export const deleteEventController = async (req, res) => {
     if (error.code === "P2025") {
       return res.status(404).json({ success: false, error: "Event not found" });
     }
-    console.log(error);
+    console.error("Error deleting event:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -111,9 +95,7 @@ export const deleteEventController = async (req, res) => {
 export const updateEventController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, details, date, location } = req.body;
-    const file = req.files?.file?.[0];
-    const image = req.files?.image?.[0];
+    const { title, details, date, location, imageKey, fileKey } = req.body;
 
     const existingEvent = await prisma.events.findUnique({
       where: { id: parseInt(id) },
@@ -136,39 +118,21 @@ export const updateEventController = async (req, res) => {
         .replace(/\//g, "-"),
     };
 
-    if (file) {
-      const { previewUrl, public_id, downloadUrl } =
-        await uploadPDFToCloudinary(file);
-      updateData.file = previewUrl;
-      updateData.public_id = public_id;
-      updateData.download_url = downloadUrl;
+    if (fileKey) {
+      updateData.file = fileKey;
+      updateData.public_id = fileKey;
+      updateData.download_url = fileKey;
 
-      // Remove local PDF file after upload
-      const filePath = file.path.startsWith("uploads")
-        ? `${process.cwd()}/${file.path}`
-        : file.path;
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (err) {
-          console.error("Error deleting local file:", err);
-        }
-      }
-
-      if (existingEvent.public_id) {
-        await deletePDFFromCloudinary(existingEvent.public_id);
+      if (existingEvent.file) {
+        await deleteFromR2(existingEvent.file);
       }
     }
 
-    if (image) {
-      updateData.image = fixUrl(image.path);
+    if (imageKey) {
+      updateData.image = imageKey;
 
-      if (existingEvent.image && fs.existsSync(existingEvent.image)) {
-        try {
-          fs.unlinkSync(existingEvent.image);
-        } catch (err) {
-          console.error("Error deleting old local image:", err);
-        }
+      if (existingEvent.image) {
+        await deleteFromR2(existingEvent.image);
       }
     }
 
@@ -179,7 +143,7 @@ export const updateEventController = async (req, res) => {
 
     res.json([result]);
   } catch (error) {
-    console.log(error);
+    console.error("Error updating event:", error);
     res.status(500).json({ error: error.message });
   }
 };
