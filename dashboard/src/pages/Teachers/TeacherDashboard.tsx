@@ -33,6 +33,18 @@ export default function TeacherProfile() {
                         <div className="mt-4">
                             <span className="font-semibold">Address:</span> {user?.address || "Not specified"}
                         </div>
+                        {user?.signature && (
+                            <div className="mt-6 pt-6 border-t border-border">
+                                <span className="text-xs font-bold uppercase text-muted-foreground block mb-2">Digital Signature</span>
+                                <div className="w-40 h-20 rounded-lg overflow-hidden border border-dashed border-border flex items-center justify-center bg-muted/30">
+                                    <img 
+                                        src={getFileUrl(user.signature)} 
+                                        alt="Teacher Signature" 
+                                        className="max-w-full max-h-full object-contain p-2"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Card>
             )}

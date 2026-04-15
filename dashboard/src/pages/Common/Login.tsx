@@ -561,8 +561,8 @@ function Login() {
                       "/student/dashboard"
                     );
                     navigate(destination, { replace: true });
-                  } catch {
-                    // Error is already toasted inside the login functions
+                  } catch (error) {
+                    setLoginError(getErrorMessage(error));
                   }
                 }}
                 className="space-y-6"
@@ -625,16 +625,7 @@ function Login() {
                     />
                   )}
                 </div>
-                {loginError && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in fade-in duration-300">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-xs font-medium text-red-800 dark:text-red-300">{loginError}</span>
-                    </div>
-                  </div>
-                )}
+
                 <div className="space-y-2">
                   <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
                     <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -670,6 +661,16 @@ function Login() {
                     >
                       Forgot Access Details?
                     </button>
+                  </div>
+                )}
+                {loginError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in fade-in duration-300 mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-xs font-medium text-red-800 dark:text-red-300">{loginError}</span>
+                    </div>
                   </div>
                 )}
                 <Button className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">

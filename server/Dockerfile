@@ -1,48 +1,21 @@
-# ---------------- BUILD STAGE ----------------
-FROM node:22-bookworm-slim AS builder
+# syntax=docker/dockerfile:1
 
-WORKDIR /app
-RUN npm install -g pnpm
+# Pin via build-arg in CI for stable cache, e.g. NODE_IMAGE=node:22-bookworm-slim@sha256:...
+ARG NODE_IMAGE=node:22-bookworm-slim
 
-# Copy package manifests for dependency caching
-COPY server/package*.json /app/server/
-COPY packages/shared-schemas /app/packages/shared-schemas
+# ---------------- RUNTIME OS DEPS (cache-friendly) ----------------
+# Own stage: rebuilds only when this RUN / NODE_IMAGE changes — not when app code changes.
+FROM ${NODE_IMAGE} AS runtime-base
 
-# Build the shared-schemas package first (compile .ts → .js)
-WORKDIR /app/packages/shared-schemas
-RUN npm install
-RUN npm run build
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install all dependencies for building
-WORKDIR /app/server
-RUN pnpm install --ignore-scripts
-
-# Copy source files
-COPY server /app/server
-COPY packages/shared-schemas /app/packages/shared-schemas
-
-# Rebuild shared-schemas with the final source (in case COPY above overwrote dist/)
-WORKDIR /app/packages/shared-schemas
-RUN npm run build
-
-# Generate Prisma client and compile TypeScript
-WORKDIR /app/server
-RUN npx prisma generate
-RUN npm run build
-
-# ---------------- RUNTIME STAGE ----------------
-FROM node:22-bookworm-slim
-
-WORKDIR /app/server
-
-# Install minimal dependencies for Puppeteer and system utilities
-RUN apt-get update && apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     ca-certificates \
     fonts-liberation \
     libnss3 \
-    libxss1 \
-    libasound2 \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libx11-xcb1 \
@@ -50,34 +23,55 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxrandr2 \
     libgbm1 \
-    wget \
     curl \
     netcat-traditional \
     postgresql-client \
-    --no-install-recommends && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install pnpm and pm2 for production management
-RUN npm install -g pnpm pm2
+# ---------------- BUILD STAGE ----------------
+FROM ${NODE_IMAGE} AS builder
 
-# Copy built assets and production manifests from the builder stage
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+WORKDIR /app/packages/shared-schemas
+COPY packages/shared-schemas/package.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --ignore-scripts
+
+WORKDIR /app/server
+COPY server/package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --ignore-scripts
+
+COPY packages/shared-schemas /app/packages/shared-schemas
+COPY server /app/server
+
+WORKDIR /app/packages/shared-schemas
+RUN npm run build && npm prune --omit=dev
+
+WORKDIR /app/server
+RUN npx prisma generate && npm run build
+
+# ---------------- RUNTIME STAGE ----------------
+FROM runtime-base AS runtime
+
+ENV NODE_ENV=production
+
+WORKDIR /app/server
+
 COPY --from=builder /app/server/package*.json ./
+COPY --from=builder /app/packages/shared-schemas/package.json /app/packages/shared-schemas/
+COPY --from=builder /app/packages/shared-schemas/dist /app/packages/shared-schemas/dist
+COPY --from=builder /app/packages/shared-schemas/node_modules /app/packages/shared-schemas/node_modules
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/server/prisma ./prisma
 COPY --from=builder /app/server/public ./public
 COPY --from=builder /app/server/setup-network.sh ./
-COPY --from=builder /app/packages/shared-schemas /app/packages/shared-schemas
 
-# Create logs directory
-RUN mkdir -p /app/server/logs
+RUN mkdir -p logs && chmod +x setup-network.sh
 
-# Install only production dependencies
-RUN pnpm install --prod --ignore-scripts
-RUN npx prisma generate
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --omit=dev --ignore-scripts && \
+    npx prisma generate
 
-# Make startup script executable and set launch command
-RUN chmod +x setup-network.sh
-ENTRYPOINT []
-
-# Start using the compiled output
 CMD ["node", "dist/server.js"]

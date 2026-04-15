@@ -22,12 +22,6 @@ router.get(
   StudentController.getAlumniController,
 );
 
-router.get(
-  "/me",
-  AuthMiddleware.authenticate(["student"]),
-  StudentController.getStudentController,
-);
-
 router.post(
   "/bulk",
   AuthMiddleware.authenticate(["admin"]),
@@ -86,6 +80,18 @@ router.post(
   "/:id/testimonials",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.generateTestimonialsController,
+);
+
+router.post(
+  "/:id/tc",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.giveTransferCertificateController,
+);
+
+router.post(
+  "/:id/reactivate",
+  AuthMiddleware.authenticate(["admin"]),
+  StudentController.reactivateStudentController,
 );
 
 const studentRouter = express.Router();

@@ -8,4 +8,5 @@ export interface Teacher {
   subject: string;
   available: boolean;
   image?: string;
+  signature?: string;
 }

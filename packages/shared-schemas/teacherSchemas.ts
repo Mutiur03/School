@@ -48,8 +48,10 @@ export const teacherFormSchema = z.object({
   address: z
     .string()
     .trim()
-    .refine((value) => !value || ADDRESS_TEXT.test(value), {
-      message: "Address may only contain letters and numbers",
+    .min(1, "Address is required")
+    .min(2, "Address must be at least 2 characters")
+    .refine((value) => ADDRESS_TEXT.test(value), {
+      message: "Address may only contain letters, numbers and basic punctuation",
     }),
 });
 

@@ -14,6 +14,10 @@ export interface SMSResponse {
   data?: any;
 }
 
+export interface SMSOptions {
+  skipBalanceUpdate?: boolean;
+}
+
 export class SMSService {
   private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
   private static readonly FALLBACK_SENDER_ID = env.BULK_SMS_SENDER_ID;
@@ -44,7 +48,7 @@ export class SMSService {
   /**
    * Send a single SMS message
    */
-  static async sendSMS(phoneNumber: string, message: string): Promise<SMSResponse> {
+  static async sendSMS(phoneNumber: string, message: string, options?: SMSOptions): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
     const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
@@ -97,14 +101,16 @@ export class SMSService {
         totalSmsUsed = response.data?.total_sms || response.data?.sms_count || 1;
       }
 
-      await prisma.sms_settings.update({
-        where: { id: settings.id },
-        data: {
-          sms_balance: {
-            decrement: totalSmsUsed
+      if (!options?.skipBalanceUpdate) {
+        await prisma.sms_settings.update({
+          where: { id: settings.id },
+          data: {
+            sms_balance: {
+              decrement: totalSmsUsed
+            }
           }
-        }
-      });
+        });
+      }
 
       return {
         success: true,
@@ -123,7 +129,7 @@ export class SMSService {
   /**
    * Send bulk SMS messages
    */
-  static async sendBulkSMS(messages: SMSMessage[]): Promise<SMSResponse> {
+  static async sendBulkSMS(messages: SMSMessage[], options?: SMSOptions): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
     const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
@@ -176,14 +182,16 @@ export class SMSService {
         totalSmsUsed = response.data?.total_sms || response.data?.sms_count || totalSegmentsNeeded;
       }
 
-      await prisma.sms_settings.update({
-        where: { id: settings.id },
-        data: {
-          sms_balance: {
-            decrement: totalSmsUsed
+      if (!options?.skipBalanceUpdate) {
+        await prisma.sms_settings.update({
+          where: { id: settings.id },
+          data: {
+            sms_balance: {
+              decrement: totalSmsUsed
+            }
           }
-        }
-      });
+        });
+      }
 
       return {
         success: true,

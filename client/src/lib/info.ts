@@ -119,7 +119,7 @@ export const schoolConfig: SchoolConfig = {
   assets: {
     logo: "/logo.png", // Main logo
     headerLogo: "/header.png", // Logo used in header overlay
-    banners: ["/banner1.jpg", "/banner2.jpeg", "/banner3.jpg", "/banner4.jpeg"],
+    banners: ["/banner1.jpg", "/banner2.jpeg", "/banner3.jpg", "/banner4.jpg", "/banner5.jpg", "/banner6.jpg"],
   },
   descriptions: {
     main: "Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়), formerly known as Panchbibi L. B. Pilot Government High School, is a prominent boys’ secondary school located in Panchbibi Upazila, Joypurhat District, Rajshahi Division, Bangladesh. Established in 1940, the school has a long-standing reputation for academic excellence and community leadership.",

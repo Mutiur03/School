@@ -1,6 +1,7 @@
 import { useNotices } from "@/hooks/useSchoolData";
 import "./NoticeBoard.css";
 import { Link } from "react-router-dom";
+import { getFileUrl } from "@/lib/backend";
 
 export function NoticeBoard() {
     const {data, isLoading} = useNotices(5);
@@ -19,7 +20,7 @@ export function NoticeBoard() {
                     <div className="notice-title">
                       <h5>
                         <a
-                          href={notice.file ?? "#"}
+                          href={getFileUrl(notice.file) ?? "#"}
                           target="_blank"
                           rel="noreferrer"
                         >

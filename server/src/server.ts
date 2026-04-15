@@ -19,20 +19,17 @@ import cookieParser from "cookie-parser";
 import levelRouter from "./modules/level/level.route.js";
 import attendenceRouter from "./modules/attendence/attendence.route.js";
 import smsSettingsRoute from "./modules/sms-settings/sms-settings.route.js";
-import noticeRouter from "./routes/noticeRoutes.js";
+import noticeRouter from "./modules/notice/notice.route.js";
 import holidayRouter from "./routes/holidayRoutes.js";
 import eventsRouter from "./routes/eventsRoutes.js";
 import galleryRouter from "./routes/galleryRoutes.js";
-import dashboardRouter from "./routes/dashboardRoutes.js";
+import dashboardRouter from "./modules/dashboard/dashboard.route.js";
 import path from "path";
 import fs from "fs";
 import syllabusRoutes from "./routes/syllabusRoutes.js";
 import classRoutineRouter from "./routes/classRoutineRoutes.js";
 import fileUploadRouter from "./routes/fileUpload.js";
 import routerStaff from "./routes/staffRoutes.js";
-import regSSCRouter from "./routes/regSSCRoutes.js";
-import studentRegistrationRouter from "./routes/studentRegistrationRoutes.js";
-import { fileURLToPath } from "url";
 import admmissionRoutes from "./routes/admissionRoutes.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
@@ -41,6 +38,8 @@ import registrationSettingsClass6Router from "./modules/registration/class-6/Set
 import registrationFormClass6Router from "./modules/registration/class-6/Form/registrationFormClass6.route.js";
 import registrationSettingsClass8Router from "./modules/registration/class-8/Settings/registrationSettingsClass8.route.js";
 import registrationFormClass8Router from "./modules/registration/class-8/Form/registrationFormClass8.route.js";
+import registrationSettingsClass9Router from "./modules/registration/class-9/Settings/registrationSettingsClass9.route.js";
+import registrationFormClass9Router from "./modules/registration/class-9/Form/registrationFormClass9.route.js";
 import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
@@ -52,10 +51,8 @@ import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-const storagePath = path.join(__dirname, "uploads");
+const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
@@ -90,13 +87,19 @@ app.use(
 const limitStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 5000 : 500,
+  max: process.env.NODE_ENV === "development" ? 5000 : 1000,
   message: {
     message: "Too many requests, please try again after an hour",
   },
   standardHeaders: true,
   legacyHeaders: false,
   store: limitStore,
+  skip: (req) => {
+    const url = req.originalUrl || req.url;
+    return (
+      url.includes("/api/sms-settings/public") || url.includes("/api/health")
+    );
+  },
 });
 app.use(
   (expressStatusMonitor as any)({
@@ -140,17 +143,17 @@ app.use("/api/staffs", routerStaff);
 app.use(authRouter);
 app.use(levelRouter);
 app.use(attendenceRouter);
-app.use("/api/notices", noticeRouter);
+app.use(noticeRouter);
 app.use(smsSettingsRoute);
 app.use("/api/holidays", holidayRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/gallery", galleryRouter);
-app.use("/api/dashboard", dashboardRouter);
+app.use(dashboardRouter);
 app.use("/api/syllabus", syllabusRoutes);
 app.use("/api/class-routine", classRoutineRouter);
 app.use("/api/file-upload", fileUploadRouter);
-app.use("/api/reg/ssc", regSSCRouter);
-app.use("/api/reg/ssc/form", studentRegistrationRouter);
+app.use(registrationSettingsClass9Router);
+app.use(registrationFormClass9Router);
 app.use(registrationSettingsClass6Router);
 app.use(registrationFormClass6Router);
 app.use(registrationSettingsClass8Router);
@@ -183,10 +186,14 @@ app.use(
     const statusCode = error.statusCode || 500;
     const message = error.message || "Internal server error";
 
-    logger.error("Unhandled server error", {
+    const logMethod = statusCode >= 500 ? "error" : "warn";
+    const logTitle =
+      statusCode >= 500 ? "Unhandled server error" : "Client error response";
+
+    (logger as any)[logMethod](logTitle, {
       status: statusCode,
       message,
-      stack: error.stack,
+      stack: statusCode >= 500 ? error.stack : undefined,
       url: req.originalUrl,
       method: req.method,
       ip:
@@ -216,12 +223,13 @@ app.listen(PORT, () => {
       logger.info("Uploads directory ready", { path: storagePath });
     }
   });
-  fs.mkdir(path.join(__dirname, "logs"), { recursive: true }, (err) => {
+  const logsPath = path.resolve("logs");
+  fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
       logger.error("Error creating logs directory", { error: err.message });
     } else {
       logger.info("Logs directory ready", {
-        path: path.join(__dirname, "logs"),
+        path: logsPath,
       });
     }
   });

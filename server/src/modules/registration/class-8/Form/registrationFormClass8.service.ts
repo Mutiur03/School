@@ -86,12 +86,14 @@ export class RegistrationFormClass8Service {
       same_as_permanent: _same_as_permanent,
       guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
       guardian_is_not_father: _guardian_is_not_father,
+      class8_year,
       ...dbData
     } = data;
 
     return await prisma.student_registration_class8.create({
       data: {
         ...dbData,
+        class8_year: parseInt(class8_year, 10),
         status: "pending",
       },
     });
@@ -198,12 +200,16 @@ export class RegistrationFormClass8Service {
         same_as_permanent: _same_as_permanent,
         guardian_address_same_as_permanent: _guardian_address_same_as_permanent,
         guardian_is_not_father: _guardian_is_not_father,
+        class8_year,
         ...dbData
       } = data;
   
       return await prisma.student_registration_class8.update({  
         where: { id },
-        data: dbData,
+        data: {
+          ...dbData,
+          ...(class8_year ? { class8_year: parseInt(class8_year, 10) } : {}),
+        },
       });
     }
 

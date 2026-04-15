@@ -23,6 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
+import useNavigationStore from "@/store/navigation.Store";
 
 interface SidebarProps {
   sidebarExpanded: boolean;
@@ -158,9 +159,9 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
           id: "class-8-registration",
         },
         {
-          label: "SSC Registration",
-          link: "/admin/registration/ssc",
-          id: "ssc-registration",
+          label: "Class Nine Registration",
+          link: "/admin/registration/class-9",
+          id: "class-9-registration",
         },
       ],
     },
@@ -229,6 +230,14 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       dropdown: false,
       link: "/admin/attendance",
       id: "attendance",
+      roles: ["admin"],
+    },
+    {
+      label: "Running Away",
+      icon: CalendarClock,
+      dropdown: false,
+      link: "/admin/attendance-double",
+      id: "stay-check",
       roles: ["admin"],
     },
     {
@@ -307,12 +316,31 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
       roles: ["teacher"],
     },
     {
+      label: "Running Away",
+      icon: CalendarClock,
+      dropdown: false,
+      link: "/teacher/attendance-double",
+      id: "stay-check",
+      roles: ["teacher"],
+    },
+    {
       label: "Mark Management",
       icon: FaClipboardList,
-      dropdown: false,
+      dropdown: true,
       id: "mark-management",
       roles: ["teacher"],
-      link: "/teacher/mark-management",
+      items: [
+        {
+          label: "Add Marks",
+          link: "/teacher/mark-management",
+          id: "add-marks",
+        },
+        {
+          label: "View Result",
+          link: "/teacher/result/view-marks",
+          id: "view-marks",
+        },
+      ],
     },
     {
       label: "Settings",
@@ -361,6 +389,7 @@ const Sidebar = ({
   const location = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const { isDirty, resetDirty } = useNavigationStore();
 
   const sidebarItems = useMemo(() => (user ? getRoutesByRole(user.role) : []), [user]);
 
@@ -437,6 +466,20 @@ const Sidebar = ({
     }
   };
 
+  const handleNavigation = (e: React.MouseEvent) => {
+    if (isDirty) {
+      const proceed = window.confirm(
+        "You have unsaved attendance changes. Leaving this page will discard them. Are you sure you want to proceed?"
+      );
+      if (!proceed) {
+        e.preventDefault();
+        return false;
+      }
+      resetDirty();
+    }
+    return true;
+  };
+
   return (
     <>
       <motion.aside
@@ -447,7 +490,7 @@ const Sidebar = ({
         }}
         ref={sidebarRef}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className={`fixed h-[calc(100vh-3.5rem)] flex bg-sidebar backdrop-blur-sm flex-col z-50 border-r border-border shadow-sm`}
+        className={`fixed top-14 h-[calc(100vh-3.5rem)] flex bg-sidebar backdrop-blur-sm flex-col z-50 border-r border-border shadow-sm`}
       >
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
@@ -465,14 +508,15 @@ const Sidebar = ({
                               : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
-                          onClick={() => {
+                          onClick={(e) => {
+                            if (!handleNavigation(e)) return;
                             setOpenDropdown(null);
                             if (window.innerWidth < 768 && onClose) {
                               onClose();
                             }
                           }}
                         >
-                          <item.icon className="flex-shrink-0 h-4 w-4" />
+                          <item.icon className="shrink-0 h-4 w-4" />
                           {sidebarExpanded && (
                             <motion.span
                               initial={{ opacity: 0 }}
@@ -499,7 +543,7 @@ const Sidebar = ({
                               className={`flex items-center ${sidebarExpanded ? "gap-3" : ""
                                 }`}
                             >
-                              <item.icon className="flex-shrink-0 h-4 w-4" />
+                              <item.icon className="shrink-0 h-4 w-4" />
                               {sidebarExpanded && (
                                 <motion.span
                                   initial={{ opacity: 0 }}
@@ -545,7 +589,8 @@ const Sidebar = ({
                                             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                           }`
                                         }
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                          if (!handleNavigation(e)) return;
                                           if (
                                             window.innerWidth < 768 &&
                                             onClose

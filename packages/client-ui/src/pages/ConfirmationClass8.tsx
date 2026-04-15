@@ -276,7 +276,7 @@ function Class8RegConfirmation() {
                         <img
                             src={getFileUrl(registration.photo)}
                             alt="Student Photo"
-                            className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
+                            className="w-28 aspect-15/19 object-cover border-2 border-gray-300 rounded shadow-sm"
                             onError={(e) => {
                                 e.currentTarget.style.display = "none";
                             }}

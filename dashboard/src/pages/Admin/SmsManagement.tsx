@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ import { formatDobForDateInput as toDateInputValue, calculateSMSCount, PHONE_NUM
 import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { TabItem } from "@/components";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation, useSearchParams } from "react-router-dom";
 
@@ -87,16 +88,20 @@ interface SmsBalance {
 interface SmsSettings {
   present_template: string;
   absent_template: string;
+  run_awayed_template: string;
   send_to_present: boolean;
   send_to_absent: boolean;
+  send_to_run_awayed: boolean;
   is_active: boolean;
 }
 
 const EMPTY_SETTINGS: SmsSettings = {
   present_template: "",
   absent_template: "",
+  run_awayed_template: "",
   send_to_present: false,
   send_to_absent: false,
+  send_to_run_awayed: false,
   is_active: false,
 };
 
@@ -115,7 +120,7 @@ const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, "");
 const validateTemplate = (template: string, requiredPlaceholders: string[]) => {
   const allRequired = [...CORE_TOKENS, ...requiredPlaceholders];
   const missing = allRequired.filter((token) => !template.includes(token));
-  
+
   const allPossibleElectives = ELECTIVE_TOKENS.map(t => t.id);
   const forbidden = allPossibleElectives.filter(token => !requiredPlaceholders.includes(token) && template.includes(token));
 
@@ -138,8 +143,8 @@ function SmsManagement() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"logs" | "settings">(
-    tabParam === "settings" ? "settings" : "logs",
+  const [activeTab, setActiveTab] = useState<"logs" | "settings" | "bulk">(
+    tabParam === "settings" ? "settings" : (tabParam === "bulk" ? "bulk" : "logs"),
   );
   const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -150,14 +155,14 @@ function SmsManagement() {
   });
 
   const handleTabChange = (id: string) => {
-    const next = id as "logs" | "settings";
+    const next = id as "logs" | "settings" | "bulk";
     setActiveTab(next);
     setSearchParams({ tab: next }, { replace: true });
   };
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "settings" || tab === "logs") {
+    if (tab === "settings" || tab === "bulk" || tab === "logs") {
       setActiveTab(tab);
     } else {
       setActiveTab("logs");
@@ -168,12 +173,31 @@ function SmsManagement() {
   // Settings State
   const [testForm, setTestForm] = useState({ phoneNumber: "", message: "" });
   const [testErrors, setTestErrors] = useState<{ phoneNumber?: string; message?: string }>({});
-  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string }>({});
+  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string; run_awayed_template?: string }>({});
   const [addBalanceAmount, setAddBalanceAmount] = useState<string>("");
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [requiredPlaceholders, setRequiredPlaceholders] = useState<string[]>([]);
+
+  // Bulk SMS State
+  const [selectedClasses, setSelectedClasses] = useState<number[]>([]);
+  const [bulkMessage, setBulkMessage] = useState<string>("");
+  const availableClasses = [6, 7, 8, 9, 10];
+
+  const { data: studentCount, isLoading: studentCountLoading } = useQuery({
+    queryKey: ["studentCount", selectedClasses],
+    queryFn: async () => {
+      const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(",")}`);
+      return res.data as {
+        totalStudents: number;
+        withPhone: number;
+        classBreakdown: Record<number, { total: number; withPhone: number }>;
+      };
+    },
+    enabled: selectedClasses.length > 0,
+    placeholderData: keepPreviousData,
+  });
 
   const statusColors: Record<string, string> = {
     sent: "bg-green-500",
@@ -188,28 +212,6 @@ function SmsManagement() {
   };
 
   const [estimates, setEstimates] = useState<{ [key: string]: { count: number; encoding: string; length: number } }>({});
-
-  const generateTemplates = (placeholders: string[]) => {
-    const getSms = (status: string) => {
-      let optional = "";
-      if (placeholders.includes("{login_id}")) optional += " (ID: {login_id})";
-      if (placeholders.includes("{class}")) optional += ", Class: {class}";
-      if (placeholders.includes("{section}")) optional += ", Section: {section}";
-      if (placeholders.includes("{roll}")) optional += ", Roll: {roll}";
-      
-      const datePart = placeholders.includes("{date}") ? " today ({date})" : "";
-      const schoolPart = placeholders.includes("{school_name}") ? "\nThank you.\n{school_name}" : "";
-      
-      return `Dear Parent,\nYour child {student_name}${optional} is ${status}${datePart}.${schoolPart}`;
-    };
-
-    setSettingsDraft(prev => ({
-      ...(prev || EMPTY_SETTINGS),
-      present_template: getSms("present"),
-      absent_template: getSms("absent"),
-    }));
-    setSettingsDirty(true);
-  };
 
   const calculateEstimate = useCallback((key: string, text: string) => {
     const raw = text ?? "";
@@ -349,6 +351,27 @@ function SmsManagement() {
     },
   });
 
+  const bulkSmsMutation = useMutation({
+    mutationFn: async (payload: { classNames: number[]; message: string }) => {
+      const response = await axios.post("/api/sms/bulk-sms", payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Bulk SMS sent successfully");
+      setSelectedClasses([]);
+      setBulkMessage("");
+      setActiveTab("logs");
+      setSearchParams({ tab: "logs" }, { replace: true });
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || "Failed to send bulk SMS";
+      toast.error(errorMessage);
+    },
+  });
+
   useEffect(() => {
     if (smsLogsQuery.isError) toast.error("Failed to fetch SMS logs");
   }, [smsLogsQuery.isError]);
@@ -364,9 +387,11 @@ function SmsManagement() {
   useEffect(() => {
     if (smsSettingsQuery.data && !settingsDirty) {
       setSettingsDraft(smsSettingsQuery.data);
-      
+
       // Sync elective placeholders from existing templates
-      const templates = (smsSettingsQuery.data.present_template || "") + (smsSettingsQuery.data.absent_template || "");
+      const templates = (smsSettingsQuery.data.present_template || "") +
+        (smsSettingsQuery.data.absent_template || "") +
+        (smsSettingsQuery.data.run_awayed_template || "");
       const initial = ELECTIVE_TOKENS
         .map(t => t.id)
         .filter(token => templates.includes(token));
@@ -378,12 +403,17 @@ function SmsManagement() {
     if (activeTab === "settings" && smsSettingsQuery.data) {
       calculateEstimate("present", smsSettingsQuery.data.present_template || "");
       calculateEstimate("absent", smsSettingsQuery.data.absent_template || "");
+      calculateEstimate("run_awayed", smsSettingsQuery.data.run_awayed_template || "");
     }
   }, [activeTab, smsSettingsQuery.data, calculateEstimate]);
 
   useEffect(() => {
     calculateEstimate("test", testForm.message || "");
   }, [testForm.message, calculateEstimate]);
+
+  useEffect(() => {
+    calculateEstimate("bulk", bulkMessage || "");
+  }, [bulkMessage, calculateEstimate]);
 
   const handleAddBalance = async () => {
     const amount = parseInt(addBalanceAmount);
@@ -400,7 +430,8 @@ function SmsManagement() {
 
     const presentValidation = validateTemplate(settingsDraft.present_template || "", requiredPlaceholders);
     const absentValidation = validateTemplate(settingsDraft.absent_template || "", requiredPlaceholders);
-    const nextErrors: { present_template?: string; absent_template?: string } = {};
+    const runAwayValidation = validateTemplate(settingsDraft.run_awayed_template || "", requiredPlaceholders);
+    const nextErrors: { present_template?: string; absent_template?: string; run_awayed_template?: string } = {};
 
     if (settingsDraft.is_active && settingsDraft.send_to_present && !presentValidation.isValid) {
       const parts = [];
@@ -414,6 +445,13 @@ function SmsManagement() {
       if (absentValidation.missing.length > 0) parts.push(`missing mandatory ${absentValidation.missing.join(", ")}`);
       if (absentValidation.forbidden.length > 0) parts.push(`contains forbidden ${absentValidation.forbidden.join(", ")}`);
       nextErrors.absent_template = `Absent template ${parts.join(" and ")}.`;
+    }
+
+    if (settingsDraft.is_active && settingsDraft.send_to_run_awayed && !runAwayValidation.isValid) {
+      const parts = [];
+      if (runAwayValidation.missing.length > 0) parts.push(`missing mandatory ${runAwayValidation.missing.join(", ")}`);
+      if (runAwayValidation.forbidden.length > 0) parts.push(`contains forbidden ${runAwayValidation.forbidden.join(", ")}`);
+      nextErrors.run_awayed_template = `Running Away template ${parts.join(" and ")}.`;
     }
 
     setSettingsErrors(nextErrors);
@@ -528,6 +566,12 @@ function SmsManagement() {
       label: "Delivery Logs",
       icon: <Inbox size={16} />,
       href: `${location.pathname}?tab=logs`,
+    },
+    {
+      id: "bulk",
+      label: "Bulk SMS",
+      icon: <Send size={16} />,
+      href: `${location.pathname}?tab=bulk`,
     },
     {
       id: "settings",
@@ -841,13 +885,87 @@ function SmsManagement() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-600">
+                          <MessageSquare className="w-4 h-4" />
+                        </div>
+                        Running Away Student SMS
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="send_to_run_awayed"
+                          checked={settings.send_to_run_awayed}
+                          onCheckedChange={(checked) => {
+                            if (!settingsDirty) setSettingsDirty(true);
+                            setSettingsDraft((prev) => ({
+                              ...(prev || EMPTY_SETTINGS),
+                              send_to_run_awayed: !!checked,
+                            }));
+                            if (!checked && settingsErrors.run_awayed_template) {
+                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                            }
+                          }}
+                        />
+                        <Label htmlFor="send_to_run_awayed">Enable</Label>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="run_awayed_template">Message Template</Label>
+                      <Textarea
+                        id="run_awayed_template"
+                        rows={4}
+                        value={settings.run_awayed_template}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          if (!settingsDirty) setSettingsDirty(true);
+                          setSettingsDraft((prev) => ({
+                            ...(prev || EMPTY_SETTINGS),
+                            run_awayed_template: nextValue,
+                          }));
+                          calculateEstimate("run_awayed", nextValue);
+                          if (settingsErrors.run_awayed_template) {
+                            const validation = validateTemplate(nextValue, requiredPlaceholders);
+                            if (validation.isValid) {
+                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                            }
+                          }
+                        }}
+                      />
+                      {settingsErrors.run_awayed_template && (
+                        <p className="text-xs text-red-500">{settingsErrors.run_awayed_template}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-red-500">Mandatory:</span>
+                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
+                          {requiredPlaceholders.map(p => (
+                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
+                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
+                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
+                          ))}
+                        </div>
+                        {estimates.run_awayed && (
+                          <div className="text-[10px] font-medium text-primary">
+                            Est: <span className="font-bold">{estimates.run_awayed.count}</span> credit{estimates.run_awayed.count !== 1 ? 's' : ''} ({estimates.run_awayed.encoding})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-border">
                   <div className="space-y-4">
                     <Label className="text-sm font-semibold">Required Placeholders</Label>
                     <div className="flex flex-wrap gap-x-6 gap-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-border">
-                       <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                      <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
                         <Checkbox checked disabled />
                         <span className="text-sm">Student Name</span>
                       </div>
@@ -858,11 +976,10 @@ function SmsManagement() {
                             checked={requiredPlaceholders.includes(token.id)}
                             onCheckedChange={(checked) => {
                               if (!settingsDirty) setSettingsDirty(true);
-                              const next = checked 
-                                ? [...requiredPlaceholders, token.id] 
+                              const next = checked
+                                ? [...requiredPlaceholders, token.id]
                                 : requiredPlaceholders.filter(p => p !== token.id);
                               setRequiredPlaceholders(next);
-                              generateTemplates(next);
                             }}
                           />
                           <Label htmlFor={`req_${token.id}`} className="text-sm cursor-pointer">{token.label}</Label>
@@ -905,6 +1022,169 @@ function SmsManagement() {
               </div>
             )}
           </SectionCard>
+        </div>
+      ) : activeTab === "bulk" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SectionCard
+              title="Select Classes"
+              icon={<Filter className="w-5 h-5 text-primary" />}
+              className="lg:col-span-1"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Select the classes you want to send this SMS to.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {availableClasses.map((className) => (
+                    <div key={className} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`class-${className}`}
+                        checked={selectedClasses.includes(className)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedClasses([...selectedClasses, className]);
+                          } else {
+                            setSelectedClasses(selectedClasses.filter((c) => c !== className));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`class-${className}`}>Class {className}</Label>
+                    </div>
+                  ))}
+                </div>
+                {selectedClasses.length > 0 && (
+                  <div className="pt-3 space-y-2">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border text-sm space-y-1">
+                      {studentCountLoading && !studentCount ? (
+                        <div className="flex items-center justify-center py-4">
+                          <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                        </div>
+                      ) : studentCount ? (
+                        <>
+                          <div className="space-y-2 pb-2 border-b border-border">
+                            {Object.entries(studentCount.classBreakdown as Record<number, { total: number; withPhone: number }>).map(([cls, info]) => (
+                              <div key={cls} className="flex justify-between items-center text-xs">
+                                <span className="text-muted-foreground font-medium">Class {cls}:</span>
+                                <span className="text-foreground">
+                                  {info.total} students ({info.withPhone} w/ phone)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-between pt-1">
+                            <span className="text-muted-foreground">Total Students:</span>
+                            <span className="font-semibold">{studentCount.totalStudents}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground italic">Target SMS (Unique):</span>
+                            <span className="font-semibold text-primary">{studentCount.withPhone}</span>
+                          </div>
+                          {estimates.bulk && (
+                            <div className="flex justify-between pt-1 border-t border-border mt-1">
+                              <span className="text-muted-foreground font-medium underline decoration-dotted">Total Credits:</span>
+                              <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedClasses([])}
+                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Clear Selection
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Compose Message"
+              icon={<MessageSquare className="w-5 h-5 text-primary" />}
+              className="lg:col-span-2"
+            >
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-message">Message Content</Label>
+                  <Textarea
+                    id="bulk-message"
+                    placeholder="Type your bulk SMS message here..."
+                    rows={6}
+                    value={bulkMessage}
+                    onChange={(e) => setBulkMessage(e.target.value)}
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Note: This message will be sent to all students in the selected classes.
+                    </p>
+                    {estimates.bulk && (
+                      <div className="text-[10px] font-medium text-primary">
+                        Est: <span className="font-bold">{estimates.bulk.count}</span> credit{estimates.bulk.count !== 1 ? 's' : ''} ({estimates.bulk.encoding}) {estimates.bulk.length} chars
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        disabled={selectedClasses.length === 0 || !bulkMessage.trim() || bulkSmsMutation.isPending}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {bulkSmsMutation.isPending ? (
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Send Bulk SMS
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>This will send the SMS to all students in <strong className="text-foreground">Class {selectedClasses.sort((a, b) => a - b).join(", ")}</strong>.</p>
+                            {studentCount && estimates.bulk && (
+                              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border space-y-1">
+                                <div className="flex justify-between">
+                                  <span>Students with phone:</span>
+                                  <span className="font-semibold text-foreground">{studentCount.withPhone}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Credits per student:</span>
+                                  <span className="font-semibold text-foreground">{estimates.bulk.count}</span>
+                                </div>
+                                <div className="flex justify-between pt-1 border-t border-border mt-1">
+                                  <span className="font-medium">Total credits needed:</span>
+                                  <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => bulkSmsMutation.mutate({ classNames: selectedClasses, message: bulkMessage })}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          Continue
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </SectionCard>
+          </div>
         </div>
       ) : (
         <>
