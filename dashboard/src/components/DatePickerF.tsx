@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Input } from "./ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+
 interface DatePickerProps {
   value: string | null;
   onChange: (event: { target: { name: string; value: string | null } }) => void;
@@ -10,6 +12,7 @@ interface DatePickerProps {
   placeholder?: string;
   required?: boolean;
 }
+
 const DatePicker = ({
   value,
   onChange,
@@ -19,16 +22,58 @@ const DatePicker = ({
 }: DatePickerProps) => {
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 0 });
   const calendarRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  const syncPopoverPosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const minW = Math.max(rect.width, 280);
+    const left = Math.max(
+      8,
+      Math.min(rect.left, window.innerWidth - minW - 8),
+    );
+    setPopoverPos({
+      top: rect.bottom + 4,
+      left,
+      width: rect.width,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!showCalendar) return;
+    syncPopoverPosition();
+  }, [showCalendar]);
+
+  useEffect(() => {
+    if (!showCalendar) return;
+    const update = () => {
+      syncPopoverPosition();
+    };
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [showCalendar]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setShowCalendar(false);
+      const t = event.target as Node;
+      if (
+        calendarRef.current?.contains(t) ||
+        triggerRef.current?.contains(t)
+      ) {
+        return;
       }
+      setShowCalendar(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   const handleDateClick = (selectedDate: Date) => {
     const formattedDate = selectedDate
       ? format(selectedDate, "yyyy-MM-dd")
@@ -60,15 +105,24 @@ const DatePicker = ({
       month: "long",
       year: "numeric",
     });
+    const minW = Math.max(popoverPos.width, 280);
 
     return (
       <motion.div
+        key="date-picker-popover"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
         ref={calendarRef}
-        className="absolute  shadow-lg rounded-lg bg-white dark:bg-slate-700 p-4 z-10 w-full sm:w-auto"
+        style={{
+          position: "fixed",
+          top: popoverPos.top,
+          left: popoverPos.left,
+          minWidth: minW,
+          zIndex: 100,
+        }}
+        className="shadow-lg rounded-lg bg-white dark:bg-slate-700 p-4 border border-border"
       >
         <div className="flex items-center justify-between mb-4">
           <button
@@ -100,10 +154,11 @@ const DatePicker = ({
             <div
               key={index}
               onClick={() => day && handleDateClick(day)}
-              className={`cursor-pointer h-8 w-8 flex items-center justify-center rounded-md ${day
-                ? "hover:bg-muted text-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-                : "pointer-events-none"
-                }`}
+              className={`cursor-pointer h-8 w-8 flex items-center justify-center rounded-md ${
+                day
+                  ? "hover:bg-muted text-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                  : "pointer-events-none"
+              }`}
             >
               {day ? day.getDate() : ""}
             </div>
@@ -114,23 +169,29 @@ const DatePicker = ({
   };
 
   return (
-    <div className="relative">
-      <Input
-        name={name}
-        type="text"
-        readOnly
-        value={value ? format(new Date(value), "dd MMM yyyy") : ""}
-        onClick={() => setShowCalendar(!showCalendar)}
-        placeholder={placeholder}
-        className=" px-10 "
-        required={required}
-      />
-      <Calendar
-        size={18}
-        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-      />
-      <AnimatePresence>{showCalendar && renderCalendar()}</AnimatePresence>
-    </div>
+    <>
+      <div ref={triggerRef} className="relative">
+        <Input
+          name={name}
+          type="text"
+          readOnly
+          value={value ? format(new Date(value), "dd MMM yyyy") : ""}
+          onClick={() => setShowCalendar(!showCalendar)}
+          placeholder={placeholder}
+          className=" px-10 "
+          required={required}
+        />
+        <Calendar
+          size={18}
+          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none"
+        />
+      </div>
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>{showCalendar && renderCalendar()}</AnimatePresence>,
+          document.body,
+        )}
+    </>
   );
 };
 

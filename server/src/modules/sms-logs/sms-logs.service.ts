@@ -444,4 +444,169 @@ export class SmsLogsService {
       body: { stats },
     };
   }
+
+  static async getStudentCountByClasses(classNames: number[]) {
+    if (!classNames || classNames.length === 0) return { totalStudents: 0, withPhone: 0, classBreakdown: {} };
+
+    const currentYear = new Date().getFullYear();
+    const enrollments = await prisma.student_enrollments.findMany({
+      where: {
+        year: currentYear,
+        class: { in: classNames },
+        student: { available: true },
+      },
+      include: {
+        student: {
+          select: {
+            father_phone: true,
+            mother_phone: true,
+          },
+        },
+      },
+    });
+
+    const uniqueGlobalPhones = new Set<string>();
+    const classBreakdown: Record<number, { total: number; withPhone: number }> = {};
+
+    for (const e of enrollments) {
+      if (!classBreakdown[e.class]) {
+        classBreakdown[e.class] = { total: 0, withPhone: 0 };
+      }
+      classBreakdown[e.class].total++;
+
+      const fPhone = (e.student.father_phone || "").trim();
+      const mPhone = (e.student.mother_phone || "").trim();
+      const phone = fPhone || mPhone;
+      
+      if (phone) {
+        const formatted = SMSService.formatPhoneNumber(phone);
+        if (formatted && formatted.length >= 10) {
+          uniqueGlobalPhones.add(formatted);
+          // Note: withPhone in breakdown is simple count of students who HAVE a phone
+          classBreakdown[e.class].withPhone++;
+        }
+      }
+    }
+
+    return { 
+      totalStudents: enrollments.length, 
+      withPhone: uniqueGlobalPhones.size, 
+      classBreakdown 
+    };
+  }
+
+  static async sendBulkSmsByClass(classNames: number[], message: string) {
+    if (!classNames || !Array.isArray(classNames) || classNames.length === 0) {
+      throw new Error("Please select at least one class.");
+    }
+    if (!message || message.trim().length === 0) {
+      throw new Error("Message content cannot be empty.");
+    }
+
+    const currentYear = new Date().getFullYear();
+    const where: any = {
+      year: currentYear,
+      class: { in: classNames },
+      student: { available: true },
+    };
+
+    const enrollments = await prisma.student_enrollments.findMany({
+      where,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            father_phone: true,
+            mother_phone: true,
+          },
+        },
+      },
+    });
+
+    if (enrollments.length === 0) {
+      throw new Error("No students found in the selected classes.");
+    }
+
+    const smsMessages: { Number: string; Text: string }[] = [];
+    const smsLogMap = new Map<string, SmsLogInfo[]>();
+    const todayStr = new Date().toISOString().split("T")[0];
+    let totalSegmentsNeeded = 0;
+
+    const smsCountPerMsg = SMSService.calculateSMSCount(message).count;
+
+    for (const enrollment of enrollments) {
+      const fPhone = (enrollment.student.father_phone || "").trim();
+      const mPhone = (enrollment.student.mother_phone || "").trim();
+      const phone = fPhone || mPhone;
+      
+      if (!phone) continue;
+
+      const formattedPhone = SMSService.formatPhoneNumber(phone);
+      if (!formattedPhone || formattedPhone.length < 10) continue;
+      
+      const smsLog = await prisma.sms_logs.create({
+        data: {
+          student_id: enrollment.student_id,
+          phone_number: phone,
+          message: message,
+          attendance_date: todayStr,
+          status: "pending",
+          sms_count: smsCountPerMsg,
+        },
+      });
+
+      if (!smsLogMap.has(formattedPhone)) {
+        smsLogMap.set(formattedPhone, []);
+        smsMessages.push({ Number: formattedPhone, Text: message });
+        totalSegmentsNeeded += smsCountPerMsg;
+      }
+      
+      smsLogMap.get(formattedPhone)!.push({
+        smsLogId: smsLog.id,
+        studentId: enrollment.student_id,
+        attendanceDate: todayStr,
+        studentName: enrollment.student.name,
+      });
+    }
+
+    if (smsMessages.length === 0) {
+      throw new Error("No valid phone numbers found for the selected students.");
+    }
+
+    const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
+    if (!isReserved) {
+      // Cleanup pending logs
+      const logIds = Array.from(smsLogMap.values()).flat().map(l => l.smsLogId);
+      await prisma.sms_logs.deleteMany({ where: { id: { in: logIds } } });
+      throw new Error("Insufficient SMS balance.");
+    }
+
+    try {
+      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
+      
+      if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
+        const processRes = await this.processBatchResults(bulkSmsResponse.data.results, smsLogMap);
+        
+        let totalActualUsed = 0;
+        for (const res of bulkSmsResponse.data.results) {
+          totalActualUsed += (res.sms_count || 1);
+        }
+        const refund = totalSegmentsNeeded - totalActualUsed;
+        if (refund > 0) {
+          await SmsSettingsService.updateBalance(refund);
+        }
+        return processRes;
+      } else {
+        await SmsSettingsService.updateBalance(totalSegmentsNeeded);
+        const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
+        const failRes = await this.handleCatastrophicFailure(smsLogMap, errorReason);
+        return failRes;
+      }
+    } catch (error: any) {
+      await SmsSettingsService.updateBalance(totalSegmentsNeeded);
+      const failRes = await this.handleCatastrophicFailure(smsLogMap, error.message || "Unknown SMS Error");
+      return failRes;
+    }
+  }
 }

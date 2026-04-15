@@ -1,4 +1,6 @@
 import { prisma } from "../config/prisma.js";
+import { SubjectService } from "../modules/result/subject/subject.service.js";
+import { MarksService } from "../modules/marks/marks.service.js";
 
 export const passStatusController = async (req, res) => {
   try {
@@ -16,7 +18,13 @@ export const passStatusController = async (req, res) => {
       where: { year: parseInt(year) },
       include: {
         student: true,
-        marks: true,
+        marks: {
+          include: {
+            subject: {
+              include: { parent: true }
+            }
+          }
+        },
       },
     });
 
@@ -28,32 +36,38 @@ export const passStatusController = async (req, res) => {
       });
     }
 
+    // Pre-calculate bonus status for all classes in this year to avoid redundant DB calls
+    const classBonusStatus = {};
+    const classes = [...new Set(students.map(s => s.class))];
+    for (const c of classes) {
+      classBonusStatus[c] = await MarksService.shouldApplyFourthSubjectBonus(c, parseInt(year));
+    }
+
     for (const student of students) {
       const {
         id: enrollmentId,
         student_id: _student_id,
         class: studentClass,
-        student: studentData,
+        marks: rawMarks,
       } = student;
 
-      let failed;
-
-        const failCount = await prisma.marks.count({
-          where: {
-            enrollment_id: enrollmentId,
-            marks: { lt: 33 },
-          },
-        });
-        failed = failCount > 0;
-
-        await prisma.student_enrollments.update({
-          where: { id: enrollmentId },
-          data: { fail_count: failCount },
-        });
+      // Ensure marks have subjects included (we already included them in findMany below)
+      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
+      const { gpa, isFailed, totalMarks } = MarksService.calculateGPA(
+        processedMarks,
+        student.fourth_subject_id || null,
+        classBonusStatus[studentClass],
+        studentClass
+      );
 
       await prisma.student_enrollments.update({
         where: { id: enrollmentId },
-        data: { status: failed ? "Failed" : "Passed" },
+        data: { 
+          status: isFailed ? "Failed" : "Passed",
+          // Optionally update GPA/Total marks in the enrollment for easier merit list viewing
+          // gpa, 
+          // total_marks: totalMarks 
+        },
       });
     }
 
@@ -81,23 +95,85 @@ export const promoteStudentController = async (req, res) => {
       },
       include: {
         student: true,
-        marks: true,
+        marks: {
+          include: {
+            subject: {
+              include: { parent: true }
+            },
+          },
+        },
       },
       orderBy: [{ class: "asc" }, { group: "asc" }],
     });
 
-    // Calculate sort values for each student
-    const studentsWithMerit = students.map((student) => {
-      const totalMarks = student.marks.reduce(
-        (sum, mark) => sum + mark.marks,
-        0
+    // Check if subjects exist for the new year, if not clone them
+    const subjectsExistInNewYear = await prisma.subjects.count({
+      where: { year: newYear },
+    });
+
+    let subjectMapping = {};
+    if (subjectsExistInNewYear === 0) {
+      const cloningResult = await SubjectService.cloneSubjects(
+        parseInt(year),
+        newYear,
       );
-      const sortValue = totalMarks;
+      if (cloningResult.success) {
+        subjectMapping = cloningResult.mapping;
+      }
+    } else {
+      // If subjects already exist, we might want to build a mapping by name for 4th subjects
+      // but the requirement "if not clones" suggests we only care about auto-cloning.
+      // However, for 4th subjects to work, we need a mapping.
+      // Let's at least try to map by name/class/group if mapping is empty.
+      const currentSubjects = await prisma.subjects.findMany({ where: { year: parseInt(year) } });
+      const nextSubjects = await prisma.subjects.findMany({ where: { year: newYear } });
+      
+      currentSubjects.forEach(oldSub => {
+        const matchingNewSub = nextSubjects.find(newSub => 
+          newSub.name === oldSub.name && 
+          newSub.class === oldSub.class && 
+          newSub.group === oldSub.group
+        );
+        if (matchingNewSub) {
+          subjectMapping[oldSub.id] = matchingNewSub.id;
+        }
+      });
+    }
+
+    // Group students by class to check class-wide bonus status
+    const classBonusStatus = {};
+
+    // First pass: identify which classes should have the bonus
+    const classYears = new Set(
+      students.map((s) => `${s.class}-${s.year}`)
+    );
+    for (const cy of classYears) {
+      const [c, y] = cy.split("-");
+      classBonusStatus[cy] = await MarksService.shouldApplyFourthSubjectBonus(
+        parseInt(c),
+        parseInt(y)
+      );
+    }
+
+    // Calculate sort values (GPA) for each student
+    const studentsWithMerit = students.map((student) => {
+      const applyBonus = classBonusStatus[`${student.class}-${student.year}`];
+
+      // Format marks for calculateGPA (using MarksService.aggregatePaperMarks)
+      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
+
+      const { gpa, totalMarks, isFailed } = MarksService.calculateGPA(
+        processedMarks,
+        student.fourth_subject_id || null,
+        applyBonus,
+        student.class
+      );
 
       return {
         ...student,
         total_marks: totalMarks,
-        sort_value: sortValue,
+        gpa: gpa,
+        sort_value: gpa, // Sort by GPA primarily
       };
     });
 
@@ -124,6 +200,10 @@ export const promoteStudentController = async (req, res) => {
         if (b.sort_value !== a.sort_value) {
           return b.sort_value - a.sort_value;
         }
+        // If GPA is tied, sort by total marks
+        if (b.total_marks !== a.total_marks) {
+          return b.total_marks - a.total_marks;
+        }
         if (a.section !== b.section) {
           return a.section === "A" ? -1 : 1; // A section gets priority
         }
@@ -134,6 +214,10 @@ export const promoteStudentController = async (req, res) => {
       failedStudents.sort((a, b) => {
         if (b.sort_value !== a.sort_value) {
           return b.sort_value - a.sort_value;
+        }
+        // If GPA is tied, sort by total marks
+        if (b.total_marks !== a.total_marks) {
+          return b.total_marks - a.total_marks;
         }
         if (a.section !== b.section) {
           return a.section === "A" ? -1 : 1; // A section gets priority
@@ -254,6 +338,9 @@ export const promoteStudentController = async (req, res) => {
         console.error("Error assigning roll number:", error);
       }
 
+      const oldFourthSubjectId = student.fourth_subject_id;
+      const newFourthSubjectId = subjectMapping[oldFourthSubjectId] || null;
+
       await prisma.student_enrollments.create({
         data: {
           student_id,
@@ -263,6 +350,7 @@ export const promoteStudentController = async (req, res) => {
           year: newYear,
           status: "Pending",
           group,
+          fourth_subject_id: newFourthSubjectId,
         },
       });
     }

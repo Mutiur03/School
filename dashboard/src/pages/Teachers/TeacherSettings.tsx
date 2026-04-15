@@ -20,6 +20,7 @@ import {
     ShieldCheck,
     CheckCircle2,
     XCircle,
+    PenTool,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
@@ -29,7 +30,9 @@ export default function TeacherSettings() {
     const teacher = user as TeacherUser;
     const [activeTab, setActiveTab] = useState("profile");
     const [uploading, setUploading] = useState(false);
+    const [uploadingSignature, setUploadingSignature] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const signatureInputRef = useRef<HTMLInputElement>(null);
 
     const tabs: TabItem[] = [
         { id: "profile", label: "Profile", icon: <User size={16} /> },
@@ -87,6 +90,55 @@ export default function TeacherSettings() {
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please select an image file for your signature");
+            return;
+        }
+        if (file.size > 1 * 1024 * 1024) {
+            toast.error("Signature image should be less than 1MB");
+            return;
+        }
+
+        setUploadingSignature(true);
+        try {
+            const extension = file.name.split(".").pop();
+            const key = `${teacher.id}-signature-${Date.now()}.${extension}`;
+            
+            const { data: urlData } = await axios.post("/api/teachers/signature/upload-url", {
+                id: teacher.id,
+                key,
+                contentType: file.type,
+            });
+
+            if (!urlData.success) throw new Error(urlData.message);
+
+            await axios.put(urlData.data.uploadUrl, file, {
+                headers: { "Content-Type": file.type },
+            });
+
+            const { data: saveData } = await axios.put(`/api/teachers/${teacher.id}/signature`, {
+                key: urlData.data.key,
+            });
+
+            if (saveData.success) {
+                toast.success("Digital signature updated successfully");
+                await checkAuth(); 
+            } else {
+                throw new Error(saveData.message);
+            }
+        } catch (err: any) {
+            console.error("Signature upload error:", err);
+            toast.error(err.response?.data?.message || err.message || "Failed to upload signature");
+        } finally {
+            setUploadingSignature(false);
+            if (signatureInputRef.current) signatureInputRef.current.value = "";
         }
     };
 
@@ -174,6 +226,76 @@ export default function TeacherSettings() {
                                     </p>
                                 </div>
                             </SectionCard>
+
+                            <SectionCard title="Digital Signature" icon={<PenTool size={18} />}>
+                                <div className="flex flex-col sm:flex-row items-center gap-8 py-4">
+                                    <div className="relative group shrink-0">
+                                        <div className="w-40 h-24 rounded-xl overflow-hidden border-2 border-dashed border-border flex items-center justify-center bg-muted/30 transition-all group-hover:bg-muted/50">
+                                            {teacher.signature ? (
+                                                <img 
+                                                    src={getFileUrl(teacher.signature)} 
+                                                    alt="Teacher Signature" 
+                                                    className="max-w-full max-h-full object-contain p-2"
+                                                />
+                                            ) : (
+                                                <PenTool size={32} className="text-muted-foreground/20" />
+                                            )}
+                                            {uploadingSignature && (
+                                                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                                                    <Loader2 className="animate-spin text-primary h-8 w-8" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button 
+                                            onClick={() => signatureInputRef.current?.click()}
+                                            disabled={uploadingSignature}
+                                            className="absolute -bottom-2 -right-2 p-2 bg-primary text-white rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                            title="Update Signature"
+                                        >
+                                            <PenTool size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="font-bold text-foreground">Official Signature</h3>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            This signature will be automatically embedded in student marksheets and official transcripts. Please ensure the image is clear and has a white or transparent background.
+                                        </p>
+                                        <div className="flex gap-4 pt-2">
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="h-8 text-[10px] font-black uppercase tracking-wider"
+                                                onClick={() => signatureInputRef.current?.click()}
+                                                disabled={uploadingSignature}
+                                            >
+                                                Upload New
+                                            </Button>
+                                            {teacher.signature && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-8 text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                    onClick={async () => {
+                                                        if (window.confirm("Are you sure you want to remove your digital signature?")) {
+                                                            try {
+                                                                const { data } = await axios.delete(`/api/teachers/${teacher.id}/signature`);
+                                                                if (data.success) {
+                                                                    toast.success("Signature removed");
+                                                                    await checkAuth();
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error("Failed to remove signature");
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </SectionCard>
                         </div>
                     </div>
                 )}
@@ -193,6 +315,13 @@ export default function TeacherSettings() {
                 className="hidden" 
                 accept="image/*" 
                 onChange={handleImageUpload} 
+            />
+            <input 
+                type="file" 
+                ref={signatureInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleSignatureUpload} 
             />
         </div>
     );

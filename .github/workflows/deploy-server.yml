@@ -21,6 +21,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub (To prevent rate limits)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -50,6 +59,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Stable scope so Chromium/apt layer + BuildKit caches reuse across pushes (not mixed with other workflows).
+          cache-from: type=gha,scope=school-server
+          cache-to: type=gha,mode=max,scope=school-server
 
   prepare-server:
     needs: build-and-push
@@ -74,8 +86,9 @@ jobs:
             # Login to GHCR (once for both deployments)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Get image name
-            IMAGE_NAME=$(echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | grep ":latest" || echo "${{ needs.build-and-push.outputs.image_name }}" | tr ',' '\n' | head -n 1)
+            # Get image name (lowercased repository)
+            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_NAME="ghcr.io/$REPO:latest"
 
             echo "Pulling image: $IMAGE_NAME"
             docker pull $IMAGE_NAME

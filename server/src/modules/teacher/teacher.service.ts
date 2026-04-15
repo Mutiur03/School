@@ -249,6 +249,24 @@ export class TeacherService {
     return result;
   }
 
+  static async saveTeacherSignature(id: number, key: string | null) {
+    const existingTeacher = await prisma.teachers.findUnique({
+      where: { id },
+    });
+    if (!existingTeacher) {
+      throw new ApiError(404, "Teacher not found");
+    }
+    if (existingTeacher.signature) {
+      await deleteFromR2(existingTeacher.signature);
+    }
+    const result = await prisma.teachers.update({
+      where: { id },
+      data: { signature: key || null },
+    });
+
+    return result;
+  }
+
   static async changePassword(teacherId: number, currentPassword: string, newPassword: string) {
     const teacher = await prisma.teachers.findUnique({
       where: { id: teacherId },

@@ -32,6 +32,12 @@ router.put(
   SubjectController.updateSubController,
 );
 
+router.post(
+  "/clone",
+  AuthMiddleware.authenticate(["admin"]),
+  SubjectController.cloneSubController,
+);
+
 const subjectRouter = express.Router();
 subjectRouter.use("/api/sub", router);
 export default subjectRouter;

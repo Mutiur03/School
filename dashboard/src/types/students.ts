@@ -20,6 +20,10 @@ export interface Student {
   available: boolean;
   image?: string;
   enrollment_id: number;
+  fourth_subject_id?: number | null;
+  final_merit?: number;
+  next_year_roll?: number;
+  next_year_section?: string;
 }
 
 

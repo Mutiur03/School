@@ -143,23 +143,26 @@ model students {
 }
 
 model student_enrollments {
-  id                Int      @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   student_id        Int
   class             Int
   roll              Int
-  section           String   @db.Char(1)
+  section           String    @db.Char(1)
   year              Int
-  group             String?  @db.VarChar(100)
-  fail_count        Int      @default(0)
-  status            String   @default("Passed") @db.VarChar(100)
-  final_merit       Int      @default(0)
-  next_year_roll    Int      @default(0)
-  next_year_section String?  @db.Char(1)
-  created_at        DateTime @default(now())
+  group             String?   @db.VarChar(100)
+  fail_count        Int       @default(0)
+  status            String    @default("Passed") @db.VarChar(100)
+  final_merit       Int       @default(0)
+  next_year_roll    Int       @default(0)
+  next_year_section String?   @db.Char(1)
+  created_at        DateTime  @default(now())
+  fourth_subject_id Int?
   marks             marks[]
   student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
   school_id         Int?
   school            School?  @relation(fields: [school_id], references: [id])
+  fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
+  student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, class, year])
   @@index([student_id])
@@ -237,6 +240,7 @@ model teachers {
   available    Boolean    @default(true)
   created_at   DateTime   @default(now())
   tokenVersion Int        @default(0)
+  signature    String?
   head_msgs    head_msg[]
   levels       levels[]
   school_id    Int?
@@ -282,30 +286,29 @@ model levels {
 }
 
 model subjects {
-  id                  Int        @id @default(autoincrement())
-  name                String     @db.VarChar(100)
-  class               Int
-  full_mark           Int        @default(0)
-  pass_mark           Int        @default(0)
-  cq_mark             Int        @default(0)
-  mcq_mark            Int        @default(0)
-  practical_mark      Int        @default(0)
-  cq_pass_mark        Int        @default(0)
-  mcq_pass_mark       Int        @default(0)
-  practical_pass_mark Int        @default(0)
-  year                Int        @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
-  group               String?    @db.VarChar(100)
-  created_at          DateTime   @default(now())
-  assessment_type     String     @default("exam")
-  parent_id           Int?
-  priority            Int        @default(0)
-  subject_type        String     @default("single")
-  marking_scheme      MarkingScheme @default(TOTAL)
-  marks               marks[]
-  parent              subjects?  @relation("SubjectHierarchy", fields: [parent_id], references: [id])
-  children            subjects[] @relation("SubjectHierarchy")
-  school_id           Int?
-  school              School?    @relation(fields: [school_id], references: [id])
+  id                    Int                   @id @default(autoincrement())
+  name                  String                @db.VarChar(100)
+  class                 Int
+  full_mark             Int                   @default(0)
+  pass_mark             Int                   @default(0)
+  cq_mark               Int                   @default(0)
+  mcq_mark              Int                   @default(0)
+  practical_mark        Int                   @default(0)
+  cq_pass_mark          Int                   @default(0)
+  mcq_pass_mark         Int                   @default(0)
+  practical_pass_mark   Int                   @default(0)
+  year                  Int                   @default(dbgenerated("EXTRACT(year FROM CURRENT_DATE)"))
+  group                 String?               @db.VarChar(100)
+  created_at            DateTime              @default(now())
+  assessment_type       String                @default("exam")
+  parent_id             Int?
+  priority              Int                   @default(0)
+  subject_type          String                @default("single")
+  marking_scheme        MarkingScheme         @default(TOTAL)
+  marks                 marks[]
+  enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
+  parent                subjects?             @relation("SubjectHierarchy", fields: [parent_id], references: [id])
+  children              subjects[]            @relation("SubjectHierarchy")
 
   @@unique([name, class, group, year, school_id])
   @@index([class, year])
@@ -546,6 +549,8 @@ model ssc_reg {
   school                 School?  @relation(fields: [school_id], references: [id])
 
   @@index([school_id])
+  classmates             String?
+  classmates_source      String   @default("default")
 }
 
 model student_registration_ssc {
@@ -613,6 +618,7 @@ model student_registration_ssc {
   section_in_class_8       String?   @db.VarChar(10)
   school_id                Int?
   school                   School?   @relation(fields: [school_id], references: [id])
+  scout_status             String?   @db.VarChar(10)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -907,8 +913,10 @@ model sms_settings {
   id               Int      @id @default(autoincrement())
   present_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
   absent_template  String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) is absent from school today ({date}).\nPlease contact the school office for more info.\nThank you.\n{school_name}")
+  run_awayed_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) was present in the morning but has run awayed from school today ({date}).\nPlease check immediately.\nThank you.\n{school_name}")
   send_to_present  Boolean  @default(true)
   send_to_absent   Boolean  @default(false)
+  send_to_run_awayed Boolean  @default(true)
   is_active        Boolean  @default(true)
   sms_balance      Int      @default(0)
   api_key          String?  @db.VarChar(255)

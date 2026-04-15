@@ -74,7 +74,7 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
     menuItemsProp ??
     [
       {
-        id: "menu-item-3392",
+        id: "menu-item-home-icon",
         className:
           "nav_home menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-3390 current_page_item active menu-item-3392 nav-item",
         href: "/",
@@ -89,10 +89,10 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         href: "#",
         text: "About",
         dropdown: [
-          { id: "menu-item-3342", href: "at-a-glance", text: "At a glance" },
-          { id: "menu-item-3341", href: "at-a-glance", text: "Aims & Goals" },
-          { id: "menu-item-3385", href: "gallery", text: "Photo Gallery" },
-          { id: "menu-item-3348", href: "at-a-glance", text: "Seat Capacity" },
+          { id: "menu-item-3342", href: "/at-a-glance", text: "At a glance" },
+          { id: "menu-item-3341", href: "/at-a-glance", text: "Aims & Goals" },
+          { id: "menu-item-3385", href: "/gallery", text: "Photo Gallery" },
+          { id: "menu-item-3348", href: "/at-a-glance", text: "Seat Capacity" },
           // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
         ],
       },
@@ -104,13 +104,8 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         text: "Information",
         dropdown: [
           { id: "menu-item-3350", href: "#", text: "Administration" },
-          // { id: "menu-item-3354", href: "#", text: "List of Headmaster" },
-          // { id: "menu-item-3356", href: "#", text: "List of Assistant Headmaster" },
-          { id: "menu-item-3657", href: "teacher-list", text: "Teacher List" },
-          { id: "menu-item-3357", href: "staff-list", text: "Staff Info" },
-          // { id: "menu-item-3353", href: "#", text: "Famous" },
-          // { id: "menu-item-3351", href: "#", text: "Ex Students" },
-          // { id: "menu-item-3352", href: "#", text: "Ex Teachers" }
+          { id: "menu-item-3657", href: "/teacher-list", text: "Teacher List" },
+          { id: "menu-item-3357", href: "/staff-list", text: "Staff Info" },
         ],
       },
       // {
@@ -164,90 +159,82 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         text: "Academic",
         dropdown: [
           { id: "menu-item-3374", href: "#", text: "Creative Learning" },
-          { id: "menu-item-3376", href: "exam-routine", text: "Exam schedule" },
+          { id: "menu-item-3376", href: "/exam-routine", text: "Exam schedule" },
           {
             id: "menu-item-3371",
             href: "#",
             text: "Academic Calender",
           },
           { id: "menu-item-3382", href: "#", text: "Vacation Calendar" },
-          // { id: "menu-item-3381", href: "#", text: "Students Must Follow" },
-          // { id: "menu-item-3372", href: "#", text: "School Time" },
-          // { id: "menu-item-3373", href: "#", text: "School Uniform" },
           { id: "menu-item-3378", href: "#", text: "Library" },
           { id: "menu-item-3377", href: "#", text: "Laboratory" },
-          // { id: "menu-item-3379", href: "#", text: "Physical Exercise" }
         ],
       },
       {
-        id: "menu-item-3542",
+        id: "menu-item-3545",
         className:
-          "nav_darkred menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3542 nav-item",
+          "nav_darkred menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3545 nav-item",
         href: "#",
         text: "Notices",
         dropdown: [
           {
             id: "menu-item-3543",
-            href: "notices",
+            href: "/notices",
             text: "Official Notices",
             className:
               "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item",
           },
           {
             id: "menu-item-3544",
-            href: "events",
+            href: "/events",
             text: "Events",
             className:
               "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item",
           },
-          // { id: "menu-item-3545", href: "#", text: "NOC", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3545 nav-item" },
-          // { id: "menu-item-3546", href: "#", text: "Tender", className: "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3546 nav-item" }
         ],
       },
       {
         id: "menu-item-3386",
         className:
           "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item",
-        // href: "admission",
-        // text: "Admission"
         href: "#",
         text: "Admission",
         dropdown: [
           {
             id: "menu-item-3387",
-            href: "admission/notice",
+            href: "/admission/notice",
             text: "Admission Notice",
           },
-          { id: "menu-item-3388", href: "admission", text: "Admission Form" },
+          { id: "menu-item-3388", href: "/admission", text: "Admission Form" },
           {
             id: "menu-item-3389",
-            href: "admission/results",
+            href: "/admission/results",
             text: "Admission Result",
             hasChildren: true,
             subDropdown: [
               {
-                id: "menu-item-3392",
-                href: "admission/results",
+                id: "menu-item-all-admission-results",
+                href: "/admission/results",
                 text: "All Results",
               },
               {
                 id: "menu-item-3393",
-                href: "admission/result/6",
+                href: "/admission/result/6",
                 text: "Class 6",
               },
               {
                 id: "menu-item-3394",
-                href: "admission/result/7",
+                href: "/admission/result/7",
                 text: "Class 7",
               },
               {
                 id: "menu-item-3395",
-                href: "admission/result/8",
+                href: "/admission/result/8",
                 text: "Class 8",
               },
               {
                 id: "menu-item-3396",
-                href: "admission/result/9",
+                href: "/admission/result/9",
                 text: "Class 9",
               },
             ],
@@ -257,13 +244,13 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
       {
         id: "menu-item-3540",
         className:
-          "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3540 nav-item",
+          "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3540 nav-item",
         href: "#",
         text: "Registration",
         dropdown: [
-          { id: "menu-item-3547", href: "reg/ssc", text: "Class Nine" },
-          { id: "menu-item-3548", href: "registration/class-8", text: "Class Eight" },
-          { id: "menu-item-3549", href: "registration/class-6", text: "Class Six" },
+          { id: "menu-item-3547", href: "/registration/class-9", text: "Class Nine" },
+          { id: "menu-item-3548", href: "/registration/class-8", text: "Class Eight" },
+          { id: "menu-item-3549", href: "/registration/class-6", text: "Class Six" },
         ],
       },
       {
@@ -273,13 +260,23 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
         href: String(school?.links?.results ?? "#"),
         text: "Results",
       },
-
       {
         id: "menu-item-3384",
         className:
           "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item",
-        href: "at-a-glance",
+        href: "/at-a-glance",
         text: "Contact",
+      },
+      {
+        id: "menu-item-3542",
+        className:
+          "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left",
+        href: "#",
+        text: "Login",
+        dropdown: [
+          { id: "menu-item-3548", href: String(school?.links?.teacherLogin ?? "#"), text: "Teacher" },
+          { id: "menu-item-3549", href: String(school?.links?.studentLogin ?? "#"), text: "Student" },
+        ],
       },
     ];
 

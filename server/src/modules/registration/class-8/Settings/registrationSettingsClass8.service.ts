@@ -61,7 +61,20 @@ export class RegistrationSettingsClass8Service {
     const class8Reg = await prisma.class8_reg.findFirst();
 
     if (!class8Reg) {
-      throw new ApiError(404, "Class Eight Registration settings not found");
+      return {
+        id: 0,
+        a_sec_roll: null,
+        b_sec_roll: null,
+        class8_year: new Date().getFullYear(),
+        reg_open: false,
+        instruction_for_a: "Please follow the instructions carefully",
+        instruction_for_b: "Please follow the instructions carefully",
+        attachment_instruction: "Please attach all required documents",
+        notice: null,
+        classmates: null,
+        classmates_source: "default",
+        resolvedClassmates: "",
+      };
     }
 
     let resolvedClassmates = class8Reg.classmates;

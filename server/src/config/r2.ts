@@ -20,11 +20,13 @@ const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 const r2Client = new S3Client({
   region: "auto",
   endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY_ID!,
     secretAccessKey: R2_SECRET_ACCESS_KEY!,
   },
 });
+
 
 export const getUploadUrl = async (key: string, contentType: string) => {
   const command = new PutObjectCommand({
@@ -77,8 +79,8 @@ export const abortMultipartUpload = async (key: string, uploadId: string) => {
 };
 
 export const getDownloadUrl = async (key: string) => {
-  if (process.env.R2_PUBLIC_URL) {
-    return `${process.env.R2_PUBLIC_URL}/${key}`;
+  if (env.R2_PUBLIC_URL) {
+    return `${env.R2_PUBLIC_URL}/${key}`;
   }
   const command = new GetObjectCommand({
     Bucket: R2_BUCKET_NAME,
@@ -103,14 +105,23 @@ export const deleteFromR2 = async (key: string) => {
 
 export const getFileBuffer = async (key: string) => {
   if (!key) return null;
-  const command = new GetObjectCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-  });
-  const response = await r2Client.send(command);
-  if (!response.Body) return null;
-  const bodyContents = await response.Body.transformToByteArray();
-  return Buffer.from(bodyContents);
+  try {
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+    const response = await r2Client.send(command);
+    if (!response.Body) return null;
+    const bodyContents = await response.Body.transformToByteArray();
+    return Buffer.from(bodyContents);
+  } catch (error: any) {
+    if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+      console.warn(`File not found in R2: ${key}`);
+    } else {
+      console.error(`Error fetching file from R2 (${key}):`, error);
+    }
+    return null;
+  }
 };
 
 export { r2Client };

@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Search } from "lucide-react";
+import { Search, UserMinus, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
@@ -25,7 +25,10 @@ import ErrorMessage from "@/components/ErrorMessage";
 import { getFileUrl } from "@/lib/backend";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Student } from "@/types/students";
+import type { Subject } from "@/types/subjects";
 import { useStudents } from "@/queries/students.queries";
+import { useSubjects } from "@/queries/subject.queries";
+import { useUpdateFourthSubjectMutation } from "@/queries/marks.queries";
 
 
 
@@ -40,6 +43,10 @@ const StudentRow = React.memo(
     onEdit,
     onView,
     onDelete,
+    allSubjects,
+    onFourthSubjectChange,
+    isUpdatingFourthSubject,
+    showSeniorColumns,
   }: {
     student: Student;
     isSelected: boolean;
@@ -48,6 +55,10 @@ const StudentRow = React.memo(
     onEdit: (student: Student) => void;
     onView: (student: Student) => void;
     onDelete: (student: Student) => void;
+    allSubjects: Subject[];
+    onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
+    isUpdatingFourthSubject?: boolean;
+    showSeniorColumns?: boolean;
   }) => {
     return (
       <tr key={student.id} className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
@@ -90,9 +101,39 @@ const StudentRow = React.memo(
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
           {student.section}
         </td>
-        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
-          {student.group || ""}
-        </td>
+        {showSeniorColumns && (
+          <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+            {student.group || ""}
+          </td>
+        )}
+        {showSeniorColumns && (
+          <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
+            {Number(student.class) >= 9 ? (
+              <select
+                className="px-2 py-1 border rounded bg-card text-xs focus:ring-1 focus:ring-primary outline-none min-w-[120px]"
+                value={student.fourth_subject_id || ""}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : null;
+                  onFourthSubjectChange(student.id, val);
+                }}
+                disabled={isUpdatingFourthSubject}
+              >
+                <option value="">Select 4th Sub</option>
+                {allSubjects
+                  .filter((s: Subject) => s.subject_type !== "main")
+                  .filter((s: Subject) => s.class === Number(student.class))
+                  .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
+                  .map((sub: Subject) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <span className="text-muted-foreground opacity-50">-</span>
+            )}
+          </td>
+        )}
 
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
           <div className="flex justify-end flex-wrap gap-1.5">
@@ -118,7 +159,11 @@ const StudentRow = React.memo(
   (prev, next) =>
     prev.isSelected === next.isSelected &&
     prev.student === next.student &&
-    prev.onToggleSelect === next.onToggleSelect,
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.allSubjects === next.allSubjects &&
+    prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
+    prev.onFourthSubjectChange === next.onFourthSubjectChange &&
+    prev.showSeniorColumns === next.showSeniorColumns,
 );
 
 const defaultFormValues: StudentFormData = {
@@ -206,6 +251,41 @@ function StudentList() {
   const [showFormatInfo, setShowFormatInfo] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
+  const [tcConfirmOpen, setTcConfirmOpen] = useState(false);
+
+  const { data: allSubjectsData = [] } = useSubjects();
+  const updateFourthSubjectMutation = useUpdateFourthSubjectMutation();
+
+  const tcMutation = useMutation({
+    mutationFn: async (studentId: number) => {
+      const response = await axios.post(`/api/students/${studentId}/tc`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Transfer Certificate issued successfully.");
+      invalidateStudents();
+      closePopup();
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.error || err.message || "Failed to issue Transfer Certificate";
+      toast.error(message);
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (studentId: number) => {
+      const response = await axios.post(`/api/students/${studentId}/reactivate`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Student reactivated successfully.");
+      invalidateStudents();
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.error || err.message || "Failed to reactivate student";
+      toast.error(message);
+    },
+  });
 
   const testimonialMutation = useMutation({
     mutationFn: async (studentId: number) => {
@@ -220,7 +300,7 @@ function StudentList() {
       const contentType = (response.headers["content-type"] as string) ?? "";
 
       if (!contentType.includes("application/pdf")) {
-        throw new Error("Failed to generate testimonial: Incorrect content type");
+        throw new Error("Failed to generate Certificate: Incorrect content type");
       }
 
       return { blob: response.data as Blob, headers: response.headers };
@@ -231,14 +311,14 @@ function StudentList() {
       // Note: We don't revokeObjectURL here because the new tab needs it to load.
       // Most browsers will handle the blob URL cleanup once the tab is closed
       // or after some time.
-      toast.success("Testimonial opened in new tab!");
+      toast.success("Certificate opened in new tab!");
     },
     onError: (err: any) => {
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
-        "Failed to generate testimonial";
+        "Failed to generate Certificate";
       toast.error(message);
     },
   });
@@ -278,7 +358,7 @@ function StudentList() {
   const invalidateStudents = () =>
     queryClient.invalidateQueries({ queryKey: ["students", year] });
 
-  const { data: studentsResponse, isLoading: loading, error: studentsError } = useStudents({
+  const { data: studentsResponse, isLoading: loading, error: studentsError, refetch: refetchStudents } = useStudents({
     year,
     page,
     limit,
@@ -288,6 +368,10 @@ function StudentList() {
     search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
   });
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
+
+  const showSeniorColumns = useMemo(() => {
+    return students.some((s) => Number(s.class) >= 9);
+  }, [students]);
   const meta = studentsResponse?.meta;
   const errorMessage = studentsError
     ? ((studentsError as { response?: { status?: number } }).response?.status === 404
@@ -401,6 +485,10 @@ function StudentList() {
 
   const closePopup = () =>
     setPopup({ visible: false, type: "", student: null });
+
+  const handleReactivate = useCallback((student: Student) => {
+    reactivateMutation.mutate(student.id);
+  }, [reactivateMutation]);
 
   const sortedUniqueClasses = useMemo(() => {
     return (meta?.availableClasses || []).sort((a, b) => a - b);
@@ -1466,9 +1554,10 @@ function StudentList() {
                   "Roll",
                   "Class",
                   "Section",
-                   "Group",
+                  "Group",
+                  "4th Subject",
                   "Actions",
-                ].map((header) => (
+                ].filter(header => (header !== "4th Subject" && header !== "Group") || showSeniorColumns).map((header) => (
                   <th
                     key={header}
                     className={`px-4 py-3 text-xs font-semibold text-foreground/70 uppercase tracking-wider ${header === "Actions" ? "text-center" : "text-center sm:text-left"}`}
@@ -1481,7 +1570,7 @@ function StudentList() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={showSeniorColumns ? 8 : 6} className="py-12 text-center">
                     <Loading />
                   </td>
                 </tr>
@@ -1493,15 +1582,27 @@ function StudentList() {
                     isSelected={selectedStudentIds.has(student.id)}
                     onToggleSelect={onToggleSelect}
                     onImageUpload={handleIndivisualImageUpload}
-                    onView={onViewStudent}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                        onEdit={handleEdit}
+                        onView={onViewStudent}
+                        onDelete={handleDelete}
+                        allSubjects={allSubjectsData}
+                        onFourthSubjectChange={(studentId, subjectId) => {
+                          updateFourthSubjectMutation.mutate({
+                            studentId,
+                            year,
+                            subjectId,
+                          }, {
+                             onSuccess: () => refetchStudents()
+                          });
+                        }}
+                        isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
+                        showSeniorColumns={showSeniorColumns}
+                      />
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={showSeniorColumns ? 8 : 6}
                     className="px-4 py-12 text-center text-sm text-muted-foreground dark:text-gray-400"
                   >
                     {errorMessage ||
@@ -1705,28 +1806,69 @@ function StudentList() {
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-border flex justify-between items-center">
-                <Button
-                  type="button"
-                  variant="default"
-                  disabled={testimonialMutation.isPending}
-                  onClick={() => testimonialMutation.mutate(popup.student!.id)}
-                >
-                  {testimonialMutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      Generating…
-                    </span>
-                  ) : (
-                    "Generate Testimonial"
+              <div className="px-5 py-3 border-t border-border flex flex-wrap gap-2 justify-between items-center">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={testimonialMutation.isPending}
+                    onClick={() => testimonialMutation.mutate(popup.student!.id)}
+                  >
+                    {testimonialMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        Generating…
+                      </span>
+                    ) : (
+                      "Generate Certificate"
+                    )}
+                  </Button>
+                  
+                  {popup.student.available && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 shadow-sm"
+                      disabled={tcMutation.isPending}
+                      onClick={() => setTcConfirmOpen(true)}
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" />
+                      Give TC
+                    </Button>
                   )}
-                </Button>
+
+                  {!popup.student.available && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all duration-200 shadow-sm"
+                      disabled={reactivateMutation.isPending}
+                      onClick={() => handleReactivate(popup.student!)}
+                    >
+                      <RotateCw className="w-4 h-4 mr-2" />
+                      Reactivate
+                    </Button>
+                  )}
+                </div>
+                
                 <Button onClick={closePopup} variant="outline" type="button">
                   Close
                 </Button>
+
+                <ConfirmationPopup
+                  open={tcConfirmOpen}
+                  onOpenChange={setTcConfirmOpen}
+                  onConfirm={() => {
+                    setTcConfirmOpen(false);
+                    if (popup.student) tcMutation.mutate(popup.student.id);
+                  }}
+                  confirmLabel="Confirm Issue TC"
+                  variant="destructive"
+                  msg={`Are you sure you want to issue a Transfer Certificate (TC) to ${popup.student.name}? This will mark them as inactive and they will no longer appear in active student lists.`}
+                />
               </div>
             </>
           )}

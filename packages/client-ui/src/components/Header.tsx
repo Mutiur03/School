@@ -59,7 +59,7 @@ export function Header({
               <img
                 src={image}
                 alt={`Banner ${index + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-top"
               />
               <div className="absolute inset-0 bg-black/30"></div>
             </div>
@@ -101,7 +101,7 @@ export function Header({
           )}
         </div>
 
-        <div className="absolute bottom-3 left-1/2 z-[15] flex -translate-x-1/2 gap-2">
+        <div className="absolute bottom-3 left-1/2 z-15 flex -translate-x-1/2 gap-2">
           {bannerImages.map((_, index) => (
             <button
               key={index}

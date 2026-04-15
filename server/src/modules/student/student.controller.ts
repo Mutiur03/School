@@ -139,24 +139,6 @@ export class StudentController {
     },
   );
 
-  static getStudentController = asyncHandler(
-    async (req: Request, res: Response) => {
-      if (!req.user) {
-        throw new ApiError(401, "Unauthorized");
-      }
-      const responseData = await StudentService.getStudentById(req.user.id);
-      res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            responseData,
-            "Student details fetched successfully",
-          ),
-        );
-    },
-  );
-
   static addStudentController = asyncHandler(
     async (req: Request, res: Response) => {
       const parsedRequest = addStudentsRequestSchema.safeParse(req.body);
@@ -416,6 +398,46 @@ export class StudentController {
         `attachment; filename="${filename}"`,
       );
       res.status(200).send(pdfBuffer);
+    },
+  );
+
+  static giveTransferCertificateController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedId = enrollmentIdParamSchema.safeParse(req.params.id);
+      if (!parsedId.success) {
+        throw new ApiError(400, "Invalid student id", parsedId.error.issues);
+      }
+
+      const result = await StudentService.giveTransferCertificate(parsedId.data);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Transfer Certificate issued successfully. Student marked as inactive.",
+          ),
+        );
+    },
+  );
+
+  static reactivateStudentController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const parsedId = enrollmentIdParamSchema.safeParse(req.params.id);
+      if (!parsedId.success) {
+        throw new ApiError(400, "Invalid student id", parsedId.error.issues);
+      }
+
+      const result = await StudentService.reactivateStudent(parsedId.data);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Student reactivated successfully.",
+          ),
+        );
     },
   );
 }

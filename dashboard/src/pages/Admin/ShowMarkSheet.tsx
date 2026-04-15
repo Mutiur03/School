@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import Loading from "@/components/Loading";
+
 interface ExamMarks {
   [examName: string]: number;
 }
@@ -10,6 +11,7 @@ interface MarksheetEntry {
   student_name: string;
   roll: string;
   class: string;
+  section: string;
   year: string;
   subject: string;
   exam_marks: ExamMarks;
@@ -51,8 +53,12 @@ function ShowMarkSheet() {
   const handleDownloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const host = import.meta.env.VITE_BACKEND_URL;
-      const url = `${host}/api/marks/${studentId}/${year}/download`;
+      const response = await axios.get(
+        `/api/marks/${studentId}/${year}/download`,
+        { responseType: "blob" }
+      );
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
     } catch {
       alert("Failed to download PDF. Please try again.");
@@ -103,6 +109,12 @@ function ShowMarkSheet() {
                 <span className="text-muted-foreground">Class:</span>{" "}
                 <span className="text-foreground">
                   {marksheet[0]?.class || "N/A"}
+                </span>
+              </p>
+              <p className="font-medium">
+                <span className="text-muted-foreground">Section:</span>{" "}
+                <span className="text-foreground">
+                  {marksheet[0]?.section || "N/A"}
                 </span>
               </p>
               <p className="font-medium">

@@ -136,14 +136,81 @@ export class TeacherController {
         throw new ApiError(403, "You can only update your own image");
       }
 
-      const result = await TeacherService.saveTeacherImage(
-        teacherId,
-        key,
-      );
+      const result = await TeacherService.saveTeacherImage(teacherId, key);
       res
         .status(200)
         .json(
           new ApiResponse(200, result, "Teacher image updated successfully"),
+        );
+    },
+  );
+
+  static getTeacherSignatureUploadUrlController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id, key, contentType } = req.body;
+
+      if (!id || !key || !contentType) {
+        throw new ApiError(400, "id, key, and contentType are required");
+      }
+
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own signature");
+      }
+
+      await TeacherService.getTeacherById(teacherId);
+
+      const r2Key = `signatures/${key}`;
+      const uploadUrl = await getUploadUrl(r2Key, contentType);
+      res.json(
+        new ApiResponse(
+          200,
+          { uploadUrl, key: r2Key },
+          "Upload URL generated successfully",
+        ),
+      );
+    },
+  );
+
+  static saveTeacherSignatureController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const { key } = req.body;
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own signature");
+      }
+
+      const result = await TeacherService.saveTeacherSignature(teacherId, key);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Teacher signature updated successfully",
+          ),
+        );
+    },
+  );
+
+  static removeTeacherSignatureController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const teacherId = parseInt(id as string);
+      if (req.user?.role === "teacher" && req.user.id !== teacherId) {
+        throw new ApiError(403, "You can only update your own signature");
+      }
+
+      const result = await TeacherService.saveTeacherSignature(teacherId, null);
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            result,
+            "Teacher signature removed successfully",
+          ),
         );
     },
   );

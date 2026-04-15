@@ -19,8 +19,7 @@ export function MainLayout({
   const location = useLocation();
 
   const routesWithoutSidebar = [
-    "/registration/ssc",
-    "/reg/ssc",
+    "/registration/class-9",
     // "/registration/class-6/form",
     // "/registration/class-6/form/:id",
     "/registration/class-6",

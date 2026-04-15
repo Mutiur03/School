@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense, lazy } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -7,58 +7,65 @@ import PrivateRoute from "./components/PrivateRoute.tsx";
 import TeacherRoute from "./components/TeacherRoute.tsx";
 import StudentRoute from "./components/StudentRoute.tsx";
 import axios from "axios";
-import { Class6PdfPreview, Class8PdfPreview } from "@school/common-ui";
+import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/common-ui";
 
 import backend from "./lib/backend.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import envPreferredRole from "./lib/role.ts";
 import Loading from "./components/Loading.tsx";
+import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
+// Normal imports
+import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
+import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, StayCheck, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
+import { StudentDashboard, Result } from "./pages/Students/index.ts";
+// Normal imports end
 
 // --- Lazy-loaded Components ---
 
 // Admin Pages
-const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
-const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
-const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
-const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
-const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
-const Attendence = lazy(() => import("./pages/Admin/Attendence"));
-const Notice = lazy(() => import("./pages/Admin/Notice"));
-const Holidays = lazy(() => import("./pages/Admin/Holidays"));
-const Events = lazy(() => import("./pages/Admin/Events"));
-const Gallery = lazy(() => import("./pages/Admin/Gallery"));
-const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
-const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
-const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
-const StudentList = lazy(() => import("./pages/Admin/StudentList"));
-const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
-const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
-const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
-const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
-const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
-const Head = lazy(() => import("./pages/Admin/Head"));
-const StaffList = lazy(() => import("./pages/Admin/StaffList"));
-const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
-const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
-const Admission = lazy(() => import("./pages/Admin/Admission"));
-const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
-const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
-const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
-const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
-const SSCRegForm = lazy(() => import("./pages/Admin/SSCRegForm"));
-const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
-const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
+// const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
+// const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
+// const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
+// const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
+// const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
+// const Attendence = lazy(() => import("./pages/Admin/Attendence"));
+// const Notice = lazy(() => import("./pages/Admin/Notice"));
+// const Holidays = lazy(() => import("./pages/Admin/Holidays"));
+// const Events = lazy(() => import("./pages/Admin/Events"));
+// const Gallery = lazy(() => import("./pages/Admin/Gallery"));
+// const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
+// const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
+// const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
+// const StudentList = lazy(() => import("./pages/Admin/StudentList"));
+// const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
+// const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
+// const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
+// const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
+// const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
+// const Head = lazy(() => import("./pages/Admin/Head"));
+// const StaffList = lazy(() => import("./pages/Admin/StaffList"));
+// const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
+// const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
+// const Admission = lazy(() => import("./pages/Admin/Admission"));
+// const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
+// const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
+// const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
+// const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
+// const SSCRegForm = lazy(() => import("./pages/Admin/SSCRegForm"));
+// const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
+// const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
 
-// Teacher Pages
-const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard.tsx"));
-const TeacherSettings = lazy(() => import("./pages/Teachers/index.ts").then(m => ({ default: m.TeacherSettings })));
+// // Teacher Pages
+// const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard.tsx"));
+// const TeacherSettings = lazy(() => import("./pages/Teachers/index.ts").then(m => ({ default: m.TeacherSettings })));
 
-// Student Pages
-const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard.tsx"));
-const Result = lazy(() => import("./pages/Students/Result.tsx"));
+// // Student Pages
+// const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard.tsx"));
+// const Result = lazy(() => import("./pages/Students/Result.tsx"));
+// Lazy import ends
 
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth >= 768);
@@ -105,10 +112,11 @@ function App() {
         toastOptions={{ style: { marginTop: "50px" } }}
       />
       <div className="flex flex-col h-screen">
-        <Suspense fallback={<div className="flex items-center justify-center h-screen bg-background"><Loading /></div>}>
+        <Suspense fallback={<><TopLoadingBar /><div className="flex items-center justify-center h-screen bg-background"><Loading /></div></>}>
           <Routes>
             <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
             <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
+            <Route path="/preview/class9/:id" element={<Class9PdfPreview />} />
 
             {/* CASE 1: envPreferredRole IS PRESENT */}
             {envPreferredRole && (
@@ -144,7 +152,7 @@ function App() {
             )}
 
             {/* ROLE SPECIFIC PROTECTED ROUTES */}
-            
+
             {/* Teacher Routes */}
             {user?.role === "teacher" && (!envPreferredRole || envPreferredRole === 'teacher') && (
               <Route path="/teacher/*" element={
@@ -157,7 +165,9 @@ function App() {
                         <Route path="/dashboard" element={<TeacherDashboard />} />
                         <Route path="/settings" element={<TeacherSettings />} />
                         <Route path="/mark-management" element={<AddMarks />} />
+                        <Route path="/result/view-marks" element={<ViewMarks />} />
                         <Route path="/attendance" element={<Attendence />} />
+                        <Route path="/attendance-double" element={<StayCheck />} />
                         <Route path="*" element={<Navigate to="/teacher/dashboard" />} />
                       </Routes>
                     </div>
@@ -210,6 +220,7 @@ function App() {
                         <Route path="/result/assigned-teachers" element={<AddLevel />} />
                         <Route path="/result/customize-result" element={<UpdateStatus />} />
                         <Route path="/attendance" element={<Attendence />} />
+                        <Route path="/attendance-double" element={<StayCheck />} />
                         <Route path="/sms-management" element={<SmsManagement />} />
                         <Route path="/notice" element={<Notice />} />
                         <Route path="/holiday" element={<Holidays />} />
@@ -222,7 +233,7 @@ function App() {
                         <Route path="/gallery/upload" element={<Gallery />} />
                         <Route path="/gallery/pending" element={<PendingImages />} />
                         <Route path="/gallery/rejected" element={<RejectedImages />} />
-                        <Route path="/registration/ssc" element={<SSCRegForm />} />
+                        <Route path="/registration/class-9" element={<Class9RegForm />} />
                         <Route path="/registration/class-6" element={<Class6RegForm />} />
                         <Route path="/registration/class-8" element={<Class8RegForm />} />
                         <Route path="*" element={<Navigate to="/admin/dashboard" />} />
