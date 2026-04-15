@@ -1,0 +1,104 @@
+footer.site-footer.footer {
+    width: 100%;
+    background-color: #333;
+    color: #FFF;
+}
+
+.footer-site-info.site-info {
+    background: #333;
+    color: #FFF;
+    padding: 20px;
+    border-top: 1px solid #b2b2b2;
+}
+
+.footer-site-info.site-info a,
+.footer-site-info.site-info a:hover {
+    color: #b2b2b2;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.container {
+    max-width: 1170px;
+    margin: 0 auto;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.copy-right {
+    margin: 0 auto;
+    text-align: center;
+}
+
+.copy-right p {
+    padding-bottom: 0px;
+    margin-bottom: 0px;
+    color: #fff;
+}
+
+.copyright-text a {
+    color: #f00a77;
+}
+
+/* Scroll to top button */
+#scroll-top {
+    position: fixed;
+    bottom: 50px;
+    right: 50px;
+    width: 50px;
+    height: 50px;
+    background-color: rgba(1, 134, 240, 0.61);
+    background-color: #E91E639c;
+    text-align: center;
+    border: 1px solid #E91E63;
+    color: #FFF;
+    display: none;
+    z-index: 8;
+    padding-top: 4px;
+    font-size: 23px;
+    border-radius: 2px;
+}
+
+/* FontAwesome icons */
+.fa {
+    display: inline-block;
+    font: normal normal normal 14px/1 FontAwesome;
+    font-size: inherit;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.fa-angle-up:before {
+    content: "\f106";
+}
+
+@media (max-width: 767px) {
+    .container {
+        padding-right: 10px;
+        padding-left: 10px;
+    }
+    
+    #scroll-top {
+        bottom: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        padding-top: 2px;
+    }
+}
+
+@media (min-width: 768px) {
+    .container {
+        max-width: 980px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .container {
+        width: 960px;
+    }
+}
