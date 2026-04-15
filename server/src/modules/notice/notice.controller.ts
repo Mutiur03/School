@@ -1,67 +1,93 @@
 import { Request, Response } from "express";
 import { NoticeService } from "./notice.service.js";
+import asyncHandler from "@/utils/asyncHandler.js";
+import { ApiResponse } from "@/utils/ApiResponse.js";
+import { ApiError } from "@/utils/ApiError.js";
 
 const service = new NoticeService();
 
-export const getPresignedUrlController = async (req: Request, res: Response) => {
-  try {
+export const getPresignedUrlController = asyncHandler(
+  async (req: Request, res: Response) => {
     const { filename, contentType } = req.query;
-    if (!filename || !contentType) {
-      return res.status(400).json({ error: "filename and contentType are required" });
-    }
-    const result = await service.getPresignedUploadUrl(filename as string, contentType as string);
-    return res.json(result);
-  } catch (error: any) {
-    console.error("Error generating presigned URL:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-};
 
-export const addNoticeController = async (req: Request, res: Response) => {
-  try {
+    if (typeof filename !== "string" || typeof contentType !== "string") {
+      throw new ApiError(400, "filename and contentType are required");
+    }
+
+    const result = await service.getPresignedUploadUrl(filename, contentType);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, result, "Presigned URL generated successfully"),
+      );
+  },
+);
+
+export const addNoticeController = asyncHandler(
+  async (req: Request, res: Response) => {
     const { title, key, created_at } = req.body;
     if (!title || !key) {
-      return res.status(400).json({ error: "title and key are required" });
+      throw new ApiError(400, "title and key are required");
     }
+
     const result = await service.createNotice({ title, key, created_at });
-    return res.status(201).json(result);
-  } catch (error: any) {
-    console.error("Error adding notice:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-};
+    return res
+      .status(201)
+      .json(new ApiResponse(201, result, "Notice added successfully"));
+  },
+);
 
-export const getNoticesController = async (req: Request, res: Response) => {
-  try {
+export const getNoticesController = asyncHandler(
+  async (req: Request, res: Response) => {
     const { limit } = req.query;
-    const take = limit !== undefined ? parseInt(limit as string, 10) : undefined;
-    const result = await service.getNotices(take);
-    res.json(result);
-  } catch (error: any) {
-    console.error("Error fetching notices:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
+    const take =
+      limit !== undefined ? parseInt(limit as string, 10) : undefined;
 
-export const updateNoticeController = async (req: Request, res: Response) => {
-  try {
+    if (limit !== undefined && Number.isNaN(take)) {
+      throw new ApiError(400, "limit must be a valid number");
+    }
+
+    const result = await service.getNotices(take);
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, "Notices fetched successfully"));
+  },
+);
+
+export const updateNoticeController = asyncHandler(
+  async (req: Request, res: Response) => {
     const { id } = req.params;
     const { title, key, created_at } = req.body;
-    const result = await service.updateNotice(parseInt(id as string), { title, key, created_at });
-    res.json(result);
-  } catch (error: any) {
-    console.error("Error updating notice:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-};
 
-export const deleteNoticeController = async (req: Request, res: Response) => {
-  try {
+    const parsedId = parseInt(id as string, 10);
+    if (Number.isNaN(parsedId)) {
+      throw new ApiError(400, "Invalid notice id");
+    }
+
+    const result = await service.updateNotice(parsedId, {
+      title,
+      key,
+      created_at,
+    });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, "Notice updated successfully"));
+  },
+);
+
+export const deleteNoticeController = asyncHandler(
+  async (req: Request, res: Response) => {
     const { id } = req.params;
-    await service.deleteNotice(parseInt(id as string));
-    res.json({ message: "Notice deleted successfully" });
-  } catch (error: any) {
-    console.error("Error deleting notice:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-};
+
+    const parsedId = parseInt(id as string, 10);
+    if (Number.isNaN(parsedId)) {
+      throw new ApiError(400, "Invalid notice id");
+    }
+
+    await service.deleteNotice(parsedId);
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Notice deleted successfully"));
+  },
+);

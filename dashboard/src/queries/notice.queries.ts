@@ -15,7 +15,7 @@ export const useNotices = () => {
     queryKey: ["notices"],
     queryFn: async () => {
       const response = await axios.get("/api/notices/getNotices");
-      return response.data;
+      return response.data.data;
     },
   });
 };

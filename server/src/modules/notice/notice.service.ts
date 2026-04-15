@@ -1,6 +1,7 @@
 import { prisma } from "@/config/prisma.js";
 import { redis } from "@/config/redis.js";
 import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
+import { ApiError } from "@/utils/ApiError.js";
 import {
   LONG_TERM_CACHE_TTL,
   SHORT_TERM_CACHE_TTL,
@@ -60,7 +61,7 @@ export class NoticeService {
     data: { title?: string; key?: string; created_at?: string },
   ) {
     const existing = await prisma.notices.findUnique({ where: { id } });
-    if (!existing) throw new Error("Notice not found");
+    if (!existing) throw new ApiError(404, "Notice not found");
 
     let updateData: any = { ...data };
     delete updateData.key;
@@ -89,7 +90,7 @@ export class NoticeService {
 
   async deleteNotice(id: number) {
     const existing = await prisma.notices.findUnique({ where: { id } });
-    if (!existing) throw new Error("Notice not found");
+    if (!existing) throw new ApiError(404, "Notice not found");
 
     await prisma.notices.delete({ where: { id } });
 
