@@ -59,16 +59,17 @@ export const useHeadMasterMsg = () => {
   });
 };
 
-
 export const useNotices = (limit?: number) => {
   return useQuery<NoticeItem[]>({
-    queryKey: limit !== undefined ? ["notices", "limited", limit] : ["notices", "all"],
+    queryKey:
+      limit !== undefined ? ["notices", "limited", limit] : ["notices", "all"],
     queryFn: async () => {
-      const url = limit !== undefined
-        ? `/api/notices/getNotices?limit=${limit}`
-        : "/api/notices/getNotices";
+      const url =
+        limit !== undefined
+          ? `/api/notices/getNotices?limit=${limit}`
+          : "/api/notices/getNotices";
       const response = await axios.get(url);
-      return response.data;
+      return response.data.data;
     },
   });
 };
