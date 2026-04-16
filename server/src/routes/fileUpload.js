@@ -71,6 +71,7 @@ fileUploadRouter.post(
   upload.single("pdf"),
   async (req, res) => {
     try {
+      const schoolId = req.schoolId;
       const { type } = req.body;
 
       if (!req.file) {
@@ -83,7 +84,10 @@ fileUploadRouter.post(
       let result;
 
       if (type === "citizen_charter") {
-        const existingCharter = await prisma.citizenCharter.findFirst();
+        const existingCharter = await prisma.citizenCharter.findFirst({
+          where: schoolId ? { school_id: schoolId } : undefined,
+          orderBy: { updated_at: "desc" },
+        });
         if (existingCharter) {
           result = await prisma.citizenCharter.update({
             where: { id: existingCharter.id },
@@ -91,6 +95,7 @@ fileUploadRouter.post(
               file: previewUrl,
               download_url: downloadUrl,
               public_id: public_id,
+              ...(schoolId ? { school_id: schoolId } : {}),
               updated_at: new Date(),
             },
           });
@@ -100,13 +105,14 @@ fileUploadRouter.post(
               file: previewUrl,
               download_url: downloadUrl,
               public_id: public_id,
+              ...(schoolId ? { school_id: schoolId } : {}),
             },
           });
         }
       } else {
         return res.status(400).json({ error: "Invalid document type" });
       }
-      const key = `citizen_charter`;
+      const key = `citizen_charter_${schoolId ?? "global"}`;
       await redis.del(key);
       res.status(200).json({
         message: "Document uploaded successfully",
@@ -123,13 +129,15 @@ fileUploadRouter.post(
 );
 
 fileUploadRouter.get("/citizen-charter", async (req, res) => {
-  const key = `citizen_charter`;
+  const schoolId = req.schoolId;
+  const key = `citizen_charter_${schoolId ?? "global"}`;
   const cachedCharter = await redis.get(key);
   if (cachedCharter) {
     return res.status(200).json(JSON.parse(cachedCharter));
   }
   try {
     const charter = await prisma.citizenCharter.findFirst({
+      where: schoolId ? { school_id: schoolId } : undefined,
       orderBy: { updated_at: "desc" },
     });
 

@@ -52,12 +52,20 @@ export class SchoolController {
   });
 
   static getSchoolPublicInfo = asyncHandler(async (req: any, res: Response) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) throw new ApiError(400, "Invalid school id");
-    
-    const info = await SchoolService.getSchoolInfo(id);
+    const parsedParamId = parseInt(req.params.id, 10);
+    const resolvedSchoolId = !isNaN(parsedParamId) ? parsedParamId : req.schoolId;
+
+    if (!resolvedSchoolId) {
+      throw new ApiError(400, "School could not be resolved by middleware");
+    }
+
+    const info = await SchoolService.getCurrentSchoolInfo({
+      schoolId: resolvedSchoolId,
+      hostname: req.hostname,
+    });
+
     if (!info) throw new ApiError(404, "School not found");
-    
+
     res
       .status(200)
       .json(new ApiResponse(200, info, "School info fetched successfully"));

@@ -45,6 +45,7 @@ export async function deletePDFFromCloudinary(publicId) {
 
 export const uploadSyllabus = async (req, res) => {
   try {
+    const schoolId = req.schoolId;
     const { class: classNum, year } = req.body;
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -59,9 +60,10 @@ export const uploadSyllabus = async (req, res) => {
         pdf_url: previewUrl,
         download_url: downloadUrl,
         public_id,
+        ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const key = `syllabus`;
+    const key = `syllabus_${schoolId ?? "global"}`;
     await redis.del(key);
     res.json(syllabus);
   } catch (err) {
@@ -70,7 +72,9 @@ export const uploadSyllabus = async (req, res) => {
 };
 
 export const listSyllabus = async (req, res) => {
-  const key = `syllabus`;
+  const schoolId = req.schoolId;
+  const { class: classNum, year } = req.query;
+  const key = `syllabus_${schoolId ?? "global"}_${classNum ?? "all"}_${year ?? "all"}`;
   const cachedSyllabus = await redis
     .get(key)
     .then((data) => (data ? JSON.parse(data) : null))
@@ -78,34 +82,40 @@ export const listSyllabus = async (req, res) => {
   if (cachedSyllabus) {
     return res.json(cachedSyllabus);
   }
-  const { class: classNum, year } = req.query;
   const where = {};
   if (classNum) where.class = parseInt(classNum);
   if (year) where.year = parseInt(year);
+  if (schoolId) where.school_id = schoolId;
   const syllabuses = await prisma.syllabus.findMany({ where });
   await redis.set(key, JSON.stringify(syllabuses), "EX", LONG_TERM_CACHE_TTL);
   res.json(syllabuses);
 };
 
 export const deleteSyllabus = async (req, res) => {
+  const schoolId = req.schoolId;
   const { id } = req.params;
-  const syllabus = await prisma.syllabus.findUnique({
-    where: { id: parseInt(id) },
+  const syllabus = await prisma.syllabus.findFirst({
+    where: schoolId
+      ? { id: parseInt(id), school_id: schoolId }
+      : { id: parseInt(id) },
   });
   if (!syllabus) return res.status(404).json({ error: "Not found" });
   await deletePDFFromCloudinary(syllabus.public_id);
   await prisma.syllabus.delete({ where: { id: parseInt(id) } });
-  const key = `syllabus`;
+  const key = `syllabus_${schoolId ?? "global"}`;
   await redis.del(key);
   res.json({ success: true });
 };
 
 export const updateSyllabus = async (req, res) => {
   try {
+    const schoolId = req.schoolId;
     const { id } = req.params;
     const { class: classNum, subject, year } = req.body;
-    const syllabus = await prisma.syllabus.findUnique({
-      where: { id: parseInt(id) },
+    const syllabus = await prisma.syllabus.findFirst({
+      where: schoolId
+        ? { id: parseInt(id), school_id: schoolId }
+        : { id: parseInt(id) },
     });
     if (!syllabus) return res.status(404).json({ error: "Not found" });
 
@@ -134,9 +144,10 @@ export const updateSyllabus = async (req, res) => {
         pdf_url,
         download_url: downloadUrl,
         public_id,
+        ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const key = `syllabus`;
+    const key = `syllabus_${schoolId ?? "global"}`;
     await redis.del(key);
     res.json(updated);
   } catch (err) {

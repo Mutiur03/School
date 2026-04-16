@@ -286,7 +286,11 @@ export class TeacherController {
     async (req: Request, res: Response) => {
       const { teacherId, message } = req.body;
 
-      const result = await TeacherService.updateHeadMessage(teacherId, message);
+      const result = await TeacherService.updateHeadMessage(
+        teacherId,
+        message,
+        req.schoolId,
+      );
       res
         .status(200)
         .json(
@@ -296,8 +300,8 @@ export class TeacherController {
   );
 
   static getHeadMessageController = asyncHandler(
-    async (_req: Request, res: Response) => {
-      const headMsg = await TeacherService.getHeadMessage();
+    async (req: Request, res: Response) => {
+      const headMsg = await TeacherService.getHeadMessage(req.schoolId);
       res
         .status(200)
         .json(

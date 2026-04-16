@@ -44,28 +44,24 @@ import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
-import schoolRouter from "./modules/school/school.route.js";
-import { tenantMiddleware } from "./middlewares/tenant.middleware.js";
+import schoolRouter from "./modules/school/school.route.js";;
 import studentRouter from "./modules/student/student.route.js";
 import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
+import { schoolContextMiddleware } from "./middlewares/tenant.middleware.js";
 
 const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
-const envAllowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : undefined;
-const allowedOrigins = envAllowedOrigins;
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-school-id"],
   }),
 );
 
@@ -74,7 +70,7 @@ app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-app.use(tenantMiddleware);
+app.use(schoolContextMiddleware);
 app.use(
   "/uploads",
   express.static(storagePath, {

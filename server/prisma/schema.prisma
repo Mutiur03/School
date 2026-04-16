@@ -8,59 +8,153 @@ datasource db {
 }
 
 model School {
-  id            Int        @id @default(autoincrement())
-  name          String     @db.VarChar(200)
-  shortName     String?    @db.VarChar(50)
-  eiin          String?    @unique @db.VarChar(20)
-  logo          String?
-  favicon       String?
-  district      String?    @db.VarChar(100)
-  upazila       String?    @db.VarChar(100)
-  phone         String?    @db.VarChar(20)
-  email         String?    @db.VarChar(100)
-  website       String?
-  slogan        String?
-  establishedIn Int?
-  subdomain     String?    @unique @db.VarChar(100)
-  customDomain  String?    @unique @db.VarChar(255)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  students      students[]
-  teachers      teachers[]
-  exams         exams[]
-  notices       notices[]
-  admins        admin[]
-  holidays      holidays[]
-  staffs        staffs[]
-  subjects      subjects[]
-  categories    categories[]
-  events        events[]
-  admission     admission[]
-  syllabus      syllabus[]
-  class_slots   class_slot_time[]
-  class_routine class_routine[]
-  charters      CitizenCharter[]
-  routines_pdf  class_routine_pdf[]
-  ssc_reg       ssc_reg[]
-  ssc_forms     student_registration_ssc[]
-  adm_forms     admission_form[]
-  adm_results   admission_result[]
-  class6_reg    class6_reg[]
-  class6_forms  student_registration_class6[]
-  class8_reg    class8_reg[]
-  class8_forms  student_registration_class8[]
-  enrollments   student_enrollments[]
-  attendances   attendence[]
-  levels        levels[]
-  marks         marks[]
-  galleries     gallery[]
-  exam_routines exam_routines[]
-  head_msgs     head_msg[]
-  sms_logs      sms_logs[]
+  id               Int                           @id @default(autoincrement())
+  name             String                        @db.VarChar(200)
+  shortName        String?                       @db.VarChar(50)
+  eiin             String?                       @unique @db.VarChar(20)
+  logo             String?
+  favicon          String?
+  district         String?                       @db.VarChar(100)
+  upazila          String?                       @db.VarChar(100)
+  phone            String?                       @db.VarChar(20)
+  email            String?                       @db.VarChar(100)
+  website          String?
+  slogan           String?
+  establishedIn    Int?
+  /// Bengali / local display name for public site (optional; can also live in SchoolSiteConfig)
+  nameBn           String?                       @map("name_bn") @db.VarChar(300)
+  /// Board / exam center code when not using JSON config
+  centerCode       String?                       @map("center_code") @db.VarChar(50)
+  /// Google Maps embed URL for contact page
+  mapEmbedUrl      String?                       @map("map_embed_url") @db.Text
+  /// Secondary logo (e.g. government seal) shown in header
+  governmentLogo   String?                       @map("government_logo")
+  /// Wide banner/logo overlay on hero; falls back to `logo` if null
+  headerLogo       String?                       @map("header_logo")
+  /// Ordered list of hero banner image URLs (JSON array of strings)
+  bannerUrls       Json?                         @map("banner_urls")
+  /// Public portal deep links
+  resultsUrl       String?                       @map("results_url")
+  teacherLoginUrl  String?                       @map("teacher_login_url")
+  studentLoginUrl  String?                       @map("student_login_url")
+  /// Extra address lines for public site
+  address          String?                       @db.VarChar(500)
+  location         String?                       @db.VarChar(200)
+  nationalizedYear String?                       @map("nationalized_year") @db.VarChar(20)
+  subdomain        String?                       @unique @db.VarChar(100)
+  customDomain     String?                       @unique @db.VarChar(255)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  students         students[]
+  teachers         teachers[]
+  exams            exams[]
+  notices          notices[]
+  admins           admin[]
+  holidays         holidays[]
+  staffs           staffs[]
+  subjects         subjects[]
+  categories       categories[]
+  events           events[]
+  admission        admission[]
+  syllabus         syllabus[]
+  class_slots      class_slot_time[]
+  class_routine    class_routine[]
+  charters         CitizenCharter[]
+  routines_pdf     class_routine_pdf[]
+  ssc_reg          ssc_reg[]
+  ssc_forms        student_registration_ssc[]
+  adm_forms        admission_form[]
+  adm_results      admission_result[]
+  class6_reg       class6_reg[]
+  class6_forms     student_registration_class6[]
+  class8_reg       class8_reg[]
+  class8_forms     student_registration_class8[]
+  enrollments      student_enrollments[]
+  attendances      attendence[]
+  levels           levels[]
+  marks            marks[]
+  galleries        gallery[]
+  exam_routines    exam_routines[]
+  head_msgs        head_msg[]
+  sms_logs         sms_logs[]
+  siteConfig       SchoolSiteConfig?
+  domains          SchoolDomain[]
 
   @@index([name])
   @@index([subdomain])
   @@index([customDomain])
+}
+
+/// Optional 1:1 public website configuration (menu, sidebar, SEO, home charts) per school.
+/// Use when most content is DB-driven; scalar fields on School remain the fast path for branding.
+model SchoolSiteConfig {
+  id       Int    @id @default(autoincrement())
+  schoolId Int    @unique @map("school_id")
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  nameBn      String? @map("name_bn") @db.VarChar(300)
+  nameShortBn String? @map("name_short_bn") @db.VarChar(50)
+  centerCode  String? @map("center_code") @db.VarChar(50)
+
+  governmentLogo String? @map("government_logo")
+  headerLogo     String? @map("header_logo")
+  bannerUrls     Json?   @map("banner_urls")
+
+  resultsUrl      String? @map("results_url")
+  teacherLoginUrl String? @map("teacher_login_url")
+  studentLoginUrl String? @map("student_login_url")
+
+  address          String? @db.VarChar(500)
+  location         String? @db.VarChar(200)
+  nationalizedYear String? @map("nationalized_year") @db.VarChar(20)
+
+  mapEmbedUrl String? @map("map_embed_url") @db.Text
+
+  /// { main: string, sub: string }
+  descriptions     Json?
+  /// Matches frontend academic profile object
+  academicProfile  Json? @map("academic_profile")
+  /// e.g. { eiin, centerCode } when not stored only on School
+  identifiersExtra Json? @map("identifiers_extra")
+  /// Sidebar: important/quick/useful/hotlines/sidebarMenu/sections
+  sidebarConfig    Json? @map("sidebar_config")
+  /// Navbar MenuItem[] tree
+  menuItems        Json? @map("menu_items")
+  /// Home page chart / link grid sections
+  homeCharts       Json? @map("home_charts")
+  /// { defaultTitle, defaultDescription, ogImage, ... }
+  seo              Json?
+  /// { primaryColor, fonts, ... }
+  theme            Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([schoolId])
+  @@map("school_site_configs")
+}
+
+enum SchoolDomainKind {
+  SUBDOMAIN
+  CUSTOM
+  PREVIEW
+}
+
+/// Additional hostnames pointing at a school (beyond School.subdomain / School.customDomain).
+model SchoolDomain {
+  id             Int              @id @default(autoincrement())
+  host           String           @unique @db.VarChar(255)
+  schoolId       Int              @map("school_id")
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  kind           SchoolDomainKind @default(CUSTOM)
+  isPrimary      Boolean          @default(false) @map("is_primary")
+  isVerified     Boolean          @default(false) @map("is_verified")
+  redirectToHost String?          @map("redirect_to_host") @db.VarChar(255)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  @@index([schoolId])
+  @@map("school_domains")
 }
 
 enum SetupTokenRole {
@@ -89,12 +183,23 @@ model SuperAdmin {
   @@index([role])
 }
 
+model SuperAdminHost {
+  id        Int      @id @default(autoincrement())
+  host      String   @db.VarChar(255)
+  is_active Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([host])
+  @@map("super_admin_hosts")
+}
+
 model admin {
-  id           Int    @id @default(autoincrement())
-  username     String @unique
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
   password     String
-  role         String @default("admin")
-  tokenVersion Int    @default(0)
+  role         String  @default("admin")
+  tokenVersion Int     @default(0)
   school_id    Int?
   school       School? @relation(fields: [school_id], references: [id])
 
@@ -158,11 +263,10 @@ model student_enrollments {
   created_at        DateTime  @default(now())
   fourth_subject_id Int?
   marks             marks[]
-  student           students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id         Int?
-  school            School?  @relation(fields: [school_id], references: [id])
-  fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
   student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id         Int?
+  school            School?   @relation(fields: [school_id], references: [id])
+  fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
 
   @@unique([student_id, class, year])
   @@index([student_id])
@@ -309,6 +413,8 @@ model subjects {
   enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
   parent                subjects?             @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children              subjects[]            @relation("SubjectHierarchy")
+  school_id             Int?
+  school                School?               @relation(fields: [school_id], references: [id])
 
   @@unique([name, class, group, year, school_id])
   @@index([class, year])
@@ -547,10 +653,10 @@ model ssc_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   school_id              Int?
   school                 School?  @relation(fields: [school_id], references: [id])
-
-  @@index([school_id])
   classmates             String?
   classmates_source      String   @default("default")
+
+  @@index([school_id])
 }
 
 model student_registration_ssc {
@@ -846,60 +952,60 @@ model class8_reg {
 }
 
 model student_registration_class8 {
-  id                       String   @id @default(uuid())
-  section                  String   @db.VarChar(10)
-  roll                     String   @db.VarChar(20)
-  religion                 String   @db.VarChar(50)
-  student_name_bn          String   @db.VarChar(100)
-  student_name_en          String   @db.VarChar(100)
-  birth_reg_no             String   @db.VarChar(17)
-  father_name_bn           String   @db.VarChar(100)
-  father_name_en           String   @db.VarChar(100)
-  father_nid               String?  @db.VarChar(17)
-  father_phone             String?  @db.VarChar(11)
-  mother_name_bn           String   @db.VarChar(100)
-  mother_name_en           String   @db.VarChar(100)
-  mother_nid               String?  @db.VarChar(17)
-  mother_phone             String?  @db.VarChar(11)
-  birth_date               String   @db.VarChar(10)
-  birth_year               String   @db.VarChar(4)
-  birth_month              String   @db.VarChar(2)
-  birth_day                String   @db.VarChar(2)
-  email                    String?  @db.VarChar(100)
-  present_district         String   @db.VarChar(50)
-  present_upazila          String   @db.VarChar(50)
-  present_post_office      String   @db.VarChar(100)
-  present_post_code        String   @db.VarChar(4)
-  present_village_road     String   @db.VarChar(200)
-  permanent_district       String   @db.VarChar(50)
-  permanent_upazila        String   @db.VarChar(50)
-  permanent_post_office    String   @db.VarChar(100)
-  permanent_post_code      String   @db.VarChar(4)
-  permanent_village_road   String   @db.VarChar(200)
-  guardian_name            String?  @db.VarChar(100)
-  guardian_phone           String?  @db.VarChar(11)
-  guardian_relation        String?  @db.VarChar(50)
-  guardian_nid             String?  @db.VarChar(17)
-  guardian_district        String?  @db.VarChar(50)
-  guardian_upazila         String?  @db.VarChar(50)
-  guardian_post_office     String?  @db.VarChar(100)
-  guardian_post_code       String?  @db.VarChar(4)
-  guardian_village_road    String?  @db.VarChar(200)
-  prev_school_name         String   @db.VarChar(200)
-  prev_school_district     String   @db.VarChar(50)
-  prev_school_upazila      String   @db.VarChar(50)
-  status                   String   @default("pending") @db.VarChar(20)
-  submission_date          DateTime @default(now())
-  created_at               DateTime @default(now())
-  updated_at               DateTime @updatedAt
-  photo                    String   @db.VarChar(255)
-  class8_year              Int
-  nearby_student_info      String?  @db.VarChar(200)
-  registration_no          String   @db.VarChar(50)
-  class6_academic_session  String   @db.VarChar(50)
-  scout_status             String?  @db.VarChar(10)
-  school_id                Int?
-  school                   School?  @relation(fields: [school_id], references: [id])
+  id                      String   @id @default(uuid())
+  section                 String   @db.VarChar(10)
+  roll                    String   @db.VarChar(20)
+  religion                String   @db.VarChar(50)
+  student_name_bn         String   @db.VarChar(100)
+  student_name_en         String   @db.VarChar(100)
+  birth_reg_no            String   @db.VarChar(17)
+  father_name_bn          String   @db.VarChar(100)
+  father_name_en          String   @db.VarChar(100)
+  father_nid              String?  @db.VarChar(17)
+  father_phone            String?  @db.VarChar(11)
+  mother_name_bn          String   @db.VarChar(100)
+  mother_name_en          String   @db.VarChar(100)
+  mother_nid              String?  @db.VarChar(17)
+  mother_phone            String?  @db.VarChar(11)
+  birth_date              String   @db.VarChar(10)
+  birth_year              String   @db.VarChar(4)
+  birth_month             String   @db.VarChar(2)
+  birth_day               String   @db.VarChar(2)
+  email                   String?  @db.VarChar(100)
+  present_district        String   @db.VarChar(50)
+  present_upazila         String   @db.VarChar(50)
+  present_post_office     String   @db.VarChar(100)
+  present_post_code       String   @db.VarChar(4)
+  present_village_road    String   @db.VarChar(200)
+  permanent_district      String   @db.VarChar(50)
+  permanent_upazila       String   @db.VarChar(50)
+  permanent_post_office   String   @db.VarChar(100)
+  permanent_post_code     String   @db.VarChar(4)
+  permanent_village_road  String   @db.VarChar(200)
+  guardian_name           String?  @db.VarChar(100)
+  guardian_phone          String?  @db.VarChar(11)
+  guardian_relation       String?  @db.VarChar(50)
+  guardian_nid            String?  @db.VarChar(17)
+  guardian_district       String?  @db.VarChar(50)
+  guardian_upazila        String?  @db.VarChar(50)
+  guardian_post_office    String?  @db.VarChar(100)
+  guardian_post_code      String?  @db.VarChar(4)
+  guardian_village_road   String?  @db.VarChar(200)
+  prev_school_name        String   @db.VarChar(200)
+  prev_school_district    String   @db.VarChar(50)
+  prev_school_upazila     String   @db.VarChar(50)
+  status                  String   @default("pending") @db.VarChar(20)
+  submission_date         DateTime @default(now())
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  photo                   String   @db.VarChar(255)
+  class8_year             Int
+  nearby_student_info     String?  @db.VarChar(200)
+  registration_no         String   @db.VarChar(50)
+  class6_academic_session String   @db.VarChar(50)
+  scout_status            String?  @db.VarChar(10)
+  school_id               Int?
+  school                  School?  @relation(fields: [school_id], references: [id])
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -910,20 +1016,20 @@ model student_registration_class8 {
 }
 
 model sms_settings {
-  id               Int      @id @default(autoincrement())
-  present_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
-  absent_template  String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) is absent from school today ({date}).\nPlease contact the school office for more info.\nThank you.\n{school_name}")
+  id                  Int      @id @default(autoincrement())
+  present_template    String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
+  absent_template     String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) is absent from school today ({date}).\nPlease contact the school office for more info.\nThank you.\n{school_name}")
   run_awayed_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) was present in the morning but has run awayed from school today ({date}).\nPlease check immediately.\nThank you.\n{school_name}")
-  send_to_present  Boolean  @default(true)
-  send_to_absent   Boolean  @default(false)
-  send_to_run_awayed Boolean  @default(true)
-  is_active        Boolean  @default(true)
-  sms_balance      Int      @default(0)
-  api_key          String?  @db.VarChar(255)
-  api_url          String?  @db.VarChar(255)
-  sender_id        String?  @db.VarChar(50)
-  service_type     String?  @db.VarChar(50)
-  updated_at       DateTime @updatedAt
+  send_to_present     Boolean  @default(true)
+  send_to_absent      Boolean  @default(false)
+  send_to_run_awayed  Boolean  @default(true)
+  is_active           Boolean  @default(true)
+  sms_balance         Int      @default(0)
+  api_key             String?  @db.VarChar(255)
+  api_url             String?  @db.VarChar(255)
+  sender_id           String?  @db.VarChar(50)
+  service_type        String?  @db.VarChar(50)
+  updated_at          DateTime @updatedAt
 }
 
 enum MarkingScheme {

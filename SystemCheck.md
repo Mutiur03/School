@@ -272,4 +272,4 @@ docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only
 docker exec -i lbp-postgres_school-1 pg_dump -U mutiur -d school -F c > backup.sql
 
 
-docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < "/media/mutiur03/New Volume/Projects/volumes/school-backup.sql"
+docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < "/home/mutiur03/Downloads/backup.sql"

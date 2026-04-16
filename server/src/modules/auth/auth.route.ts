@@ -13,6 +13,7 @@ import {
   studentPasswordResetCodeVerifySchema,
   studentPasswordUpdateSchema,
   setupSuperAdminSchema,
+  superAdminLoginSchema,
 } from "@school/shared-schemas";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
@@ -30,9 +31,14 @@ const authLimiter = rateLimit({
   store: authStore,
 });
 router.post(
-  "/super-admin/setup",
+  "/super_admin/setup",
   validate(setupSuperAdminSchema),
   AuthController.setupSuperAdmin,
+);
+router.post(
+  "/super_admin/sessions",
+  validate(superAdminLoginSchema),
+  AuthController.superAdminLogin,
 );
 router.post(
   "/admin/sessions",

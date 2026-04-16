@@ -15,7 +15,9 @@
     "dev": "nodemon",
     "prestart": "npm run lint",
     "start": "node dist/server.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "school-id:reassign": "tsx prisma/scripts/reassign-all-school-ids.ts",
+    "school-id:reassign:dry": "DRY_RUN=1 tsx prisma/scripts/reassign-all-school-ids.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

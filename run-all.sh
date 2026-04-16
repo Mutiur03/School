@@ -8,6 +8,7 @@ declare -A SERVERS=(
   ["common-ui"]="npm run dev:common:ui"
   ["shared-schemas"]="npm run dev:shared-schemas"
   ["admin"]="cd dashboard && npm run dev:admin"
+  ["super_admin"]="cd dashboard && npm run dev:super_admin"
   ["teacher"]="cd dashboard && npm run dev:teacher"
   # ["student"]="cd dashboard && npm run dev:student"
 )
@@ -29,15 +30,15 @@ is_wsl() {
 }
 
 kill_all() {
-  echo -e "${RED}Cleaning all builds...${NC}"
-  rm -rf packages/*/dist
-  rm -rf dashboard/dist
-  rm -rf server/dist
-  rm -rf client/dist
-  rm -rf client-ui/dist
-  rm -rf common-ui/dist
-  rm -rf shared-schemas/dist
-  echo -e "${GREEN}All builds cleaned.${NC}"
+  # echo -e "${RED}Cleaning all builds...${NC}"
+  # rm -rf packages/*/dist
+  # rm -rf dashboard/dist
+  # rm -rf server/dist
+  # rm -rf client/dist
+  # rm -rf client-ui/dist
+  # rm -rf common-ui/dist
+  # rm -rf shared-schemas/dist
+  # echo -e "${GREEN}All builds cleaned.${NC}"
   if is_wsl; then
     # ── WSL: use taskkill + netstat to kill Windows processes ──
     for PORT in "${PORTS[@]}"; do
