@@ -1,64 +1,65 @@
-import { Request, Response, NextFunction } from "express";
-import { ApiError } from "../utils/ApiError.js";
-import { SchoolService } from "../modules/school/school.service.js";
-
-// Extend the Express Request type to include schoolId
-declare global {
-  namespace Express {
-    interface Request {
-      schoolId?: number;
-    }
-  }
-}
-
-// Simple in-memory cache to avoid excessive DB lookups
-const domainCache = new Map<string, { id: number; expire: number }>();
-const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-
-export const tenantMiddleware = async (
-  req: Request,
-  _res: Response,
-  next: NextFunction
+import express from "express";
+import {
+  hostName,
+  assertSuperAdminHostAllowed,
+} from "@/utils/superAdminDomain.js";
+import { prisma } from "@/config/prisma.js";
+import { redis } from "@/config/redis.js";
+export const schoolContextMiddleware = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
 ) => {
-  const hostname = req.hostname;
-  const schoolIdHeader = req.headers["x-school-id"];
-
-  // 1. Check header first (explicit override or for development)
-  if (schoolIdHeader) {
-    const parsedId = parseInt(schoolIdHeader as string, 10);
-    if (!isNaN(parsedId)) {
-      req.schoolId = parsedId;
+  const hostname = hostName(req);
+  if (
+    await assertSuperAdminHostAllowed(req)
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    return next();
+  }
+  const cached = await redis.get(hostname);
+  if (cached) {
+    const parsedCached = JSON.parse(cached) as { id?: number };
+    if (parsedCached?.id) {
+      req.schoolId = parsedCached.id;
       return next();
     }
   }
+  const isSubdomain =
+    hostname.endsWith(".localhost") || hostname.endsWith(".mutiurrahman.com");
+  const school = isSubdomain
+    ? await prisma.school.findUnique({
+        where: {
+          subdomain: hostname
+            .replace(".localhost", "")
+            .replace(".mutiurrahman.com", ""),
+        },
+      })
+    : await prisma.school.findUnique({ where: { customDomain: getRootDomain(hostname) } });
 
-  // 2. Resolve from hostname
-  const cached = domainCache.get(hostname);
-  if (cached && cached.expire > Date.now()) {
-    req.schoolId = cached.id;
-    return next();
+  if (!school) {
+    return res.status(404).json({ message: "School not found" });
   }
-
-  try {
-    const school = await SchoolService.getSchoolByDomain(hostname);
-    if (school) {
-      req.schoolId = school.id;
-      domainCache.set(hostname, { id: school.id, expire: Date.now() + CACHE_TTL });
-    }
-  } catch (error) {
-    console.error("Error resolving school by domain:", error);
-  }
-
+  await redis.set(hostname, JSON.stringify({ id: school.id }));
+  req.schoolId = school.id;
   next();
 };
 
-export const requireSchool = (
-  req: Request,
-  _res: Response,
-  next: NextFunction
-) => {
-  if (!req.schoolId) {
-    throw new ApiError(400, "X-School-Id header is required for this request");
+// Gets root domain, ignoring subdomains
+// "student.lbphs.gov.bd" → "lbphs.gov.bd"
+// "lbphs.gov.bd" → "lbphs.gov.bd"
+// "school1.mutiurrahman.com" → handled by isSubdomain check, not this
+const getRootDomain = (hostname: string): string => {
+  const parts = hostname.split('.');
+  // Handle country-code second-level domains like .gov.bd, .edu.bd, .co.uk
+  const ccSLDs = ['gov', 'edu', 'co', 'org', 'net', 'ac'];
+  
+  if (parts.length >= 3 && ccSLDs.includes(parts[parts.length - 2])) {
+    // e.g. student.lbphs.gov.bd → last 3 parts = lbphs.gov.bd
+    return parts.slice(-3).join('.');
   }
-  next();
+  
+  // Regular domain: student.lbphs.com → last 2 parts = lbphs.com
+  return parts.slice(-2).join('.');
 };

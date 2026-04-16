@@ -31,7 +31,10 @@ export const addNoticeController = asyncHandler(
       throw new ApiError(400, "title and key are required");
     }
 
-    const result = await service.createNotice({ title, key, created_at });
+    const result = await service.createNotice(
+      { title, key, created_at },
+      req.schoolId,
+    );
     return res
       .status(201)
       .json(new ApiResponse(201, result, "Notice added successfully"));
@@ -48,7 +51,7 @@ export const getNoticesController = asyncHandler(
       throw new ApiError(400, "limit must be a valid number");
     }
 
-    const result = await service.getNotices(take);
+    const result = await service.getNotices(take, req.schoolId);
     return res
       .status(200)
       .json(new ApiResponse(200, result, "Notices fetched successfully"));
@@ -65,11 +68,15 @@ export const updateNoticeController = asyncHandler(
       throw new ApiError(400, "Invalid notice id");
     }
 
-    const result = await service.updateNotice(parsedId, {
-      title,
-      key,
-      created_at,
-    });
+    const result = await service.updateNotice(
+      parsedId,
+      {
+        title,
+        key,
+        created_at,
+      },
+      req.schoolId,
+    );
     return res
       .status(200)
       .json(new ApiResponse(200, result, "Notice updated successfully"));
@@ -85,7 +92,7 @@ export const deleteNoticeController = asyncHandler(
       throw new ApiError(400, "Invalid notice id");
     }
 
-    await service.deleteNotice(parsedId);
+    await service.deleteNotice(parsedId, req.schoolId);
     return res
       .status(200)
       .json(new ApiResponse(200, null, "Notice deleted successfully"));

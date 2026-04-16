@@ -48,14 +48,13 @@ export class AuthService {
 
   static clearRefreshToken(res: Response) {
     const isProduction = process.env.NODE_ENV === "production";
-    const cookieDomain = isProduction ? process.env.DOMAIN : undefined;
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax",
+      sameSite: isProduction ? "none" : "lax",
       path: "/",
-      domain: cookieDomain,
+      // Intentionally omit domain so cookie remains host-scoped.
       partitioned: isProduction,
     });
   }

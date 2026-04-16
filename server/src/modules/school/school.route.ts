@@ -4,8 +4,9 @@ import AuthMiddleware from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Public route to get school info (e.g., for branding on landing page)
 router.get("/api/schools/:id/public", SchoolController.getSchoolPublicInfo);
+router.get("/api/schools/public", SchoolController.getSchoolPublicInfo);
+router.get("/api/school/getConfig", SchoolController.getSchoolPublicInfo);
 
 // Protected routes for school management
 router.post(

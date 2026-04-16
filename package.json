@@ -10,7 +10,7 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others -n \"server,teacher,student,admin,shared-schemas,client,client-ui,common-ui\" -c \"blue,green,magenta,yellow,cyan,white,gray,black\" \"npm run dev -w server\" \"npm run dev:teacher -w dashboard\" \"npm run dev:student -w dashboard\" \"npm run dev:admin -w dashboard\" \"npm run dev:shared-schemas\" \"npm run dev:client\" \"npm run dev:client:ui\" \"npm run dev:common:ui\"",
+    "dev": "concurrently --kill-others -n \"server,teacher,student, super_admin, admin,shared-schemas,client,client-ui,common-ui\" -c \"blue,green,magenta,yellow,cyan,white,gray,black\" \"npm run dev -w server\" \"npm run dev:teacher -w dashboard\" \"npm run dev:student -w dashboard\" \"npm run dev:super_admin -w dashboard\" \"npm run dev:admin -w dashboard\" \"npm run dev:shared-schemas\" \"npm run dev:client\" \"npm run dev:client:ui\" \"npm run dev:common:ui\"",
     "build": "npm run build:client:core && npm run build:dashboard:core && npm run build:server",
     "clean:ports": "npx kill-port 3002 5173 5174 5175 5176 5177",
     "dev:server": "npm run dev -w server",

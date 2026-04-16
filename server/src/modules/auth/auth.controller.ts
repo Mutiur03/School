@@ -10,13 +10,13 @@ import { redis } from "@/config/redis.js";
 import EmailService from "@/utils/email.service.js";
 import { env } from "@/config/env.js";
 import { SMSService } from "@/utils/sms.service.js";
-
 import { AuthService } from "./auth.service.js";
+import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
 
 export class AuthController {
   static setupSuperAdmin = asyncHandler(async (req: Request, res: Response) => {
+    await assertSuperAdminHostAllowed(req);
     const { email, token } = req.body;
-
     if (!email || !token) {
       throw new ApiError(400, "Email and token are required");
     }
@@ -55,22 +55,17 @@ export class AuthController {
   });
 
   static login = asyncHandler(async (req: Request, res: Response) => {
-    console.log("[Admin Login] Request received");
     const { username, password } = req.body;
 
     if (!username || !password) {
       throw new ApiError(400, "Username and password are required");
     }
 
-    console.log(`[Admin Login] Looking up admin with username: "${username}"`);
     const user = await prisma.admin.findUnique({
       where: { username: username },
     });
 
     if (!user) {
-      console.log(
-        `[Admin Login] FAILED — No admin found with username: "${username}"`,
-      );
       throw new ApiError(401, "Admin not found");
     }
 
@@ -95,6 +90,49 @@ export class AuthController {
         {
           accessToken,
           user: { id: user.id, role: "admin", username: user.username },
+        },
+        "Login successful",
+      ),
+    );
+  });
+
+  static superAdminLogin = asyncHandler(async (req: Request, res: Response) => {
+    await assertSuperAdminHostAllowed(req);
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      throw new ApiError(400, "Email and password are required");
+    }
+
+    const user = await prisma.superAdmin.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new ApiError(401, "Invalid credentials");
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new ApiError(401, "Invalid credentials");
+    }
+
+    const { accessToken, refreshToken } = AuthService.generateTokens({
+      ...user,
+      role: "super_admin",
+    });
+    AuthService.sendRefreshToken(res, refreshToken);
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          accessToken,
+          user: {
+            id: user.id,
+            role: "super_admin",
+            email: user.email,
+          },
         },
         "Login successful",
       ),
@@ -227,7 +265,6 @@ export class AuthController {
   static refresh_token = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
     if (!token) {
-      console.log("[Refresh Token] No refresh token found in cookies");
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -235,8 +272,7 @@ export class AuthController {
     let payload: any;
     try {
       payload = jwt.verify(token, secret) as any;
-    } catch (error) {
-      console.log(`[Refresh Token] JWT verification failed: ${error}`);
+    } catch {
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -250,7 +286,10 @@ export class AuthController {
         where: { id: payload.id },
         include: { levels: { where: { year: new Date().getFullYear() } } },
       });
-    } else if (payload.role === "super_admin") {
+    } else if (
+      payload.role === "super_admin" &&
+      (await assertSuperAdminHostAllowed(req))
+    ) {
       user = await prisma.superAdmin.findUnique({ where: { id: payload.id } });
     }
 
@@ -287,10 +326,6 @@ export class AuthController {
       responseUser.image = (user as any).image;
       responseUser.signature = (user as any).signature;
       responseUser.levels = (user as any).levels;
-      console.log(
-        "[Refresh Token] Teacher User from DB:",
-        JSON.stringify(user, null, 2),
-      );
     } else if (payload.role === "student") {
       const student = user as any;
       const studentAddress = [
@@ -313,7 +348,6 @@ export class AuthController {
       responseUser.address = studentAddress;
       responseUser.image = student.image;
     }
-    console.log(responseUser);
     res
       .status(200)
       .json(
@@ -350,11 +384,14 @@ export class AuthController {
             where: { id: decoded.id },
             data: { tokenVersion: { increment: 1 } },
           });
+        } else if (decoded.role === "super_admin") {
+          await prisma.superAdmin.update({
+            where: { id: decoded.id },
+            data: { tokenVersion: { increment: 1 } },
+          });
         }
       } catch {
-        console.log(
-          "Logout: Token invalid or expired, skipping version increment.",
-        );
+        // Ignore invalid/expired token during logout cleanup.
       }
     }
 

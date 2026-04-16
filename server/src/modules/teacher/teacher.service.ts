@@ -375,33 +375,56 @@ export class TeacherService {
     return excelBuffer;
   }
 
-  static async updateHeadMessage(teacherId?: number | null, message?: string | null) {
+  static async updateHeadMessage(
+    teacherId?: number | null,
+    message?: string | null,
+    schoolId?: number,
+  ) {
     const updateData: any = {};
     if (teacherId) updateData.head_id = parseInt(teacherId.toString());
     if (message !== undefined) updateData.head_message = message;
+    if (schoolId) updateData.school_id = schoolId;
 
-    await prisma.head_msg.upsert({
-      where: { id: 1 },
-      create: { id: 1, ...updateData },
-      update: updateData,
+    const existing = await prisma.head_msg.findFirst({
+      where: schoolId ? { school_id: schoolId } : undefined,
+      orderBy: { updated_at: "desc" },
     });
 
+    if (existing) {
+      await prisma.head_msg.update({
+        where: { id: existing.id },
+        data: updateData,
+      });
+    } else {
+      if (!teacherId) {
+        throw new ApiError(400, "teacherId is required to create head message");
+      }
+      await prisma.head_msg.create({
+        data: {
+          head_id: parseInt(teacherId.toString()),
+          head_message: message ?? null,
+          ...(schoolId ? { school_id: schoolId } : {}),
+        },
+      });
+    }
+
     // Clear cache
-    const key = "head_msg_cache";
+    const key = `head_msg_cache_${schoolId ?? "global"}`;
     await redis.del(key);
 
     return { message: "Head message updated successfully" };
   }
 
-  static async getHeadMessage() {
-    const key = "head_msg_cache";
+  static async getHeadMessage(schoolId?: number) {
+    const key = `head_msg_cache_${schoolId ?? "global"}`;
     const cachedHeadMsg = await redis.get(key);
     if (cachedHeadMsg) {
       return JSON.parse(cachedHeadMsg);
     }
 
-    const headMsg = await prisma.head_msg.findUnique({
-      where: { id: 1 },
+    const headMsg = await prisma.head_msg.findFirst({
+      where: schoolId ? { school_id: schoolId } : undefined,
+      orderBy: { updated_at: "desc" },
       include: {
         teacher: { select: { id: true, name: true, image: true } },
       },
