@@ -62,7 +62,7 @@ export class AuthController {
     }
 
     const user = await prisma.admin.findUnique({
-      where: { username: username },
+      where: { username: username, school_id: req.schoolId },
     });
 
     if (!user) {
@@ -151,7 +151,7 @@ export class AuthController {
     }
 
     const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt },
+      where: { login_id: loginIdInt, school_id: req.schoolId },
     });
 
     if (!student) {
@@ -218,6 +218,7 @@ export class AuthController {
       where: {
         email: email,
         available: true,
+        school_id: req.schoolId,
       },
       include: {
         levels: { where: { year: new Date().getFullYear() } },
@@ -278,12 +279,16 @@ export class AuthController {
 
     let user = null;
     if (payload.role === "admin") {
-      user = await prisma.admin.findUnique({ where: { id: payload.id } });
+      user = await prisma.admin.findUnique({
+        where: { id: payload.id, school_id: req.schoolId },
+      });
     } else if (payload.role === "student") {
-      user = await prisma.students.findUnique({ where: { id: payload.id } });
+      user = await prisma.students.findUnique({
+        where: { id: payload.id, school_id: req.schoolId },
+      });
     } else if (payload.role === "teacher") {
       user = await prisma.teachers.findUnique({
-        where: { id: payload.id },
+        where: { id: payload.id, school_id: req.schoolId },
         include: { levels: { where: { year: new Date().getFullYear() } } },
       });
     } else if (
@@ -371,17 +376,17 @@ export class AuthController {
 
         if (decoded.role === "admin") {
           await prisma.admin.update({
-            where: { id: decoded.id },
+            where: { id: decoded.id, school_id: req.schoolId },
             data: { tokenVersion: { increment: 1 } },
           });
         } else if (decoded.role === "student") {
           await prisma.students.update({
-            where: { id: decoded.id },
+            where: { id: decoded.id, school_id: req.schoolId },
             data: { tokenVersion: { increment: 1 } },
           });
         } else if (decoded.role === "teacher") {
           await prisma.teachers.update({
-            where: { id: decoded.id },
+            where: { id: decoded.id, school_id: req.schoolId },
             data: { tokenVersion: { increment: 1 } },
           });
         } else if (decoded.role === "super_admin") {
@@ -401,13 +406,16 @@ export class AuthController {
   });
 
   static addAdmin = asyncHandler(async (req: Request, res: Response) => {
-    const { username, password } = req.body;
+    const { username, password, school_id } = req.body;
     if (!username || !password) {
       throw new ApiError(400, "Username and password are required");
     }
-
-    const adminCount = await prisma.admin.count();
-    const existing = await prisma.admin.findUnique({ where: { username } });
+    if (!school_id) {
+      throw new ApiError(400, "School ID is required");
+    }
+    const existing = await prisma.admin.findUnique({
+      where: { username, school_id },
+    });
     if (existing) {
       throw new ApiError(409, "Admin already exists");
     }
@@ -418,13 +426,9 @@ export class AuthController {
         username,
         password: hashedPassword,
         role: "admin",
+        school_id,
       },
     });
-
-    const message =
-      adminCount === 0
-        ? "First admin created successfully"
-        : "Admin created successfully";
 
     res
       .status(201)
@@ -432,12 +436,11 @@ export class AuthController {
         new ApiResponse(
           201,
           { id: admin.id, username: admin.username },
-          message,
+          "Admin created successfully",
         ),
       );
   });
 
-  // Teacher password reset request
   static requestTeacherPasswordReset = asyncHandler(
     async (req: Request, res: Response) => {
       const { email } = req.body;
@@ -465,6 +468,7 @@ export class AuthController {
         where: {
           email: email,
           available: true,
+          school_id: req.schoolId,
         },
       });
 
@@ -572,6 +576,7 @@ export class AuthController {
         where: {
           email: email,
           available: true,
+          school_id: req.schoolId,
         },
       });
 
@@ -584,7 +589,7 @@ export class AuthController {
 
       // Update password and increment token version to invalidate existing sessions
       await prisma.teachers.update({
-        where: { id: teacher.id },
+        where: { id: teacher.id, school_id: req.schoolId },
         data: {
           password: hashedPassword,
           tokenVersion: { increment: 1 },
@@ -630,7 +635,7 @@ export class AuthController {
 
       // Find student by login_id
       const student = await prisma.students.findUnique({
-        where: { login_id: loginIdInt },
+        where: { login_id: loginIdInt, school_id: req.schoolId },
       });
 
       if (!student) {
@@ -748,7 +753,7 @@ export class AuthController {
 
       // Find student and update password
       const student = await prisma.students.findUnique({
-        where: { login_id: loginIdInt },
+        where: { login_id: loginIdInt, school_id: req.schoolId },
       });
 
       if (!student) {
@@ -760,7 +765,7 @@ export class AuthController {
 
       // Update password and increment token version to invalidate existing sessions
       await prisma.students.update({
-        where: { id: student.id },
+        where: { id: student.id, school_id: req.schoolId },
         data: {
           password: hashedPassword,
           tokenVersion: { increment: 1 },
