@@ -44,9 +44,9 @@ interface SidebarItem {
     link: string;
     id: string;
   }[];
-  roles?: ("admin" | "teacher" | "student")[];
+  roles?: ("admin" | "teacher" | "student" | "super_admin")[];
 }
-const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
+const getRoutesByRole = (role: "admin" | "teacher" | "student" | "super_admin") => {
   const adminRoutes: SidebarItem[] = [
     {
       label: "Dashboard",
@@ -375,6 +375,24 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student") => {
     admin: adminRoutes,
     teacher: teacherRoutes,
     student: studentRoutes,
+    super_admin: [
+      {
+        label: "Dashboard",
+        icon: FaHome,
+        dropdown: false,
+        link: "/super_admin/dashboard",
+        id: "dashboard",
+        roles: ["super_admin"],
+      },
+      {
+        label: "School Management",
+        icon: FaGear,
+        dropdown: false,
+        link: "/super_admin/settings/school",
+        id: "school-settings",
+        roles: ["super_admin"],
+      },
+    ] as SidebarItem[],
   };
 
   return routesByRole[role] || [];

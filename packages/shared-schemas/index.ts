@@ -12,3 +12,4 @@ export * from "./types.js";
 export * from "./superAdminSchema.js";
 export * from "./levelSchemas.js";
 export * from "./noticeSchemas.js";
+export * from "./location.js";

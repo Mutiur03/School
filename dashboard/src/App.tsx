@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Toaster } from "react-hot-toast";
 import PrivateRoute from "./components/PrivateRoute.tsx";
+import SuperAdminRoute from "./components/SuperAdminRoute.tsx";
 import TeacherRoute from "./components/TeacherRoute.tsx";
 import StudentRoute from "./components/StudentRoute.tsx";
 import axios from "axios";
@@ -21,6 +22,9 @@ import NotFound from "./pages/Common/not-found.tsx";
 import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
 import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, StayCheck, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
 import { StudentDashboard, Result } from "./pages/Students/index.ts";
+import SchoolSettings from "./pages/Admin/SchoolSettings.tsx";
+import SuperAdminDashboard from "./pages/SuperAdmin/Dashboard.tsx";
+import SchoolManagement from "./pages/SuperAdmin/SchoolManagement.tsx";
 // Normal imports end
 
 // --- Lazy-loaded Components ---
@@ -73,6 +77,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navbarRef = useRef<HTMLElement>(null);
   const location = useLocation();
+  const preferredRolePath = envPreferredRole === "super_admin" ? "super_admin" : envPreferredRole;
+  const currentUserDashboardPath = user?.role === "super_admin" ? "/super_admin/dashboard" : user ? `/${user.role}/dashboard` : "/";
   axios.defaults.baseURL = backend;
 
   useEffect(() => {
@@ -87,6 +93,7 @@ function App() {
     if (user?.role) {
       switch (user.role) {
         case 'admin': document.title = 'Admin Panel'; break;
+        case 'super_admin': document.title = 'Super Admin Panel'; break;
         case 'teacher': document.title = "Teacher's Dashboard"; break;
         case 'student': document.title = "Student's Dashboard"; break;
         default: document.title = 'Panchbibi Lal Bihari Pilot Govt. High School';
@@ -121,12 +128,12 @@ function App() {
             {/* CASE 1: envPreferredRole IS PRESENT */}
             {envPreferredRole && (
               <>
-                <Route path={`/${envPreferredRole}/login`} element={<Login />} />
+                <Route path={`/${preferredRolePath}/login`} element={<Login />} />
                 {!user && (
-                  <Route path="*" element={serverOffline ? <ServerOffline /> : <Navigate to={`/${envPreferredRole}/login`} state={{ from: location.pathname }} replace />} />
+                  <Route path="*" element={serverOffline ? <ServerOffline /> : <Navigate to={`/${preferredRolePath}/login`} state={{ from: location.pathname }} replace />} />
                 )}
                 {user && (
-                  <Route path="*" element={<Navigate to={user.role === envPreferredRole ? `/${envPreferredRole}/dashboard` : `/${envPreferredRole}/login`} replace />} />
+                  <Route path="*" element={<Navigate to={user.role === envPreferredRole ? currentUserDashboardPath : `/${preferredRolePath}/login`} replace />} />
                 )}
               </>
             )}
@@ -146,7 +153,7 @@ function App() {
                   </>
                 )}
                 {user && (
-                  <Route path="*" element={<Navigate to={`/${user.role}/dashboard`} replace />} />
+                  <Route path="*" element={<Navigate to={user.role === "super_admin" ? "/super_admin/dashboard" : `/${user.role}/dashboard`} replace />} />
                 )}
               </>
             )}
@@ -215,6 +222,7 @@ function App() {
                         <Route path="/result/generate-result" element={<GenerateResult />} />
                         <Route path="/finalmarkSheet/:studentId/:year" element={<ShowMarkSheet />} />
                         <Route path="/settings/add-exam" element={<ExamPDFRoutine />} />
+                        <Route path="/settings/school" element={<SchoolSettings />} />
                         <Route path="/result/add-marks" element={<AddMarks />} />
                         <Route path="/result/add-subject" element={<NewSubject />} />
                         <Route path="/result/assigned-teachers" element={<AddLevel />} />
@@ -237,6 +245,25 @@ function App() {
                         <Route path="/registration/class-6" element={<Class6RegForm />} />
                         <Route path="/registration/class-8" element={<Class8RegForm />} />
                         <Route path="*" element={<Navigate to="/admin/dashboard" />} />
+                      </Routes>
+                    </div>
+                  </div>
+                } />
+              } />
+            )}
+
+            {/* Super Admin Routes */}
+            {user?.role === "super_admin" && envPreferredRole === "super_admin" && (
+              <Route path="/super_admin/*" element={
+                <SuperAdminRoute element={
+                  <div className="flex flex-col">
+                    <Navbar ref={navbarRef} onBurgerClick={() => setSidebarOpen((prev) => !prev)} />
+                    <Sidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} open={sidebarOpen} onClose={() => setSidebarOpen(false)} navbarRef={navbarRef} />
+                    <div className="content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]">
+                      <Routes>
+                        <Route path="/dashboard" element={<SuperAdminDashboard />} />
+                        <Route path="/settings/school" element={<SchoolManagement />} />
+                        <Route path="*" element={<Navigate to="/super_admin/dashboard" />} />
                       </Routes>
                     </div>
                   </div>

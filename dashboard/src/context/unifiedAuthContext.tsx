@@ -14,7 +14,7 @@ declare module "axios" {
     }
 }
 
-export type UserRole = "admin" | "teacher" | "student";
+export type UserRole = "admin" | "teacher" | "student" | "super_admin";
 
 interface Level {
     id: number;
@@ -66,9 +66,15 @@ interface StudentUser extends BaseUser {
     enrollments?: Enrollment[];
 }
 
-export type User = AdminUser | TeacherUser | StudentUser;
+interface SuperAdminUser extends BaseUser {
+    role: "super_admin";
+    id: number;
+    email: string;
+}
 
-export type { AdminUser, TeacherUser, StudentUser };
+export type User = AdminUser | TeacherUser | StudentUser | SuperAdminUser;
+
+export type { AdminUser, TeacherUser, StudentUser, SuperAdminUser };
 
 interface UnifiedAuthContextType {
     user: User | null;
@@ -77,6 +83,7 @@ interface UnifiedAuthContextType {
     preferredRole: UserRole | null;
     accessToken: string | null;
     loginAdmin: (username: string, password: string) => Promise<void>;
+    loginSuperAdmin: (email: string, password: string) => Promise<void>;
     loginTeacher: (email: string, password: string) => Promise<void>;
     loginStudent: (login_id: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -84,6 +91,7 @@ interface UnifiedAuthContextType {
     retryAuth: () => void;
     setPreferredRole: (role: UserRole | null) => void;
     isAdmin: () => boolean;
+    isSuperAdmin: () => boolean;
     isTeacher: () => boolean;
     isStudent: () => boolean;
     hasRole: (role: UserRole) => boolean;
@@ -100,6 +108,7 @@ const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
     preferredRole: null,
     accessToken: null,
     loginAdmin: async () => { },
+    loginSuperAdmin: async () => { },
     loginTeacher: async () => { },
     loginStudent: async () => { },
     logout: async () => { },
@@ -107,6 +116,7 @@ const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
     retryAuth: () => { },
     setPreferredRole: () => { },
     isAdmin: () => false,
+    isSuperAdmin: () => false,
     isTeacher: () => false,
     isStudent: () => false,
     hasRole: () => false,
@@ -127,6 +137,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         tokenRef.current = token;
         setAccessTokenState(token);
     };
+
+    const isSuperAdminAllowed = () => envPreferredRole === "super_admin";
 
     useEffect(() => {
         const requestInterceptor = axios.interceptors.request.use(
@@ -183,6 +195,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                         const accessToken = data?.data?.accessToken;
                         const refreshedUser = data?.data?.user;
                         if (data.success && accessToken) {
+                            if (refreshedUser?.role === "super_admin" && !isSuperAdminAllowed()) {
+                                setAccessToken(null);
+                                setUser(null);
+                                return Promise.reject(new Error("Super admin login is disabled for this panel."));
+                            }
+
                             setAccessToken(accessToken);
                             if (refreshedUser) setUser(refreshedUser);
                             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -226,6 +244,14 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             const accessToken = refreshRes.data?.data?.accessToken;
             const userData = refreshRes.data?.data?.user;
             if (refreshRes.data.success && accessToken) {
+                if (userData?.role === "super_admin" && !isSuperAdminAllowed()) {
+                    setAccessToken(null);
+                    setUser(null);
+                    setServerOffline(false);
+                    setLoading(false);
+                    return;
+                }
+
                 setAccessToken(accessToken);
                 setUser(userData);
                 setServerOffline(false);
@@ -315,6 +341,32 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const loginSuperAdmin = async (email: string, password: string) => {
+        try {
+            if (!isSuperAdminAllowed()) {
+                throw new Error("Super admin login is disabled unless VITE_DEFAULT_ROLE=super_admin.");
+            }
+
+            axios.defaults.withCredentials = true;
+            setPreferredRole("super_admin");
+            const res = await axios.post("/api/auth/super_admin/sessions", {
+                email,
+                password,
+            });
+            if (res.data.success) {
+                toast.success(res.data.message || "Login successful");
+                setAccessToken(res.data?.data?.accessToken);
+                setUser(res.data?.data?.user);
+            } else {
+                throw { response: { data: res.data } };
+            }
+        } catch (error) {
+            console.error("Error logging in:", error);
+            toast.error(getErrorMessage(error));
+            throw error;
+        }
+    };
+
     const loginTeacher = async (email: string, password: string) => {
         try {
             axios.defaults.withCredentials = true;
@@ -375,6 +427,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const isAdmin = () => user?.role === "admin";
+    const isSuperAdmin = () => user?.role === "super_admin";
     const isTeacher = () => user?.role === "teacher";
     const isStudent = () => user?.role === "student";
     const hasRole = (role: UserRole) => user?.role === role;
@@ -388,6 +441,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 preferredRole,
                 accessToken,
                 loginAdmin,
+                loginSuperAdmin,
                 loginTeacher,
                 loginStudent,
                 logout,
@@ -395,6 +449,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 retryAuth,
                 setPreferredRole,
                 isAdmin,
+                isSuperAdmin,
                 isTeacher,
                 isStudent,
                 hasRole,

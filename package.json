@@ -12,9 +12,10 @@
   "scripts": {
     "dev": "concurrently --kill-others -n \"server,teacher,student,admin,shared-schemas,client,client-ui,common-ui\" -c \"blue,green,magenta,yellow,cyan,white,gray,black\" \"npm run dev -w server\" \"npm run dev:teacher -w dashboard\" \"npm run dev:student -w dashboard\" \"npm run dev:admin -w dashboard\" \"npm run dev:shared-schemas\" \"npm run dev:client\" \"npm run dev:client:ui\" \"npm run dev:common:ui\"",
     "build": "npm run build:client:core && npm run build:dashboard:core && npm run build:server",
-    "clean:ports": "npx kill-port 3002 5173 5174 5175 5176",
+    "clean:ports": "npx kill-port 3002 5173 5174 5175 5176 5177",
     "dev:server": "npm run dev -w server",
     "dev:dashboard": "npm run dev -w dashboard",
+    "dev:super_admin": "npm run dev:super_admin -w dashboard",
     "build:client:core": "npm run build -w @school/shared-schemas && npm run build -w @school/client-ui && npm run build -w @school/common-ui && npm run build -w client",
     "build:client": "npm install --include=optional --ignore-scripts=false --no-audit --no-fund && npm run build:client:core",
     "dev:client": "npm run dev -w client",
