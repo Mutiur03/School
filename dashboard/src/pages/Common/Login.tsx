@@ -9,10 +9,10 @@ import axios from "axios";
 import { getErrorMessage } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 
-type UserRole = "admin" | "teacher" | "student";
+type UserRole = "admin" | "teacher" | "student" | "super_admin";
 
 function Login() {
-  const { loginAdmin, user, isAdmin, isTeacher, isStudent, loginStudent, loginTeacher } = useAuth();
+  const { loginAdmin, loginSuperAdmin, user, isAdmin, isSuperAdmin, isTeacher, isStudent, loginStudent, loginTeacher } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [username, setUsername] = useState("");
@@ -35,7 +35,7 @@ function Login() {
   const [resetError, setResetError] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   const codeInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
-  const role: UserRole = location.pathname.includes("/teacher") ? "teacher" : location.pathname.includes("/student") ? "student" : "admin";
+  const role: UserRole = location.pathname.includes("/super_admin") ? "super_admin" : location.pathname.includes("/teacher") ? "teacher" : location.pathname.includes("/student") ? "student" : "admin";
 
   const redirectTo = (location.state as any)?.from;
 
@@ -45,15 +45,17 @@ function Login() {
         navigate(redirectTo, { replace: true });
         return;
       }
-      if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) navigate("/admin/dashboard");
+      if (isSuperAdmin() && envPreferredRole === "super_admin") navigate("/super_admin/dashboard");
+      else if (isAdmin() && (!envPreferredRole || envPreferredRole === 'admin')) navigate("/admin/dashboard");
       else if (isTeacher() && (!envPreferredRole || envPreferredRole === 'teacher')) navigate("/teacher/dashboard");
       else if (isStudent() && (!envPreferredRole || envPreferredRole === 'student')) navigate("/student/dashboard");
       return;
     }
-  }, [user, isAdmin, isTeacher, isStudent, navigate]);
+  }, [user, isAdmin, isSuperAdmin, isTeacher, isStudent, navigate]);
 
   useEffect(() => {
-    document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} Login`;
+    const roleTitle = role === "super_admin" ? "Super Admin" : `${role.charAt(0).toUpperCase() + role.slice(1)}`;
+    document.title = `${roleTitle} Login`;
     setLoginError("");
   }, [role]);
 
@@ -254,6 +256,7 @@ function Login() {
 
                     >
                       {/* Teacher */}
+                      {location.pathname.startsWith("/super_admin") && "Super Admin"}
                       {location.pathname.startsWith("/admin") && "Admin"}
                       {location.pathname.startsWith("/teacher") && "Teacher"}
                       {location.pathname.startsWith("/student") && "Student"}
@@ -529,7 +532,7 @@ function Login() {
                   setLoginError("");
 
                   // Client-side validation
-                  if (location.pathname.includes("/teacher")) {
+                  if (location.pathname.includes("/super_admin") || role === "super_admin" || location.pathname.includes("/teacher")) {
                     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
                     if (!emailRegex.test(email)) {
                       setLoginError("Please enter a valid email address.");
@@ -548,7 +551,9 @@ function Login() {
                   }
 
                   try {
-                    if (location.pathname.includes("/teacher")) {
+                    if (location.pathname.includes("/super_admin") || role === "super_admin") {
+                      await loginSuperAdmin(email, password);
+                    } else if (location.pathname.includes("/teacher")) {
                       await loginTeacher(email, password);
                     } else if (location.pathname.includes("/student")) {
                       await loginStudent(loginID, password);
@@ -556,6 +561,7 @@ function Login() {
                       await loginAdmin(username, password);
                     }
                     const destination = redirectTo || (
+                      role === "super_admin" ? "/super_admin/dashboard" :
                       role === "admin" ? "/admin/dashboard" :
                       role === "teacher" ? "/teacher/dashboard" :
                       "/student/dashboard"
@@ -569,7 +575,7 @@ function Login() {
               >
                 <div className="space-y-2">
                   <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
-                    {location.pathname.includes("/teacher") ? (
+                    {(location.pathname.includes("/super_admin") || role === "super_admin" || location.pathname.includes("/teacher")) ? (
                       <>
                         <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -592,10 +598,10 @@ function Login() {
                       </>
                     )}
                   </label>
-                  {location.pathname.includes("/teacher") ? (
+                  {(location.pathname.includes("/super_admin") || role === "super_admin" || location.pathname.includes("/teacher")) ? (
                     <Input
                       type="email"
-                      placeholder="e.g., teacher@example.com"
+                      placeholder={location.pathname.includes("/super_admin") || role === "super_admin" ? "e.g., superadmin@example.com" : "e.g., teacher@example.com"}
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}

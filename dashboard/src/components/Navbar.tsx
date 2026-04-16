@@ -37,7 +37,10 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
     if (!handleNavigation()) return;
     try {
       await logout();
-      navigate(`/${envPreferredRole ? envPreferredRole : user?.role}/login`);
+      const rolePath = envPreferredRole
+        ? (envPreferredRole === "super_admin" ? "super_admin" : envPreferredRole)
+        : (user?.role === "super_admin" ? "super_admin" : user?.role);
+      navigate(`/${rolePath}/login`);
       console.log("Logged out");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -65,6 +68,10 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
       {user && user.role === "admin" &&
         <Link to="/admin" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
           Admin
+        </Link>}
+      {user && user.role === "super_admin" &&
+        <Link to="/super_admin" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
+          Super Admin
         </Link>}
       {user && user.role === "teacher" &&
         <Link to="/teacher" onClick={handleNavigation} className="text-xl text-nowrap flex items-center">
