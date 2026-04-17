@@ -1,4 +1,5 @@
 const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
+const API_PREFIXES = ["/api", "/uploads"];
 
 const getTenantSlug = (hostname, tenantHostSuffix) => {
   const suffix = tenantHostSuffix.toLowerCase();
@@ -28,6 +29,11 @@ const cloneHeaders = ({ request, originalHost, slug }) => {
 
   return headers;
 };
+
+const shouldProxyToBackend = (pathname) =>
+  API_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 
 const resolveTenantTarget = (hostname, env) => {
   const clientHostSuffix = String(
@@ -75,18 +81,30 @@ export default {
       return new Response("Unknown tenant host", { status: 404 });
     }
 
+    const backendOrigin = trimTrailingSlash(
+      String(env.BACKEND_ORIGIN || "https://apisms.mutiurrahman.com").trim(),
+    );
+    const backendProxy = shouldProxyToBackend(requestUrl.pathname);
+
     const targetUrl = buildTargetUrl({
       requestUrl,
-      targetOrigin: target.origin,
+      targetOrigin: backendProxy ? backendOrigin : target.origin,
     });
+
+    const headers = cloneHeaders({
+      request,
+      originalHost: requestUrl.hostname,
+      slug: target.slug,
+    });
+
+    if (backendProxy) {
+      headers.set("origin", `${requestUrl.protocol}//${requestUrl.hostname}`);
+      headers.set("x-forwarded-host", requestUrl.hostname);
+    }
 
     const proxiedRequest = new Request(targetUrl.toString(), {
       method: request.method,
-      headers: cloneHeaders({
-        request,
-        originalHost: requestUrl.hostname,
-        slug: target.slug,
-      }),
+      headers,
       body: request.body,
       redirect: "manual",
       cf: request.cf,
