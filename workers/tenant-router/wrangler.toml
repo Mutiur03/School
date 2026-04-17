@@ -11,7 +11,7 @@ routes = [
 CLIENT_HOST_SUFFIX = "-school.mutiurrahman.com"
 CLIENT_PAGES_ORIGIN = "https://lbp-client.pages.dev"
 DASHBOARD_HOST_SUFFIX = "-dashboard.mutiurrahman.com"
-DASHBOARD_PAGES_ORIGIN = "https://lbp-dashboard.pages.dev"
+DASHBOARD_PAGES_ORIGIN = "https://school-a14.pages.dev"
 BACKEND_ORIGIN = "https://apisms.mutiurrahman.com"
 
 [observability]
