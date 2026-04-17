@@ -7,7 +7,14 @@ const resolveBackendUrl = (): string => {
 
   // Local fallback for development if no env is provided.
   if (!fromEnv) {
-    return `${window.location.protocol}//${window.location.hostname}:3002`;
+    if (
+      window.location.hostname === "localhost" ||
+      window.location.hostname.endsWith(".localhost")
+    ) {
+      return `${window.location.protocol}//${window.location.hostname}:3002`;
+    }
+
+    return "";
   }
 
   try {

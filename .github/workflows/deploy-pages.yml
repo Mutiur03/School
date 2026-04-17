@@ -31,6 +31,7 @@ jobs:
             build_script: build
             project_name: lbp-dashboard
             env_file: .env.production.local
+            same_origin_backend: true
           - name: LBP Admin
             directory: dashboard
             workspace: dashboard
@@ -58,6 +59,7 @@ jobs:
             build_script: build
             project_name: lbp-client
             env_file: .env.production.local
+            same_origin_backend: true
           - name: Super admin
             directory: dashboard
             workspace: dashboard
@@ -91,7 +93,11 @@ jobs:
       - name: Write production env for ${{ matrix.app.name }}
         run: |
           {
-            echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
+            if [ "${{ matrix.app.same_origin_backend }}" = "true" ]; then
+              echo "VITE_BACKEND_URL="
+            else
+              echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
+            fi
             echo "VITE_CDN_URL=${{ secrets.LBP_VITE_CDN_URL }}"
             if [ -n "${{ matrix.app.default_role }}" ]; then
               echo "VITE_DEFAULT_ROLE=${{ matrix.app.default_role }}"

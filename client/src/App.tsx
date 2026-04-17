@@ -35,7 +35,7 @@ import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/co
 
 function App() {
   const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
-  axios.defaults.baseURL = backendBaseUrl;
+  axios.defaults.baseURL = backendBaseUrl || "";
 
   return (
     <>
