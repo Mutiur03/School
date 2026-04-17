@@ -387,7 +387,7 @@ export class AuthService {
       throw new ApiError(400, "Username and password are required");
     }
 
-    if (!schoolId) {
+    if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
       throw new ApiError(400, "School ID is required");
     }
 

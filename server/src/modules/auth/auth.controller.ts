@@ -10,9 +10,7 @@ export class AuthController {
 
     res
       .status(201)
-      .json(
-        new ApiResponse(201, data, "Super admin created successfully"),
-      );
+      .json(new ApiResponse(201, data, "Super admin created successfully"));
   });
 
   static login = asyncHandler(async (req: Request, res: Response) => {
@@ -101,14 +99,21 @@ export class AuthController {
     res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
   });
 
-  static addAdmin = asyncHandler(async (req: Request, res: Response) => {
-    const { username, password, school_id } = req.body;
-    const admin = await AuthService.addAdmin(username, password, school_id);
+  static addAdminForSchool = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { username, password } = req.body;
+      const schoolIdRaw = req.params.schoolId;
+      const schoolId = parseInt(
+        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
+        10,
+      );
+      const admin = await AuthService.addAdmin(username, password, schoolId);
 
-    res
-      .status(201)
-      .json(new ApiResponse(201, admin, "Admin created successfully"));
-  });
+      res
+        .status(201)
+        .json(new ApiResponse(201, admin, "Admin created successfully"));
+    },
+  );
 
   static requestTeacherPasswordReset = asyncHandler(
     async (req: Request, res: Response) => {

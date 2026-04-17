@@ -17,9 +17,8 @@ import {
 } from "@school/shared-schemas";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
-import {
-  requireSchoolContextOrSuperAdminHostMiddleware,
-} from "@/middlewares/access.middleware.js";
+import { requireSchoolContextOrSuperAdminHostMiddleware } from "@/middlewares/access.middleware.js";
+import AuthMiddleware from "@/middlewares/auth.middleware.js";
 
 const authStore = new MemoryStore();
 const authLimiter = rateLimit({
@@ -57,6 +56,12 @@ superAdminRouter.post(
   validate(superAdminLoginSchema),
   AuthController.superAdminLogin,
 );
+superAdminRouter.post(
+  "/schools/:schoolId/admins",
+  AuthMiddleware.authenticate(["super_admin"]),
+  validate(addAdminSchema),
+  AuthController.addAdminForSchool,
+);
 
 const sessionRouter = express.Router();
 sessionRouter.use(requireSchoolContextOrSuperAdminHostMiddleware);
@@ -79,7 +84,6 @@ tenantRouter.post(
   validate(teacherLoginSchema),
   AuthController.teacher_login,
 );
-tenantRouter.post("/admins", validate(addAdminSchema), AuthController.addAdmin);
 tenantRouter.post(
   "/teacher/password-reset/request",
   passwordResetLimiter,
@@ -118,7 +122,11 @@ tenantRouter.post(
 );
 
 export const superAdminAuthRouter = express.Router();
-superAdminAuthRouter.use("/api/auth/super_admin", authLimiter, superAdminRouter);
+superAdminAuthRouter.use(
+  "/api/auth/super_admin",
+  authLimiter,
+  superAdminRouter,
+);
 
 export const sharedAuthSessionRouter = express.Router();
 sharedAuthSessionRouter.use("/api/auth/sessions", authLimiter, sessionRouter);
