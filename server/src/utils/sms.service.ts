@@ -2,6 +2,7 @@ import { env } from "@/config/env.js";
 import { prisma } from "@/config/prisma.js";
 import axios from "axios";
 import { calculateSMSCount } from "@school/shared-schemas";
+import { DEFAULT_SMS_TEMPLATES } from "@/constants/smsTemplates.js";
 
 export interface SMSMessage {
   Number: string;
@@ -21,7 +22,8 @@ export interface SMSOptions {
 export class SMSService {
   private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
   private static readonly FALLBACK_SENDER_ID = env.BULK_SMS_SENDER_ID;
-  private static readonly DEFAULT_API_URL = "https://sms.onecodesoft.com/api/send-bulk-sms";
+  private static readonly DEFAULT_API_URL =
+    "https://sms.onecodesoft.com/api/send-bulk-sms";
 
   public static formatPhoneNumber(phoneNumber: string): string {
     const cleanNumber = phoneNumber.replace(/\D/g, "");
@@ -39,7 +41,9 @@ export class SMSService {
     let settings = await prisma.sms_settings.findFirst();
     if (!settings) {
       settings = await prisma.sms_settings.create({
-        data: {},
+        data: {
+          ...DEFAULT_SMS_TEMPLATES,
+        },
       });
     }
     return settings;
@@ -48,7 +52,11 @@ export class SMSService {
   /**
    * Send a single SMS message
    */
-  static async sendSMS(phoneNumber: string, message: string, options?: SMSOptions): Promise<SMSResponse> {
+  static async sendSMS(
+    phoneNumber: string,
+    message: string,
+    options?: SMSOptions,
+  ): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
     const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
@@ -86,19 +94,23 @@ export class SMSService {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-        }
+        },
       );
       console.log(response.data);
 
       // Sum up sms_count from results if available
       let totalSmsUsed = 0;
       if (response.data?.results && Array.isArray(response.data.results)) {
-        totalSmsUsed = response.data.results.reduce((sum: number, res: any) => sum + (res.sms_count || 0), 0);
+        totalSmsUsed = response.data.results.reduce(
+          (sum: number, res: any) => sum + (res.sms_count || 0),
+          0,
+        );
       }
-      
+
       // Fallback if results are empty but top level has something
       if (totalSmsUsed === 0) {
-        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || 1;
+        totalSmsUsed =
+          response.data?.total_sms || response.data?.sms_count || 1;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -106,9 +118,9 @@ export class SMSService {
           where: { id: settings.id },
           data: {
             sms_balance: {
-              decrement: totalSmsUsed
-            }
-          }
+              decrement: totalSmsUsed,
+            },
+          },
         });
       }
 
@@ -121,7 +133,10 @@ export class SMSService {
       console.error("SMS sending error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || "Failed to send SMS",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to send SMS",
       };
     }
   }
@@ -129,7 +144,10 @@ export class SMSService {
   /**
    * Send bulk SMS messages
    */
-  static async sendBulkSMS(messages: SMSMessage[], options?: SMSOptions): Promise<SMSResponse> {
+  static async sendBulkSMS(
+    messages: SMSMessage[],
+    options?: SMSOptions,
+  ): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
     const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
@@ -153,7 +171,7 @@ export class SMSService {
       };
     }
 
-    const messageParameters = messages.map(msg => ({
+    const messageParameters = messages.map((msg) => ({
       Number: SMSService.formatPhoneNumber(msg.Number),
       Text: msg.Text,
     }));
@@ -171,15 +189,21 @@ export class SMSService {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-        }
+        },
       );
       console.log(response.data);
       let totalSmsUsed = 0;
       if (response.data?.results && Array.isArray(response.data.results)) {
-        totalSmsUsed = response.data.results.reduce((sum: number, res: any) => sum + (res.sms_count || 0), 0);
+        totalSmsUsed = response.data.results.reduce(
+          (sum: number, res: any) => sum + (res.sms_count || 0),
+          0,
+        );
       }
       if (totalSmsUsed === 0) {
-        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || totalSegmentsNeeded;
+        totalSmsUsed =
+          response.data?.total_sms ||
+          response.data?.sms_count ||
+          totalSegmentsNeeded;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -187,9 +211,9 @@ export class SMSService {
           where: { id: settings.id },
           data: {
             sms_balance: {
-              decrement: totalSmsUsed
-            }
-          }
+              decrement: totalSmsUsed,
+            },
+          },
         });
       }
 
@@ -202,7 +226,10 @@ export class SMSService {
       console.error("Bulk SMS sending error:", error);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || "Failed to send bulk SMS",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to send bulk SMS",
       };
     }
   }
@@ -222,14 +249,21 @@ export class SMSService {
   /**
    * Calculate SMS count based on text length and encoding
    */
-  static calculateSMSCount(text: string): { count: number; encoding: "GSM-7" | "Unicode"; length: number } {
+  static calculateSMSCount(text: string): {
+    count: number;
+    encoding: "GSM-7" | "Unicode";
+    length: number;
+  } {
     return calculateSMSCount(text);
   }
 
   /**
    * Send a test SMS message
    */
-  static async sendTestSMS(phoneNumber: string, message: string): Promise<SMSResponse> {
+  static async sendTestSMS(
+    phoneNumber: string,
+    message: string,
+  ): Promise<SMSResponse> {
     const testMessage = `[TEST] School Management System: ${message}`;
     return this.sendSMS(phoneNumber, testMessage);
   }
@@ -237,9 +271,13 @@ export class SMSService {
   /**
    * Send password reset code
    */
-  static async sendPasswordResetCode(phoneNumber: string, resetCode: string, recipientName?: string): Promise<SMSResponse> {
-    const message = `School Management System: Your password reset code is: ${resetCode}. This code will expire in 15 minutes. If you didn't request this, please ignore this message.${recipientName ? ` - ${recipientName}` : ''}`;
-    
+  static async sendPasswordResetCode(
+    phoneNumber: string,
+    resetCode: string,
+    recipientName?: string,
+  ): Promise<SMSResponse> {
+    const message = `School Management System: Your password reset code is: ${resetCode}. This code will expire in 15 minutes. If you didn't request this, please ignore this message.${recipientName ? ` - ${recipientName}` : ""}`;
+
     return this.sendSMS(phoneNumber, message);
   }
 
@@ -248,7 +286,7 @@ export class SMSService {
   //  */
   // static async sendVerificationCode(phoneNumber: string, verificationCode: string, purpose: string): Promise<SMSResponse> {
   //   const message = `School Management System: Your ${purpose} verification code is: ${verificationCode}. This code will expire in 10 minutes. If you didn't request this, please ignore this message.`;
-    
+
   //   return this.sendSMS(phoneNumber, message);
   // }
 
@@ -257,7 +295,7 @@ export class SMSService {
   //  */
   // static async sendNotification(phoneNumber: string, notification: string): Promise<SMSResponse> {
   //   const message = `School Management System: ${notification}`;
-    
+
   //   return this.sendSMS(phoneNumber, message);
   // }
 
@@ -267,7 +305,7 @@ export class SMSService {
   // static validatePhoneNumber(phoneNumber: string): boolean {
   //   // Remove any non-digit characters
   //   const cleanNumber = phoneNumber.replace(/\D/g, '');
-    
+
   //   // Check if it's a valid Bangladesh number (11 digits starting with 01)
   //   return cleanNumber.length === 11 && cleanNumber.startsWith('01');
   // }
@@ -277,12 +315,11 @@ export class SMSService {
   //  */
   // static formatPhoneNumber(phoneNumber: string): string {
   //   const cleanNumber = phoneNumber.replace(/\D/g, '');
-    
+
   //   if (cleanNumber.length === 11 && cleanNumber.startsWith('01')) {
   //     return cleanNumber;
   //   }
-    
+
   //   throw new Error('Invalid phone number format. Must be 11 digits starting with 01');
   // }
 }
-
