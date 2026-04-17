@@ -1,59 +1,116 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import axios from "axios";
-import { RefreshCw, Save, Loader2, School, Globe, Mail, Phone, MapPin, Palette, Settings } from "lucide-react";
+import {
+  RefreshCw,
+  Save,
+  Loader2,
+  School,
+  Mail,
+  Phone,
+  MapPin,
+  Palette,
+  Settings,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import { districts, getUpazilasByDistrict, type District, type Upazila } from "@school/shared-schemas";
+import {
+  createSchoolSchema,
+  districts,
+  getUpazilasByDistrict,
+  type District,
+  type Upazila,
+} from "@school/shared-schemas";
 
 interface SchoolData {
   id?: number;
-  name: string;
-  shortName: string;
-  eiin: string;
-  logo: string;
-  favicon: string;
-  district: string;
-  upazila: string;
-  phone: string;
-  email: string;
-  website: string;
-  slogan: string;
-  establishedIn: number;
-  subdomain: string;
-  customDomain: string;
+  name?: string | null;
+  shortName?: string | null;
+  eiin?: string | null;
+  logo?: string | null;
+  favicon?: string | null;
+  district?: string | null;
+  upazila?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  slogan?: string | null;
+  establishedIn?: number | null;
+  subdomain?: string | null;
+  customDomain?: string | null;
 }
 
-function SchoolSettings() {
-  const [formData, setFormData] = useState<SchoolData>({
-    name: "",
-    shortName: "",
-    eiin: "",
-    logo: "",
-    favicon: "",
-    district: "",
-    upazila: "",
-    phone: "",
-    email: "",
-    website: "",
-    slogan: "",
-    establishedIn: new Date().getFullYear(),
-    subdomain: "",
-    customDomain: "",
-  });
+type SchoolFormValues = z.input<typeof createSchoolSchema>;
+// type SchoolFormSubmitValues = z.output<typeof createSchoolSchema>;
 
+const currentYear = new Date().getFullYear();
+
+const createDefaultValues = (): SchoolFormValues => ({
+  name: "",
+  shortName: "",
+  eiin: "",
+  logo: "",
+  favicon: "",
+  district: "",
+  upazila: "",
+  phone: "",
+  email: "",
+  slogan: "",
+  establishedIn: currentYear,
+  subdomain: "",
+  customDomain: "",
+});
+
+const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
+  name: school?.name ?? "",
+  shortName: school?.shortName ?? "",
+  eiin: school?.eiin ?? "",
+  logo: school?.logo ?? "",
+  favicon: school?.favicon ?? "",
+  district: school?.district ?? "",
+  upazila: school?.upazila ?? "",
+  phone: school?.phone ?? "",
+  email: school?.email ?? "",
+  slogan: school?.slogan ?? "",
+  establishedIn: school?.establishedIn ?? currentYear,
+  subdomain: school?.subdomain ?? "",
+  customDomain: school?.customDomain ?? "",
+});
+
+function SchoolSettings() {
+  const [schoolId, setSchoolId] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [fetching, setFetching] = useState<boolean>(false);
 
-  useEffect(() => {
-    fetchSchoolSettings();
-  }, []);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<SchoolFormValues>({
+    resolver: zodResolver(createSchoolSchema),
+    defaultValues: createDefaultValues(),
+    mode: "onSubmit",
+        reValidateMode: "onChange",
+  });
 
-  const fetchSchoolSettings = async () => {
+  const district = watch("district");
+
+  const fetchSchoolSettings = useCallback(async () => {
     setFetching(true);
     try {
-      const res = await axios.get("/api/schools");
-      if (res.data?.data && res.data.data.length > 0) {
-        // For now, we just take the first school
-        setFormData(res.data.data[0]);
+      const res = await axios.get("/api/schools/public");
+      if (res.data?.data) {
+        const school = res.data.data as SchoolData;
+        setSchoolId(typeof school.id === "number" ? school.id : null);
+        reset(toFormValues(school));
+      } else {
+        setSchoolId(null);
+        reset(createDefaultValues());
       }
     } catch (error) {
       console.error("Failed to fetch school settings:", error);
@@ -61,41 +118,74 @@ function SchoolSettings() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [reset]);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [name]: name === "establishedIn" ? parseInt(value) || 0 : value,
-      };
+  useEffect(() => {
+    fetchSchoolSettings();
+  }, [fetchSchoolSettings]);
 
-      // If district changes, reset upazila
-      if (name === "district") {
-        newData.upazila = "";
-      }
-
-      return newData;
-    });
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: SchoolFormValues) => {
+    const result = createSchoolSchema.safeParse(watch());
+console.log(result);
+    clearErrors();
     setLoading(true);
 
     try {
-      if (formData.id) {
-        await axios.put(`/api/schools/${formData.id}`, formData);
+      const payload = values;
+
+      if (schoolId) {
+        await axios.put(`/api/schools/${schoolId}`, payload);
         toast.success("School settings updated successfully");
       } else {
-        await axios.post("/api/schools", formData);
+        const res = await axios.post("/api/schools", payload);
+        const createdId = res.data?.data?.id;
+        if (typeof createdId === "number") {
+          setSchoolId(createdId);
+        }
         toast.success("School profile created successfully");
-        fetchSchoolSettings();
       }
+
+      await fetchSchoolSettings();
     } catch (error) {
       console.error("Failed to save school settings:", error);
-      toast.error("Failed to save settings");
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data as {
+          message?: string;
+          errors?: Array<{ path?: Array<string | number>; message?: string }>;
+        } | undefined;
+
+        const issues = Array.isArray(responseData?.errors)
+          ? responseData.errors
+          : [];
+
+        let appliedFieldError = false;
+        for (const issue of issues) {
+          const rawPath = Array.isArray(issue.path)
+            ? issue.path.join(".")
+            : "";
+          const message = issue.message || "Invalid value";
+
+          if (
+            rawPath &&
+            Object.prototype.hasOwnProperty.call(values, rawPath)
+          ) {
+            setError(rawPath as keyof SchoolFormValues, {
+              type: "server",
+              message,
+            });
+            appliedFieldError = true;
+          }
+        }
+
+        if (appliedFieldError && issues[0]?.message) {
+          toast.error(issues[0].message);
+        } else {
+          toast.error(responseData?.message || "Failed to save settings");
+        }
+      } else {
+        toast.error("Failed to save settings");
+      }
     } finally {
       setLoading(false);
     }
@@ -123,8 +213,7 @@ function SchoolSettings() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 border-b pb-2 dark:border-gray-700">
             <Settings size={18} />
@@ -135,65 +224,61 @@ function SchoolSettings() {
               <label className="block text-sm font-medium mb-1">School Name</label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
+                {...register("name")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="e.g. Dhaka Residential Model College"
               />
+              {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Short Name</label>
               <input
                 type="text"
-                name="shortName"
-                value={formData.shortName}
-                onChange={handleInputChange}
+                {...register("shortName")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="e.g. DRMC"
               />
+              {errors.shortName && <p className="mt-1 text-xs text-red-600">{errors.shortName.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">EIIN Number</label>
               <input
                 type="text"
-                name="eiin"
-                value={formData.eiin}
-                onChange={handleInputChange}
+                {...register("eiin")}
+                inputMode="numeric"
+                maxLength={6}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
-                placeholder="e.g. 108161"
+                placeholder="e.g. 123456"
               />
+              {errors.eiin && <p className="mt-1 text-xs text-red-600">{errors.eiin.message}</p>}
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Slogan</label>
               <input
                 type="text"
-                name="slogan"
-                value={formData.slogan}
-                onChange={handleInputChange}
+                {...register("slogan")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="e.g. Education, Discipline, Character"
               />
+              {errors.slogan && <p className="mt-1 text-xs text-red-600">{errors.slogan.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Established In</label>
               <input
                 type="number"
-                name="establishedIn"
-                value={formData.establishedIn}
-                onChange={handleInputChange}
+                {...register("establishedIn")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
               />
+              {errors.establishedIn && (
+                <p className="mt-1 text-xs text-red-600">{errors.establishedIn.message}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Subdomain</label>
               <div className="flex items-center">
                 <input
                   type="text"
-                  name="subdomain"
-                  value={formData.subdomain}
-                  onChange={handleInputChange}
+                  {...register("subdomain")}
                   className="flex-1 px-3 py-2 border rounded-l-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                   placeholder="e.g. school1"
                 />
@@ -201,22 +286,21 @@ function SchoolSettings() {
                   .yourdomain.com
                 </span>
               </div>
+              {errors.subdomain && <p className="mt-1 text-xs text-red-600">{errors.subdomain.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Custom Domain</label>
               <input
                 type="text"
-                name="customDomain"
-                value={formData.customDomain}
-                onChange={handleInputChange}
+                {...register("customDomain")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="e.g. www.school-one.edu"
               />
+              {errors.customDomain && <p className="mt-1 text-xs text-red-600">{errors.customDomain.message}</p>}
             </div>
           </div>
         </div>
 
-        {/* Contact Information */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 border-b pb-2 dark:border-gray-700">
             <Mail size={18} />
@@ -224,18 +308,16 @@ function SchoolSettings() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium mb-1 flex items-center gap-1">
-                <MapPin size={14} /> District
-              </label>
               <label className="text-sm font-medium mb-1.5 block">District</label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <select
-                  name="district"
-                  value={formData.district}
-                  onChange={handleInputChange}
+                  {...register("district", {
+                    onChange: () => {
+                      setValue("upazila", "", { shouldValidate: true });
+                    },
+                  })}
                   className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
-                  required
                 >
                   <option value="">Select District</option>
                   {districts.map((d: District) => (
@@ -248,6 +330,7 @@ function SchoolSettings() {
                   <div className="border-l border-t border-muted-foreground w-2 h-2 rotate-[225deg]"></div>
                 </div>
               </div>
+              {errors.district && <p className="mt-1 text-xs text-red-600">{errors.district.message}</p>}
             </div>
 
             <div>
@@ -255,16 +338,13 @@ function SchoolSettings() {
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <select
-                  name="upazila"
-                  value={formData.upazila}
-                  onChange={handleInputChange}
+                  {...register("upazila")}
                   className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none disabled:opacity-50"
-                  required
-                  disabled={!formData.district}
+                  disabled={!district}
                 >
                   <option value="">Select Upazila</option>
-                  {formData.district &&
-                    getUpazilasByDistrict(formData.district).map((u: Upazila) => (
+                  {district &&
+                    getUpazilasByDistrict(district).map((u: Upazila) => (
                       <option key={u.id} value={u.id}>
                         {u.name}
                       </option>
@@ -274,6 +354,7 @@ function SchoolSettings() {
                   <div className="border-l border-t border-muted-foreground w-2 h-2 rotate-[225deg]"></div>
                 </div>
               </div>
+              {errors.upazila && <p className="mt-1 text-xs text-red-600">{errors.upazila.message}</p>}
             </div>
             <div>
               <label className="text-sm font-medium mb-1 flex items-center gap-1">
@@ -281,11 +362,11 @@ function SchoolSettings() {
               </label>
               <input
                 type="text"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
+                {...register("phone")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
+                placeholder="e.g. 01712345678"
               />
+              {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
             </div>
             <div>
               <label className="text-sm font-medium mb-1 flex items-center gap-1">
@@ -293,29 +374,15 @@ function SchoolSettings() {
               </label>
               <input
                 type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
+                {...register("email")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
+                placeholder="e.g. school@example.com"
               />
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-sm font-medium mb-1 flex items-center gap-1">
-                <Globe size={14} /> Website
-              </label>
-              <input
-                type="url"
-                name="website"
-                value={formData.website}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
-                placeholder="https://example.edu.bd"
-              />
+              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
             </div>
           </div>
         </div>
 
-        {/* Branding Assets */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 border-b pb-2 dark:border-gray-700">
             <Palette size={18} />
@@ -326,23 +393,21 @@ function SchoolSettings() {
               <label className="block text-sm font-medium mb-1">Logo URL</label>
               <input
                 type="text"
-                name="logo"
-                value={formData.logo}
-                onChange={handleInputChange}
+                {...register("logo")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="https://..."
               />
+              {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Favicon URL</label>
               <input
                 type="text"
-                name="favicon"
-                value={formData.favicon}
-                onChange={handleInputChange}
+                {...register("favicon")}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
                 placeholder="https://..."
               />
+              {errors.favicon && <p className="mt-1 text-xs text-red-600">{errors.favicon.message}</p>}
             </div>
           </div>
         </div>
@@ -354,7 +419,7 @@ function SchoolSettings() {
             className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 focus:ring-4 focus:ring-primary/20 transition-all disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Save />}
-            {formData.id ? "Update Settings" : "Save Settings"}
+            {schoolId ? "Update Settings" : "Save Settings"}
           </button>
         </div>
       </form>

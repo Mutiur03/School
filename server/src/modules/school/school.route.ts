@@ -1,42 +1,45 @@
 import { Router } from "express";
 import { SchoolController } from "./school.controller.js";
 import AuthMiddleware from "../../middlewares/auth.middleware.js";
+import { validate } from "@/middlewares/validate.middleware.js";
+import { createSchoolSchema, updateSchoolSchema } from "@school/shared-schemas";
 
 const router = Router();
 
-router.get("/api/schools/:id/public", SchoolController.getSchoolPublicInfo);
-router.get("/api/schools/public", SchoolController.getSchoolPublicInfo);
-router.get("/api/school/getConfig", SchoolController.getSchoolPublicInfo);
+router.get("/public", SchoolController.getSchoolPublicInfo);
 
-// Protected routes for school management
 router.post(
-  "/api/schools",
+  "/",
   AuthMiddleware.authenticate(["super_admin"]),
-  SchoolController.createSchool
+  validate(createSchoolSchema),
+  SchoolController.createSchool,
 );
 
 router.get(
-  "/api/schools",
-  AuthMiddleware.authenticate(["super_admin", "admin"]),
-  SchoolController.getSchools
+  "/",
+  AuthMiddleware.authenticate(["super_admin"]),
+  SchoolController.getSchools,
 );
 
-router.get(
-  "/api/schools/:id",
-  AuthMiddleware.authenticate(["super_admin", "admin"]),
-  SchoolController.getSchoolById
-);
+// router.get(
+//   "/:id",
+//   AuthMiddleware.authenticate(["super_admin", "admin"]),
+//   SchoolController.getSchoolById,
+// );
 
 router.put(
-  "/api/schools/:id",
+  "/:id",
   AuthMiddleware.authenticate(["super_admin", "admin"]),
-  SchoolController.updateSchool
+  validate(updateSchoolSchema),
+  SchoolController.updateSchool,
 );
 
 router.delete(
-  "/api/schools/:id",
+  "/:id",
   AuthMiddleware.authenticate(["super_admin"]),
-  SchoolController.deleteSchool
+  SchoolController.deleteSchool,
 );
 
-export default router;
+const schoolRouter = router.use("/api/schools", router);
+
+export default schoolRouter;

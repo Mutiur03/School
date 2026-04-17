@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -13,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import {
+  createSchoolSchema,
   districts,
   getUpazilasByDistrict,
   type District,
@@ -30,14 +34,17 @@ interface SchoolData {
   upazila: string;
   phone: string;
   email: string;
-  website: string;
   slogan: string;
   establishedIn: number;
   subdomain: string;
   customDomain: string;
 }
 
-const createEmptySchool = (): SchoolData => ({
+const currentYear = new Date().getFullYear();
+
+type SchoolFormValues = z.input<typeof createSchoolSchema>;
+
+const createEmptySchool = (): SchoolFormValues => ({
   name: "",
   shortName: "",
   eiin: "",
@@ -47,94 +54,116 @@ const createEmptySchool = (): SchoolData => ({
   upazila: "",
   phone: "",
   email: "",
-  website: "",
   slogan: "",
-  establishedIn: new Date().getFullYear(),
+  establishedIn: currentYear,
   subdomain: "",
   customDomain: "",
 });
 
+const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
+  name: school?.name ?? "",
+  shortName: school?.shortName ?? "",
+  eiin: school?.eiin ?? "",
+  logo: school?.logo ?? "",
+  favicon: school?.favicon ?? "",
+  district: school?.district ?? "",
+  upazila: school?.upazila ?? "",
+  phone: school?.phone ?? "",
+  email: school?.email ?? "",
+  slogan: school?.slogan ?? "",
+  establishedIn: school?.establishedIn ?? currentYear,
+  subdomain: school?.subdomain ?? "",
+  customDomain: school?.customDomain ?? "",
+});
+
 function SchoolManagement() {
   const [schools, setSchools] = useState<SchoolData[]>([]);
-  const [formData, setFormData] = useState<SchoolData>(createEmptySchool());
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | "new">("new");
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<SchoolFormValues>({
+    resolver: zodResolver(createSchoolSchema),
+    defaultValues: createEmptySchool(),
+    mode: "onSubmit",
+        reValidateMode: "onChange",
+  });
+
+  const district = watch("district");
+  const schoolName = watch("name");
 
   const sortedSchools = useMemo(
     () => [...schools].sort((a, b) => a.name.localeCompare(b.name)),
     [schools],
   );
 
-  const fetchSchools = async () => {
+  const fetchSchools = useCallback(async () => {
     setFetching(true);
     try {
       const res = await axios.get("/api/schools");
       const list = Array.isArray(res.data?.data) ? res.data.data : [];
       setSchools(list);
 
-      if (selectedSchoolId === "new") {
-        return;
-      }
+      setSelectedSchoolId((previousSelectedId) => {
+        if (previousSelectedId === "new") {
+          return previousSelectedId;
+        }
 
-      const current = list.find((school: SchoolData) => school.id === selectedSchoolId);
-      if (current) {
-        setFormData(current);
-      } else {
-        setSelectedSchoolId("new");
-        setFormData(createEmptySchool());
-      }
+        const current = list.find(
+          (school: SchoolData) => school.id === previousSelectedId,
+        );
+        if (current) {
+          reset(toFormValues(current));
+          return previousSelectedId;
+        }
+
+        reset(createEmptySchool());
+        return "new";
+      });
     } catch (error) {
       console.error("Failed to fetch schools", error);
       toast.error("Failed to load schools");
     } finally {
       setFetching(false);
     }
-  };
+  }, [reset]);
 
   useEffect(() => {
     fetchSchools();
-  }, []);
+  }, [fetchSchools]);
 
   const selectSchool = (school: SchoolData) => {
     setSelectedSchoolId(school.id ?? "new");
-    setFormData({ ...school });
+    reset(toFormValues(school));
   };
 
   const startNewSchool = () => {
     setSelectedSchoolId("new");
-    setFormData(createEmptySchool());
+    reset(createEmptySchool());
   };
 
-  const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => {
-      const next = {
-        ...prev,
-        [name]: name === "establishedIn" ? parseInt(value, 10) || 0 : value,
-      };
-
-      if (name === "district") {
-        next.upazila = "";
-      }
-
-      return next;
-    });
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: SchoolFormValues) => {
+    clearErrors();
     setSaving(true);
 
     try {
-      if (formData.id) {
-        await axios.put(`/api/schools/${formData.id}`, formData);
+      const payload = values;
+
+      if (selectedSchoolId !== "new") {
+        await axios.put(`/api/schools/${selectedSchoolId}`, payload);
         toast.success("School updated successfully");
       } else {
-        const res = await axios.post("/api/schools", formData);
+        const res = await axios.post("/api/schools", payload);
         toast.success("School created successfully");
 
         const createdId = res.data?.data?.id;
@@ -146,23 +175,60 @@ function SchoolManagement() {
       await fetchSchools();
     } catch (error) {
       console.error("Failed to save school", error);
-      toast.error("Failed to save school");
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data as {
+          message?: string;
+          errors?: Array<{ path?: Array<string | number>; message?: string }>;
+        } | undefined;
+
+        const issues = Array.isArray(responseData?.errors)
+          ? responseData.errors
+          : [];
+
+        let appliedFieldError = false;
+        for (const issue of issues) {
+          const rawPath = Array.isArray(issue.path)
+            ? issue.path.join(".")
+            : "";
+          const message = issue.message || "Invalid value";
+
+          if (
+            rawPath &&
+            Object.prototype.hasOwnProperty.call(values, rawPath)
+          ) {
+            setError(rawPath as keyof SchoolFormValues, {
+              type: "server",
+              message,
+            });
+            appliedFieldError = true;
+          }
+        }
+
+        if (appliedFieldError && issues[0]?.message) {
+          toast.error(issues[0].message);
+        } else {
+          toast.error(responseData?.message || "Failed to save school");
+        }
+      } else {
+        toast.error("Failed to save school");
+      }
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!formData.id) return;
+    if (selectedSchoolId === "new") return;
 
     const confirmed = window.confirm(
-      `Delete school \"${formData.name}\"? This action cannot be undone.`,
+      `Delete school "${schoolName || "this school"}"? This action cannot be undone.`,
     );
     if (!confirmed) return;
 
     setDeleting(true);
     try {
-      await axios.delete(`/api/schools/${formData.id}`);
+      await axios.delete(`/api/schools/${selectedSchoolId}`);
       toast.success("School deleted");
       startNewSchool();
       await fetchSchools();
@@ -240,19 +306,25 @@ function SchoolManagement() {
         </aside>
 
         <section className="lg:col-span-8 rounded-xl border bg-card p-5">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                {formData.id ? `Edit: ${formData.name || "School"}` : "Create New School"}
+                {selectedSchoolId !== "new"
+                  ? `Edit: ${schoolName || "School"}`
+                  : "Create New School"}
               </h2>
-              {formData.id && (
+              {selectedSchoolId !== "new" && (
                 <button
                   type="button"
                   onClick={handleDelete}
                   disabled={deleting || saving}
                   className="inline-flex items-center gap-2 rounded-md border border-red-300 px-3 py-2 text-sm text-red-600"
                 >
-                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
                   Delete
                 </button>
               )}
@@ -262,57 +334,53 @@ function SchoolManagement() {
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">School Name</label>
                 <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
+                  {...register("name")}
                   className="w-full rounded-md border px-3 py-2"
                   placeholder="e.g. Dhaka Residential Model College"
                 />
+                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Short Name</label>
                 <input
-                  name="shortName"
-                  value={formData.shortName}
-                  onChange={handleInputChange}
+                  {...register("shortName")}
                   className="w-full rounded-md border px-3 py-2"
                   placeholder="e.g. DRMC"
                 />
+                {errors.shortName && <p className="mt-1 text-xs text-red-600">{errors.shortName.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">EIIN</label>
                 <input
-                  name="eiin"
-                  value={formData.eiin}
-                  onChange={handleInputChange}
+                  {...register("eiin")}
+                  inputMode="numeric"
+                  maxLength={6}
                   className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. 108161"
+                  placeholder="e.g. 123456"
                 />
+                {errors.eiin && <p className="mt-1 text-xs text-red-600">{errors.eiin.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Subdomain</label>
                 <input
-                  name="subdomain"
-                  value={formData.subdomain}
-                  onChange={handleInputChange}
+                  {...register("subdomain")}
                   className="w-full rounded-md border px-3 py-2"
                   placeholder="e.g. lbp"
                 />
+                {errors.subdomain && <p className="mt-1 text-xs text-red-600">{errors.subdomain.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Custom Domain</label>
                 <input
-                  name="customDomain"
-                  value={formData.customDomain}
-                  onChange={handleInputChange}
+                  {...register("customDomain")}
                   className="w-full rounded-md border px-3 py-2"
                   placeholder="e.g. school.edu"
                 />
+                {errors.customDomain && <p className="mt-1 text-xs text-red-600">{errors.customDomain.message}</p>}
               </div>
 
               <div>
@@ -320,11 +388,12 @@ function SchoolManagement() {
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <select
-                    name="district"
-                    value={formData.district}
-                    onChange={handleInputChange}
+                    {...register("district", {
+                      onChange: () => {
+                        setValue("upazila", "", { shouldValidate: true });
+                      },
+                    })}
                     className="w-full rounded-md border px-3 py-2 pl-10"
-                    required
                   >
                     <option value="">Select District</option>
                     {districts.map((d: District) => (
@@ -334,6 +403,7 @@ function SchoolManagement() {
                     ))}
                   </select>
                 </div>
+                {errors.district && <p className="mt-1 text-xs text-red-600">{errors.district.message}</p>}
               </div>
 
               <div>
@@ -341,22 +411,20 @@ function SchoolManagement() {
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <select
-                    name="upazila"
-                    value={formData.upazila}
-                    onChange={handleInputChange}
+                    {...register("upazila")}
                     className="w-full rounded-md border px-3 py-2 pl-10"
-                    required
-                    disabled={!formData.district}
+                    disabled={!district}
                   >
                     <option value="">Select Upazila</option>
-                    {formData.district &&
-                      getUpazilasByDistrict(formData.district).map((u: Upazila) => (
+                    {district &&
+                      getUpazilasByDistrict(district).map((u: Upazila) => (
                         <option key={u.id} value={u.id}>
                           {u.name}
                         </option>
                       ))}
                   </select>
                 </div>
+                {errors.upazila && <p className="mt-1 text-xs text-red-600">{errors.upazila.message}</p>}
               </div>
 
               <div>
@@ -364,11 +432,11 @@ function SchoolManagement() {
                   <Phone className="h-4 w-4" /> Phone
                 </label>
                 <input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
+                  {...register("phone")}
                   className="w-full rounded-md border px-3 py-2"
+                  placeholder="e.g. 01712345678"
                 />
+                {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
               </div>
 
               <div>
@@ -377,63 +445,50 @@ function SchoolManagement() {
                 </label>
                 <input
                   type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
+                  {...register("email")}
                   className="w-full rounded-md border px-3 py-2"
+                  placeholder="e.g. school@example.com"
                 />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Website</label>
-                <input
-                  name="website"
-                  value={formData.website}
-                  onChange={handleInputChange}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="https://example.edu.bd"
-                />
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Slogan</label>
                 <input
-                  name="slogan"
-                  value={formData.slogan}
-                  onChange={handleInputChange}
+                  {...register("slogan")}
                   className="w-full rounded-md border px-3 py-2"
                 />
+                {errors.slogan && <p className="mt-1 text-xs text-red-600">{errors.slogan.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Established In</label>
                 <input
                   type="number"
-                  name="establishedIn"
-                  value={formData.establishedIn}
-                  onChange={handleInputChange}
+                  {...register("establishedIn")}
                   className="w-full rounded-md border px-3 py-2"
                 />
+                {errors.establishedIn && (
+                  <p className="mt-1 text-xs text-red-600">{errors.establishedIn.message}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Logo URL</label>
                 <input
-                  name="logo"
-                  value={formData.logo}
-                  onChange={handleInputChange}
+                  {...register("logo")}
                   className="w-full rounded-md border px-3 py-2"
                 />
+                {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Favicon URL</label>
                 <input
-                  name="favicon"
-                  value={formData.favicon}
-                  onChange={handleInputChange}
+                  {...register("favicon")}
                   className="w-full rounded-md border px-3 py-2"
                 />
+                {errors.favicon && <p className="mt-1 text-xs text-red-600">{errors.favicon.message}</p>}
               </div>
             </div>
 
@@ -444,7 +499,7 @@ function SchoolManagement() {
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {formData.id ? "Update School" : "Create School"}
+                {selectedSchoolId !== "new" ? "Update School" : "Create School"}
               </button>
             </div>
           </form>

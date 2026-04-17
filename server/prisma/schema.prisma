@@ -21,23 +21,15 @@ model School {
   website          String?
   slogan           String?
   establishedIn    Int?
-  /// Bengali / local display name for public site (optional; can also live in SchoolSiteConfig)
   nameBn           String?                       @map("name_bn") @db.VarChar(300)
-  /// Board / exam center code when not using JSON config
   centerCode       String?                       @map("center_code") @db.VarChar(50)
-  /// Google Maps embed URL for contact page
   mapEmbedUrl      String?                       @map("map_embed_url") @db.Text
-  /// Secondary logo (e.g. government seal) shown in header
   governmentLogo   String?                       @map("government_logo")
-  /// Wide banner/logo overlay on hero; falls back to `logo` if null
   headerLogo       String?                       @map("header_logo")
-  /// Ordered list of hero banner image URLs (JSON array of strings)
   bannerUrls       Json?                         @map("banner_urls")
-  /// Public portal deep links
   resultsUrl       String?                       @map("results_url")
   teacherLoginUrl  String?                       @map("teacher_login_url")
   studentLoginUrl  String?                       @map("student_login_url")
-  /// Extra address lines for public site
   address          String?                       @db.VarChar(500)
   location         String?                       @db.VarChar(200)
   nationalizedYear String?                       @map("nationalized_year") @db.VarChar(20)
@@ -78,7 +70,6 @@ model School {
   head_msgs        head_msg[]
   sms_logs         sms_logs[]
   siteConfig       SchoolSiteConfig?
-  domains          SchoolDomain[]
 
   @@index([name])
   @@index([subdomain])
@@ -134,29 +125,6 @@ model SchoolSiteConfig {
   @@map("school_site_configs")
 }
 
-enum SchoolDomainKind {
-  SUBDOMAIN
-  CUSTOM
-  PREVIEW
-}
-
-/// Additional hostnames pointing at a school (beyond School.subdomain / School.customDomain).
-model SchoolDomain {
-  id             Int              @id @default(autoincrement())
-  host           String           @unique @db.VarChar(255)
-  schoolId       Int              @map("school_id")
-  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  kind           SchoolDomainKind @default(CUSTOM)
-  isPrimary      Boolean          @default(false) @map("is_primary")
-  isVerified     Boolean          @default(false) @map("is_verified")
-  redirectToHost String?          @map("redirect_to_host") @db.VarChar(255)
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-
-  @@index([schoolId])
-  @@map("school_domains")
-}
-
 enum SetupTokenRole {
   super_admin
   admin
@@ -181,17 +149,6 @@ model SuperAdmin {
 
   @@index([email])
   @@index([role])
-}
-
-model SuperAdminHost {
-  id        Int      @id @default(autoincrement())
-  host      String   @db.VarChar(255)
-  is_active Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@unique([host])
-  @@map("super_admin_hosts")
 }
 
 model admin {
