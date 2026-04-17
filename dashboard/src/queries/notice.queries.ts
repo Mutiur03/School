@@ -25,9 +25,14 @@ export const useAddNotice = () => {
   return useMutation({
     mutationFn: async (data: { title: string; file: File; created_at?: string }) => {
       // 1. Get presigned URL
-      const { data: { uploadUrl, key } } = await axios.get("/api/notices/presigned-url", {
+      const presignedResponse = await axios.get("/api/notices/presigned-url", {
         params: { filename: data.file.name, contentType: data.file.type },
       });
+      const { uploadUrl, key } = presignedResponse.data?.data ?? presignedResponse.data;
+
+      if (!uploadUrl || !key) {
+        throw new Error("Invalid presigned URL response from server");
+      }
 
       // 2. Upload directly to R2
       await axios.put(uploadUrl, data.file, {
@@ -60,9 +65,14 @@ export const useUpdateNotice = () => {
       let key = undefined;
       if (data.file) {
         // 1. Get presigned URL
-        const { data: { uploadUrl, key: newKey } } = await axios.get("/api/notices/presigned-url", {
+        const presignedResponse = await axios.get("/api/notices/presigned-url", {
           params: { filename: data.file.name, contentType: data.file.type },
         });
+        const { uploadUrl, key: newKey } = presignedResponse.data?.data ?? presignedResponse.data;
+
+        if (!uploadUrl || !newKey) {
+          throw new Error("Invalid presigned URL response from server");
+        }
 
         // 2. Upload directly to R2
         await axios.put(uploadUrl, data.file, {

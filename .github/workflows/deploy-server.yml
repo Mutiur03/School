@@ -224,7 +224,7 @@ jobs:
             docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate deploy; else npx prisma migrate deploy; fi'
 
             echo "Seeding database..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma db seed; else npx prisma db seed; fi'
 
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs
