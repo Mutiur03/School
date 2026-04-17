@@ -17,7 +17,7 @@ const optionalTrimmedString = (maxLength: number, label: string) =>
         ctx.addIssue({
           code: z.ZodIssueCode.too_big,
           maximum: maxLength,
-          type: "string",
+          origin: "string",
           inclusive: true,
           message: `${label} cannot exceed ${maxLength} characters`,
         });

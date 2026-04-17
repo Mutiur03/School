@@ -2,7 +2,9 @@ import { Request } from "express";
 
 export const assertSuperAdminHostAllowed = async (req: Request) => {
   const lowerHostname = hostName(req).toLowerCase();
-  if (!["admin.localhost"].includes(lowerHostname)) {
+  if (
+    !["admin.localhost", "superadmin.mutiurrahman.com"].includes(lowerHostname)
+  ) {
     throw new Error("Access denied: Invalid host for super admin");
   }
   return true;
