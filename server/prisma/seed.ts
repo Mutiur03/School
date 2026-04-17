@@ -2,13 +2,26 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 async function main() {
+  const schools = await prisma.school.findMany({
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+
+  if (schools.length === 0) {
+    console.warn("⚠️ No school found. Skipping tenant seed data.");
+    return;
+  }
+
+  const defaultCategories = ["Event", "Campus", "Labs", "Achievement"];
+  const data = schools.flatMap((school) =>
+    defaultCategories.map((category) => ({
+      category,
+      school_id: school.id,
+    })),
+  );
+
   await prisma.categories.createMany({
-    data: [
-      { category: "Event" },
-      { category: "Campus" },
-      { category: "Labs" },
-      { category: "Achievement" },
-    ],
+    data,
     skipDuplicates: true,
   });
 }
