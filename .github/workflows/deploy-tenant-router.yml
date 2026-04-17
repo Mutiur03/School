@@ -33,13 +33,15 @@ jobs:
         run: npm install --prefix workers/tenant-router --include=optional --ignore-scripts=false --no-audit --no-fund
 
       - name: Dry run
-        run: npx --prefix workers/tenant-router wrangler deploy --dry-run
+        working-directory: workers/tenant-router
+        run: npx wrangler deploy --dry-run
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
       - name: Deploy worker
-        run: npx --prefix workers/tenant-router wrangler deploy
+        working-directory: workers/tenant-router
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
