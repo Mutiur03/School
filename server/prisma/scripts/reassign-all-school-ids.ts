@@ -42,12 +42,39 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
     group: string | null;
     year: number;
   };
-  const subjectDups = await prisma.$queryRaw<Row[]>`
-    SELECT name, class, "group", year
-    FROM subjects
-    GROUP BY name, class, "group", year
-    HAVING COUNT(DISTINCT school_id) FILTER (WHERE school_id IS NOT NULL) > 1
-  `;
+
+  const subjectRows = await prisma.subjects.findMany({
+    where: { school_id: { not: null } },
+    select: {
+      name: true,
+      class: true,
+      group: true,
+      year: true,
+      school_id: true,
+    },
+  });
+
+  const subjectSchoolsByKey = new Map<string, Set<number>>();
+  for (const row of subjectRows) {
+    if (row.school_id == null) continue;
+    const key = `${row.name}::${row.class}::${row.group ?? ""}::${row.year}`;
+    const schools = subjectSchoolsByKey.get(key) ?? new Set<number>();
+    schools.add(row.school_id);
+    subjectSchoolsByKey.set(key, schools);
+  }
+
+  const subjectDups: Row[] = [];
+  for (const [key, schools] of subjectSchoolsByKey.entries()) {
+    if (schools.size <= 1) continue;
+    const [name, cls, grp, yr] = key.split("::");
+    subjectDups.push({
+      name,
+      class: Number(cls),
+      group: grp === "" ? null : grp,
+      year: Number(yr),
+    });
+  }
+
   if (subjectDups.length > 0) {
     console.error(
       "Preflight failed: duplicate subject keys across different schools (would violate unique after merge).",
@@ -58,12 +85,37 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
   }
 
   type CrRow = { class: number; slot_id: number; day: string };
-  const routineDups = await prisma.$queryRaw<CrRow[]>`
-    SELECT class, slot_id, day
-    FROM class_routine
-    GROUP BY class, slot_id, day
-    HAVING COUNT(DISTINCT school_id) FILTER (WHERE school_id IS NOT NULL) > 1
-  `;
+
+  const routineRows = await prisma.class_routine.findMany({
+    where: { school_id: { not: null } },
+    select: {
+      class: true,
+      slot_id: true,
+      day: true,
+      school_id: true,
+    },
+  });
+
+  const routineSchoolsByKey = new Map<string, Set<number>>();
+  for (const row of routineRows) {
+    if (row.school_id == null) continue;
+    const key = `${row.class}::${row.slot_id}::${row.day}`;
+    const schools = routineSchoolsByKey.get(key) ?? new Set<number>();
+    schools.add(row.school_id);
+    routineSchoolsByKey.set(key, schools);
+  }
+
+  const routineDups: CrRow[] = [];
+  for (const [key, schools] of routineSchoolsByKey.entries()) {
+    if (schools.size <= 1) continue;
+    const [cls, slot, day] = key.split("::");
+    routineDups.push({
+      class: Number(cls),
+      slot_id: Number(slot),
+      day,
+    });
+  }
+
   if (routineDups.length > 0) {
     console.error(
       "Preflight failed: duplicate class_routine keys across different schools.",
