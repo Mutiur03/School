@@ -15,6 +15,12 @@ import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
 
+declare const process: {
+  env: Record<string, string | undefined>;
+  argv: string[];
+  exit: (code?: number) => never;
+};
+
 const prisma = new PrismaClient();
 
 function parseTargetId(): number {
@@ -30,7 +36,12 @@ function parseTargetId(): number {
 const dryRun = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 
 async function preflightMergeConflicts(targetId: number): Promise<void> {
-  type Row = { name: string; class: number; group: string | null; year: number };
+  type Row = {
+    name: string;
+    class: number;
+    group: string | null;
+    year: number;
+  };
   const subjectDups = await prisma.$queryRaw<Row[]>`
     SELECT name, class, "group", year
     FROM subjects
@@ -108,7 +119,7 @@ async function reconcileSchoolSiteConfigs(targetId: number): Promise<void> {
 function schoolIdWhere(targetId: number) {
   return {
     OR: [{ school_id: null }, { school_id: { not: targetId } }],
-  } as const;
+  };
 }
 
 async function main() {
@@ -120,11 +131,15 @@ async function main() {
 
   if (dryRun) {
     const w = schoolIdWhere(targetId);
-    const c = async (label: string, n: number) => console.log(`[DRY_RUN] ${label}: rows to update: ${n}`);
+    const c = async (label: string, n: number) =>
+      console.log(`[DRY_RUN] ${label}: rows to update: ${n}`);
 
     await c("admin", await prisma.admin.count({ where: w }));
     await c("students", await prisma.students.count({ where: w }));
-    await c("student_enrollments", await prisma.student_enrollments.count({ where: w }));
+    await c(
+      "student_enrollments",
+      await prisma.student_enrollments.count({ where: w }),
+    );
     await c("attendence", await prisma.attendence.count({ where: w }));
     await c("exams", await prisma.exams.count({ where: w }));
     await c("holidays", await prisma.holidays.count({ where: w }));
@@ -139,22 +154,40 @@ async function main() {
     await c("notices", await prisma.notices.count({ where: w }));
     await c("admission", await prisma.admission.count({ where: w }));
     await c("syllabus", await prisma.syllabus.count({ where: w }));
-    await c("class_slot_time", await prisma.class_slot_time.count({ where: w }));
+    await c(
+      "class_slot_time",
+      await prisma.class_slot_time.count({ where: w }),
+    );
     await c("class_routine", await prisma.class_routine.count({ where: w }));
     await c("exam_routines", await prisma.exam_routines.count({ where: w }));
-    await c("class_routine_pdf", await prisma.class_routine_pdf.count({ where: w }));
+    await c(
+      "class_routine_pdf",
+      await prisma.class_routine_pdf.count({ where: w }),
+    );
     await c("citizenCharter", await prisma.citizenCharter.count({ where: w }));
     await c("head_msg", await prisma.head_msg.count({ where: w }));
     await c("ssc_reg", await prisma.ssc_reg.count({ where: w }));
-    await c("student_registration_ssc", await prisma.student_registration_ssc.count({ where: w }));
+    await c(
+      "student_registration_ssc",
+      await prisma.student_registration_ssc.count({ where: w }),
+    );
     await c("admission_form", await prisma.admission_form.count({ where: w }));
-    await c("admission_result", await prisma.admission_result.count({ where: w }));
+    await c(
+      "admission_result",
+      await prisma.admission_result.count({ where: w }),
+    );
     await c("sms_logs", await prisma.sms_logs.count({ where: w }));
     await c("class6_reg", await prisma.class6_reg.count({ where: w }));
-    await c("student_registration_class6", await prisma.student_registration_class6.count({ where: w }));
+    await c(
+      "student_registration_class6",
+      await prisma.student_registration_class6.count({ where: w }),
+    );
     await c("class8_reg", await prisma.class8_reg.count({ where: w }));
-    await c("student_registration_class8", await prisma.student_registration_class8.count({ where: w }));
-    await c("schoolDomain", await prisma.schoolDomain.count({ where: { schoolId: { not: targetId } } }));
+    await c(
+      "student_registration_class8",
+      await prisma.student_registration_class8.count({ where: w }),
+    );
+    // schoolDomain model no longer exists; subdomain/domain now live on School.
     return;
   }
 
@@ -165,123 +198,302 @@ async function main() {
       counts[name] = n;
     };
 
-    bump("admin", (await tx.admin.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "admin",
+      (
+        await tx.admin.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "students",
-      (await tx.students.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.students.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "student_enrollments",
-      (await tx.student_enrollments.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.student_enrollments.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "attendence",
-      (await tx.attendence.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.attendence.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
-    bump("exams", (await tx.exams.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "exams",
+      (
+        await tx.exams.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "holidays",
-      (await tx.holidays.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.holidays.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "teachers",
-      (await tx.teachers.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.teachers.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
-    bump("staffs", (await tx.staffs.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
-    bump("levels", (await tx.levels.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "staffs",
+      (
+        await tx.staffs.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
+    bump(
+      "levels",
+      (
+        await tx.levels.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "subjects",
-      (await tx.subjects.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.subjects.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
-    bump("marks", (await tx.marks.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "marks",
+      (
+        await tx.marks.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "categories",
-      (await tx.categories.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.categories.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
-    bump("events", (await tx.events.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "events",
+      (
+        await tx.events.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "gallery",
-      (await tx.gallery.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.gallery.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "notices",
-      (await tx.notices.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.notices.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "admission",
-      (await tx.admission.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.admission.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "syllabus",
-      (await tx.syllabus.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.syllabus.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "class_slot_time",
-      (await tx.class_slot_time.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.class_slot_time.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "class_routine",
-      (await tx.class_routine.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.class_routine.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "exam_routines",
-      (await tx.exam_routines.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.exam_routines.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "class_routine_pdf",
-      (await tx.class_routine_pdf.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.class_routine_pdf.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "citizenCharter",
-      (await tx.citizenCharter.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.citizenCharter.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "head_msg",
-      (await tx.head_msg.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.head_msg.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
-    bump("ssc_reg", (await tx.ssc_reg.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count);
+    bump(
+      "ssc_reg",
+      (
+        await tx.ssc_reg.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
+    );
     bump(
       "student_registration_ssc",
-      (await tx.student_registration_ssc.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.student_registration_ssc.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "admission_form",
-      (await tx.admission_form.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.admission_form.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "admission_result",
-      (await tx.admission_result.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.admission_result.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "sms_logs",
-      (await tx.sms_logs.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.sms_logs.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "class6_reg",
-      (await tx.class6_reg.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.class6_reg.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "student_registration_class6",
-      (await tx.student_registration_class6.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.student_registration_class6.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "class8_reg",
-      (await tx.class8_reg.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
+      (
+        await tx.class8_reg.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
     bump(
       "student_registration_class8",
-      (await tx.student_registration_class8.updateMany({ where: schoolIdWhere(targetId), data: { school_id: targetId } })).count,
-    );
-    bump(
-      "schoolDomain",
-      (await tx.schoolDomain.updateMany({ where: { schoolId: { not: targetId } }, data: { schoolId: targetId } })).count,
+      (
+        await tx.student_registration_class8.updateMany({
+          where: schoolIdWhere(targetId),
+          data: { school_id: targetId },
+        })
+      ).count,
     );
 
     return counts;
   });
 
   console.log("Updated row counts (0 = already aligned):");
-  for (const [k, v] of Object.entries(result).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [k, v] of Object.entries(result).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     console.log(`  ${k}: ${v}`);
   }
   console.log("Done.");
