@@ -219,42 +219,9 @@ jobs:
 
             # Export ENV_FILE for docker compose interpolation
             export ENV_FILE="$ENV_FILE"
-            AUTO_RESOLVE_P3009=$(grep -E '^AUTO_RESOLVE_P3009=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f2- | tr -d '"' | tr '[:upper:]' '[:lower:]')
-            AUTO_RESOLVE_P3009="${AUTO_RESOLVE_P3009:-false}"
-
-            run_prisma_migrate_deploy() {
-              docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate deploy; else npx prisma migrate deploy; fi'
-            }
 
             echo "Running database migrations..."
-            set +e
-            MIGRATE_OUTPUT=$(run_prisma_migrate_deploy 2>&1)
-            MIGRATE_STATUS=$?
-            set -e
-            echo "$MIGRATE_OUTPUT"
-
-            if [ $MIGRATE_STATUS -ne 0 ]; then
-              if echo "$MIGRATE_OUTPUT" | grep -q "Error: P3009"; then
-                if [ "$AUTO_RESOLVE_P3009" != "true" ]; then
-                  echo "Detected P3009. Set AUTO_RESOLVE_P3009=true in env file to auto-resolve failed migration records."
-                  exit $MIGRATE_STATUS
-                fi
-
-                FAILED_MIGRATION=$(echo "$MIGRATE_OUTPUT" | sed -n 's/.*The `\([^`]*\)` migration started.*/\1/p' | head -n 1)
-                if [ -z "$FAILED_MIGRATION" ]; then
-                  echo "P3009 detected but failed migration name not found. Manual resolve required."
-                  exit $MIGRATE_STATUS
-                fi
-
-                echo "Auto-resolving failed migration as rolled back: $FAILED_MIGRATION"
-                docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c "if [ -n \"\$MIGRATION_DATABASE_URL\" ]; then DATABASE_URL=\"\$MIGRATION_DATABASE_URL\" npx prisma migrate resolve --rolled-back $FAILED_MIGRATION; else npx prisma migrate resolve --rolled-back $FAILED_MIGRATION; fi"
-
-                echo "Re-running database migrations after auto-resolve..."
-                run_prisma_migrate_deploy
-              else
-                exit $MIGRATE_STATUS
-              fi
-            fi
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate deploy; else npx prisma migrate deploy; fi'
 
             echo "Seeding database..."
             docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
