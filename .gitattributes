@@ -1,0 +1,5 @@
+* text=auto
+
+# Keep Prisma schema and migrations on LF to avoid CRLF/LF drift in multiline defaults
+server/prisma/schema.prisma text eol=lf
+server/prisma/migrations/**/*.sql text eol=lf
