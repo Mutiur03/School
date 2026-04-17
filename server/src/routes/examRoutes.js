@@ -13,6 +13,7 @@ import {
 } from "../controllers/examController.js";
 import express from "express";
 import multer from "multer";
+import AuthMiddleware from "../middlewares/auth.middleware.js";
 
 const examRouter = express.Router();
 
@@ -25,26 +26,59 @@ const upload = multer({
   },
 });
 
-examRouter.post("/addExam", addExamController);
+examRouter.post(
+  "/addExam",
+  AuthMiddleware.authenticate(["admin"]),
+  addExamController,
+);
 examRouter.get("/getExams", getExamsController);
-examRouter.put("/updateVisibility/:examId", updateExamVisibilityController);
-examRouter.put("/updateExam/:examId", updateExamController);
-examRouter.delete("/deleteExam/:examId", deleteExamController);
+examRouter.put(
+  "/updateVisibility/:examId",
+  AuthMiddleware.authenticate(["admin"]),
+  updateExamVisibilityController,
+);
+examRouter.put(
+  "/updateExam/:examId",
+  AuthMiddleware.authenticate(["admin"]),
+  updateExamController,
+);
+examRouter.delete(
+  "/deleteExam/:examId",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteExamController,
+);
 
 // Exam Routine routes
-examRouter.post("/addExamRoutine", addExamRoutineController);
+examRouter.post(
+  "/addExamRoutine",
+  AuthMiddleware.authenticate(["admin"]),
+  addExamRoutineController,
+);
 examRouter.get("/getExamRoutines", getExamRoutinesController);
-examRouter.put("/updateExamRoutine/:routineId", updateExamRoutineController);
-examRouter.delete("/deleteExamRoutine/:routineId", deleteExamRoutineController);
+examRouter.put(
+  "/updateExamRoutine/:routineId",
+  AuthMiddleware.authenticate(["admin"]),
+  updateExamRoutineController,
+);
+examRouter.delete(
+  "/deleteExamRoutine/:routineId",
+  AuthMiddleware.authenticate(["admin"]),
+  deleteExamRoutineController,
+);
 
 // Exam Routine PDF upload route
 examRouter.post(
   "/uploadRoutinePDF/:examId",
+  AuthMiddleware.authenticate(["admin"]),
   upload.single("pdf"),
   uploadExamRoutinePDFController,
 );
 
 // Remove PDF routine from exam
-examRouter.delete("/removeRoutinePDF/:examId", removeExamRoutinePDFController);
+examRouter.delete(
+  "/removeRoutinePDF/:examId",
+  AuthMiddleware.authenticate(["admin"]),
+  removeExamRoutinePDFController,
+);
 
 export default examRouter;
