@@ -5,21 +5,22 @@ const resolveBackendUrl = (): string => {
     return fromEnv;
   }
 
-  // Local fallback for development if no env is provided.
-  if (!fromEnv) {
-    if (
-      window.location.hostname === "localhost" ||
-      window.location.hostname.endsWith(".localhost")
-    ) {
-      return `${window.location.protocol}//${window.location.hostname}:3002`;
-    }
+  const currentHost = window.location.hostname.toLowerCase();
 
+  // Local fallback for development if no env is provided.
+  if (currentHost === "localhost" || currentHost.endsWith(".localhost")) {
+    return `${window.location.protocol}//${currentHost}:3002`;
+  }
+
+  if (
+    currentHost.endsWith("-school.mutiurrahman.com") ||
+    currentHost.endsWith("-dashboard.mutiurrahman.com")
+  ) {
     return "";
   }
 
   try {
     const parsed = new URL(fromEnv);
-    const currentHost = window.location.hostname;
     const isLocalBackend =
       parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
     const isTenantLocalhost = currentHost.endsWith(".localhost");
