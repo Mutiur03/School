@@ -13,3 +13,4 @@ export * from "./superAdminSchema.js";
 export * from "./levelSchemas.js";
 export * from "./noticeSchemas.js";
 export * from "./location.js";
+export * from "./schoolSchemas.js";

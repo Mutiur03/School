@@ -64,7 +64,13 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "x-school-id"],
   }),
 );
-
+app.get("/api/health", (_req, res) => {
+  res.json({
+    success: true,
+    message: "Server is running",
+    timestamp: new Date().toISOString(),
+  });
+});
 app.use(detailedRequestLogger);
 app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
@@ -128,6 +134,7 @@ app.get(
     });
   },
 );
+
 app.use(studentRouter);
 app.use(schoolRouter);
 app.use("/api/exams", examRouter);
@@ -159,13 +166,6 @@ app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 
 app.use(smsRouter);
-app.get("/api/health", (_req, res) => {
-  res.json({
-    success: true,
-    message: "Server is running",
-    timestamp: new Date().toISOString(),
-  });
-});
 app.use("*", (_req, res) => {
   res.status(404).json({
     success: false,

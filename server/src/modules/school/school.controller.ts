@@ -22,10 +22,10 @@ export class SchoolController {
   static getSchoolById = asyncHandler(async (req: any, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new ApiError(400, "Invalid school id");
-    
+
     const school = await SchoolService.getSchoolById(id);
     if (!school) throw new ApiError(404, "School not found");
-    
+
     res
       .status(200)
       .json(new ApiResponse(200, school, "School fetched successfully"));
@@ -34,7 +34,7 @@ export class SchoolController {
   static updateSchool = asyncHandler(async (req: any, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new ApiError(400, "Invalid school id");
-    
+
     const school = await SchoolService.updateSchool(id, req.body);
     res
       .status(200)
@@ -44,7 +44,7 @@ export class SchoolController {
   static deleteSchool = asyncHandler(async (req: any, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new ApiError(400, "Invalid school id");
-    
+
     await SchoolService.deleteSchool(id);
     res
       .status(200)
@@ -52,16 +52,8 @@ export class SchoolController {
   });
 
   static getSchoolPublicInfo = asyncHandler(async (req: any, res: Response) => {
-    const parsedParamId = parseInt(req.params.id, 10);
-    const resolvedSchoolId = !isNaN(parsedParamId) ? parsedParamId : req.schoolId;
-
-    if (!resolvedSchoolId) {
-      throw new ApiError(400, "School could not be resolved by middleware");
-    }
-
     const info = await SchoolService.getCurrentSchoolInfo({
-      schoolId: resolvedSchoolId,
-      hostname: req.hostname,
+      schoolId: req.schoolId,
     });
 
     if (!info) throw new ApiError(404, "School not found");
