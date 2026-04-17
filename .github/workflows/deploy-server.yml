@@ -60,8 +60,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Stable scope so Chromium/apt layer + BuildKit caches reuse across pushes (not mixed with other workflows).
-          cache-from: type=gha,scope=school-server
-          cache-to: type=gha,mode=max,scope=school-server
+          cache-from: type=gha
+          cache-to: type=gha
 
   prepare-server:
     needs: build-and-push
