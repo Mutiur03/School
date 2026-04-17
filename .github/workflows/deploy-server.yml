@@ -99,70 +99,70 @@ jobs:
             # Cleanup old images
             docker image prune -f
 
-  deploy-test:
-    needs: prepare-server
-    runs-on: ubuntu-latest
-    env:
-      PROJECT_PATH: "Test/School"
-      ENV_FILE: ".env.test"
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  # deploy-test:
+  #   needs: prepare-server
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     PROJECT_PATH: "Test/School"
+  #     ENV_FILE: ".env.test"
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Ensure target directory exists
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          script: |
-            set -e
-            mkdir -p ~/${{ env.PROJECT_PATH }}/server
+  #     - name: Ensure target directory exists
+  #       uses: appleboy/ssh-action@v1.0.3
+  #       with:
+  #         host: ${{ secrets.SERVER_IP }}
+  #         username: ${{ secrets.SERVER_USER }}
+  #         key: ${{ secrets.SSH_PRIVATE_KEY }}
+  #         port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+  #         script: |
+  #           set -e
+  #           mkdir -p ~/${{ env.PROJECT_PATH }}/server
 
-      - name: Copy deployment files via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          source: "server/backend-run.yml,server/restart.sh,server/setup-network.sh"
-          target: "~/${{ env.PROJECT_PATH }}/server"
-          strip_components: 1
+  #     - name: Copy deployment files via SCP
+  #       uses: appleboy/scp-action@v0.1.7
+  #       with:
+  #         host: ${{ secrets.SERVER_IP }}
+  #         username: ${{ secrets.SERVER_USER }}
+  #         key: ${{ secrets.SSH_PRIVATE_KEY }}
+  #         port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+  #         source: "server/backend-run.yml,server/restart.sh,server/setup-network.sh"
+  #         target: "~/${{ env.PROJECT_PATH }}/server"
+  #         strip_components: 1
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          script: |
-            set -e
-            # Set target directory relative to home
-            cd ~/${{ env.PROJECT_PATH }}/server
-            git reset --hard HEAD
-            git pull 
-            # Ensure scripts are executable
-            chmod +x restart.sh setup-network.sh
+  #     - name: Deploy via SSH
+  #       uses: appleboy/ssh-action@v1.0.3
+  #       with:
+  #         host: ${{ secrets.SERVER_IP }}
+  #         username: ${{ secrets.SERVER_USER }}
+  #         key: ${{ secrets.SSH_PRIVATE_KEY }}
+  #         port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+  #         script: |
+  #           set -e
+  #           # Set target directory relative to home
+  #           cd ~/${{ env.PROJECT_PATH }}/server
+  #           git reset --hard HEAD
+  #           git pull 
+  #           # Ensure scripts are executable
+  #           chmod +x restart.sh setup-network.sh
 
-            # Environment setup
-            ENV_FILE="${{ env.ENV_FILE }}"
-            PROJECT_NAME=$(basename "$ENV_FILE")
-            PROJECT_NAME="${PROJECT_NAME#.env.}"
+  #           # Environment setup
+  #           ENV_FILE="${{ env.ENV_FILE }}"
+  #           PROJECT_NAME=$(basename "$ENV_FILE")
+  #           PROJECT_NAME="${PROJECT_NAME#.env.}"
 
-            # Export ENV_FILE for docker compose interpolation
-            export ENV_FILE="$ENV_FILE"
+  #           # Export ENV_FILE for docker compose interpolation
+  #           export ENV_FILE="$ENV_FILE"
 
-            echo "Running database migrations..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma migrate deploy
+  #           echo "Running database migrations..."
+  #           docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma migrate deploy
 
-            echo "Seeding database..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
+  #           echo "Seeding database..."
+  #           docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend npx prisma db seed
 
-            # Final restart with orphans cleanup
-            ./restart.sh $ENV_FILE --no-build --no-logs
+  #           # Final restart with orphans cleanup
+  #           ./restart.sh $ENV_FILE --no-build --no-logs
 
   deploy-lbp:
     needs: prepare-server

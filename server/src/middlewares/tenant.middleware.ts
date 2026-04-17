@@ -5,6 +5,7 @@ import {
 } from "@/utils/superAdminDomain.js";
 import { prisma } from "@/config/prisma.js";
 import { redis } from "@/config/redis.js";
+
 export const schoolContextMiddleware = async (
   req: express.Request,
   res: express.Response,
@@ -33,10 +34,13 @@ export const schoolContextMiddleware = async (
         where: {
           subdomain: hostname
             .replace(".localhost", "")
-            .replace(".mutiurrahman.com", ""),
+            .replace(".schooldashboard.mutiurrahman.com", "")
+            .replace(".school.mutiurrahman.com", "")
         },
       })
-    : await prisma.school.findUnique({ where: { customDomain: getRootDomain(hostname) } });
+    : await prisma.school.findUnique({
+        where: { customDomain: getRootDomain(hostname) },
+      });
 
   if (!school) {
     return res.status(404).json({ message: "School not found" });
