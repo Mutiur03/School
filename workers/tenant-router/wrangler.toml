@@ -3,7 +3,8 @@ main = "src/index.js"
 compatibility_date = "2026-04-17"
 
 routes = [
-  { pattern = "*.mutiurrahman.com/*", zone_name = "mutiurrahman.com" }
+  { pattern = "*-school.mutiurrahman.com/*", zone_name = "mutiurrahman.com" },
+  { pattern = "*-dashboard.mutiurrahman.com/*", zone_name = "mutiurrahman.com" }
 ]
 
 [vars]
