@@ -1,0 +1,14 @@
+name = "school-tenant-router"
+main = "src/index.js"
+compatibility_date = "2026-04-17"
+
+routes = [
+  { pattern = "*.school.mutiurrahman.com/*", zone_name = "mutiurrahman.com" },
+  { pattern = "*.schooldashboard.mutiurrahman.com/*", zone_name = "mutiurrahman.com" }
+]
+
+[vars]
+CLIENT_HOST_SUFFIX = "school.mutiurrahman.com"
+CLIENT_PAGES_ORIGIN = "https://lbp-client.pages.dev"
+DASHBOARD_HOST_SUFFIX = "schooldashboard.mutiurrahman.com"
+DASHBOARD_PAGES_ORIGIN = "https://lbp-dashboard.pages.dev"
