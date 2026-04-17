@@ -1,5 +1,5 @@
-import { prisma } from "../config/prisma.js";
 import cloudinary from "../config/cloudinary.js";
+import { prisma } from "../config/prisma.js";
 
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
@@ -12,7 +12,7 @@ export const addExamController = async (req, res) => {
       });
     }
 
-    for (let exam of exams) {
+    for (const exam of exams) {
       exam.exam_name = exam.exam_name?.trim();
       const exists = await prisma.exams.findFirst({
         where: {
@@ -20,6 +20,7 @@ export const addExamController = async (req, res) => {
           exam_year: exam.exam_year,
         },
       });
+
       if (exists) {
         return res.status(400).json({
           success: false,
@@ -46,7 +47,7 @@ export const addExamController = async (req, res) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: createdExams,
       message: "Exam added successfully",
@@ -63,10 +64,11 @@ export const updateExamController = async (req, res) => {
   const { examId } = req.params;
   const { exam_name, exam_year, levels, start_date, end_date, result_date } =
     req.body;
+  const parsedExamId = parseInt(examId);
 
   try {
-    const updated = await prisma.exams.update({
-      where: { id: parseInt(examId) },
+    const updateResult = await prisma.exams.updateMany({
+      where: { id: parsedExamId },
       data: {
         exam_name: exam_name.trim() || null,
         exam_year: exam_year || null,
@@ -77,47 +79,73 @@ export const updateExamController = async (req, res) => {
       },
     });
 
-    res.status(200).json({
+    if (updateResult.count === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam not found",
+      });
+    }
+
+    const updated = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
+    });
+
+    return res.status(200).json({
       success: true,
       data: updated,
       message: "Exam updated successfully",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || "Error updating exam",
     });
   }
 };
 
-export const getExamsController = async (req, res) => {
+export const getExamsController = async (_req, res) => {
   try {
     const exams = await prisma.exams.findMany();
-    res.status(200).json({ success: true, data: exams });
+    return res.status(200).json({ success: true, data: exams });
   } catch (error) {
     console.error("Error fetching exams:", error.message);
-    res.status(500).json({ success: false, error: "Error fetching exams" });
+    return res.status(500).json({
+      success: false,
+      error: "Error fetching exams",
+    });
   }
 };
 
 export const updateExamVisibilityController = async (req, res) => {
   const { examId } = req.params;
   const { visible } = req.body;
+  const parsedExamId = parseInt(examId);
 
   try {
-    const result = await prisma.exams.update({
-      where: { id: parseInt(examId) },
+    const updateResult = await prisma.exams.updateMany({
+      where: { id: parsedExamId },
       data: { visible: visible },
     });
 
-    res.status(200).json({
+    if (updateResult.count === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam not found",
+      });
+    }
+
+    const result = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
+    });
+
+    return res.status(200).json({
       success: true,
       data: result,
       message: `Exam visibility updated to ${visible}`,
     });
   } catch (error) {
     console.error("Error updating exam visibility:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Error updating exam visibility",
     });
@@ -126,31 +154,54 @@ export const updateExamVisibilityController = async (req, res) => {
 
 export const deleteExamController = async (req, res) => {
   const { examId } = req.params;
+  const parsedExamId = parseInt(examId);
 
   try {
-    const deleted = await prisma.exams.delete({
-      where: { id: parseInt(examId) },
+    const existingExam = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
     });
 
-    res.status(200).json({
+    if (!existingExam) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam not found",
+      });
+    }
+
+    await prisma.exams.deleteMany({
+      where: { id: parsedExamId },
+    });
+
+    return res.status(200).json({
       success: true,
-      data: deleted,
+      data: existingExam,
       message: "Exam deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting exam:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Error deleting exam",
     });
   }
 };
 
-// Exam Routine Controllers
-
 export const addExamRoutineController = async (req, res) => {
   const { exam_id, class: classNum, date, day, subject } = req.body;
+
   try {
+    const exam = await prisma.exams.findFirst({
+      where: { id: Number(exam_id) },
+      select: { id: true },
+    });
+
+    if (!exam) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam not found",
+      });
+    }
+
     const routine = await prisma.exam_routines.create({
       data: {
         exam_id,
@@ -160,9 +211,10 @@ export const addExamRoutineController = async (req, res) => {
         subject,
       },
     });
-    res.status(201).json({ success: true, data: routine });
+
+    return res.status(201).json({ success: true, data: routine });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || "Error adding exam routine",
     });
@@ -171,39 +223,57 @@ export const addExamRoutineController = async (req, res) => {
 
 export const getExamRoutinesController = async (req, res) => {
   const { exam_id, class: classNum } = req.query;
+
   console.log(
-    `Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`
+    `Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`,
   );
 
   try {
     const where = {};
     if (exam_id) where.exam_id = parseInt(exam_id);
     if (classNum) where.class = parseInt(classNum);
+
     const routines = await prisma.exam_routines.findMany({
       where,
       orderBy: [{ date: "asc" }],
     });
-    res.status(200).json({ success: true, data: routines });
+
+    return res.status(200).json({ success: true, data: routines });
   } catch (error) {
     console.error("Error fetching exam routines:", error.message);
-    res
-      .status(500)
-      .json({ success: false, error: "Error fetching exam routines" });
+    return res.status(500).json({
+      success: false,
+      error: "Error fetching exam routines",
+    });
   }
 };
 
 export const updateExamRoutineController = async (req, res) => {
   const { routineId } = req.params;
   const { date, day, subject } = req.body;
+  const parsedRoutineId = parseInt(routineId);
+
   try {
-    const updated = await prisma.exam_routines.update({
-      where: { id: parseInt(routineId) },
+    const updateResult = await prisma.exam_routines.updateMany({
+      where: { id: parsedRoutineId },
       data: { date, day, subject },
     });
-    res.status(200).json({ success: true, data: updated });
+
+    if (updateResult.count === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam routine not found",
+      });
+    }
+
+    const updated = await prisma.exam_routines.findFirst({
+      where: { id: parsedRoutineId },
+    });
+
+    return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     console.error("Error updating exam routine:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || "Error updating exam routine",
     });
@@ -212,21 +282,37 @@ export const updateExamRoutineController = async (req, res) => {
 
 export const deleteExamRoutineController = async (req, res) => {
   const { routineId } = req.params;
+  const parsedRoutineId = parseInt(routineId);
+
   try {
-    await prisma.exam_routines.delete({
-      where: { id: parseInt(routineId) },
+    const existingRoutine = await prisma.exam_routines.findFirst({
+      where: { id: parsedRoutineId },
     });
-    res.status(200).json({ success: true, message: "Routine deleted" });
+
+    if (!existingRoutine) {
+      return res.status(404).json({
+        success: false,
+        error: "Exam routine not found",
+      });
+    }
+
+    await prisma.exam_routines.deleteMany({
+      where: { id: parsedRoutineId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Routine deleted",
+    });
   } catch (error) {
     console.error("Error deleting exam routine:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || "Error deleting exam routine",
     });
   }
 };
 
-// Helper function to upload PDF to Cloudinary (supports memory storage)
 async function uploadPDFToCloudinary(file) {
   try {
     const result = await new Promise((resolve, reject) => {
@@ -241,10 +327,11 @@ async function uploadPDFToCloudinary(file) {
         (error, result) => {
           if (error) return reject(error);
           resolve(result);
-        }
+        },
       );
       uploadStream.end(file.buffer);
     });
+
     const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
     return {
       previewUrl: result.secure_url,
@@ -257,19 +344,21 @@ async function uploadPDFToCloudinary(file) {
   }
 }
 
-// Controller to handle PDF routine upload
 export const uploadExamRoutinePDFController = async (req, res) => {
+  const { examId } = req.params;
+  const parsedExamId = parseInt(examId);
+
   try {
-    const { examId } = req.params;
     if (!req.file) {
       return res.status(400).json({ error: "No PDF file uploaded" });
     }
+
     const { previewUrl, public_id, downloadUrl } = await uploadPDFToCloudinary(
-      req.file
+      req.file,
     );
 
-    const updatedExam = await prisma.exams.update({
-      where: { id: parseInt(examId) },
+    const updateResult = await prisma.exams.updateMany({
+      where: { id: parsedExamId },
       data: {
         routine: previewUrl,
         public_id: public_id,
@@ -277,7 +366,15 @@ export const uploadExamRoutinePDFController = async (req, res) => {
       },
     });
 
-    res.status(200).json({
+    if (updateResult.count === 0) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
+    const updatedExam = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
+    });
+
+    return res.status(200).json({
       success: true,
       data: updatedExam,
       message: "PDF routine uploaded successfully",
@@ -292,55 +389,62 @@ export const uploadExamRoutinePDFController = async (req, res) => {
   }
 };
 
-// Remove PDF routine from exam and Cloudinary
 export const removeExamRoutinePDFController = async (req, res) => {
+  const { examId } = req.params;
+  const parsedExamId = parseInt(examId);
+
   try {
-    const { examId } = req.params;
-    // Find the exam to get the Cloudinary public_id from the routine URL if needed
-    const exam = await prisma.exams.findUnique({
-      where: { id: parseInt(examId) },
+    const exam = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
     });
+
     if (!exam) {
       return res.status(404).json({ error: "Exam not found" });
     }
+
     if (!exam.routine) {
       return res.status(400).json({ error: "No routine PDF to remove" });
     }
 
-    // Try to extract public_id from the routine URL or use the stored public_id
     let public_id = exam.public_id;
     if (!public_id) {
       try {
-        // Cloudinary URLs look like: https://res.cloudinary.com/<cloud>/raw/upload/v<version>/exam_routines/<filename>
         const match = exam.routine.match(
-          /\/(?:raw|image)\/upload\/(?:v\d+\/)?(.+)\.(pdf|PDF)$/
+          /\/(?:raw|image)\/upload\/(?:v\d+\/)?(.+)\.(pdf|PDF)$/,
         );
         if (match) {
           public_id = match[1];
         }
       } catch (err) {
-        // If there's an error extracting public_id, continue without it
-        console.error("Error extracting public_id from routine URL:", err.message);
+        console.error(
+          "Error extracting public_id from routine URL:",
+          err.message,
+        );
       }
     }
 
-    // Remove from Cloudinary if possible
     if (public_id) {
       try {
         cloudinary.uploader.destroy(public_id, { resource_type: "raw" });
       } catch (err) {
-        // Log but don't fail the request if Cloudinary deletion fails
         console.error("Error deleting routine from Cloudinary:", err.message);
       }
     }
 
-    // Remove routine, public_id, and download_url fields from exam
-    const updatedExam = await prisma.exams.update({
-      where: { id: parseInt(examId) },
+    const updateResult = await prisma.exams.updateMany({
+      where: { id: parsedExamId },
       data: { routine: null, public_id: null, download_url: null },
     });
 
-    res.status(200).json({
+    if (updateResult.count === 0) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
+    const updatedExam = await prisma.exams.findFirst({
+      where: { id: parsedExamId },
+    });
+
+    return res.status(200).json({
       success: true,
       data: updatedExam,
       message: "PDF routine removed successfully",

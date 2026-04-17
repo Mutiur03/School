@@ -59,6 +59,10 @@ import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
 import { schoolContextMiddleware } from "./middlewares/tenant.middleware.js";
 import { requireSchoolContextMiddleware } from "./middlewares/access.middleware.js";
+import {
+  initRlsContextMiddleware,
+  syncRlsSchoolContextMiddleware,
+} from "./middlewares/rlsContext.middleware.js";
 
 const storagePath = path.resolve("uploads");
 
@@ -109,15 +113,10 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-  ],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-app.use(
-  cors(corsOptions),
-);
+app.use(cors(corsOptions));
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
@@ -130,6 +129,7 @@ app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+app.use(initRlsContextMiddleware);
 app.use(
   "/uploads",
   express.static(storagePath, {
@@ -191,6 +191,7 @@ app.get(
 app.use(superAdminAuthRouter);
 app.use(superAdminSchoolRouter);
 app.use(schoolContextMiddleware);
+app.use(syncRlsSchoolContextMiddleware);
 app.use(sharedAuthSessionRouter);
 app.use(requireSchoolContextMiddleware);
 
