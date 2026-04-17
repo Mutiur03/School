@@ -23,7 +23,9 @@ export const requireSuperAdminHostMiddleware = async (
     await assertSuperAdminHostAllowed(req);
     return next();
   } catch {
-    return next(new ApiError(403, "Access denied: Invalid host for super admin"));
+    return next(
+      new ApiError(403, "Access denied: Invalid host for super admin"),
+    );
   }
 };
 
@@ -41,5 +43,27 @@ export const requireSchoolContextOrSuperAdminHostMiddleware = async (
     return next();
   } catch {
     return next(new ApiError(400, "School context missing"));
+  }
+};
+
+export const assertTenantContextForAuthenticatedRequest = (
+  req: Request,
+  role?: string,
+  userSchoolId?: number | null,
+) => {
+  if (role === "super_admin") {
+    return;
+  }
+
+  if (!req.schoolId) {
+    throw new ApiError(400, "School context missing");
+  }
+
+  if (
+    typeof userSchoolId === "number" &&
+    Number.isInteger(userSchoolId) &&
+    userSchoolId !== req.schoolId
+  ) {
+    throw new ApiError(403, "Forbidden: Tenant context mismatch");
   }
 };

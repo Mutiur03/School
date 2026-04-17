@@ -4,6 +4,7 @@ import { env } from "@/config/env.js";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "@/config/prisma.js";
 import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
+import { assertTenantContextForAuthenticatedRequest } from "@/middlewares/access.middleware.js";
 interface TokenPayload {
   id: number;
   role: string;
@@ -31,7 +32,9 @@ class AuthMiddleware {
 
         if (decoded.role === "super_admin") {
           await assertSuperAdminHostAllowed(req);
-          dbUser = await prisma.superAdmin.findUnique({ where: { id: decoded.id } });
+          dbUser = await prisma.superAdmin.findUnique({
+            where: { id: decoded.id },
+          });
         } else {
           if (!req.schoolId) {
             return next(new ApiError(400, "School context missing"));
@@ -43,7 +46,11 @@ class AuthMiddleware {
             });
           } else if (decoded.role === "teacher") {
             dbUser = await prisma.teachers.findFirst({
-              where: { id: decoded.id, school_id: req.schoolId, available: true },
+              where: {
+                id: decoded.id,
+                school_id: req.schoolId,
+                available: true,
+              },
               include: { levels: true },
             });
           } else if (decoded.role === "student") {
@@ -56,6 +63,12 @@ class AuthMiddleware {
         }
 
         if (!dbUser) return next(new ApiError(401, "Unauthorized"));
+
+        assertTenantContextForAuthenticatedRequest(
+          req,
+          decoded.role,
+          (dbUser as any)?.school_id ?? null,
+        );
 
         if (dbUser.password) delete dbUser.password;
         const user = { ...dbUser, role: decoded.role };
