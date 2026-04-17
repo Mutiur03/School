@@ -219,6 +219,7 @@ jobs:
 
             # Export ENV_FILE for docker compose interpolation
             export ENV_FILE="$ENV_FILE"
+            AUTO_RESOLVE_P3009=$(grep -E '^AUTO_RESOLVE_P3009=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f2- | tr -d '"' | tr '[:upper:]' '[:lower:]')
             AUTO_RESOLVE_P3009="${AUTO_RESOLVE_P3009:-false}"
 
             run_prisma_migrate_deploy() {
