@@ -50,6 +50,11 @@ jobs:
             workspace: client
             build_script: build
             project_name: lbp-client
+          - name: Super admin
+            directory: dashboard
+            workspace: dashboard
+            build_script: build:superadmin
+            project_name: school-superadmin
 
     steps:
       - name: Checkout repository
