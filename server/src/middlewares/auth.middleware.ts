@@ -3,7 +3,7 @@ import { ApiError } from "@/utils/ApiError.js";
 import { env } from "@/config/env.js";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "@/config/prisma.js";
-import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain";
+import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
 interface TokenPayload {
   id: number;
   role: string;

@@ -53,7 +53,7 @@ jobs:
           - name: Super admin
             directory: dashboard
             workspace: dashboard
-            build_script: build:superadmin
+            build_script: build:super_admin
             project_name: school-superadmin
 
     steps:
