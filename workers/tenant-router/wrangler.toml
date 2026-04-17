@@ -16,5 +16,5 @@ BACKEND_ORIGIN = "https://apisms.mutiurrahman.com"
 
 [observability]
 [observability.logs]
-enabled = false
-invocation_logs = true
+enabled = true
+invocation_logs = false
