@@ -51,35 +51,91 @@ export class DashboardService {
     }
 
     try {
-      attendanceData = await prisma.$queryRaw`
-        WITH LatestDates AS (
-          SELECT DISTINCT date 
-          FROM attendence 
-          WHERE status IN ('present', 'absent', 'run-awayed')
-          ORDER BY date DESC 
-          LIMIT 15
-        ),
-        DateRange AS (
-          SELECT 
-            MIN(TO_DATE(date, 'YYYY-MM-DD')) as start_date,
-            MAX(TO_DATE(date, 'YYYY-MM-DD')) as end_date
-          FROM LatestDates
-        ),
-        GeneratedDates AS (
-          SELECT generate_series(start_date, end_date, '1 day'::interval)::date as g_date
-          FROM DateRange
-        )
-        SELECT 
-          TO_CHAR(gd.g_date, 'DD Mon') as name,
-          COUNT(CASE WHEN a.status = 'present' THEN 1 END)::integer as present,
-          COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::integer as absent,
-          COUNT(CASE WHEN a.status = 'run-awayed' THEN 1 END)::integer as run_awayed,
-          TO_CHAR(gd.g_date, 'YYYY-MM-DD') as sort_date
-        FROM GeneratedDates gd
-        LEFT JOIN attendence a ON a.date = TO_CHAR(gd.g_date, 'YYYY-MM-DD') AND a.status IN ('present', 'absent', 'run-awayed')
-        GROUP BY gd.g_date
-        ORDER BY gd.g_date ASC
-      `;
+      const attendanceGrouped = await prisma.attendence.groupBy({
+        by: ["date", "status"],
+        where: {
+          status: {
+            in: ["present", "absent", "run-awayed"],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+        orderBy: {
+          date: "desc",
+        },
+      });
+
+      const latestDatesDesc = Array.from(
+        new Set(attendanceGrouped.map((row) => row.date)),
+      ).slice(0, 15);
+
+      const latestDatesAsc = [...latestDatesDesc].sort((a, b) =>
+        a.localeCompare(b),
+      );
+
+      const countsByDate = new Map<
+        string,
+        { present: number; absent: number; run_awayed: number }
+      >();
+
+      for (const row of attendanceGrouped) {
+        if (!latestDatesDesc.includes(row.date)) continue;
+
+        const current = countsByDate.get(row.date) ?? {
+          present: 0,
+          absent: 0,
+          run_awayed: 0,
+        };
+
+        if (row.status === "present") current.present = row._count._all;
+        else if (row.status === "absent") current.absent = row._count._all;
+        else if (row.status === "run-awayed")
+          current.run_awayed = row._count._all;
+
+        countsByDate.set(row.date, current);
+      }
+
+      const timelineDates: string[] = [];
+      if (latestDatesAsc.length > 0) {
+        const start = new Date(`${latestDatesAsc[0]}T00:00:00Z`);
+        const end = new Date(
+          `${latestDatesAsc[latestDatesAsc.length - 1]}T00:00:00Z`,
+        );
+
+        for (
+          let cursor = new Date(start);
+          cursor <= end;
+          cursor.setUTCDate(cursor.getUTCDate() + 1)
+        ) {
+          timelineDates.push(cursor.toISOString().slice(0, 10));
+        }
+      }
+
+      attendanceData = timelineDates.map((date) => {
+        const counts = countsByDate.get(date) ?? {
+          present: 0,
+          absent: 0,
+          run_awayed: 0,
+        };
+
+        const [yearPart, monthPart, dayPart] = date.split("-").map(Number);
+        const displayDate = new Date(yearPart, monthPart - 1, dayPart)
+          .toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+            timeZone: "UTC",
+          })
+          .replace(",", "");
+
+        return {
+          name: displayDate,
+          present: counts.present,
+          absent: counts.absent,
+          run_awayed: counts.run_awayed,
+          sort_date: date,
+        };
+      });
     } catch (error: any) {
       console.warn("Error fetching attendance data:", error.message);
     }
