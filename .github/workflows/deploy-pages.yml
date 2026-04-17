@@ -1,4 +1,4 @@
-name: Deploy Frontend (Cloudflare Pages)
+name: Deploy Frontend
 
 on:
   push:
@@ -30,31 +30,41 @@ jobs:
             workspace: dashboard
             build_script: build
             project_name: lbp-dashboard
+            env_file: .env.production.local
           - name: LBP Admin
             directory: dashboard
             workspace: dashboard
             build_script: build:admin
             project_name: lbp-admin
+            env_file: .env.admin.local
+            default_role: admin
           - name: LBP Teacher
             directory: dashboard
             workspace: dashboard
             build_script: build:teacher
             project_name: lbp-teacher
+            env_file: .env.teacher.local
+            default_role: teacher
           - name: LBP Student
             directory: dashboard
             workspace: dashboard
             build_script: build:student
             project_name: lbp-student
+            env_file: .env.student.local
+            default_role: student
           - name: LBP Client
             directory: client
             workspace: client
             build_script: build
             project_name: lbp-client
+            env_file: .env.production.local
           - name: Super admin
             directory: dashboard
             workspace: dashboard
             build_script: build:super_admin
             project_name: school-superadmin
+            env_file: .env.super_admin.local
+            default_role: super_admin
 
     steps:
       - name: Checkout repository
@@ -77,6 +87,16 @@ jobs:
           npm run build -w @school/shared-schemas
           npm run build -w @school/common-ui
           npm run build -w @school/client-ui
+
+      - name: Write production env for ${{ matrix.app.name }}
+        run: |
+          {
+            echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
+            echo "VITE_CDN_URL=${{ secrets.LBP_VITE_CDN_URL }}"
+            if [ -n "${{ matrix.app.default_role }}" ]; then
+              echo "VITE_DEFAULT_ROLE=${{ matrix.app.default_role }}"
+            fi
+          } > ./${{ matrix.app.directory }}/${{ matrix.app.env_file }}
 
       - name: Build ${{ matrix.app.name }}
         run: npm run ${{ matrix.app.build_script }} -w ${{ matrix.app.workspace }}
