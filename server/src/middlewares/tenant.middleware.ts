@@ -6,6 +6,13 @@ import {
 import { prisma } from "@/config/prisma.js";
 import { redis } from "@/config/redis.js";
 
+const normalizeTenantSubdomain = (hostname: string) =>
+  hostname
+    .replace(".localhost", "")
+    .replace(".mutiurrahman.com", "")
+    .replace(/-dashboard$/, "")
+    .replace(/-school$/, "");
+
 export const schoolContextMiddleware = async (
   req: express.Request,
   res: express.Response,
@@ -32,10 +39,7 @@ export const schoolContextMiddleware = async (
   const school = isSubdomain
     ? await prisma.school.findUnique({
         where: {
-          subdomain: hostname
-            .replace(".localhost", "")
-            .replace(".schooldashboard.mutiurrahman.com", "")
-            .replace(".school.mutiurrahman.com", "")
+          subdomain: normalizeTenantSubdomain(hostname),
         },
       })
     : await prisma.school.findUnique({

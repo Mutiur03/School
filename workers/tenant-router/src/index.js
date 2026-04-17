@@ -1,7 +1,7 @@
 const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
 
 const getTenantSlug = (hostname, tenantHostSuffix) => {
-  const suffix = `.${tenantHostSuffix.toLowerCase()}`;
+  const suffix = tenantHostSuffix.toLowerCase();
   const lowerHostname = hostname.toLowerCase();
 
   if (!lowerHostname.endsWith(suffix)) return null;
@@ -31,12 +31,12 @@ const cloneHeaders = ({ request, originalHost, slug }) => {
 
 const resolveTenantTarget = (hostname, env) => {
   const clientHostSuffix = String(
-    env.CLIENT_HOST_SUFFIX || "school.mutiurrahman.com",
+    env.CLIENT_HOST_SUFFIX || "-school.mutiurrahman.com",
   )
     .trim()
     .toLowerCase();
   const dashboardHostSuffix = String(
-    env.DASHBOARD_HOST_SUFFIX || "schooldashboard.mutiurrahman.com",
+    env.DASHBOARD_HOST_SUFFIX || "-dashboard.mutiurrahman.com",
   )
     .trim()
     .toLowerCase();
