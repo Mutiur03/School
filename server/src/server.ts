@@ -64,13 +64,59 @@ const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
+const configuredOrigins = (env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim().toLowerCase())
+  .filter(Boolean);
+
+const isAllowedOrigin = (origin?: string) => {
+  if (!origin) return true;
+
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".localhost")
+    ) {
+      return true;
+    }
+
+    if (
+      hostname.endsWith(".mutiurrahman.com") ||
+      configuredOrigins.includes(origin.toLowerCase()) ||
+      configuredOrigins.includes(hostname)
+    ) {
+      return true;
+    }
+
+    // Allow custom domains in production if they hit this backend directly.
+    return hostname.includes(".");
+  } catch {
+    return false;
+  }
+};
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("CORS blocked for this origin"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+  ],
+};
+
 app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-school-id"],
-  }),
+  cors(corsOptions),
 );
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -80,7 +126,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 app.use(detailedRequestLogger);
-app.options("*", cors());
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());

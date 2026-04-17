@@ -34,7 +34,14 @@ import {
 import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/common-ui";
 
 function App() {
-  const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
+  const currentHost =
+    typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
+  const fromEnv = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
+  const backendBaseUrl =
+    currentHost.endsWith("-school.mutiurrahman.com") ||
+    currentHost.endsWith("-dashboard.mutiurrahman.com")
+      ? ""
+      : fromEnv;
   axios.defaults.baseURL = backendBaseUrl || "";
 
   return (
