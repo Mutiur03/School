@@ -14,7 +14,7 @@ function formatDate(iso?: string) {
 
 async function Notice() {
     const notices = await fetchNotices();
-    const sorted = [...notices].sort((a, b) => {
+    const sorted = notices.slice().sort((a, b) => {
         const ta = new Date(a.created_at).getTime();
         const tb = new Date(b.created_at).getTime();
         return tb - ta;
