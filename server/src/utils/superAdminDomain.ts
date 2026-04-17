@@ -11,13 +11,13 @@ export const assertSuperAdminHostAllowed = async (req: Request) => {
 };
 
 export const hostName = (req: Request): string => {
-  const origin = req.headers.origin || req.headers.referer;
+  const origin = req.headers.origin;
 
   if (typeof origin === "string" && origin.trim() !== "") {
     try {
       return new URL(origin).hostname.toLowerCase();
     } catch {
-      // Fallback to req.hostname when origin/referer is malformed.
+      // Ignore malformed origin, fallback to actual API host.
     }
   }
 

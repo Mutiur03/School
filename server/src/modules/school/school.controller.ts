@@ -32,8 +32,13 @@ export class SchoolController {
   });
 
   static updateSchool = asyncHandler(async (req: any, res: Response) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) throw new ApiError(400, "Invalid school id");
+    const requestedId = parseInt(req.params.id);
+    if (isNaN(requestedId)) throw new ApiError(400, "Invalid school id");
+
+    const isSuperAdmin = req.user?.role === "super_admin";
+    const id = isSuperAdmin ? requestedId : req.schoolId;
+
+    if (!id) throw new ApiError(400, "School context missing");
 
     const school = await SchoolService.updateSchool(id, req.body);
     res

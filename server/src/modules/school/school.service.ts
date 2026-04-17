@@ -63,27 +63,8 @@ export class SchoolService {
   }
 
   static async getCurrentSchoolInfo({ schoolId }: { schoolId?: number }) {
-    if (schoolId) {
-      const schoolById = await this.getSchoolInfo(schoolId);
-      if (schoolById) return schoolById;
-    }
+    if (!schoolId) return null;
 
-    return prisma.school.findFirst({
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        name: true,
-        shortName: true,
-        logo: true,
-        favicon: true,
-        district: true,
-        upazila: true,
-        phone: true,
-        email: true,
-        website: true,
-        slogan: true,
-        establishedIn: true,
-      },
-    });
+    return this.getSchoolInfo(schoolId);
   }
 }

@@ -9,17 +9,6 @@ interface TokenPayload {
   role: string;
 }
 
-const roleFetchers: Record<string, (id: number) => Promise<any>> = {
-  admin: (id: number) => prisma.admin.findUnique({ where: { id } }),
-  teacher: (id: number) =>
-    prisma.teachers.findFirst({
-      where: { id, available: true },
-      include: { levels: true },
-    }),
-  student: (id: number) => prisma.students.findUnique({ where: { id } }),
-  super_admin: (id: number) => prisma.superAdmin.findUnique({ where: { id } }),
-};
-
 class AuthMiddleware {
   static authenticate(roles: string[] = []) {
     return async (req: Request, _res: Response, next: NextFunction) => {
@@ -38,21 +27,35 @@ class AuthMiddleware {
           return next(new ApiError(403, "Forbidden: Insufficient permissions"));
         }
 
-        const fetchRoleUser = roleFetchers[decoded.role];
-        if (!fetchRoleUser) {
-          return next(new ApiError(401, "Invalid Token"));
-        }
+        let dbUser: any = null;
 
-        const dbUser = await fetchRoleUser(decoded.id);
+        if (decoded.role === "super_admin") {
+          await assertSuperAdminHostAllowed(req);
+          dbUser = await prisma.superAdmin.findUnique({ where: { id: decoded.id } });
+        } else {
+          if (!req.schoolId) {
+            return next(new ApiError(400, "School context missing"));
+          }
+
+          if (decoded.role === "admin") {
+            dbUser = await prisma.admin.findUnique({
+              where: { id: decoded.id, school_id: req.schoolId },
+            });
+          } else if (decoded.role === "teacher") {
+            dbUser = await prisma.teachers.findFirst({
+              where: { id: decoded.id, school_id: req.schoolId, available: true },
+              include: { levels: true },
+            });
+          } else if (decoded.role === "student") {
+            dbUser = await prisma.students.findUnique({
+              where: { id: decoded.id, school_id: req.schoolId },
+            });
+          } else {
+            return next(new ApiError(401, "Invalid Token"));
+          }
+        }
 
         if (!dbUser) return next(new ApiError(401, "Unauthorized"));
-
-        if (
-          decoded.role === "super_admin" &&
-          !(await assertSuperAdminHostAllowed(req))
-        ) {
-          return next(new ApiError(403, "Forbidden: Insufficient permissions"));
-        }
 
         if (dbUser.password) delete dbUser.password;
         const user = { ...dbUser, role: decoded.role };

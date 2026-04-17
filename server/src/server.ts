@@ -14,7 +14,11 @@ import logger from "./utils/logger.js";
 import examRouter from "./routes/examRoutes.js";
 import marksRouter from "./modules/marks/marks.route.js";
 import promotionRouter from "./routes/promotionRoutes.js";
-import authRouter from "./modules/auth/auth.route.js";
+import {
+  sharedAuthSessionRouter,
+  superAdminAuthRouter,
+  tenantAuthRouter,
+} from "./modules/auth/auth.route.js";
 import cookieParser from "cookie-parser";
 import levelRouter from "./modules/level/level.route.js";
 import attendenceRouter from "./modules/attendence/attendence.route.js";
@@ -44,13 +48,17 @@ import { check } from "./config/redis.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
-import schoolRouter from "./modules/school/school.route.js";;
+import {
+  superAdminSchoolRouter,
+  tenantSchoolRouter,
+} from "./modules/school/school.route.js";
 import studentRouter from "./modules/student/student.route.js";
 import routerTeacher from "./modules/teacher/teacher.route.js";
 import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
 import { schoolContextMiddleware } from "./middlewares/tenant.middleware.js";
+import { requireSchoolContextMiddleware } from "./middlewares/access.middleware.js";
 
 const storagePath = path.resolve("uploads");
 
@@ -76,7 +84,6 @@ app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-app.use(schoolContextMiddleware);
 app.use(
   "/uploads",
   express.static(storagePath, {
@@ -135,15 +142,21 @@ app.get(
   },
 );
 
+app.use(superAdminAuthRouter);
+app.use(superAdminSchoolRouter);
+app.use(schoolContextMiddleware);
+app.use(sharedAuthSessionRouter);
+app.use(requireSchoolContextMiddleware);
+
 app.use(studentRouter);
-app.use(schoolRouter);
+app.use(tenantSchoolRouter);
 app.use("/api/exams", examRouter);
 app.use(subjectRouter);
 app.use(marksRouter);
 app.use("/api/promotion", promotionRouter);
 app.use(routerTeacher);
 app.use("/api/staffs", routerStaff);
-app.use(authRouter);
+app.use(tenantAuthRouter);
 app.use(levelRouter);
 app.use(attendenceRouter);
 app.use(noticeRouter);
