@@ -409,12 +409,13 @@ model marks {
 
 model categories {
   id        Int       @id @default(autoincrement())
-  category  String    @unique
+  category  String
   thumbnail String?
   galleries gallery[]
   school_id Int?
   school    School?   @relation(fields: [school_id], references: [id])
 
+  @@unique([school_id, category])
   @@index([school_id])
 }
 
