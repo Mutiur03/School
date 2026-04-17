@@ -974,9 +974,9 @@ model student_registration_class8 {
 
 model sms_settings {
   id                  Int      @id @default(autoincrement())
-  present_template    String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) has attended school today ({date}).\nThank you.\nHead Master\n{school_name}")
-  absent_template     String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) is absent from school today ({date}).\nPlease contact the school office for more info.\nThank you.\n{school_name}")
-  run_awayed_template String   @default("Dear Parent,\nYour child {student_name} (ID: {login_id}) was present in the morning but has run awayed from school today ({date}).\nPlease check immediately.\nThank you.\n{school_name}")
+  present_template    String
+  absent_template     String
+  run_awayed_template String
   send_to_present     Boolean  @default(true)
   send_to_absent      Boolean  @default(false)
   send_to_run_awayed  Boolean  @default(true)
