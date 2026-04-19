@@ -273,3 +273,11 @@ docker exec -i lbp-postgres_school-1 pg_dump -U mutiur -d school -F c > backup.s
 
 
 docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < "/home/mutiur03/Downloads/backup.sql"
+
+
+-- As superuser/owner
+GRANT USAGE ON SCHEMA app TO school_app;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO school_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA app GRANT EXECUTE ON FUNCTIONS TO school_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO school_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO school_app;
