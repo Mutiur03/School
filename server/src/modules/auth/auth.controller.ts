@@ -74,6 +74,7 @@ export class AuthController {
     const token = req.cookies.refreshToken;
     const { accessToken, refreshToken, user } = await AuthService.refreshToken(
       req,
+      res,
       token,
     );
 
