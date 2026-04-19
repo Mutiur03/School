@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { Request, Response } from "express";
+import { Request, Response, CookieOptions } from "express";
 import { env } from "@/config/env.js";
 import { prisma } from "@/config/prisma.js";
 import { ApiError } from "@/utils/ApiError.js";
@@ -251,7 +251,7 @@ export class AuthService {
     };
   }
 
-  static async refreshToken(req: Request, token?: string) {
+  static async refreshToken(req: Request, res: Response, token?: string) {
     if (!token) {
       throw new ApiError(401, "Unauthorized");
     }
@@ -261,6 +261,7 @@ export class AuthService {
     try {
       payload = jwt.verify(token, secret) as any;
     } catch {
+      AuthService.clearRefreshToken(res);
       throw new ApiError(401, "Unauthorized");
     }
 
@@ -682,30 +683,78 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  // static sendRefreshToken(res: Response, token: string) {
+  //   const isProduction = process.env.NODE_ENV === "production";
+
+  //   res.cookie("refreshToken", token, {
+  //     httpOnly: true,
+  //     secure: isProduction,
+  //     sameSite: isProduction ? "none" : "lax",
+  //     path: "/",
+  //     domain: env.DOMAIN || undefined,
+  //     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  //     partitioned: isProduction,
+  //   });
+  // }
   static sendRefreshToken(res: Response, token: string) {
-    const isProduction = process.env.NODE_ENV === "production";
+    // const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("refreshToken", token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      secure: true, // must be true for cross-site
+      sameSite: "none", // must be none for cross-site
       path: "/",
-      domain: env.DOMAIN || undefined,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      partitioned: isProduction,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      // NO domain, NO partitioned
     });
   }
-
   static clearRefreshToken(res: Response) {
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      path: "/",
-      domain: env.DOMAIN || undefined,
-      partitioned: isProduction,
+    const variants: (CookieOptions & { partitioned?: boolean })[] = [
+      // current config
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+        path: "/",
+        domain: env.DOMAIN || undefined,
+        partitioned: isProduction,
+      },
+      // without partitioned
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+        path: "/",
+        domain: env.DOMAIN || undefined,
+      },
+      // without domain
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+        path: "/",
+      },
+      // without domain + partitioned
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+        path: "/",
+        partitioned: isProduction,
+      },
+      // nuclear - all false
+      {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+      },
+    ];
+
+    variants.forEach((options) => {
+      res.clearCookie("refreshToken", options);
     });
   }
 }
