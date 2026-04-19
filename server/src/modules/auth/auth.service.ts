@@ -690,6 +690,7 @@ export class AuthService {
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
       path: "/",
+      domain: env.DOMAIN || undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       partitioned: isProduction,
     });
@@ -703,7 +704,7 @@ export class AuthService {
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",
       path: "/",
-      // Intentionally omit domain so cookie remains host-scoped.
+      domain: env.DOMAIN || undefined,
       partitioned: isProduction,
     });
   }
