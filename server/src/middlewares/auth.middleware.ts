@@ -41,7 +41,7 @@ class AuthMiddleware {
           }
 
           if (decoded.role === "admin") {
-            dbUser = await prisma.admin.findUnique({
+            dbUser = await prisma.admin.findFirst({
               where: { id: decoded.id, school_id: req.schoolId },
             });
           } else if (decoded.role === "teacher") {
@@ -54,7 +54,7 @@ class AuthMiddleware {
               include: { levels: true },
             });
           } else if (decoded.role === "student") {
-            dbUser = await prisma.students.findUnique({
+            dbUser = await prisma.students.findFirst({
               where: { id: decoded.id, school_id: req.schoolId },
             });
           } else {

@@ -11,6 +11,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
 DO $$
 DECLARE
   db_name TEXT := current_database();
+  has_app_schema BOOLEAN;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_db_role') THEN
     EXECUTE format(
@@ -22,11 +23,17 @@ BEGIN
 
   EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db_name, :'app_db_role');
   EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', :'app_db_role');
-  EXECUTE format('GRANT USAGE ON SCHEMA app TO %I', :'app_db_role');
 
-  EXECUTE format('GRANT EXECUTE ON FUNCTION app.current_school_id() TO %I', :'app_db_role');
-  EXECUTE format('GRANT EXECUTE ON FUNCTION app.is_super_admin() TO %I', :'app_db_role');
-  EXECUTE format('GRANT EXECUTE ON FUNCTION app.set_school_id_from_rls_context() TO %I', :'app_db_role');
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_namespace
+    WHERE nspname = 'app'
+  ) INTO has_app_schema;
+
+  IF has_app_schema THEN
+    EXECUTE format('GRANT USAGE ON SCHEMA app TO %I', :'app_db_role');
+    EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO %I', :'app_db_role');
+  END IF;
 
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_db_role');
   EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_db_role');

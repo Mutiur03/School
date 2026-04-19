@@ -266,15 +266,15 @@ export class AuthService {
 
     let user = null;
     if (payload.role === "admin") {
-      user = await prisma.admin.findUnique({
+      user = await prisma.admin.findFirst({
         where: { id: payload.id, school_id: req.schoolId },
       });
     } else if (payload.role === "student") {
-      user = await prisma.students.findUnique({
+      user = await prisma.students.findFirst({
         where: { id: payload.id, school_id: req.schoolId },
       });
     } else if (payload.role === "teacher") {
-      user = await prisma.teachers.findUnique({
+      user = await prisma.teachers.findFirst({
         where: { id: payload.id, school_id: req.schoolId },
         include: { levels: { where: { year: new Date().getFullYear() } } },
       });

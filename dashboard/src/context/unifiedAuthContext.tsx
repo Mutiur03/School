@@ -209,10 +209,18 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     } catch (refreshError) {
                         // If refresh itself is a network error, mark offline
                         if (isNetworkError(refreshError)) {
+                            console.warn("Refresh request failed: Network Error (Offline)");
                             setServerOffline(true);
                             return Promise.reject(refreshError);
                         }
-                        console.error("Token refresh failed:", refreshError);
+                        
+                        const status = (refreshError as any).response?.status;
+                        const message = (refreshError as any).response?.data?.message || (refreshError as any).message;
+                        console.error(`Refresh failed with status ${status}:`, message);
+                        
+                        if (status === 429) {
+                            toast.error("Rate limit hit. Please wait a moment.");
+                        }
                     }
                     // Refresh failed or returned success:false — clear auth state
                     setUser(null);
@@ -269,12 +277,15 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error: any) {
             // Distinguish: network error vs auth failure
             if (isNetworkError(error)) {
-                console.log("Server is unreachable");
+                console.warn("Initial checkAuth failed: Network Error (Offline)");
                 setServerOffline(true);
                 // Do NOT clear user — keep existing auth state if any
             } else {
                 // Auth failure — no active session
-                console.log("No active refresh session found");
+                const status = error.response?.status;
+                const message = error.response?.data?.message || error.message;
+                console.warn(`No active session found (Status ${status}):`, message);
+                
                 setUser(null);
                 setServerOffline(false);
             }
