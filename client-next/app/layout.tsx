@@ -3,8 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Providers from "./providers";
 
-export const runtime = "edge";
-
 const kalpurush = localFont({
   src: [{ path: "../public/fonts/Kalpurush-v0.258.woff2", weight: "100 900" }],
   display: "swap",
