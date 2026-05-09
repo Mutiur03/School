@@ -1,6 +1,5 @@
-import { ClientNoticeDebug } from "@/components/ClientNoticeDebug";
-import backend, { getFileUrl } from "@/lib/backend";
-import { fetchNotices } from "@/queries/notice.queries";
+import { api, getFileUrl } from "@/lib/backend";
+import { NoticeItem } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,22 +17,27 @@ function formatDate(iso?: string) {
 }
 
 async function Notice() {
-    const notices = await fetchNotices();
-    const sorted = notices.slice().sort((a, b) => {
+    // const notices = await fetchNotices();
+    // const sorted = notices.slice().sort((a, b) => {
+    //     const ta = new Date(a.created_at).getTime();
+    //     const tb = new Date(b.created_at).getTime();
+    //     return tb - ta;
+    // });
+    const res = await api.get<NoticeItem[]>("/api/notices/getNotices");
+    const sorted = res.data.slice().sort((a, b) => {
         const ta = new Date(a.created_at).getTime();
         const tb = new Date(b.created_at).getTime();
         return tb - ta;
     });
-
     return (
         <div className="mx-auto px-4 py-6">
             <h1 className="text-2xl font-semibold mb-4">Notices</h1>
             <p className="mb-4 text-sm text-gray-600">Total notices: {sorted.length}</p>
-            <ClientNoticeDebug
+            {/* <ClientNoticeDebug
                 label="/notices page"
                 notices={sorted}
                 backend={backend}
-            />
+            /> */}
 
             <div className="overflow-x-auto bg-white rounded-xs shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
