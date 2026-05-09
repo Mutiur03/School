@@ -2,6 +2,8 @@ import { getFileUrl } from "@/lib/backend";
 import { fetchNotices } from "@/queries/notice.queries";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function formatDate(iso?: string) {
     if (!iso) return "";

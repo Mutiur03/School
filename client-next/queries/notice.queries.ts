@@ -19,11 +19,28 @@ function normalizeNotices(payload: unknown): NoticeItem[] {
 export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
   console.log("[fetchNotices called]", { limit });
 
-  return api
-    .get<NoticeItem[]>("/api/notices/getNotices", {
+  try {
+    const res = await api.get<NoticeItem[]>("/api/notices/getNotices", {
       params: { limit },
       cache: "no-store",
-    })
-    .then((res) => normalizeNotices(res.data))
-    .catch(() => []);
+    });
+    const notices = normalizeNotices(res.data);
+
+    console.log("[fetchNotices result]", {
+      limit,
+      success: res.success,
+      message: res.message,
+      rawIsArray: Array.isArray(res.data),
+      count: notices.length,
+    });
+
+    return notices;
+  } catch (error) {
+    console.error("[fetchNotices error]", {
+      limit,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return [];
+  }
 };
