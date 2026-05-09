@@ -1,4 +1,5 @@
-import { api } from "@/lib/backend";
+import { headers } from "next/headers";
+import backend from "@/lib/backend";
 import { NoticeItem } from "@/types";
 
 function normalizeNotices(payload: unknown): NoticeItem[] {
@@ -24,22 +25,61 @@ function normalizeNotices(payload: unknown): NoticeItem[] {
 }
 
 export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
-  console.log("[fetchNotices called]", { limit });
+  console.log("[fetchNotices SSR start]", { limit, backend });
 
   try {
-    const res = await api.get<NoticeItem[]>("/api/notices/getNotices", {
-      params: { limit },
+    if (!backend) {
+      console.error("[fetchNotices SSR missing backend]", {
+        NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+      });
+      return [];
+    }
+
+    const incomingHeaders = await headers();
+    const host = incomingHeaders.get("host");
+    const forwardedProto = incomingHeaders.get("x-forwarded-proto");
+    const protocol =
+      forwardedProto || (host?.includes("localhost") ? "http" : "https");
+    const origin = host ? `${protocol}://${host}` : undefined;
+    const params = new URLSearchParams();
+
+    if (limit !== undefined) {
+      params.set("limit", String(limit));
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const url = `${backend}/api/notices/getNotices${query}`;
+
+    console.log("[fetchNotices SSR request]", { url, origin });
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(origin ? { Origin: origin } : {}),
+      },
       cache: "no-store",
     });
-    const notices = normalizeNotices(res.data);
+    const text = await response.text();
 
-    console.log("[fetchNotices result]", {
+    console.log("[fetchNotices SSR response]", {
+      url,
+      status: response.status,
+      ok: response.ok,
+      bodyPreview: text.slice(0, 2000),
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = JSON.parse(text) as unknown;
+    const notices = normalizeNotices(payload);
+
+    console.log("[fetchNotices SSR result]", {
       limit,
-      success: res.success,
-      message: res.message,
-      rawIsArray: Array.isArray(res.data),
-      rawHasData:
-        !!res.data && typeof res.data === "object" && "data" in res.data,
+      rawIsArray: Array.isArray(payload),
+      rawHasData: !!payload && typeof payload === "object" && "data" in payload,
       count: notices.length,
     });
 
