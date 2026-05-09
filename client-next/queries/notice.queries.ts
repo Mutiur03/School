@@ -18,7 +18,10 @@ function normalizeNotices(payload: unknown): NoticeItem[] {
 
 export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
   return api
-    .get<NoticeItem[]>("/api/notices/getNotices", { params: { limit } })
+    .get<NoticeItem[]>("/api/notices/getNotices", {
+      params: { limit },
+      cache: "no-store",
+    })
     .then((res) => normalizeNotices(res.data))
     .catch(() => []);
 };

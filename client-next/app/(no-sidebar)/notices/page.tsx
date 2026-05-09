@@ -1,6 +1,8 @@
 import { getFileUrl } from "@/lib/backend";
 import { fetchNotices } from "@/queries/notice.queries";
 
+export const dynamic = "force-dynamic";
+
 function formatDate(iso?: string) {
     if (!iso) return "";
     const date = new Date(iso);
