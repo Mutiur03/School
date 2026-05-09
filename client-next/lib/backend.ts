@@ -99,7 +99,7 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 }
 
 async function get<T>(url: string, options?: any) {
-  const { params, revalidate = 60 } = options || {};
+  const { params, revalidate = 60, cache } = options || {};
   if (!backend) {
     logApiRequest("GET", url, {
       skipped: true,
@@ -130,6 +130,7 @@ async function get<T>(url: string, options?: any) {
   logApiRequest("GET", requestUrl, {
     params: sanitizedParams,
     revalidate,
+    cache,
     origin,
   });
 
@@ -137,7 +138,8 @@ async function get<T>(url: string, options?: any) {
     const res = await fetch(requestUrl, {
       method: "GET",
       headers: origin ? { Origin: origin } : undefined,
-      next: { revalidate }, // SSR caching
+      cache,
+      next: cache === "no-store" ? undefined : { revalidate }, // SSR caching
     });
     const text = await res.text();
 
