@@ -31,16 +31,20 @@ export const getFileUrl = (key: string | null): string => {
 };
 
 async function getRequestOrigin() {
-  const incomingHeaders = await headers();
-  const host = incomingHeaders.get("host");
+  try {
+    const incomingHeaders = await headers();
+    const host = incomingHeaders.get("host");
 
-  if (!host) return undefined;
+    if (!host) return undefined;
 
-  const forwardedProto = incomingHeaders.get("x-forwarded-proto");
-  const protocol =
-    forwardedProto || (host.includes("localhost") ? "http" : "https");
+    const forwardedProto = incomingHeaders.get("x-forwarded-proto");
+    const protocol =
+      forwardedProto || (host.includes("localhost") ? "http" : "https");
 
-  return `${protocol}://${host}`;
+    return `${protocol}://${host}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
@@ -64,6 +68,10 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 
 async function get<T>(url: string, options?: any) {
   const { params, revalidate = 60 } = options || {};
+  if (!backend) {
+    return normalizeApiResponse<T>(null);
+  }
+
   const origin = await getRequestOrigin();
   const sanitizedParams = params
     ? Object.fromEntries(
@@ -81,13 +89,21 @@ async function get<T>(url: string, options?: any) {
         ).toString()
       : "";
 
-  const res = await fetch(`${backend}${url}${query}`, {
-    method: "GET",
-    headers: origin ? { Origin: origin } : undefined,
-    next: { revalidate }, // SSR caching
-  });
+  try {
+    const res = await fetch(`${backend}${url}${query}`, {
+      method: "GET",
+      headers: origin ? { Origin: origin } : undefined,
+      next: { revalidate }, // SSR caching
+    });
 
-  return normalizeApiResponse<T>(await res.json());
+    if (!res.ok) {
+      return normalizeApiResponse<T>(null);
+    }
+
+    return normalizeApiResponse<T>(await res.json());
+  } catch {
+    return normalizeApiResponse<T>(null);
+  }
 }
 
 async function post<T>(url: string, body?: any) {
