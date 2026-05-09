@@ -48,12 +48,12 @@ export const passStatusController = async (req, res) => {
         id: enrollmentId,
         student_id: _student_id,
         class: studentClass,
-        marks: rawMarks,
+        // marks: rawMarks,
       } = student;
 
       // Ensure marks have subjects included (we already included them in findMany below)
       const processedMarks = MarksService.aggregatePaperMarks(student.marks);
-      const { gpa, isFailed, totalMarks } = MarksService.calculateGPA(
+      const {  isFailed } = MarksService.calculateGPA(
         processedMarks,
         student.fourth_subject_id || null,
         classBonusStatus[studentClass],
@@ -162,7 +162,7 @@ export const promoteStudentController = async (req, res) => {
       // Format marks for calculateGPA (using MarksService.aggregatePaperMarks)
       const processedMarks = MarksService.aggregatePaperMarks(student.marks);
 
-      const { gpa, totalMarks, isFailed } = MarksService.calculateGPA(
+      const { gpa, totalMarks } = MarksService.calculateGPA(
         processedMarks,
         student.fourth_subject_id || null,
         applyBonus,

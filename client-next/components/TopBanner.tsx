@@ -1,4 +1,5 @@
 import { fetchNotices } from "@/queries/notice.queries";
+import { getFileUrl } from "@/lib/backend";
 import Link from "next/link";
 
 export async function TopBanner() {
@@ -38,7 +39,7 @@ export async function TopBanner() {
               {data.map((notice, i) => (
                 <a
                   key={i}
-                  href={notice.file || "#"}
+                  href={getFileUrl(notice.file) || "#"}
                   target="_blank"
                   rel="noreferrer"
                   title={notice.title || ""}
