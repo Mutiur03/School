@@ -1,5 +1,6 @@
+import { ClientNoticeDebug } from "@/components/ClientNoticeDebug";
 import { fetchNotices } from "@/queries/notice.queries";
-import { getFileUrl } from "@/lib/backend";
+import backend, { getFileUrl } from "@/lib/backend";
 import Link from "next/link";
 
 export async function TopBanner() {
@@ -10,6 +11,12 @@ export async function TopBanner() {
       className="w-full mt-2 bg-gray-50 border-t border-b border-gray-100"
       aria-hidden={false}
     >
+      <ClientNoticeDebug
+        label="TopBanner"
+        notices={data ?? []}
+        backend={backend}
+        limit={5}
+      />
       <style>{`
         @keyframes marquee-scroll {
           0%   { transform: translateX(0); }
