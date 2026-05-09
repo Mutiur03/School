@@ -22,9 +22,12 @@ import { fetchCitizenCharter, fetchSyllabus } from "@/hooks/useSchoolData";
 export async function Chart() {
   const school = await fetchSchoolConfig();
   const resultsUrl = school?.links?.results;
-  const syllabusItems = await fetchSyllabus();
+  const fetchedSyllabusItems = await fetchSyllabus();
+  const syllabusItems = Array.isArray(fetchedSyllabusItems)
+    ? fetchedSyllabusItems
+    : [];
   const getSyllabusUrlByClass = (classNum: number) =>
-    syllabusItems?.find((item) => item.class === classNum)?.pdf_url;
+    syllabusItems.find((item) => item.class === classNum)?.pdf_url;
   const citizenCharterUrl = await fetchCitizenCharter();
   return (
     <div className="front-boxs-area">

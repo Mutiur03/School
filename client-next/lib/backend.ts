@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { headers } from "next/headers";
+
 const backend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "");
 export default backend;
 export const cdn = process.env.NEXT_PUBLIC_CDN_URL;
@@ -28,6 +30,19 @@ export const getFileUrl = (key: string | null): string => {
   return `${cdn}/${key}`;
 };
 
+async function getRequestOrigin() {
+  const incomingHeaders = await headers();
+  const host = incomingHeaders.get("host");
+
+  if (!host) return undefined;
+
+  const forwardedProto = incomingHeaders.get("x-forwarded-proto");
+  const protocol =
+    forwardedProto || (host.includes("localhost") ? "http" : "https");
+
+  return `${protocol}://${host}`;
+}
+
 function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
   if (
     payload &&
@@ -49,6 +64,7 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 
 async function get<T>(url: string, options?: any) {
   const { params, revalidate = 60 } = options || {};
+  const origin = await getRequestOrigin();
   const sanitizedParams = params
     ? Object.fromEntries(
         Object.entries(params).filter(
@@ -67,6 +83,7 @@ async function get<T>(url: string, options?: any) {
 
   const res = await fetch(`${backend}${url}${query}`, {
     method: "GET",
+    headers: origin ? { Origin: origin } : undefined,
     next: { revalidate }, // SSR caching
   });
 

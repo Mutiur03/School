@@ -4,6 +4,7 @@ import "./Navbar.css";
 import Link from "next/link";
 import type { MenuItem } from "../types";
 import { fetchSchoolConfig } from "@/queries/school.queries";
+import { NavbarInteractions } from "./NavbarInteractions";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -232,6 +233,7 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
       role="navigation"
     >
       <div className="navbar-header">
+        <NavbarInteractions />
         <button
           className="navbar-toggler"
           type="button"
