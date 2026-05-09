@@ -6,6 +6,8 @@ import { TopBanner } from "@/components/TopBanner";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import governmentLogoImage from "../../assets/images/gov-logo.png";
 
+export const dynamic = "force-dynamic";
+
 export default async function Layout({
   children,
 }: Readonly<{
