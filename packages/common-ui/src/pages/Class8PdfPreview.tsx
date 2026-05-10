@@ -44,7 +44,7 @@ function Class8PdfPreview() {
       `}</style>
 
       <iframe 
-        title="Class 6 PDF Preview"
+        title="Class 8 PDF Preview"
         src={previewUrl}
         style={{ width: "100%", height: "100%", border: "none" }}
         onLoad={() => setIsLoading(false)}

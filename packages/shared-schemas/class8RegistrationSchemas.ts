@@ -26,7 +26,7 @@ export const registrationSchemaClass8 = registrationObjectShape
       .default(""),
     class6_academic_session: z
       .string()
-      .min(1, "Class 6 Academic Session is required")
+      .min(1, "Class Six Academic Session is required")
       .default(""),
     class8_year: z.union([z.string(), z.number()]).optional(),
   })

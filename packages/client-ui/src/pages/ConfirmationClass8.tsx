@@ -375,11 +375,11 @@ function Class8RegConfirmation() {
 
                                         <tr className="bg-gray-100 border-b border-gray-200">
                                             <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
-                                                Previous School Information (Class 6)
+                                                Previous School Information (Class Six)
                                             </td>
                                         </tr>
                                         {renderOptionalRow("Registration No:", registration.registration_no)}
-                                        {renderOptionalRow("Class 6 Academic Session:", registration.class6_academic_session)}
+                                        {renderOptionalRow("Class Six Academic Session:", registration.class6_academic_session)}
                                         {renderOptionalRow("Name of Previous School:", registration.prev_school_name)}
                                         <tr className="bg-gray-100 border-b border-gray-200">
                                             <td colSpan={2} className="py-2 px-4 font-bold text-gray-700">
