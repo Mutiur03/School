@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
-import backend from "@/lib/backend";
 import { NoticeItem } from "@/types";
-
+const API_URL = process.env.API_URL;
 function normalizeNotices(payload: unknown): NoticeItem[] {
   const candidate =
     payload &&
@@ -25,11 +24,11 @@ function normalizeNotices(payload: unknown): NoticeItem[] {
 }
 
 export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
-  console.log("[fetchNotices SSR start]", { limit, backend });
+  console.log("[fetchNotices SSR start]", { limit, API_URL });
 
   try {
-    if (!backend) {
-      console.error("[fetchNotices SSR missing backend]", {
+    if (!API_URL) {
+      console.error("[fetchNotices SSR missing API_URL]", {
         NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
       });
       return [];
@@ -48,7 +47,7 @@ export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
     }
 
     const query = params.toString() ? `?${params.toString()}` : "";
-    const url = `${backend}/api/notices/getNotices${query}`;
+    const url = `${API_URL}/api/notices/getNotices${query}`;
 
     console.log("[fetchNotices SSR request]", { url, origin });
 
