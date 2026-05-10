@@ -423,7 +423,7 @@ const Class8RegForm = () => {
                                     <p className="text-xs text-muted-foreground mt-1">
                                         {settingsForm.classmates_source === "custom"
                                             ? "Enter your own student names."
-                                            : "Automatically uses names from the Class 6 enrollment list."}
+                                            : "Automatically uses names from the Class 8 enrollment list."}
                                     </p>
                                 </div>
                                 {settingsForm.classmates_source === "custom" && (

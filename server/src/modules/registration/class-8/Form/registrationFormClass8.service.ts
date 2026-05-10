@@ -653,7 +653,7 @@ export class RegistrationFormClass8Service {
             <div class="footer">
               <div class="note" style="display: flex; align-items: flex-start; gap: 12px;">
                 <div class="document-list" style="flex: 1;">
-                  <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে যেসব কাগজপত্র সংযুক্ত করতে হবে:</b></span>
+                  <span class="bn"><b>* প্রিন্টকৃত ফরমের সাথে সাথে যেসব স্পষ্ট কাগজপত্র সংযুক্ত করেত হবে:</b></span>
                   ${
                     attachmentInstructions
                       ? attachmentInstructions

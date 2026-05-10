@@ -599,7 +599,7 @@ export default function RegistrationClass8() {
                         </select>
                     </FieldRow>
                     <FieldRow
-                        label="Cub scout/Scout:"
+                        label="Scout:"
                         isRequired
                         error={errors.scout_status}
                     >
@@ -845,9 +845,9 @@ export default function RegistrationClass8() {
                     permanentAddress={permanentAddress}
                     metadata={metadata}
                 />
-                <SectionHeader title="Previous School Information (Class 6)">
+                <SectionHeader title="Previous School Information (Class Six)">
                     <FormInput
-                        label="Registration No (Previous)"
+                        label="Registration No (Class Six)"
                         name="registration_no"
                         register={register}
                         errors={errors}
@@ -857,7 +857,7 @@ export default function RegistrationClass8() {
                         placeholder="10 Digits"
                     />
                     <FieldRow
-                        label="Class 6 Academic Session:"
+                        label="Class Six Academic Session:"
                         isRequired
                         error={errors.class6_academic_session}
                     >
