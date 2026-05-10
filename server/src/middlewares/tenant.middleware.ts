@@ -13,12 +13,33 @@ const normalizeTenantSubdomain = (hostname: string) =>
     .replace(/-dashboard$/, "")
     .replace(/-school$/, "");
 
+const requestHostname = (value: unknown): string | null => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+
+  try {
+    const parsed = raw.includes("://") ? new URL(raw).hostname : raw;
+    const hostname = parsed.toLowerCase().replace(/:\d+$/, "");
+    if (!/^[a-z0-9.-]+$/.test(hostname)) return null;
+    return hostname;
+  } catch {
+    return null;
+  }
+};
+
+const tenantHostName = (req: express.Request, fallbackHostname: string) =>
+  requestHostname(req.headers.origin) ??
+  requestHostname(req.headers.referer) ??
+  requestHostname(req.headers.referrer) ??
+  fallbackHostname;
+
 export const schoolContextMiddleware = async (
   req: express.Request,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   const hostname = hostName(req);
+  const tenantHostname = tenantHostName(req, hostname);
   if (
     await assertSuperAdminHostAllowed(req)
       .then(() => true)
@@ -26,7 +47,7 @@ export const schoolContextMiddleware = async (
   ) {
     return next();
   }
-  const cached = await redis.get(hostname);
+  const cached = await redis.get(tenantHostname);
   if (cached) {
     const parsedCached = JSON.parse(cached) as { id?: number };
     if (parsedCached?.id) {
@@ -35,21 +56,22 @@ export const schoolContextMiddleware = async (
     }
   }
   const isSubdomain =
-    hostname.endsWith(".localhost") || hostname.endsWith(".mutiurrahman.com");
+    tenantHostname.endsWith(".localhost") ||
+    tenantHostname.endsWith(".mutiurrahman.com");
   const school = isSubdomain
     ? await prisma.school.findUnique({
         where: {
-          subdomain: normalizeTenantSubdomain(hostname),
+          subdomain: normalizeTenantSubdomain(tenantHostname),
         },
       })
     : await prisma.school.findUnique({
-        where: { customDomain: getRootDomain(hostname) },
+        where: { customDomain: getRootDomain(tenantHostname) },
       });
 
   if (!school) {
     return res.status(404).json({ message: "School not found" });
   }
-  await redis.set(hostname, JSON.stringify({ id: school.id }));
+  await redis.set(tenantHostname, JSON.stringify({ id: school.id }));
   req.schoolId = school.id;
   next();
 };
