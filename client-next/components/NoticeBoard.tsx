@@ -2,10 +2,11 @@ import "./NoticeBoard.css";
 import { ClientNoticeDebug } from "@/components/ClientNoticeDebug";
 import Link from "next/link";
 import backend, { getFileUrl } from "@/lib/backend";
-import { fetchNotices } from "@/queries/notice.queries";
+import { buildNoticesUrl, fetchNotices } from "@/queries/notice.queries";
 
 export async function NoticeBoard() {
   const data = await fetchNotices(5);
+  const requestUrl = buildNoticesUrl(5);
   return (
     <div className="front-notices-area ">
       <ClientNoticeDebug
@@ -14,6 +15,9 @@ export async function NoticeBoard() {
         backend={backend}
         limit={5}
       />
+      <p className="notice-debug-route">
+        SSR route: {requestUrl ?? "API_URL missing"}
+      </p>
       <div className="notices-front">
         <div className="notices-front-board">
           <div className="notices-items">
