@@ -1,20 +1,88 @@
-import React from "react";
+"use client";
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import "./Navbar.css";
 import Link from "next/link";
 import type { MenuItem } from "../types";
-import { fetchSchoolConfig } from "@/queries/school.queries";
-import { NavbarInteractions } from "./NavbarInteractions";
+import axios from "axios";
+
+async function fetchRoutinePDF() {
+  try {
+    const res = await axios.get("/api/class-routine/pdf");
+    const data = Array.isArray(res.data?.data) ? res.data.data : res.data;
+    return data?.[0]?.pdf_url ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
+  onRoutineClick?: (e: React.MouseEvent) => void | Promise<void>;
+  school?: {
+    links?: {
+      results?: string | null;
+      teacherLogin?: string | null;
+      studentLogin?: string | null;
+    };
+  };
 };
 
-export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
-  const school = await fetchSchoolConfig();
+export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: NavbarProps) {
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(
+    null,
+  );
+  const handleRoutineClick =
+    onRoutineClick ??
+    (async (e: React.MouseEvent) => {
+      e.preventDefault();
+      const pdfUrl = await fetchRoutinePDF();
+      if (pdfUrl) {
+        window.open(pdfUrl, "_blank");
+      }
+    });
 
-  const isExternalLink = (href?: string | null) =>
-    Boolean(href && /^(https?:|mailto:|tel:|\/\/)/i.test(href));
+  const isExternalLink = (href?: string | null) => {
+    if (!href) return false;
+    try {
+      const url = new URL(href, window.location.href);
+      return url.origin !== window.location.origin;
+    } catch {
+      return /^(https?:|mailto:|tel:|\/\/)/i.test(href);
+    }
+  };
+
+  const toggleNav = () => {
+    setIsNavOpen(!isNavOpen);
+    if (isNavOpen) {
+      setActiveDropdown(null);
+      setActiveSubDropdown(null);
+    }
+  };
+
+  const toggleDropdown = (itemId: string) => {
+    setActiveDropdown(activeDropdown === itemId ? null : itemId);
+    setActiveSubDropdown(null);
+  };
+
+  const toggleSubDropdown = (subItemId: string) => {
+    setActiveSubDropdown(activeSubDropdown === subItemId ? null : subItemId);
+  };
+
+  const closeNavbarIfMobile = (href?: string | null) => {
+    const isRealHref = !!href && href.trim() !== "" && href.trim() !== "#";
+    if (
+      typeof window !== "undefined" &&
+      window.innerWidth <= 768 &&
+      isRealHref
+    ) {
+      setIsNavOpen(false);
+      setActiveDropdown(null);
+      setActiveSubDropdown(null);
+    }
+  };
 
   const menuItems: MenuItem[] =
     menuItemsProp ??
@@ -203,7 +271,7 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
         id: "menu-item-3541",
         className:
           "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
-        href: school?.links?.results ?? "#",
+        href: String(school?.links?.results ?? "#"),
         text: "Results",
       },
       {
@@ -233,12 +301,12 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
       role="navigation"
     >
       <div className="navbar-header">
-        <NavbarInteractions />
         <button
-          className="navbar-toggler"
+          className={`navbar-toggler ${isNavOpen ? "active" : ""}`}
           type="button"
+          onClick={toggleNav}
           aria-controls="TF-Navbar"
-          aria-expanded={false}
+          aria-expanded={isNavOpen}
           aria-label="Toggle navigation"
         >
           <div className="hamburger-icon">
@@ -250,14 +318,14 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
       </div>
       <div
         id="TF-Navbar"
-        className="navbar-collapse col-md-12"
+        className={`navbar-collapse col-md-12 ${isNavOpen ? "show" : ""}`}
       >
         <ul id="primary-menu" className="nav navbar-nav primary-menu">
           {menuItems.map((item) => (
             <li
               key={item.id}
               id={item.id}
-              className={item.className}
+              className={`${item.className} ${activeDropdown === item.id ? "show" : ""}`}
             >
               {isExternalLink(item.href) && !item.dropdown ? (
                 <a
@@ -286,6 +354,12 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                 <Link
                   href={item.href || "#"}
                   className="nav-link"
+                  onClick={(e) => {
+                    if (item.dropdown) {
+                      e.preventDefault();
+                      toggleDropdown(item.id);
+                    }
+                  }}
                 >
                   <span className="menu-text">
                     {item.isHome ? (
@@ -311,15 +385,18 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                     <li
                       key={subItem.id}
                       id={subItem.id}
-                      className={subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"}
-                      aria-expanded={false}
+                      className={`${subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"} ${activeSubDropdown === subItem.id ? "show" : ""}`}
                     >
                       {subItem.subDropdown ? (
                         isExternalLink(subItem.href) ? (
                           <a
                             href={subItem.href || "#"}
                             className="dropdown-item"
-                            aria-expanded={false}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              toggleSubDropdown(subItem.id);
+                            }}
+                            aria-expanded={activeSubDropdown === subItem.id}
                             aria-controls={`${subItem.id}-submenu`}
                           >
                             <span className="menu-text">
@@ -333,7 +410,11 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                           <Link
                             href={subItem.href || "#"}
                             className="dropdown-item"
-                            aria-expanded={false}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              toggleSubDropdown(subItem.id);
+                            }}
+                            aria-expanded={activeSubDropdown === subItem.id}
                             aria-controls={`${subItem.id}-submenu`}
                           >
                             <span className="menu-text">
@@ -350,6 +431,7 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                           className="dropdown-item"
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => closeNavbarIfMobile(subItem.href)}
                         >
                           <span className="menu-text">
                             {subItem.text}
@@ -364,6 +446,12 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                         <Link
                           href={subItem.href || "#"}
                           className="dropdown-item"
+                          onClick={(e) => {
+                            if (subItem.id === "menu-item-3371") {
+                              handleRoutineClick(e);
+                            }
+                            closeNavbarIfMobile(subItem.href);
+                          }}
                         >
                           <span className="menu-text">
                             {subItem.text}
@@ -379,7 +467,7 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                       {subItem.subDropdown && (
                         <ul
                           id={`${subItem.id}-submenu`}
-                          className="dropdown-menu"
+                          className={`dropdown-menu ${activeSubDropdown === subItem.id ? "show" : ""}`}
                           role="menu"
                         >
                           {subItem.subDropdown.map((nestedItem) => (
@@ -394,6 +482,9 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                                   className="dropdown-item"
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={() =>
+                                    closeNavbarIfMobile(nestedItem.href)
+                                  }
                                 >
                                   <span className="menu-text">
                                     {nestedItem.text}
@@ -403,6 +494,9 @@ export async function Navbar({ menuItems: menuItemsProp }: NavbarProps) {
                                 <Link
                                   href={nestedItem.href || "#"}
                                   className="dropdown-item"
+                                  onClick={() =>
+                                    closeNavbarIfMobile(nestedItem.href)
+                                  }
                                 >
                                   <span className="menu-text">
                                     {nestedItem.text}
