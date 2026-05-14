@@ -11,11 +11,6 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-// Shared Axios client for all backend API requests.
-// export const api = axios.create({
-//   baseURL: backend,
-// });
-
 export const api = {
   get,
   post,
