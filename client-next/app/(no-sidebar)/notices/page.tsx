@@ -3,6 +3,7 @@ import { ClientNoticeDebug } from "@/components/ClientNoticeDebug";
 import { fetchNotices } from "@/queries/notice.queries";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
