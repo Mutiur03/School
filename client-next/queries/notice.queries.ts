@@ -4,8 +4,8 @@ const API_URL = process.env.API_URL;
 function normalizeNotices(payload: unknown): NoticeItem[] {
   const candidate =
     payload &&
-    typeof payload === "object" &&
-    "data" in payload
+      typeof payload === "object" &&
+      "data" in payload
       ? (payload as { data?: unknown }).data
       : payload;
 
@@ -27,27 +27,19 @@ export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
   console.log("[fetchNotices SSR start]", { limit, API_URL });
 
   try {
-    if (!API_URL) {
-      console.error("[fetchNotices SSR missing API_URL]", {
-        NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
-      });
-      return [];
-    }
-
     const incomingHeaders = await headers();
     const host = incomingHeaders.get("host");
     const forwardedProto = incomingHeaders.get("x-forwarded-proto");
     const protocol =
       forwardedProto || (host?.includes("localhost") ? "http" : "https");
     const origin = host ? `${protocol}://${host}` : undefined;
-    const params = new URLSearchParams();
-
-    if (limit !== undefined) {
-      params.set("limit", String(limit));
+    const url = buildNoticesUrl(limit);
+    if (!url) {
+      console.error("[fetchNotices SSR missing API_URL]", {
+        NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+      });
+      return [];
     }
-
-    const query = params.toString() ? `?${params.toString()}` : "";
-    const url = `${API_URL}/api/notices/getNotices${query}`;
 
     console.log("[fetchNotices SSR request]", { url, origin });
 
@@ -92,3 +84,16 @@ export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
     return [];
   }
 };
+
+export function buildNoticesUrl(limit?: number): string | null {
+  if (!API_URL) return null;
+
+  const params = new URLSearchParams();
+
+  if (limit !== undefined) {
+    params.set("limit", String(limit));
+  }
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return `${API_URL}/api/notices/getNotices${query}`;
+}
