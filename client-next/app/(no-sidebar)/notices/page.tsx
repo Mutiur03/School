@@ -2,6 +2,7 @@ import { getFileUrl } from "@/lib/backend";
 import { fetchNotices } from "@/queries/notice.queries";
 
 export const revalidate = 60;
+export const runtime = "edge";
 
 function formatDate(iso?: string) {
     if (!iso) return "";
