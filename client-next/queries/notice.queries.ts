@@ -59,7 +59,7 @@ export const fetchNotices = async (limit?: number): Promise<NoticeItem[]> => {
       ok: response.ok,
       bodyPreview: text.slice(0, 2000),
     });
-
+//bal
     if (!response.ok) {
       return [];
     }
