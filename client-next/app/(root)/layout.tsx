@@ -7,6 +7,7 @@ import { fetchSchoolConfig } from "@/queries/school.queries";
 import governmentLogoImage from "../../assets/images/gov-logo.png";
 
 export const revalidate = 60;
+export const runtime = "edge";
 
 export default async function Layout({
   children,
