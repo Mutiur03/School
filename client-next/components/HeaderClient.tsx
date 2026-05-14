@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { BannerSlider } from './BannerSlider'
 import type { StaticImport } from 'next/dist/shared/lib/get-img-props'
@@ -19,8 +19,9 @@ export function HeaderClient(props: HeaderClientProps) {
   // Even if the parent Server Component re-renders during navigation and passes
   // new prop references, this component always uses the initial values —
   // which means BannerSlider inside is never touched after first mount.
+  const [initialProps] = useState(props)
   const { bannerImages, headerLogo, leftLogo, rightLogo, titleBn, titleEn } =
-    useRef(props).current
+    initialProps
 
   return (
     <div className="relative shadow-lg">

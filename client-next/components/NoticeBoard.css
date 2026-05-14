@@ -7,7 +7,7 @@
 }
 
 .notices-front {
-    background: url("bg_notice_board.png");
+    background: url("/bg_notice_board.png");
     background-repeat: no-repeat;
     padding: 30px 10px 20px 100px;
     width: 100%;

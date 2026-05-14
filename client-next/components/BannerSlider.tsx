@@ -25,7 +25,7 @@ export function BannerSlider({ images, slideIntervalMs = 4000, children }: Props
   const N = images.length
 
   const [current, setCurrent] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0
+    if (typeof window === 'undefined' || N <= 0) return 0
     return getCurrentSlide(N, slideIntervalMs)
   })
 
@@ -34,11 +34,13 @@ export function BannerSlider({ images, slideIntervalMs = 4000, children }: Props
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Sync slide (handles any drift) and enable transitions in one flush
-    setCurrent(getCurrentSlide(N, slideIntervalMs))
-    setReady(true)
+    const frameId = requestAnimationFrame(() => {
+      setReady(true)
+    })
 
-    if (N <= 1) return
+    if (N <= 1) {
+      return () => cancelAnimationFrame(frameId)
+    }
 
     const elapsed = Date.now() - getStartTime()
     const msUntilNext = slideIntervalMs - (elapsed % slideIntervalMs)
@@ -54,6 +56,7 @@ export function BannerSlider({ images, slideIntervalMs = 4000, children }: Props
     }, msUntilNext)
 
     return () => {
+      cancelAnimationFrame(frameId)
       clearTimeout(timeoutId)
       clearInterval(intervalId)
     }

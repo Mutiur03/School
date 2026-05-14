@@ -5,10 +5,7 @@ import { TopBanner } from "@/components/TopBanner";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import governmentLogoImage from "../../assets/images/gov-logo.png";
 
-export const dynamic = "force-dynamic";
-export const runtime = "edge";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+export const revalidate = 60;
 
 export default async function Layout({
     children,
