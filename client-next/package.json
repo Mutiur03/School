@@ -9,8 +9,8 @@
     "cf:install": "npm ci --workspaces=false --include=dev",
     "cf:build": "opennextjs-cloudflare build",
     "cf:ci": "npm run cf:install && npm run cf:build",
-    "preview": "npm run cf:install && npm run cf:build && wrangler dev",
-    "deploy": "npm run cf:install && npm run cf:build && wrangler deploy",
+    "preview": "npm run cf:install && opennextjs-cloudflare preview",
+    "deploy": "npm run cf:install && opennextjs-cloudflare deploy",
     "start": "next start",
     "lint": "eslint"
   },
@@ -28,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "0.25.4",
     "eslint": "^9",
     "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
