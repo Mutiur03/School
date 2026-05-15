@@ -2,7 +2,6 @@ import { getFileUrl } from "@/lib/backend";
 import { fetchNotices } from "@/queries/notice.queries";
 import Image from "next/image";
 
-export const revalidate = 60;
 
 function formatDate(iso?: string) {
     if (!iso) return "";

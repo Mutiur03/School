@@ -1,23 +1,7 @@
 import type { Head, Syllabus } from "@/types";
-import { QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/backend";
 import { cache } from "react";
 
-export const useRoutinePDF = (queryClient: QueryClient) => {
-  return queryClient.fetchQuery({
-    queryKey: ["routinePDF"],
-    queryFn: async () => {
-      try {
-        const res = await api.get<Array<{ pdf_url?: string }>>(
-          "/api/class-routine/pdf",
-        );
-        return res.data?.[0]?.pdf_url || null;
-      } catch {
-        return null;
-      }
-    },
-  });
-};
 
 export const fetchSyllabus = cache((): Promise<Syllabus[]> => {
   return api

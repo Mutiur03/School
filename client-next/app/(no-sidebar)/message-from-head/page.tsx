@@ -1,8 +1,12 @@
 import { fetchHeadMasterMsg } from "@/hooks/useSchoolData";
 import { getFileUrl } from "@/lib/backend";
 import Image from "next/image";
+export const metadata = {
+  title: "Message From Headmaster",
+  description: "Read the message from the headmaster of the school.",
+};
 
-async function HeadMsg() {
+async function page() {
   const head = await fetchHeadMasterMsg();
   return (
     <div className="flex flex-col items-center h-screen pt-12">
@@ -26,4 +30,4 @@ async function HeadMsg() {
   );
 }
 
-export default HeadMsg;
+export default page;

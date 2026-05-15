@@ -6,9 +6,10 @@
     "dev": "next dev --webpack --disable-source-maps",
     "dev:turbo": "next dev --turbopack",
     "build": "next build --webpack",
+    "cf:install": "npm ci --workspaces=false --include=dev",
     "cf:build": "opennextjs-cloudflare build",
-    "preview": "opennextjs-cloudflare build && wrangler dev",
-    "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "preview": "npm run cf:install && npm run cf:build && wrangler dev",
+    "deploy": "npm run cf:install && npm run cf:build && wrangler deploy",
     "start": "next start",
     "lint": "eslint"
   },
@@ -21,7 +22,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "latest",
+    "@opennextjs/cloudflare": "^1.19.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

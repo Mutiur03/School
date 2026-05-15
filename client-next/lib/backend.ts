@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 const backend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "");
 export default backend;
 export const cdn = process.env.NEXT_PUBLIC_CDN_URL;
+const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === "true";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -26,6 +27,8 @@ export const getFileUrl = (key: string | null): string => {
 };
 
 function logApiRequest(method: string, url: string, details?: Record<string, unknown>) {
+  if (!debugApi) return;
+
   console.log("[API request]", {
     method,
     url,
@@ -39,6 +42,8 @@ function logApiResponse(
   url: string,
   details: Record<string, unknown>,
 ) {
+  if (!debugApi) return;
+
   console.log("[API response]", {
     method,
     url,
