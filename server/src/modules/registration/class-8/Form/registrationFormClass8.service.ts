@@ -721,7 +721,7 @@ export class RegistrationFormClass8Service {
     await page.setContent(html, {
       waitUntil: isInlinePreview
         ? ["domcontentloaded"]
-        : ["networkidle0", "domcontentloaded"],
+        : ["load", "domcontentloaded"],
     });
 
     await page.evaluate((quickPreview) => {
