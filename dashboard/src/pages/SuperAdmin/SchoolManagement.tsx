@@ -202,6 +202,7 @@ function SchoolManagement() {
     }
     setLogoPreviewUrl(URL.createObjectURL(file));
     setPendingLogoFile(file);
+    setValue("logo", `pending-logo/${file.name}`, { shouldValidate: true });
     clearErrors("logo");
   };
 
