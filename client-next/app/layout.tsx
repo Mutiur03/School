@@ -10,7 +10,7 @@ import Header from "@/components/HeaderClient";
 import { Navbar } from "@/components/Navbar";
 import { TopBanner } from "@/components/TopBanner";
 import governmentLogoImage from "../assets/images/gov-logo.png";
-
+import { Analytics as VAnalytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -53,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-full flex flex-col">
         <Analytics measurementId={school?.gaMeasurementId} />
+        <VAnalytics />
         <Providers>
           <div className="container">
             <Header
