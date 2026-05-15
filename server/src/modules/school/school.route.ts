@@ -15,6 +15,11 @@ tenantSchoolRouterInternal.put(
 
 const superAdminSchoolRouterInternal = Router();
 superAdminSchoolRouterInternal.post(
+  "/logo-upload-url",
+  AuthMiddleware.authenticate(["super_admin", "admin"]),
+  SchoolController.getLogoUploadUrl,
+);
+superAdminSchoolRouterInternal.post(
   "/",
   AuthMiddleware.authenticate(["super_admin"]),
   validate(createSchoolSchema),

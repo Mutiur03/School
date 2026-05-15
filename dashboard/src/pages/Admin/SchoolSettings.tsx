@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,7 @@ import {
   type District,
   type Upazila,
 } from "@school/shared-schemas";
+import { getFileUrl } from "@/lib/backend";
 
 interface SchoolData {
   id?: number;
@@ -81,6 +82,9 @@ function SchoolSettings() {
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [fetching, setFetching] = useState<boolean>(false);
+  const [logoUploading, setLogoUploading] = useState<boolean>(false);
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -95,10 +99,11 @@ function SchoolSettings() {
     resolver: zodResolver(createSchoolSchema),
     defaultValues: createDefaultValues(),
     mode: "onSubmit",
-        reValidateMode: "onChange",
+    reValidateMode: "onChange",
   });
 
   const district = watch("district");
+  const logoValue = watch("logo");
 
   const fetchSchoolSettings = useCallback(async () => {
     setFetching(true);
@@ -112,6 +117,11 @@ function SchoolSettings() {
         setSchoolId(null);
         reset(createDefaultValues());
       }
+      setPendingLogoFile(null);
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl(null);
+      }
     } catch (error) {
       console.error("Failed to fetch school settings:", error);
       toast.error("Failed to load school settings");
@@ -124,14 +134,58 @@ function SchoolSettings() {
     fetchSchoolSettings();
   }, [fetchSchoolSettings]);
 
+  const uploadLogoIfNeeded = async (): Promise<string | null> => {
+    if (!pendingLogoFile) return null;
+
+    setLogoUploading(true);
+    try {
+      const signRes = await axios.post("/api/schools/logo-upload-url", {
+        fileName: pendingLogoFile.name,
+        contentType: pendingLogoFile.type || "image/png",
+      });
+      const uploadUrl = signRes.data?.data?.uploadUrl as string | undefined;
+      const key = signRes.data?.data?.key as string | undefined;
+
+      if (!uploadUrl || !key) {
+        throw new Error("Upload URL generation failed");
+      }
+
+      await axios.put(uploadUrl, pendingLogoFile, {
+        headers: { "Content-Type": pendingLogoFile.type || "image/png" },
+      });
+
+      setPendingLogoFile(null);
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl(null);
+      }
+      return key;
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   const onSubmit = async (values: SchoolFormValues) => {
     const result = createSchoolSchema.safeParse(watch());
-console.log(result);
+    console.log(result);
     clearErrors();
     setLoading(true);
 
     try {
-      const payload = values;
+      if (!values.logo && !pendingLogoFile) {
+        setError("logo", {
+          type: "manual",
+          message: "Logo is required",
+        });
+        toast.error("Logo is required");
+        return;
+      }
+
+      const uploadedLogoKey = await uploadLogoIfNeeded();
+      const payload = {
+        ...values,
+        logo: uploadedLogoKey ?? values.logo,
+      };
 
       if (schoolId) {
         await axios.put(`/api/schools/${schoolId}`, payload);
@@ -189,6 +243,49 @@ console.log(result);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setPendingLogoFile(null);
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl(null);
+      }
+      return;
+    }
+
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const result = { width: img.width, height: img.height };
+        URL.revokeObjectURL(objectUrl);
+        resolve(result);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Unable to read image"));
+      };
+      img.src = objectUrl;
+    });
+
+    if (dimensions.width !== dimensions.height) {
+      setError("logo", {
+        type: "manual",
+        message: "Logo must be a square image",
+      });
+      toast.error("Logo must be a square image");
+      return;
+    }
+
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
+    setLogoPreviewUrl(URL.createObjectURL(file));
+    setPendingLogoFile(file);
+    clearErrors("logo");
   };
 
   return (
@@ -390,13 +487,37 @@ console.log(result);
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Logo URL</label>
+              <label className="block text-sm font-medium mb-1">Logo</label>
               <input
-                type="text"
-                {...register("logo")}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                disabled={logoUploading}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:border-gray-600"
-                placeholder="https://..."
               />
+              {logoPreviewUrl && (
+                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                  <img
+                    src={logoPreviewUrl}
+                    alt="Selected logo preview"
+                    className="h-10 w-10 rounded border object-contain"
+                  />
+                  <span>Logo ready to upload</span>
+                </div>
+              )}
+              {!logoPreviewUrl && logoValue && logoValue.startsWith("http") && (
+                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                  <img
+                    src={logoValue}
+                    alt="Uploaded logo preview"
+                    className="h-10 w-10 rounded border object-contain"
+                  />
+                  <span>Logo uploaded</span>
+                </div>
+              )}
+              {!logoPreviewUrl && logoValue && (
+                <img src={getFileUrl(logoValue)} alt="" className="w-20" />
+              )}
               {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
             </div>
             <div>
@@ -415,7 +536,7 @@ console.log(result);
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || logoUploading}
             className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 focus:ring-4 focus:ring-primary/20 transition-all disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Save />}

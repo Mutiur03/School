@@ -1,4 +1,4 @@
-import { api } from "@/lib/backend";
+import { api, getFileUrl } from "@/lib/backend";
 import type { SchoolConfig } from "@/types";
 import { cache } from "react";
 
@@ -190,9 +190,9 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
     },
     assets: {
       ...defaultSchoolConfig.assets,
-      logo: getString(info.logo, defaultSchoolConfig.assets.logo),
-      headerLogo: getString(info.logo, defaultSchoolConfig.assets.headerLogo),
-      favicon: typeof info.favicon === "string" ? info.favicon : undefined,
+      logo: defaultSchoolConfig.assets.logo,
+      headerLogo: defaultSchoolConfig.assets.headerLogo,
+      favicon: getFileUrl(getString(info.logo, "")) || "/favicon.ico",
     },
     academic: {
       ...defaultSchoolConfig.academic,

@@ -28,19 +28,23 @@ const optionalTrimmedString = (maxLength: number, label: string) =>
       return value.length === 0 ? null : value;
     });
 
+const isUploadPath = (value: string) => /^\/?uploads\/.+/.test(value);
+const isR2Key = (value: string) => /^[a-z0-9][a-z0-9\-._/]+$/i.test(value);
+
 const optionalUrl = (label: string) =>
   z
     .union([z.string(), z.null(), z.undefined()])
     .superRefine((raw, ctx) => {
       const value = typeof raw === "string" ? raw.trim() : "";
       if (value.length === 0) return;
+      if (isUploadPath(value) || isR2Key(value)) return;
       try {
         const url = new URL(value);
         if (!["http:", "https:"].includes(url.protocol)) throw new Error();
       } catch {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `${label} must be a valid URL starting with http:// or https://`,
+          message: `${label} must be a valid URL starting with http:// or https://, an upload path, or a storage key`,
         });
       }
     })
@@ -49,37 +53,37 @@ const optionalUrl = (label: string) =>
       return value.length === 0 ? null : value;
     });
 
-const optionalPhone = z
-  .union([z.string(), z.null(), z.undefined()])
-  .superRefine((raw, ctx) => {
-    const value = typeof raw === "string" ? raw.trim() : "";
-    if (value.length > 0 && !PHONE_NUMBER.test(value)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Phone number must be 11 digits and start with 01",
-      });
-    }
-  })
-  .transform((raw) => {
-    const value = typeof raw === "string" ? raw.trim() : "";
-    return value.length === 0 ? null : value;
+const requiredUrl = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .superRefine((value, ctx) => {
+      if (isUploadPath(value) || isR2Key(value)) return;
+      try {
+        const url = new URL(value);
+        if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be a valid URL starting with http:// or https://, an upload path, or a storage key`,
+        });
+      }
+    });
+
+const requiredPhone = z
+  .string()
+  .trim()
+  .min(1, "Phone number is required")
+  .refine((value) => PHONE_NUMBER.test(value), {
+    message: "Phone number must be 11 digits and start with 01",
   });
 
-const optionalEmail = z
-  .union([z.string(), z.null(), z.undefined()])
-  .superRefine((raw, ctx) => {
-    const value = typeof raw === "string" ? raw.trim() : "";
-    if (value.length > 0 && !z.string().email().safeParse(value).success) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Email format is invalid",
-      });
-    }
-  })
-  .transform((raw) => {
-    const value = typeof raw === "string" ? raw.trim() : "";
-    return value.length === 0 ? null : value;
-  });
+const requiredEmail = z
+  .string()
+  .trim()
+  .min(1, "Email is required")
+  .email("Email format is invalid");
 
 const optionalEiin = z
   .union([z.string(), z.null(), z.undefined()])
@@ -144,7 +148,7 @@ const schoolBaseSchema = z
       .max(200, "School name cannot exceed 200 characters"),
     shortName: optionalTrimmedString(50, "Short name"),
     eiin: optionalEiin,
-    logo: optionalUrl("Logo"),
+    logo: requiredUrl("Logo"),
     favicon: optionalUrl("Favicon"),
     district: z
       .string()
@@ -156,8 +160,8 @@ const schoolBaseSchema = z
       .trim()
       .min(1, "Upazila is required")
       .refine((v) => upazilaIds.has(v), { message: "Upazila is invalid" }),
-    phone: optionalPhone,
-    email: optionalEmail,
+    phone: requiredPhone,
+    email: requiredEmail,
     slogan: optionalTrimmedString(500, "Slogan"),
     establishedIn: z
       .union([z.number(), z.string(), z.null(), z.undefined()])

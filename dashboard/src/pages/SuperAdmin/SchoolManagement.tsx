@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,7 @@ import {
   type District,
   type Upazila,
 } from "@school/shared-schemas";
+import { getFileUrl } from "@/lib/backend";
 
 interface SchoolData {
   id?: number;
@@ -82,6 +83,9 @@ function SchoolManagement() {
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -96,11 +100,12 @@ function SchoolManagement() {
     resolver: zodResolver(createSchoolSchema),
     defaultValues: createEmptySchool(),
     mode: "onSubmit",
-        reValidateMode: "onChange",
+    reValidateMode: "onChange",
   });
 
   const district = watch("district");
   const schoolName = watch("name");
+  const logoValue = watch("logo");
 
   const sortedSchools = useMemo(
     () => [...schools].sort((a, b) => a.name.localeCompare(b.name)),
@@ -150,6 +155,85 @@ function SchoolManagement() {
   const startNewSchool = () => {
     setSelectedSchoolId("new");
     reset(createEmptySchool());
+    setPendingLogoFile(null);
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+      setLogoPreviewUrl(null);
+    }
+  };
+
+  const handleLogoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setPendingLogoFile(null);
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl(null);
+      }
+      return;
+    }
+
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const result = { width: img.width, height: img.height };
+        URL.revokeObjectURL(objectUrl);
+        resolve(result);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Unable to read image"));
+      };
+      img.src = objectUrl;
+    });
+
+    if (dimensions.width !== dimensions.height) {
+      setError("logo", {
+        type: "manual",
+        message: "Logo must be a square image",
+      });
+      toast.error("Logo must be a square image");
+      return;
+    }
+
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
+    setLogoPreviewUrl(URL.createObjectURL(file));
+    setPendingLogoFile(file);
+    clearErrors("logo");
+  };
+
+  const uploadLogoIfNeeded = async (): Promise<string | null> => {
+    if (!pendingLogoFile) return null;
+
+    setLogoUploading(true);
+    try {
+      const signRes = await axios.post("/api/schools/logo-upload-url", {
+        fileName: pendingLogoFile.name,
+        contentType: pendingLogoFile.type || "image/png",
+      });
+      const uploadUrl = signRes.data?.data?.uploadUrl as string | undefined;
+      const key = signRes.data?.data?.key as string | undefined;
+
+      if (!uploadUrl || !key) {
+        throw new Error("Upload URL generation failed");
+      }
+
+      await axios.put(uploadUrl, pendingLogoFile, {
+        headers: { "Content-Type": pendingLogoFile.type || "image/png" },
+      });
+
+      setPendingLogoFile(null);
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl(null);
+      }
+      return key;
+    } finally {
+      setLogoUploading(false);
+    }
   };
 
   const onSubmit = async (values: SchoolFormValues) => {
@@ -157,7 +241,20 @@ function SchoolManagement() {
     setSaving(true);
 
     try {
-      const payload = values;
+      if (!values.logo && !pendingLogoFile) {
+        setError("logo", {
+          type: "manual",
+          message: "Logo is required",
+        });
+        toast.error("Logo is required");
+        return;
+      }
+
+      const uploadedLogoKey = await uploadLogoIfNeeded();
+      const payload = {
+        ...values,
+        logo: uploadedLogoKey ?? values.logo,
+      };
 
       if (selectedSchoolId !== "new") {
         await axios.put(`/api/schools/${selectedSchoolId}`, payload);
@@ -289,11 +386,10 @@ function SchoolManagement() {
                   key={school.id}
                   type="button"
                   onClick={() => selectSchool(school)}
-                  className={`w-full rounded-lg border p-3 text-left transition ${
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
+                  className={`w-full rounded-lg border p-3 text-left transition ${isSelected
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                    }`}
                 >
                   <p className="font-medium truncate">{school.name || "Untitled School"}</p>
                   <p className="text-xs text-muted-foreground truncate mt-1">
@@ -474,28 +570,46 @@ function SchoolManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Logo URL</label>
+                <label className="block text-sm font-medium mb-1">Logo</label>
                 <input
-                  {...register("logo")}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  disabled={logoUploading}
                   className="w-full rounded-md border px-3 py-2"
                 />
+                {logoPreviewUrl && (
+                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                    <img
+                      src={logoPreviewUrl}
+                      alt="Selected logo preview"
+                      className="h-10 w-10 rounded border object-contain"
+                    />
+                    <span>Logo ready to upload</span>
+                  </div>
+                )}
+                {!logoPreviewUrl && logoValue && logoValue.startsWith("http") && (
+                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                    <img
+                      src={logoValue}
+                      alt="Uploaded logo preview"
+                      className="h-10 w-10 rounded border object-contain"
+                    />
+                    <span>Logo uploaded</span>
+                  </div>
+                )}
+                {!logoPreviewUrl && logoValue  && (
+                  <img src={getFileUrl(logoValue)} alt="" className="w-20" />
+                )}
                 {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Favicon URL</label>
-                <input
-                  {...register("favicon")}
-                  className="w-full rounded-md border px-3 py-2"
-                />
-                {errors.favicon && <p className="mt-1 text-xs text-red-600">{errors.favicon.message}</p>}
-              </div>
             </div>
 
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={saving || deleting}
+                disabled={saving || deleting || logoUploading}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
