@@ -1,28 +1,48 @@
-import type { Head, Syllabus } from "@/types";
-import { api } from "@/lib/backend";
-import { cache } from "react";
+import type { Syllabus } from "@/types";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
-
-export const fetchSyllabus = cache((): Promise<Syllabus[]> => {
-  return api
-    .get<Syllabus[]>("/api/syllabus")
-    .then((res) => res.data)
-    .catch(() => []);
-});
-type CitizenCharterResponse = {
-  file: string | null;
+export const useRoutinePDF = () => {
+  return useQuery({
+    queryKey: ["routinePDF"],
+    enabled: false,
+    queryFn: async () => {
+      try {
+        const res = await axios.get("/api/class-routine/pdf");
+        return res?.data?.[0]?.pdf_url || null;
+      } catch {
+        return null;
+      }
+    },
+  });
 };
 
-export const fetchCitizenCharter = cache(async (): Promise<string | null> => {
-  return api
-    .get<CitizenCharterResponse>("/api/file-upload/citizen-charter")
-    .then((res) => res.data.file)
-    .catch(() => null);
-});
+export const useSyllabuses = () => {
+  return useQuery<Syllabus[]>({
+    queryKey: ["syllabuses"],
+    enabled: false,
+    queryFn: async () => {
+      try {
+        const res = await axios.get("/api/syllabus");
+        return res.data;
+      } catch {
+        return [];
+      }
+    },
+  });
+};
 
-export const fetchHeadMasterMsg = cache(async (): Promise<Head | null> => {
-  return api
-    .get<Head>("/api/teachers/head-message")
-    .then((res) => res.data || null)
-    .catch(() => null);
-});
+export const useCitizenCharter = () => {
+  return useQuery({
+    queryKey: ["citizenCharter"],
+    enabled: false,
+    queryFn: async () => {
+      try {
+        const response = await axios.get("/api/file-upload/citizen-charter");
+        return response.data.file || null;
+      } catch {
+        return null;
+      }
+    },
+  });
+};

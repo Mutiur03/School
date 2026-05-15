@@ -1,4 +1,4 @@
-import { fetchHeadMasterMsg } from "@/hooks/useSchoolData";
+import { fetchHeadMasterMsg } from "@/queries/teacher.queries";
 import { getFileUrl } from "@/lib/backend";
 import Image from "next/image";
 export const metadata = {
