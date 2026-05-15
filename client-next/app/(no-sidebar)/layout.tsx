@@ -1,12 +1,11 @@
 import { Footer } from "@/components/Footer";
-import { HeaderClient } from "@/components/HeaderClient";
+import Header from "@/components/HeaderClient";
 import { Navbar } from "@/components/Navbar";
 import { TopBanner } from "@/components/TopBanner";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import governmentLogoImage from "../../assets/images/gov-logo.png";
 
 export const revalidate = 60;
-export const runtime = "edge";
 
 export default async function Layout({
     children,
@@ -19,13 +18,14 @@ export default async function Layout({
     return (
         <>
             <div className="container">
-                <HeaderClient
+                <Header
                     bannerImages={assets?.banners ?? []}
                     headerLogo={assets?.headerLogo ?? ""}
                     leftLogo={assets?.logo ?? ""}
                     rightLogo={(assets as { governmentLogo?: string } | undefined)?.governmentLogo ?? governmentLogoImage}
                     titleBn={String(school?.name?.bn ?? "")}
                     titleEn={String(school?.name?.en ?? "")}
+                    school={school}
                 />
                 <Navbar />
                 <hr className="border-t border-gray-300" />

@@ -69,14 +69,14 @@ export function BannerSlider({ images, slideIntervalMs = 4000, children }: Props
       {images.map((src, i) => (
         <div
           key={src}
-          className={`absolute inset-0 ${ready ? 'transition-opacity duration-1000' : ''} ${
-            i === current ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute inset-0 ${ready ? 'transition-opacity duration-1000' : ''} ${i === current ? 'opacity-100' : 'opacity-0'
+            }`}
         >
           <Image
             src={src}
             alt={`Banner ${i + 1}`}
-            fill
+            width={1920}
+            height={480}
             priority={i === 0}
             sizes="100vw"
             className="h-full w-full object-cover object-top"
@@ -96,9 +96,8 @@ export function BannerSlider({ images, slideIntervalMs = 4000, children }: Props
         {images.map((_, i) => (
           <span
             key={i}
-            className={`h-3 w-3 rounded-full ${ready ? 'transition-colors duration-500' : ''} ${
-              i === current ? 'bg-white' : 'bg-white/50'
-            }`}
+            className={`h-3 w-3 rounded-full ${ready ? 'transition-colors duration-500' : ''} ${i === current ? 'bg-white' : 'bg-white/50'
+              }`}
             aria-hidden="true"
           />
         ))}

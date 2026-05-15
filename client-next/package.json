@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "dev:turbo": "next dev",
+    "dev": "next dev --webpack --disable-source-maps",
+    "dev:turbo": "next dev --turbopack",
     "build": "next build --webpack",
+    "cf:build": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && wrangler dev",
+    "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "start": "next start",
     "lint": "eslint"
   },
@@ -13,18 +16,20 @@
     "@tanstack/react-query": "^5.99.0",
     "axios": "^1.16.1",
     "lucide-react": "^1.8.0",
-    "next": "16.2.3",
+    "next": "^16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.91.0"
   }
 }
