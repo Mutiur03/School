@@ -1,7 +1,8 @@
 import { api } from "@/lib/backend";
+import type { SchoolConfig } from "@/types";
 import { cache } from "react";
 
-const defaultSchoolConfig = {
+const defaultSchoolConfig: SchoolConfig = {
   name: {
     en: "Panchbibi Lal Bihari Pilot Govt. High School",
     bn: "পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়",
@@ -154,10 +155,11 @@ const defaultSchoolConfig = {
     main: "Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়), formerly known as Panchbibi L. B. Pilot Government High School, is a prominent boys' secondary school located in Panchbibi Upazila, Joypurhat District, Rajshahi Division, Bangladesh. Established in 1940, the school has a long-standing reputation for academic excellence and community leadership.",
     sub: "The school offers education from Class 6 to Class 10 (SSC level) under the Rajshahi Education Board. With a dedicated faculty led by Headmaster Md. Ataur Rahman, and a student body of around 600 boys aged 11-16, the school provides a holistic environment that fosters academic achievement, character development, and social responsibility.",
   },
+  gaMeasurementId: undefined,
 };
 
-const getString = (value: unknown, fallback: string) =>
-  typeof value === "string" && value.trim() ? value : fallback;
+const getString = (value: unknown, fallback: string | undefined) =>
+  typeof value === "string" && value.trim() ? value : (fallback ?? "");
 
 const getOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim() ? value : undefined;
