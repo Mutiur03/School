@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  experimental: {
-    inlineCss: true,
-  },
   images: {
     unoptimized: true,
     remotePatterns: [

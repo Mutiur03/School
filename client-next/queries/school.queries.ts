@@ -1,4 +1,5 @@
 import { api } from "@/lib/backend";
+import { cache } from "react";
 
 const defaultSchoolConfig = {
   name: {
@@ -155,33 +156,36 @@ const defaultSchoolConfig = {
   },
 };
 
-const mapPublicSchoolInfoToConfig = (info: any) => {
+const getString = (value: unknown, fallback: string) =>
+  typeof value === "string" && value.trim() ? value : fallback;
+
+const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   if (!info || typeof info !== "object") return null;
 
   return {
     ...defaultSchoolConfig,
     name: {
       ...defaultSchoolConfig.name,
-      en: info.name || defaultSchoolConfig.name.en,
-      shortEn: info.shortName || defaultSchoolConfig.name.shortEn,
+      en: getString(info.name, defaultSchoolConfig.name.en),
+      shortEn: getString(info.shortName, defaultSchoolConfig.name.shortEn),
     },
     contact: {
       ...defaultSchoolConfig.contact,
-      website: info.website || defaultSchoolConfig.contact.website,
-      email: info.email || defaultSchoolConfig.contact.email,
-      phone: info.phone || defaultSchoolConfig.contact.phone,
-      district: info.district || defaultSchoolConfig.contact.district,
-      upazila: info.upazila || defaultSchoolConfig.contact.upazila,
+      website: getString(info.website, defaultSchoolConfig.contact.website),
+      email: getString(info.email, defaultSchoolConfig.contact.email),
+      phone: getString(info.phone, defaultSchoolConfig.contact.phone),
+      district: getString(info.district, defaultSchoolConfig.contact.district),
+      upazila: getString(info.upazila, defaultSchoolConfig.contact.upazila),
     },
     assets: {
       ...defaultSchoolConfig.assets,
-      logo: info.logo || defaultSchoolConfig.assets.logo,
-      headerLogo: info.logo || defaultSchoolConfig.assets.headerLogo,
-      favicon: info.favicon || undefined,
+      logo: getString(info.logo, defaultSchoolConfig.assets.logo),
+      headerLogo: getString(info.logo, defaultSchoolConfig.assets.headerLogo),
+      favicon: typeof info.favicon === "string" ? info.favicon : undefined,
     },
     academic: {
       ...defaultSchoolConfig.academic,
-      motto: info.slogan || defaultSchoolConfig.academic.motto,
+      motto: getString(info.slogan, defaultSchoolConfig.academic.motto),
     },
     history: {
       ...defaultSchoolConfig.history,
@@ -192,7 +196,7 @@ const mapPublicSchoolInfoToConfig = (info: any) => {
   };
 };
 
-export const fetchSchoolConfig = async () => {
+export const fetchSchoolConfig = cache(async () => {
   try {
     const primary = await api.get<Record<string, unknown>>("/api/schools/public", {
       revalidate: 60,
@@ -214,4 +218,4 @@ export const fetchSchoolConfig = async () => {
   }
 
   return defaultSchoolConfig;
-};
+});

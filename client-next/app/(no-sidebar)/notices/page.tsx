@@ -1,8 +1,8 @@
 import { getFileUrl } from "@/lib/backend";
 import { fetchNotices } from "@/queries/notice.queries";
+import Image from "next/image";
 
 export const revalidate = 60;
-export const runtime = "edge";
 
 function formatDate(iso?: string) {
     if (!iso) return "";
@@ -63,7 +63,7 @@ async function Notice() {
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center">
                                                 <a href={getFileUrl(n.file)} target="_blank" rel="noopener noreferrer">
-                                                    <img src="/pdf.png" alt="PDF" className="w-6 h-6" />
+                                                    <Image src="/pdf.png" alt="PDF" width={24} height={24} />
                                                 </a>
                                             </div>
                                         </td>
