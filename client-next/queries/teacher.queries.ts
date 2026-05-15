@@ -1,5 +1,5 @@
 import { api } from "@/lib/backend";
-import { Head } from "@/types";
+import { Head, Teacher } from "@/types";
 import { cache } from "react";
 
 export const fetchHeadMasterMsg = cache(async (): Promise<Head | null> => {
@@ -7,4 +7,10 @@ export const fetchHeadMasterMsg = cache(async (): Promise<Head | null> => {
     .get<Head>("/api/teachers/head-message")
     .then((res) => res.data || null)
     .catch(() => null);
+});
+export const fetchTeachers = cache(async (): Promise<Teacher[]> => {
+  return api
+    .get<Teacher[]> ("/api/teachers")
+    .then((res) => res?.data || [])
+    .catch(() => []);
 });

@@ -151,3 +151,15 @@ export type SchoolProviderProps = {
   config: SchoolConfig;
   children: ReactNode;
 };
+
+export type Teacher = {
+  id: number
+  name: string
+  designation?: string
+  email?: string
+  phone?: string
+  address?: string
+  subject?: string
+  image?: string
+  available?: boolean
+}
