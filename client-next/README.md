@@ -1,4 +1,4 @@
-This is a [Next.js](https://nextjs.org) app configured for Cloudflare Workers with `@opennextjs/cloudflare`.
+This is a [Next.js](https://nextjs.org) app.
 
 ## Getting Started
 
@@ -29,26 +29,3 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Cloudflare
-
-This app uses OpenNext for Cloudflare, which builds a Worker in `.open-next/worker.js` and static assets in `.open-next/assets`.
-
-Use a Cloudflare Workers project, not the old Cloudflare Pages Next.js preset. The Pages preset expects `.vercel/output/static`, which OpenNext does not generate.
-
-For Cloudflare Workers Builds, set the project root directory to this `client-next` folder and use:
-
-```bash
-npm run cf:build
-```
-
-as the build command, then:
-
-```bash
-npm run deploy
-```
-
-as the deploy command. For a local production-like preview, run:
-
-```bash
-npm run preview
-```
