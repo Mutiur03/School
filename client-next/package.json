@@ -8,6 +8,7 @@
     "build": "next build --webpack",
     "cf:install": "npm ci --workspaces=false --include=dev",
     "cf:build": "opennextjs-cloudflare build",
+    "cf:ci": "npm run cf:install && npm run cf:build",
     "preview": "npm run cf:install && npm run cf:build && wrangler dev",
     "deploy": "npm run cf:install && npm run cf:build && wrangler deploy",
     "start": "next start",
