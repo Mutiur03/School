@@ -5,6 +5,7 @@ import { getFileUrl } from "@/lib/backend";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import Image from "next/image";
 import { fetchHeadMasterMsg } from "@/queries/teacher.queries";
+import { HeadMasterMessageVisibility } from "./HeadMasterMessageVisibility";
 
 type SidebarLink = {
   title: string;
@@ -40,9 +41,6 @@ export async function RightSidebar() {
     "NOVEMBER",
     "DECEMBER",
   ];
-
-  const headMsgShow = true;
-
   const sidebarLinks = (school?.sidebarLinks ?? {}) as {
     important?: SidebarLink[];
     quick?: SidebarLink[];
@@ -113,7 +111,7 @@ export async function RightSidebar() {
 
   return (
     <div className="content-right">
-      {headMsgShow ? (
+      <HeadMasterMessageVisibility>
         <div className="sidebar-widget widget widget_text">
           <div className="widget-heading">
             <h3 className="widget-title">প্রধান শিক্ষকের বাণী</h3>
@@ -164,7 +162,7 @@ export async function RightSidebar() {
             </p>
           </div>
         </div>
-      ) : null}
+      </HeadMasterMessageVisibility>
 
       <div className="sidebar-widget widget widget_nav_menu">
         <div className="widget-heading">
