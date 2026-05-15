@@ -803,7 +803,7 @@ export class RegistrationFormClass6Service {
     await page.setContent(html, {
       waitUntil: isInlinePreview
         ? ["domcontentloaded"]
-        : ["networkidle0", "domcontentloaded"],
+        : ["load", "domcontentloaded"],
     });
 
     await page.evaluate((quickPreview) => {
