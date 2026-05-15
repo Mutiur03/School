@@ -1,7 +1,7 @@
 import Script from "next/script";
 
 export type AnalyticsProps = {
-    measurementId: string;
+    measurementId?: string;
 };
 
 export function Analytics({ measurementId }: AnalyticsProps) {

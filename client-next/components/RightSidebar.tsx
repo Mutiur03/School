@@ -12,23 +12,18 @@ type SidebarLink = {
   image?: string;
 };
 
-type HeadMasterMsg = {
-  head_message?: string;
-  teacher?: {
-    name?: string;
-    image?: string;
-  };
-};
+// type HeadMasterMsg = {
+//   head_message?: string;
+//   teacher?: {
+//     name?: string;
+//     image?: string;
+//   };
+// };
 
-export type RightSidebarProps = {
-  headMasterMsg?: HeadMasterMsg | null;
-  backendBaseUrl?: string;
-};
 
-export async function RightSidebar({ headMasterMsg }: RightSidebarProps) {
+export async function RightSidebar() {
   const school = await fetchSchoolConfig();
-  const headMasterMsgFromApi = await fetchHeadMasterMsg();
-  const resolvedHeadMasterMsg = headMasterMsg ?? (headMasterMsgFromApi as HeadMasterMsg | null);
+  const resolvedHeadMasterMsg = await fetchHeadMasterMsg();
   const currentDate = new Date();
 
   const monthNames = [

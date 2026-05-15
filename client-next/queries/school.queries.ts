@@ -159,11 +159,20 @@ const defaultSchoolConfig = {
 const getString = (value: unknown, fallback: string) =>
   typeof value === "string" && value.trim() ? value : fallback;
 
+const getOptionalString = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value : undefined;
+
 const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   if (!info || typeof info !== "object") return null;
 
+  const gaMeasurementId =
+    getOptionalString(info.gaMeasurementId) ??
+    getOptionalString(info.ga4MeasurementId) ??
+    getOptionalString(info.googleAnalyticsMeasurementId);
+
   return {
     ...defaultSchoolConfig,
+    gaMeasurementId,
     name: {
       ...defaultSchoolConfig.name,
       en: getString(info.name, defaultSchoolConfig.name.en),
