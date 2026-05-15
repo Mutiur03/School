@@ -3,6 +3,8 @@ import "./globals.css";
 import Providers from "./providers";
 import { Analytics } from "@/components/Analytics";
 import { fetchSchoolConfig } from "@/queries/school.queries";
+import fs from "fs";
+import path from "path";
 
 
 export const metadata: Metadata = {
@@ -12,13 +14,10 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
   },
 };
-import fs from "fs";
-import path from "path";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const school = await fetchSchoolConfig();
-
-  const fontPath = path.join(process.cwd(), "public/fonts/Kalpurush-v0.258.woff2");
+  const fontPath = path.join(process.cwd(), "app/fonts/Kalpurush-v0.258.woff2");
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
 
   return (
