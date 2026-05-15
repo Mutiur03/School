@@ -1,4 +1,15 @@
+"use client";
 import "./Chart.css";
+import Image from "next/image";
+import type { StaticImageData } from "next/image";
+import Link from "next/link";
+import type { MouseEvent } from "react";
+
+import {
+  useCitizenCharter,
+  useRoutinePDF,
+  useSyllabuses,
+} from "@/hooks/useSchoolData";
 
 import image01 from "../assets/images/01.png";
 import academicImage from "../assets/images/academic.png";
@@ -14,21 +25,71 @@ import coEducationalActivitiesImage from "../assets/images/Co-educational-activi
 import onlineClassImage from "../assets/images/Online-Class.jpg";
 import miscImage from "../assets/images/0-1.png";
 import emergencyCallServicesImage from "../assets/images/Emergency-call-Services.jpg";
-import { fetchSchoolConfig } from "@/queries/school.queries";
-import Image from "next/image";
-import Link from "next/link";
-import { fetchCitizenCharter, fetchSyllabus } from "@/hooks/useSchoolData";
 
-export async function Chart() {
-  const school = await fetchSchoolConfig();
-  const resultsUrl = school?.links?.results;
-  const fetchedSyllabusItems = await fetchSyllabus();
-  const syllabusItems = Array.isArray(fetchedSyllabusItems)
-    ? fetchedSyllabusItems
-    : [];
-  const getSyllabusUrlByClass = (classNum: number) =>
-    syllabusItems.find((item) => item.class === classNum)?.pdf_url;
-  const citizenCharterUrl = await fetchCitizenCharter();
+export type ChartProps = {
+  school?: {
+    links?: {
+      results?: string | null;
+    };
+  };
+};
+
+function BoxImage({ src, alt }: { src: StaticImageData; alt: string }) {
+  return (
+    <Image
+      width={150}
+      height={150}
+      src={src}
+      className="thumbs wp-post-image"
+      alt={alt}
+      loading="lazy"
+      sizes="150px"
+    />
+  );
+}
+
+export function Chart({
+  school,
+}: ChartProps) {
+  const resultsUrl = school?.links?.results ?? "#";
+  const routineQuery = useRoutinePDF();
+  const syllabusesQuery = useSyllabuses();
+  const citizenCharterQuery = useCitizenCharter();
+
+  const handleRoutineClick = async (e: MouseEvent) => {
+    e.preventDefault();
+
+    const pdfUrl = routineQuery.data ?? (await routineQuery.refetch()).data;
+    if (pdfUrl) {
+      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleSyllabusClick = async (classNum: number) => {
+    const syllabuses =
+      syllabusesQuery.data ?? (await syllabusesQuery.refetch()).data ?? [];
+    const classSyllabuses = syllabuses.filter(
+      (syllabus) => syllabus.class === classNum,
+    );
+    const latest = classSyllabuses.reduce(
+      (currentLatest, syllabus) =>
+        syllabus.year > currentLatest.year ? syllabus : currentLatest,
+      classSyllabuses[0],
+    );
+
+    if (latest?.pdf_url) {
+      window.open(latest.pdf_url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleCitizenCharterClick = async () => {
+    const url =
+      citizenCharterQuery.data ?? (await citizenCharterQuery.refetch()).data;
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="front-boxs-area">
       <div className="boxs-front">
@@ -41,14 +102,7 @@ export async function Chart() {
                 </div>
                 <div className="flex ">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={image01}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={image01} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -83,31 +137,49 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={academicImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={academicImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
                       <li>
-                        <a>ষষ্ঠ শ্রেণি</a>
+                        <a
+                          onClick={handleRoutineClick}
+                          style={{ cursor: "pointer" }}
+                        >
+                          ষষ্ঠ শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a>সপ্তম শ্রেণি</a>
+                        <a
+                          onClick={handleRoutineClick}
+                          style={{ cursor: "pointer" }}
+                        >
+                          সপ্তম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a>অষ্টম শ্রেণি</a>
+                        <a
+                          onClick={handleRoutineClick}
+                          style={{ cursor: "pointer" }}
+                        >
+                          অষ্টম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a>নবম শ্রেণি</a>
+                        <a
+                          onClick={handleRoutineClick}
+                          style={{ cursor: "pointer" }}
+                        >
+                          নবম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a>দশম শ্রেণি</a>
+                        <a
+                          onClick={handleRoutineClick}
+                          style={{ cursor: "pointer" }}
+                        >
+                          দশম শ্রেণি
+                        </a>
                       </li>
                     </ul>
                   </div>
@@ -122,14 +194,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={officeOrderImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={officeOrderImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -161,31 +226,49 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={classRoutineSyllabusImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={classRoutineSyllabusImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
                       <li>
-                        <a href={getSyllabusUrlByClass(6)}>ষষ্ঠ শ্রেণি</a>
+                        <a
+                          onClick={() => handleSyllabusClick(6)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          ষষ্ঠ শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a href={getSyllabusUrlByClass(7)}>সপ্তম শ্রেণি</a>
+                        <a
+                          onClick={() => handleSyllabusClick(7)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          সপ্তম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a href={getSyllabusUrlByClass(8)}>অষ্টম শ্রেণি</a>
+                        <a
+                          onClick={() => handleSyllabusClick(8)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          অষ্টম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a href={getSyllabusUrlByClass(9)}>নবম শ্রেণি</a>
+                        <a
+                          onClick={() => handleSyllabusClick(9)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          নবম শ্রেণি
+                        </a>
                       </li>
                       <li>
-                        <a href={getSyllabusUrlByClass(10)}>দশম শ্রেণি</a>
+                        <a
+                          onClick={() => handleSyllabusClick(10)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          দশম শ্রেণি
+                        </a>
                       </li>
                     </ul>
                   </div>
@@ -200,14 +283,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={admissionImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={admissionImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -236,14 +312,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={dataSymbolImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={dataSymbolImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -278,14 +347,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={resultIconImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={resultIconImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -321,14 +383,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={formFillupImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={formFillupImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -360,19 +415,15 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={citizenImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={citizenImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
                       <li>
-                        <a href={citizenCharterUrl ?? undefined} target="_blank" rel="noopener noreferrer">
+                        <a
+                          onClick={handleCitizenCharterClick}
+                          style={{ cursor: "pointer" }}
+                        >
                           সিটিজেন্‌স চার্টার
                         </a>
                       </li>
@@ -389,14 +440,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={apaCabImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={apaCabImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -431,14 +475,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={coEducationalActivitiesImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={coEducationalActivitiesImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -467,14 +504,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={onlineClassImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={onlineClassImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -506,14 +536,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={miscImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={miscImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>
@@ -550,14 +573,7 @@ export async function Chart() {
                 </div>
                 <div className="flex">
                   <div className="box-img">
-                    <Image
-                      width="150"
-                      height="150"
-                      src={emergencyCallServicesImage}
-                      className="thumbs wp-post-image"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <BoxImage src={emergencyCallServicesImage} alt="" />
                   </div>
                   <div className="box-text">
                     <ul>

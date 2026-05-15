@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { getFileUrl } from "@/lib/backend";
 import { fetchSchoolConfig } from "@/queries/school.queries";
-import { fetchHeadMasterMsg } from "@/hooks/useSchoolData";
 import Image from "next/image";
+import { fetchHeadMasterMsg } from "@/queries/teacher.queries";
 
 type SidebarLink = {
   title: string;

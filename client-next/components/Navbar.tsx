@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import "./Navbar.css";
 import Link from "next/link";
 import type { MenuItem } from "../types";
-import axios from "axios";
+import { useRoutinePDF } from "@/hooks/useSchoolData";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -18,16 +17,6 @@ export type NavbarProps = {
     };
   };
 };
-const fetchRoutinePDF = async () => {
-  try {
-    const res = await axios.get<Array<{ pdf_url?: string }>>(
-      "/api/class-routine/pdf",
-    );
-    return res.data?.[0]?.pdf_url || null;
-  } catch {
-    return null;
-  }
-};
 
 export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: NavbarProps) {
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -35,11 +24,7 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: Nav
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(
     null,
   );
-  const routineQuery = useQuery({
-    queryKey: ["class-routine-pdf"],
-    queryFn: fetchRoutinePDF,
-    enabled: false,
-  });
+  const routineQuery = useRoutinePDF();
   const handleRoutineClick =
     onRoutineClick ??
     (async (e: React.MouseEvent) => {

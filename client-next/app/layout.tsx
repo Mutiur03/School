@@ -5,6 +5,11 @@ import { Analytics } from "@/components/Analytics";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import fs from "fs";
 import path from "path";
+import { Footer } from "@/components/Footer";
+import Header from "@/components/HeaderClient";
+import { Navbar } from "@/components/Navbar";
+import { TopBanner } from "@/components/TopBanner";
+import governmentLogoImage from "../assets/images/gov-logo.png";
 
 
 export const metadata: Metadata = {
@@ -17,6 +22,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const school = await fetchSchoolConfig();
+  const assets = school?.assets;
   const fontPath = path.join(process.cwd(), "app/fonts/Kalpurush-v0.258.woff2");
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
 
@@ -47,7 +53,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-full flex flex-col">
         <Analytics measurementId={school?.gaMeasurementId} />
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="container">
+            <Header
+              bannerImages={assets?.banners ?? []}
+              headerLogo={assets?.headerLogo ?? ""}
+              leftLogo={assets?.logo ?? ""}
+              rightLogo={(assets as { governmentLogo?: string } | undefined)?.governmentLogo ?? governmentLogoImage}
+              titleBn={String(school?.name?.bn ?? "")}
+              titleEn={String(school?.name?.en ?? "")}
+              school={school!}
+            />
+            <Navbar />
+            <hr className="border-t border-gray-300" />
+            <TopBanner />
+            {children}
+          </div>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
