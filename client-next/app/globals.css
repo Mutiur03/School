@@ -73,14 +73,6 @@
     --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* @font-face {
-    font-family: 'Kalpurush';
-    font-display: swap;
-    font-style: normal;
-    font-weight: 100 900;
-    src: url('/fonts/Kalpurush-v0.258.woff2') format('woff2');
-} */
-
 body {
     background: url("/bg.png") repeat-y scroll center top rgb(255, 255, 255);
 }

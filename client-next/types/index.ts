@@ -142,6 +142,7 @@ export type SchoolConfig = {
   descriptions: SchoolDescriptions;
   assets: SchoolAssets;
   map: SchoolMap;
+  gaMeasurementId?: string;
   backendBaseUrl?: string;
 };
 
