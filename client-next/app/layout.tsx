@@ -11,7 +11,7 @@ import { Navbar } from "@/components/Navbar";
 import { TopBanner } from "@/components/TopBanner";
 import governmentLogoImage from "../assets/images/gov-logo.png";
 import { Analytics as VAnalytics } from "@vercel/analytics/next"
-
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();
   const iconUrl = school?.assets?.favicon || "/favicon.ico";
@@ -59,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full flex flex-col">
         <Analytics measurementId={school?.gaMeasurementId} />
         <VAnalytics />
+        <SpeedInsights />
         <Providers>
           <div className="container">
             <Header
