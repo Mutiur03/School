@@ -56,6 +56,7 @@ export type SchoolAssets = {
   headerLogo?: string;
   governmentLogo?: string;
   banners?: string[];
+  favicon?: string;
 };
 
 export type SchoolMap = {
