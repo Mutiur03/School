@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { getFileUrl } from "@/lib/backend";
+"use client";
+
+import { getFileUrl } from "@/lib/cdn";
+import { useMemo, useState, useEffect } from "react";
+import Image from "next/image";
 
 type EventItem = {
     id: number;
@@ -9,7 +11,8 @@ type EventItem = {
     location?: string;
     details?: string;
     image?: string;
-    file?: string;
+    pdf?: string;
+    pdf_url?: string;
     download_url?: string;
 };
 
@@ -34,50 +37,48 @@ function formatDate(iso: string) {
     }).format(date);
 }
 
-export default function Event() {
-    useEffect(() => {
-        document.title = "Events";
-    }, []);
-    const [events, setEvents] = useState<EventItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+function resolvePdfUrl(ev: EventItem): string {
+    const candidate = ev.pdf || ev.pdf_url || ev.download_url || "";
+    return getFileUrl(candidate);
+}
+
+interface Props {
+    events: EventItem[];
+}
+
+export default function EventsClient({ events }: Props) {
     const [query, setQuery] = useState("");
     const [pageSize, setPageSize] = useState(20);
     const [page, setPage] = useState(1);
     const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-
-    useEffect(() => {
-        setIsLoading(true);
-        axios
-            .get("/api/events/getEvents")
-            .then((res) => {
-                const payload = res.data?.data ?? res.data;
-                setEvents(Array.isArray(payload) ? payload : []);
-            })
-            .catch(() => {
-                setEvents([]);
-            })
-            .finally(() => setIsLoading(false));
-    }, []);
-
+    // Reset to page 1 when search or page size changes
     useEffect(() => {
         setPage(1);
     }, [query, pageSize]);
 
+    // Disable background scroll while modal is open
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = isModalOpen ? "hidden" : prev || "";
+        return () => { document.body.style.overflow = prev || ""; };
+    }, [isModalOpen]);
+
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        const items = [...events].sort((a, b) => (a.date < b.date ? 1 : -1));
-        if (!q) return items;
-        return items.filter(
+        const sorted = [...events].sort((a, b) => (a.date < b.date ? 1 : -1));
+        if (!q) return sorted;
+        return sorted.filter(
             (e) =>
                 e.title.toLowerCase().includes(q) ||
                 (formatDate(e.date) || "").toLowerCase().includes(q) ||
-                (e.location || "").toLowerCase().includes(q)
+                (e.location || "").toLowerCase().includes(q),
         );
     }, [query, events]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
     useEffect(() => {
         if (page > totalPages) setPage(totalPages);
     }, [totalPages, page]);
@@ -92,20 +93,16 @@ export default function Event() {
         return Array.from({ length: max }, (_, i) => start + i);
     }, [page, totalPages]);
 
-
-
-    // disable background scrolling while modal is open and restore on close
-    useEffect(() => {
-        const prev = document.body.style.overflow;
-        if (isModalOpen) document.body.style.overflow = "hidden";
-        else document.body.style.overflow = prev || "";
-        return () => { document.body.style.overflow = prev || ""; };
-    }, [isModalOpen]);
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setSelectedEvent(null);
+    };
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-6">
             <h1 className="text-2xl font-semibold mb-4 text-gray-900">Events</h1>
 
+            {/* Toolbar */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-900">
                     <span>Show</span>
@@ -115,27 +112,24 @@ export default function Event() {
                         className="border rounded-xs px-2 py-1 text-sm"
                     >
                         {[10, 20, 50, 100].map((n) => (
-                            <option key={n} value={n}>
-                                {n}
-                            </option>
+                            <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
                     <span>entries</span>
                 </label>
-                <label className="relative w-full sm:w-64">
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search..."
-                        className="w-full border rounded-xs pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                </label>
+                <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full sm:w-64 border rounded-xs pl-3 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
             </div>
 
+            {/* Table */}
             <div className="overflow-hidden bg-white text-gray-900 rounded-xs shadow-sm ring-1 ring-gray-200">
-                {isLoading && events.length === 0 ? (
-                    <div className="p-6 text-center text-gray-600">Loading events...</div>
+                {events.length === 0 ? (
+                    <div className="p-6 text-center text-gray-600">No events available.</div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-100">
@@ -154,29 +148,28 @@ export default function Event() {
                                     </td>
                                 </tr>
                             ) : (
-                                visible.map((ev, idx) => {
-                                    return (
-                                        <tr key={ev.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-700">{startIndex + idx + 1}</td>
-                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{ev.title}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{formatDate(ev.date)}</td>
-                                            <td className="px-4 py-3 text-center">
-                                                <button
-                                                    onClick={() => { setSelectedEvent(ev); setIsModalOpen(true); }}
-                                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                >
-                                                    View
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
+                                visible.map((ev, idx) => (
+                                    <tr key={ev.id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm text-gray-700">{startIndex + idx + 1}</td>
+                                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{ev.title}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-700">{formatDate(ev.date)}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button
+                                                onClick={() => { setSelectedEvent(ev); setIsModalOpen(true); }}
+                                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                            >
+                                                View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
                     </table>
                 )}
             </div>
 
+            {/* Pagination */}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-gray-600">
                 <p>
                     Showing {filtered.length ? startIndex + 1 : 0} to {endIndex} of {filtered.length} entries
@@ -210,45 +203,60 @@ export default function Event() {
 
             {/* Details modal */}
             {isModalOpen && selectedEvent && (
-                <div className="fixed inset-0 z-9999 flex items-center justify-center">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+                    {/* Backdrop */}
                     <div
-                        className="fixed inset-0 bg-black opacity-40 z-9998"
-                        onClick={() => { setIsModalOpen(false); setSelectedEvent(null); }}
+                        className="fixed inset-0 bg-black/40 z-[9998]"
+                        onClick={closeModal}
                     />
-                    <div className="relative bg-white text-gray-900 rounded-lg p-6 z-9999 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-auto">
+                    {/* Panel */}
+                    <div className="relative bg-white text-gray-900 rounded-lg p-6 z-[9999] max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-auto">
                         <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-lg font-semibold">{selectedEvent.title}</h2>
                                 <p className="text-sm text-gray-600">{formatDate(selectedEvent.date)}</p>
+                                {selectedEvent.location && (
+                                    <p className="text-sm text-gray-500 mt-0.5">📍 {selectedEvent.location}</p>
+                                )}
                             </div>
-                            <button onClick={() => { setIsModalOpen(false); setSelectedEvent(null); }} className="text-gray-500 hover:text-gray-700">Close</button>
+                            <button
+                                onClick={closeModal}
+                                className="shrink-0 text-gray-500 hover:text-gray-800 text-sm font-medium"
+                            >
+                                Close
+                            </button>
                         </div>
+
+                        {/* Event image */}
                         {selectedEvent.image && (
                             <div className="w-full mb-4 overflow-hidden rounded">
-                                <img
-                                    src={getFileUrl(selectedEvent.image ?? null)}
+                                <Image
+                                    src={getFileUrl(selectedEvent.image)}
                                     alt={selectedEvent.title}
+                                    width={800}
+                                    height={400}
                                     className="w-full object-contain rounded"
-                                    style={{ display: "block", maxWidth: "100%", maxHeight: "40vh" }}
-                                    loading="lazy"
-                                    decoding="async"
-                                /> 
+                                    style={{ maxHeight: "40vh" }}
+                                />
                             </div>
                         )}
-                        {/* PDF link (if any) */}
-                        {getFileUrl(selectedEvent.file ?? null) ? (
+
+                        {/* PDF link */}
+                        {resolvePdfUrl(selectedEvent) && (
                             <div className="mb-4">
                                 <a
-                                    href={getFileUrl(selectedEvent?.file ?? null)}
+                                    href={resolvePdfUrl(selectedEvent)}
                                     target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 text-blue-600 hover:underline"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
                                 >
-                                    <img src="/pdf.png" alt="pdf" className="w-5 h-5" />
+                                    <Image src="/pdf.png" alt="pdf" width={20} height={20} />
                                     Open PDF
                                 </a>
                             </div>
-                        ) : null}
+                        )}
+
+                        {/* Details text */}
                         <div className="text-sm text-gray-700 whitespace-pre-line">
                             {selectedEvent.details || "-"}
                         </div>
