@@ -1,70 +1,49 @@
 import { prisma } from "../config/prisma.js";
-import cloudinary from "../config/cloudinary.js";
+import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 import { redis } from "../config/redis.js";
 import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
-export async function uploadPDFToCloudinary(file) {
+
+/**
+ * GET /api/syllabus/presigned-url?filename=&contentType=
+ */
+export const getSyllabusPresignedUrl = async (req, res) => {
   try {
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: "syllabus",
-          resource_type: "raw",
-          use_filename: true,
-          unique_filename: true,
-          filename_override: file.originalname,
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      uploadStream.end(file.buffer);
-    });
-
-    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
-
-    return {
-      previewUrl: result.secure_url,
-      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
-      public_id: result.public_id,
-    };
+    const { filename, contentType } = req.query;
+    if (!filename || !contentType) {
+      return res.status(400).json({ error: "filename and contentType are required" });
+    }
+    const key = `syllabus/${Date.now()}-${filename}`;
+    const uploadUrl = await getUploadUrl(key, contentType);
+    return res.status(200).json({ uploadUrl, key });
   } catch (error) {
-    console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed", { cause: error });
+    console.error("Error generating presigned URL:", error);
+    return res.status(500).json({ error: "Error generating presigned URL" });
   }
-}
+};
 
-export async function deletePDFFromCloudinary(publicId) {
-  try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
-    console.log(`File with public ID "${publicId}" deleted successfully.`);
-  } catch (err) {
-    console.error("Error deleting file:", err.message);
-  }
-}
-
+/**
+ * POST /api/syllabus/upload
+ * Body: { key, class, year }   (key = R2 key after browser PUT)
+ */
 export const uploadSyllabus = async (req, res) => {
   try {
     const schoolId = req.schoolId;
-    const { class: classNum, year } = req.body;
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+    const { class: classNum, year, key } = req.body;
+    if (!key) {
+      return res.status(400).json({ error: "key is required" });
     }
-    const { previewUrl, downloadUrl, public_id } = await uploadPDFToCloudinary(
-      req.file
-    );
     const syllabus = await prisma.syllabus.create({
       data: {
         class: parseInt(classNum),
         year: parseInt(year),
-        pdf_url: previewUrl,
-        download_url: downloadUrl,
-        public_id,
+        pdf_url: key,
+        download_url: key,
+        public_id: key,
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const key = `syllabus_${schoolId ?? "global"}`;
-    await redis.del(key);
+    const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+    await redis.del(cacheKey);
     res.json(syllabus);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -100,18 +79,24 @@ export const deleteSyllabus = async (req, res) => {
       : { id: parseInt(id) },
   });
   if (!syllabus) return res.status(404).json({ error: "Not found" });
-  await deletePDFFromCloudinary(syllabus.public_id);
+
+  await deleteFromR2(syllabus.public_id);
+
   await prisma.syllabus.delete({ where: { id: parseInt(id) } });
-  const key = `syllabus_${schoolId ?? "global"}`;
-  await redis.del(key);
+  const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+  await redis.del(cacheKey);
   res.json({ success: true });
 };
 
+/**
+ * PUT /api/syllabus/:id
+ * Body: { key, class, year }   (key is optional — only if replacing file)
+ */
 export const updateSyllabus = async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { id } = req.params;
-    const { class: classNum, subject, year } = req.body;
+    const { class: classNum, year, key } = req.body;
     const syllabus = await prisma.syllabus.findFirst({
       where: schoolId
         ? { id: parseInt(id), school_id: schoolId }
@@ -121,34 +106,29 @@ export const updateSyllabus = async (req, res) => {
 
     let pdf_url = syllabus.pdf_url;
     let public_id = syllabus.public_id;
+    let download_url = syllabus.download_url;
 
-    const {
-      previewUrl,
-      downloadUrl,
-      public_id: newPublicId,
-    } = req.file ? await uploadPDFToCloudinary(req.file) : {};
-    if (req.file) {
-      pdf_url = previewUrl;
-      public_id = newPublicId;
-      await cloudinary.uploader.destroy(syllabus.public_id, {
-        resource_type: "raw",
-      });
+    if (key) {
+      // Delete old R2 file
+      await deleteFromR2(syllabus.public_id);
+      pdf_url = key;
+      download_url = key;
+      public_id = key;
     }
 
     const updated = await prisma.syllabus.update({
       where: { id: parseInt(id) },
       data: {
         class: parseInt(classNum),
-        subject,
         year: parseInt(year),
         pdf_url,
-        download_url: downloadUrl,
+        download_url,
         public_id,
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const key = `syllabus_${schoolId ?? "global"}`;
-    await redis.del(key);
+    const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+    await redis.del(cacheKey);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });

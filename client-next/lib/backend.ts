@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 
 const backend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "");
 export default backend;
-export const cdn = process.env.NEXT_PUBLIC_CDN_URL;
+// Re-exported from cdn.ts so Server Components can still import from one place.
+export { cdn, getFileUrl } from "./cdn";
 const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === "true";
 
 export interface ApiResponse<T> {
@@ -18,12 +19,6 @@ export const api = {
   put,
   delete: del,
   patch,
-};
-export const getFileUrl = (key: string | null): string => {
-  if (!key) return "";
-  if (key.startsWith("http") || key.startsWith("blob:")) return key;
-  if (key.startsWith("/")) return `${cdn}${key}`;
-  return `${cdn}/${key}`;
 };
 
 function logApiRequest(method: string, url: string, details?: Record<string, unknown>) {

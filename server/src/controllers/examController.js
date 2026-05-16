@@ -1,5 +1,5 @@
-import cloudinary from "../config/cloudinary.js";
 import { prisma } from "../config/prisma.js";
+import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
 
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
@@ -313,56 +313,44 @@ export const deleteExamRoutineController = async (req, res) => {
   }
 };
 
-async function uploadPDFToCloudinary(file) {
+/**
+ * GET /api/exams/presigned-url?filename=&contentType=
+ */
+export const getExamRoutinePresignedUrl = async (req, res) => {
   try {
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: "exam_routines",
-          resource_type: "raw",
-          use_filename: true,
-          unique_filename: true,
-          filename_override: file.originalname,
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        },
-      );
-      uploadStream.end(file.buffer);
-    });
-
-    const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
-    return {
-      previewUrl: result.secure_url,
-      downloadUrl: `https://res.cloudinary.com/${cloud_name}/raw/upload/fl_attachment/${result.public_id}`,
-      public_id: result.public_id,
-    };
+    const { filename, contentType } = req.query;
+    if (!filename || !contentType) {
+      return res.status(400).json({ error: "filename and contentType are required" });
+    }
+    const key = `exam_routines/${Date.now()}-${filename}`;
+    const uploadUrl = await getUploadUrl(key, contentType);
+    return res.status(200).json({ uploadUrl, key });
   } catch (error) {
-    console.error("Cloudinary upload failed:", error.message);
-    throw new Error("Cloudinary upload failed", { cause: error });
+    console.error("Error generating presigned URL:", error);
+    return res.status(500).json({ error: "Error generating presigned URL" });
   }
-}
+};
 
+/**
+ * POST /api/exams/uploadRoutinePDF/:examId
+ * Body: { key }   (R2 key after browser PUT to presigned URL)
+ */
 export const uploadExamRoutinePDFController = async (req, res) => {
   const { examId } = req.params;
   const parsedExamId = parseInt(examId);
+  const { key } = req.body;
 
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No PDF file uploaded" });
+    if (!key) {
+      return res.status(400).json({ error: "key is required" });
     }
-
-    const { previewUrl, public_id, downloadUrl } = await uploadPDFToCloudinary(
-      req.file,
-    );
 
     const updateResult = await prisma.exams.updateMany({
       where: { id: parsedExamId },
       data: {
-        routine: previewUrl,
-        public_id: public_id,
-        download_url: downloadUrl,
+        routine: key,
+        public_id: key,
+        download_url: key,
       },
     });
 
@@ -377,15 +365,10 @@ export const uploadExamRoutinePDFController = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: updatedExam,
-      message: "PDF routine uploaded successfully",
-      routine_url: previewUrl,
-      public_id,
-      download_url: downloadUrl,
+      message: "PDF routine saved successfully",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ error: error.message || "PDF upload failed" });
+    return res.status(500).json({ error: error.message || "Failed to save PDF routine" });
   }
 };
 
@@ -406,30 +389,7 @@ export const removeExamRoutinePDFController = async (req, res) => {
       return res.status(400).json({ error: "No routine PDF to remove" });
     }
 
-    let public_id = exam.public_id;
-    if (!public_id) {
-      try {
-        const match = exam.routine.match(
-          /\/(?:raw|image)\/upload\/(?:v\d+\/)?(.+)\.(pdf|PDF)$/,
-        );
-        if (match) {
-          public_id = match[1];
-        }
-      } catch (err) {
-        console.error(
-          "Error extracting public_id from routine URL:",
-          err.message,
-        );
-      }
-    }
-
-    if (public_id) {
-      try {
-        cloudinary.uploader.destroy(public_id, { resource_type: "raw" });
-      } catch (err) {
-        console.error("Error deleting routine from Cloudinary:", err.message);
-      }
-    }
+    await deleteFromR2(exam.public_id);
 
     const updateResult = await prisma.exams.updateMany({
       where: { id: parsedExamId },
@@ -450,8 +410,6 @@ export const removeExamRoutinePDFController = async (req, res) => {
       message: "PDF routine removed successfully",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ error: error.message || "Failed to remove PDF routine" });
+    return res.status(500).json({ error: error.message || "Failed to remove PDF routine" });
   }
 };

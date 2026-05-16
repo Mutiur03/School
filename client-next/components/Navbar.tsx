@@ -5,6 +5,7 @@ import "./Navbar.css";
 import Link from "next/link";
 import type { MenuItem } from "../types";
 import { useRoutinePDF } from "@/hooks/useSchoolData";
+import { getFileUrl } from "@/lib/cdn";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -32,7 +33,7 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: Nav
       const cachedUrl = routineQuery.data ?? null;
       const pdfUrl = cachedUrl ?? (await routineQuery.refetch()).data ?? null;
       if (pdfUrl) {
-        window.open(pdfUrl, "_blank");
+        window.open(getFileUrl(pdfUrl), "_blank");
       }
     });
 

@@ -25,6 +25,7 @@ import coEducationalActivitiesImage from "../assets/images/Co-educational-activi
 import onlineClassImage from "../assets/images/Online-Class.jpg";
 import miscImage from "../assets/images/0-1.png";
 import emergencyCallServicesImage from "../assets/images/Emergency-call-Services.jpg";
+import { getFileUrl } from "@/lib/cdn";
 
 export type ChartProps = {
   school?: {
@@ -61,7 +62,7 @@ export function Chart({
 
     const pdfUrl = routineQuery.data ?? (await routineQuery.refetch()).data;
     if (pdfUrl) {
-      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(pdfUrl), "_blank", "noopener,noreferrer");
     }
   };
 
@@ -78,7 +79,7 @@ export function Chart({
     );
 
     if (latest?.pdf_url) {
-      window.open(latest.pdf_url, "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(latest.pdf_url), "_blank", "noopener,noreferrer");
     }
   };
 

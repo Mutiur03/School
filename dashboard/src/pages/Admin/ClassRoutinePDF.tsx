@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
+import { uploadToR2 } from "@/lib/uploadToR2";
+import { getFileUrl } from "@/lib/backend";
 
 interface PDFData {
   id: string;
@@ -12,6 +14,7 @@ function ClassRoutinePDF() {
   const [pdf, setPDF] = useState<PDFData | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPDF = async (): Promise<void> => {
@@ -27,10 +30,10 @@ function ClassRoutinePDF() {
     e.preventDefault();
     if (!file) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append("pdf", file);
+    setProgress(0);
     try {
-      await axios.post("/api/class-routine/pdf", formData);
+      const key = await uploadToR2("/api/class-routine/presigned-url", file, setProgress);
+      await axios.post("/api/class-routine/pdf", { key });
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       fetchPDF();
@@ -38,16 +41,17 @@ function ClassRoutinePDF() {
       alert("Failed to upload PDF");
     }
     setUploading(false);
+    setProgress(0);
   };
 
   const handleUpdate = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!file || !pdf) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append("pdf", file);
+    setProgress(0);
     try {
-      await axios.put(`/api/class-routine/pdf/${pdf.id}`, formData);
+      const key = await uploadToR2("/api/class-routine/presigned-url", file, setProgress);
+      await axios.put(`/api/class-routine/pdf/${pdf.id}`, { key });
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       fetchPDF();
@@ -55,6 +59,7 @@ function ClassRoutinePDF() {
       alert("Failed to update PDF");
     }
     setUploading(false);
+    setProgress(0);
   };
 
   const handleDelete = async (): Promise<void> => {
@@ -65,6 +70,7 @@ function ClassRoutinePDF() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     fetchPDF();
   };
+
 
   return (
     <div className="max-w-md mx-auto mt-10 bg-background rounded-xl shadow-lg p-8 border border-border">
@@ -108,7 +114,7 @@ function ClassRoutinePDF() {
                 : "hover:bg-primary/90"
               }`}
           >
-            {uploading ? "Uploading..." : "Upload"}
+            {uploading ? `Uploading ${progress}%...` : "Upload"}
           </button>
         </form>
       ) : (
@@ -118,7 +124,7 @@ function ClassRoutinePDF() {
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <a
-              href={pdf.pdf_url}
+              href={getFileUrl(pdf.pdf_url)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary underline font-medium"
@@ -126,7 +132,7 @@ function ClassRoutinePDF() {
               View
             </a>
             <a
-              href={pdf.download_url}
+              href={getFileUrl(pdf.download_url)}
               target="_blank"
               rel="noopener noreferrer"
               download
@@ -165,7 +171,7 @@ function ClassRoutinePDF() {
                     : "hover:bg-primary/90"
                   }`}
               >
-                {uploading ? "Updating..." : "Update"}
+                {uploading ? `Uploading ${progress}%...` : "Update"}
               </Button>
               <Button
                 variant="destructive"

@@ -10,21 +10,12 @@ import {
   deleteExamRoutineController,
   uploadExamRoutinePDFController,
   removeExamRoutinePDFController,
+  getExamRoutinePresignedUrl,
 } from "../controllers/examController.js";
 import express from "express";
-import multer from "multer";
 import AuthMiddleware from "../middlewares/auth.middleware.js";
 
 const examRouter = express.Router();
-
-// Multer setup for PDF uploads (memory storage)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") cb(null, true);
-    else cb(new Error("Only PDF files are allowed"), false);
-  },
-});
 
 examRouter.post(
   "/addExam",
@@ -67,10 +58,14 @@ examRouter.delete(
 );
 
 // Exam Routine PDF upload route
+examRouter.get(
+  "/presigned-url",
+  AuthMiddleware.authenticate(["admin"]),
+  getExamRoutinePresignedUrl,
+);
 examRouter.post(
   "/uploadRoutinePDF/:examId",
   AuthMiddleware.authenticate(["admin"]),
-  upload.single("pdf"),
   uploadExamRoutinePDFController,
 );
 
