@@ -5,18 +5,16 @@ import { ExtraHome } from "@/components/ExtraHome";
 import { NoticeBoard } from "@/components/NoticeBoard";
 import { Chart } from "@/components/Chart";
 import { useSchoolConfig } from "@/context/school";
-import { useCitizenCharter, useNotices, useRoutinePDF, useSyllabuses } from "@/hooks/useSchoolData";
+import { useCitizenCharter,  useRoutinePDF, useSyllabuses } from "@/hooks/useSchoolData";
+import { getFileUrl } from "@/lib/backend";
 
 export type HomePageProps = {
   noticesLimit?: number;
 };
 
-export function Home({ noticesLimit = 5 }: HomePageProps) {
+export function Home() {
   const school = useSchoolConfig();
   const queryClient = useQueryClient();
-
-  const { data, isLoading } = useNotices(noticesLimit);
-  const notices = (data as any[]) || [];
 
   useEffect(() => {
     document.title = school?.name?.en || "Home";
@@ -30,7 +28,7 @@ export function Home({ noticesLimit = 5 }: HomePageProps) {
         (max: any, cur: any) => (cur.year > max.year ? cur : max),
         list[0],
       );
-      window.open(latest.pdf_url, "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(latest.pdf_url), "_blank", "noopener,noreferrer");
     }
   };
 
@@ -38,14 +36,14 @@ export function Home({ noticesLimit = 5 }: HomePageProps) {
     e.preventDefault();
     const pdfUrl = await useRoutinePDF(queryClient);
     if (pdfUrl) {
-      window.open(pdfUrl, "_blank");
+      window.open(getFileUrl(pdfUrl), "_blank", "noopener,noreferrer");
     }
   };
 
   const openCitizenCharterInNewTab = async () => {
     const url = await useCitizenCharter(queryClient);
     if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(url), "_blank", "noopener,noreferrer");
     }
   };
 

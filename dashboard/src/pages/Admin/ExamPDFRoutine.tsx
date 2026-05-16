@@ -16,6 +16,8 @@ import Loading from "@/components/Loading";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
+import { uploadToR2 } from "@/lib/uploadToR2";
+import { getFileUrl } from "@/lib/backend";
 
 interface ExamFormData {
   exam_name: string;
@@ -197,18 +199,17 @@ function ExamPDFRoutine() {
     setUploadError((prev) => ({ ...prev, [examId]: null }));
     setSelectedFiles((prev) => ({ ...prev, [examId]: file.name }));
 
-    const formData = new FormData();
-    formData.append("pdf", file);
-
     try {
-      await axios.post(`/api/exams/uploadRoutinePDF/${examId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          const total = progressEvent.total || 1;
-          const percent = Math.round((progressEvent.loaded * 100) / total);
-          setUploadProgress((prev) => ({ ...prev, [examId]: percent }));
-        },
-      });
+      // Step 1: upload directly to R2
+      const key = await uploadToR2(
+        "/api/exams/presigned-url",
+        file,
+        (pct) => setUploadProgress((prev) => ({ ...prev, [examId]: pct })),
+      );
+
+      // Step 2: save key to exam record
+      await axios.post(`/api/exams/uploadRoutinePDF/${examId}`, { key });
+
       setUploadSuccess((prev) => ({ ...prev, [examId]: true }));
       toast.success("PDF uploaded successfully");
       setTimeout(() => {
@@ -231,6 +232,7 @@ function ExamPDFRoutine() {
       }, 2000);
     }
   };
+
 
   const handleRemovePDF = async (examId: number) => {
     if (!window.confirm("Are you sure you want to remove the PDF routine?"))
@@ -502,7 +504,7 @@ function ExamPDFRoutine() {
                         {exam.routine ? (
                           <div className="flex items-center gap-2">
                             <a
-                              href={exam.routine}
+                              href={getFileUrl(exam.routine)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-primary hover:text-blue-800 flex items-center"
@@ -511,13 +513,7 @@ function ExamPDFRoutine() {
                               <FiExternalLink size={18} />
                             </a>
                             <a
-                              href={
-                                exam.download_url ||
-                                exam.routine.replace(
-                                  "/upload/",
-                                  "/upload/fl_attachment/"
-                                )
-                              }
+                              href={getFileUrl(exam.download_url || exam.routine)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-green-600 hover:text-green-800 flex items-center"

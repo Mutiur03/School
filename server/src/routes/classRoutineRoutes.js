@@ -1,5 +1,4 @@
 import express from "express";
-import multer from "multer";
 import {
   getRoutines,
   createRoutine,
@@ -13,26 +12,28 @@ import {
   getClassRoutinePDFs,
   deleteClassRoutinePDF,
   updateClassRoutinePDF,
+  getClassRoutinePresignedUrl,
 } from "../controllers/classRoutineController.js";
 
 const classRoutineRouter = express.Router();
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+
+// Class Routine
 classRoutineRouter.get("/", getRoutines);
 classRoutineRouter.post("/", createRoutine);
 classRoutineRouter.put("/:id", updateRoutine);
 classRoutineRouter.delete("/:id", deleteRoutine);
 
-// Class slot endpoints
+// Slots
 classRoutineRouter.get("/slots", getClassSlots);
 classRoutineRouter.post("/slots", createClassSlot);
 classRoutineRouter.put("/slots/:id", updateClassSlot);
 classRoutineRouter.delete("/slots/:id", deleteClassSlot);
 
-// Class Routine PDF endpoints
-classRoutineRouter.post("/pdf", upload.single("pdf"), uploadClassRoutinePDF);
+// Class Routine PDF endpoints (body: { key } — browser uploads directly to R2)
+classRoutineRouter.get("/presigned-url", getClassRoutinePresignedUrl);
+classRoutineRouter.post("/pdf", uploadClassRoutinePDF);
 classRoutineRouter.get("/pdf", getClassRoutinePDFs);
 classRoutineRouter.delete("/pdf/:id", deleteClassRoutinePDF);
-classRoutineRouter.put("/pdf/:id", upload.single("pdf"), updateClassRoutinePDF);
+classRoutineRouter.put("/pdf/:id", updateClassRoutinePDF);
 
 export default classRoutineRouter;

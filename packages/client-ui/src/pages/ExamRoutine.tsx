@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { getFileUrl } from "@/lib/backend";
 
 interface Exam {
     id: number;
@@ -124,7 +125,7 @@ export default function ExamRoutinePage() {
                                     }}
                                 >
                                     <iframe
-                                        src={pdfRoutineUrl}
+                                        src={getFileUrl(pdfRoutineUrl)}
                                         title="Exam Routine PDF"
                                         className="w-full h-full block"
                                         style={{

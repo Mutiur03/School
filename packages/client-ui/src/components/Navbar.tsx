@@ -6,6 +6,7 @@ import { useSchoolConfig } from "../context/school";
 import type { MenuItem } from "../types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoutinePDF } from "@/hooks/useSchoolData";
+import { getFileUrl } from "@/lib/backend";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -26,7 +27,7 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick }: NavbarProps
       e.preventDefault();
       const pdfUrl = await useRoutinePDF(queryClient);
       if (pdfUrl) {
-        window.open(pdfUrl, "_blank");
+        window.open(getFileUrl(pdfUrl), "_blank");
       }
     });
 

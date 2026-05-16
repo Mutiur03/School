@@ -10,6 +10,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { uploadToR2 } from "@/lib/uploadToR2";
+import { getFileUrl } from "@/lib/backend";
 
 interface Syllabus {
   id: number;
@@ -39,6 +41,7 @@ function Syllabus() {
   const [loading, setLoading] = useState<boolean>(false);
   const [uploading, setUploading] = useState<boolean>(false);
   const [updating, setUpdating] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,20 +72,35 @@ function Syllabus() {
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setError(null);
+    setProgress(0);
     if (editingId) setUpdating(true);
     else setUploading(true);
 
-    const data = new FormData();
-    data.append("class", form.class);
-    data.append("year", form.year);
-    if (form.pdf) data.append("pdf", form.pdf);
-
     try {
+      // Upload the new PDF to R2 if one was selected
+      let key: string | undefined;
+      if (form.pdf) {
+        key = await uploadToR2("/api/syllabus/presigned-url", form.pdf, setProgress);
+      }
+
       if (editingId) {
-        await axios.put(`/api/syllabus/${editingId}`, data);
+        await axios.put(`/api/syllabus/${editingId}`, {
+          class: form.class,
+          year: form.year,
+          ...(key ? { key } : {}),
+        });
         setEditingId(null);
       } else {
-        await axios.post("/api/syllabus/upload", data);
+        if (!key) {
+          setError("Please select a PDF file.");
+          setUploading(false);
+          return;
+        }
+        await axios.post("/api/syllabus/upload", {
+          class: form.class,
+          year: form.year,
+          key,
+        });
       }
       setForm({ class: "", year: String(currentYear), pdf: null });
       setIsFormVisible(false);
@@ -92,7 +110,9 @@ function Syllabus() {
     }
     setUploading(false);
     setUpdating(false);
+    setProgress(0);
   };
+
 
   const handleEdit = (s: Syllabus): void => {
     setEditingId(s.id);
@@ -246,10 +266,10 @@ function Syllabus() {
                 )}
                 {editingId
                   ? updating
-                    ? "Updating..."
+                    ? `Uploading ${progress}%...`
                     : "Update"
                   : uploading
-                    ? "Uploading..."
+                    ? `Uploading ${progress}%...`
                     : "Upload"}
               </Button>
             </div>
@@ -312,7 +332,7 @@ function Syllabus() {
                     <td className="w-2/4 px-3 sm:px-6 py-4 text-center">
                       <div className="flex flex-wrap justify-center gap-2">
                         <a
-                          href={s.pdf_url}
+                          href={getFileUrl(s.pdf_url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
@@ -321,7 +341,7 @@ function Syllabus() {
                           <Eye className="w-4 h-4" />
                         </a>
                         <a
-                          href={s.download_url}
+                          href={getFileUrl(s.download_url)}
                           download
                           className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                           title="Download"
@@ -391,7 +411,7 @@ function Syllabus() {
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <a
-                    href={s.pdf_url}
+                    href={getFileUrl(s.pdf_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
@@ -400,7 +420,7 @@ function Syllabus() {
                     <Eye className="w-4 h-4" />
                   </a>
                   <a
-                    href={s.download_url}
+                    href={getFileUrl(s.download_url)}
                     download
                     className="text-primary hover:bg-blue-100 px-2 py-1 rounded border border-blue-100 bg-blue-50 text-xs flex items-center"
                     title="Download"

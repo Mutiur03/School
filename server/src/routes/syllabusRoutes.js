@@ -4,15 +4,15 @@ import {
   listSyllabus,
   deleteSyllabus,
   updateSyllabus,
+  getSyllabusPresignedUrl,
 } from "../controllers/syllabusController.js";
-import multer from "multer";
+
 const syllabusRoutes = router();
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
 syllabusRoutes.get("/", listSyllabus);
-syllabusRoutes.post("/upload", upload.single("pdf"), uploadSyllabus);
-syllabusRoutes.put("/:id", upload.single("pdf"), updateSyllabus);
+syllabusRoutes.get("/presigned-url", getSyllabusPresignedUrl);
+syllabusRoutes.post("/upload", uploadSyllabus);
+syllabusRoutes.put("/:id", updateSyllabus);
 syllabusRoutes.delete("/:id", deleteSyllabus);
 
 export default syllabusRoutes;
