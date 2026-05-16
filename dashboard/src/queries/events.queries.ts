@@ -18,7 +18,7 @@ export const useEvents = () => {
     queryKey: ["events"],
     queryFn: async () => {
       const response = await axios.get("/api/events/getEvents");
-      return response.data;
+      return response.data?.data ?? response.data;
     },
   });
 };
@@ -39,15 +39,14 @@ export const useAddEvent = () => {
 
       // 1. Handle image upload
       if (data.image) {
-        const {
-          data: { uploadUrl, key },
-        } = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get("/api/events/presigned-url", {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
             type: "image",
           },
         });
+        const { uploadUrl, key } = res.data?.data ?? res.data;
         await axios.put(uploadUrl, data.image, {
           headers: { "Content-Type": data.image.type },
         });
@@ -56,15 +55,14 @@ export const useAddEvent = () => {
 
       // 2. Handle file upload
       if (data.file) {
-        const {
-          data: { uploadUrl, key },
-        } = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get("/api/events/presigned-url", {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
             type: "file",
           },
         });
+        const { uploadUrl, key } = res.data?.data ?? res.data;
         await axios.put(uploadUrl, data.file, {
           headers: { "Content-Type": data.file.type },
         });
@@ -114,15 +112,14 @@ export const useUpdateEvent = () => {
       let fileKey = undefined;
 
       if (data.image instanceof File) {
-        const {
-          data: { uploadUrl, key },
-        } = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get("/api/events/presigned-url", {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
             type: "image",
           },
         });
+        const { uploadUrl, key } = res.data?.data ?? res.data;
         await axios.put(uploadUrl, data.image, {
           headers: { "Content-Type": data.image.type },
         });
@@ -130,15 +127,14 @@ export const useUpdateEvent = () => {
       }
 
       if (data.file instanceof File) {
-        const {
-          data: { uploadUrl, key },
-        } = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get("/api/events/presigned-url", {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
             type: "file",
           },
         });
+        const { uploadUrl, key } = res.data?.data ?? res.data;
         await axios.put(uploadUrl, data.file, {
           headers: { "Content-Type": data.file.type },
         });
@@ -146,7 +142,10 @@ export const useUpdateEvent = () => {
       }
 
       const response = await axios.put(`/api/events/updateEvent/${id}`, {
-        ...data,
+        title: data.title,
+        details: data.details,
+        location: data.location,
+        date: data.date,
         imageKey,
         fileKey,
       });

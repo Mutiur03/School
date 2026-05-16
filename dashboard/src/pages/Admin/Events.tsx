@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "react-hot-toast";
-import DatePicker from "@/components/DatePickerF";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import { format } from "date-fns";
 import { getFileUrl } from "@/lib/backend";
@@ -234,13 +233,25 @@ const Events: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="date">Event Date <span className="text-red-500">*</span></Label>
-                  <DatePicker
-                    value={formValues.date}
-                    onChange={(e: any) => {
-                      setFormValues({ ...formValues, date: e.target.value });
+                  <input
+                    id="date"
+                    type="date"
+                    name="date"
+                    required
+                    value={(() => {
+                        const d = formValues.date;
+                        if (!d) return "";
+                        // DB stores as MM-DD-YYYY (from en-US toLocaleDateString)
+                        const mmddyyyy = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                        if (mmddyyyy) return `${mmddyyyy[3]}-${mmddyyyy[1]}-${mmddyyyy[2]}`;
+                        // ISO format fallback
+                        return d.slice(0, 10);
+                      })()}
+                    onChange={(e) => {
+                      setFormValues({ ...formValues, date: e.target.value || null });
                       setDateError(null);
                     }}
-                    required={true}
+                    className="w-full border border-input bg-background rounded-md px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   {dateError && (
                     <p className="text-sm text-red-500">{dateError}</p>
