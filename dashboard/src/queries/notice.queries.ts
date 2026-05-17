@@ -35,7 +35,9 @@ export const useAddNotice = () => {
       }
 
       // 2. Upload directly to R2
-      await axios.put(uploadUrl, data.file);
+      await axios.put(uploadUrl, data.file, {
+        headers: { "Content-Type": data.file.type },
+      });
 
       // 3. Save notice record to database
       const response = await axios.post("/api/notices/addNotice", {
