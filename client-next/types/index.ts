@@ -163,3 +163,9 @@ export type Teacher = {
   image?: string
   available?: boolean
 }
+export interface AdmissionData {
+  preview_url: string
+  download_url: string
+  admission_open: boolean
+  admission_year?: number
+}
