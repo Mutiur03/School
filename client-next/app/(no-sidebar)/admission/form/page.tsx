@@ -1,4 +1,3 @@
-import { fetchSchoolConfig } from "@/queries/school.queries";
 import { redirect } from "next/navigation";
 import AdmissionFormClient from "./AdmissionFormClient";
 import { getAdmissionData } from "@/queries/admission.queries";
