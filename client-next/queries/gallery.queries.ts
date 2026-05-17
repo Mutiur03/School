@@ -1,5 +1,4 @@
 import { api } from "@/lib/backend";
-import { cache } from "react";
 
 export interface GalleryItem {
     id: number;
@@ -43,7 +42,7 @@ const normalizeGalleryItem = (item: Record<string, unknown>): GalleryItem => {
     };
 };
 
-export const fetchGalleryCategories = cache(async (): Promise<GalleryItem[]> => {
+export const fetchGalleryCategories = (async (): Promise<GalleryItem[]> => {
     try {
         const response = await api.get<GalleryItem[]>("/api/gallery/getCategories", {
             revalidate: 60,
@@ -55,7 +54,7 @@ export const fetchGalleryCategories = cache(async (): Promise<GalleryItem[]> => 
     }
 });
 
-export const fetchGalleryEvents = cache(async (): Promise<GalleryItem[]> => {
+export const fetchGalleryEvents = (async (): Promise<GalleryItem[]> => {
     try {
         const response = await api.get<GalleryItem[]>("/api/events/getEvents", {
             revalidate: 60,
@@ -67,21 +66,20 @@ export const fetchGalleryEvents = cache(async (): Promise<GalleryItem[]> => {
     }
 });
 
-export const fetchGalleryImages = cache(
-    async (type: "campus" | "event", id: string): Promise<GalleryImageItem[]> => {
-        const endpoint =
-            type === "campus"
-                ? `/api/gallery/getGalleries/campus/${id}`
-                : `/api/gallery/getGalleries/event/${id}`;
+export const fetchGalleryImages = async (type: "campus" | "event", id: string): Promise<GalleryImageItem[]> => {
+    const endpoint =
+        type === "campus"
+            ? `/api/gallery/getGalleries/campus/${id}`
+            : `/api/gallery/getGalleries/event/${id}`;
 
-        try {
-            const response = await api.get<GalleryImageItem[]>(endpoint, {
-                revalidate: 60,
-            });
-            return normalizeArray<GalleryImageItem>(response.data);
-        } catch (error) {
-            console.error("Error fetching gallery images:", error);
-            return [];
-        }
-    },
-);
+    try {
+        const response = await api.get<GalleryImageItem[]>(endpoint, {
+            revalidate: 60,
+        });
+        return normalizeArray<GalleryImageItem>(response.data);
+    } catch (error) {
+        console.error("Error fetching gallery images:", error);
+        return [];
+    }
+}
+

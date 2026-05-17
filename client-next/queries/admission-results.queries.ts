@@ -1,5 +1,4 @@
 import { api } from "@/lib/backend";
-import { cache } from "react";
 import { getAdmissionData } from "./admission.queries";
 
 export interface AdmissionResult {
@@ -25,12 +24,12 @@ export const getSelectedAdmissionYear = (
     return Number.isInteger(parsedYear) ? parsedYear : currentAdmissionYear;
 };
 
-export const getCurrentAdmissionYear = cache(async () => {
+export const getCurrentAdmissionYear = (async () => {
     const {admission_year} = await getAdmissionData();
     return admission_year ?? new Date().getFullYear();
 });
 
-export const getAdmissionResults = cache(async () => {
+export const getAdmissionResults = (async () => {
     const response = await api.get<AdmissionResult[]>("/api/admission-result");
     return Array.isArray(response.data) ? response.data : [];
 });

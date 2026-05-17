@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { GalleryItem } from "@/queries/gallery.queries";
+import Image from "next/image";
 
 interface GalleryClientProps {
     apiBase: string;
@@ -60,10 +61,12 @@ export default function GalleryClient({
                                 href={`/gallery/${active}/${item.id}`}
                                 className="block rounded-lg overflow-hidden bg-white border border-gray-100 hover:shadow-md transition"
                             >
-                                <img
+                                <Image
                                     src={item.thumbnail ? `${apiBase}/${item.thumbnail}` : "/placeholder.svg"}
                                     alt={item.title}
                                     className="w-full h-36 object-cover block"
+                                    width={100}
+                                    height={100}
                                 />
                                 <div className="p-3">
                                     <div className="font-semibold text-gray-800">

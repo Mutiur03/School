@@ -373,7 +373,13 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: Nav
               )}
 
               {item.dropdown && (
-                <ul className="dropdown-menu" role="menu">
+                <ul
+                  className="dropdown-menu"
+                  role="menu"
+                  style={{
+                    display: activeDropdown === item.id ? "block" : undefined,
+                  }}
+                >
                   {item.dropdown.map((subItem) => (
                     <li
                       key={subItem.id}
@@ -462,6 +468,12 @@ export function Navbar({ menuItems: menuItemsProp, onRoutineClick, school }: Nav
                           id={`${subItem.id}-submenu`}
                           className={`dropdown-menu ${activeSubDropdown === subItem.id ? "show" : ""}`}
                           role="menu"
+                          style={{
+                            display:
+                              activeSubDropdown === subItem.id
+                                ? "block"
+                                : undefined,
+                          }}
                         >
                           {subItem.subDropdown.map((nestedItem) => (
                             <li

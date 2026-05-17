@@ -1,12 +1,18 @@
 import { api } from "@/lib/backend"
 import { AdmissionData } from "@/types"
-import { cache } from "react"
 
-export const getAdmissionData = cache(async (): Promise<AdmissionData> => {
+const defaultAdmissionData: AdmissionData = {
+    preview_url: "",
+    download_url: "",
+    admission_open: false,
+    admission_year: new Date().getFullYear(),
+};
+
+export const getAdmissionData = async (): Promise<AdmissionData> => {
     try {
-        const response = await api.get<AdmissionData>("/api/admission")        
-        return response.data
+        const response = await api.get<AdmissionData>("/api/admission")
+        return response.data ?? defaultAdmissionData
     } catch {
-        throw new Error("Failed to fetch admission data")
+        return defaultAdmissionData
     }
-})
+}

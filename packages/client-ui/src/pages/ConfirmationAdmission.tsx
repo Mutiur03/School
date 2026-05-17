@@ -111,7 +111,6 @@ function ConfirmationAdmission() {
         axios.get(`/api/admission/form/${admissionId}`),
         axios.get("/api/admission"),
       ]);
-      console.log(response);
 
       const admissionOpen = admissionStatusRes.data?.admission_open ?? true;
 

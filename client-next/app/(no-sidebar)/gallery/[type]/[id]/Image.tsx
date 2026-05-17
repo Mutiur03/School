@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -101,10 +102,12 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                             onClick={() => setSelectedIndex(idx)}
                             className="block rounded overflow-hidden bg-white border border-gray-100 hover:shadow-md focus:outline-none"
                         >
-                            <img
+                            <Image
                                 src={img.image_path ? `${apiBase}/${img.image_path}` : "/placeholder.svg"}
                                 alt={img.caption || "image"}
                                 className="w-full h-36 object-cover block"
+                                width={100}
+                                height={100}
                             />
                         </button>
                     ))}
@@ -113,7 +116,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
 
             {selectedIndex !== null && images[selectedIndex] && (
                 <div
-                    className="fixed inset-0 bg-opacity-60 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 bg-opacity-60 flex items-center justify-center z-1001 p-4"
                     onClick={() => setSelectedIndex(null)}
                     style={{ backdropFilter: "blur(6px)" }}
                 >
@@ -185,7 +188,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                         </div>
 
                         <div className="flex-1 overflow-hidden flex items-center justify-center relative">
-                            <img
+                            <Image
                                 src={
                                     images[selectedIndex].image_path
                                         ? `${apiBase}/${images[selectedIndex].image_path}`
@@ -193,6 +196,8 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                                 }
                                 alt={images[selectedIndex].caption || "full image"}
                                 className="w-full h-auto max-h-[70vh] object-contain rounded filter brightness-100"
+                                width={100}
+                                height={100}
                             />
                             <button
                                 onClick={(e) => {
@@ -262,7 +267,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                                                 }`}
                                             style={{ width: 80, height: 60 }}
                                         >
-                                            <img
+                                            <Image
                                                 src={
                                                     thumb.image_path
                                                         ? `${apiBase}/${thumb.image_path}`
@@ -271,6 +276,8 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                                                 alt={thumb.caption || `thumb-${i}`}
                                                 className={`w-full h-full object-cover ${isActive ? "filter brightness-100" : "filter brightness-75"
                                                     }`}
+                                                width={80}
+                                                height={60}
                                             />
                                         </button>
                                     );
