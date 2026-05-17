@@ -289,16 +289,16 @@ export function Chart({
                   <div className="box-text">
                     <ul>
                       <li>
-                        <a>ষষ্ঠ শ্রেণি</a>
+                        <Link href="/admission">ষষ্ঠ শ্রেণি</Link>
                       </li>
                       <li>
-                        <a>সপ্তম শ্রেণি</a>
+                        <Link href="/admission">সপ্তম শ্রেণি</Link>
                       </li>
                       <li>
-                        <a>অষ্টম শ্রেণি</a>
+                        <Link href="/admission">অষ্টম শ্রেণি</Link>
                       </li>
                       <li>
-                        <a>নবম শ্রেণি</a>
+                        <Link href="/admission">নবম শ্রেণি</Link>
                       </li>
                     </ul>
                   </div>
