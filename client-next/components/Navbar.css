@@ -2,8 +2,7 @@
 
 header#masthead {
     position: relative;
-    /* reduce z-index so modals with Tailwind z-50 appear above */
-    z-index: 40;
+    z-index: 1000;
     background-color: transparent;
     width: 100%;
     display: block;
@@ -62,8 +61,7 @@ header#masthead {
     display: block !important;
     visibility: visible !important;
     position: relative;
-    /* reduce stacking order */
-    z-index: 30;
+    z-index: 1000;
     overflow: visible;
 }
 
@@ -78,8 +76,7 @@ header#masthead {
     visibility: visible !important;
     max-width: 100%;
     border-radius: 8px;
-    /* reduce stacking order */
-    z-index: 30;
+    z-index: 1000;
 }
 
 #TF-Navbar>ul {
@@ -99,8 +96,13 @@ header#masthead {
     visibility: visible !important;
     flex-shrink: 1;
     min-width: 0;
-    /* reduce stacking order */
-    z-index: 30;
+    z-index: 1;
+}
+
+#TF-Navbar>ul>li.show,
+#TF-Navbar>ul>li:hover,
+#TF-Navbar>ul>li:focus-within {
+    z-index: 1000;
 }
 
 #TF-Navbar>ul>li>a {
@@ -269,8 +271,7 @@ header#masthead {
     position: absolute;
     top: 100%;
     left: 0;
-    /* lowered so Tailwind modal z-50 appears above dropdowns */
-    z-index: 40;
+    z-index: 1000;
     min-width: 210px;
     padding: 0;
     margin: 0;
@@ -331,6 +332,8 @@ header#masthead {
 
 
 @media (min-width: 768px) {
+    #TF-Navbar>ul>li.show>.dropdown-menu,
+    #TF-Navbar>ul>li:focus-within>.dropdown-menu,
     #TF-Navbar>ul>li:hover>.dropdown-menu {
         display: block;
     }
@@ -338,13 +341,14 @@ header#masthead {
     /* Show nested dropdowns when their parent li has the 'show' class or on hover
        Position them to the right of the parent dropdown for desktop */
     #TF-Navbar .dropdown-menu li.show>.dropdown-menu,
+    #TF-Navbar .dropdown-menu li:focus-within>.dropdown-menu,
     #TF-Navbar .dropdown-menu li:hover>.dropdown-menu {
         display: block;
         position: absolute;
         top: 0;
         left: 100%;
         min-width: 210px;
-        z-index: 45;
+        z-index: 1000;
     }
 
     /* Sub-dropdowns within a dropdown-left should expand to the left */
@@ -370,16 +374,14 @@ header#masthead {
         width: 100%;
         overflow: visible;
         position: relative;
-        /* reduce stacking order */
-        z-index: 30;
+        z-index: 1;
     }
 
     #TF-Navbar>ul>li {
         flex: 0 1 auto;
         min-width: 0;
         position: relative;
-        /* reduce stacking order */
-        z-index: 30;
+        z-index: 1000;
     }
 
     #TF-Navbar>ul>li>a {
@@ -479,8 +481,7 @@ header#masthead {
         top: 100%;
         left: 0;
         right: 0;
-        /* lowered so modal z-50 appears above mobile nav */
-        z-index: 40;
+        z-index: 1000;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         border-radius: 4px;
     }
@@ -664,8 +665,7 @@ header#masthead {
         max-width: 980px;
         position: relative;
         margin: 0 auto;
-        /* reduce stacking order */
-        z-index: 30;
+        z-index: 1000;
         overflow: visible;
     }
 
@@ -674,8 +674,7 @@ header#masthead {
         visibility: visible !important;
         width: 100%;
         position: relative;
-        /* reduce stacking order */
-        z-index: 30;
+        z-index: 1000;
         overflow: visible;
     }
 
@@ -683,8 +682,7 @@ header#masthead {
         display: block !important;
         width: 100%;
         position: relative;
-        /* reduce stacking order */
-        z-index: 30;
+        z-index: 1000;
         overflow: visible;
     }
 }
@@ -694,8 +692,7 @@ header#masthead {
         max-width: 940px;
         position: relative;
         margin: 0 auto;
-        /* lowered so modal z-50 appears above nav */
-        z-index: 30;
+        z-index: 1000;
         overflow: visible;
     }
 

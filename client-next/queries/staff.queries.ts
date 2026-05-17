@@ -1,5 +1,4 @@
 import { api } from "@/lib/backend";
-import { cache } from "react";
 
 export interface StaffMember {
     id: number;
@@ -18,7 +17,7 @@ export interface StaffMember {
     location?: string;
 }
 
-export const fetchStaffs = cache(async (): Promise<StaffMember[]> => {
+export const fetchStaffs = (async (): Promise<StaffMember[]> => {
     try {
         const response = await api.get<StaffMember[]>("/api/staffs", {
             revalidate: 60,

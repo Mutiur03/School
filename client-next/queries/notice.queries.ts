@@ -1,8 +1,7 @@
 import { api } from "@/lib/backend";
 import type { NoticeItem } from "@/types";
-import { cache } from "react";
 
-export const fetchNotices = cache(async (limit?: number): Promise<NoticeItem[]> => {
+export const fetchNotices = (async (limit?: number): Promise<NoticeItem[]> => {
   try {
     const response = await api.get<NoticeItem[]>("/api/notices/getNotices", {
       params: { limit },

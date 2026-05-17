@@ -1,6 +1,5 @@
 import { api, getFileUrl } from "@/lib/backend";
 import type { SchoolConfig } from "@/types";
-import { cache } from "react";
 
 const defaultSchoolConfig: SchoolConfig = {
   name: {
@@ -207,7 +206,7 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   };
 };
 
-export const fetchSchoolConfig = cache(async () => {
+export const fetchSchoolConfig = (async () => {
   try {
     const primary = await api.get<Record<string, unknown>>("/api/schools/public", {
       revalidate: 60,
