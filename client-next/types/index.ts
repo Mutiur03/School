@@ -168,4 +168,10 @@ export interface AdmissionData {
   download_url: string
   admission_open: boolean
   admission_year?: number
+  class_list?: string | null;
+  user_id_class6?: string | null;
+  user_id_class7?: string | null;
+  user_id_class8?: string | null;
+  user_id_class9?: string | null;
+  [key: string]: unknown;
 }
