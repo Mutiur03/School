@@ -6,6 +6,7 @@ import { getFileUrl } from "@/lib/cdn";
 import { ConfirmationAdmission_Props } from "@/queries/admission-form.queries";
 import type { SchoolConfig } from "@/types";
 import DownloadPDF from "./AdmissionDownloadPDF";
+import Image from "next/image";
 
 
 function ConfirmationAdmissionClient({ admission, schoolConfig, pdf_url }: { admission: ConfirmationAdmission_Props, schoolConfig: SchoolConfig, pdf_url: string }) {
@@ -271,15 +272,17 @@ function ConfirmationAdmissionClient({ admission, schoolConfig, pdf_url }: { adm
         {admission.photo_path && (
           <div className="bg-white p-6 border-b border-gray-200 flex flex-col items-center">
             <h3 className="text-base font-semibold mb-2 text-gray-700">
-              Student's Photo
+              Student&apos;s Photo
             </h3>
-            <img
+            <Image
               src={`${getFileUrl(admission.photo_path)}`}
               alt="Student Photo"
               className="w-28 h-28 object-cover border-2 border-gray-300 rounded shadow-sm"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
+              width={112}
+              height={112}
             />
           </div>
         )}

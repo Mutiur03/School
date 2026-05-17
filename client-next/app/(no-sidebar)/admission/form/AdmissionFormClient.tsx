@@ -28,6 +28,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getFileUrl } from "@/lib/cdn";
 import { SchoolConfig } from "@/types";
 import { AdmissionFormRecord } from "@/queries/admission-form.queries";
+import Image from "next/image";
 const admissionSchema = z
   .object({
     student_name_bn: z
@@ -2810,10 +2811,12 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               <div className="shrink-0">
                 <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 bg-gray-50 overflow-hidden">
                   {photoPreview ? (
-                    <img
+                    <Image
                       src={photoPreview}
                       alt="photo preview"
                       className="w-full h-full object-cover"
+                      width={192}
+                      height={192}
                     />
                   ) : (
                     <div className="text-center px-2">
