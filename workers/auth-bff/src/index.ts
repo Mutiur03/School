@@ -61,13 +61,6 @@ const parseCookies = (cookieHeader: string | null) => {
     return cookies;
 };
 
-const stripApiPrefix = (pathname: string) => {
-    if (pathname === API_PREFIX) return "/";
-    if (pathname.startsWith(`${API_PREFIX}/`)) {
-        return pathname.slice(API_PREFIX.length);
-    }
-    return pathname;
-};
 
 const buildCorsHeaders = (origin: string) => {
     const headers = new Headers();
@@ -181,7 +174,7 @@ export default {
         }
 
         const targetUrl = new URL(env.BACKEND_URL);
-        targetUrl.pathname = stripApiPrefix(requestUrl.pathname);
+        targetUrl.pathname = requestUrl.pathname;
         targetUrl.search = requestUrl.search;
 
         const headers = new Headers(request.headers);
