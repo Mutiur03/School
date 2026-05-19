@@ -1,0 +1,47 @@
+name: Deploy Auth BFF Worker
+
+on:
+    push:
+        branches: ["main"]
+        paths:
+            - "workers/auth-bff/**"
+            - ".github/workflows/deploy-auth-bff.yml"
+    workflow_dispatch:
+
+concurrency:
+    group: auth-bff-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+                  cache-dependency-path: workers/auth-bff/package.json
+
+            - name: Install worker dependencies
+              run: npm install --prefix workers/auth-bff --include=optional --ignore-scripts=false --no-audit --no-fund
+
+            - name: Dry run
+              working-directory: workers/auth-bff
+              run: npx wrangler deploy --dry-run
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+            - name: Deploy worker
+              working-directory: workers/auth-bff
+              run: npx wrangler deploy
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

@@ -1,0 +1,16 @@
+name = "school-auth-bff"
+main = "src/index.ts"
+compatibility_date = "2026-05-19"
+
+routes = [
+	{ pattern = "lbphs.gov.bd/api/*", zone_name = "lbphs.gov.bd" },
+	{ pattern = "*.lbphs.gov.bd/api/*", zone_name = "lbphs.gov.bd" }
+]
+
+[vars]
+BACKEND_URL = "https://apisms.mutiurrahman.com"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = false

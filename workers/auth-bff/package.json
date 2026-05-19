@@ -1,0 +1,14 @@
+{
+  "name": "school-auth-bff",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "wrangler": "^3.0.0"
+  }
+}
