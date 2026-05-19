@@ -17,6 +17,30 @@ const PASSWORD_RESET_PREFIXES = [
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
 
+const now = () => Date.now();
+
+const requestId = (request) =>
+  request.headers.get("cf-ray") ||
+  (globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`);
+
+const logRequest = (level, event, details) => {
+  const payload = {
+    event,
+    ...details,
+  };
+
+  const line = JSON.stringify(payload);
+  if (level === "error") {
+    console.error(line);
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
+};
+
 const getTenantSlug = (hostname, tenantHostSuffix) => {
   const suffix = tenantHostSuffix.toLowerCase();
   const lowerHostname = hostname.toLowerCase();
@@ -113,6 +137,35 @@ const withAdditionalHeaders = (response, headers) => {
   });
 };
 
+const logAndReturn = ({
+  response,
+  id,
+  startTime,
+  requestUrl,
+  targetUrl,
+  method,
+  slug,
+  backendProxy,
+  branch,
+}) => {
+  logRequest(response.status >= 500 ? "error" : "info", "tenant-router.response", {
+    id,
+    method,
+    host: requestUrl.hostname,
+    path: requestUrl.pathname,
+    search: requestUrl.search,
+    slug,
+    branch,
+    backendProxy,
+    targetOrigin: targetUrl.origin,
+    targetPath: targetUrl.pathname,
+    status: response.status,
+    durationMs: now() - startTime,
+  });
+
+  return response;
+};
+
 const extractAccessToken = (payload) =>
   payload?.accessToken ?? payload?.data?.accessToken ?? null;
 
@@ -206,11 +259,25 @@ const resolveTenantTarget = (hostname, env) => {
 
 export default {
   async fetch(request, env) {
+    const id = requestId(request);
+    const startTime = now();
     const requestUrl = new URL(request.url);
+    try {
     const target = resolveTenantTarget(requestUrl.hostname, env);
 
     if (!target) {
-      return new Response("Unknown tenant host", { status: 404 });
+      const response = new Response("Unknown tenant host", { status: 404 });
+      logRequest("warn", "tenant-router.response", {
+        id,
+        method: request.method,
+        host: requestUrl.hostname,
+        path: requestUrl.pathname,
+        search: requestUrl.search,
+        branch: "unknown-tenant",
+        status: response.status,
+        durationMs: now() - startTime,
+      });
+      return response;
     }
 
     const backendOrigin = trimTrailingSlash(
@@ -223,6 +290,19 @@ export default {
       targetOrigin: backendProxy ? backendOrigin : target.origin,
     });
 
+    const finish = (response, branch) =>
+      logAndReturn({
+        response,
+        id,
+        startTime,
+        requestUrl,
+        targetUrl,
+        method: request.method,
+        slug: target.slug,
+        backendProxy,
+        branch,
+      });
+
     const headers = cloneHeaders({
       request,
       originalHost: requestUrl.hostname,
@@ -234,11 +314,17 @@ export default {
       headers.set("x-forwarded-host", requestUrl.hostname);
 
       if (!requestUrl.pathname.startsWith("/api")) {
-        return forwardRequest(request, targetUrl, headers);
+        return finish(
+          await forwardRequest(request, targetUrl, headers),
+          "uploads-proxy",
+        );
       }
 
       if (request.method === "OPTIONS") {
-        return forwardRequest(request, targetUrl, headers);
+        return finish(
+          await forwardRequest(request, targetUrl, headers),
+          "api-options",
+        );
       }
 
       headers.delete("host");
@@ -252,11 +338,17 @@ export default {
 
         if (backendResponse.status === 401) {
           attachClearedCookies(responseHeaders);
-          return jsonResponse({ success: false }, 401, responseHeaders);
+          return finish(
+            jsonResponse({ success: false }, 401, responseHeaders),
+            "login-unauthorized",
+          );
         }
 
         if (!backendResponse.ok) {
-          return withAdditionalHeaders(backendResponse, responseHeaders);
+          return finish(
+            withAdditionalHeaders(backendResponse, responseHeaders),
+            "login-backend-error",
+          );
         }
 
         const data = await parseJson(backendResponse);
@@ -269,14 +361,20 @@ export default {
         const user = extractUser(data);
 
         if (!accessToken || !refreshToken) {
-          return withAdditionalHeaders(backendResponse, responseHeaders);
+          return finish(
+            withAdditionalHeaders(backendResponse, responseHeaders),
+            "login-token-missing",
+          );
         }
 
         attachAuthCookies(responseHeaders, { accessToken, refreshToken });
-        return jsonResponse(
-          { success: true, data: user ? { user } : {} },
-          200,
-          responseHeaders,
+        return finish(
+          jsonResponse(
+            { success: true, data: user ? { user } : {} },
+            200,
+            responseHeaders,
+          ),
+          "login-success",
         );
       }
 
@@ -284,7 +382,10 @@ export default {
         const refreshToken = getRefreshToken(cookies);
         if (!refreshToken) {
           attachClearedCookies(responseHeaders);
-          return jsonResponse({ success: false }, 401, responseHeaders);
+          return finish(
+            jsonResponse({ success: false }, 401, responseHeaders),
+            "refresh-cookie-missing",
+          );
         }
 
         headers.delete("cookie");
@@ -294,11 +395,17 @@ export default {
 
         if (backendResponse.status === 401) {
           attachClearedCookies(responseHeaders);
-          return jsonResponse({ success: false }, 401, responseHeaders);
+          return finish(
+            jsonResponse({ success: false }, 401, responseHeaders),
+            "refresh-unauthorized",
+          );
         }
 
         if (!backendResponse.ok) {
-          return withAdditionalHeaders(backendResponse, responseHeaders);
+          return finish(
+            withAdditionalHeaders(backendResponse, responseHeaders),
+            "refresh-backend-error",
+          );
         }
 
         const data = await parseJson(backendResponse);
@@ -311,17 +418,23 @@ export default {
         const user = extractUser(data);
 
         if (!accessToken || !nextRefreshToken) {
-          return withAdditionalHeaders(backendResponse, responseHeaders);
+          return finish(
+            withAdditionalHeaders(backendResponse, responseHeaders),
+            "refresh-token-missing",
+          );
         }
 
         attachAuthCookies(responseHeaders, {
           accessToken,
           refreshToken: nextRefreshToken,
         });
-        return jsonResponse(
-          { success: true, data: user ? { user } : {} },
-          200,
-          responseHeaders,
+        return finish(
+          jsonResponse(
+            { success: true, data: user ? { user } : {} },
+            200,
+            responseHeaders,
+          ),
+          "refresh-success",
         );
       }
 
@@ -338,14 +451,20 @@ export default {
         await forwardRequest(request, targetUrl, headers);
 
         attachClearedCookies(responseHeaders);
-        return jsonResponse({ success: true }, 200, responseHeaders);
+        return finish(
+          jsonResponse({ success: true }, 200, responseHeaders),
+          "logout",
+        );
       }
 
       if (!isPasswordResetPath(requestUrl.pathname)) {
         const accessToken = cookies[ACCESS_COOKIE];
         if (!accessToken) {
           attachClearedCookies(responseHeaders);
-          return jsonResponse({ success: false }, 401, responseHeaders);
+          return finish(
+            jsonResponse({ success: false }, 401, responseHeaders),
+            "access-cookie-missing",
+          );
         }
 
         headers.set("Authorization", `Bearer ${accessToken}`);
@@ -356,12 +475,32 @@ export default {
 
       if (backendResponse.status === 401) {
         attachClearedCookies(responseHeaders);
-        return jsonResponse({ success: false }, 401, responseHeaders);
+        return finish(
+          jsonResponse({ success: false }, 401, responseHeaders),
+          "api-unauthorized",
+        );
       }
 
-      return withAdditionalHeaders(backendResponse, responseHeaders);
+      return finish(
+        withAdditionalHeaders(backendResponse, responseHeaders),
+        "api-proxy",
+      );
     }
 
-    return forwardRequest(request, targetUrl, headers);
+    return finish(await forwardRequest(request, targetUrl, headers), "pages-proxy");
+    } catch (error) {
+      logRequest("error", "tenant-router.error", {
+        id,
+        method: request.method,
+        host: requestUrl.hostname,
+        path: requestUrl.pathname,
+        search: requestUrl.search,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        durationMs: now() - startTime,
+      });
+
+      return new Response("Internal worker error", { status: 500 });
+    }
   },
 };
