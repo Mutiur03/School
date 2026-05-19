@@ -22,6 +22,29 @@ const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
 
+const now = () => Date.now();
+
+const requestId = (request: Request) =>
+    request.headers.get("cf-ray") ||
+    (globalThis.crypto?.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`);
+
+const logRequest = (
+    level: "info" | "warn" | "error",
+    event: string,
+    details: Record<string, unknown>,
+) => {
+    const line = JSON.stringify({ event, ...details });
+    if (level === "error") {
+        console.error(line);
+    } else if (level === "warn") {
+        console.warn(line);
+    } else {
+        console.log(line);
+    }
+};
+
 const jsonResponse = (data: unknown, status: number, headers?: HeadersInit) => {
     const responseHeaders = new Headers(headers);
     responseHeaders.set("content-type", "application/json");
@@ -83,6 +106,39 @@ const withCors = (response: Response, origin: string) => {
         statusText: response.statusText,
         headers,
     });
+};
+
+const logAndReturn = ({
+    response,
+    id,
+    startTime,
+    requestUrl,
+    targetUrl,
+    method,
+    branch,
+}: {
+    response: Response;
+    id: string;
+    startTime: number;
+    requestUrl: URL;
+    targetUrl: URL;
+    method: string;
+    branch: string;
+}) => {
+    logRequest(response.status >= 500 ? "error" : "info", "auth-bff.response", {
+        id,
+        method,
+        host: requestUrl.hostname,
+        path: requestUrl.pathname,
+        search: requestUrl.search,
+        branch,
+        targetOrigin: targetUrl.origin,
+        targetPath: targetUrl.pathname,
+        status: response.status,
+        durationMs: now() - startTime,
+    });
+
+    return response;
 };
 
 const attachAuthCookies = (headers: Headers, tokens: {
@@ -156,50 +212,81 @@ const applyTenantHeaders = (headers: Headers, requestUrl: URL) => {
 
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
+        const id = requestId(request);
+        const startTime = now();
         const requestUrl = new URL(request.url);
-        const originHeader = request.headers.get("Origin");
-        const origin = originHeader ?? requestUrl.origin;
+        try {
+            const originHeader = request.headers.get("Origin");
+            const origin = originHeader ?? requestUrl.origin;
 
-        if (!requestUrl.pathname.startsWith(API_PREFIX)) {
-            return new Response("Not found", { status: 404 });
-        }
-
-
-        const corsHeaders = buildCorsHeaders(origin);
-
-        if (request.method === "OPTIONS") {
-            const requestedHeaders = request.headers.get(
-                "Access-Control-Request-Headers",
-            );
-            if (requestedHeaders) {
-                corsHeaders.set("Access-Control-Allow-Headers", requestedHeaders);
-            } else {
-                corsHeaders.set("Access-Control-Allow-Headers", "Content-Type");
+            if (!requestUrl.pathname.startsWith(API_PREFIX)) {
+                const response = new Response("Not found", { status: 404 });
+                logRequest("warn", "auth-bff.response", {
+                    id,
+                    method: request.method,
+                    host: requestUrl.hostname,
+                    path: requestUrl.pathname,
+                    search: requestUrl.search,
+                    branch: "not-api",
+                    status: response.status,
+                    durationMs: now() - startTime,
+                });
+                return response;
             }
-            return new Response(null, { status: 204, headers: corsHeaders });
-        }
 
-        const targetUrl = new URL(env.BACKEND_URL);
-        targetUrl.pathname = requestUrl.pathname;
-        targetUrl.search = requestUrl.search;
 
-        const headers = new Headers(request.headers);
-        headers.delete("host");
-        headers.delete("content-length");
+            const corsHeaders = buildCorsHeaders(origin);
 
-        const cookies = parseCookies(request.headers.get("cookie"));
-        applyTenantHeaders(headers, requestUrl);
+            const targetUrl = new URL(env.BACKEND_URL);
+            targetUrl.pathname = requestUrl.pathname;
+            targetUrl.search = requestUrl.search;
 
-        if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
+            const finish = (response: Response, branch: string) =>
+                logAndReturn({
+                    response,
+                    id,
+                    startTime,
+                    requestUrl,
+                    targetUrl,
+                    method: request.method,
+                    branch,
+                });
+
+            if (request.method === "OPTIONS") {
+                const requestedHeaders = request.headers.get(
+                    "Access-Control-Request-Headers",
+                );
+                if (requestedHeaders) {
+                    corsHeaders.set("Access-Control-Allow-Headers", requestedHeaders);
+                } else {
+                    corsHeaders.set("Access-Control-Allow-Headers", "Content-Type");
+                }
+                return finish(
+                    new Response(null, { status: 204, headers: corsHeaders }),
+                    "options",
+                );
+            }
+
+            const headers = new Headers(request.headers);
+            headers.delete("host");
+            headers.delete("content-length");
+
+            const cookies = parseCookies(request.headers.get("cookie"));
+            applyTenantHeaders(headers, requestUrl);
+
+            if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
             const backendResponse = await forwardRequest(request, targetUrl, headers);
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
-                return jsonResponse({ success: false }, 401, corsHeaders);
+                return finish(
+                    jsonResponse({ success: false }, 401, corsHeaders),
+                    "login-unauthorized",
+                );
             }
 
             if (!backendResponse.ok) {
-                return withCors(backendResponse, origin);
+                return finish(withCors(backendResponse, origin), "login-backend-error");
             }
 
             const data = await parseJson(backendResponse);
@@ -212,14 +299,17 @@ export default {
             const user = extractUser(data);
 
             if (!accessToken || !refreshToken) {
-                return withCors(backendResponse, origin);
+                return finish(withCors(backendResponse, origin), "login-token-missing");
             }
 
             attachAuthCookies(corsHeaders, { accessToken, refreshToken });
-            return jsonResponse(
-                { success: true, data: user ? { user } : {} },
-                200,
-                corsHeaders,
+            return finish(
+                jsonResponse(
+                    { success: true, data: user ? { user } : {} },
+                    200,
+                    corsHeaders,
+                ),
+                "login-success",
             );
         }
 
@@ -227,7 +317,10 @@ export default {
             const refreshToken = cookies[REFRESH_COOKIE];
             if (!refreshToken) {
                 attachClearedCookies(corsHeaders);
-                return jsonResponse({ success: false }, 401, corsHeaders);
+                return finish(
+                    jsonResponse({ success: false }, 401, corsHeaders),
+                    "refresh-cookie-missing",
+                );
             }
 
             headers.delete("cookie");
@@ -237,11 +330,14 @@ export default {
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
-                return jsonResponse({ success: false }, 401, corsHeaders);
+                return finish(
+                    jsonResponse({ success: false }, 401, corsHeaders),
+                    "refresh-unauthorized",
+                );
             }
 
             if (!backendResponse.ok) {
-                return withCors(backendResponse, origin);
+                return finish(withCors(backendResponse, origin), "refresh-backend-error");
             }
 
             const data = await parseJson(backendResponse);
@@ -254,17 +350,20 @@ export default {
             const user = extractUser(data);
 
             if (!accessToken || !nextRefreshToken) {
-                return withCors(backendResponse, origin);
+                return finish(withCors(backendResponse, origin), "refresh-token-missing");
             }
 
             attachAuthCookies(corsHeaders, {
                 accessToken,
                 refreshToken: nextRefreshToken,
             });
-            return jsonResponse(
-                { success: true, data: user ? { user } : {} },
-                200,
-                corsHeaders,
+            return finish(
+                jsonResponse(
+                    { success: true, data: user ? { user } : {} },
+                    200,
+                    corsHeaders,
+                ),
+                "refresh-success",
             );
         }
 
@@ -282,18 +381,24 @@ export default {
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
-                return jsonResponse({ success: false }, 401, corsHeaders);
+                return finish(
+                    jsonResponse({ success: false }, 401, corsHeaders),
+                    "logout-unauthorized",
+                );
             }
 
             attachClearedCookies(corsHeaders);
-            return jsonResponse({ success: true }, 200, corsHeaders);
+            return finish(jsonResponse({ success: true }, 200, corsHeaders), "logout");
         }
 
         if (!isPasswordResetPath(requestUrl.pathname)) {
             const accessToken = cookies[ACCESS_COOKIE];
             if (!accessToken) {
                 attachClearedCookies(corsHeaders);
-                return jsonResponse({ success: false }, 401, corsHeaders);
+                return finish(
+                    jsonResponse({ success: false }, 401, corsHeaders),
+                    "access-cookie-missing",
+                );
             }
 
             headers.set("Authorization", `Bearer ${accessToken}`);
@@ -304,9 +409,26 @@ export default {
 
         if (backendResponse.status === 401) {
             attachClearedCookies(corsHeaders);
-            return jsonResponse({ success: false }, 401, corsHeaders);
+            return finish(
+                jsonResponse({ success: false }, 401, corsHeaders),
+                "api-unauthorized",
+            );
         }
 
-        return withCors(backendResponse, origin);
+        return finish(withCors(backendResponse, origin), "api-proxy");
+        } catch (error) {
+            logRequest("error", "auth-bff.error", {
+                id,
+                method: request.method,
+                host: requestUrl.hostname,
+                path: requestUrl.pathname,
+                search: requestUrl.search,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                durationMs: now() - startTime,
+            });
+
+            return new Response("Internal worker error", { status: 500 });
+        }
     },
 };

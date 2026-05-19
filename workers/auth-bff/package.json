@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run",
+    "tail": "wrangler tail"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
