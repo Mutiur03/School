@@ -7,10 +7,8 @@ import PrivateRoute from "./components/PrivateRoute.tsx";
 import SuperAdminRoute from "./components/SuperAdminRoute.tsx";
 import TeacherRoute from "./components/TeacherRoute.tsx";
 import StudentRoute from "./components/StudentRoute.tsx";
-import axios from "axios";
 import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/common-ui";
 
-import backend from "./lib/backend.ts";
 import { useAuth } from "./context/useAuth.tsx";
 import envPreferredRole from "./lib/role.ts";
 import Loading from "./components/Loading.tsx";
@@ -79,7 +77,6 @@ function App() {
   const location = useLocation();
   const preferredRolePath = envPreferredRole === "super_admin" ? "super_admin" : envPreferredRole;
   const currentUserDashboardPath = user?.role === "super_admin" ? "/super_admin/dashboard" : user ? `/${user.role}/dashboard` : "/";
-  axios.defaults.baseURL = backend;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
