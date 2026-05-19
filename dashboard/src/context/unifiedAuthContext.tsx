@@ -138,13 +138,20 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         setAccessTokenState(token);
     };
 
+    const refreshSession = (timeout?: number) => {
+        return axios.post("/api/auth/sessions/refresh", {}, {
+            _skipAuthRefresh: true,
+            timeout,
+        });
+    };
+
     const isSuperAdminAllowed = () => envPreferredRole === "super_admin";
 
     useEffect(() => {
         const requestInterceptor = axios.interceptors.request.use(
             (config) => {
                 const isExternal = config.url?.startsWith("http");
-                const isBackend = !isExternal || config.url?.startsWith(backend);
+                const isBackend = !isExternal || (!!backend && config.url?.startsWith(backend));
 
                 if (tokenRef.current && isBackend) {
                     config.headers.Authorization = `Bearer ${tokenRef.current}`;
@@ -189,21 +196,19 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh) {
                     originalRequest._retry = true;
                     try {
-                        const { data } = await axios.post("/api/auth/sessions/refresh", {}, {
-                            _skipAuthRefresh: true
-                        });
-                        const accessToken = data?.data?.accessToken;
+                        const { data } = await refreshSession();
+                        const newAccessToken = data?.data?.accessToken;
                         const refreshedUser = data?.data?.user;
-                        if (data.success && accessToken) {
+                        if (data.success && newAccessToken) {
                             if (refreshedUser?.role === "super_admin" && !isSuperAdminAllowed()) {
                                 setAccessToken(null);
                                 setUser(null);
                                 return Promise.reject(new Error("Super admin login is disabled for this panel."));
                             }
 
-                            setAccessToken(accessToken);
+                            setAccessToken(newAccessToken);
                             if (refreshedUser) setUser(refreshedUser);
-                            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                             return axios(originalRequest);
                         }
                     } catch (refreshError) {
@@ -245,13 +250,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             // Try to refresh token first to check if session exists
             // Use direct axios call to avoid interceptor recursion
-            const refreshRes = await axios.post("/api/auth/sessions/refresh", {}, {
-                _skipAuthRefresh: true // Flag to bypass interceptor refresh
-            });
+            const refreshRes = await refreshSession();
 
-            const accessToken = refreshRes.data?.data?.accessToken;
+            const newAccessToken = refreshRes.data?.data?.accessToken;
             const userData = refreshRes.data?.data?.user;
-            if (refreshRes.data.success && accessToken) {
+            if (refreshRes.data.success && newAccessToken) {
                 if (userData?.role === "super_admin" && !isSuperAdminAllowed()) {
                     setAccessToken(null);
                     setUser(null);
@@ -260,7 +263,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     return;
                 }
 
-                setAccessToken(accessToken);
+                setAccessToken(newAccessToken);
                 setUser(userData);
                 setServerOffline(false);
                 if (userData?.role) {
@@ -299,10 +302,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         if (serverOffline) {
             retryIntervalRef.current = setInterval(async () => {
                 try {
-                    await axios.post("/api/auth/sessions/refresh", {}, {
-                        _skipAuthRefresh: true,
-                        timeout: 5000,
-                    });
+                    await refreshSession(5000);
                     // If we get here, server is back
                     setServerOffline(false);
                     checkAuth();

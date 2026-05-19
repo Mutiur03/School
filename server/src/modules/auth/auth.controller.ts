@@ -4,6 +4,10 @@ import asyncHandler from "@/utils/asyncHandler.js";
 import { AuthService } from "./auth.service.js";
 
 export class AuthController {
+  private static getRefreshToken(req: Request) {
+    return req.cookies?.refreshToken;
+  }
+
   static setupSuperAdmin = asyncHandler(async (req: Request, res: Response) => {
     const { email, token } = req.body;
     const data = await AuthService.setupSuperAdmin(req, email, token);
@@ -71,7 +75,7 @@ export class AuthController {
   });
 
   static refresh_token = asyncHandler(async (req: Request, res: Response) => {
-    const token = req.cookies.refreshToken;
+    const token = AuthController.getRefreshToken(req);
     const { accessToken, refreshToken, user } = await AuthService.refreshToken(
       req,
       res,
@@ -92,7 +96,7 @@ export class AuthController {
   });
 
   static logout = asyncHandler(async (req: Request, res: Response) => {
-    const token = req.cookies?.refreshToken;
+    const token = AuthController.getRefreshToken(req);
 
     await AuthService.logout(token, req.schoolId);
     AuthService.clearRefreshToken(res);
