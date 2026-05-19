@@ -119,21 +119,16 @@ const isPasswordResetPath = (pathname: string) =>
         (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
 
-const extractTokens = (payload: any) => {
-    if (!payload) return null;
-    if (payload.accessToken && payload.refreshToken) {
-        return {
-            accessToken: payload.accessToken,
-            refreshToken: payload.refreshToken,
-        };
-    }
-    if (payload.data?.accessToken && payload.data?.refreshToken) {
-        return {
-            accessToken: payload.data.accessToken,
-            refreshToken: payload.data.refreshToken,
-        };
-    }
-    return null;
+const extractAccessToken = (payload: any) =>
+    payload?.accessToken ?? payload?.data?.accessToken ?? null;
+
+const extractRefreshToken = (payload: any) =>
+    payload?.refreshToken ?? payload?.data?.refreshToken ?? null;
+
+const extractRefreshTokenFromSetCookie = (setCookieHeader: string | null) => {
+    if (!setCookieHeader) return null;
+    const match = setCookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/i);
+    return match?.[1] ?? null;
 };
 
 const parseJson = async (response: Response) => {
@@ -205,13 +200,18 @@ export default {
             }
 
             const data = await parseJson(backendResponse);
-            const tokens = extractTokens(data);
+            const accessToken = extractAccessToken(data);
+            const refreshToken =
+                extractRefreshToken(data) ||
+                extractRefreshTokenFromSetCookie(
+                    backendResponse.headers.get("Set-Cookie"),
+                );
 
-            if (!tokens) {
+            if (!accessToken || !refreshToken) {
                 return withCors(backendResponse, origin);
             }
 
-            attachAuthCookies(corsHeaders, tokens);
+            attachAuthCookies(corsHeaders, { accessToken, refreshToken });
             return jsonResponse({ success: true }, 200, corsHeaders);
         }
 
@@ -222,8 +222,8 @@ export default {
                 return jsonResponse({ success: false }, 401, corsHeaders);
             }
 
-            headers.set("Authorization", `Bearer ${refreshToken}`);
             headers.delete("cookie");
+            headers.set("Cookie", `refreshToken=${refreshToken}`);
 
             const backendResponse = await forwardRequest(request, targetUrl, headers);
 
@@ -237,13 +237,21 @@ export default {
             }
 
             const data = await parseJson(backendResponse);
-            const tokens = extractTokens(data);
+            const accessToken = extractAccessToken(data);
+            const nextRefreshToken =
+                extractRefreshToken(data) ||
+                extractRefreshTokenFromSetCookie(
+                    backendResponse.headers.get("Set-Cookie"),
+                );
 
-            if (!tokens) {
+            if (!accessToken || !nextRefreshToken) {
                 return withCors(backendResponse, origin);
             }
 
-            attachAuthCookies(corsHeaders, tokens);
+            attachAuthCookies(corsHeaders, {
+                accessToken,
+                refreshToken: nextRefreshToken,
+            });
             return jsonResponse({ success: true }, 200, corsHeaders);
         }
 
@@ -251,9 +259,10 @@ export default {
             requestUrl.pathname === LOGOUT_PATH &&
             (request.method === "DELETE" || request.method === "POST")
         ) {
-            const accessToken = cookies[ACCESS_COOKIE];
-            if (accessToken) {
-                headers.set("Authorization", `Bearer ${accessToken}`);
+            const refreshToken = cookies[REFRESH_COOKIE];
+            headers.delete("cookie");
+            if (refreshToken) {
+                headers.set("Cookie", `refreshToken=${refreshToken}`);
             }
 
             const backendResponse = await forwardRequest(request, targetUrl, headers);
