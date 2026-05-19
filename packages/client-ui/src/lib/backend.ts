@@ -11,12 +11,7 @@ const resolveBackendUrl = (): string => {
     return `${window.location.protocol}//${currentHost}:3002`;
   }
 
-  if (
-    currentHost.endsWith("-school.mutiurrahman.com") ||
-    currentHost.endsWith("-dashboard.mutiurrahman.com")
-  ) {
-    return "";
-  }
+  return "";
 
   return fromEnv;
 };
