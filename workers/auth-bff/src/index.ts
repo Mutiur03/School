@@ -136,6 +136,14 @@ const extractTokens = (payload: any) => {
     return null;
 };
 
+const parseJson = async (response: Response) => {
+    try {
+        return await response.clone().json();
+    } catch {
+        return null;
+    }
+};
+
 const forwardRequest = (request: Request, targetUrl: URL, headers: Headers) =>
     fetch(
         new Request(targetUrl.toString(), {
@@ -150,16 +158,17 @@ export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         const requestUrl = new URL(request.url);
         const originHeader = request.headers.get("Origin");
+        const origin = originHeader ?? requestUrl.origin;
 
         if (!requestUrl.pathname.startsWith(API_PREFIX)) {
             return new Response("Not found", { status: 404 });
         }
 
-        if (!isOriginAllowed(requestUrl, originHeader)) {
+        if (originHeader && !isOriginAllowed(requestUrl, originHeader)) {
             return new Response("Forbidden", { status: 403 });
         }
 
-        const corsHeaders = buildCorsHeaders(originHeader);
+        const corsHeaders = buildCorsHeaders(origin);
 
         if (request.method === "OPTIONS") {
             const requestedHeaders = request.headers.get(
@@ -192,14 +201,14 @@ export default {
             }
 
             if (!backendResponse.ok) {
-                return withCors(backendResponse, originHeader);
+                return withCors(backendResponse, origin);
             }
 
-            const data = await backendResponse.json();
+            const data = await parseJson(backendResponse);
             const tokens = extractTokens(data);
 
             if (!tokens) {
-                return withCors(backendResponse, originHeader);
+                return withCors(backendResponse, origin);
             }
 
             attachAuthCookies(corsHeaders, tokens);
@@ -224,14 +233,14 @@ export default {
             }
 
             if (!backendResponse.ok) {
-                return withCors(backendResponse, originHeader);
+                return withCors(backendResponse, origin);
             }
 
-            const data = await backendResponse.json();
+            const data = await parseJson(backendResponse);
             const tokens = extractTokens(data);
 
             if (!tokens) {
-                return withCors(backendResponse, originHeader);
+                return withCors(backendResponse, origin);
             }
 
             attachAuthCookies(corsHeaders, tokens);
@@ -276,6 +285,6 @@ export default {
             return jsonResponse({ success: false }, 401, corsHeaders);
         }
 
-        return withCors(backendResponse, originHeader);
+        return withCors(backendResponse, origin);
     },
 };
