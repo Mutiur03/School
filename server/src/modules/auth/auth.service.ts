@@ -683,29 +683,15 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  // static sendRefreshToken(res: Response, token: string) {
-  //   const isProduction = process.env.NODE_ENV === "production";
-
-  //   res.cookie("refreshToken", token, {
-  //     httpOnly: true,
-  //     secure: isProduction,
-  //     sameSite: isProduction ? "none" : "lax",
-  //     path: "/",
-  //     domain: env.DOMAIN || undefined,
-  //     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  //     partitioned: isProduction,
-  //   });
-  // }
   static sendRefreshToken(res: Response, token: string) {
-    // const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("refreshToken", token, {
       httpOnly: true,
-      secure: true, // must be true for cross-site
-      sameSite: "none", // must be none for cross-site
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      // NO domain, NO partitioned
     });
   }
   static clearRefreshToken(res: Response) {
