@@ -9,7 +9,7 @@ const resolveBackendUrl = (): string => {
 
   // Local fallback for development if no env is provided.
   if (currentHost === "localhost" || currentHost.endsWith(".localhost")) {
-    return `${window.location.protocol}//${currentHost}:3002`;
+    return "";
   }
 
   return "";

@@ -8,7 +8,7 @@ const resolveBackendUrl = (): string => {
   const currentHost = window.location.hostname.toLowerCase();
 
   if (currentHost === "localhost" || currentHost.endsWith(".localhost")) {
-    return `${window.location.protocol}//${currentHost}:3002`;
+    return "";
   }
 
   return "";

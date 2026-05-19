@@ -1,6 +1,6 @@
 name = "school-auth-bff"
 main = "src/index.ts"
-compatibility_date = "2026-05-19"
+compatibility_date = "2026-05-18"
 
 routes = [
 	{ pattern = "lbphs.gov.bd/api/*", zone_name = "lbphs.gov.bd" },

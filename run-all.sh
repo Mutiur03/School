@@ -7,12 +7,13 @@ declare -A SERVERS=(
   ["client-ui"]="npm run dev:client:ui"
   ["common-ui"]="npm run dev:common:ui"
   ["shared-schemas"]="npm run dev:shared-schemas"
+  ["auth-bff"]="cd workers/auth-bff && npx wrangler dev"
   ["admin"]="cd dashboard && npm run dev:admin"
   ["super_admin"]="cd dashboard && npm run dev:super_admin"
   ["teacher"]="cd dashboard && npm run dev:teacher"
   # ["student"]="cd dashboard && npm run dev:student"
 )
-PORTS=(3001 5173 5174 5175 5176 5177 5178 5179 5180)
+PORTS=(3001 5173 5174 5175 5176 5177 5178 5179 5180 8787)
 # ────────────────────────────────────────────────────────────────────────────
 
 PIDS=()

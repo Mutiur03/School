@@ -71,10 +71,6 @@ const buildCorsHeaders = (origin: string) => {
     return headers;
 };
 
-const isOriginAllowed = (requestUrl: URL, originHeader: string | null) => {
-    if (!originHeader) return false;
-    return originHeader === requestUrl.origin;
-};
 
 const withCors = (response: Response, origin: string) => {
     const headers = new Headers(response.headers);
@@ -125,6 +121,8 @@ const extractAccessToken = (payload: any) =>
 const extractRefreshToken = (payload: any) =>
     payload?.refreshToken ?? payload?.data?.refreshToken ?? null;
 
+const extractUser = (payload: any) => payload?.user ?? payload?.data?.user ?? null;
+
 const extractRefreshTokenFromSetCookie = (setCookieHeader: string | null) => {
     if (!setCookieHeader) return null;
     const match = setCookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/i);
@@ -149,6 +147,13 @@ const forwardRequest = (request: Request, targetUrl: URL, headers: Headers) =>
         }),
     );
 
+const applyTenantHeaders = (headers: Headers, requestUrl: URL) => {
+    headers.set("origin", requestUrl.origin);
+    headers.set("referer", `${requestUrl.origin}/`);
+    headers.set("x-forwarded-host", requestUrl.hostname);
+    headers.set("x-tenant-host", requestUrl.hostname);
+};
+
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         const requestUrl = new URL(request.url);
@@ -159,9 +164,6 @@ export default {
             return new Response("Not found", { status: 404 });
         }
 
-        if (originHeader && !isOriginAllowed(requestUrl, originHeader)) {
-            return new Response("Forbidden", { status: 403 });
-        }
 
         const corsHeaders = buildCorsHeaders(origin);
 
@@ -186,6 +188,7 @@ export default {
         headers.delete("content-length");
 
         const cookies = parseCookies(request.headers.get("cookie"));
+        applyTenantHeaders(headers, requestUrl);
 
         if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
             const backendResponse = await forwardRequest(request, targetUrl, headers);
@@ -206,13 +209,18 @@ export default {
                 extractRefreshTokenFromSetCookie(
                     backendResponse.headers.get("Set-Cookie"),
                 );
+            const user = extractUser(data);
 
             if (!accessToken || !refreshToken) {
                 return withCors(backendResponse, origin);
             }
 
             attachAuthCookies(corsHeaders, { accessToken, refreshToken });
-            return jsonResponse({ success: true }, 200, corsHeaders);
+            return jsonResponse(
+                { success: true, data: user ? { user } : {} },
+                200,
+                corsHeaders,
+            );
         }
 
         if (requestUrl.pathname === REFRESH_PATH && request.method === "POST") {
@@ -243,6 +251,7 @@ export default {
                 extractRefreshTokenFromSetCookie(
                     backendResponse.headers.get("Set-Cookie"),
                 );
+            const user = extractUser(data);
 
             if (!accessToken || !nextRefreshToken) {
                 return withCors(backendResponse, origin);
@@ -252,7 +261,11 @@ export default {
                 accessToken,
                 refreshToken: nextRefreshToken,
             });
-            return jsonResponse({ success: true }, 200, corsHeaders);
+            return jsonResponse(
+                { success: true, data: user ? { user } : {} },
+                200,
+                corsHeaders,
+            );
         }
 
         if (

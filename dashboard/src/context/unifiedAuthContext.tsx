@@ -1,6 +1,6 @@
 import envPreferredRole from "@/lib/role";
 import axios from "axios";
-import { createContext, useEffect, useState, useRef } from "react";
+import { createContext, useEffect, useState, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
@@ -97,8 +97,37 @@ interface UnifiedAuthContextType {
     hasRole: (role: UserRole) => boolean;
 }
 
-const isNetworkError = (error: any): boolean => {
-    return !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error');
+type ErrorWithResponse = {
+    response?: {
+        status?: number;
+        data?: {
+            message?: string;
+        };
+    };
+    code?: string;
+    message?: string;
+};
+
+const isErrorWithResponse = (error: unknown): error is ErrorWithResponse =>
+    typeof error === "object" && error !== null;
+
+const isNetworkError = (error: unknown): boolean => {
+    if (!isErrorWithResponse(error)) return false;
+    return !error.response &&
+        (error.code === "ERR_NETWORK" || error.message === "Network Error");
+};
+
+const getErrorStatus = (error: unknown) =>
+    (isErrorWithResponse(error) ? error.response?.status : undefined);
+
+const getResponseMessage = (error: unknown) => {
+    if (isErrorWithResponse(error)) {
+        return error.response?.data?.message || error.message;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return String(error);
 };
 
 const UnifiedAuthContext = createContext<UnifiedAuthContextType>({
@@ -130,20 +159,18 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         envPreferredRole
     );
     const [accessToken, setAccessTokenState] = useState<string | null>(null);
-    const tokenRef = useRef<string | null>(null);
     const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const setAccessToken = (token: string | null) => {
-        tokenRef.current = token;
         setAccessTokenState(token);
     };
 
-    const refreshSession = (timeout?: number) => {
+    const refreshSession = useCallback((timeout?: number) => {
         return axios.post("/api/auth/sessions/refresh", {}, {
             _skipAuthRefresh: true,
             timeout,
         });
-    };
+    }, []);
 
     const isSuperAdminAllowed = () => envPreferredRole === "super_admin";
 
@@ -153,12 +180,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 const isExternal = config.url?.startsWith("http");
                 const isBackend = !isExternal || (!!backend && config.url?.startsWith(backend));
 
-                if (tokenRef.current && isBackend) {
-                    config.headers.Authorization = `Bearer ${tokenRef.current}`;
-                }
-
                 if (isBackend) {
-                    config.withCredentials = true; // Still needed for refreshToken cookie
+                    config.withCredentials = true; // Cookie-based auth via worker
                 }
                 return config;
             },
@@ -197,18 +220,16 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     originalRequest._retry = true;
                     try {
                         const { data } = await refreshSession();
-                        const newAccessToken = data?.data?.accessToken;
                         const refreshedUser = data?.data?.user;
-                        if (data.success && newAccessToken) {
+                        if (data.success && refreshedUser) {
                             if (refreshedUser?.role === "super_admin" && !isSuperAdminAllowed()) {
                                 setAccessToken(null);
                                 setUser(null);
                                 return Promise.reject(new Error("Super admin login is disabled for this panel."));
                             }
 
-                            setAccessToken(newAccessToken);
-                            if (refreshedUser) setUser(refreshedUser);
-                            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                            setAccessToken(null);
+                            setUser(refreshedUser);
                             return axios(originalRequest);
                         }
                     } catch (refreshError) {
@@ -218,11 +239,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                             setServerOffline(true);
                             return Promise.reject(refreshError);
                         }
-                        
-                        const status = (refreshError as any).response?.status;
-                        const message = (refreshError as any).response?.data?.message || (refreshError as any).message;
+
+                        const status = getErrorStatus(refreshError);
+                        const message = getResponseMessage(refreshError);
                         console.error(`Refresh failed with status ${status}:`, message);
-                        
+
                         if (status === 429) {
                             toast.error("Rate limit hit. Please wait a moment.");
                         }
@@ -239,22 +260,17 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             axios.interceptors.request.eject(requestInterceptor);
             axios.interceptors.response.eject(responseInterceptor);
         };
-    }, []);
+    }, [refreshSession, serverOffline]);
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
-    const checkAuth = async (showLoading = true) => {
-        if (showLoading && !user) setLoading(true);
+    const checkAuth = useCallback(async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         try {
             // Try to refresh token first to check if session exists
             // Use direct axios call to avoid interceptor recursion
             const refreshRes = await refreshSession();
 
-            const newAccessToken = refreshRes.data?.data?.accessToken;
             const userData = refreshRes.data?.data?.user;
-            if (refreshRes.data.success && newAccessToken) {
+            if (refreshRes.data.success && userData) {
                 if (userData?.role === "super_admin" && !isSuperAdminAllowed()) {
                     setAccessToken(null);
                     setUser(null);
@@ -263,7 +279,6 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     return;
                 }
 
-                setAccessToken(newAccessToken);
                 setUser(userData);
                 setServerOffline(false);
                 if (userData?.role) {
@@ -277,7 +292,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             console.log("No active refresh session found");
             setUser(null);
             setServerOffline(false);
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Distinguish: network error vs auth failure
             if (isNetworkError(error)) {
                 console.warn("Initial checkAuth failed: Network Error (Offline)");
@@ -285,17 +300,21 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 // Do NOT clear user — keep existing auth state if any
             } else {
                 // Auth failure — no active session
-                const status = error.response?.status;
-                const message = error.response?.data?.message || error.message;
+                const status = getErrorStatus(error);
+                const message = getResponseMessage(error);
                 console.warn(`No active session found (Status ${status}):`, message);
-                
+
                 setUser(null);
                 setServerOffline(false);
             }
         } finally {
             setLoading(false);
         }
-    };
+    }, [refreshSession]);
+
+    useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
 
     // Auto-retry polling when server is offline
     useEffect(() => {
@@ -323,7 +342,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 retryIntervalRef.current = null;
             }
         };
-    }, [serverOffline]);
+    }, [checkAuth, refreshSession, serverOffline]);
 
     const retryAuth = () => {
         setServerOffline(false);
@@ -339,9 +358,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 password,
             });
             if (res.data.success) {
-                toast.success(res.data.message);
-                setAccessToken(res.data?.data?.accessToken);
-                setUser(res.data?.data?.user);
+                toast.success("Login successful");
+                setAccessToken(null);
+                if (res.data?.data?.user) {
+                    setUser(res.data.data.user);
+                } else {
+                    await checkAuth(false);
+                }
             } else {
                 throw { response: { data: res.data } };
             }
@@ -366,8 +389,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(res.data?.data?.accessToken);
-                setUser(res.data?.data?.user);
+                setAccessToken(null);
+                if (res.data?.data?.user) {
+                    setUser(res.data.data.user);
+                } else {
+                    await checkAuth(false);
+                }
             } else {
                 throw { response: { data: res.data } };
             }
@@ -388,8 +415,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(res.data?.data?.accessToken);
-                setUser(res.data?.data?.user);
+                setAccessToken(null);
+                if (res.data?.data?.user) {
+                    setUser(res.data.data.user);
+                } else {
+                    await checkAuth(false);
+                }
             } else {
                 throw { response: { data: res.data } };
             }
@@ -410,8 +441,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(res.data?.data?.accessToken);
-                setUser(res.data?.data?.user);
+                setAccessToken(null);
+                if (res.data?.data?.user) {
+                    setUser(res.data.data.user);
+                } else {
+                    await checkAuth(false);
+                }
             } else {
                 throw { response: { data: res.data } };
             }

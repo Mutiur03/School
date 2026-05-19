@@ -149,3 +149,4 @@ uploads/*
 stats.html
 
 codex-ci
+.dev.vars
