@@ -3,6 +3,13 @@ import "./globals.css";
 import Providers from "./providers";
 import { Analytics } from "@/components/Analytics";
 import { fetchSchoolConfig } from "@/queries/school.queries";
+import {
+  buildSchoolJsonLd,
+  buildSchoolMetadata,
+  getRequestSiteUrl,
+  getSchoolSiteUrl,
+  serializeJsonLd,
+} from "@/lib/seo";
 import fs from "fs";
 import path from "path";
 import { Footer } from "@/components/Footer";
@@ -14,20 +21,14 @@ import { Analytics as VAnalytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();
-  const iconUrl = school?.assets?.favicon || "/favicon.ico";
-
-  return {
-    title: school?.name?.en || "School Website",
-    description: school?.descriptions?.main || "School website",
-    icons: {
-      icon: iconUrl,
-    },
-  };
+  return buildSchoolMetadata(school);
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const school = await fetchSchoolConfig();
   const assets = school?.assets;
+  const siteUrl = getSchoolSiteUrl(school, await getRequestSiteUrl());
+  const jsonLd = buildSchoolJsonLd(school, siteUrl);
   const fontPath = path.join(process.cwd(), "app/fonts/Kalpurush-v0.258.woff2");
   const fontBase64 = fs.readFileSync(fontPath).toString("base64");
 
@@ -55,6 +56,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }
         `}} />
         <link rel="preload" href="/bg.png" as="image" fetchPriority="high" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <Analytics measurementId={school?.gaMeasurementId} />

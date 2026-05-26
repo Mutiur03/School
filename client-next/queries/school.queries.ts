@@ -163,8 +163,31 @@ const getString = (value: unknown, fallback: string | undefined) =>
 const getOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim() ? value : undefined;
 
+const getStringArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return undefined;
+};
+
 const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   if (!info || typeof info !== "object") return null;
+
+  const seo =
+    info.seo && typeof info.seo === "object"
+      ? (info.seo as Record<string, unknown>)
+      : info;
 
   const gaMeasurementId =
     getOptionalString(info.gaMeasurementId) ??
@@ -192,6 +215,28 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
       logo: defaultSchoolConfig.assets.logo,
       headerLogo: defaultSchoolConfig.assets.headerLogo,
       favicon: getFileUrl(getString(info.logo, "")) || "/favicon.ico",
+    },
+    seo: {
+      title:
+        getOptionalString(seo.title) ??
+        getOptionalString(seo.metaTitle) ??
+        getOptionalString(info.name),
+      description:
+        getOptionalString(seo.description) ??
+        getOptionalString(seo.metaDescription) ??
+        getOptionalString(info.slogan),
+      keywords:
+        getStringArray(seo.keywords) ??
+        getStringArray(seo.metaKeywords),
+      image:
+        getOptionalString(seo.image) ??
+        getOptionalString(seo.ogImage) ??
+        getOptionalString(seo.twitterImage) ??
+        getOptionalString(info.logo),
+      canonicalUrl:
+        getOptionalString(seo.canonicalUrl) ??
+        getOptionalString(info.website),
+      noIndex: Boolean(seo.noIndex),
     },
     academic: {
       ...defaultSchoolConfig.academic,
