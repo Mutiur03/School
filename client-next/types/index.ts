@@ -126,6 +126,15 @@ export type SchoolDescriptions = {
   sub: string;
 };
 
+export type SchoolSeoConfig = {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  image?: string;
+  canonicalUrl?: string;
+  noIndex?: boolean;
+};
+
 export type SchoolLinks = {
   results: string;
   teacherLogin: string;
@@ -143,6 +152,7 @@ export type SchoolConfig = {
   descriptions: SchoolDescriptions;
   assets: SchoolAssets;
   map: SchoolMap;
+  seo?: SchoolSeoConfig;
   gaMeasurementId?: string;
   backendBaseUrl?: string;
 };
