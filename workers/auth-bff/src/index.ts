@@ -141,20 +141,12 @@ const logAndReturn = ({
     return response;
 };
 
-const attachAuthCookies = (headers: Headers, tokens: {
-    accessToken: string;
-    refreshToken: string;
-}) => {
+const attachRefreshCookie = (headers: Headers, refreshToken: string) => {
+    // Clear legacy access-token cookies from older BFF versions. Access tokens now stay in JS memory only.
+    headers.append("Set-Cookie", clearCookie(ACCESS_COOKIE, "/"));
     headers.append(
         "Set-Cookie",
-        buildCookie(ACCESS_COOKIE, tokens.accessToken, {
-            maxAge: 900,
-            path: "/",
-        }),
-    );
-    headers.append(
-        "Set-Cookie",
-        buildCookie(REFRESH_COOKIE, tokens.refreshToken, {
+        buildCookie(REFRESH_COOKIE, refreshToken, {
             maxAge: 2592000,
             path: REFRESH_PATH,
         }),
@@ -302,10 +294,10 @@ export default {
                 return finish(withCors(backendResponse, origin), "login-token-missing");
             }
 
-            attachAuthCookies(corsHeaders, { accessToken, refreshToken });
+            attachRefreshCookie(corsHeaders, refreshToken);
             return finish(
                 jsonResponse(
-                    { success: true, data: user ? { user } : {} },
+                    { success: true, data: { accessToken, ...(user ? { user } : {}) } },
                     200,
                     corsHeaders,
                 ),
@@ -353,13 +345,10 @@ export default {
                 return finish(withCors(backendResponse, origin), "refresh-token-missing");
             }
 
-            attachAuthCookies(corsHeaders, {
-                accessToken,
-                refreshToken: nextRefreshToken,
-            });
+            attachRefreshCookie(corsHeaders, nextRefreshToken);
             return finish(
                 jsonResponse(
-                    { success: true, data: user ? { user } : {} },
+                    { success: true, data: { accessToken, ...(user ? { user } : {}) } },
                     200,
                     corsHeaders,
                 ),
@@ -392,23 +381,20 @@ export default {
         }
 
         if (!isPasswordResetPath(requestUrl.pathname)) {
-            const accessToken = cookies[ACCESS_COOKIE];
-            if (!accessToken) {
-                attachClearedCookies(corsHeaders);
+            const authorization = headers.get("Authorization");
+            if (!authorization?.toLowerCase().startsWith("bearer ")) {
                 return finish(
                     jsonResponse({ success: false }, 401, corsHeaders),
-                    "access-cookie-missing",
+                    "authorization-header-missing",
                 );
             }
 
-            headers.set("Authorization", `Bearer ${accessToken}`);
             headers.delete("cookie");
         }
 
         const backendResponse = await forwardRequest(request, targetUrl, headers);
 
         if (backendResponse.status === 401) {
-            attachClearedCookies(corsHeaders);
             return finish(
                 jsonResponse({ success: false }, 401, corsHeaders),
                 "api-unauthorized",
