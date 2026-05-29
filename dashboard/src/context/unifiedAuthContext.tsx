@@ -159,9 +159,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         envPreferredRole
     );
     const [accessToken, setAccessTokenState] = useState<string | null>(null);
+    const accessTokenRef = useRef<string | null>(null);
     const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const setAccessToken = (token: string | null) => {
+        accessTokenRef.current = token;
         setAccessTokenState(token);
     };
 
@@ -181,7 +183,11 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 const isBackend = !isExternal || (!!backend && config.url?.startsWith(backend));
 
                 if (isBackend) {
-                    config.withCredentials = true; // Cookie-based auth via worker
+                    config.withCredentials = true; // Refresh cookie only; access token stays in memory.
+                    if (!config._skipAuthRefresh && accessTokenRef.current) {
+                        config.headers = config.headers || {};
+                        config.headers.Authorization = `Bearer ${accessTokenRef.current}`;
+                    }
                 }
                 return config;
             },
@@ -221,6 +227,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     try {
                         const { data } = await refreshSession();
                         const refreshedUser = data?.data?.user;
+                        const refreshedAccessToken = data?.data?.accessToken;
                         if (data.success && refreshedUser) {
                             if (refreshedUser?.role === "super_admin" && !isSuperAdminAllowed()) {
                                 setAccessToken(null);
@@ -228,8 +235,12 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                                 return Promise.reject(new Error("Super admin login is disabled for this panel."));
                             }
 
-                            setAccessToken(null);
+                            setAccessToken(refreshedAccessToken ?? null);
                             setUser(refreshedUser);
+                            if (refreshedAccessToken) {
+                                originalRequest.headers = originalRequest.headers || {};
+                                originalRequest.headers.Authorization = `Bearer ${refreshedAccessToken}`;
+                            }
                             return axios(originalRequest);
                         }
                     } catch (refreshError) {
@@ -270,6 +281,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             const refreshRes = await refreshSession();
 
             const userData = refreshRes.data?.data?.user;
+            const refreshedAccessToken = refreshRes.data?.data?.accessToken;
             if (refreshRes.data.success && userData) {
                 if (userData?.role === "super_admin" && !isSuperAdminAllowed()) {
                     setAccessToken(null);
@@ -279,6 +291,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                     return;
                 }
 
+                setAccessToken(refreshedAccessToken ?? null);
                 setUser(userData);
                 setServerOffline(false);
                 if (userData?.role) {
@@ -359,7 +372,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success("Login successful");
-                setAccessToken(null);
+                setAccessToken(res.data?.data?.accessToken ?? null);
                 if (res.data?.data?.user) {
                     setUser(res.data.data.user);
                 } else {
@@ -389,7 +402,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(null);
+                setAccessToken(res.data?.data?.accessToken ?? null);
                 if (res.data?.data?.user) {
                     setUser(res.data.data.user);
                 } else {
@@ -415,7 +428,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(null);
+                setAccessToken(res.data?.data?.accessToken ?? null);
                 if (res.data?.data?.user) {
                     setUser(res.data.data.user);
                 } else {
@@ -441,7 +454,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             });
             if (res.data.success) {
                 toast.success(res.data.message || "Login successful");
-                setAccessToken(null);
+                setAccessToken(res.data?.data?.accessToken ?? null);
                 if (res.data?.data?.user) {
                     setUser(res.data.data.user);
                 } else {
