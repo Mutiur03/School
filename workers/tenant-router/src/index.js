@@ -470,7 +470,6 @@ export default {
         if (!isPasswordResetPath(requestUrl.pathname)) {
           const authorization = headers.get("Authorization");
           if (!authorization?.toLowerCase().startsWith("bearer ")) {
-            attachClearedCookies(corsHeaders);
             return finish(
               jsonResponse({ success: false }, 401, corsHeaders),
               "authorization-header-missing",
@@ -483,7 +482,6 @@ export default {
         const backendResponse = await forwardRequest(request, targetUrl, headers);
 
         if (backendResponse.status === 401) {
-          attachClearedCookies(corsHeaders);
           return finish(
             jsonResponse({ success: false }, 401, corsHeaders),
             "api-unauthorized",
