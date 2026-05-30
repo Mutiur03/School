@@ -16,6 +16,7 @@ const PASSWORD_RESET_PREFIXES = [
 ];
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
+const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
 const now = () => Date.now();
 
@@ -74,14 +75,8 @@ const buildCookie = (name, value, { maxAge, path }) =>
 
 const clearCookie = (name, path) => buildCookie(name, "", { maxAge: 0, path });
 
-const attachAuthCookies = (headers, { accessToken, refreshToken }) => {
-  headers.append(
-    "Set-Cookie",
-    buildCookie(ACCESS_COOKIE, accessToken, {
-      maxAge: 900,
-      path: "/",
-    }),
-  );
+const attachRefreshCookie = (headers, refreshToken) => {
+  headers.append("Set-Cookie", clearCookie(ACCESS_COOKIE, "/"));
   headers.append(
     "Set-Cookie",
     buildCookie(REFRESH_COOKIE, refreshToken, {
@@ -95,6 +90,28 @@ const attachClearedCookies = (headers) => {
   headers.append("Set-Cookie", clearCookie(ACCESS_COOKIE, "/"));
   headers.append("Set-Cookie", clearCookie(REFRESH_COOKIE, REFRESH_PATH));
   headers.append("Set-Cookie", clearCookie("refreshToken", "/"));
+};
+
+const buildCorsHeaders = (origin) => {
+  const headers = new Headers();
+  headers.set("Access-Control-Allow-Origin", origin);
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Allow-Methods", ALLOWED_METHODS);
+  headers.set("Vary", "Origin");
+  return headers;
+};
+
+const withCors = (response, origin) => {
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", origin);
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Allow-Methods", ALLOWED_METHODS);
+  headers.set("Vary", "Origin");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 };
 
 const parseCookies = (cookieHeader) => {
@@ -263,231 +280,220 @@ export default {
     const startTime = now();
     const requestUrl = new URL(request.url);
     try {
-    const target = resolveTenantTarget(requestUrl.hostname, env);
+      const target = resolveTenantTarget(requestUrl.hostname, env);
 
-    if (!target) {
-      const response = new Response("Unknown tenant host", { status: 404 });
-      logRequest("warn", "tenant-router.response", {
-        id,
-        method: request.method,
-        host: requestUrl.hostname,
-        path: requestUrl.pathname,
-        search: requestUrl.search,
-        branch: "unknown-tenant",
-        status: response.status,
-        durationMs: now() - startTime,
-      });
-      return response;
-    }
-
-    const backendOrigin = trimTrailingSlash(
-      String(env.BACKEND_ORIGIN || "https://apisms.mutiurrahman.com").trim(),
-    );
-    const backendProxy = shouldProxyToBackend(requestUrl.pathname);
-
-    const targetUrl = buildTargetUrl({
-      requestUrl,
-      targetOrigin: backendProxy ? backendOrigin : target.origin,
-    });
-
-    const finish = (response, branch) =>
-      logAndReturn({
-        response,
-        id,
-        startTime,
-        requestUrl,
-        targetUrl,
-        method: request.method,
-        slug: target.slug,
-        backendProxy,
-        branch,
-      });
-
-    const headers = cloneHeaders({
-      request,
-      originalHost: requestUrl.hostname,
-      slug: target.slug,
-    });
-
-    if (backendProxy) {
-      headers.set("origin", `${requestUrl.protocol}//${requestUrl.hostname}`);
-      headers.set("x-forwarded-host", requestUrl.hostname);
-
-      if (!requestUrl.pathname.startsWith("/api")) {
-        return finish(
-          await forwardRequest(request, targetUrl, headers),
-          "uploads-proxy",
-        );
+      if (!target) {
+        const response = new Response("Unknown tenant host", { status: 404 });
+        logRequest("warn", "tenant-router.response", {
+          id,
+          method: request.method,
+          host: requestUrl.hostname,
+          path: requestUrl.pathname,
+          search: requestUrl.search,
+          branch: "unknown-tenant",
+          status: response.status,
+          durationMs: now() - startTime,
+        });
+        return response;
       }
+
+      const backendOrigin = trimTrailingSlash(
+        String(env.BACKEND_ORIGIN || "https://apisms.mutiurrahman.com").trim(),
+      );
+      const backendProxy = shouldProxyToBackend(requestUrl.pathname);
+
+      const targetUrl = buildTargetUrl({
+        requestUrl,
+        targetOrigin: backendProxy ? backendOrigin : target.origin,
+      });
+      const originHeader = request.headers.get("Origin");
+      const origin = originHeader ?? requestUrl.origin;
+      const corsHeaders = buildCorsHeaders(origin);
+
+      const finish = (response, branch) =>
+        logAndReturn({
+          response,
+          id,
+          startTime,
+          requestUrl,
+          targetUrl,
+          method: request.method,
+          slug: target.slug,
+          backendProxy,
+          branch,
+        });
 
       if (request.method === "OPTIONS") {
-        return finish(
-          await forwardRequest(request, targetUrl, headers),
-          "api-options",
+        const requestedHeaders = request.headers.get("Access-Control-Request-Headers");
+        corsHeaders.set(
+          "Access-Control-Allow-Headers",
+          requestedHeaders || "Content-Type",
         );
+
+        if (backendProxy) {
+          return finish(new Response(null, { status: 204, headers: corsHeaders }), "options");
+        }
+
+        return finish(await forwardRequest(request, targetUrl, new Headers(request.headers)), "pages-options");
       }
 
-      headers.delete("host");
-      headers.delete("content-length");
+      const headers = cloneHeaders({
+        request,
+        originalHost: requestUrl.hostname,
+        slug: target.slug,
+      });
 
-      const responseHeaders = new Headers();
-      const cookies = parseCookies(request.headers.get("cookie"));
+      if (backendProxy) {
+        headers.set("origin", `${requestUrl.protocol}//${requestUrl.hostname}`);
+        headers.set("referer", `${requestUrl.origin}/`);
+        headers.set("x-forwarded-host", requestUrl.hostname);
+        headers.set("x-tenant-host", requestUrl.hostname);
 
-      if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
-        const backendResponse = await forwardRequest(request, targetUrl, headers);
-
-        if (backendResponse.status === 401) {
-          attachClearedCookies(responseHeaders);
+        if (!requestUrl.pathname.startsWith("/api")) {
           return finish(
-            jsonResponse({ success: false }, 401, responseHeaders),
-            "login-unauthorized",
+            await forwardRequest(request, targetUrl, headers),
+            "uploads-proxy",
           );
         }
 
-        if (!backendResponse.ok) {
+        headers.delete("host");
+        headers.delete("content-length");
+
+        const cookies = parseCookies(request.headers.get("cookie"));
+
+        if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
+          const backendResponse = await forwardRequest(request, targetUrl, headers);
+
+          if (backendResponse.status === 401) {
+            attachClearedCookies(corsHeaders);
+            return finish(
+              jsonResponse({ success: false }, 401, corsHeaders),
+              "login-unauthorized",
+            );
+          }
+
+          if (!backendResponse.ok) {
+            return finish(withCors(backendResponse, origin), "login-backend-error");
+          }
+
+          const data = await parseJson(backendResponse);
+          const accessToken = extractAccessToken(data);
+          const refreshToken =
+            extractRefreshToken(data) ||
+            extractRefreshTokenFromSetCookie(
+              backendResponse.headers.get("Set-Cookie"),
+            );
+          const user = extractUser(data);
+
+          if (!accessToken || !refreshToken) {
+            return finish(withCors(backendResponse, origin), "login-token-missing");
+          }
+
+          attachRefreshCookie(corsHeaders, refreshToken);
           return finish(
-            withAdditionalHeaders(backendResponse, responseHeaders),
-            "login-backend-error",
+            jsonResponse(
+              { success: true, data: { accessToken, ...(user ? { user } : {}) } },
+              200,
+              corsHeaders,
+            ),
+            "login-success",
           );
         }
 
-        const data = await parseJson(backendResponse);
-        const accessToken = extractAccessToken(data);
-        const refreshToken =
-          extractRefreshToken(data) ||
-          extractRefreshTokenFromSetCookie(
-            backendResponse.headers.get("Set-Cookie"),
-          );
-        const user = extractUser(data);
+        if (requestUrl.pathname === REFRESH_PATH && request.method === "POST") {
+          const refreshToken = getRefreshToken(cookies);
+          if (!refreshToken) {
+            attachClearedCookies(corsHeaders);
+            return finish(
+              jsonResponse({ success: false }, 401, corsHeaders),
+              "refresh-cookie-missing",
+            );
+          }
 
-        if (!accessToken || !refreshToken) {
-          return finish(
-            withAdditionalHeaders(backendResponse, responseHeaders),
-            "login-token-missing",
-          );
-        }
-
-        attachAuthCookies(responseHeaders, { accessToken, refreshToken });
-        return finish(
-          jsonResponse(
-            { success: true, data: user ? { user } : {} },
-            200,
-            responseHeaders,
-          ),
-          "login-success",
-        );
-      }
-
-      if (requestUrl.pathname === REFRESH_PATH && request.method === "POST") {
-        const refreshToken = getRefreshToken(cookies);
-        if (!refreshToken) {
-          attachClearedCookies(responseHeaders);
-          return finish(
-            jsonResponse({ success: false }, 401, responseHeaders),
-            "refresh-cookie-missing",
-          );
-        }
-
-        headers.delete("cookie");
-        headers.set("Cookie", `refreshToken=${refreshToken}`);
-
-        const backendResponse = await forwardRequest(request, targetUrl, headers);
-
-        if (backendResponse.status === 401) {
-          attachClearedCookies(responseHeaders);
-          return finish(
-            jsonResponse({ success: false }, 401, responseHeaders),
-            "refresh-unauthorized",
-          );
-        }
-
-        if (!backendResponse.ok) {
-          return finish(
-            withAdditionalHeaders(backendResponse, responseHeaders),
-            "refresh-backend-error",
-          );
-        }
-
-        const data = await parseJson(backendResponse);
-        const accessToken = extractAccessToken(data);
-        const nextRefreshToken =
-          extractRefreshToken(data) ||
-          extractRefreshTokenFromSetCookie(
-            backendResponse.headers.get("Set-Cookie"),
-          );
-        const user = extractUser(data);
-
-        if (!accessToken || !nextRefreshToken) {
-          return finish(
-            withAdditionalHeaders(backendResponse, responseHeaders),
-            "refresh-token-missing",
-          );
-        }
-
-        attachAuthCookies(responseHeaders, {
-          accessToken,
-          refreshToken: nextRefreshToken,
-        });
-        return finish(
-          jsonResponse(
-            { success: true, data: user ? { user } : {} },
-            200,
-            responseHeaders,
-          ),
-          "refresh-success",
-        );
-      }
-
-      if (
-        requestUrl.pathname === LOGOUT_PATH &&
-        (request.method === "DELETE" || request.method === "POST")
-      ) {
-        const refreshToken = getRefreshToken(cookies);
-        headers.delete("cookie");
-        if (refreshToken) {
+          headers.delete("cookie");
           headers.set("Cookie", `refreshToken=${refreshToken}`);
-        }
 
-        await forwardRequest(request, targetUrl, headers);
+          const backendResponse = await forwardRequest(request, targetUrl, headers);
 
-        attachClearedCookies(responseHeaders);
-        return finish(
-          jsonResponse({ success: true }, 200, responseHeaders),
-          "logout",
-        );
-      }
+          if (backendResponse.status === 401) {
+            attachClearedCookies(corsHeaders);
+            return finish(
+              jsonResponse({ success: false }, 401, corsHeaders),
+              "refresh-unauthorized",
+            );
+          }
 
-      if (!isPasswordResetPath(requestUrl.pathname)) {
-        const accessToken = cookies[ACCESS_COOKIE];
-        if (!accessToken) {
-          attachClearedCookies(responseHeaders);
+          if (!backendResponse.ok) {
+            return finish(withCors(backendResponse, origin), "refresh-backend-error");
+          }
+
+          const data = await parseJson(backendResponse);
+          const accessToken = extractAccessToken(data);
+          const nextRefreshToken =
+            extractRefreshToken(data) ||
+            extractRefreshTokenFromSetCookie(
+              backendResponse.headers.get("Set-Cookie"),
+            );
+          const user = extractUser(data);
+
+          if (!accessToken || !nextRefreshToken) {
+            return finish(withCors(backendResponse, origin), "refresh-token-missing");
+          }
+
+          attachRefreshCookie(corsHeaders, nextRefreshToken);
           return finish(
-            jsonResponse({ success: false }, 401, responseHeaders),
-            "access-cookie-missing",
+            jsonResponse(
+              { success: true, data: { accessToken, ...(user ? { user } : {}) } },
+              200,
+              corsHeaders,
+            ),
+            "refresh-success",
           );
         }
 
-        headers.set("Authorization", `Bearer ${accessToken}`);
-        headers.delete("cookie");
+        if (
+          requestUrl.pathname === LOGOUT_PATH &&
+          (request.method === "DELETE" || request.method === "POST")
+        ) {
+          const refreshToken = getRefreshToken(cookies);
+          headers.delete("cookie");
+          if (refreshToken) {
+            headers.set("Cookie", `refreshToken=${refreshToken}`);
+          }
+
+          await forwardRequest(request, targetUrl, headers);
+
+          attachClearedCookies(corsHeaders);
+          return finish(jsonResponse({ success: true }, 200, corsHeaders), "logout");
+        }
+
+        if (!isPasswordResetPath(requestUrl.pathname)) {
+          const authorization = headers.get("Authorization");
+          if (!authorization?.toLowerCase().startsWith("bearer ")) {
+            attachClearedCookies(corsHeaders);
+            return finish(
+              jsonResponse({ success: false }, 401, corsHeaders),
+              "authorization-header-missing",
+            );
+          }
+
+          headers.delete("cookie");
+        }
+
+        const backendResponse = await forwardRequest(request, targetUrl, headers);
+
+        if (backendResponse.status === 401) {
+          attachClearedCookies(corsHeaders);
+          return finish(
+            jsonResponse({ success: false }, 401, corsHeaders),
+            "api-unauthorized",
+          );
+        }
+
+        return finish(withCors(backendResponse, origin), "api-proxy");
       }
 
-      const backendResponse = await forwardRequest(request, targetUrl, headers);
-
-      if (backendResponse.status === 401) {
-        attachClearedCookies(responseHeaders);
-        return finish(
-          jsonResponse({ success: false }, 401, responseHeaders),
-          "api-unauthorized",
-        );
-      }
-
-      return finish(
-        withAdditionalHeaders(backendResponse, responseHeaders),
-        "api-proxy",
-      );
-    }
-
-    return finish(await forwardRequest(request, targetUrl, headers), "pages-proxy");
+      return finish(await forwardRequest(request, targetUrl, headers), "pages-proxy");
     } catch (error) {
       logRequest("error", "tenant-router.error", {
         id,
