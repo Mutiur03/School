@@ -18,7 +18,7 @@
     "build:super_admin": "tsc -b && vite build --mode super_admin"
   },
   "dependencies": {
-    "@mutiur03/observa-web": "^0.1.0",
+    "@mutiur03/observa-web": "^0.1.1",
     "@school/common-ui": "*",
     "@school/client-ui": "*",
     "@school/shared-schemas": "*",
