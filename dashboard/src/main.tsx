@@ -7,9 +7,17 @@ import { UnifiedAuthProvider } from "./context/unifiedAuthContext.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import backend from "./lib/backend.ts";
+import { init as initObserva } from "@mutiur03/observa-web";
 
 axios.defaults.baseURL = backend;
 axios.defaults.withCredentials = true;
+
+if (import.meta.env.VITE_OBSERVA_PUBLIC_KEY) {
+  initObserva({
+    apiKey: import.meta.env.VITE_OBSERVA_PUBLIC_KEY,
+    endpoint: import.meta.env.VITE_OBSERVA_API_URL || "https://observa-api.mutiurrahman.com/v1",
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -63,11 +63,13 @@ import {
   initRlsContextMiddleware,
   syncRlsSchoolContextMiddleware,
 } from "./middlewares/rlsContext.middleware.js";
+import { createObserva } from "@mutiur03/observa-node";
 
 const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
+createObserva(process.env.OBSERVA_SECRET_KEY).installExpress(app);
 const configuredOrigins = (env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim().toLowerCase())
