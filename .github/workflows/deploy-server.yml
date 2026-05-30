@@ -143,7 +143,7 @@ jobs:
   #           # Set target directory relative to home
   #           cd ~/${{ env.PROJECT_PATH }}/server
   #           git reset --hard HEAD
-  #           git pull 
+  #           git pull
   #           # Ensure scripts are executable
   #           chmod +x restart.sh setup-network.sh
 
@@ -208,7 +208,9 @@ jobs:
             # Set target directory relative to home
             cd ~/${{ env.PROJECT_PATH }}/server
             git reset --hard HEAD
-            git pull
+            CURRENT_BRANCH=$(git branch --show-current)
+            git fetch origin "$CURRENT_BRANCH"
+            git reset --hard "origin/$CURRENT_BRANCH"
             # Ensure scripts are executable
             chmod +x restart.sh setup-network.sh
 
