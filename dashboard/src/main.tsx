@@ -14,7 +14,9 @@ axios.defaults.withCredentials = true;
 
 const OBSERVA_PUBLIC_KEY = import.meta.env.VITE_OBSERVA_PUBLIC_KEY;
 
-initObserva(OBSERVA_PUBLIC_KEY);
+if (OBSERVA_PUBLIC_KEY) {
+  initObserva(OBSERVA_PUBLIC_KEY);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
