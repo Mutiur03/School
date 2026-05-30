@@ -81,6 +81,8 @@ jobs:
 
       - name: Install workspace dependencies
         run: npm ci --include=optional --ignore-scripts=false --no-audit --no-fund
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build shared packages
         run: |
