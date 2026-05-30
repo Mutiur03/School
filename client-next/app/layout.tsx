@@ -19,6 +19,7 @@ import { TopBanner } from "@/components/TopBanner";
 import governmentLogoImage from "../assets/images/gov-logo.png";
 import { Analytics as VAnalytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Observa } from "@mutiur03/observa-web/react";
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();
   return buildSchoolMetadata(school);
@@ -63,6 +64,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-full flex flex-col">
         <Analytics measurementId={school?.gaMeasurementId} />
+        {process.env.NEXT_PUBLIC_OBSERVA_PUBLIC_KEY && (
+          <Observa
+            apiKey={process.env.NEXT_PUBLIC_OBSERVA_PUBLIC_KEY}
+          />
+        )}
         <VAnalytics />
         <SpeedInsights />
         <Providers>

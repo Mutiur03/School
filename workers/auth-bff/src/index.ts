@@ -195,6 +195,33 @@ const forwardRequest = (request: Request, targetUrl: URL, headers: Headers) =>
         }),
     );
 
+const forwardOrUnavailable = async (
+    request: Request,
+    targetUrl: URL,
+    headers: Headers,
+) => {
+    try {
+        return await forwardRequest(request, targetUrl, headers);
+    } catch (error) {
+        console.error(
+            JSON.stringify({
+                event: "auth-bff.backend-unavailable",
+                targetOrigin: targetUrl.origin,
+                targetPath: targetUrl.pathname,
+                message: error instanceof Error ? error.message : String(error),
+            }),
+        );
+        return jsonResponse(
+            {
+                success: false,
+                message: "Backend unavailable",
+                target: targetUrl.origin,
+            },
+            502,
+        );
+    }
+};
+
 const applyTenantHeaders = (headers: Headers, requestUrl: URL) => {
     headers.set("origin", requestUrl.origin);
     headers.set("referer", `${requestUrl.origin}/`);
@@ -267,7 +294,7 @@ export default {
             applyTenantHeaders(headers, requestUrl);
 
             if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
-            const backendResponse = await forwardRequest(request, targetUrl, headers);
+            const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
@@ -318,7 +345,7 @@ export default {
             headers.delete("cookie");
             headers.set("Cookie", `refreshToken=${refreshToken}`);
 
-            const backendResponse = await forwardRequest(request, targetUrl, headers);
+            const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
@@ -366,7 +393,7 @@ export default {
                 headers.set("Cookie", `refreshToken=${refreshToken}`);
             }
 
-            const backendResponse = await forwardRequest(request, targetUrl, headers);
+            const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
 
             if (backendResponse.status === 401) {
                 attachClearedCookies(corsHeaders);
@@ -392,7 +419,7 @@ export default {
             headers.delete("cookie");
         }
 
-        const backendResponse = await forwardRequest(request, targetUrl, headers);
+        const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
 
         if (backendResponse.status === 401) {
             return finish(

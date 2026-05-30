@@ -12,7 +12,7 @@ import { init as initObserva } from "@mutiur03/observa-web";
 axios.defaults.baseURL = backend;
 axios.defaults.withCredentials = true;
 
-initObserva(import.meta.env.VITE_OBSERVA_PUBLIC_KEY || "obspk_wDiRJctjzatWt7-9SQ3GA4NGUF_Vf_lvShkIlyvIs4A");
+initObserva(import.meta.env.VITE_OBSERVA_PUBLIC_KEY);
 
 const queryClient = new QueryClient({
   defaultOptions: {

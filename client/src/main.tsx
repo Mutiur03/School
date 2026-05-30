@@ -10,6 +10,9 @@ import { schoolConfig } from "@/lib/info";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL ?? "").trim();
+import { init as initObserva } from "@mutiur03/observa-web";
+
+initObserva(import.meta.env.VITE_OBSERVA_PUBLIC_KEY);
 
 const queryClient = new QueryClient({
   defaultOptions: {
