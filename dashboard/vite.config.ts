@@ -8,7 +8,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 export default defineConfig({
   plugins: [tailwindcss(), react(), visualizer({})],
   optimizeDeps: {
-    exclude: ["@school/shared-schemas"],
+    exclude: ["@school/shared-schemas", "@mutiur03/observa-web"],
   },
   server: {
     fs: {
