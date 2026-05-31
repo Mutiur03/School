@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
-    "@mutiur03/observa-web": "^0.1.1",
+    "@mutiur03/observa-web": "^0.1.2",
     "@school/shared-schemas": "*",
     "@tanstack/react-query": "^5.99.0",
     "@vercel/analytics": "^2.0.1",
