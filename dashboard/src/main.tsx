@@ -12,7 +12,11 @@ import { init as initObserva } from "@mutiur03/observa-web";
 axios.defaults.baseURL = backend;
 axios.defaults.withCredentials = true;
 
-initObserva(import.meta.env.VITE_OBSERVA_PUBLIC_KEY);
+const observaPublicKey = import.meta.env.VITE_OBSERVA_PUBLIC_KEY;
+
+if (observaPublicKey) {
+  initObserva({ apiKey: observaPublicKey, autoTrack: { webVitals: false } });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
