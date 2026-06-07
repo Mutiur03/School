@@ -128,6 +128,7 @@ export const upazilas: Upazila[] = [
   { id: "Dhunat", name: "Dhunat", districtId: "Bogura" },
   { id: "Dupchanchia", name: "Dupchanchia", districtId: "Bogura" },
   { id: "Gabtali", name: "Gabtali", districtId: "Bogura" },
+  { id: "Mokamtola", name: "Mokamtola", districtId: "Bogura" },
   { id: "Kahaloo", name: "Kahaloo", districtId: "Bogura" },
   { id: "Nandigram", name: "Nandigram", districtId: "Bogura" },
   { id: "Sariakandi", name: "Sariakandi", districtId: "Bogura" },
@@ -483,6 +484,7 @@ export const upazilas: Upazila[] = [
   { id: "Mirpur", name: "Mirpur", districtId: "Kushtia" },
 
   // Lakshmipur District
+  { id: "Chandraganj", name: "Chandraganj", districtId: "Lakshmipur" },
   { id: "Kamalnagar", name: "Kamalnagar", districtId: "Lakshmipur" },
   {
     id: "Lakshmipur Sadar",
