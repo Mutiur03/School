@@ -170,7 +170,7 @@ export class AttendenceService {
 
     const recordsMap = new Map(attendanceRecords.map((r) => [r.student_id, r]));
     const smsMessages: any[] = [];
-    const smsLogMap = new Map<string, SmsLogInfo[]>();
+    const orderedBatches: SmsLogInfo[][] = [];
     let totalSegmentsNeeded = 0;
 
     for (const enrollment of enrollments) {
@@ -222,13 +222,12 @@ export class AttendenceService {
         const phoneKey = SMSService.formatPhoneNumber(
           enrollment.student.father_phone,
         );
-        if (!smsLogMap.has(phoneKey)) smsLogMap.set(phoneKey, []);
-        smsLogMap.get(phoneKey)!.push({
+        orderedBatches.push([{
           smsLogId: smsLog.id,
           studentId: enrollment.student_id,
           attendanceDate: date,
           studentName: enrollment.student.name,
-        });
+        }]);
 
         smsMessages.push({ Number: phoneKey, Text: message });
       }
@@ -254,7 +253,7 @@ export class AttendenceService {
       if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
         const processRes = await SmsLogsService.processBatchResults(
           bulkSmsResponse.data.results,
-          smsLogMap,
+          orderedBatches,
         );
         smsSuccessCount = processRes.successCount;
         smsFailedCount = processRes.failedCount;
@@ -270,7 +269,7 @@ export class AttendenceService {
       } else {
         await SmsSettingsService.updateBalance(totalSegmentsNeeded);
         await SmsLogsService.handleCatastrophicFailure(
-          smsLogMap,
+          orderedBatches,
           bulkSmsResponse.message || "Bulk SMS delivery failed",
         );
         throw new Error(bulkSmsResponse.message || "Failed to send SMS");
@@ -278,7 +277,7 @@ export class AttendenceService {
     } catch (error: any) {
       await SmsSettingsService.updateBalance(totalSegmentsNeeded);
       await SmsLogsService.handleCatastrophicFailure(
-        smsLogMap,
+        orderedBatches,
         error.message || "Unknown SMS Error",
       );
       throw error;

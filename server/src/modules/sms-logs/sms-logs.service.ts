@@ -115,15 +115,15 @@ export class SmsLogsService {
 
   static async processBatchResults(
     batchResults: any[],
-    smsLogMap: Map<string, SmsLogInfo[]>,
+    orderedBatches: SmsLogInfo[][],
   ) {
     let successCount = 0;
     let failedCount = 0;
     const results: any[] = [];
 
-    for (const result of batchResults) {
-      const normalizedTo = SMSService.formatPhoneNumber(result.to ?? "");
-      const smsDataArray = smsLogMap.get(normalizedTo) ?? smsLogMap.get(result.to);
+    for (let i = 0; i < batchResults.length; i++) {
+      const result = batchResults[i];
+      const smsDataArray = orderedBatches[i];
       if (smsDataArray) {
         for (const smsData of smsDataArray) {
           const { smsLogId, studentId, attendanceDate, studentName } = smsData;
@@ -182,13 +182,13 @@ export class SmsLogsService {
   }
 
   static async handleCatastrophicFailure(
-    smsLogMap: Map<string, SmsLogInfo[]>,
+    orderedBatches: SmsLogInfo[][],
     errorReason: string,
   ) {
     let failedCount = 0;
     const results: any[] = [];
 
-    for (const [_phoneNumber, smsDataArray] of smsLogMap) {
+    for (const smsDataArray of orderedBatches) {
       for (const smsData of smsDataArray) {
         const { smsLogId, studentName } = smsData;
         failedCount++;
@@ -226,7 +226,7 @@ export class SmsLogsService {
     let skippedCount = 0;
     const results: any[] = [];
     const smsMessages: { Number: string; Text: string }[] = [];
-    const smsLogMap = new Map<string, SmsLogInfo[]>();
+    const orderedBatches: SmsLogInfo[][] = [];
 
     for (const smsLogId of smsLogIds) {
       try {
@@ -278,15 +278,12 @@ export class SmsLogsService {
           Text: smsLog.message,
         });
 
-        if (!smsLogMap.has(phoneNumber)) {
-          smsLogMap.set(phoneNumber, []);
-        }
-        smsLogMap.get(phoneNumber)!.push({
-          smsLogId: smsLogId,
+        orderedBatches.push([{
+          smsLogId,
           studentId: smsLog.student_id,
           attendanceDate: smsLog.attendance_date,
           studentName: smsLog.student.name,
-        });
+        }]);
       } catch (error: any) {
         results.push({
           smsLogId,
@@ -314,12 +311,14 @@ export class SmsLogsService {
         failedCount += smsMessages.length;
       } else {
         try {
-          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages);
+          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, {
+            skipBalanceUpdate: true,
+          });
 
           if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
             const processRes = await this.processBatchResults(
               bulkSmsResponse.data.results,
-              smsLogMap,
+              orderedBatches,
             );
             successCount += processRes.successCount;
             failedCount += processRes.failedCount;
@@ -339,7 +338,7 @@ export class SmsLogsService {
             await SmsSettingsService.updateBalance(totalSegmentsNeeded);
             const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
             const failRes = await this.handleCatastrophicFailure(
-              smsLogMap,
+              orderedBatches,
               errorReason,
             );
             failedCount += failRes.failedCount;
@@ -349,7 +348,7 @@ export class SmsLogsService {
           // Refund entire reserved amount on error
           await SmsSettingsService.updateBalance(totalSegmentsNeeded);
           const failRes = await this.handleCatastrophicFailure(
-            smsLogMap,
+            orderedBatches,
             smsError.message,
           );
           failedCount += failRes.failedCount;
@@ -528,7 +527,8 @@ export class SmsLogsService {
     }
 
     const smsMessages: { Number: string; Text: string }[] = [];
-    const smsLogMap = new Map<string, SmsLogInfo[]>();
+    const orderedBatches: SmsLogInfo[][] = [];
+    const phoneIndexMap = new Map<string, number>();
     const todayStr = new Date().toISOString().split("T")[0];
     let totalSegmentsNeeded = 0;
 
@@ -555,13 +555,15 @@ export class SmsLogsService {
         },
       });
 
-      if (!smsLogMap.has(formattedPhone)) {
-        smsLogMap.set(formattedPhone, []);
+      if (!phoneIndexMap.has(formattedPhone)) {
+        phoneIndexMap.set(formattedPhone, smsMessages.length);
         smsMessages.push({ Number: formattedPhone, Text: message });
+        orderedBatches.push([]);
         totalSegmentsNeeded += smsCountPerMsg;
       }
-      
-      smsLogMap.get(formattedPhone)!.push({
+
+      const idx = phoneIndexMap.get(formattedPhone)!;
+      orderedBatches[idx].push({
         smsLogId: smsLog.id,
         studentId: enrollment.student_id,
         attendanceDate: todayStr,
@@ -576,7 +578,7 @@ export class SmsLogsService {
     const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
     if (!isReserved) {
       // Cleanup pending logs
-      const logIds = Array.from(smsLogMap.values()).flat().map(l => l.smsLogId);
+      const logIds = orderedBatches.flat().map((l) => l.smsLogId);
       await prisma.sms_logs.deleteMany({ where: { id: { in: logIds } } });
       throw new Error("Insufficient SMS balance.");
     }
@@ -585,7 +587,7 @@ export class SmsLogsService {
       const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
       
       if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-        const processRes = await this.processBatchResults(bulkSmsResponse.data.results, smsLogMap);
+        const processRes = await this.processBatchResults(bulkSmsResponse.data.results, orderedBatches);
         
         let totalActualUsed = 0;
         for (const res of bulkSmsResponse.data.results) {
@@ -599,12 +601,12 @@ export class SmsLogsService {
       } else {
         await SmsSettingsService.updateBalance(totalSegmentsNeeded);
         const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
-        const failRes = await this.handleCatastrophicFailure(smsLogMap, errorReason);
+        const failRes = await this.handleCatastrophicFailure(orderedBatches, errorReason);
         return failRes;
       }
     } catch (error: any) {
       await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-      const failRes = await this.handleCatastrophicFailure(smsLogMap, error.message || "Unknown SMS Error");
+      const failRes = await this.handleCatastrophicFailure(orderedBatches, error.message || "Unknown SMS Error");
       return failRes;
     }
   }
