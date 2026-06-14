@@ -19,4 +19,13 @@ export class DashboardController {
       )
     );
   });
+
+  static getAttendanceData = asyncHandler(async (req: Request, res: Response) => {
+    const parsedDays = parseInt(String(req.query.attendanceDays ?? "7"), 10);
+    const attendanceData = await DashboardService.getAttendanceData(parsedDays);
+
+    res.status(200).json(
+      new ApiResponse(200, attendanceData, "Attendance data retrieved successfully")
+    );
+  });
 }

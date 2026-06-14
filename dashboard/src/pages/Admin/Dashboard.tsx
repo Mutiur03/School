@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LineChart,
@@ -21,46 +20,12 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionCard, StatsCard } from "@/components";
 import { getFileUrl } from "@/lib/backend";
-
-interface Announcement {
-  id: number;
-  title: string;
-  content: string;
-  date: string;
-  url: string;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-}
-
-interface AttendanceData {
-  name: string;
-  present: number;
-  absent: number;
-  run_awayed: number;
-}
-
-interface ExamSchedule {
-  name: string;
-  start_date: string;
-  end_date: string;
-}
-
-interface DashboardData {
-  quickStats: {
-    students: number;
-    teachers: number;
-    events: number;
-  };
-  announcements: Announcement[];
-  attendanceData: AttendanceData[];
-  events: Event[];
-  examSchedule: ExamSchedule[];
-}
+import {
+  ATTENDANCE_RANGES,
+  type AttendanceRange,
+  useDashboardAttendance,
+  useDashboardOverview,
+} from "@/queries/dashboard.queries";
 
 interface Tab {
   id: string;
@@ -75,45 +40,32 @@ const COLORS = {
 };
 
 function Dashboard() {
-  const [dashboardData, setDashboardData] = useState<DashboardData>({
-    quickStats: { students: 0, teachers: 0, events: 0 },
-    announcements: [],
-    attendanceData: [],
-    events: [],
-    examSchedule: [],
-  });
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [attendanceDays, setAttendanceDays] = useState<AttendanceRange>(7);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const {
+    data: dashboardData,
+    isPending: overviewPending,
+    isError: overviewError,
+    error: overviewQueryError,
+    refetch: refetchOverview,
+  } = useDashboardOverview();
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/dashboard");
+  const {
+    data: attendanceData = [],
+    isPending: attendancePending,
+    isFetching: attendanceFetching,
+  } = useDashboardAttendance(attendanceDays);
 
-      if (response.data.success) {
-        setDashboardData(response.data.data);
-      } else {
-        throw new Error(response.data.message || "Failed to fetch data");
-      }
-    } catch (err: unknown) {
-      const error = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      setError(
-        error.response?.data?.message || error.message || "An error occurred",
-      );
-      console.error("Error fetching dashboard data:", err);
-    } finally {
-      setLoading(false);
-    }
+  const quickStats = dashboardData?.quickStats ?? {
+    students: 0,
+    teachers: 0,
+    events: 0,
   };
+  const announcements = dashboardData?.announcements ?? [];
+  const events = dashboardData?.events ?? [];
+  const examSchedule = dashboardData?.examSchedule ?? [];
 
   const tabs: Tab[] = [
     {
@@ -139,7 +91,7 @@ function Dashboard() {
     },
   ];
 
-  if (loading) {
+  if (overviewPending) {
     return (
       <div className="min-h-screen p-4 sm:p-6 lg:p-8 animate-pulse text-gray-500">
         <div className="max-w-7xl mx-auto space-y-8">
@@ -159,15 +111,20 @@ function Dashboard() {
     );
   }
 
-  if (error) {
+  if (overviewError) {
+    const errorMessage =
+      overviewQueryError instanceof Error
+        ? overviewQueryError.message
+        : "An error occurred";
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <SectionCard className="max-w-md w-full text-center p-8">
           <div className="text-destructive text-6xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-          <p className="text-muted-foreground mb-6">{error}</p>
+          <p className="text-muted-foreground mb-6">{errorMessage}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => refetchOverview()}
             className="px-6 py-2 bg-primary text-white rounded-lg hover:shadow-lg transition-all"
           >
             Try Again
@@ -178,17 +135,41 @@ function Dashboard() {
   }
 
   const renderAttendanceSection = (title: string) => {
-    const hasData =
-      dashboardData.attendanceData && dashboardData.attendanceData.length > 0;
+    const hasData = attendanceData.length > 0;
+    const chartInitialLoad = attendancePending && !hasData;
+    const chartRefreshing = attendanceFetching && hasData;
+
+    const rangeSelector = (
+      <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
+        {ATTENDANCE_RANGES.map((range) => (
+          <button
+            key={range}
+            type="button"
+            onClick={() => setAttendanceDays(range)}
+            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+              attendanceDays === range
+                ? "bg-card text-primary shadow-sm border border-border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {range}d
+          </button>
+        ))}
+      </div>
+    );
 
     return (
-      <SectionCard title={title} className="w-full">
-        {hasData ? (
+      <SectionCard title={title} headerAction={rangeSelector} className="w-full">
+        {hasData || chartInitialLoad ? (
           <div className="flex flex-col">
-            <div className="h-64 sm:h-72 w-full">
+            <div
+              className={`h-64 sm:h-72 w-full transition-opacity ${
+                chartRefreshing || chartInitialLoad ? "opacity-60" : "opacity-100"
+              }`}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={dashboardData.attendanceData}
+                  data={attendanceData}
                   margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -323,17 +304,17 @@ function Dashboard() {
                   {[
                     {
                       label: "Total Students",
-                      value: dashboardData.quickStats.students,
+                      value: quickStats.students,
                       icon: <Users className="w-4 h-4 text-blue-500" />,
                     },
                     {
                       label: "Active Teachers",
-                      value: dashboardData.quickStats.teachers,
+                      value: quickStats.teachers,
                       icon: <UserCheck className="w-4 h-4 text-green-500" />,
                     },
                     {
                       label: "Upcoming Events",
-                      value: dashboardData.quickStats.events,
+                      value: quickStats.events,
                       icon: <Calendar className="w-4 h-4 text-yellow-500" />,
                     },
                   ].map((stat) => (
@@ -368,8 +349,8 @@ function Dashboard() {
                 }
               >
                 <div className="space-y-4">
-                  {dashboardData.announcements.length > 0 ? (
-                    dashboardData.announcements.slice(0, 3).map((notice) => (
+                  {announcements.length > 0 ? (
+                    announcements.slice(0, 3).map((notice) => (
                       <a
                         href={getFileUrl(notice.url)}
                         target="_blank"
@@ -405,8 +386,8 @@ function Dashboard() {
                 }
               >
                 <div className="space-y-4">
-                  {dashboardData.events.length > 0 ? (
-                    dashboardData.events.slice(0, 3).map((event) => (
+                  {events.length > 0 ? (
+                    events.slice(0, 3).map((event) => (
                       <div
                         key={event.id}
                         className="flex gap-4 p-3 rounded-lg hover:bg-muted/30 transition-colors border border-transparent hover:border-border"
@@ -448,7 +429,7 @@ function Dashboard() {
         return (
           <SectionCard title="Notices & Announcements">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {dashboardData.announcements.map((notice) => (
+              {announcements.map((notice) => (
                 <a
                   href={getFileUrl(notice.url)}
                   target="_blank"
@@ -475,7 +456,7 @@ function Dashboard() {
         return (
           <SectionCard title="Scheduled Events">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {dashboardData.events.map((event) => (
+              {events.map((event) => (
                 <div
                   key={event.id}
                   className="group overflow-hidden rounded-xl border border-border bg-card hover:shadow-lg transition-all"
@@ -525,7 +506,7 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {dashboardData.examSchedule.map((exam, index) => {
+                  {examSchedule.map((exam, index) => {
                     const now = new Date();
                     const start = new Date(exam.start_date);
                     const end = new Date(exam.end_date);
@@ -562,7 +543,7 @@ function Dashboard() {
                   })}
                 </tbody>
               </table>
-              {dashboardData.examSchedule.length === 0 && (
+              {examSchedule.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
                   No exams scheduled.
                 </div>
@@ -586,21 +567,21 @@ function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatsCard
             label="Total Students"
-            value={dashboardData.quickStats.students}
+            value={quickStats.students}
             icon={<Users className="w-6 h-6" />}
             color="blue"
             loading={false}
           />
           <StatsCard
             label="Active Faculty"
-            value={dashboardData.quickStats.teachers}
+            value={quickStats.teachers}
             icon={<UserCheck className="w-6 h-6" />}
             color="emerald"
             loading={false}
           />
           <StatsCard
             label="Scheduled Events"
-            value={dashboardData.quickStats.events}
+            value={quickStats.events}
             icon={<Calendar className="w-6 h-6" />}
             color="amber"
             loading={false}
