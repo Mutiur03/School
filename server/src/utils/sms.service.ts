@@ -1,5 +1,6 @@
 import { env } from "@/config/env.js";
 import { prisma } from "@/config/prisma.js";
+import { getRlsContext } from "@/config/rlsContextStore.js";
 import axios from "axios";
 import { calculateSMSCount } from "@school/shared-schemas";
 import { DEFAULT_SMS_TEMPLATES } from "@/constants/smsTemplates.js";
@@ -38,11 +39,19 @@ export class SMSService {
   }
 
   public static async getSettings() {
-    let settings = await prisma.sms_settings.findFirst();
+    const { schoolId } = getRlsContext() ?? {};
+    if (!Number.isInteger(schoolId)) {
+      throw new Error("School context missing for SMS settings");
+    }
+
+    let settings = await prisma.sms_settings.findUnique({
+      where: { school_id: schoolId as number },
+    });
     if (!settings) {
       settings = await prisma.sms_settings.create({
         data: {
           ...DEFAULT_SMS_TEMPLATES,
+          school_id: schoolId as number,
         },
       });
     }
