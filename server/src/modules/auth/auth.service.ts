@@ -408,12 +408,17 @@ export class AuthService {
       throw new ApiError(400, "School ID is required");
     }
 
-    const existing = await prisma.admin.findFirst({
-      where: { username, school_id: schoolId },
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) {
+      throw new ApiError(404, "School not found");
+    }
+
+    const existing = await prisma.admin.findUnique({
+      where: { username,  },
     });
 
     if (existing) {
-      throw new ApiError(409, "Admin already exists");
+      throw new ApiError(409, "Admin username already exists");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -425,6 +430,46 @@ export class AuthService {
         school_id: schoolId,
       },
     });
+
+    return { id: admin.id, username: admin.username };
+  }
+
+  static async listAdminsForSchool(schoolId?: number) {
+    if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
+      throw new ApiError(400, "School ID is required");
+    }
+
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) {
+      throw new ApiError(404, "School not found");
+    }
+
+    return prisma.admin.findMany({
+      where: { school_id: schoolId },
+      select: { id: true, username: true, role: true },
+      orderBy: { username: "asc" },
+    });
+  }
+
+  static async deleteAdmin(adminId?: number, schoolId?: number) {
+    if (!adminId || !Number.isInteger(adminId) || adminId <= 0) {
+      throw new ApiError(400, "Admin ID is required");
+    }
+
+    if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
+      throw new ApiError(400, "School ID is required");
+    }
+
+    const admin = await prisma.admin.findFirst({
+      where: { id: adminId, school_id: schoolId },
+      select: { id: true, username: true },
+    });
+
+    if (!admin) {
+      throw new ApiError(404, "Admin not found for this school");
+    }
+
+    await prisma.admin.delete({ where: { id: admin.id } });
 
     return { id: admin.id, username: admin.username };
   }

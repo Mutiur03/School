@@ -14,8 +14,10 @@ import {
   RefreshCw,
   Save,
   Trash2,
+  UserCog,
 } from "lucide-react";
 import {
+  addAdminSchema,
   createSchoolSchema,
   districts,
   getUpazilasByDistrict,
@@ -40,6 +42,17 @@ interface SchoolData {
   subdomain: string;
   customDomain: string;
 }
+
+interface SchoolAdmin {
+  id: number;
+  username: string;
+  role: string;
+}
+
+type AdminFormValues = {
+  username: string;
+  password: string;
+};
 
 const currentYear = new Date().getFullYear();
 
@@ -86,6 +99,21 @@ function SchoolManagement() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [schoolAdmins, setSchoolAdmins] = useState<SchoolAdmin[]>([]);
+  const [fetchingAdmins, setFetchingAdmins] = useState(false);
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null);
+
+  const {
+    register: registerAdmin,
+    handleSubmit: handleAdminSubmit,
+    reset: resetAdminForm,
+    formState: { errors: adminErrors },
+  } = useForm<AdminFormValues>({
+    resolver: zodResolver(addAdminSchema),
+    defaultValues: { username: "", password: "" },
+    mode: "onSubmit",
+  });
 
   const {
     register,
@@ -147,6 +175,30 @@ function SchoolManagement() {
     fetchSchools();
   }, [fetchSchools]);
 
+  const fetchSchoolAdmins = useCallback(async (schoolId: number) => {
+    setFetchingAdmins(true);
+    try {
+      const res = await axios.get(`/api/auth/super_admin/schools/${schoolId}/admins`);
+      const list = Array.isArray(res.data?.data) ? res.data.data : [];
+      setSchoolAdmins(list);
+    } catch (error) {
+      console.error("Failed to fetch school admins", error);
+      setSchoolAdmins([]);
+      toast.error("Failed to load school admins");
+    } finally {
+      setFetchingAdmins(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    resetAdminForm({ username: "", password: "" });
+    if (typeof selectedSchoolId === "number") {
+      fetchSchoolAdmins(selectedSchoolId);
+    } else {
+      setSchoolAdmins([]);
+    }
+  }, [selectedSchoolId, fetchSchoolAdmins, resetAdminForm]);
+
   const selectSchool = (school: SchoolData) => {
     setSelectedSchoolId(school.id ?? "new");
     reset(toFormValues(school));
@@ -155,6 +207,8 @@ function SchoolManagement() {
   const startNewSchool = () => {
     setSelectedSchoolId("new");
     reset(createEmptySchool());
+    setSchoolAdmins([]);
+    resetAdminForm({ username: "", password: "" });
     setPendingLogoFile(null);
     if (logoPreviewUrl) {
       URL.revokeObjectURL(logoPreviewUrl);
@@ -335,6 +389,56 @@ function SchoolManagement() {
       toast.error("Failed to delete school");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const onAddAdmin = async (values: AdminFormValues) => {
+    if (selectedSchoolId === "new") {
+      toast.error("Save the school before adding admins");
+      return;
+    }
+
+    setAddingAdmin(true);
+    try {
+      await axios.post(
+        `/api/auth/super_admin/schools/${selectedSchoolId}/admins`,
+        values,
+      );
+      toast.success("Admin added successfully");
+      resetAdminForm({ username: "", password: "" });
+      await fetchSchoolAdmins(selectedSchoolId);
+    } catch (error) {
+      console.error("Failed to add admin", error);
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || "Failed to add admin");
+      } else {
+        toast.error("Failed to add admin");
+      }
+    } finally {
+      setAddingAdmin(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (admin: SchoolAdmin) => {
+    if (selectedSchoolId === "new") return;
+
+    const confirmed = window.confirm(
+      `Delete admin "${admin.username}" from this school?`,
+    );
+    if (!confirmed) return;
+
+    setDeletingAdminId(admin.id);
+    try {
+      await axios.delete(
+        `/api/auth/super_admin/schools/${selectedSchoolId}/admins/${admin.id}`,
+      );
+      toast.success("Admin deleted");
+      await fetchSchoolAdmins(selectedSchoolId);
+    } catch (error) {
+      console.error("Failed to delete admin", error);
+      toast.error("Failed to delete admin");
+    } finally {
+      setDeletingAdminId(null);
     }
   };
 
@@ -618,6 +722,116 @@ function SchoolManagement() {
               </button>
             </div>
           </form>
+
+          {selectedSchoolId !== "new" && (
+            <div className="mt-8 rounded-xl border p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <UserCog className="h-5 w-5 text-primary" />
+                  School Admins ({schoolAdmins.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => fetchSchoolAdmins(selectedSchoolId)}
+                  disabled={fetchingAdmins}
+                  className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${fetchingAdmins ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </button>
+              </div>
+
+              {fetchingAdmins ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading admins...
+                </div>
+              ) : schoolAdmins.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No admins for this school yet.
+                </p>
+              ) : (
+                <ul className="divide-y rounded-lg border">
+                  {schoolAdmins.map((admin) => (
+                    <li
+                      key={admin.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div>
+                        <p className="font-medium">{admin.username}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {admin.role}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAdmin(admin)}
+                        disabled={deletingAdminId === admin.id}
+                        className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2.5 py-1.5 text-xs text-red-600"
+                      >
+                        {deletingAdminId === admin.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <form
+                onSubmit={handleAdminSubmit(onAddAdmin)}
+                className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t"
+                noValidate
+              >
+                <div>
+                  <label className="block text-sm font-medium mb-1">Username</label>
+                  <input
+                    {...registerAdmin("username")}
+                    className="w-full rounded-md border px-3 py-2"
+                    placeholder="e.g. admin@school"
+                  />
+                  {adminErrors.username && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {adminErrors.username.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <input
+                    type="password"
+                    {...registerAdmin("password")}
+                    className="w-full rounded-md border px-3 py-2"
+                    placeholder="Min 6 characters"
+                  />
+                  {adminErrors.password && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {adminErrors.password.message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={addingAdmin || fetchingAdmins}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                  >
+                    {addingAdmin ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    Add Admin
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </section>
       </div>
     </div>

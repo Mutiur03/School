@@ -62,6 +62,16 @@ superAdminRouter.post(
   validate(addAdminSchema),
   AuthController.addAdminForSchool,
 );
+superAdminRouter.get(
+  "/schools/:schoolId/admins",
+  AuthMiddleware.authenticate(["super_admin"]),
+  AuthController.listAdminsForSchool,
+);
+superAdminRouter.delete(
+  "/schools/:schoolId/admins/:adminId",
+  AuthMiddleware.authenticate(["super_admin"]),
+  AuthController.deleteAdminForSchool,
+);
 
 const sessionRouter = express.Router();
 sessionRouter.use(requireSchoolContextOrSuperAdminHostMiddleware);

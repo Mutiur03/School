@@ -120,6 +120,41 @@ export class AuthController {
     },
   );
 
+  static listAdminsForSchool = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolIdRaw = req.params.schoolId;
+      const schoolId = parseInt(
+        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
+        10,
+      );
+      const admins = await AuthService.listAdminsForSchool(schoolId);
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, admins, "Admins fetched successfully"));
+    },
+  );
+
+  static deleteAdminForSchool = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolIdRaw = req.params.schoolId;
+      const adminIdRaw = req.params.adminId;
+      const schoolId = parseInt(
+        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
+        10,
+      );
+      const adminId = parseInt(
+        Array.isArray(adminIdRaw) ? adminIdRaw[0] : adminIdRaw,
+        10,
+      );
+      const deleted = await AuthService.deleteAdmin(adminId, schoolId);
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, deleted, "Admin deleted successfully"));
+    },
+  );
+
   static requestTeacherPasswordReset = asyncHandler(
     async (req: Request, res: Response) => {
       const { email } = req.body;
