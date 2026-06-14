@@ -69,6 +69,7 @@ model School {
   exam_routines    exam_routines[]
   head_msgs        head_msg[]
   sms_logs         sms_logs[]
+  sms_settings     sms_settings?
   siteConfig       SchoolSiteConfig?
 
   @@index([name])
@@ -988,6 +989,10 @@ model sms_settings {
   sender_id           String?  @db.VarChar(50)
   service_type        String?  @db.VarChar(50)
   updated_at          DateTime @updatedAt
+  school_id           Int      @unique
+  school              School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@index([school_id])
 }
 
 enum MarkingScheme {
