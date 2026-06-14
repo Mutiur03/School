@@ -9,6 +9,7 @@ import { redis } from "@/config/redis.js";
 import EmailService from "@/utils/email.service.js";
 import { SMSService } from "@/utils/sms.service.js";
 import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
+import { assertVerifiedTenantSchoolId } from "@/middlewares/access.middleware.js";
 
 export type AuthUser = {
   id: number;
@@ -63,12 +64,14 @@ export class AuthService {
     password?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!username || !password) {
       throw new ApiError(400, "Username and password are required");
     }
 
-    const user = await prisma.admin.findUnique({
-      where: { username, school_id: schoolId },
+    const user = await prisma.admin.findFirst({
+      where: { username, school_id: verifiedSchoolId },
     });
 
     if (!user) {
@@ -139,6 +142,8 @@ export class AuthService {
     password?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!loginId || !password) {
       throw new ApiError(400, "Login ID and password are required");
     }
@@ -148,8 +153,8 @@ export class AuthService {
       throw new ApiError(400, "Invalid login ID format");
     }
 
-    const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt, school_id: schoolId },
+    const student = await prisma.students.findFirst({
+      where: { login_id: loginIdInt, school_id: verifiedSchoolId },
     });
 
     if (!student) {
@@ -204,6 +209,8 @@ export class AuthService {
     password?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!email || !password) {
       throw new ApiError(400, "Email and password are required");
     }
@@ -212,7 +219,7 @@ export class AuthService {
       where: {
         email,
         available: true,
-        school_id: schoolId,
+        school_id: verifiedSchoolId,
       },
       include: {
         levels: { where: { year: new Date().getFullYear() } },
@@ -266,22 +273,26 @@ export class AuthService {
     }
 
     let user = null;
-    if (payload.role === "admin") {
-      user = await prisma.admin.findFirst({
-        where: { id: payload.id, school_id: req.schoolId },
-      });
-    } else if (payload.role === "student") {
-      user = await prisma.students.findFirst({
-        where: { id: payload.id, school_id: req.schoolId },
-      });
-    } else if (payload.role === "teacher") {
-      user = await prisma.teachers.findFirst({
-        where: { id: payload.id, school_id: req.schoolId },
-        include: { levels: { where: { year: new Date().getFullYear() } } },
-      });
-    } else if (payload.role === "super_admin") {
+    if (payload.role === "super_admin") {
       await assertSuperAdminHostAllowed(req);
       user = await prisma.superAdmin.findUnique({ where: { id: payload.id } });
+    } else {
+      const verifiedSchoolId = assertVerifiedTenantSchoolId(req.schoolId);
+
+      if (payload.role === "admin") {
+        user = await prisma.admin.findFirst({
+          where: { id: payload.id, school_id: verifiedSchoolId },
+        });
+      } else if (payload.role === "student") {
+        user = await prisma.students.findFirst({
+          where: { id: payload.id, school_id: verifiedSchoolId },
+        });
+      } else if (payload.role === "teacher") {
+        user = await prisma.teachers.findFirst({
+          where: { id: payload.id, school_id: verifiedSchoolId },
+          include: { levels: { where: { year: new Date().getFullYear() } } },
+        });
+      }
     }
 
     if (!user) {
@@ -353,24 +364,29 @@ export class AuthService {
         (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
       ) as any;
 
+      if (decoded.role === "super_admin") {
+        await prisma.superAdmin.update({
+          where: { id: decoded.id },
+          data: { tokenVersion: { increment: 1 } },
+        });
+        return;
+      }
+
+      const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
       if (decoded.role === "admin") {
-        await prisma.admin.update({
-          where: { id: decoded.id, school_id: schoolId },
+        await prisma.admin.updateMany({
+          where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
         });
       } else if (decoded.role === "student") {
-        await prisma.students.update({
-          where: { id: decoded.id, school_id: schoolId },
+        await prisma.students.updateMany({
+          where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
         });
       } else if (decoded.role === "teacher") {
-        await prisma.teachers.update({
-          where: { id: decoded.id, school_id: schoolId },
-          data: { tokenVersion: { increment: 1 } },
-        });
-      } else if (decoded.role === "super_admin") {
-        await prisma.superAdmin.update({
-          where: { id: decoded.id },
+        await prisma.teachers.updateMany({
+          where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
         });
       }
@@ -392,7 +408,7 @@ export class AuthService {
       throw new ApiError(400, "School ID is required");
     }
 
-    const existing = await prisma.admin.findUnique({
+    const existing = await prisma.admin.findFirst({
       where: { username, school_id: schoolId },
     });
 
@@ -414,6 +430,8 @@ export class AuthService {
   }
 
   static async requestTeacherPasswordReset(email?: string, schoolId?: number) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!email) {
       throw new ApiError(400, "Email is required");
     }
@@ -435,7 +453,7 @@ export class AuthService {
       where: {
         email,
         available: true,
-        school_id: schoolId,
+        school_id: verifiedSchoolId,
       },
     });
 
@@ -488,6 +506,8 @@ export class AuthService {
     newPassword?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!email || !code || !newPassword) {
       throw new ApiError(400, "Email, code, and new password are required");
     }
@@ -511,7 +531,7 @@ export class AuthService {
       where: {
         email,
         available: true,
-        school_id: schoolId,
+        school_id: verifiedSchoolId,
       },
     });
 
@@ -521,8 +541,8 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await prisma.teachers.update({
-      where: { id: teacher.id, school_id: schoolId },
+    await prisma.teachers.updateMany({
+      where: { id: teacher.id, school_id: verifiedSchoolId },
       data: {
         password: hashedPassword,
         tokenVersion: { increment: 1 },
@@ -536,6 +556,8 @@ export class AuthService {
     loginId?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!loginId) {
       throw new ApiError(400, "Login ID is required");
     }
@@ -558,8 +580,8 @@ export class AuthService {
       }
     }
 
-    const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt, school_id: schoolId },
+    const student = await prisma.students.findFirst({
+      where: { login_id: loginIdInt, school_id: verifiedSchoolId },
     });
 
     if (!student) {
@@ -617,6 +639,8 @@ export class AuthService {
     newPassword?: string,
     schoolId?: number,
   ) {
+    const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
+
     if (!loginId || !code || !newPassword) {
       throw new ApiError(400, "Login ID, code, and new password are required");
     }
@@ -641,8 +665,8 @@ export class AuthService {
       throw new ApiError(400, "Invalid reset code");
     }
 
-    const student = await prisma.students.findUnique({
-      where: { login_id: loginIdInt, school_id: schoolId },
+    const student = await prisma.students.findFirst({
+      where: { login_id: loginIdInt, school_id: verifiedSchoolId },
     });
 
     if (!student) {
@@ -651,8 +675,8 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await prisma.students.update({
-      where: { id: student.id, school_id: schoolId },
+    await prisma.students.updateMany({
+      where: { id: student.id, school_id: verifiedSchoolId },
       data: {
         password: hashedPassword,
         tokenVersion: { increment: 1 },

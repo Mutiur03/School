@@ -6,6 +6,8 @@ import {
 import { prisma } from "@/config/prisma.js";
 import { redis } from "@/config/redis.js";
 
+const TENANT_SUBDOMAIN_SUFFIXES = [".localhost", ".mutiurrahman.com"] as const;
+
 const normalizeTenantSubdomain = (hostname: string) =>
   hostname
     .replace(".localhost", "")
@@ -29,9 +31,17 @@ const requestHostname = (value: unknown): string | null => {
 
 const tenantHostName = (req: express.Request, fallbackHostname: string) =>
   requestHostname(req.headers.origin) ??
+  requestHostname(req.headers["x-tenant-host"]) ??
+  requestHostname(req.headers["x-forwarded-host"]) ??
   requestHostname(req.headers.referer) ??
   requestHostname(req.headers.referrer) ??
   fallbackHostname;
+
+const isBareLocalDevHost = (hostname: string) =>
+  hostname === "localhost" || hostname === "127.0.0.1";
+
+const isTenantSubdomainHost = (hostname: string) =>
+  TENANT_SUBDOMAIN_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
 
 export const schoolContextMiddleware = async (
   req: express.Request,
@@ -40,6 +50,7 @@ export const schoolContextMiddleware = async (
 ) => {
   const hostname = hostName(req);
   const tenantHostname = tenantHostName(req, hostname);
+
   if (
     await assertSuperAdminHostAllowed(req)
       .then(() => true)
@@ -47,7 +58,24 @@ export const schoolContextMiddleware = async (
   ) {
     return next();
   }
-  const cached = await redis.get(tenantHostname);
+
+  if (isBareLocalDevHost(tenantHostname) || !isTenantSubdomainHost(tenantHostname)) {
+    return res.status(404).json({
+      message:
+        "School not found. Use a school subdomain (e.g. yourschool.localhost).",
+    });
+  }
+
+  const subdomain = normalizeTenantSubdomain(tenantHostname);
+  if (!subdomain) {
+    return res.status(404).json({
+      message:
+        "School not found. Use a school subdomain (e.g. yourschool.localhost).",
+    });
+  }
+
+  const cacheKey = `tenant:${tenantHostname}`;
+  const cached = await redis.get(cacheKey);
   if (cached) {
     const parsedCached = JSON.parse(cached) as { id?: number };
     if (parsedCached?.id) {
@@ -55,41 +83,16 @@ export const schoolContextMiddleware = async (
       return next();
     }
   }
-  const isSubdomain =
-    tenantHostname.endsWith(".localhost") ||
-    tenantHostname.endsWith(".mutiurrahman.com");
-  const school = isSubdomain
-    ? await prisma.school.findUnique({
-        where: {
-          subdomain: normalizeTenantSubdomain(tenantHostname),
-        },
-      })
-    : await prisma.school.findUnique({
-        where: { customDomain: getRootDomain(tenantHostname) },
-      });
+
+  const school = await prisma.school.findUnique({
+    where: { subdomain },
+  });
 
   if (!school) {
     return res.status(404).json({ message: "School not found" });
   }
-  await redis.set(tenantHostname, JSON.stringify({ id: school.id }));
+
+  await redis.set(cacheKey, JSON.stringify({ id: school.id }));
   req.schoolId = school.id;
   next();
-};
-
-// Gets root domain, ignoring subdomains
-// "student.lbphs.gov.bd" → "lbphs.gov.bd"
-// "lbphs.gov.bd" → "lbphs.gov.bd"
-// "school1.mutiurrahman.com" → handled by isSubdomain check, not this
-const getRootDomain = (hostname: string): string => {
-  const parts = hostname.split('.');
-  // Handle country-code second-level domains like .gov.bd, .edu.bd, .co.uk
-  const ccSLDs = ['gov', 'edu', 'co', 'org', 'net', 'ac'];
-  
-  if (parts.length >= 3 && ccSLDs.includes(parts[parts.length - 2])) {
-    // e.g. student.lbphs.gov.bd → last 3 parts = lbphs.gov.bd
-    return parts.slice(-3).join('.');
-  }
-  
-  // Regular domain: student.lbphs.com → last 2 parts = lbphs.com
-  return parts.slice(-2).join('.');
 };
