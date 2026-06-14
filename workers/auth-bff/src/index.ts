@@ -222,11 +222,53 @@ const forwardOrUnavailable = async (
     }
 };
 
-const applyTenantHeaders = (headers: Headers, requestUrl: URL) => {
-    headers.set("origin", requestUrl.origin);
-    headers.set("referer", `${requestUrl.origin}/`);
-    headers.set("x-forwarded-host", requestUrl.hostname);
-    headers.set("x-tenant-host", requestUrl.hostname);
+const resolveTenantContext = (
+    request: Request,
+    requestUrl: URL,
+): { origin: string; hostname: string } => {
+    const browserOrigin = request.headers.get("Origin");
+    if (browserOrigin) {
+        try {
+            const parsed = new URL(browserOrigin);
+            return {
+                origin: browserOrigin,
+                hostname: parsed.hostname.toLowerCase(),
+            };
+        } catch {
+            // Fall through to forwarded host.
+        }
+    }
+
+    const forwardedHost =
+        request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    if (forwardedHost) {
+        const cleanHost = forwardedHost.split(",")[0]?.trim() ?? forwardedHost;
+        const hostname = cleanHost.replace(/:\d+$/, "").toLowerCase();
+        const proto =
+            request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ??
+            requestUrl.protocol.replace(":", "");
+        return {
+            origin: `${proto}://${cleanHost}`,
+            hostname,
+        };
+    }
+
+    return {
+        origin: requestUrl.origin,
+        hostname: requestUrl.hostname.toLowerCase(),
+    };
+};
+
+const applyTenantHeaders = (
+    headers: Headers,
+    request: Request,
+    requestUrl: URL,
+) => {
+    const tenant = resolveTenantContext(request, requestUrl);
+    headers.set("origin", tenant.origin);
+    headers.set("referer", `${tenant.origin}/`);
+    headers.set("x-forwarded-host", tenant.hostname);
+    headers.set("x-tenant-host", tenant.hostname);
 };
 
 export default {
@@ -291,7 +333,7 @@ export default {
             headers.delete("content-length");
 
             const cookies = parseCookies(request.headers.get("cookie"));
-            applyTenantHeaders(headers, requestUrl);
+            applyTenantHeaders(headers, request, requestUrl);
 
             if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === "POST") {
             const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);

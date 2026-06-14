@@ -14,6 +14,14 @@ export const requireSchoolContextMiddleware = (
   return next();
 };
 
+/** Tenant routes must have school_id resolved from verified subdomain context. */
+export const assertVerifiedTenantSchoolId = (schoolId?: number): number => {
+  if (!Number.isInteger(schoolId) || (schoolId as number) <= 0) {
+    throw new ApiError(400, "School context missing");
+  }
+  return schoolId as number;
+};
+
 export const requireSuperAdminHostMiddleware = async (
   req: Request,
   _res: Response,
