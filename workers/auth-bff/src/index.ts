@@ -451,14 +451,9 @@ export default {
 
         if (!isPasswordResetPath(requestUrl.pathname)) {
             const authorization = headers.get("Authorization");
-            if (!authorization?.toLowerCase().startsWith("bearer ")) {
-                return finish(
-                    jsonResponse({ success: false }, 401, corsHeaders),
-                    "authorization-header-missing",
-                );
+            if (authorization?.toLowerCase().startsWith("bearer ")) {
+                headers.delete("cookie");
             }
-
-            headers.delete("cookie");
         }
 
         const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
