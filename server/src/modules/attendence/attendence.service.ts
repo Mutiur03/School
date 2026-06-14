@@ -240,46 +240,48 @@ export class AttendenceService {
     const isReserved =
       await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
     if (!isReserved) {
+      const logIds = orderedBatches.flat().map((l) => l.smsLogId);
+      await prisma.sms_logs.deleteMany({ where: { id: { in: logIds } } });
       throw new Error("Insufficient SMS balance.");
     }
 
     let smsSuccessCount = 0;
     let smsFailedCount = 0;
+    let logsFinalized = false;
 
     try {
       const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, {
         skipBalanceUpdate: true,
       });
-      if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-        const processRes = await SmsLogsService.processBatchResults(
-          bulkSmsResponse.data.results,
-          orderedBatches,
-        );
-        smsSuccessCount = processRes.successCount;
-        smsFailedCount = processRes.failedCount;
+      const processRes = await SmsLogsService.applyBulkSmsResponse(
+        bulkSmsResponse,
+        orderedBatches,
+      );
+      logsFinalized = true;
+      smsSuccessCount = processRes.successCount;
+      smsFailedCount = processRes.failedCount;
 
-        let totalActualUsed = 0;
-        for (const res of bulkSmsResponse.data.results) {
-          totalActualUsed += res.sms_count || 1;
-        }
-        const refund = totalSegmentsNeeded - totalActualUsed;
-        if (refund > 0) {
-          await SmsSettingsService.updateBalance(refund);
-        }
-      } else {
+      if (!processRes.delivered) {
+        await SmsSettingsService.updateBalance(totalSegmentsNeeded);
+        throw new Error(bulkSmsResponse.message || "Failed to send SMS");
+      }
+
+      let totalActualUsed = 0;
+      for (const res of processRes.batchResults) {
+        totalActualUsed += res.sms_count || 1;
+      }
+      const refund = totalSegmentsNeeded - totalActualUsed;
+      if (refund > 0) {
+        await SmsSettingsService.updateBalance(refund);
+      }
+    } catch (error: any) {
+      if (!logsFinalized) {
         await SmsSettingsService.updateBalance(totalSegmentsNeeded);
         await SmsLogsService.handleCatastrophicFailure(
           orderedBatches,
-          bulkSmsResponse.message || "Bulk SMS delivery failed",
+          error.message || "Unknown SMS Error",
         );
-        throw new Error(bulkSmsResponse.message || "Failed to send SMS");
       }
-    } catch (error: any) {
-      await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-      await SmsLogsService.handleCatastrophicFailure(
-        orderedBatches,
-        error.message || "Unknown SMS Error",
-      );
       throw error;
     }
 

@@ -13,11 +13,22 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Use migration/superuser URL when available — school_app RLS hides rows without tenant context
+const databaseUrl =
+  process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
+
+const prisma = new PrismaClient({
+  datasources: { db: { url: databaseUrl } },
+});
 const DRY_RUN = process.env.DRY_RUN === "1";
+
+async function setSuperAdminContext() {
+  await prisma.$executeRaw`SELECT set_config('app.is_super_admin', '1', false)`;
+}
 
 async function main() {
   console.log(DRY_RUN ? "[DRY RUN] No changes will be written." : "[LIVE] Writing changes...");
+  await setSuperAdminContext();
 
   // Fetch all pending logs
   const pendingLogs = await prisma.sms_logs.findMany({
