@@ -1,6 +1,91 @@
 import { prisma } from "@/config/prisma.js";
 
 export class DashboardService {
+  private static formatDateKey(date: Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  static async getAttendanceData(attendanceDays = 7) {
+    const allowedDays = [7, 15, 30];
+    const days = allowedDays.includes(attendanceDays) ? attendanceDays : 7;
+    const currentDate = new Date();
+
+    try {
+      const timelineDates: string[] = [];
+      for (let offset = days - 1; offset >= 0; offset -= 1) {
+        const cursor = new Date(currentDate);
+        cursor.setDate(currentDate.getDate() - offset);
+        timelineDates.push(this.formatDateKey(cursor));
+      }
+
+      const startDate = timelineDates[0];
+      const attendanceGrouped = await prisma.attendence.groupBy({
+        by: ["date", "status"],
+        where: {
+          date: { gte: startDate },
+          status: {
+            in: ["present", "absent", "run-awayed"],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const countsByDate = new Map<
+        string,
+        { present: number; absent: number; run_awayed: number }
+      >();
+
+      for (const row of attendanceGrouped) {
+        if (!timelineDates.includes(row.date)) continue;
+
+        const current = countsByDate.get(row.date) ?? {
+          present: 0,
+          absent: 0,
+          run_awayed: 0,
+        };
+
+        if (row.status === "present") current.present = row._count._all;
+        else if (row.status === "absent") current.absent = row._count._all;
+        else if (row.status === "run-awayed")
+          current.run_awayed = row._count._all;
+
+        countsByDate.set(row.date, current);
+      }
+
+      return timelineDates.map((date) => {
+        const counts = countsByDate.get(date) ?? {
+          present: 0,
+          absent: 0,
+          run_awayed: 0,
+        };
+
+        const [yearPart, monthPart, dayPart] = date.split("-").map(Number);
+        const displayDate = new Date(yearPart, monthPart - 1, dayPart)
+          .toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+          })
+          .replace(",", "");
+
+        return {
+          name: displayDate,
+          present: counts.present,
+          absent: counts.absent,
+          run_awayed: counts.run_awayed,
+          sort_date: date,
+        };
+      });
+    } catch (error: any) {
+      console.warn("Error fetching attendance data:", error.message);
+      return [];
+    }
+  }
+
   static async getDashboardData() {
     const year = new Date().getFullYear();
     const currentDate = new Date();
@@ -15,7 +100,6 @@ export class DashboardService {
     let studentCount = 0;
     let teacherCount = 0;
     let announcements = [] as any[];
-    let attendanceData = [] as any[];
     let events = [] as any[];
     let examSchedule = [] as any[];
 
@@ -48,96 +132,6 @@ export class DashboardService {
       });
     } catch (error: any) {
       console.warn("Error fetching announcements:", error.message);
-    }
-
-    try {
-      const attendanceGrouped = await prisma.attendence.groupBy({
-        by: ["date", "status"],
-        where: {
-          status: {
-            in: ["present", "absent", "run-awayed"],
-          },
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          date: "desc",
-        },
-      });
-
-      const latestDatesDesc = Array.from(
-        new Set(attendanceGrouped.map((row) => row.date)),
-      ).slice(0, 15);
-
-      const latestDatesAsc = [...latestDatesDesc].sort((a, b) =>
-        a.localeCompare(b),
-      );
-
-      const countsByDate = new Map<
-        string,
-        { present: number; absent: number; run_awayed: number }
-      >();
-
-      for (const row of attendanceGrouped) {
-        if (!latestDatesDesc.includes(row.date)) continue;
-
-        const current = countsByDate.get(row.date) ?? {
-          present: 0,
-          absent: 0,
-          run_awayed: 0,
-        };
-
-        if (row.status === "present") current.present = row._count._all;
-        else if (row.status === "absent") current.absent = row._count._all;
-        else if (row.status === "run-awayed")
-          current.run_awayed = row._count._all;
-
-        countsByDate.set(row.date, current);
-      }
-
-      const timelineDates: string[] = [];
-      if (latestDatesAsc.length > 0) {
-        const start = new Date(`${latestDatesAsc[0]}T00:00:00Z`);
-        const end = new Date(
-          `${latestDatesAsc[latestDatesAsc.length - 1]}T00:00:00Z`,
-        );
-
-        for (
-          let cursor = new Date(start);
-          cursor <= end;
-          cursor.setUTCDate(cursor.getUTCDate() + 1)
-        ) {
-          timelineDates.push(cursor.toISOString().slice(0, 10));
-        }
-      }
-
-      attendanceData = timelineDates.map((date) => {
-        const counts = countsByDate.get(date) ?? {
-          present: 0,
-          absent: 0,
-          run_awayed: 0,
-        };
-
-        const [yearPart, monthPart, dayPart] = date.split("-").map(Number);
-        const displayDate = new Date(yearPart, monthPart - 1, dayPart)
-          .toLocaleDateString("en-US", {
-            day: "2-digit",
-            month: "short",
-            timeZone: "UTC",
-          })
-          .replace(",", "");
-
-        return {
-          name: displayDate,
-          present: counts.present,
-          absent: counts.absent,
-          run_awayed: counts.run_awayed,
-          sort_date: date,
-        };
-      });
-    } catch (error: any) {
-      console.warn("Error fetching attendance data:", error.message);
     }
 
     try {
@@ -215,7 +209,6 @@ export class DashboardService {
         events: upcomingEventCount || 0,
       },
       announcements: formattedAnnouncements,
-      attendanceData: attendanceData || [],
       events: upcomingEvents || [],
       examSchedule: (examSchedule || []).map((exam) => ({
         name: exam.exam_name || "Unnamed exam",

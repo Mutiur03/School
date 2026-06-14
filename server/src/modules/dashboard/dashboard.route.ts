@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.use(AuthMiddleware.authenticate(["admin"]));
 router.get("/", DashboardController.getAllDashboardData);
+router.get("/attendance", DashboardController.getAttendanceData);
 const dashboardRouter = express.Router();
 dashboardRouter.use("/api/dashboard", router);
 export default dashboardRouter;
