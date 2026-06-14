@@ -122,7 +122,8 @@ export class SmsLogsService {
     const results: any[] = [];
 
     for (const result of batchResults) {
-      const smsDataArray = smsLogMap.get(result.to);
+      const normalizedTo = SMSService.formatPhoneNumber(result.to ?? "");
+      const smsDataArray = smsLogMap.get(normalizedTo) ?? smsLogMap.get(result.to);
       if (smsDataArray) {
         for (const smsData of smsDataArray) {
           const { smsLogId, studentId, attendanceDate, studentName } = smsData;
@@ -270,9 +271,7 @@ export class SmsLogsService {
           },
         });
 
-        const phoneNumber = smsLog.phone_number.startsWith("88")
-          ? smsLog.phone_number
-          : `88${smsLog.phone_number}`;
+        const phoneNumber = SMSService.formatPhoneNumber(smsLog.phone_number);
 
         smsMessages.push({
           Number: phoneNumber,
