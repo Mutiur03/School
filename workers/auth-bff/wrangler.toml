@@ -3,6 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-05-18"
 
 routes = [
+	{ pattern = "superadmin.mutiurrahman.com/api/*", zone_name = "mutiurrahman.com" },
 	{ pattern = "lbphs.gov.bd/api/*", zone_name = "lbphs.gov.bd" },
 	{ pattern = "*.lbphs.gov.bd/api/*", zone_name = "lbphs.gov.bd" }
 ]
