@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { putFileToPresignedUrl } from "@/lib/uploadToR2";
 import {
   Building2,
   Loader2,
@@ -276,9 +277,11 @@ function SchoolManagement() {
         throw new Error("Upload URL generation failed");
       }
 
-      await axios.put(uploadUrl, pendingLogoFile, {
-        headers: { "Content-Type": pendingLogoFile.type || "image/png" },
-      });
+      await putFileToPresignedUrl(
+        uploadUrl,
+        pendingLogoFile,
+        pendingLogoFile.type || "image/png",
+      );
 
       setPendingLogoFile(null);
       if (logoPreviewUrl) {

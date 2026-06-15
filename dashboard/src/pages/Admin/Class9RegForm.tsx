@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react";
 import axios from "axios";
+import { putFileToPresignedUrl } from "@/lib/uploadToR2";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSearchParams, useLocation } from "react-router-dom";
@@ -196,9 +197,7 @@ const Class9RegForm = () => {
                 });
 
                 if (urlData.success) {
-                    await axios.put(urlData.data.uploadUrl, selectedNotice, {
-                        headers: { "Content-Type": selectedNotice.type }
-                    });
+                    await putFileToPresignedUrl(urlData.data.uploadUrl, selectedNotice, selectedNotice.type);
                     notice_key = urlData.data.key;
                 }
             }
