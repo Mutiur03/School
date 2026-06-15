@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import { putFileToPresignedUrl } from "@/lib/uploadToR2";
 
 export interface Event {
   id: string | number;
@@ -47,9 +48,7 @@ export const useAddEvent = () => {
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
-        await axios.put(uploadUrl, data.image, {
-          headers: { "Content-Type": data.image.type },
-        });
+        await putFileToPresignedUrl(uploadUrl, data.image, data.image.type);
         imageKey = key;
       }
 
@@ -63,9 +62,7 @@ export const useAddEvent = () => {
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
-        await axios.put(uploadUrl, data.file, {
-          headers: { "Content-Type": data.file.type },
-        });
+        await putFileToPresignedUrl(uploadUrl, data.file, data.file.type);
         fileKey = key;
       }
 
@@ -120,9 +117,7 @@ export const useUpdateEvent = () => {
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
-        await axios.put(uploadUrl, data.image, {
-          headers: { "Content-Type": data.image.type },
-        });
+        await putFileToPresignedUrl(uploadUrl, data.image, data.image.type);
         imageKey = key;
       }
 
@@ -135,9 +130,7 @@ export const useUpdateEvent = () => {
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
-        await axios.put(uploadUrl, data.file, {
-          headers: { "Content-Type": data.file.type },
-        });
+        await putFileToPresignedUrl(uploadUrl, data.file, data.file.type);
         fileKey = key;
       }
 

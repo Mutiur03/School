@@ -1,6 +1,7 @@
 "use client";
 import { useState, useContext, useRef } from "react";
 import axios from "axios";
+import { putFileToPresignedUrl } from "@/lib/uploadToR2";
 import UnifiedAuthContext from "@/context/unifiedAuthContext";
 import type { TeacherUser } from "@/context/unifiedAuthContext";
 import { PageHeader, TabNav, SectionCard } from "@/components";
@@ -70,9 +71,7 @@ export default function TeacherSettings() {
             if (!urlData.success) throw new Error(urlData.message);
 
             // 2. Upload to R2/S3 (use a clean axios instance to avoid baseURL interference)
-            await axios.put(urlData.data.uploadUrl, file, {
-                headers: { "Content-Type": file.type },
-            });
+            await putFileToPresignedUrl(urlData.data.uploadUrl, file, file.type);
 
             const { data: saveData } = await axios.put(`/api/teachers/${teacher.id}/image`, {
                 key: urlData.data.key,
@@ -119,9 +118,7 @@ export default function TeacherSettings() {
 
             if (!urlData.success) throw new Error(urlData.message);
 
-            await axios.put(urlData.data.uploadUrl, file, {
-                headers: { "Content-Type": file.type },
-            });
+            await putFileToPresignedUrl(urlData.data.uploadUrl, file, file.type);
 
             const { data: saveData } = await axios.put(`/api/teachers/${teacher.id}/signature`, {
                 key: urlData.data.key,

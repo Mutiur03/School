@@ -709,6 +709,7 @@ export default function RegistrationClass9() {
         if (uploadData.success) {
           await axios.put(uploadData.data.uploadUrl, data.photo, {
             headers: { "Content-Type": data.photo.type },
+            withCredentials: false,
           });
           photo = uploadData.data.key;
         }
