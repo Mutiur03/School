@@ -4,6 +4,7 @@ import { createContext, useEffect, useState, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import backend from "@/lib/backend";
+import { syncSentryUser } from "@/lib/sentry";
 import { getErrorMessage } from "@/lib/utils";
 
 // Extend axios config to support custom flags
@@ -328,6 +329,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         checkAuth();
     }, [checkAuth]);
+
+    useEffect(() => {
+        syncSentryUser(user);
+    }, [user]);
 
     // Auto-retry polling when server is offline
     useEffect(() => {
