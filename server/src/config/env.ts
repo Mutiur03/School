@@ -20,7 +20,7 @@ const envSchema = z.object({
 
   // SMS API
   BULK_SMS_API_KEY: z.string().optional(),
-  BULK_SMS_SENDER_ID: z.string().optional(),
+  BULK_SMS_SENDER_IDS: z.string().optional(),
 
   // Storage
   R2_ACCOUNT_ID: z.string().optional(),
