@@ -22,9 +22,27 @@ export interface SMSOptions {
 
 export class SMSService {
   private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
-  private static readonly FALLBACK_SENDER_ID = env.BULK_SMS_SENDER_ID;
+  private static readonly FALLBACK_SENDER_IDS = (
+    env.BULK_SMS_SENDER_IDS?.split(",") ?? []
+  )
+    .map((id) => id.trim())
+    .filter(Boolean);
   private static readonly DEFAULT_API_URL =
     "https://sms.onecodesoft.com/api/send-bulk-sms";
+
+  private static resolveSenderIds(settingsSenderId?: string | null): string[] {
+    const fromSettings = (settingsSenderId?.split(",") ?? [])
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (fromSettings.length > 0) {
+      return fromSettings;
+    }
+    return this.FALLBACK_SENDER_IDS;
+  }
+
+  private static pickRandomSenderId(senderIds: string[]): string {
+    return senderIds[Math.floor(Math.random() * senderIds.length)];
+  }
 
   public static formatPhoneNumber(phoneNumber: string): string {
     const cleanNumber = phoneNumber.replace(/\D/g, "");
@@ -68,10 +86,11 @@ export class SMSService {
   ): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
-    const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
+    const senderIds = this.resolveSenderIds(settings.sender_id);
+    const senderId = this.pickRandomSenderId(senderIds);
     const apiUrl = settings.api_url || this.DEFAULT_API_URL;
 
-    if (!apiKey || !senderId) {
+    if (!apiKey || senderIds.length === 0) {
       throw new Error("SMS configuration missing in database and environment.");
     }
 
@@ -159,10 +178,11 @@ export class SMSService {
   ): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
-    const senderId = settings.sender_id || this.FALLBACK_SENDER_ID;
+    const senderIds = this.resolveSenderIds(settings.sender_id);
+    const senderId = this.pickRandomSenderId(senderIds);
     const apiUrl = settings.api_url || this.DEFAULT_API_URL;
 
-    if (!apiKey || !senderId) {
+    if (!apiKey || senderIds.length === 0) {
       throw new Error("SMS configuration missing.");
     }
 
