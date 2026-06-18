@@ -97,6 +97,7 @@ jobs:
             echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
             echo "VITE_CDN_URL=${{ secrets.LBP_VITE_CDN_URL }}"
             echo "VITE_OBSERVA_PUBLIC_KEY=obspk_wDiRJctjzatWt7-9SQ3GA4NGUF_Vf_lvShkIlyvIs4A"
+            echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}"
             if [ -n "${{ matrix.app.default_role }}" ]; then
               echo "VITE_DEFAULT_ROLE=${{ matrix.app.default_role }}"
             fi
