@@ -193,7 +193,11 @@ export class SMSService {
       totalSegmentsNeeded += calc.count;
     }
 
-    if (settings.sms_balance < totalSegmentsNeeded) {
+    // Balance may already be reserved by the caller when skipBalanceUpdate is set
+    if (
+      !options?.skipBalanceUpdate &&
+      settings.sms_balance < totalSegmentsNeeded
+    ) {
       return {
         success: false,
         message: `Insufficient SMS balance. Needed: ${totalSegmentsNeeded} credits, Available: ${settings.sms_balance}`,
