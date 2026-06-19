@@ -80,4 +80,4 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install --omit=dev --ignore-scripts && \
     npx prisma generate
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "--import", "./dist/instrument.js", "dist/server.js"]
