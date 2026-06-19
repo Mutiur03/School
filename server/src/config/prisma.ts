@@ -1,16 +1,65 @@
 import { PrismaClient } from "@prisma/client";
 import { getRlsContext, patchRlsContext } from "@/config/rlsContextStore.js";
+import logger from "@/utils/logger.js";
+import { recordSlowQueryBreadcrumb } from "@/config/sentry.js";
+
+type QueryLoggingPrismaClient = PrismaClient<
+  {
+    log: [
+      { emit: "event"; level: "query" },
+      { emit: "stdout"; level: "warn" },
+      { emit: "stdout"; level: "error" },
+    ];
+  },
+  "query"
+>;
 
 /** @type {Object} */
 const globalForPrisma = global as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: QueryLoggingPrismaClient | undefined;
 };
 
-const basePrisma =
+const isProduction = process.env.NODE_ENV === "production";
+const logAllQueries = process.env.PRISMA_LOG_QUERIES === "true";
+const slowQueryMs = Number(process.env.PRISMA_SLOW_QUERY_MS || "500");
+
+const prismaLogConfig = [
+  { emit: "event", level: "query" },
+  { emit: "stdout", level: "warn" },
+  { emit: "stdout", level: "error" },
+] as const;
+
+const basePrisma: QueryLoggingPrismaClient =
   globalForPrisma.prisma ||
   new PrismaClient({
-    log: ["error"],
+    log: [...prismaLogConfig],
   });
+
+if (!globalForPrisma.prisma) {
+  basePrisma.$on("query", (event) => {
+    const isSlow = event.duration >= slowQueryMs;
+    const shouldLog = logAllQueries || !isProduction || isSlow;
+
+    if (shouldLog) {
+      const logPayload = {
+        query: event.query,
+        params: event.params,
+        duration_ms: event.duration,
+        slow: isSlow,
+      };
+
+      if (isSlow) {
+        logger.warn("Slow prisma query", logPayload);
+      } else {
+        logger.debug("Prisma query", logPayload);
+      }
+    }
+
+    if (isSlow) {
+      recordSlowQueryBreadcrumb(event);
+    }
+  });
+}
 
 const TENANT_MODELS = new Set([
   "admin",
