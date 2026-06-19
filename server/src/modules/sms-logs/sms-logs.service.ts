@@ -28,6 +28,11 @@ const getBulkResults = (data: any): any[] | null => {
   return data.results;
 };
 
+const isSmsResultSuccessful = (result: any): boolean => {
+  const status = String(result?.status ?? "").toLowerCase();
+  return status === "sent" || status === "success" || status === "delivered";
+};
+
 const buildTeacherStudentFilter = async (user?: UserContext) => {
   if (!user || user.role !== "teacher") return null;
 
@@ -132,15 +137,16 @@ export class SmsLogsService {
     let failedCount = 0;
     const results: any[] = [];
 
-    for (let i = 0; i < batchResults.length; i++) {
+    const pairedCount = Math.min(batchResults.length, orderedBatches.length);
+
+    for (let i = 0; i < pairedCount; i++) {
       const result = batchResults[i];
       const smsDataArray = orderedBatches[i];
-      if (!smsDataArray) continue;
 
       for (const smsData of smsDataArray) {
         const { smsLogId, studentId, attendanceDate, studentName } = smsData;
 
-        if (result.status === "sent") {
+        if (isSmsResultSuccessful(result)) {
           successCount++;
 
           await prisma.sms_logs.update({
@@ -170,12 +176,15 @@ export class SmsLogsService {
           });
         } else {
           failedCount++;
+          const errorReason = `API Error: ${
+            result?.code || result?.status || "Unknown error"
+          }`;
 
           await prisma.sms_logs.update({
             where: { id: smsLogId },
             data: {
               status: "failed",
-              error_reason: `API Error: ${result.code || "Unknown error"}`,
+              error_reason: errorReason,
               updated_at: new Date(),
             },
           });
@@ -183,12 +192,37 @@ export class SmsLogsService {
           results.push({
             smsLogId,
             status: "failed",
-            message: `API Error: ${result.code || "Unknown error"}`,
+            message: errorReason,
             studentName,
           });
         }
       }
     }
+
+    for (let i = pairedCount; i < orderedBatches.length; i++) {
+      for (const smsData of orderedBatches[i]) {
+        const { smsLogId, studentName } = smsData;
+        failedCount++;
+        const errorReason = "No matching API result returned";
+
+        await prisma.sms_logs.update({
+          where: { id: smsLogId },
+          data: {
+            status: "failed",
+            error_reason: errorReason,
+            updated_at: new Date(),
+          },
+        });
+
+        results.push({
+          smsLogId,
+          status: "failed",
+          message: errorReason,
+          studentName,
+        });
+      }
+    }
+
     return { successCount, failedCount, results };
   }
 
