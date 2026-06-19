@@ -37,6 +37,11 @@ const envSchema = z.object({
   BREVO_API_KEY: z.string().optional(),
   FROM_EMAIL: z.string().email().optional(),
   TO_EMAIL: z.string().email().optional(),
+
+  SENTRY_DSN: z.string().url().optional(),
+
+  PRISMA_LOG_QUERIES: z.enum(["true", "false"]).optional(),
+  PRISMA_SLOW_QUERY_MS: z.string().optional(),
 });
 
 export const validateEnv = () => {

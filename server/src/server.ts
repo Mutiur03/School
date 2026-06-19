@@ -64,11 +64,14 @@ import {
   syncRlsSchoolContextMiddleware,
 } from "./middlewares/rlsContext.middleware.js";
 import { createObserva } from "@mutiur03/observa-node";
+import { captureServerException, initSentry } from "./config/sentry.js";
+import { getDatabasePoolStats } from "./utils/dbMetrics.js";
 
 const storagePath = path.resolve("uploads");
 
 const app = express();
 const PORT = env.PORT || 5000;
+initSentry();
 createObserva(process.env.OBSERVA_SECRET_KEY).installExpress(app);
 const configuredOrigins = (env.ALLOWED_ORIGINS || "")
   .split(",")
@@ -119,11 +122,26 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
+  let database: Awaited<ReturnType<typeof getDatabasePoolStats>> | {
+    status: "unavailable";
+    error: string;
+  };
+
+  try {
+    database = await getDatabasePoolStats();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Database check failed";
+    logger.warn("Health check database stats unavailable", { error: message });
+    database = { status: "unavailable", error: message };
+  }
+
   res.json({
     success: true,
     message: "Server is running",
     timestamp: new Date().toISOString(),
+    database,
   });
 });
 app.use(detailedRequestLogger);
@@ -247,6 +265,10 @@ app.use(
     const logMethod = statusCode >= 500 ? "error" : "warn";
     const logTitle =
       statusCode >= 500 ? "Unhandled server error" : "Client error response";
+
+    if (statusCode >= 500) {
+      captureServerException(error);
+    }
 
     (logger as any)[logMethod](logTitle, {
       status: statusCode,
