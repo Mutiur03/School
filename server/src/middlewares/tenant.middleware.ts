@@ -30,15 +30,7 @@ const customDomainCandidates = (hostname: string): string[] => {
   return [...candidates];
 };
 
-const lookupSchool = async (req: express.Request, tenantHostname: string) => {
-  const slugHeader = req.headers["x-school-subdomain"];
-  if (typeof slugHeader === "string" && slugHeader.trim()) {
-    const school = await prisma.school.findUnique({
-      where: { subdomain: slugHeader.trim().toLowerCase() },
-    });
-    if (school) return school;
-  }
-
+const lookupSchool = async (tenantHostname: string) => {
   if (isPlatformSubdomainHost(tenantHostname)) {
     const subdomain = normalizeTenantSubdomain(tenantHostname);
     if (subdomain) {
@@ -88,7 +80,7 @@ export const schoolContextMiddleware = async (
     }
   }
 
-  const school = await lookupSchool(req, tenantHostname);
+  const school = await lookupSchool(tenantHostname);
 
   if (!school) {
     return res.status(404).json({ message: "School not found" });
