@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "@/config/prisma.js";
 import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
 import { assertTenantContextForAuthenticatedRequest } from "@/middlewares/access.middleware.js";
+import { syncSentryUser } from "@/config/sentry.js";
 interface TokenPayload {
   id: number;
   role: string;
@@ -73,6 +74,7 @@ class AuthMiddleware {
         if (dbUser.password) delete dbUser.password;
         const user = { ...dbUser, role: decoded.role };
         req.user = user;
+        syncSentryUser(user);
         next();
       } catch (error) {
         if (error instanceof jwt.TokenExpiredError) {
