@@ -35,6 +35,7 @@
     "@mutiur03/observa-node": "^0.1.2",
     "@prisma/client": "^6.12.0",
     "@school/shared-schemas": "file:../packages/shared-schemas",
+    "@sentry/node": "^10.58.0",
     "archiver": "^7.0.1",
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
