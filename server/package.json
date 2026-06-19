@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "dev": "nodemon",
     "prestart": "npm run lint",
-    "start": "node dist/server.js",
+    "start": "node --import ./dist/instrument.js dist/server.js",
     "postinstall": "prisma generate",
     "school-id:reassign": "tsx prisma/scripts/reassign-all-school-ids.ts",
     "school-id:reassign:dry": "DRY_RUN=1 tsx prisma/scripts/reassign-all-school-ids.ts",

@@ -1,6 +1,6 @@
 {
-  "exec": "npm run lint && node --import tsx src/server.ts",
-  "_exec": "node --import tsx src/server.ts",
+  "exec": "npm run lint && node --import tsx/esm --import ./src/instrument.ts src/server.ts",
+  "_exec": "node --import tsx/esm --import ./src/instrument.ts src/server.ts",
   "ext": "js,ts,json",
   "watch": ["./", "../packages/shared-schemas"],
   "delay": "2500",
