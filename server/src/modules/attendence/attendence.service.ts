@@ -256,6 +256,7 @@ export class AttendenceService {
       const processRes = await SmsLogsService.applyBulkSmsResponse(
         bulkSmsResponse,
         orderedBatches,
+        { updateAttendance: true },
       );
       logsFinalized = true;
       smsSuccessCount = processRes.successCount;

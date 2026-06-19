@@ -14,12 +14,19 @@ type LogFilters = {
   limit?: number;
 };
 
+type ProcessBatchOptions = {
+  updateAttendance?: boolean;
+};
+
 export type SmsLogInfo = {
   smsLogId: number;
   studentId: number;
   attendanceDate: string;
   studentName?: string;
 };
+
+const getLocalDateKey = (date: Date = new Date()): string =>
+  date.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 
 const getBulkResults = (data: any): any[] | null => {
   if (!Array.isArray(data?.results) || data.results.length === 0) {
@@ -55,10 +62,44 @@ const buildTeacherStudentFilter = async (user?: UserContext) => {
   return { in: allowedStudentIds };
 };
 
+const finalizeBulkSend = async (
+  bulkSmsResponse: { success: boolean; data?: any; message?: string },
+  orderedBatches: SmsLogInfo[][],
+  totalSegmentsNeeded: number,
+  options?: ProcessBatchOptions,
+) => {
+  const processRes = await SmsLogsService.applyBulkSmsResponse(
+    bulkSmsResponse,
+    orderedBatches,
+    options,
+  );
+
+  if (!processRes.delivered) {
+    await SmsSettingsService.updateBalance(totalSegmentsNeeded);
+    return processRes;
+  }
+
+  let totalActualUsed = 0;
+  for (const res of processRes.batchResults ?? []) {
+    totalActualUsed += res.sms_count || 1;
+  }
+  const refund = totalSegmentsNeeded - totalActualUsed;
+  if (refund > 0) {
+    await SmsSettingsService.updateBalance(refund);
+  }
+
+  return processRes;
+};
+
 export class SmsLogsService {
   static async getSmsLogs(filters: LogFilters, user?: UserContext) {
     const { status, date, page = 1, limit = 50 } = filters;
-    const offset = (page - 1) * limit;
+    const safePage = Math.max(1, Number.isFinite(page) ? Number(page) : 1);
+    const safeLimit = Math.min(
+      100,
+      Math.max(1, Number.isFinite(limit) ? Number(limit) : 50),
+    );
+    const offset = (safePage - 1) * safeLimit;
 
     const whereClause: any = {};
 
@@ -97,8 +138,8 @@ export class SmsLogsService {
           },
         },
         orderBy: [{ created_at: "desc" }],
-        skip: Number(offset),
-        take: Number(limit),
+        skip: offset,
+        take: safeLimit,
       }),
       prisma.sms_logs.count({ where: whereClause }),
     ]);
@@ -119,8 +160,8 @@ export class SmsLogsService {
     return {
       smsLogs,
       totalCount,
-      totalPages: Math.ceil(totalCount / limit),
-      currentPage: Number(page),
+      totalPages: Math.ceil(totalCount / safeLimit),
+      currentPage: safePage,
       stats: statsObject,
     };
   }
@@ -132,7 +173,9 @@ export class SmsLogsService {
   static async processBatchResults(
     batchResults: any[],
     orderedBatches: SmsLogInfo[][],
+    options?: ProcessBatchOptions,
   ) {
+    const updateAttendance = options?.updateAttendance ?? false;
     let successCount = 0;
     let failedCount = 0;
     const results: any[] = [];
@@ -143,8 +186,11 @@ export class SmsLogsService {
       const result = batchResults[i];
       const smsDataArray = orderedBatches[i];
 
-      for (const smsData of smsDataArray) {
+      for (let j = 0; j < smsDataArray.length; j++) {
+        const smsData = smsDataArray[j];
         const { smsLogId, studentId, attendanceDate, studentName } = smsData;
+        // Only the first log in a deduped batch carries billable segments
+        const billedSegments = j === 0 ? result.sms_count || 1 : 0;
 
         if (isSmsResultSuccessful(result)) {
           successCount++;
@@ -153,20 +199,22 @@ export class SmsLogsService {
             where: { id: smsLogId },
             data: {
               status: "sent",
-              sms_count: result.sms_count || 1,
+              sms_count: billedSegments,
               message_id: result.message_id,
               error_reason: null,
               updated_at: new Date(),
             },
           });
 
-          await prisma.attendence.updateMany({
-            where: {
-              student_id: studentId,
-              date: attendanceDate,
-            },
-            data: { send_msg: true },
-          });
+          if (updateAttendance) {
+            await prisma.attendence.updateMany({
+              where: {
+                student_id: studentId,
+                date: attendanceDate,
+              },
+              data: { send_msg: true },
+            });
+          }
 
           results.push({
             smsLogId,
@@ -229,6 +277,7 @@ export class SmsLogsService {
   static async applyBulkSmsResponse(
     bulkSmsResponse: { success: boolean; data?: any; message?: string },
     orderedBatches: SmsLogInfo[][],
+    options?: ProcessBatchOptions,
   ) {
     const batchResults = bulkSmsResponse.success
       ? getBulkResults(bulkSmsResponse.data)
@@ -248,7 +297,11 @@ export class SmsLogsService {
       };
     }
 
-    const processRes = await this.processBatchResults(batchResults, orderedBatches);
+    const processRes = await this.processBatchResults(
+      batchResults,
+      orderedBatches,
+      options,
+    );
     return {
       ...processRes,
       delivered: true as const,
@@ -374,51 +427,45 @@ export class SmsLogsService {
       const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
 
       if (!isReserved) {
-        // Revert pending back to failed since we can't send
+        const errorReason = "Insufficient SMS balance";
         for (const batch of orderedBatches) {
-          for (const { smsLogId } of batch) {
+          for (const { smsLogId, studentName } of batch) {
             await prisma.sms_logs.update({
               where: { id: smsLogId },
-              data: { status: "failed", error_reason: "Insufficient SMS balance", updated_at: new Date() },
+              data: {
+                status: "failed",
+                error_reason: errorReason,
+                updated_at: new Date(),
+              },
             });
+            results.push({
+              smsLogId,
+              status: "failed",
+              message: errorReason,
+              studentName,
+            });
+            failedCount++;
           }
         }
-        results.push({
-          status: "error",
-          message: "Insufficient SMS balance for retry",
-        });
-        failedCount += smsMessages.length;
       } else {
         try {
-          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
-
-          if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-            const processRes = await this.processBatchResults(
-              bulkSmsResponse.data.results,
-              orderedBatches,
-            );
-            successCount += processRes.successCount;
-            failedCount += processRes.failedCount;
-            results.push(...processRes.results);
-
-            let totalActualUsed = 0;
-            for (const res of bulkSmsResponse.data.results) {
-              totalActualUsed += (res.sms_count || 1);
-            }
-            const refund = totalSegmentsNeeded - totalActualUsed;
-            if (refund > 0) {
-              await SmsSettingsService.updateBalance(refund);
-            }
-          } else {
-            await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-            const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
-            const failRes = await this.handleCatastrophicFailure(orderedBatches, errorReason);
-            failedCount += failRes.failedCount;
-            results.push(...failRes.results);
-          }
+          const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, {
+            skipBalanceUpdate: true,
+          });
+          const processRes = await finalizeBulkSend(
+            bulkSmsResponse,
+            orderedBatches,
+            totalSegmentsNeeded,
+          );
+          successCount += processRes.successCount;
+          failedCount += processRes.failedCount;
+          results.push(...processRes.results);
         } catch (smsError: any) {
           await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-          const failRes = await this.handleCatastrophicFailure(orderedBatches, smsError.message);
+          const failRes = await this.handleCatastrophicFailure(
+            orderedBatches,
+            smsError.message,
+          );
           failedCount += failRes.failedCount;
           results.push(...failRes.results);
         }
@@ -464,8 +511,12 @@ export class SmsLogsService {
   }
 
   static async getSmsUsageStats(days: number = 30) {
+    const safeDays = Math.min(
+      365,
+      Math.max(1, Number.isFinite(days) ? Math.floor(days) : 30),
+    );
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setDate(startDate.getDate() - safeDays);
 
     const logs = await prisma.sms_logs.findMany({
       where: {
@@ -485,17 +536,16 @@ export class SmsLogsService {
 
     const usageMap = new Map<string, number>();
 
-    for (let i = 0; i <= days; i++) {
+    for (let i = 0; i <= safeDays; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateKey = d.toISOString().split("T")[0];
-      usageMap.set(dateKey, 0);
+      usageMap.set(getLocalDateKey(d), 0);
     }
 
     logs.forEach((log) => {
-      const dateKey = log.created_at.toISOString().split("T")[0];
+      const dateKey = getLocalDateKey(log.created_at);
       if (usageMap.has(dateKey)) {
-        usageMap.set(dateKey, usageMap.get(dateKey)! + (log.sms_count || 1));
+        usageMap.set(dateKey, usageMap.get(dateKey)! + (log.sms_count ?? 1));
       }
     });
 
@@ -530,6 +580,7 @@ export class SmsLogsService {
     });
 
     const uniqueGlobalPhones = new Set<string>();
+    const classPhones = new Map<number, Set<string>>();
     const classBreakdown: Record<number, { total: number; withPhone: number }> = {};
 
     for (const e of enrollments) {
@@ -546,8 +597,17 @@ export class SmsLogsService {
         const formatted = SMSService.formatPhoneNumber(phone);
         if (formatted && formatted.length >= 10) {
           uniqueGlobalPhones.add(formatted);
-          classBreakdown[e.class].withPhone++;
+          if (!classPhones.has(e.class)) {
+            classPhones.set(e.class, new Set());
+          }
+          classPhones.get(e.class)!.add(formatted);
         }
+      }
+    }
+
+    for (const [classNum, phones] of classPhones) {
+      if (classBreakdown[classNum]) {
+        classBreakdown[classNum].withPhone = phones.size;
       }
     }
 
@@ -595,7 +655,7 @@ export class SmsLogsService {
     const orderedBatches: SmsLogInfo[][] = [];
     // Track deduped phones so same phone → same index in smsMessages
     const phoneIndexMap = new Map<string, number>();
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateKey();
     let totalSegmentsNeeded = 0;
 
     const smsCountPerMsg = SMSService.calculateSMSCount(message).count;
@@ -649,28 +709,20 @@ export class SmsLogsService {
     }
 
     try {
-      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, { skipBalanceUpdate: true });
-
-      if (bulkSmsResponse.success && bulkSmsResponse.data?.results) {
-        const processRes = await this.processBatchResults(bulkSmsResponse.data.results, orderedBatches);
-
-        let totalActualUsed = 0;
-        for (const res of bulkSmsResponse.data.results) {
-          totalActualUsed += (res.sms_count || 1);
-        }
-        const refund = totalSegmentsNeeded - totalActualUsed;
-        if (refund > 0) {
-          await SmsSettingsService.updateBalance(refund);
-        }
-        return processRes;
-      } else {
-        await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-        const errorReason = bulkSmsResponse.message || "Bulk SMS delivery failed";
-        return await this.handleCatastrophicFailure(orderedBatches, errorReason);
-      }
+      const bulkSmsResponse = await SMSService.sendBulkSMS(smsMessages, {
+        skipBalanceUpdate: true,
+      });
+      return await finalizeBulkSend(
+        bulkSmsResponse,
+        orderedBatches,
+        totalSegmentsNeeded,
+      );
     } catch (error: any) {
       await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-      return await this.handleCatastrophicFailure(orderedBatches, error.message || "Unknown SMS Error");
+      return await this.handleCatastrophicFailure(
+        orderedBatches,
+        error.message || "Unknown SMS Error",
+      );
     }
   }
 }
