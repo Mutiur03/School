@@ -23,11 +23,13 @@ export function initSentry() {
       Sentry.httpIntegration(),
       Sentry.expressIntegration(),
       Sentry.prismaIntegration(),
+      Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
     ],
     tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1,
     initialScope: {
       tags: { app: "server" },
     },
+    enableLogs: true,
   });
 }
 

@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/react";
 import {
   createRoutesFromChildren,
   matchRoutes,
+  Routes,
   useLocation,
   useNavigationType,
 } from "react-router-dom";
@@ -9,6 +10,8 @@ import { useEffect } from "react";
 import envPreferredRole from "./role";
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+
+export const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 type SentryAuthUser =
   | { role: "admin"; id: string; username: string; email: string }
@@ -50,6 +53,9 @@ export function syncSentryUser(user: SentryAuthUser | null) {
 
 export function initSentry() {
   if (!sentryDsn) {
+    if (import.meta.env.PROD) {
+      console.error("[Sentry] VITE_SENTRY_DSN missing in production build");
+    }
     return;
   }
 
@@ -58,8 +64,6 @@ export function initSentry() {
     environment: import.meta.env.MODE,
     enabled: import.meta.env.PROD,
     integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
       Sentry.reactRouterV7BrowserTracingIntegration({
         useEffect,
         useLocation,
@@ -67,6 +71,7 @@ export function initSentry() {
         createRoutesFromChildren,
         matchRoutes,
       }),
+      Sentry.replayIntegration(),
     ],
     tracesSampleRate: import.meta.env.PROD ? 0.2 : 1,
     replaysSessionSampleRate: 0.1,

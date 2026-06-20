@@ -11,6 +11,7 @@ import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from "@school/co
 
 import { useAuth } from "./context/useAuth.tsx";
 import envPreferredRole from "./lib/role.ts";
+import { SentryRoutes } from "./lib/sentry.ts";
 import Loading from "./components/Loading.tsx";
 import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
@@ -117,7 +118,7 @@ function App() {
       />
       <div className="flex flex-col h-screen">
         <Suspense fallback={<><TopLoadingBar /><div className="flex items-center justify-center h-screen bg-background"><Loading /></div></>}>
-          <Routes>
+          <SentryRoutes>
             <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
             <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
             <Route path="/preview/class9/:id" element={<Class9PdfPreview />} />
@@ -267,7 +268,7 @@ function App() {
                 } />
               } />
             )}
-          </Routes>
+          </SentryRoutes>
         </Suspense>
       </div>
     </>

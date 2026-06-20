@@ -1007,6 +1007,8 @@ async function generatePDF(data: {
     10: "Ten",
   };
   const classStr = classNames[Number(data.class)] || String(data.class);
+  const dhakaDate = () =>
+    new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" });
 
   const addressStr = data.address ? data.address.map(a => `${a.title} ${a.value}`).join(", ") : "N/A";
   const qrText = `Name: ${data.name}\nClass: ${classStr}\nSection: ${data.section}\nRoll: ${data.roll}\nAddress: ${addressStr}\nSession: ${data.session}\nSchool: ${data.school_name}`;
@@ -1096,15 +1098,14 @@ async function generatePDF(data: {
       .lineWidth(1)
       .stroke("#000000");
 
-    /*y += 12;
+    const textX = M + 20;
+    const textWidth = W - (M + 20) * 2;
 
-    doc.font("Times-Bold").fontSize(10).fillColor("#333333");
-    doc.text(
-      `Date: ${new Date().toLocaleDateString("en-GB")}`,
-      W - M - 180,
-      y,
-      { align: "right", width: 150 },
-    );*/
+    y += 12;
+
+    doc.font("Times-Bold").fontSize(10).fillColor("#000000");
+    doc.text("Memo No:", textX, y);
+    doc.text(dhakaDate(), textX, y, { align: "right", width: textWidth });
 
     try {
       doc.save();
@@ -1131,8 +1132,6 @@ async function generatePDF(data: {
     const bodyFont = "Times-Roman";
     const bodyFontBold = "Times-Bold";
     const bodySize = 12;
-    const textX = M + 20;
-    const textWidth = W - (M + 20) * 2;
 
     const fragments = [
       { text: "This is to certify that", font: bodyFont },
@@ -1285,10 +1284,10 @@ async function generatePDF(data: {
       });
 
     y += 20;
-    doc
-      .font("Times-Bold")
-      .fontSize(9)
-      .text(`Date: ${new Date().toLocaleDateString("en-GB")}`, M + 15, y);
+    doc.font("Times-Bold").fontSize(9).text("Memo No:", M + 15, y);
+
+    y += 18;
+    doc.text(`Date: ${dhakaDate()}`, M + 15, y);
 
     y += 18;
     doc.font("Times-Roman").fontSize(10);
