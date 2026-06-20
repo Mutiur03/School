@@ -7,7 +7,7 @@ import { UnifiedAuthProvider } from "./context/unifiedAuthContext.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import backend from "./lib/backend.ts";
-import { init as initObserva } from "@mutiur03/observa-web";
+// import { init as initObserva } from "@mutiur03/observa-web";
 import { initSentry, Sentry } from "./lib/sentry.ts";
 
 axios.defaults.baseURL = backend;
@@ -15,11 +15,11 @@ axios.defaults.withCredentials = true;
 
 initSentry();
 
-const observaPublicKey = import.meta.env.VITE_OBSERVA_PUBLIC_KEY;
+// const observaPublicKey = import.meta.env.VITE_OBSERVA_PUBLIC_KEY;
 
-if (observaPublicKey) {
-  initObserva({ apiKey: observaPublicKey, autoTrack: { webVitals: false } });
-}
+// if (observaPublicKey) {
+//   initObserva({ apiKey: observaPublicKey, autoTrack: { webVitals: false } });
+// }
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -91,6 +91,13 @@ jobs:
           npm run build -w @school/common-ui
           npm run build -w @school/client-ui
 
+      - name: Validate Sentry DSN secret
+        run: |
+          if [ -z "${{ secrets.VITE_SENTRY_DSN }}" ]; then
+            echo "::error::GitHub secret VITE_SENTRY_DSN is empty. Frontend Sentry will not send events."
+            exit 1
+          fi
+
       - name: Write production env for ${{ matrix.app.name }}
         run: |
           {
