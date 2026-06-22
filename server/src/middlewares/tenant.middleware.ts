@@ -1,11 +1,14 @@
 import express from "express";
 import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
-import { resolveTenantHostname } from "@/utils/tenantHost.util.js";
+import {
+  getCustomDomainLookupCandidates,
+  getMainDomain,
+  resolveTenantHostname,
+} from "@/utils/tenantHost.util.js";
 import { prisma } from "@/config/prisma.js";
 import { redis } from "@/config/redis.js";
 
 const TENANT_SUBDOMAIN_SUFFIXES = [".localhost", ".mutiurrahman.com"] as const;
-const CUSTOM_DOMAIN_PREFIXES = ["admin.", "teacher.", "student.", "www."] as const;
 
 const normalizeTenantSubdomain = (hostname: string) =>
   hostname
@@ -20,16 +23,6 @@ const isBareLocalDevHost = (hostname: string) =>
 const isPlatformSubdomainHost = (hostname: string) =>
   TENANT_SUBDOMAIN_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
 
-const customDomainCandidates = (hostname: string): string[] => {
-  const candidates = new Set<string>([hostname]);
-  for (const prefix of CUSTOM_DOMAIN_PREFIXES) {
-    if (hostname.startsWith(prefix)) {
-      candidates.add(hostname.slice(prefix.length));
-    }
-  }
-  return [...candidates];
-};
-
 const lookupSchool = async (tenantHostname: string) => {
   if (isPlatformSubdomainHost(tenantHostname)) {
     const subdomain = normalizeTenantSubdomain(tenantHostname);
@@ -38,7 +31,7 @@ const lookupSchool = async (tenantHostname: string) => {
     }
   }
 
-  for (const domain of customDomainCandidates(tenantHostname)) {
+  for (const domain of getCustomDomainLookupCandidates(tenantHostname)) {
     const school = await prisma.school.findUnique({
       where: { customDomain: domain },
     });
@@ -46,6 +39,13 @@ const lookupSchool = async (tenantHostname: string) => {
   }
 
   return null;
+};
+
+const tenantCacheKey = (tenantHostname: string) => {
+  if (isPlatformSubdomainHost(tenantHostname)) {
+    return `tenant:${tenantHostname}`;
+  }
+  return `tenant:domain:${getMainDomain(tenantHostname)}`;
 };
 
 export const schoolContextMiddleware = async (
@@ -70,7 +70,7 @@ export const schoolContextMiddleware = async (
     });
   }
 
-  const cacheKey = `tenant:${tenantHostname}`;
+  const cacheKey = tenantCacheKey(tenantHostname);
   const cached = await redis.get(cacheKey);
   if (cached) {
     const parsedCached = JSON.parse(cached) as { id?: number };
