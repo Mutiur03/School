@@ -4,9 +4,22 @@ export const TENANT_CLIENT_HOST_SUFFIX =
   process.env.NEXT_PUBLIC_TENANT_CLIENT_HOST_SUFFIX ||
   "-school.mutiurrahman.com";
 
-export function isLocalDevHost(hostname: string): boolean {
+export function isBareLocalHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  return host === "localhost" || host.endsWith(".localhost");
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+export function isTenantLocalDevHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host.endsWith(".localhost") && !isBareLocalHost(host);
+}
+
+export function getDevTenantHost(): string {
+  return process.env.NEXT_PUBLIC_DEV_TENANT_HOST || "lbp.localhost";
+}
+
+export function isLocalDevHost(hostname: string): boolean {
+  return isBareLocalHost(hostname) || isTenantLocalDevHost(hostname);
 }
 
 export function isTenantHost(hostname: string): boolean {
@@ -21,7 +34,7 @@ export function resolveBackendUrlFromHost(
   const fromEnv = trimTrailingSlash(String(envUrl ?? "").trim());
   const host = hostname.toLowerCase();
 
-  if (isLocalDevHost(host) || isTenantHost(host)) {
+  if (isBareLocalHost(host) || isTenantLocalDevHost(host) || isTenantHost(host)) {
     return "";
   }
 
@@ -34,9 +47,15 @@ export function resolveBackendBaseUrl(
   protocol: string,
   envUrl = process.env.NEXT_PUBLIC_BACKEND_URL,
 ): string {
-  const envBackend = resolveBackendUrlFromHost(hostname, envUrl);
-  if (envBackend) return envBackend;
-  if (!hostname) return "";
+  const envBackend = trimTrailingSlash(String(envUrl ?? "").trim());
+
+  if (isBareLocalHost(hostname) || isTenantLocalDevHost(hostname)) {
+    return envBackend;
+  }
+
+  const relative = resolveBackendUrlFromHost(hostname, envUrl);
+  if (relative) return relative;
+  if (!hostname) return envBackend;
   return trimTrailingSlash(`${protocol}://${hostname}`);
 }
 
