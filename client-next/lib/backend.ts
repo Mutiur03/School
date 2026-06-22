@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { headers } from "next/headers";
-import { resolveBackendBaseUrl } from "./resolveBackend";
+import {
+  getDevTenantHost,
+  isBareLocalHost,
+  isTenantLocalDevHost,
+  resolveBackendBaseUrl,
+} from "./resolveBackend";
 
 // Re-exported from cdn.ts so Server Components can still import from one place.
 export { cdn, getFileUrl } from "./cdn";
@@ -96,6 +101,40 @@ export async function getBackendBaseUrl(): Promise<string> {
   }
 }
 
+async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
+  const requestOrigin = await getRequestOrigin();
+  if (!requestOrigin) return undefined;
+
+  try {
+    const { hostname, protocol } = new URL(requestOrigin);
+    const proto = protocol.replace(":", "");
+
+    if (isBareLocalHost(hostname)) {
+      const tenantHost = getDevTenantHost();
+      return {
+        Origin: `${proto}://${tenantHost}`,
+        "x-forwarded-host": tenantHost,
+        "x-tenant-host": tenantHost,
+      };
+    }
+
+    if (isTenantLocalDevHost(hostname)) {
+      return {
+        Origin: `${proto}://${hostname}`,
+        "x-forwarded-host": hostname,
+        "x-tenant-host": hostname,
+      };
+    }
+
+    return {
+      Origin: requestOrigin,
+      "x-forwarded-host": new URL(requestOrigin).host,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
   if (
     payload &&
@@ -128,7 +167,6 @@ async function get<T>(url: string, options?: any) {
     return normalizeApiResponse<T>(null);
   }
 
-  const origin = await getRequestOrigin();
   const sanitizedParams = params
     ? Object.fromEntries(
         Object.entries(params).filter(
@@ -145,18 +183,19 @@ async function get<T>(url: string, options?: any) {
         ).toString()
       : "";
   const requestUrl = `${backend}${url}${query}`;
+  const apiHeaders = await getApiFetchHeaders();
 
   logApiRequest("GET", requestUrl, backend, {
     params: sanitizedParams,
     revalidate,
     cache,
-    origin,
+    apiHeaders,
   });
 
   try {
     const res = await fetch(requestUrl, {
       method: "GET",
-      headers: origin ? { Origin: origin } : undefined,
+      headers: apiHeaders,
       cache,
       next: cache === "no-store" ? undefined : { revalidate }, // SSR caching
     });
@@ -184,6 +223,7 @@ async function get<T>(url: string, options?: any) {
 async function post<T>(url: string, body?: any) {
   const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
+  const apiHeaders = await getApiFetchHeaders();
 
   logApiRequest("POST", requestUrl, backend, {
     bodyPreview: previewBody(body),
@@ -193,6 +233,7 @@ async function post<T>(url: string, body?: any) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...apiHeaders,
     },
     body: JSON.stringify(body),
   });
@@ -210,6 +251,7 @@ async function post<T>(url: string, body?: any) {
 async function put<T>(url: string, body?: any) {
   const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
+  const apiHeaders = await getApiFetchHeaders();
 
   logApiRequest("PUT", requestUrl, backend, {
     bodyPreview: previewBody(body),
@@ -217,7 +259,10 @@ async function put<T>(url: string, body?: any) {
 
   const res = await fetch(requestUrl, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...apiHeaders,
+    },
     body: JSON.stringify(body),
   });
   const text = await res.text();
@@ -234,11 +279,13 @@ async function put<T>(url: string, body?: any) {
 async function del<T>(url: string) {
   const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
+  const apiHeaders = await getApiFetchHeaders();
 
   logApiRequest("DELETE", requestUrl, backend);
 
   const res = await fetch(requestUrl, {
     method: "DELETE",
+    headers: apiHeaders,
   });
   const text = await res.text();
 
@@ -254,6 +301,7 @@ async function del<T>(url: string) {
 async function patch<T>(url: string, body?: any) {
   const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
+  const apiHeaders = await getApiFetchHeaders();
 
   logApiRequest("PATCH", requestUrl, backend, {
     bodyPreview: previewBody(body),
@@ -263,6 +311,7 @@ async function patch<T>(url: string, body?: any) {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...apiHeaders,
     },
     body: JSON.stringify(body),
   });
