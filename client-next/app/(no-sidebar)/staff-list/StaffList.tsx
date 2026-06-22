@@ -1,6 +1,7 @@
 "use client"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
+import { resolveClientAxiosBaseUrl } from "@/lib/resolveBackend"
 
 type StaffMember = {
     id: number
@@ -20,7 +21,7 @@ function StaffList({ staff }: StaffListProps) {
     const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
     const [isOpen, setIsOpen] = useState(false)
     const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const backendBase = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/+$/, "")
+    const backendBase = resolveClientAxiosBaseUrl()
     const toImageUrl = (value?: string) => {
         if (!value) return "/placeholder.svg"
         if (/^https?:\/\//i.test(value)) return value

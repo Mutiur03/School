@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { headers } from "next/headers";
+import { resolveBackendBaseUrl } from "./resolveBackend";
 
-const backend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "");
-export default backend;
 // Re-exported from cdn.ts so Server Components can still import from one place.
 export { cdn, getFileUrl } from "./cdn";
+export { resolveClientAxiosBaseUrl } from "./resolveBackend";
+
+const envBackend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "") || "";
 const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === "true";
 
 export interface ApiResponse<T> {
@@ -21,13 +23,18 @@ export const api = {
   patch,
 };
 
-function logApiRequest(method: string, url: string, details?: Record<string, unknown>) {
+function logApiRequest(
+  method: string,
+  url: string,
+  backendBase: string,
+  details?: Record<string, unknown>,
+) {
   if (!debugApi) return;
 
   console.log("[API request]", {
     method,
     url,
-    backend,
+    backend: backendBase,
     ...details,
   });
 }
@@ -60,7 +67,7 @@ function previewBody(body: unknown) {
 async function getRequestOrigin() {
   try {
     const incomingHeaders = await headers();
-    const host = incomingHeaders.get("host");
+    const host = incomingHeaders.get("x-forwarded-host") || incomingHeaders.get("host");
 
     if (!host) return undefined;
 
@@ -71,6 +78,21 @@ async function getRequestOrigin() {
     return `${protocol}://${host}`;
   } catch {
     return undefined;
+  }
+}
+
+export async function getBackendBaseUrl(): Promise<string> {
+  const origin = await getRequestOrigin();
+
+  if (!origin) {
+    return envBackend;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return resolveBackendBaseUrl(hostname, protocol.replace(":", ""));
+  } catch {
+    return envBackend;
   }
 }
 
@@ -95,10 +117,12 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 
 async function get<T>(url: string, options?: any) {
   const { params, revalidate = 60, cache } = options || {};
+  const backend = await getBackendBaseUrl();
+
   if (!backend) {
-    logApiRequest("GET", url, {
+    logApiRequest("GET", url, backend, {
       skipped: true,
-      reason: "NEXT_PUBLIC_BACKEND_URL is not set",
+      reason: "backend base URL is not set",
       params,
     });
     return normalizeApiResponse<T>(null);
@@ -122,7 +146,7 @@ async function get<T>(url: string, options?: any) {
       : "";
   const requestUrl = `${backend}${url}${query}`;
 
-  logApiRequest("GET", requestUrl, {
+  logApiRequest("GET", requestUrl, backend, {
     params: sanitizedParams,
     revalidate,
     cache,
@@ -158,9 +182,10 @@ async function get<T>(url: string, options?: any) {
 }
 
 async function post<T>(url: string, body?: any) {
+  const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
 
-  logApiRequest("POST", requestUrl, {
+  logApiRequest("POST", requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 
@@ -183,9 +208,10 @@ async function post<T>(url: string, body?: any) {
 }
 
 async function put<T>(url: string, body?: any) {
+  const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
 
-  logApiRequest("PUT", requestUrl, {
+  logApiRequest("PUT", requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 
@@ -206,9 +232,10 @@ async function put<T>(url: string, body?: any) {
 }
 
 async function del<T>(url: string) {
+  const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
 
-  logApiRequest("DELETE", requestUrl);
+  logApiRequest("DELETE", requestUrl, backend);
 
   const res = await fetch(requestUrl, {
     method: "DELETE",
@@ -225,9 +252,10 @@ async function del<T>(url: string) {
 }
 
 async function patch<T>(url: string, body?: any) {
+  const backend = await getBackendBaseUrl();
   const requestUrl = `${backend}${url}`;
 
-  logApiRequest("PATCH", requestUrl, {
+  logApiRequest("PATCH", requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 

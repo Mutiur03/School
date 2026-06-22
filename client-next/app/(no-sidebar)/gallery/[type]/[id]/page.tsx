@@ -1,4 +1,4 @@
-import backend from "@/lib/backend";
+import { getBackendBaseUrl } from "@/lib/backend";
 import { fetchGalleryImages } from "@/queries/gallery.queries";
 import ImagesPage from "./Image";
 
@@ -13,7 +13,7 @@ interface PageProps {
 
 export default async function Page({ params }: PageProps) {
     const { type: rawType, id } = await params;
-    const apiBase = backend || "";
+    const apiBase = await getBackendBaseUrl();
     const type = rawType === "event" ? "event" : "campus";
     const images = await fetchGalleryImages(type, id);
 

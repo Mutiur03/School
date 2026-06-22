@@ -38,6 +38,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    if (process.env.NODE_ENV !== "development") {
+      return [];
+    }
+
+    const tenantRouter =
+      process.env.TENANT_ROUTER_URL?.replace(/\/+$/, "") ||
+      "http://127.0.0.1:8787";
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${tenantRouter}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
