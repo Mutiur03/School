@@ -398,7 +398,7 @@ export function Chart({
                         <Link href="/registration/class-8">অষ্টম শ্রেণি</Link>
                       </li>
                       <li>
-                        <Link href="/reg/ssc">নবম শ্রেণি</Link>
+                        <Link href="/registration/class-9">নবম শ্রেণি</Link>
                       </li>
                       {/* <li>
                         <a>দশম শ্রেণি</a>
