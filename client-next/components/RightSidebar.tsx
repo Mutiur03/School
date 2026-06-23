@@ -23,8 +23,10 @@ type SidebarLink = {
 
 
 export async function RightSidebar() {
-  const school = await fetchSchoolConfig();
-  const resolvedHeadMasterMsg = await fetchHeadMasterMsg();
+  const [school, resolvedHeadMasterMsg] = await Promise.all([
+    fetchSchoolConfig(),
+    fetchHeadMasterMsg(),
+  ]);
   const currentDate = new Date();
 
   const monthNames = [

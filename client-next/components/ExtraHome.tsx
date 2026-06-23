@@ -34,6 +34,8 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
                   <Image
                     src={placeholderImage}
                     alt={`gallery-${i}`}
+                    width={160}
+                    height={160}
                     className="w-full h-full object-cover block"
                   />
                 </div>

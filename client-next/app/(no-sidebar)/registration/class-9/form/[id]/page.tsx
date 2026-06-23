@@ -38,5 +38,11 @@ export default async function Class9RegistrationEditPage({
         redirect("/");
     }
 
-    return <RegistrationClass9Client schoolConfig={schoolConfig} />;
+    return (
+        <RegistrationClass9Client
+            schoolConfig={schoolConfig}
+            settings={settings}
+            initialRecord={record}
+        />
+    );
 }

@@ -22,14 +22,20 @@ import FieldRow from "@/components/Form/FieldRow";
 import AddressFields from "@/components/Form/AddressFields";
 import GuardianSection from "@/components/Form/GuardianSection";
 import FormInput from "@/components/Form/FormInput";
+import type { Class8RegistrationSettings } from "@/queries/class8-registration.queries";
+import type { Class8RegistrationRecord } from "@school/shared-schemas";
 import type { SchoolConfig } from "@/types";
 
 type RegistrationClass8ClientProps = {
     schoolConfig: SchoolConfig;
+    settings: Class8RegistrationSettings;
+    initialRecord?: Class8RegistrationRecord | null;
 };
 
 export default function RegistrationClass8Client({
     schoolConfig,
+    settings: settingsProp,
+    initialRecord,
 }: RegistrationClass8ClientProps) {
     const router = useRouter();
     const { id } = useParams<{ id?: string }>();
@@ -39,7 +45,7 @@ export default function RegistrationClass8Client({
     const [permanentUpazilas, setPermanentUpazilas] = useState<any[]>([]);
     const [presentUpazilas, setPresentUpazilas] = useState<any[]>([]);
     const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<any[]>([]);
-    const [settings, setSettings] = useState<any>(null);
+    const [settings, setSettings] = useState<any>(settingsProp);
     const [availableRolls, setAvailableRolls] = useState<string[]>([]);
     const [initialRoll, setInitialRoll] = useState<string | null>(null);
     const [initialRollApplied, setInitialRollApplied] = useState(false);
@@ -97,94 +103,77 @@ export default function RegistrationClass8Client({
     ]);
 
     useEffect(() => {
-        const initializeData = async () => {
+        const initializeData = () => {
             try {
                 setLoading(true);
+                setSettings(settingsProp);
 
-                const settingsRes = await axios.get("/api/reg/class-8");
-                let currentSettings = null;
-                if (settingsRes.data.success) {
-                    if (!settingsRes.data.data.reg_open) {
-                        router.replace("/");
+                if (isEditMode && id) {
+                    const data = initialRecord;
+                    if (!data) {
+                        router.replace("/registration/class-8/form");
                         return;
                     }
-                    currentSettings = settingsRes.data.data;
-                    setSettings(currentSettings);
-                }
-                
-                if (isEditMode && id) {
-                    const response = await axios.get(`/api/reg/class-8/form/${id}`);
-                    if (response.data.success) {
-                        const data = response.data.data;
-                        if (data.status && data.status !== "pending") {
-                            router.replace(`/registration/class-8/confirm/${id}`);
-                            return;
-                        }
-                        const formData: any = { ...data };
+                    const formData: any = { ...data };
 
-                        Object.keys(formData).forEach((key) => {
-                            if (formData[key] === null) {
-                                formData[key] = "";
-                            }
-                        });
-                        if (currentSettings && data.section) {
-                            const rollRange = data.section === "A" ? currentSettings.a_sec_roll : currentSettings.b_sec_roll;
-                            const rolls = parseRollRange(rollRange);
-                            setAvailableRolls(rolls);
+                    Object.keys(formData).forEach((key) => {
+                        if (formData[key] === null) {
+                            formData[key] = "";
                         }
-                        if (data.roll) {
-                            setInitialRoll(data.roll);
-                            setInitialRollApplied(false);
-                        } else {
-                            setInitialRollApplied(true);
-                        }
-                        if (data.permanent_district) {
-                            setPermanentUpazilas(getUpazilasByDistrict(data.permanent_district));
-                            setInitialPermanentUpazila(data.permanent_upazila || "");
-                        }
-                        if (data.present_district) {
-                            setPresentUpazilas(getUpazilasByDistrict(data.present_district));
-                            setInitialPresentUpazila(data.present_upazila || "");
-                        }
-                        if (data.prev_school_district) {
-                            setPrevSchoolUpazilas(getUpazilasByDistrict(data.prev_school_district));
-                            setInitialPrevSchoolUpazila(data.prev_school_upazila || "");
-                        }
-                        const hasDistrictsToSync = Boolean(data.permanent_district || data.present_district || data.prev_school_district);
-                        setInitialUpazilasApplied(!hasDistrictsToSync);
-                        reset(formData);
-
-                        const isSame =
-                            data.present_district === data.permanent_district &&
-                            data.present_upazila === data.permanent_upazila &&
-                            data.present_post_office === data.permanent_post_office &&
-                            data.present_post_code === data.permanent_post_code &&
-                            data.present_village_road === data.permanent_village_road;
-                        const isGuardianSameAsPermanent =
-                            data.guardian_district === data.permanent_district &&
-                            data.guardian_upazila === data.permanent_upazila &&
-                            data.guardian_post_office === data.permanent_post_office &&
-                            data.guardian_post_code === data.permanent_post_code &&
-                            data.guardian_village_road === data.permanent_village_road;
-
-                        setValue("same_as_permanent", isSame);
-                        setValue("guardian_address_same_as_permanent", isGuardianSameAsPermanent);
-                        if (data.guardian_name && data.guardian_name.trim() !== "") {
-                            setValue("guardian_is_not_father", true);
-                        } else {
-                            setValue("guardian_is_not_father", false);
-                        }
-                        if (data.photo) {
-                            setPhotoPreview(getFileUrl(data.photo));
-                        }
+                    });
+                    if (settingsProp && data.section) {
+                        const rollRange = data.section === "A" ? settingsProp.a_sec_roll : settingsProp.b_sec_roll;
+                        const rolls = parseRollRange(rollRange ?? null);
+                        setAvailableRolls(rolls);
+                    }
+                    if (data.roll) {
+                        setInitialRoll(data.roll);
+                        setInitialRollApplied(false);
                     } else {
-                        router.replace("/registration/class-8");
+                        setInitialRollApplied(true);
+                    }
+                    if (data.permanent_district) {
+                        setPermanentUpazilas(getUpazilasByDistrict(data.permanent_district));
+                        setInitialPermanentUpazila(data.permanent_upazila || "");
+                    }
+                    if (data.present_district) {
+                        setPresentUpazilas(getUpazilasByDistrict(data.present_district));
+                        setInitialPresentUpazila(data.present_upazila || "");
+                    }
+                    if (data.prev_school_district) {
+                        setPrevSchoolUpazilas(getUpazilasByDistrict(data.prev_school_district));
+                        setInitialPrevSchoolUpazila(data.prev_school_upazila || "");
+                    }
+                    const hasDistrictsToSync = Boolean(data.permanent_district || data.present_district || data.prev_school_district);
+                    setInitialUpazilasApplied(!hasDistrictsToSync);
+                    reset(formData);
+
+                    const isSame =
+                        data.present_district === data.permanent_district &&
+                        data.present_upazila === data.permanent_upazila &&
+                        data.present_post_office === data.permanent_post_office &&
+                        data.present_post_code === data.permanent_post_code &&
+                        data.present_village_road === data.permanent_village_road;
+                    const isGuardianSameAsPermanent =
+                        data.guardian_district === data.permanent_district &&
+                        data.guardian_upazila === data.permanent_upazila &&
+                        data.guardian_post_office === data.permanent_post_office &&
+                        data.guardian_post_code === data.permanent_post_code &&
+                        data.guardian_village_road === data.permanent_village_road;
+
+                    setValue("same_as_permanent", isSame);
+                    setValue("guardian_address_same_as_permanent", isGuardianSameAsPermanent);
+                    if (data.guardian_name && data.guardian_name.trim() !== "") {
+                        setValue("guardian_is_not_father", true);
+                    } else {
+                        setValue("guardian_is_not_father", false);
+                    }
+                    if (typeof data.photo === "string" && data.photo) {
+                        setPhotoPreview(getFileUrl(data.photo));
                     }
                 } else {
-                    // Pre-populate default school for new registration
                     setValue("prev_school_name", schoolConfig.name.en, { shouldValidate: true });
                     setValue("prev_school_district", schoolConfig.contact.district, { shouldValidate: true });
-                    // Upazila will be set by the useEffect watching prev_school_district
                 }
             } catch (error) {
                 console.error("Failed to initialize data:", error);
@@ -195,7 +184,7 @@ export default function RegistrationClass8Client({
         };
 
         initializeData();
-    }, [isEditMode, id, router, reset, setValue, schoolConfig.contact.district, schoolConfig.name.en]);
+    }, [isEditMode, id, initialRecord, settingsProp, router, reset, setValue, schoolConfig.contact.district, schoolConfig.name.en]);
 
     const prev_school_name = useWatch({ control, name: "prev_school_name" });
 
