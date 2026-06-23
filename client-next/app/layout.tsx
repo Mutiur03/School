@@ -82,7 +82,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               titleEn={String(school?.name?.en ?? "")}
               school={school!}
             />
-            <Navbar />
+            <Navbar school={school!} />
             <hr className="border-t border-gray-300" />
             <TopBanner />
             {children}

@@ -77,6 +77,8 @@ export function Header({
                 width={1920}
                 height={480}
                 sizes="100vw"
+                priority={index === 0}
+                fetchPriority={index === 0 ? "high" : "auto"}
                 className="h-full w-full object-cover object-top"
               />
               <div className="absolute inset-0 bg-black/30"></div>

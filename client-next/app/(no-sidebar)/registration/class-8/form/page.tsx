@@ -17,5 +17,5 @@ export default async function Class8RegistrationFormPage() {
         redirect("/");
     }
 
-    return <RegistrationClass8Client schoolConfig={schoolConfig} />;
+    return <RegistrationClass8Client schoolConfig={schoolConfig} settings={settings} />;
 }

@@ -1,15 +1,7 @@
-"use client";
 import "./Chart.css";
 import Image from "next/image";
 import type { StaticImageData } from "next/image";
 import Link from "next/link";
-import type { MouseEvent } from "react";
-
-import {
-  useCitizenCharter,
-  useRoutinePDF,
-  useSyllabuses,
-} from "@/hooks/useSchoolData";
 
 import image01 from "../assets/images/01.png";
 import academicImage from "../assets/images/academic.png";
@@ -25,7 +17,9 @@ import coEducationalActivitiesImage from "../assets/images/Co-educational-activi
 import onlineClassImage from "../assets/images/Online-Class.jpg";
 import miscImage from "../assets/images/0-1.png";
 import emergencyCallServicesImage from "../assets/images/Emergency-call-Services.jpg";
-import { getFileUrl } from "@/lib/cdn";
+import { ChartRoutineLinks } from "./chart/ChartRoutineLinks";
+import { ChartSyllabusLinks } from "./chart/ChartSyllabusLinks";
+import { ChartCitizenLink } from "./chart/ChartCitizenLink";
 
 export type ChartProps = {
   school?: {
@@ -49,47 +43,8 @@ function BoxImage({ src, alt }: { src: StaticImageData; alt: string }) {
   );
 }
 
-export function Chart({
-  school,
-}: ChartProps) {
+export function Chart({ school }: ChartProps) {
   const resultsUrl = school?.links?.results ?? "#";
-  const routineQuery = useRoutinePDF();
-  const syllabusesQuery = useSyllabuses();
-  const citizenCharterQuery = useCitizenCharter();
-
-  const handleRoutineClick = async (e: MouseEvent) => {
-    e.preventDefault();
-
-    const pdfUrl = routineQuery.data ?? (await routineQuery.refetch()).data;
-    if (pdfUrl) {
-      window.open(getFileUrl(pdfUrl), "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleSyllabusClick = async (classNum: number) => {
-    const syllabuses =
-      syllabusesQuery.data ?? (await syllabusesQuery.refetch()).data ?? [];
-    const classSyllabuses = syllabuses.filter(
-      (syllabus) => syllabus.class === classNum,
-    );
-    const latest = classSyllabuses.reduce(
-      (currentLatest, syllabus) =>
-        syllabus.year > currentLatest.year ? syllabus : currentLatest,
-      classSyllabuses[0],
-    );
-
-    if (latest?.pdf_url) {
-      window.open(getFileUrl(latest.pdf_url), "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleCitizenCharterClick = async () => {
-    const url =
-      citizenCharterQuery.data ?? (await citizenCharterQuery.refetch()).data;
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  };
 
   return (
     <div className="front-boxs-area">
@@ -141,48 +96,7 @@ export function Chart({
                     <BoxImage src={academicImage} alt="" />
                   </div>
                   <div className="box-text">
-                    <ul>
-                      <li>
-                        <a
-                          onClick={handleRoutineClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          ষষ্ঠ শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={handleRoutineClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          সপ্তম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={handleRoutineClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          অষ্টম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={handleRoutineClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          নবম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={handleRoutineClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          দশম শ্রেণি
-                        </a>
-                      </li>
-                    </ul>
+                    <ChartRoutineLinks />
                   </div>
                 </div>
               </div>
@@ -230,48 +144,7 @@ export function Chart({
                     <BoxImage src={classRoutineSyllabusImage} alt="" />
                   </div>
                   <div className="box-text">
-                    <ul>
-                      <li>
-                        <a
-                          onClick={() => handleSyllabusClick(6)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          ষষ্ঠ শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={() => handleSyllabusClick(7)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          সপ্তম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={() => handleSyllabusClick(8)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          অষ্টম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={() => handleSyllabusClick(9)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          নবম শ্রেণি
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          onClick={() => handleSyllabusClick(10)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          দশম শ্রেণি
-                        </a>
-                      </li>
-                    </ul>
+                    <ChartSyllabusLinks />
                   </div>
                 </div>
               </div>
@@ -391,18 +264,12 @@ export function Chart({
                       <li>
                         <Link href="/registration/class-6">ষষ্ঠ শ্রেণি</Link>
                       </li>
-                      {/* <li>
-                        <a>সপ্তম শ্রেণি</a>
-                      </li> */}
                       <li>
                         <Link href="/registration/class-8">অষ্টম শ্রেণি</Link>
                       </li>
                       <li>
                         <Link href="/registration/class-9">নবম শ্রেণি</Link>
                       </li>
-                      {/* <li>
-                        <a>দশম শ্রেণি</a>
-                      </li> */}
                     </ul>
                   </div>
                 </div>
@@ -419,16 +286,7 @@ export function Chart({
                     <BoxImage src={citizenImage} alt="" />
                   </div>
                   <div className="box-text">
-                    <ul>
-                      <li>
-                        <a
-                          onClick={handleCitizenCharterClick}
-                          style={{ cursor: "pointer" }}
-                        >
-                          সিটিজেন্‌স চার্টার
-                        </a>
-                      </li>
-                    </ul>
+                    <ChartCitizenLink />
                   </div>
                 </div>
               </div>
@@ -554,7 +412,7 @@ export function Chart({
                         <a>উদ্ভাবন কর্ণার</a>
                       </li>
                       <li>
-                        <a>ইন-হাউজ ট্রেনিং</a>
+                        <a>ইন-হাউস ট্রেনিং</a>
                       </li>
                       <li>
                         <a href="http://cga.portal.gov.bd/sites/default/files/files/cga.portal.gov.bd/page/9e02aa22_ffef_4f13_bff5_8aee0e73fb9e/pay_civil2015.pdf">

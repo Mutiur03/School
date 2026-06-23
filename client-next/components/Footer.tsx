@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ChevronUp } from "lucide-react";
 import "./Footer.css";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 
@@ -23,8 +24,8 @@ export async function Footer({ year = new Date().getFullYear() }: FooterProps) {
           </div>
         </div>
       </div>
-      <a href="#" id="scroll-top" style={{ display: "none" }}>
-        <i className="fa fa-angle-up"></i>
+      <a href="#" id="scroll-top" style={{ display: "none" }} aria-label="Scroll to top">
+        <ChevronUp size={18} aria-hidden="true" />
       </a>
     </footer>
   );

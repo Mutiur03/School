@@ -36,5 +36,7 @@ export default async function Class6RegistrationEditPage({
         redirect("/");
     }
 
-    return <RegistrationClass6Client />;
+    return (
+        <RegistrationClass6Client settings={settings} initialRecord={record} />
+    );
 }

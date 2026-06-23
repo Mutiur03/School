@@ -13,5 +13,5 @@ export default async function Class6RegistrationFormPage() {
         redirect("/");
     }
 
-    return <RegistrationClass6Client />;
+    return <RegistrationClass6Client settings={settings} />;
 }
