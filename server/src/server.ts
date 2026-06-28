@@ -35,7 +35,7 @@ import syllabusRoutes from "./routes/syllabusRoutes.js";
 import classRoutineRouter from "./routes/classRoutineRoutes.js";
 import fileUploadRouter from "./routes/fileUpload.js";
 import routerStaff from "./routes/staffRoutes.js";
-import admmissionRoutes from "./routes/admissionRoutes.js";
+import admissionRouter from "./modules/admission/admission.route.js";
 import addFormRouter from "./routes/admissionFormRoutes.js";
 import admissionResultRouter from "./routes/admissionResultRoutes.js";
 import smsRouter from "./modules/sms-logs/sms-logs.route.js";
@@ -241,7 +241,7 @@ app.use(registrationSettingsClass6Router);
 app.use(registrationFormClass6Router);
 app.use(registrationSettingsClass8Router);
 app.use(registrationFormClass8Router);
-app.use("/api/admission", admmissionRoutes);
+app.use(admissionRouter);
 app.use("/api/admission/form", addFormRouter);
 app.use("/api/admission-result", admissionResultRouter);
 
