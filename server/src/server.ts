@@ -36,8 +36,8 @@ import classRoutineRouter from "./routes/classRoutineRoutes.js";
 import fileUploadRouter from "./routes/fileUpload.js";
 import routerStaff from "./routes/staffRoutes.js";
 import admissionRouter from "./modules/admission/admission.route.js";
-import addFormRouter from "./routes/admissionFormRoutes.js";
-import admissionResultRouter from "./routes/admissionResultRoutes.js";
+import admissionFormRouter from "./modules/admission/form/admission-form.route.js";
+import admissionResultRouter from "./modules/admission/result/admission-result.route.js";
 import smsRouter from "./modules/sms-logs/sms-logs.route.js";
 import registrationSettingsClass6Router from "./modules/registration/class-6/Settings/registrationSettingsClass6.route.js";
 import registrationFormClass6Router from "./modules/registration/class-6/Form/registrationFormClass6.route.js";
@@ -242,8 +242,8 @@ app.use(registrationFormClass6Router);
 app.use(registrationSettingsClass8Router);
 app.use(registrationFormClass8Router);
 app.use(admissionRouter);
-app.use("/api/admission/form", addFormRouter);
-app.use("/api/admission-result", admissionResultRouter);
+app.use(admissionFormRouter);
+app.use(admissionResultRouter);
 
 app.use(smsRouter);
 app.use("*", (_req, res) => {

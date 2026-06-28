@@ -105,7 +105,7 @@ function AdmissionSettings() {
 
         if (data.preview_url || resolvedNoticeKey) {
           const noticeUrl =
-            data.preview_url || data.previewUrl || getFileUrl(resolvedNoticeKey);
+            getFileUrl(data.preview_url || data.previewUrl || getFileUrl(resolvedNoticeKey));
 
           setCurrentNotice({
             notice_key: resolvedNoticeKey,

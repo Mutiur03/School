@@ -3,7 +3,7 @@
 # ─── Define your servers here ───────────────────────────────────────────────
 declare -A SERVERS=(
   ["server"]="cd server && npm run dev"
-  ["client"]="npm run dev:client"
+  ["client-next"]="npm run dev -w client-next"
   ["client-ui"]="npm run dev:client:ui"
   ["common-ui"]="npm run dev:common:ui"
   ["shared-schemas"]="npm run dev:shared-schemas"
@@ -13,7 +13,7 @@ declare -A SERVERS=(
   ["teacher"]="cd dashboard && npm run dev:teacher"
   # ["student"]="cd dashboard && npm run dev:student"
 )
-PORTS=(3001 5173 5174 5175 5176 5177 5178 5179 5180 8787)
+PORTS=(3001 3000 5174 5175 5176 5177 5178 5179 5180 8787)
 # ────────────────────────────────────────────────────────────────────────────
 
 PIDS=()

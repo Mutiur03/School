@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   useForm,
@@ -29,6 +29,29 @@ import { getFileUrl } from "@/lib/cdn";
 import { SchoolConfig } from "@/types";
 import { AdmissionFormRecord } from "@/queries/admission-form.queries";
 import Image from "next/image";
+
+const padBirthPart = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  return trimmed.padStart(2, "0");
+};
+
+const normalizeBirthDateFields = (
+  record: Record<string, unknown>,
+): Record<string, unknown> => {
+  const normalized = { ...record };
+  if (normalized.birth_month != null && normalized.birth_month !== "") {
+    normalized.birth_month = padBirthPart(
+      normalized.birth_month as string | number,
+    );
+  }
+  if (normalized.birth_day != null && normalized.birth_day !== "") {
+    normalized.birth_day = padBirthPart(normalized.birth_day as string | number);
+  }
+  return normalized;
+};
+
 const admissionSchema = z
   .object({
     student_name_bn: z
@@ -422,7 +445,13 @@ const admissionSchema = z
         cls.includes("9") ||
         cls.includes("nine");
       if (isEightOrNine) {
-        if (data.registration_no && !REGISTRATION_NO.test(data.registration_no)) {
+        if (!data.registration_no || data.registration_no.trim() === "") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Registration Number is required",
+            path: ["registration_no"],
+          });
+        } else if (!REGISTRATION_NO.test(data.registration_no)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Registration Number must be 10 digits",
@@ -563,6 +592,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     reset,
     setValue,
     setError,
+    clearErrors,
     setFocus,
     control,
   } = useForm<AdmissionFormData>({
@@ -770,7 +800,10 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
   });
   const birth_year = useWatch({ control, name: "birth_year" });
   const birth_month = useWatch({ control, name: "birth_month" });
+  const birth_day = useWatch({ control, name: "birth_day" });
   const birth_reg_no = useWatch({ control, name: "birth_reg_no" });
+  const prevBirthYearRef = useRef<string | null>(null);
+  const prevAdmissionClassRef = useRef<string | null>(null);
   const father_profession = useWatch({ control, name: "father_profession" });
   const mother_profession = useWatch({ control, name: "mother_profession" });
   const admission_user_id = useWatch({ control, name: "admission_user_id" });
@@ -804,6 +837,67 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     if (s === "9" || s.includes("9") || s.includes("nine")) return "nine";
     return "";
   }
+
+  function isClassEightOrNine(c?: string | null) {
+    const k = normalizeClassKey(c);
+    return k === "eight" || k === "nine";
+  }
+
+  const clearUpazilaOnDistrictChange = (
+    upazilaField: keyof AdmissionFormData,
+  ) => ({
+    onChange: () => {
+      setValue(upazilaField, "", { shouldValidate: true });
+    },
+  });
+
+  const clearFields = (
+    fields: Array<keyof AdmissionFormData>,
+    options?: { shouldValidate?: boolean },
+  ) => {
+    fields.forEach((field) => {
+      setValue(field, "", options);
+      clearErrors(field);
+    });
+  };
+
+  const PRESENT_ADDRESS_FIELDS: Array<keyof AdmissionFormData> = [
+    "present_district",
+    "present_upazila",
+    "present_post_office",
+    "present_post_code",
+    "present_village_road",
+  ];
+
+  const GUARDIAN_ADDRESS_FIELDS: Array<keyof AdmissionFormData> = [
+    "guardian_district",
+    "guardian_upazila",
+    "guardian_post_office",
+    "guardian_post_code",
+    "guardian_village_road",
+  ];
+
+  const GUARDIAN_FIELDS: Array<keyof AdmissionFormData> = [
+    "guardian_name",
+    "guardian_phone",
+    "guardian_relation",
+    "guardian_nid",
+    "guardian_address_same_as_permanent",
+    ...GUARDIAN_ADDRESS_FIELDS,
+  ];
+
+  const clearClassDependentFields = (admissionClass: string) => {
+    clearFields(["list_type", "serial_no", "admission_user_id"], {
+      shouldValidate: true,
+    });
+    if (!isClassEightOrNine(admissionClass)) {
+      setValue("registration_no", "", { shouldValidate: true });
+      clearErrors("registration_no");
+    }
+  };
+
+  const isStoredPhotoPath = (path: string | null | undefined) =>
+    Boolean(path && String(path).includes("/"));
   useEffect(() => {
     const selectedDistrictId = permanent_district;
     if (!selectedDistrictId) {
@@ -891,19 +985,16 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
   ]);
 
   useEffect(() => {
-    if (!guardian_is_not_father) {
-      setValue("guardian_name", "");
-      setValue("guardian_phone", "");
-      setValue("guardian_relation", "");
-      setValue("guardian_nid", "");
-      setValue("guardian_address_same_as_permanent", false);
-      setValue("guardian_district", "");
-      setValue("guardian_upazila", "");
-      setValue("guardian_post_office", "");
-      setValue("guardian_post_code", "");
-      setValue("guardian_village_road", "");
+    if (initialLoading) return;
+    const currentClass = admission_class ?? "";
+    if (
+      prevAdmissionClassRef.current !== null &&
+      prevAdmissionClassRef.current !== currentClass
+    ) {
+      clearClassDependentFields(currentClass);
     }
-  }, [guardian_is_not_father, setValue]);
+    prevAdmissionClassRef.current = currentClass;
+  }, [admission_class, initialLoading]);
   useEffect(() => {
     const selectedDistrictId = prev_school_district;
     if (!selectedDistrictId) {
@@ -913,10 +1004,6 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     const upazilas = getUpazilasByDistrict(selectedDistrictId);
     setPrevSchoolUpazilas(upazilas);
   }, [prev_school_district]);
-  function isClassEightOrNine(c?: string | null) {
-    const k = normalizeClassKey(c);
-    return k === "eight" || k === "nine";
-  }
   const requiredFields: Array<keyof AdmissionFormData> = [
     "student_name_bn",
     "student_nick_name_bn",
@@ -1026,7 +1113,14 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             //   return;
             // }
             if (record) {
-              reset(record as unknown as AdmissionFormData);
+              const formData = normalizeBirthDateFields(
+                record as Record<string, unknown>,
+              );
+              reset(formData as unknown as AdmissionFormData);
+              if (record.birth_reg_no && String(record.birth_reg_no).length >= 4) {
+                prevBirthYearRef.current = String(record.birth_reg_no).slice(0, 4);
+              }
+              clearErrors(["birth_year", "birth_month", "birth_day"]);
               if (record.guardian_name && typeof record.guardian_name === 'string' && record.guardian_name.trim() !== "") {
                 setValue("guardian_is_not_father", true);
               } else {
@@ -1253,13 +1347,39 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
       return;
     }
     setPhoto(file);
-    setValue("photo_path", file.name, { shouldValidate: true });
+    setValue("photo_path", `local:${file.name}`, { shouldValidate: true });
     const reader = new FileReader();
     reader.onload = () => setPhotoPreview(reader.result as string);
     reader.readAsDataURL(file);
   }
 
   const onSubmit = async (data: AdmissionFormData) => {
+    if (
+      listTypeOptions.length > 0 &&
+      data.list_type &&
+      !listTypeOptions.includes(data.list_type)
+    ) {
+      setError("list_type", {
+        type: "manual",
+        message: "Invalid list type for the selected class",
+      });
+      setFocus("list_type");
+      return;
+    }
+
+    if (
+      serialNoOptions.length > 0 &&
+      data.serial_no &&
+      !serialNoOptions.includes(data.serial_no)
+    ) {
+      setError("serial_no", {
+        type: "manual",
+        message: "Invalid serial number for the selected class",
+      });
+      setFocus("serial_no");
+      return;
+    }
+
     if (
       userIdOptions.length > 0 &&
       admission_user_id &&
@@ -1270,6 +1390,18 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         message: "Invalid User ID for the selected class",
       });
       setFocus("admission_user_id");
+      return;
+    }
+
+    const hasValidPhoto =
+      Boolean(photo) ||
+      isStoredPhotoPath(data.photo_path) ||
+      String(data.photo_path).startsWith("local:");
+    if (!hasValidPhoto) {
+      setError("photo_path", {
+        type: "manual",
+        message: "Student photo is required",
+      });
       return;
     }
 
@@ -1309,8 +1441,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
 
       if (photoKey) {
         payload.photo_path = photoKey;
-      } else if (data.photo_path) {
-        // Keep existing photo path if we didn't upload a new one
+      } else if (isStoredPhotoPath(data.photo_path)) {
         payload.photo_path = data.photo_path;
       }
 
@@ -1406,9 +1537,6 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
   };
   const currentYear = new Date().getFullYear();
   const earliestYear = 1900;
-  const years = Array.from({ length: currentYear - earliestYear + 1 }, (_, i) =>
-    String(currentYear - i),
-  );
   const months = [
     { value: "01", label: "January" },
     { value: "02", label: "February" },
@@ -1434,7 +1562,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
   let monthOptions = months;
   let disableMonth = false;
   let disableDay = false;
-  if (birth_year && years.includes(birth_year)) {
+  if (birth_year) {
     monthOptions = months;
     disableMonth = false;
     if (birth_month) {
@@ -1450,6 +1578,8 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     disableDay = true;
   }
   useEffect(() => {
+    if (initialLoading) return;
+
     if (birth_reg_no && birth_reg_no.length >= 4) {
       const year = birth_reg_no.slice(0, 4);
       const yearNum = Number(year);
@@ -1458,14 +1588,70 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         yearNum >= earliestYear &&
         yearNum <= currentYear
       ) {
+        if (
+          prevBirthYearRef.current !== null &&
+          prevBirthYearRef.current !== year
+        ) {
+          setValue("birth_month", "", { shouldValidate: true });
+          setValue("birth_day", "", { shouldValidate: true });
+          clearErrors(["birth_month", "birth_day"]);
+        }
+        prevBirthYearRef.current = year;
         setValue("birth_year", year, { shouldValidate: true });
       } else {
-        setValue("birth_year", "", { shouldValidate: true });
+        if (prevBirthYearRef.current !== null) {
+          setValue("birth_year", "", { shouldValidate: true });
+          setValue("birth_month", "", { shouldValidate: true });
+          setValue("birth_day", "", { shouldValidate: true });
+        }
+        prevBirthYearRef.current = null;
       }
-    } else if (birth_year !== "") {
-      setValue("birth_year", "", { shouldValidate: true });
+      return;
     }
-  }, [birth_reg_no, currentYear, birth_year, setValue]);
+
+    if (birth_reg_no.length > 0) {
+      prevBirthYearRef.current = null;
+      setValue("birth_year", "", { shouldValidate: true });
+      return;
+    }
+
+    if (prevBirthYearRef.current !== null) {
+      setValue("birth_year", "", { shouldValidate: true });
+      setValue("birth_month", "", { shouldValidate: true });
+      setValue("birth_day", "", { shouldValidate: true });
+      prevBirthYearRef.current = null;
+    }
+  }, [birth_reg_no, currentYear, initialLoading, setValue, clearErrors]);
+
+  useEffect(() => {
+    if (initialLoading) return;
+
+    if (!birth_month) {
+      if (birth_day) {
+        setValue("birth_day", "", { shouldValidate: true });
+      }
+      return;
+    }
+
+    const normalizedMonth = padBirthPart(birth_month);
+    if (normalizedMonth !== birth_month) {
+      setValue("birth_month", normalizedMonth, { shouldValidate: true });
+      return;
+    }
+
+    if (!birth_year || !birth_day) return;
+
+    const normalizedDay = padBirthPart(birth_day);
+    const validDays = getDaysInMonth(birth_year, normalizedMonth);
+    if (!validDays.includes(normalizedDay)) {
+      setValue("birth_day", "", { shouldValidate: true });
+      return;
+    }
+
+    if (normalizedDay !== birth_day) {
+      setValue("birth_day", normalizedDay, { shouldValidate: true });
+    }
+  }, [birth_year, birth_month, birth_day, initialLoading, setValue]);
 
   if (initialLoading) {
     return (
@@ -1563,7 +1749,11 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             tooltip="Select the class from the admission settings"
           >
             <select
-              {...register("admission_class")}
+              {...register("admission_class", {
+                onChange: (e) => {
+                  clearClassDependentFields(e.target.value);
+                },
+              })}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
               <option value="">Select Class</option>
@@ -2095,7 +2285,10 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               id="permanent_district"
-              {...register("permanent_district")}
+              {...register(
+                "permanent_district",
+                clearUpazilaOnDistrictChange("permanent_upazila"),
+              )}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Select district</option>
@@ -2180,7 +2373,13 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               type="checkbox"
               id="sameAsPermanent"
               checked={sameAsPermanent}
-              onChange={(e) => setSameAsPermanent(e.target.checked)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setSameAsPermanent(checked);
+                if (!checked) {
+                  clearFields(PRESENT_ADDRESS_FIELDS, { shouldValidate: true });
+                }
+              }}
               className="w-4 h-4 cursor-pointer"
             />
             <span className="text-sm">Same as Permanent Address</span>
@@ -2198,7 +2397,10 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               >
                 <select
                   id="present_district"
-                  {...register("present_district")}
+                  {...register(
+                    "present_district",
+                    clearUpazilaOnDistrictChange("present_upazila"),
+                  )}
                   className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Select district</option>
@@ -2286,7 +2488,20 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               <input
                 type="checkbox"
                 id="guardianIsNotFather"
-                {...register("guardian_is_not_father")}
+                {...register("guardian_is_not_father", {
+                  onChange: (e) => {
+                    if (!e.target.checked) {
+                      GUARDIAN_FIELDS.forEach((field) => {
+                        if (field === "guardian_address_same_as_permanent") {
+                          setValue(field, false);
+                        } else {
+                          setValue(field, "");
+                        }
+                        clearErrors(field);
+                      });
+                    }
+                  },
+                })}
                 className="w-4 h-4 cursor-pointer"
               />
               <span className="text-sm leading-relaxed">
@@ -2408,7 +2623,15 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 <label className="inline-flex items-center gap-2 mb-2">
                   <input
                     type="checkbox"
-                    {...register("guardian_address_same_as_permanent")}
+                    {...register("guardian_address_same_as_permanent", {
+                      onChange: (e) => {
+                        if (!e.target.checked) {
+                          clearFields(GUARDIAN_ADDRESS_FIELDS, {
+                            shouldValidate: true,
+                          });
+                        }
+                      },
+                    })}
                     className="w-4 h-4 cursor-pointer"
                   />
                   <span className="text-sm">Same as Permanent Address</span>
@@ -2423,7 +2646,10 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     tooltip="Select the district where your guardian lives"
                   >
                     <select
-                      {...register("guardian_district")}
+                      {...register(
+                        "guardian_district",
+                        clearUpazilaOnDistrictChange("guardian_upazila"),
+                      )}
                       className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                     >
                       <option value="">Select district</option>
@@ -2605,7 +2831,10 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             tooltip="Select the district where your previous school is located"
           >
             <select
-              {...register("prev_school_district")}
+              {...register(
+                "prev_school_district",
+                clearUpazilaOnDistrictChange("prev_school_upazila"),
+              )}
               className="block w-full border rounded px-3 py-2 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-blue-300"
               aria-invalid={!!errors.prev_school_district}
             >

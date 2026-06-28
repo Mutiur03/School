@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.js";
-import { generateAdmissionPDF } from "../controllers/admissionFormController.js";
+import { generateAdmissionPDF } from "../modules/admission/form/admission-form-pdf.js";
 import { redis } from "../config/redis.js";
 const TTL = process.env.PDF_CACHE_TTL || "300";
 import { pdfQueue } from "./pdfQueue.js";

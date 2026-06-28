@@ -1,3 +1,4 @@
+import { getFileUrl } from "@/lib/cdn"
 import { getAdmissionData } from "@/queries/admission.queries"
 import Link from "next/link"
 
@@ -13,14 +14,14 @@ async function AdmissionFormNotice() {
                     <div className="mb-6">
                         <div className="border rounded-lg overflow-hidden">
                             <iframe
-                                src={`${preview_url}#navpanes=0&scrollbar=0`}
+                                src={`${getFileUrl(preview_url)}#navpanes=0&scrollbar=0`}
                                 className="w-full h-250"
                                 title="Admission Notice"
                             />
                         </div>
                         <div className="mt-2 text-center">
                             <a
-                                href={download_url}
+                                href={getFileUrl(download_url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:text-blue-800 underline text-sm"
