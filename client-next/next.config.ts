@@ -39,8 +39,15 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    const rewrites = [
+      {
+        source: "/favicon.ico",
+        destination: "/favicon",
+      },
+    ];
+
     if (process.env.NODE_ENV !== "development") {
-      return [];
+      return rewrites;
     }
 
     const tenantRouter =
@@ -48,6 +55,7 @@ const nextConfig: NextConfig = {
       "http://127.0.0.1:8787";
 
     return [
+      ...rewrites,
       {
         source: "/api/:path*",
         destination: `${tenantRouter}/api/:path*`,

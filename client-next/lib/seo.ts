@@ -77,6 +77,13 @@ export function resolveSeoAssetUrl(
   return isAbsoluteUrl(fileUrl) ? fileUrl : new URL(fileUrl, siteUrl).toString();
 }
 
+export function getSchoolIconUrl(school: SchoolConfig, siteUrl: string) {
+  return (
+    resolveSeoAssetUrl(school.assets.favicon, siteUrl) ||
+    resolveSeoAssetUrl(school.assets.logo, siteUrl)
+  );
+}
+
 function getSeoDescription(school: SchoolConfig) {
   return (
     clean(school.seo?.description) ||
@@ -109,10 +116,7 @@ export async function buildSchoolMetadata(
   const siteUrl = getSchoolSiteUrl(school, requestUrl);
   const title = clean(school.seo?.title) || school.name.en || "School Website";
   const description = getSeoDescription(school);
-  const iconUrl =
-    resolveSeoAssetUrl(school.assets.favicon, siteUrl) ||
-    resolveSeoAssetUrl(school.assets.logo, siteUrl) ||
-    "/favicon.ico";
+  const iconUrl = getSchoolIconUrl(school, siteUrl) || "/favicon.ico";
   const imageUrl =
     resolveSeoAssetUrl(school.seo?.image, siteUrl) ||
     resolveSeoAssetUrl(school.assets.headerLogo, siteUrl) ||
