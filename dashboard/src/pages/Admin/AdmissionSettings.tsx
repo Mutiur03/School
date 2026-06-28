@@ -1,66 +1,38 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import axios from "axios";
 import { RefreshCw, FileText, Loader2, Settings } from "lucide-react";
 import toast from "react-hot-toast";
-
-interface FormData {
-  admission_year: number;
-  admission_open: boolean;
-  instruction: string;
-  attachment_instruction: string;
-  attachment_instruction_class6: string;
-  attachment_instruction_class7: string;
-  attachment_instruction_class8: string;
-  attachment_instruction_class9: string;
-  ingikar: string;
-  class_list: string;
-  list_type_class6: string;
-  list_type_class7: string;
-  list_type_class8: string;
-  list_type_class9: string;
-  user_id_class6: string;
-  user_id_class7: string;
-  user_id_class8: string;
-  user_id_class9: string;
-  serial_no_class6: string;
-  serial_no_class7: string;
-  serial_no_class8: string;
-  serial_no_class9: string;
-  [key: string]: string | number | boolean;
-}
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  admissionNoticeUploadSchema,
+  admissionSettingsDefaultValues,
+  admissionSettingsSchema,
+  type AdmissionSettingsData,
+} from "@school/shared-schemas";
+import { putFileToPresignedUrl } from "@/lib/uploadToR2";
+import { getFileUrl } from "@/lib/backend";
 
 interface Notice {
+  notice_key: string | null;
   url: string | null;
-  download_url: string | null;
-  public_id: string | null;
 }
 
 function AdmissionSettings() {
-  const [formData, setFormData] = useState<FormData>({
-    admission_year: new Date().getFullYear(),
-    admission_open: false,
-    instruction: "Please follow the instructions carefully",
-    attachment_instruction: "Please attach all required documents",
-    attachment_instruction_class6: "",
-    attachment_instruction_class7: "",
-    attachment_instruction_class8: "",
-    attachment_instruction_class9: "",
-    ingikar: "",
-    class_list: "",
-    list_type_class6: "",
-    list_type_class7: "",
-    list_type_class8: "",
-    list_type_class9: "",
-    user_id_class6: "",
-    user_id_class7: "",
-    user_id_class8: "",
-    user_id_class9: "",
-    serial_no_class6: "",
-    serial_no_class7: "",
-    serial_no_class8: "",
-    serial_no_class9: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    getValues,
+    formState: { errors },
+  } = useForm<AdmissionSettingsData>({
+    resolver: zodResolver(admissionSettingsSchema),
+    defaultValues: admissionSettingsDefaultValues,
   });
 
+  const noticeKey = watch("notice_key");
   const [noticeFile, setNoticeFile] = useState<File | null>(null);
   const [currentNotice, setCurrentNotice] = useState<Notice | null>(null);
   const [formLoading, setFormLoading] = useState<boolean>(false);
@@ -77,14 +49,19 @@ function AdmissionSettings() {
 
       if (res.data) {
         const data = res.data;
-        setFormData((prev) => ({
-          ...prev,
-          admission_year: data.admission_year ?? prev.admission_year,
+        const resolvedNoticeKey =
+          data.notice_key ||
+          (typeof data.public_id === "string" && !data.public_id.startsWith("http")
+            ? data.public_id
+            : null);
+
+        reset({
+          admission_year: data.admission_year ?? admissionSettingsDefaultValues.admission_year,
           admission_open:
             typeof data.admission_open === "boolean"
               ? data.admission_open
-              : prev.admission_open,
-          instruction: data.instruction,
+              : admissionSettingsDefaultValues.admission_open,
+          instruction: data.instruction ?? admissionSettingsDefaultValues.instruction,
           attachment_instruction_class6:
             data.attachment_instruction_class6 ??
             data.attachmentInstructionClass6 ??
@@ -101,54 +78,38 @@ function AdmissionSettings() {
             data.attachment_instruction_class9 ??
             data.attachmentInstructionClass9 ??
             "",
-          ingikar: data.ingikar ?? prev.ingikar,
-          class_list: data.class_list ?? data.classList ?? prev.class_list,
+          ingikar: data.ingikar ?? "",
+          class_list: data.class_list ?? data.classList ?? "",
           list_type_class6:
-            data.list_type_class6 ??
-            data.listTypeClass6 ??
-            prev.list_type_class6,
+            data.list_type_class6 ?? data.listTypeClass6 ?? "",
           list_type_class7:
-            data.list_type_class7 ??
-            data.listTypeClass7 ??
-            prev.list_type_class7,
+            data.list_type_class7 ?? data.listTypeClass7 ?? "",
           list_type_class8:
-            data.list_type_class8 ??
-            data.listTypeClass8 ??
-            prev.list_type_class8,
+            data.list_type_class8 ?? data.listTypeClass8 ?? "",
           list_type_class9:
-            data.list_type_class9 ??
-            data.listTypeClass9 ??
-            prev.list_type_class9,
-          user_id_class6:
-            data.user_id_class6 ?? data.userIdClass6 ?? prev.user_id_class6,
-          user_id_class7:
-            data.user_id_class7 ?? data.userIdClass7 ?? prev.user_id_class7,
-          user_id_class8:
-            data.user_id_class8 ?? data.userIdClass8 ?? prev.user_id_class8,
-          user_id_class9:
-            data.user_id_class9 ?? data.userIdClass9 ?? prev.user_id_class9,
+            data.list_type_class9 ?? data.listTypeClass9 ?? "",
+          user_id_class6: data.user_id_class6 ?? data.userIdClass6 ?? "",
+          user_id_class7: data.user_id_class7 ?? data.userIdClass7 ?? "",
+          user_id_class8: data.user_id_class8 ?? data.userIdClass8 ?? "",
+          user_id_class9: data.user_id_class9 ?? data.userIdClass9 ?? "",
           serial_no_class6:
-            data.serial_no_class6 ??
-            data.serialNoClass6 ??
-            prev.serial_no_class6,
+            data.serial_no_class6 ?? data.serialNoClass6 ?? "",
           serial_no_class7:
-            data.serial_no_class7 ??
-            data.serialNoClass7 ??
-            prev.serial_no_class7,
+            data.serial_no_class7 ?? data.serialNoClass7 ?? "",
           serial_no_class8:
-            data.serial_no_class8 ??
-            data.serialNoClass8 ??
-            prev.serial_no_class8,
+            data.serial_no_class8 ?? data.serialNoClass8 ?? "",
           serial_no_class9:
-            data.serial_no_class9 ??
-            data.serialNoClass9 ??
-            prev.serial_no_class9,
-        }));
-        if (data.preview_url) {
+            data.serial_no_class9 ?? data.serialNoClass9 ?? "",
+          notice_key: resolvedNoticeKey,
+        });
+
+        if (data.preview_url || resolvedNoticeKey) {
+          const noticeUrl =
+            data.preview_url || data.previewUrl || getFileUrl(resolvedNoticeKey);
+
           setCurrentNotice({
-            url: data.preview_url || data.previewUrl || null,
-            download_url: data.download_url || data.downloadUrl || null,
-            public_id: data.public_id || data.publicId || null,
+            notice_key: resolvedNoticeKey,
+            url: noticeUrl || null,
           });
         } else {
           setCurrentNotice(null);
@@ -156,6 +117,7 @@ function AdmissionSettings() {
         }
         setIsEdit(true);
       } else {
+        reset(admissionSettingsDefaultValues);
         setIsEdit(false);
       }
     } catch (error) {
@@ -166,99 +128,62 @@ function AdmissionSettings() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setNoticeFile(file);
-      setFormMessage("");
-    } else if (file) {
-      setFormMessage("Error: Only PDF files are allowed");
-      if (e.target) e.target.value = "";
+    if (!file) return;
+
+    const parsed = admissionNoticeUploadSchema.safeParse({
+      filename: file.name,
+      filetype: file.type,
+    });
+
+    if (!parsed.success) {
+      setFormMessage(
+        parsed.error.issues[0]?.message ?? "Error: Only PDF files are allowed",
+      );
+      e.target.value = "";
+      return;
     }
+
+    setNoticeFile(file);
+    setFormMessage("");
   };
 
-  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = async (values: AdmissionSettingsData) => {
     setFormLoading(true);
     setFormMessage("");
 
     try {
-      const payload = new FormData();
-
-      if (formData.admission_year !== undefined && formData.admission_year !== null) {
-        payload.append("admission_year", String(formData.admission_year));
-      }
-
-      if (typeof formData.admission_open === "boolean") {
-        payload.append("admission_open", formData.admission_open ? "1" : "0");
-      }
-
-      if (formData.instruction !== undefined && formData.instruction !== null) {
-        payload.append("instruction", String(formData.instruction));
-        payload.append("instruction_for_a", String(formData.instruction));
-        payload.append("instruction_for_b", String(formData.instruction));
-      }
-
-      if (formData.user_id_class6 !== undefined && formData.user_id_class6 !== null) {
-        payload.append("user_id_class6", String(formData.user_id_class6));
-      }
-      if (formData.user_id_class7 !== undefined && formData.user_id_class7 !== null) {
-        payload.append("user_id_class7", String(formData.user_id_class7));
-      }
-      if (formData.user_id_class8 !== undefined && formData.user_id_class8 !== null) {
-        payload.append("user_id_class8", String(formData.user_id_class8));
-      }
-      if (formData.user_id_class9 !== undefined && formData.user_id_class9 !== null) {
-        payload.append("user_id_class9", String(formData.user_id_class9));
-      }
-
-      if (formData.attachment_instruction_class6 !== undefined && formData.attachment_instruction_class6 !== null) {
-        payload.append("attachment_instruction_class6", String(formData.attachment_instruction_class6));
-      }
-      if (formData.attachment_instruction_class7 !== undefined && formData.attachment_instruction_class7 !== null) {
-        payload.append("attachment_instruction_class7", String(formData.attachment_instruction_class7));
-      }
-      if (formData.attachment_instruction_class8 !== undefined && formData.attachment_instruction_class8 !== null) {
-        payload.append("attachment_instruction_class8", String(formData.attachment_instruction_class8));
-      }
-      if (formData.attachment_instruction_class9 !== undefined && formData.attachment_instruction_class9 !== null) {
-        payload.append("attachment_instruction_class9", String(formData.attachment_instruction_class9));
-      }
-
-      if (formData.ingikar !== undefined && formData.ingikar !== null) {
-        payload.append("ingikar", String(formData.ingikar));
-      }
-      if (formData.class_list !== undefined && formData.class_list !== null) {
-        payload.append("class_list", String(formData.class_list));
-      }
-
-      [6, 7, 8, 9].forEach((c) => {
-        const ltKey = `list_type_class${c}`;
-        const snKey = `serial_no_class${c}`;
-        const ltVal = formData[ltKey];
-        const snVal = formData[snKey];
-        if (ltVal !== undefined && ltVal !== null) {
-          payload.append(ltKey, String(ltVal));
-        }
-        if (snVal !== undefined && snVal !== null) {
-          payload.append(snKey, String(snVal));
-        }
-      });
-
-      if (currentNotice?.public_id) {
-        payload.append("public_id", String(currentNotice.public_id));
-      }
+      let nextNoticeKey = values.notice_key ?? currentNotice?.notice_key ?? null;
 
       if (noticeFile) {
-        payload.append("notice", noticeFile);
+        const uploadPayload = admissionNoticeUploadSchema.parse({
+          filename: noticeFile.name,
+          filetype: noticeFile.type,
+        });
+
+        const { data: urlData } = await axios.post("/api/admission/upload-url", uploadPayload);
+
+        if (!urlData.success) {
+          throw new Error("Failed to get upload URL");
+        }
+
+        await putFileToPresignedUrl(
+          urlData.data.uploadUrl,
+          noticeFile,
+          noticeFile.type,
+        );
+        nextNoticeKey = urlData.data.key;
       }
 
-      const res = await axios.put("/api/admission", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await axios.put("/api/admission", {
+        ...values,
+        notice_key: nextNoticeKey,
       });
 
       if (res?.data?.success) {
         toast.success(isEdit ? "Settings updated" : "Settings created");
         setFormMessage("Settings saved successfully");
         setNoticeFile(null);
+        setValue("notice_key", nextNoticeKey);
       } else {
         toast.error("Failed to save settings");
         setFormMessage("Error: Failed to save settings");
@@ -279,6 +204,8 @@ function AdmissionSettings() {
       if (res?.data?.success) {
         await fetchAdmissionSettings();
         setNoticeFile(null);
+        reset({ ...getValues(), notice_key: null });
+        setCurrentNotice(null);
         setFormMessage("Notice removed");
       } else {
         setFormMessage("Error: Failed to remove notice");
@@ -294,26 +221,8 @@ function AdmissionSettings() {
     fetchAdmissionSettings();
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    const numericPattern = /^-?\d+(?:\.\d+)?$/;
-    let newValue: string | number | boolean;
-
-    if (name === "admission_year") {
-      newValue = value.replace(/\D/g, "");
-    } else if (name === "instruction") {
-      const trimmed = String(value).trim();
-      newValue = trimmed === "" ? "" : numericPattern.test(trimmed) ? Number(trimmed) : value;
-    } else {
-      newValue = type === "checkbox" ? checked : value;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: newValue,
-    }));
-  };
+  const currentNoticeUrl =
+    currentNotice?.url || (noticeKey ? getFileUrl(noticeKey) : null);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -354,15 +263,13 @@ function AdmissionSettings() {
           {isEdit ? "Update Configuration" : "Create Configuration"}
         </h2>
 
-        <form onSubmit={handleFormSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="bg-primary/10 border border-primary rounded-lg p-4 dark:bg-blue-900/20 dark:border-blue-700">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
                 id="admission_open"
-                name="admission_open"
-                checked={formData.admission_open}
-                onChange={handleInputChange}
+                {...register("admission_open")}
                 className="w-4 h-4 text-primary bg-input border-border rounded focus:ring-primary focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
               />
               <label
@@ -392,12 +299,13 @@ function AdmissionSettings() {
                 maxLength={4}
                 minLength={4}
                 id="admission_year"
-                name="admission_year"
-                value={formData.admission_year}
-                onChange={handleInputChange}
+                {...register("admission_year")}
                 placeholder="e.g. 2025"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
+              {errors.admission_year && (
+                <p className="text-xs text-red-500 mt-1">{errors.admission_year.message}</p>
+              )}
             </div>
 
             <div>
@@ -409,9 +317,7 @@ function AdmissionSettings() {
               </label>
               <textarea
                 id="instruction"
-                name="instruction"
-                value={formData.instruction}
-                onChange={handleInputChange}
+                {...register("instruction")}
                 placeholder="Enter admission instructions for applicants (what to bring, deadlines, steps)."
                 rows={3}
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -433,9 +339,7 @@ function AdmissionSettings() {
                     </label>
                     <textarea
                       id="attachment_instruction_class6"
-                      name="attachment_instruction_class6"
-                      value={formData.attachment_instruction_class6}
-                      onChange={handleInputChange}
+                      {...register("attachment_instruction_class6")}
                       placeholder="Attachment instructions for Class 6"
                       rows={3}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -451,9 +355,7 @@ function AdmissionSettings() {
                     </label>
                     <textarea
                       id="attachment_instruction_class7"
-                      name="attachment_instruction_class7"
-                      value={formData.attachment_instruction_class7}
-                      onChange={handleInputChange}
+                      {...register("attachment_instruction_class7")}
                       placeholder="Attachment instructions for Class 7"
                       rows={3}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -469,9 +371,7 @@ function AdmissionSettings() {
                     </label>
                     <textarea
                       id="attachment_instruction_class8"
-                      name="attachment_instruction_class8"
-                      value={formData.attachment_instruction_class8}
-                      onChange={handleInputChange}
+                      {...register("attachment_instruction_class8")}
                       placeholder="Attachment instructions for Class 8"
                       rows={3}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -487,9 +387,7 @@ function AdmissionSettings() {
                     </label>
                     <textarea
                       id="attachment_instruction_class9"
-                      name="attachment_instruction_class9"
-                      value={formData.attachment_instruction_class9}
-                      onChange={handleInputChange}
+                      {...register("attachment_instruction_class9")}
                       placeholder="Attachment instructions for Class 9"
                       rows={3}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -507,9 +405,7 @@ function AdmissionSettings() {
               </label>
               <textarea
                 id="ingikar"
-                name="ingikar"
-                value={formData.ingikar}
-                onChange={handleInputChange}
+                {...register("ingikar")}
                 placeholder="Enter the ছাত্রের অঙ্গীকারনামা text that will appear on generated admission PDFs."
                 rows={4}
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
@@ -525,9 +421,7 @@ function AdmissionSettings() {
               <input
                 type="text"
                 id="class_list"
-                name="class_list"
-                value={formData.class_list}
-                onChange={handleInputChange}
+                {...register("class_list")}
                 placeholder="e.g. Six, Seven, Eight, Nine, Ten"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
@@ -543,9 +437,7 @@ function AdmissionSettings() {
               <input
                 type="text"
                 id="user_id_class6"
-                name="user_id_class6"
-                value={formData.user_id_class6}
-                onChange={handleInputChange}
+                {...register("user_id_class6")}
                 placeholder="Comma separated user ids for class 6"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
@@ -560,9 +452,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="list_type_class6"
-                    name="list_type_class6"
-                    value={formData.list_type_class6}
-                    onChange={handleInputChange}
+                    {...register("list_type_class6")}
                     placeholder="e.g. Merit-1"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -577,9 +467,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="serial_no_class6"
-                    name="serial_no_class6"
-                    value={formData.serial_no_class6}
-                    onChange={handleInputChange}
+                    {...register("serial_no_class6")}
                     placeholder="e.g. 1-100"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -597,9 +485,7 @@ function AdmissionSettings() {
               <input
                 type="text"
                 id="user_id_class7"
-                name="user_id_class7"
-                value={formData.user_id_class7}
-                onChange={handleInputChange}
+                {...register("user_id_class7")}
                 placeholder="Comma separated user ids for class 7"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
@@ -614,9 +500,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="list_type_class7"
-                    name="list_type_class7"
-                    value={formData.list_type_class7}
-                    onChange={handleInputChange}
+                    {...register("list_type_class7")}
                     placeholder="e.g. Merit-1"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -631,9 +515,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="serial_no_class7"
-                    name="serial_no_class7"
-                    value={formData.serial_no_class7}
-                    onChange={handleInputChange}
+                    {...register("serial_no_class7")}
                     placeholder="e.g. 1-100"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -651,9 +533,7 @@ function AdmissionSettings() {
               <input
                 type="text"
                 id="user_id_class8"
-                name="user_id_class8"
-                value={formData.user_id_class8}
-                onChange={handleInputChange}
+                {...register("user_id_class8")}
                 placeholder="Comma separated user ids for class 8"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
@@ -668,9 +548,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="list_type_class8"
-                    name="list_type_class8"
-                    value={formData.list_type_class8}
-                    onChange={handleInputChange}
+                    {...register("list_type_class8")}
                     placeholder="e.g. Merit-1"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -685,9 +563,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="serial_no_class8"
-                    name="serial_no_class8"
-                    value={formData.serial_no_class8}
-                    onChange={handleInputChange}
+                    {...register("serial_no_class8")}
                     placeholder="e.g. 1-100"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -705,9 +581,7 @@ function AdmissionSettings() {
               <input
                 type="text"
                 id="user_id_class9"
-                name="user_id_class9"
-                value={formData.user_id_class9}
-                onChange={handleInputChange}
+                {...register("user_id_class9")}
                 placeholder="Comma separated user ids for class 9"
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
               />
@@ -722,9 +596,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="list_type_class9"
-                    name="list_type_class9"
-                    value={formData.list_type_class9}
-                    onChange={handleInputChange}
+                    {...register("list_type_class9")}
                     placeholder="e.g. Merit-1"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -739,9 +611,7 @@ function AdmissionSettings() {
                   <input
                     type="text"
                     id="serial_no_class9"
-                    name="serial_no_class9"
-                    value={formData.serial_no_class9}
-                    onChange={handleInputChange}
+                    {...register("serial_no_class9")}
                     placeholder="e.g. 1-100"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500 transition-colors"
                   />
@@ -754,7 +624,7 @@ function AdmissionSettings() {
                 Notice Document
               </label>
 
-              {currentNotice && (
+              {(currentNotice || noticeKey) && (
                 <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border dark:bg-muted/500 dark:border-gray-600">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -763,7 +633,7 @@ function AdmissionSettings() {
                     </div>
                     <div className="flex gap-3">
                       <a
-                        href={currentNotice.url || "#"}
+                        href={currentNoticeUrl || "#"}
                         target="_blank"
                         rel="noreferrer"
                         className="text-sm text-primary hover:text-blue-700"
