@@ -2,7 +2,6 @@ import path from "path";
 import { prisma } from "@/config/prisma.js";
 import { getRlsContext } from "@/config/rlsContextStore.js";
 import { deleteFromR2, getUploadUrl } from "@/config/r2.js";
-import { env } from "@/config/env.js";
 import { redis } from "@/config/redis.js";
 import { SHORT_TERM_CACHE_TTL } from "@/utils/globalVars.js";
 import { ApiError } from "@/utils/ApiError.js";
@@ -40,39 +39,6 @@ const defaultAdmission = {
   notice_key: null,
 };
 
-function resolvePublicFileUrl(keyOrUrl: string | null | undefined) {
-  if (!keyOrUrl) return null;
-  if (/^https?:\/\//i.test(keyOrUrl)) return keyOrUrl;
-  if (!env.R2_PUBLIC_URL) return keyOrUrl;
-  return `${env.R2_PUBLIC_URL.replace(/\/$/, "")}/${keyOrUrl.replace(/^\//, "")}`;
-}
-
-function isLegacyCloudinaryRecord(record: {
-  preview_url?: string | null;
-  download_url?: string | null;
-}) {
-  return Boolean(
-    record.preview_url?.includes("cloudinary.com") ||
-      record.download_url?.includes("cloudinary.com"),
-  );
-}
-
-function getNoticeStorageKey(record: {
-  preview_url?: string | null;
-  public_id?: string | null;
-}) {
-  if (isLegacyCloudinaryRecord(record)) {
-    return null;
-  }
-
-  const candidate = record.public_id || record.preview_url;
-  if (!candidate || /^https?:\/\//i.test(candidate)) {
-    return null;
-  }
-
-  return candidate;
-}
-
 export class AdmissionService {
   private static getCacheKey() {
     const schoolId = getRlsContext()?.schoolId;
@@ -86,22 +52,11 @@ export class AdmissionService {
   static formatAdmission(record: Record<string, unknown> | null) {
     if (!record) return defaultAdmission;
 
-    const noticeKey = getNoticeStorageKey(
-      record as { preview_url?: string | null; public_id?: string | null },
-    );
-    const noticeUrl =
-      resolvePublicFileUrl(noticeKey) ||
-      resolvePublicFileUrl(record.preview_url as string | null) ||
-      (record.preview_url as string | null);
-
     return {
       ...record,
-      notice_key: noticeKey,
-      preview_url: noticeUrl,
-      download_url:
-        noticeUrl ||
-        resolvePublicFileUrl(record.download_url as string | null) ||
-        (record.download_url as string | null),
+      notice_key: record.preview_url,
+      preview_url: record.preview_url,
+      download_url: record.preview_url
     };
   }
 
@@ -149,7 +104,7 @@ export class AdmissionService {
 
     if (data.notice_key) {
       const existing = await prisma.admission.findFirst();
-      const existingKey = existing ? getNoticeStorageKey(existing) : null;
+      const existingKey = existing?.preview_url;
 
       if (existingKey && existingKey !== data.notice_key) {
         await deleteFromR2(existingKey);
@@ -251,7 +206,7 @@ export class AdmissionService {
       throw new ApiError(404, "Admission not found");
     }
 
-    const storageKey = getNoticeStorageKey(existing);
+    const storageKey = existing.preview_url;
     if (storageKey) {
       await deleteFromR2(storageKey);
     }

@@ -41,7 +41,7 @@ async function AdmissionFormNotice() {
                     {admission_open ? (
                         <Link
                             href="/admission/form"
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-200 text-lg"
+                            className="bg-green-600 hover:bg-green-700 text-white! font-bold py-3 px-8 rounded-lg transition-colors duration-200 text-lg"
                         >
                             Proceed to Admission Form
                         </Link>

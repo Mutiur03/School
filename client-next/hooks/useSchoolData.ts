@@ -38,7 +38,7 @@ export const useCitizenCharter = () => {
     enabled: false,
     queryFn: async () => {
       try {
-        const response = await axios.get("/api/file-upload/citizen-charter");
+        const response = await axios.get("/api/citizen-charter");
         return response.data.file || null;
       } catch {
         return null;

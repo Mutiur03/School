@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { uploadToR2 } from "@/lib/uploadToR2";
+import { getFileUrl } from "@/lib/backend";
 
 interface PDFData {
   file: string;
@@ -15,9 +17,11 @@ interface UploadStatus {
 function CitizenCharter() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ type: "", message: "" });
   const [currentPDF, setCurrentPDF] = useState<PDFData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCurrentPDF();
@@ -25,7 +29,7 @@ function CitizenCharter() {
 
   const fetchCurrentPDF = async (): Promise<void> => {
     try {
-      const response = await axios.get<PDFData>("/api/file-upload/citizen-charter");
+      const response = await axios.get<PDFData>("/api/citizen-charter");
       setCurrentPDF(response.data);
     } catch {
       setCurrentPDF(null);
@@ -56,22 +60,17 @@ function CitizenCharter() {
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadStatus({ type: "", message: "" });
 
-    const formData = new FormData();
-    formData.append("pdf", selectedFile);
-    formData.append("type", "citizen_charter");
-
     try {
-      const response = await axios.post(
-        "/api/file-upload/citizen-charter",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+      const key = await uploadToR2(
+        "/api/citizen-charter/presigned-url",
+        selectedFile,
+        setUploadProgress,
       );
+
+      const response = await axios.post("/api/citizen-charter", { key });
 
       setUploadStatus({
         type: "success",
@@ -79,20 +78,24 @@ function CitizenCharter() {
       });
       setSelectedFile(null);
       setCurrentPDF(response.data.data);
-      const fileInput = document.getElementById("pdfUpload") as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
+      const axiosError = error as { response?: { data?: { message?: string; error?: string } } };
       setUploadStatus({
         type: "error",
         message:
+          axiosError.response?.data?.message ||
           axiosError.response?.data?.error ||
           "Failed to upload PDF. Please try again.",
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
+
+  const previewUrl = currentPDF ? getFileUrl(currentPDF.file) : "";
+  const downloadUrl = currentPDF ? getFileUrl(currentPDF.download_url) : "";
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -113,6 +116,7 @@ function CitizenCharter() {
                 Select PDF File
               </label>
               <input
+                ref={fileInputRef}
                 id="pdfUpload"
                 type="file"
                 accept=".pdf"
@@ -125,6 +129,12 @@ function CitizenCharter() {
               <div className="text-sm text-muted-foreground">
                 Selected: {selectedFile.name} (
                 {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              </div>
+            )}
+
+            {isUploading && uploadProgress > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Uploading: {uploadProgress}%
               </div>
             )}
 
@@ -192,7 +202,7 @@ function CitizenCharter() {
                   {new Date(currentPDF.updated_at).toLocaleDateString()}
                 </span>
                 <a
-                  href={currentPDF.download_url}
+                  href={downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
@@ -203,7 +213,7 @@ function CitizenCharter() {
 
               <div className="border rounded-lg overflow-hidden">
                 <iframe
-                  src={currentPDF.file}
+                  src={previewUrl}
                   width="100%"
                   height="600"
                   title="Citizen Charter PDF"
@@ -212,7 +222,7 @@ function CitizenCharter() {
                   <p>
                     Your browser doesn't support PDFs.{" "}
                     <a
-                      href={currentPDF.file}
+                      href={previewUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
