@@ -37,9 +37,10 @@ export async function uploadToR2(
   presignEndpoint: string,
   file: File,
   onProgress?: (pct: number) => void,
+  params?: Record<string, string | number>,
 ): Promise<string> {
   const { data: body } = await axios.get(presignEndpoint, {
-    params: { filename: file.name, contentType: file.type },
+    params: { filename: file.name, contentType: file.type, ...params },
   });
 
   const { uploadUrl, key } = body?.data ?? body;

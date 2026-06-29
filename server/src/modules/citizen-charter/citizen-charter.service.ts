@@ -1,7 +1,5 @@
 import { prisma } from "@/config/prisma.js";
 import { deleteFromR2, getUploadUrl } from "@/config/r2.js";
-import { redis } from "@/config/redis.js";
-import { LONG_TERM_CACHE_TTL } from "@/utils/globalVars.js";
 import { ApiError } from "@/utils/ApiError.js";
 
 
