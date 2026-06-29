@@ -1,15 +1,16 @@
 "use client";
 
 import { useCitizenCharter } from "@/hooks/useSchoolData";
+import { getFileUrl } from "@/lib/cdn";
 
 export function ChartCitizenLink() {
   const citizenCharterQuery = useCitizenCharter();
 
   const handleCitizenCharterClick = async () => {
-    const url =
+    const key =
       citizenCharterQuery.data ?? (await citizenCharterQuery.refetch()).data;
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
+    if (key) {
+      window.open(getFileUrl(key), "_blank", "noopener,noreferrer");
     }
   };
 

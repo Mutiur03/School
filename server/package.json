@@ -40,7 +40,6 @@
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
-    "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
