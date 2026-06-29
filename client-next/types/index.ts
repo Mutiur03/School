@@ -173,6 +173,16 @@ export type Teacher = {
   image?: string
   available?: boolean
 }
+
+export type Staff = {
+  id: number
+  name: string
+  designation?: string | null
+  email?: string | null
+  phone?: string
+  address?: string | null
+  image?: string | null
+}
 export interface AdmissionData {
   preview_url: string
   download_url: string

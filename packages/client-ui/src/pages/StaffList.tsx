@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { getFileUrl } from '@/lib/backend'
 
 function StaffList() {
     useEffect(() => {
@@ -23,33 +24,25 @@ function StaffList() {
 
     useEffect(() => {
         const controller = new AbortController()
-        const host = (import.meta).env?.VITE_BACKEND_URL || window.location.origin
 
         const load = async () => {
             setLoading(true)
             setError(null)
             try {
-                const res = await fetch(`${host}/api/staffs`, { signal: controller.signal })
+                const res = await fetch('/api/staffs', { signal: controller.signal })
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
                 const json = await res.json()
                 // support responses that wrap data in { data: [...] } or return array directly
                 const items = (json && json.data) ? json.data : json
-                const mapped: StaffMember[] = (Array.isArray(items) ? items : []).map((it, idx: number) => {
-                    const image = it?.image
-                    let imageUrl: string | undefined = undefined
-                    if (image) {
-                        imageUrl = /^https?:\/\//i.test(image) ? image : `${host}/${image.replace(/^\/+/, '')}`
-                    }
-                    return {
-                        id: it.id ?? idx + 1,
-                        name: it.name ?? it.fullname ?? `Staff Member ${idx + 1}`,
-                        designation: it.designation ?? 'Senior Teacher',
-                        image: imageUrl,
-                        email: it.email ?? it?.contact?.email,
-                        phone: it.phone ?? it?.contact?.phone,
-                        address: it.address ?? it?.homeTown ?? it?.location
-                    }
-                })
+                const mapped: StaffMember[] = (Array.isArray(items) ? items : []).map((it, idx: number) => ({
+                    id: it.id ?? idx + 1,
+                    name: it.name ?? it.fullname ?? `Staff Member ${idx + 1}`,
+                    designation: it.designation ?? 'Senior Teacher',
+                    image: getFileUrl(it?.image) || undefined,
+                    email: it.email ?? it?.contact?.email,
+                    phone: it.phone ?? it?.contact?.phone,
+                    address: it.address ?? it?.homeTown ?? it?.location
+                }))
                 setStaff(mapped)
             } catch (err) {
                 console.error('Error loading staff', err)
