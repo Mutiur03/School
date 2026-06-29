@@ -363,7 +363,7 @@ const StaffList = () => {
                       placeholder="Enter email"
                       {...register("email")}
                     />
-                    {errors.email && (
+                    {typeof errors.email?.message === "string" && (
                       <ErrorMessage message={errors.email.message} />
                     )}
                   </div>
@@ -390,7 +390,7 @@ const StaffList = () => {
                       placeholder="Enter designation"
                       {...register("designation")}
                     />
-                    {errors.designation && (
+                    {typeof errors.designation?.message === "string" && (
                       <ErrorMessage message={errors.designation.message} />
                     )}
                   </div>
@@ -401,7 +401,7 @@ const StaffList = () => {
                       placeholder="Enter address"
                       {...register("address")}
                     />
-                    {errors.address && (
+                    {typeof errors.address?.message === "string" && (
                       <ErrorMessage message={errors.address.message} />
                     )}
                   </div>
