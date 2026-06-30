@@ -68,8 +68,6 @@ import {
 import { captureServerException } from "./config/sentry.js";
 import { getDatabasePoolStats } from "./utils/dbMetrics.js";
 
-const storagePath = path.resolve("uploads");
-
 const app = express();
 const PORT = env.PORT || 5000;
 // createObserva(process.env.OBSERVA_SECRET_KEY).installExpress(app);
@@ -150,15 +148,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(initRlsContextMiddleware);
-app.use(
-  "/uploads",
-  express.static(storagePath, {
-    setHeaders: (res) => {
-      res.set("Cross-Origin-Resource-Policy", "cross-origin");
-      res.set("Access-Control-Allow-Origin", "*");
-    },
-  }),
-);
 const limitStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -296,13 +285,6 @@ app.use(
 );
 generateToken();
 app.listen(PORT, () => {
-  fs.mkdir(storagePath, { recursive: true }, (err) => {
-    if (err) {
-      logger.error("Error creating uploads directory", { error: err.message });
-    } else {
-      logger.info("Uploads directory ready", { path: storagePath });
-    }
-  });
   const logsPath = path.resolve("logs");
   fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
