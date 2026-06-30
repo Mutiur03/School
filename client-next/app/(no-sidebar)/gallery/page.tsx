@@ -1,11 +1,9 @@
-import { getBackendBaseUrl } from "@/lib/backend";
 import { fetchGalleryCategories, fetchGalleryEvents } from "@/queries/gallery.queries";
 import GalleryClient from "./GalleryClient";
 
 export const revalidate = 60;
 
 export default async function GalleryPage() {
-    const apiBase = await getBackendBaseUrl();
     const [categories, events] = await Promise.all([
         fetchGalleryCategories(),
         fetchGalleryEvents(),
@@ -15,7 +13,6 @@ export default async function GalleryPage() {
 
     return (
         <GalleryClient
-            apiBase={apiBase}
             campusItems={campusItems}
             eventItems={eventItems}
         />

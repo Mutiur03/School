@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { getFileUrl } from "@/lib/backend";
+import { uploadToR2 } from "@/lib/uploadToR2";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,7 +81,6 @@ export default function Gallery() {
     image: null,
   });
   const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
-  const host = import.meta.env.VITE_BACKEND_URL as string;
 
   const modalVariants: Variants = {
     enter: (dir: number) => ({
@@ -137,8 +138,9 @@ export default function Gallery() {
 
   const fetchEvents = async () => {
     try {
-      const response = await axios.get<Event[]>("/api/events/getEvents");
-      setEvents(response.data || []);
+      const response = await axios.get("/api/events/getEvents");
+      const data = response.data?.data ?? response.data;
+      setEvents(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
@@ -209,11 +211,11 @@ export default function Gallery() {
     if (isEditing) {
       await handleUpdate();
     } else {
-      await handleUpload(e);
+      await handleUpload();
     }
   };
 
-  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpload = async () => {
     if (!files.length && !isEditing) {
       toast.error("Please select at least one image");
       return;
@@ -227,32 +229,32 @@ export default function Gallery() {
       return;
     }
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    formData.append("status", "approved");
-
     try {
-      setUploadProgress(0);
-      await axios.post("/api/gallery/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / (progressEvent.total || 100)
-          );
-          setUploadProgress(percentCompleted);
-        },
+      setUploadProgress(1);
+      const keys: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const key = await uploadToR2(
+          "/api/gallery/presigned-url",
+          files[i],
+          (pct) => {
+            const overall = Math.round(((i + pct / 100) / files.length) * 100);
+            setUploadProgress(overall);
+          }
+        );
+        keys.push(key);
+      }
+
+      await axios.post("/api/gallery/upload", {
+        keys,
+        caption: formValues.caption,
+        eventId: formValues.eventId || "",
+        category: formValues.eventId ? "1" : formValues.category,
+        status: "approved",
       });
+      setUploadProgress(100);
       resetForm();
       toast.success("Images uploaded successfully!");
-      toast(
-        "Note: Images may take a few moments to appear while it finishes processing.",
-        { icon: "⏳" }
-      );
       fetchGallery();
-      setTimeout(fetchGallery, 3000);
-      setTimeout(fetchGallery, 8000);
     } catch (err) {
       console.error(err);
       toast.error("Failed to upload images");
@@ -269,41 +271,27 @@ export default function Gallery() {
       return;
     }
 
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("images", file);
-    });
-    formData.append("caption", formValues.caption);
-    formData.append("status", "approved");
-    if (formValues.eventId) {
-      formData.append("eventId", formValues.eventId.toString());
-      formData.append("category", "1");
-    } else {
-      formData.append("category", formValues.category.toString());
-    }
-
     try {
-      setUploadProgress(0);
-      await axios.put(`/api/gallery/updateGallery/${editId}`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / (progressEvent.total || 100)
-          );
-          setUploadProgress(percentCompleted);
-        },
+      setUploadProgress(1);
+      let imageKey: string | undefined;
+      if (files.length > 0) {
+        imageKey = await uploadToR2(
+          "/api/gallery/presigned-url",
+          files[0],
+          (pct) => setUploadProgress(pct)
+        );
+      }
+
+      await axios.put(`/api/gallery/updateGallery/${editId}`, {
+        imageKey,
+        caption: formValues.caption,
+        eventId: formValues.eventId || "",
+        category: formValues.eventId ? "1" : formValues.category,
       });
+      setUploadProgress(100);
       toast.success("Image updated successfully!");
-      toast(
-        "Note: Changes may take a few moments to appear while the backend finishes processing.",
-        { icon: "⏳" }
-      );
       resetForm();
       fetchGallery();
-      setTimeout(fetchGallery, 3000);
-      setTimeout(fetchGallery, 8000);
     } catch (error) {
       console.error("Error updating image:", error);
       toast.error("Failed to update image");
@@ -471,12 +459,12 @@ export default function Gallery() {
               >
                 <div className="relative aspect-square">
                   <img
-                    src={`${host}/${img.image_path}`}
+                    src={getFileUrl(img.image_path)}
                     alt={img.caption || "Gallery image"}
                     className="object-cover w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                  <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                     <h3 className="text-white text-lg font-semibold line-clamp-1">
                       {img.student_name}
                     </h3>
@@ -616,7 +604,7 @@ export default function Gallery() {
                         Current image:
                       </p>
                       <img
-                        src={`${host}/${formValues.image}`}
+                        src={getFileUrl(formValues.image)}
                         alt="Current"
                         className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md mt-1"
                       />
@@ -879,7 +867,7 @@ export default function Gallery() {
                       <div className="relative w-full h-full max-w-3xl flex flex-col">
                         <div className="flex-1 flex items-center justify-center overflow-hidden">
                           <img
-                            src={`${host}/${selectedGroup[currentIndex].image_path}`}
+                            src={getFileUrl(selectedGroup[currentIndex].image_path)}
                             alt={
                               selectedGroup[currentIndex].caption ||
                               "Gallery image"

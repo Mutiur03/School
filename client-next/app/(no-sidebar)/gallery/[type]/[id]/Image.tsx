@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { getFileUrl } from "@/lib/cdn";
 
 export interface ImageItem {
     id: number | string;
@@ -11,21 +12,18 @@ export interface ImageItem {
 }
 
 interface ImagesPageProps {
-    apiBase: string;
     type: "campus" | "event";
     images: ImageItem[];
 }
 
-export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
+export default function ImagesPage({ type, images }: ImagesPageProps) {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const activeThumbRef = useRef<HTMLButtonElement | null>(null);
     const [copied, setCopied] = useState(false);
 
     const copyImage = async () => {
         if (selectedIndex === null) return;
-        const url = images[selectedIndex].image_path
-            ? `${apiBase}/${images[selectedIndex].image_path}`
-            : "";
+        const url = getFileUrl(images[selectedIndex].image_path);
         try {
             await navigator.clipboard.writeText(url);
             setCopied(true);
@@ -103,7 +101,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                             className="block rounded overflow-hidden bg-white border border-gray-100 hover:shadow-md focus:outline-none"
                         >
                             <Image
-                                src={img.image_path ? `${apiBase}/${img.image_path}` : "/placeholder.svg"}
+                                src={img.image_path ? getFileUrl(img.image_path) : "/placeholder.svg"}
                                 alt={img.caption || "image"}
                                 className="w-full h-36 object-cover block"
                                 width={100}
@@ -191,7 +189,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                             <Image
                                 src={
                                     images[selectedIndex].image_path
-                                        ? `${apiBase}/${images[selectedIndex].image_path}`
+                                        ? getFileUrl(images[selectedIndex].image_path)
                                         : "/placeholder.svg"
                                 }
                                 alt={images[selectedIndex].caption || "full image"}
@@ -270,7 +268,7 @@ export default function ImagesPage({ apiBase, type, images }: ImagesPageProps) {
                                             <Image
                                                 src={
                                                     thumb.image_path
-                                                        ? `${apiBase}/${thumb.image_path}`
+                                                        ? getFileUrl(thumb.image_path)
                                                         : "/placeholder.svg"
                                                 }
                                                 alt={thumb.caption || `thumb-${i}`}

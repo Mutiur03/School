@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom';
+import { getFileUrl } from '@/lib/backend';
 
 interface GalleryItem {
     id: number;
@@ -13,7 +14,6 @@ function Gallery() {
     useEffect(() => {
         document.title = "Gallery";
     }, []);
-    const host = import.meta.env.VITE_BACKEND_URL;
     const [active, setActive] = useState<'campus' | 'event'>('campus')
     const [campusItems, setCampusItems] = useState<GalleryItem[]>([])
     const [eventItems, setEventItems] = useState<GalleryItem[]>([])
@@ -75,7 +75,7 @@ function Gallery() {
                             className="block rounded-lg overflow-hidden bg-white border border-gray-100 hover:shadow-md transition"
                         >
                             <img
-                                src={item.thumbnail ? `${host}/${item.thumbnail}` : "/placeholder.svg"}
+                                src={item.thumbnail ? getFileUrl(item.thumbnail) : "/placeholder.svg"}
                                 alt={item.title}
                                 className="w-full h-36 object-cover block"
                             />

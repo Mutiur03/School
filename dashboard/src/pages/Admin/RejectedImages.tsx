@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { getFileUrl } from "@/lib/backend";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,7 +47,6 @@ export default function RejectedImages() {
   const [direction, setDirection] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
-  const host = import.meta.env.VITE_BACKEND_URL as string;
 
   const modalVariants = {
     enter: (dir: number) => ({
@@ -272,12 +272,12 @@ export default function RejectedImages() {
               >
                 <div className="relative aspect-square">
                   <img
-                    src={`${host}/${img.image_path}`}
+                    src={getFileUrl(img.image_path)}
                     alt={img.caption || "Pending gallery image"}
                     className="object-cover w-full h-full transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                  <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                     <h3 className="text-white text-lg font-semibold line-clamp-1">
                       {img.student_name || "Anonymous"}
                     </h3>
@@ -482,7 +482,7 @@ export default function RejectedImages() {
                       <div className="relative w-full h-full max-w-full md:max-w-4xl flex flex-col">
                         <div className="flex-1 flex items-center justify-center overflow-hidden">
                           <img
-                            src={`${host}/${selectedGroup[currentIndex].image_path}`}
+                            src={getFileUrl(selectedGroup[currentIndex].image_path)}
                             alt={
                               selectedGroup[currentIndex].caption ||
                               "Pending gallery image"
