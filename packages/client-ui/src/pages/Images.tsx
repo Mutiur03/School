@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 import { useParams, Link } from 'react-router-dom'
+import { getFileUrl } from '@/lib/backend'
 
 interface ImageItem {
     id: number | string
@@ -11,7 +12,6 @@ interface ImageItem {
 function Images() {
     const { type, id } = useParams<{ type: 'campus' | 'event'; id: string }>()
 
-    const host = import.meta.env.VITE_BACKEND_URL
     const [images, setImages] = useState<ImageItem[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -28,7 +28,7 @@ function Images() {
     // copy current full image URL to clipboard (used by "clone" icon)
     const copyImage = async () => {
         if (selectedIndex === null) return
-        const url = images[selectedIndex].image_path ? `${host}/${images[selectedIndex].image_path}` : ''
+        const url = getFileUrl(images[selectedIndex].image_path)
         try {
             await navigator.clipboard.writeText(url)
             setCopied(true)
@@ -136,7 +136,7 @@ function Images() {
                             className="block rounded overflow-hidden bg-white border border-gray-100 hover:shadow-md focus:outline-none"
                         >
                             <img
-                                src={img.image_path ? `${host}/${img.image_path}` : '/placeholder.svg'}
+                                src={img.image_path ? getFileUrl(img.image_path) : '/placeholder.svg'}
                                 alt={img.caption || 'image'}
                                 className="w-full h-36 object-cover block"
                             />
@@ -197,7 +197,7 @@ function Images() {
 
                         <div className="flex-1 overflow-hidden flex items-center justify-center relative">
                             <img
-                                src={images[selectedIndex].image_path ? `${host}/${images[selectedIndex].image_path}` : '/placeholder.svg'}
+                                src={images[selectedIndex].image_path ? getFileUrl(images[selectedIndex].image_path) : '/placeholder.svg'}
                                 alt={images[selectedIndex].caption || 'full image'}
                                 className="w-full h-auto max-h-[70vh] object-contain rounded filter brightness-100"
                             />
@@ -242,7 +242,7 @@ function Images() {
                                             style={{ width: 80, height: 60 }}
                                         >
                                             <img
-                                                src={thumb.image_path ? `${host}/${thumb.image_path}` : '/placeholder.svg'}
+                                                src={thumb.image_path ? getFileUrl(thumb.image_path) : '/placeholder.svg'}
                                                 alt={thumb.caption || `thumb-${i}`}
                                                 // dim non-active thumbnails so the active one reads brighter
                                                 className={`w-full h-full object-cover ${isActive ? 'filter brightness-100' : 'filter brightness-75'}`}

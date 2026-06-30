@@ -27,7 +27,7 @@ import smsSettingsRoute from "./modules/sms-settings/sms-settings.route.js";
 import noticeRouter from "./modules/notice/notice.route.js";
 import holidayRouter from "./routes/holidayRoutes.js";
 import eventsRouter from "./modules/events/events.route.js";
-import galleryRouter from "./routes/galleryRoutes.js";
+import galleryRouter from "./modules/gallery/gallery.route.js";
 import dashboardRouter from "./modules/dashboard/dashboard.route.js";
 import path from "path";
 import fs from "fs";

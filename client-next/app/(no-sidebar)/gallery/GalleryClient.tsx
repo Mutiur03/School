@@ -4,15 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import type { GalleryItem } from "@/queries/gallery.queries";
 import Image from "next/image";
+import { getFileUrl } from "@/lib/cdn";
 
 interface GalleryClientProps {
-    apiBase: string;
     campusItems: GalleryItem[];
     eventItems: GalleryItem[];
 }
 
 export default function GalleryClient({
-    apiBase,
     campusItems,
     eventItems,
 }: GalleryClientProps) {
@@ -62,7 +61,7 @@ export default function GalleryClient({
                                 className="block rounded-lg overflow-hidden bg-white border border-gray-100 hover:shadow-md transition"
                             >
                                 <Image
-                                    src={item.thumbnail ? `${apiBase}/${item.thumbnail}` : "/placeholder.svg"}
+                                    src={item.thumbnail ? getFileUrl(item.thumbnail) : "/placeholder.svg"}
                                     alt={item.title}
                                     className="w-full h-36 object-cover block"
                                     width={100}
