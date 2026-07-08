@@ -1906,23 +1906,18 @@ export class MarksService {
           marking_scheme: row.marking_scheme,
         });
 
-        doc.font(fontBold).fillColor("#000000");
         this.drawDynamicText(doc, row.marks ?? "-", mx + 5, y, colWidths[middleStart] - 10, totalHeight, {
           fontSize: rowFontSize,
           align: "center",
-          bold: true
         });
         this.drawDynamicText(doc, grade.lg, mx + colWidths[middleStart] + 5, y, colWidths[middleStart + 1] - 10, totalHeight, {
           fontSize: rowFontSize,
           align: "center",
-          bold: true
         });
         this.drawDynamicText(doc, grade.gp.toFixed(2), mx + colWidths[middleStart] + colWidths[middleStart + 1] + 5, y, colWidths[middleStart + 2] - 10, totalHeight, {
           fontSize: rowFontSize,
           align: "center",
-          bold: true
         });
-        doc.font(fontRegular);
 
         y += totalHeight;
       } else {
