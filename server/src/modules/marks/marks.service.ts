@@ -1,4 +1,6 @@
 import { prisma } from "@/config/prisma.js";
+import { Prisma } from "@prisma/client";
+import { getRlsContext } from "@/config/rlsContextStore.js";
 import { getFileBuffer } from "@/config/r2.js";
 import PDFDocument from "pdfkit";
 import path from "path";
@@ -91,119 +93,148 @@ export class MarksService {
       );
     }
 
-    const results = [];
-    const errors = [];
+    const errors: string[] = [];
+    const yearInt = parseInt(year);
+
+    // Batch-fetch everything up front instead of querying per student/subject.
+    const studentIds: number[] = students.map((s: any) => s.studentId);
+    const subjectIds: number[] = Array.from(
+      new Set(
+        students.flatMap((s: any) =>
+          s.subjectMarks.map((m: any) => m.subjectId),
+        ),
+      ),
+    );
+
+    const [enrollments, subjects] = await Promise.all([
+      prisma.student_enrollments.findMany({
+        where: { student_id: { in: studentIds }, year: yearInt },
+      }),
+      prisma.subjects.findMany({ where: { id: { in: subjectIds } } }),
+    ]);
+
+    const enrollmentByStudent = new Map(
+      enrollments.map((e) => [e.student_id, e]),
+    );
+    const subjectById = new Map(subjects.map((s) => [s.id, s]));
+
+    // Deduped by (enrollment, subject) so the single upsert never touches
+    // the same row twice.
+    const rowsByKey = new Map<
+      string,
+      {
+        enrollment_id: number;
+        subject_id: number;
+        cq_marks: number | null;
+        mcq_marks: number | null;
+        practical_marks: number | null;
+        marks: number | null;
+      }
+    >();
 
     for (const student of students) {
-      try {
-        const enrollment = await prisma.student_enrollments.findFirst({
-          where: {
-            student_id: student.studentId,
-            year: parseInt(year),
-          },
-        });
+      const enrollment = enrollmentByStudent.get(student.studentId);
 
-        if (!enrollment) {
-          errors.push(`Student ${student.studentId} not enrolled in ${year}`);
+      if (!enrollment) {
+        errors.push(`Student ${student.studentId} not enrolled in ${year}`);
+        continue;
+      }
+
+      if (
+        !this.checkAccess(
+          user,
+          student.studentId,
+          enrollment.class,
+          enrollment.section,
+          yearInt,
+        )
+      ) {
+        errors.push(
+          `Teacher ${user.id} not authorized for Class ${enrollment.class} Section ${enrollment.section}`,
+        );
+        continue;
+      }
+
+      for (const {
+        subjectId,
+        cq_marks,
+        mcq_marks,
+        practical_marks,
+        marks: providedTotal,
+      } of student.subjectMarks) {
+        const subject = subjectById.get(subjectId);
+
+        if (!subject) {
+          errors.push(`Subject ${subjectId} not found`);
           continue;
         }
+
+        let totalMarks: number | null =
+          (subject as any).marking_scheme === "BREAKDOWN"
+            ? (Number(cq_marks) || 0) +
+              (Number(mcq_marks) || 0) +
+              (Number(practical_marks) || 0)
+            : providedTotal;
 
         if (
-          !this.checkAccess(
-            user,
-            student.studentId,
-            enrollment.class,
-            enrollment.section,
-            parseInt(year),
-          )
+          (subject as any).marking_scheme === "BREAKDOWN" &&
+          cq_marks === null &&
+          mcq_marks === null &&
+          practical_marks === null
         ) {
-          errors.push(
-            `Teacher ${user.id} not authorized for Class ${enrollment.class} Section ${enrollment.section}`,
-          );
-          continue;
+          totalMarks = null;
         }
 
-        for (const {
-          subjectId,
+        rowsByKey.set(`${enrollment.id}_${subjectId}`, {
+          enrollment_id: enrollment.id,
+          subject_id: subjectId,
           cq_marks,
           mcq_marks,
           practical_marks,
-          marks: providedTotal,
-        } of student.subjectMarks) {
-          try {
-            const subject = await prisma.subjects.findUnique({
-              where: { id: subjectId },
-            });
-
-            if (!subject) {
-              errors.push(`Subject ${subjectId} not found`);
-              continue;
-            }
-
-            let totalMarks: number | null =
-              (subject as any).marking_scheme === "BREAKDOWN"
-                ? (Number(cq_marks) || 0) +
-                  (Number(mcq_marks) || 0) +
-                  (Number(practical_marks) || 0)
-                : providedTotal;
-
-            if (
-              (subject as any).marking_scheme === "BREAKDOWN" &&
-              cq_marks === null &&
-              mcq_marks === null &&
-              practical_marks === null
-            ) {
-              totalMarks = null;
-            }
-
-            const existingMark = await prisma.marks.findFirst({
-              where: {
-                enrollment_id: enrollment.id,
-                subject_id: subjectId,
-                exam_id: exam.id,
-              },
-            });
-
-            const markData = {
-              cq_marks: cq_marks,
-              mcq_marks: mcq_marks,
-              practical_marks: practical_marks,
-              marks: totalMarks,
-            };
-
-            let result;
-            if (existingMark) {
-              result = await prisma.marks.update({
-                where: { id: existingMark.id },
-                data: markData,
-              });
-            } else {
-              result = await prisma.marks.create({
-                data: {
-                  enrollment_id: enrollment.id,
-                  subject_id: subjectId,
-                  exam_id: exam.id,
-                  ...markData,
-                },
-              });
-            }
-            results.push(result);
-          } catch (error: any) {
-            errors.push(
-              `Failed to process student ${student.studentId} subject ${subjectId}: ${error.message}`,
-            );
-          }
-        }
-      } catch (error: any) {
-        errors.push(
-          `Error processing student ${student.studentId}: ${error.message}`,
-        );
+          marks: totalMarks,
+        });
       }
+    }
+
+    const rows = Array.from(rowsByKey.values());
+
+    if (rows.length > 0) {
+      // Single bulk upsert. Raw SQL bypasses the per-operation RLS extension,
+      // so replicate its set_config calls inside the transaction; school_id
+      // is filled by the BEFORE INSERT trigger from that context.
+      const rlsContext = getRlsContext();
+      const values = rows.map(
+        (r) =>
+          Prisma.sql`(${r.enrollment_id}, ${r.subject_id}, ${exam.id}, ${r.cq_marks}, ${r.mcq_marks}, ${r.practical_marks}, ${r.marks})`,
+      );
+
+      await prisma.$transaction(async (tx) => {
+        if (rlsContext) {
+          await tx.$executeRaw`
+            SELECT set_config('app.is_super_admin', ${rlsContext.isSuperAdmin ? "1" : "0"}, true)
+          `;
+          await tx.$executeRaw`
+            SELECT set_config('app.school_id', ${rlsContext.schoolId ? String(rlsContext.schoolId) : ""}, true)
+          `;
+        }
+
+        await tx.$executeRaw`
+          INSERT INTO marks (enrollment_id, subject_id, exam_id, cq_marks, mcq_marks, practical_marks, marks)
+          VALUES ${Prisma.join(values)}
+          ON CONFLICT (enrollment_id, subject_id, exam_id)
+          DO UPDATE SET
+            cq_marks = EXCLUDED.cq_marks,
+            mcq_marks = EXCLUDED.mcq_marks,
+            practical_marks = EXCLUDED.practical_marks,
+            marks = EXCLUDED.marks,
+            updated_at = NOW()
+        `;
+      });
     }
 
     return {
       success: true,
-      count: results.length,
+      count: rows.length,
       errors: errors.length > 0 ? errors : undefined,
     };
   }
