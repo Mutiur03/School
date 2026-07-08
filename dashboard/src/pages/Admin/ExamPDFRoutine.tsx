@@ -282,16 +282,9 @@ function ExamPDFRoutine() {
                   required
                   className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 >
-                  <option value="">Select Exam</option>
-                  {[
-                    "Half Yearly",
-                    "Annual",
-                    "Pre Test",
-                    "Annual/Test",
-                    "Test",
-                  ].map((exam) => (
-                    <option key={exam} value={`${exam} Exam`}>
-                      {exam} Exam
+                   {["Half Yearly", "Annual", "Pretest", "Annual/Test", "Test"].map((exam) => (
+                    <option key={exam} value={`${exam} Examination`}>
+                      {exam} Examination
                     </option>
                   ))}
                 </select>
