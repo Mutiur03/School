@@ -215,16 +215,9 @@ const SubjectForm = React.memo(({
   const assessmentType = formData.assessment_type;
   const markingScheme = formData.marking_scheme;
 
-  // Automarking scheme update (Restored inside sub-component)
-  useEffect(() => {
-    if (!isNaN(classNum) && classNum >= 9 && (formData as any).marking_scheme !== "BREAKDOWN") {
-      setValue("marking_scheme" as any, "BREAKDOWN");
-    }
-  }, [classNum, subjectType, setValue]);
-
   // Cross-field validation for breakdown marks
   const validateBreakdown = () => {
-    if (markingScheme !== "BREAKDOWN" && classNum < 9) return true;
+    if (markingScheme !== "BREAKDOWN") return true;
     if (subjectType === "main") return true;
     
     const cq = Number(formData.cq_mark) || 0;
@@ -368,7 +361,7 @@ const SubjectForm = React.memo(({
           <ErrorMessage message={errors.assessment_type?.message} />
         </div>
 
-        {subjectType !== "main" && classNum < 9 && (
+        {subjectType !== "main" && (
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Marking Entry Scheme <span className="text-destructive">*</span></label>
             <select
@@ -671,13 +664,9 @@ const NewSubject: React.FC = () => {
   }, [resetFormData]);
 
   const onSubmit = useCallback(async (data: any): Promise<void> => {
-    if (Number(data.class) >= 9) {
-      data.marking_scheme = "BREAKDOWN";
-    }
-    
     if (uploadMethod === "form") {
       // Client-side check for breakdown marks
-      const isBreakdownScheme = data.marking_scheme === "BREAKDOWN" || Number(data.class) >= 9;
+      const isBreakdownScheme = data.marking_scheme === "BREAKDOWN";
       const isNotMain = data.subject_type !== "main";
       
       console.log("Submitting subject data:", { 
@@ -702,7 +691,7 @@ const NewSubject: React.FC = () => {
           setError("cq_mark", { type: "manual", message: "CQ Mark required if MCQ/Prac are 0" });
           setError("mcq_mark", { type: "manual", message: "MCQ Mark required if CQ/Prac are 0" });
           setError("practical_mark", { type: "manual", message: "Practical Mark required if CQ/MCQ are 0" });
-          toast.error("At least one breakdown mark (CQ, MCQ, or Practical) MUST be greater than zero for class 9-10/Breakdown subjects.");
+          toast.error("At least one breakdown mark (CQ, MCQ, or Practical) MUST be greater than zero for BREAKDOWN subjects.");
           return;
         }
       }
@@ -794,7 +783,7 @@ const NewSubject: React.FC = () => {
           cq_pass_mark: Number(row.cq_pass_mark) || 0,
           mcq_pass_mark: Number(row.mcq_pass_mark) || 0,
           practical_pass_mark: Number(row.practical_pass_mark) || 0,
-          marking_scheme: (Number(row.class) >= 9) ? "BREAKDOWN" : (row.marking_scheme ? String(row.marking_scheme).toUpperCase() : "TOTAL"),
+          marking_scheme: row.marking_scheme ? String(row.marking_scheme).toUpperCase() : "TOTAL",
         };
       });
       const seen = new Set();
@@ -808,7 +797,6 @@ const NewSubject: React.FC = () => {
         if (!row.year || isNaN(row.year) || row.year < 2000) errors.push(`Row ${rowNum}: Invalid year.`);
         if (!["exam", "continuous"].includes(row.assessment_type)) errors.push(`Row ${rowNum}: Invalid assessment type.`);
         if (row.priority < 0) errors.push(`Row ${rowNum}: Priority must be non-negative.`);
-        if (Number(row.class) >= 9 && row.marking_scheme !== "BREAKDOWN") errors.push(`Row ${rowNum}: Classes 9 and 10 must use BREAKDOWN scheme.`);
         if (row.marking_scheme === "BREAKDOWN" && (Number(row.cq_mark) || 0) === 0 && (Number(row.mcq_mark) || 0) === 0 && (Number(row.practical_mark) || 0) === 0) {
           errors.push(`Row ${rowNum}: BREAKDOWN scheme requires at least one mark type (CQ, MCQ, or Practical).`);
         }
@@ -1334,7 +1322,7 @@ const NewSubject: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">7</div>
-                  <p><strong>marking_scheme:</strong> Optional. [TOTAL | BREAKDOWN]. Default based on class (9-10 forced to BREAKDOWN).</p>
+                  <p><strong>marking_scheme:</strong> Optional. [TOTAL | BREAKDOWN]. Defaults to TOTAL for all classes.</p>
                 </div>
               </div>
             </div>

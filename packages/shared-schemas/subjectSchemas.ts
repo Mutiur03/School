@@ -114,20 +114,8 @@ export const subjectFormSchema = z
       });
     }
 
-    // Force BREAKDOWN for class 9 and 10
-    const isClass9or10 = Number(data.class) === 9 || Number(data.class) === 10;
-    const isBreakdown = data.marking_scheme === "BREAKDOWN" || isClass9or10;
-
-    if (isClass9or10 && data.marking_scheme !== "BREAKDOWN") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["marking_scheme"],
-        message: "Classes 9 and 10 must use BREAKDOWN marking scheme",
-      });
-    }
-
     // BREAKDOWN scheme specific validations
-    if (isBreakdown && data.subject_type !== "main") {
+    if (data.marking_scheme === "BREAKDOWN" && data.subject_type !== "main") {
       const cq = Number(data.cq_mark) || 0;
       const mcq = Number(data.mcq_mark) || 0;
       const practical = Number(data.practical_mark) || 0;
