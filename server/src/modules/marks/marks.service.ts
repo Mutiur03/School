@@ -548,6 +548,7 @@ export class MarksService {
           cq_marks: mark.cq_marks,
           mcq_marks: mark.mcq_marks,
           practical_marks: mark.practical_marks,
+          full_mark: sub.full_mark,
           highest_mark: mark.highest_mark || 0,
           subject_id: mark.subject_id,
           priority: sub.priority,
@@ -665,7 +666,7 @@ export class MarksService {
     const studentSection = result[0].enrollment.section;
 
     // Fetch class highest marks and signatures
-    const [allMarks, level, headMsg] = await Promise.all([
+    const [allMarks, level, headMsg, website] = await Promise.all([
       prisma.marks.findMany({
         where: {
           enrollment: { class: studentClass, year: parseInt(year) },
@@ -690,6 +691,7 @@ export class MarksService {
         where: { id: 1 },
         include: { teacher: true },
       }),
+      this.getSchoolWebsite(),
     ]);
 
     const teacherSignature = level?.teacher?.signature
@@ -747,6 +749,7 @@ export class MarksService {
       studentDetails,
       finalTableData,
       { teacher: teacherSignature, head: headSignature },
+      website,
     );
     return { buffer, studentName };
   }
@@ -789,7 +792,7 @@ export class MarksService {
       where.section = section;
     }
 
-    const [enrollments, allExamMarks, headMsg] = await Promise.all([
+    const [enrollments, allExamMarks, headMsg, website] = await Promise.all([
       prisma.student_enrollments.findMany({
         where,
         include: { student: { select: { id: true, name: true } } },
@@ -832,6 +835,7 @@ export class MarksService {
         where: { id: 1 },
         include: { teacher: true },
       }),
+      this.getSchoolWebsite(),
     ]);
 
     if (enrollments.length === 0) throw new Error("No students found");
@@ -896,7 +900,7 @@ export class MarksService {
           teacherSigs[sigKey] = lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null;
         }
 
-        await this.renderStudentMarksheetPage(doc, studentDetails, finalTableData, { teacher: teacherSigs[sigKey], head: headSignature });
+        await this.renderStudentMarksheetPage(doc, studentDetails, finalTableData, { teacher: teacherSigs[sigKey], head: headSignature }, website);
       }
       doc.end();
     });
@@ -1030,11 +1034,12 @@ export class MarksService {
     return new Promise<Buffer>(async (resolve) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-      const [headMsg] = await Promise.all([
+      const [headMsg, website] = await Promise.all([
         prisma.head_msg.findUnique({
           where: { id: 1 },
           include: { teacher: true },
         }),
+        this.getSchoolWebsite(),
       ]);
       const headSignature = headMsg?.teacher?.signature
         ? await getFileBuffer(headMsg.teacher.signature)
@@ -1078,7 +1083,7 @@ export class MarksService {
           this.drawProperBackground(doc);
           await this.drawWatermark(doc);
           this.drawGradingSystemTable(doc, 440, 75);
-          this.drawProperHeader(doc, { ...info, exam: examDisplayName });
+          this.drawProperHeader(doc, { ...info, exam: examDisplayName }, website);
           this.drawProperStudentInfo(doc, info);
         };
 
@@ -1144,11 +1149,12 @@ export class MarksService {
     student: any,
     tableData: any[],
     signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    website?: string | null,
   ) {
     this.drawProperBackground(doc);
     await this.drawWatermark(doc);
     this.drawGradingSystemTable(doc, 440, 75);
-    this.drawProperHeader(doc, student);
+    this.drawProperHeader(doc, student, website);
     this.drawProperStudentInfo(doc, student);
 
     const y = doc.y + 5;
@@ -1199,6 +1205,7 @@ export class MarksService {
     student: any,
     tableData: any[],
     signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    website?: string | null,
   ): Promise<Buffer> {
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
     const chunks: Buffer[] = [];
@@ -1206,7 +1213,13 @@ export class MarksService {
 
     return new Promise<Buffer>(async (resolve) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
-      await this.renderStudentMarksheetPage(doc, student, tableData, signatures);
+      await this.renderStudentMarksheetPage(
+        doc,
+        student,
+        tableData,
+        signatures,
+        website,
+      );
       doc.end();
     });
   }
@@ -1250,10 +1263,16 @@ export class MarksService {
     let subjectCount = 0;
 
     marksData.forEach((row) => {
-      if (row.marks !== null && row.assessment_type === "exam") {
-        totalMarks += Number(row.marks);
+      if (row.assessment_type === "exam") {
+        const obtained = Number(row.marks);
         const fullMark = Number(row.full_mark || 100);
-        const percentage = (Number(row.marks) / fullMark) * 100;
+
+        if (!Number.isFinite(obtained) || !Number.isFinite(fullMark) || fullMark <= 0) {
+          return;
+        }
+
+        totalMarks += obtained;
+        const percentage = (obtained / fullMark) * 100;
 
         const isOptional = row.subject_id === fourthSubjectId;
 
@@ -1321,6 +1340,17 @@ export class MarksService {
       applyBonus,
       className,
     );
+
+    // If any key numeric is invalid, skip rendering the summary row entirely
+    if (
+      !Number.isFinite(gpa) ||
+      !Number.isFinite(totalMarks) ||
+      (classHighestTotal !== undefined &&
+        classHighestTotal !== null &&
+        !Number.isFinite(classHighestTotal))
+    ) {
+      return y + 20;
+    }
 
     const isBreakdown = this.useBreakdownLayout(className, tableData);
     // Use passed colWidths or fall back to calculation if not provided
@@ -1443,7 +1473,45 @@ export class MarksService {
     doc.rect(25, 25, 545, 792).lineWidth(0.5).stroke("#666666");
   }
 
-  private static drawProperHeader(doc: any, exam?: any) {
+  private static normalizeSchoolWebsite(
+    customDomain?: string | null,
+    website?: string | null,
+  ): string | null {
+    const raw = (customDomain?.trim() || website?.trim() || "");
+    if (!raw) return null;
+
+    try {
+      if (/^https?:\/\//i.test(raw)) {
+        return new URL(raw).hostname || null;
+      }
+      return raw.replace(/\/+$/, "").replace(/:\d+$/, "").toLowerCase();
+    } catch {
+      const cleaned = raw
+        .replace(/^https?:\/\//i, "")
+        .split("/")[0]
+        ?.replace(/:\d+$/, "");
+      return cleaned || null;
+    }
+  }
+
+  private static async getSchoolWebsite(): Promise<string | null> {
+    const schoolId = getRlsContext()?.schoolId;
+    if (!schoolId) return null;
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { customDomain: true, website: true },
+    });
+    return this.normalizeSchoolWebsite(
+      school?.customDomain,
+      school?.website,
+    );
+  }
+
+  private static drawProperHeader(
+    doc: any,
+    exam?: any,
+    website?: string | null,
+  ) {
     doc
       .font("Times-Bold")
       .fontSize(10)
@@ -1469,13 +1537,27 @@ export class MarksService {
       .font("Times-Bold")
       .fontSize(11)
       .text("Panchbibi, Joypurhat.", 50, 75, { align: "center", width: 495 });
-    doc
-      .font("Times-Bold")
-      .fontSize(10)
-      .text("EIIN: 121983, School Code: 5100", 50, 90, {
+    doc.font("Times-Bold").fontSize(10);
+    const infoText = "EIIN: 121983, School Code: 5100";
+    const websiteStr = typeof website === "string" ? website.trim() : "";
+
+    doc.text(infoText, 50, 90, {
+      align: "center",
+      width: 495,
+    });
+
+    const headerOffset = websiteStr ? 14 : 0;
+
+    if (websiteStr) {
+      const host = websiteStr.replace(/^https?:\/\//, "");
+      const websiteUrl = /^https?:\/\//i.test(websiteStr)
+        ? websiteStr.replace(/\/+$/, "")
+        : `https://${host}`;
+      doc.text(websiteUrl, 50, 104, {
         align: "center",
         width: 495,
       });
+    }
 
     if (exam && (exam.exam || exam.year)) {
       const examName = exam.exam || "";
@@ -1487,17 +1569,17 @@ export class MarksService {
         .fillColor("#000000")
         .font("Times-Bold")
         .fontSize(16)
-        .text(headerText, 50, 105, {
+        .text(headerText, 50, 105 + headerOffset, {
           align: "center",
           width: 495,
         });
     }
-    doc.rect(197.5, 128, 200, 25).fill("#f3f4f6").stroke("#000000");
+    doc.rect(197.5, 128 + headerOffset, 200, 25).fill("#f3f4f6").stroke("#000000");
     doc
       .fillColor("#000000")
       .font("Times-Bold")
       .fontSize(14)
-      .text("ACADEMIC TRANSCRIPT", 197.5, 135, {
+      .text("ACADEMIC TRANSCRIPT", 197.5, 135 + headerOffset, {
         align: "center",
         width: 200,
       });
@@ -1618,6 +1700,16 @@ export class MarksService {
     return { lg: "F", gp: 0.0 };
   }
 
+  private static formatSubjectWithFullMark(
+    subject: string,
+    fullMark?: number | null,
+  ): string {
+    if (fullMark !== undefined && fullMark !== null && fullMark > 0) {
+      return `${subject} (${fullMark})`;
+    }
+    return subject;
+  }
+
   private static drawProperTable(
     doc: any,
     y: number,
@@ -1734,9 +1826,15 @@ export class MarksService {
               .stroke();
           }
 
-          this.drawDynamicText(doc, paper.subject, startX + 5, py, colWidths[0] - 10, rowHeight, {
-            fontSize: rowFontSize,
-          });
+          this.drawDynamicText(
+            doc,
+            this.formatSubjectWithFullMark(paper.subject, paper.full_mark),
+            startX + 5,
+            py,
+            colWidths[0] - 10,
+            rowHeight,
+            { fontSize: rowFontSize },
+          );
           if (isBreakdown) {
             this.drawDynamicText(doc, paper.cq_marks ?? "-", startX + colWidths[0] + 5, py, colWidths[1] - 10, rowHeight, {
               fontSize: rowFontSize,
@@ -1854,7 +1952,7 @@ export class MarksService {
         let cols: string[] = [];
         if (isBreakdown) {
           cols = [
-            row.subject,
+            this.formatSubjectWithFullMark(row.subject, row.full_mark),
             String(row.cq_marks ?? "-"),
             String(row.mcq_marks ?? "-"),
             String(row.practical_marks ?? "-"),
@@ -1865,7 +1963,7 @@ export class MarksService {
           ];
         } else {
           cols = [
-            row.subject + (row.full_mark ? ` (${row.full_mark})` : ""),
+            this.formatSubjectWithFullMark(row.subject, row.full_mark),
             String(row.marks ?? "-"),
             String(row.marks ?? "-"),
             grade.lg,
@@ -1879,7 +1977,6 @@ export class MarksService {
           this.drawDynamicText(doc, c, currentX + 5, y, colWidths[i] - 10, rowHeight, {
             fontSize: rowFontSize,
             align: i === 0 ? "left" : "center",
-            bold: i === 0,
           });
           currentX += colWidths[i];
         });
@@ -1908,23 +2005,29 @@ export class MarksService {
     const textHeight = doc.currentLineHeight();
     const verticalOffset = Math.max(0, (maxHeight - textHeight) / 2);
 
-    if (actualWidth > maxWidth - 1) {
+    // If the text is empty or zero-width, or the target box is too small,
+    // avoid any scaling math that could produce NaN/Infinity for PDFKit.
+    if (actualWidth > maxWidth - 1 && actualWidth > 0 && maxWidth > 1) {
       const scaleX = (maxWidth - 1) / actualWidth;
-      doc.save();
-      doc.scale(scaleX, 1);
-      doc.text(stringText, x / scaleX, y + verticalOffset, {
-        width: maxWidth / scaleX,
-        align: align,
-        lineBreak: false,
-      });
-      doc.restore();
-    } else {
-      doc.text(stringText, x, y + verticalOffset, {
-        width: maxWidth + 2, // Slight extra width to prevent early wrapping
-        align: align,
-        lineBreak: false,
-      });
+      if (Number.isFinite(scaleX) && scaleX > 0) {
+        doc.save();
+        doc.scale(scaleX, 1);
+        doc.text(stringText, x / scaleX, y + verticalOffset, {
+          width: maxWidth / scaleX,
+          align: align,
+          lineBreak: false,
+        });
+        doc.restore();
+        return fontSize;
+      }
     }
+
+    // Fallback: draw normally without scaling
+    doc.text(stringText, x, y + verticalOffset, {
+      width: maxWidth + 2, // Slight extra width to prevent early wrapping
+      align: align,
+      lineBreak: false,
+    });
     return fontSize;
   }
 
