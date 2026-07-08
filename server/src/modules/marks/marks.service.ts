@@ -486,6 +486,7 @@ export class MarksService {
             pass_mark: 0,
             priority: sub.priority,
             assessment_type: sub.assessment_type,
+            marking_scheme: "TOTAL",
             papers: [],
             isGroup: true,
             subject_id: pid,
@@ -505,6 +506,9 @@ export class MarksService {
         g.practical_pass_mark += sub.practical_pass_mark || 0;
         g.pass_mark += sub.pass_mark || 0;
         g.priority = Math.min(g.priority, sub.priority);
+        if ((sub as any).marking_scheme === "BREAKDOWN") {
+          g.marking_scheme = "BREAKDOWN";
+        }
         
         // Push simplified mark data for the paper
         g.papers.push({
@@ -534,6 +538,7 @@ export class MarksService {
           pass_mark: sub.pass_mark,
           priority: sub.priority,
           assessment_type: sub.assessment_type,
+          marking_scheme: (sub as any).marking_scheme,
           isGroup: false,
           highest_mark: mark.highest_mark || 0,
           subject_id: mark.subject_id,
@@ -584,6 +589,7 @@ export class MarksService {
             cq_pass_mark: true,
             mcq_pass_mark: true,
             practical_pass_mark: true,
+            marking_scheme: true,
             subject_type: true,
             parent_id: true,
             parent: { select: { name: true } },
@@ -778,6 +784,7 @@ export class MarksService {
               cq_pass_mark: true,
               mcq_pass_mark: true,
               practical_pass_mark: true,
+              marking_scheme: true,
               subject_type: true,
               parent_id: true,
               parent: { select: { name: true } },
@@ -898,6 +905,7 @@ export class MarksService {
             cq_pass_mark: true,
             mcq_pass_mark: true,
             practical_pass_mark: true,
+            marking_scheme: true,
             subject_type: true,
             parent_id: true,
             parent: { select: { name: true } },
@@ -1070,7 +1078,7 @@ export class MarksService {
           doc.fillColor("#000000").font("Times-Bold").fontSize(12).text(`EXAM: ${examName.toUpperCase()}`, { align: "center", width: cW, underline: true });
           doc.moveDown(0.3);
 
-          const headers = info.class === 9 || info.class === 10
+          const headers = this.useBreakdownLayout(info.class, finalTableData)
             ? ["Name of Subjects", "CQ", "MCQ", "PRAC", "Total", "Letter Grade", "Grade Point", "Highest Marks"]
             : ["Name of Subjects", "Obtained Marks", "Total", "Letter Grade", "Grade Point", "Highest Marks"];
 
@@ -1114,7 +1122,7 @@ export class MarksService {
 
     const y = doc.y + 5;
     const headers =
-      student.class === 9 || student.class === 10
+      this.useBreakdownLayout(student.class, tableData)
         ? [
             "Name of Subjects",
             "CQ",
@@ -1172,6 +1180,17 @@ export class MarksService {
     });
   }
 
+  // Class 9/10 marksheets only show CQ/MCQ/PRAC columns when at least one
+  // subject actually uses the BREAKDOWN scheme; pure TOTAL data uses the
+  // simpler "Obtained Marks" layout like junior classes.
+  private static useBreakdownLayout(
+    className: number | undefined,
+    data: any[],
+  ): boolean {
+    if (className !== 9 && className !== 10) return false;
+    return data.some((row: any) => row.marking_scheme === "BREAKDOWN");
+  }
+
   static async shouldApplyFourthSubjectBonus(
     className: number,
     year: number,
@@ -1218,6 +1237,7 @@ export class MarksService {
           pr_pass: row.practical_pass_mark,
           className: className,
           isOptional: isOptional,
+          marking_scheme: row.marking_scheme,
         });
 
         if (isOptional && applyBonus) {
@@ -1271,7 +1291,7 @@ export class MarksService {
       className,
     );
 
-    const isBreakdown = className === 9 || className === 10;
+    const isBreakdown = this.useBreakdownLayout(className, tableData);
     // Use passed colWidths or fall back to calculation if not provided
     let actualColWidths = colWidths;
     if (!actualColWidths) {
@@ -1519,30 +1539,42 @@ export class MarksService {
       pr_pass?: number;
       className?: number;
       isOptional?: boolean;
+      marking_scheme?: string;
     },
   ) {
-    const passThreshold =
-      breakdown?.total_pass !== undefined ? Number(breakdown.total_pass) : 33;
-
     if (
       breakdown &&
       (breakdown.className === 9 || breakdown.className === 10) &&
       !breakdown.isOptional
     ) {
+      // Component-wise pass checks only apply to BREAKDOWN subjects;
+      // TOTAL subjects store null CQ/MCQ/PRAC marks which would wrongly read as 0.
       if (
-        (breakdown.cq_pass && (breakdown.cq || 0) < (breakdown.cq_pass || 0)) ||
-        (breakdown.mcq_pass &&
-          (breakdown.mcq || 0) < (breakdown.mcq_pass || 0)) ||
-        (breakdown.pr_pass && (breakdown.pr || 0) < (breakdown.pr_pass || 0)) ||
-        (breakdown.total !== undefined &&
-          breakdown.total_pass !== undefined &&
-          breakdown.total < breakdown.total_pass)
+        breakdown.marking_scheme === "BREAKDOWN" &&
+        ((breakdown.cq_pass &&
+          (breakdown.cq || 0) < (breakdown.cq_pass || 0)) ||
+          (breakdown.mcq_pass &&
+            (breakdown.mcq || 0) < (breakdown.mcq_pass || 0)) ||
+          (breakdown.pr_pass &&
+            (breakdown.pr || 0) < (breakdown.pr_pass || 0)))
       ) {
         return { lg: "F", gp: 0.0 };
       }
     }
 
-    if (percentage < passThreshold) {
+    // Pass mark is an absolute mark, so compare it against obtained marks,
+    // not the percentage (they only coincide when full mark is 100).
+    if (
+      breakdown?.total !== undefined &&
+      breakdown?.total !== null &&
+      breakdown?.total_pass !== undefined &&
+      breakdown?.total_pass !== null &&
+      Number(breakdown.total) < Number(breakdown.total_pass)
+    ) {
+      return { lg: "F", gp: 0.0 };
+    }
+
+    if (percentage < 33) {
       return { lg: "F", gp: 0.0 };
     }
 
@@ -1571,7 +1603,7 @@ export class MarksService {
       fontBold,
       fontRegular,
     } = PDF_STYLES;
-    const isBreakdown = className === 9 || className === 10;
+    const isBreakdown = this.useBreakdownLayout(className, data);
 
     doc.font(fontBold).fontSize(headerFontSize);
     const otherColWidths = headers.slice(1).map((h) => Math.max(40, doc.widthOfString(h) + 15));
@@ -1742,6 +1774,7 @@ export class MarksService {
           mcq_pass: row.mcq_pass_mark,
           pr: row.practical_marks,
           pr_pass: row.practical_pass_mark,
+          marking_scheme: row.marking_scheme,
         });
 
         doc.font(fontBold).fillColor("#000000");
@@ -1784,6 +1817,7 @@ export class MarksService {
           pr: row.practical_marks,
           pr_pass: row.practical_pass_mark,
           className: className,
+          marking_scheme: row.marking_scheme,
         });
 
         let cols: string[] = [];
