@@ -12,7 +12,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./dist/index.css"
+    "./styles.css": "./dist/index.css",
+    "./blob": {
+      "types": "./dist/blob.d.ts",
+      "import": "./dist/lib/blob.js"
+    }
   },
   "files": [
     "dist"

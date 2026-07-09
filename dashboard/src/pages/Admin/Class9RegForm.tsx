@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
+import { downloadBlob } from "@school/common-ui/blob";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { keepPreviousData } from "@tanstack/react-query";
 import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup } from "@/components";
@@ -281,14 +282,10 @@ const Class9RegForm = () => {
             const res = await axios.get(url, { responseType: "blob" });
             const extension = type === "sheet" ? "xlsx" : "zip";
             const blob = new Blob([res.data]);
-            const downloadUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = downloadUrl;
-            a.download = `Class_9_${type}_${year}${section ? `_${section}` : ""}.${extension}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(downloadUrl);
+            downloadBlob(
+              blob,
+              `Class_9_${type}_${year}${section ? `_${section}` : ""}.${extension}`,
+            );
             toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`, { id: "export" });
         } catch (error) {
             console.error(`Export ${type} error:`, error);
@@ -990,14 +987,10 @@ const Class9RegForm = () => {
                                             { responseType: "blob" }
                                         );
                                         const blob = new Blob([response.data], { type: "application/pdf" });
-                                        const url = window.URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = url;
-                                        a.download = `Class9_Registration_${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        a.remove();
-                                        window.URL.revokeObjectURL(url);
+                                        downloadBlob(
+                                          blob,
+                                          `Class9_Registration_${selectedReg.student_name_en.replace(/\s+/g, "_")}.pdf`,
+                                        );
 
                                     } catch (err) {
                                         console.error(err);

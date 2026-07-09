@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { teacherFormSchema, type TeacherFormSchemaData } from "@school/shared-schemas";
 import { getFileUrl } from "@/lib/backend";
+import { downloadBlob } from "@school/common-ui/blob";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
@@ -229,13 +230,7 @@ const TeacherList = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "rotated_passwords.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadBlob(new Blob([data]), "rotated_passwords.xlsx");
       toast.success("Passwords rotated successfully. Excel downloaded.");
       setSelectedTeacherIds(new Set());
       invalidateTeachers();

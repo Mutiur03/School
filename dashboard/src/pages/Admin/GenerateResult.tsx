@@ -22,6 +22,7 @@ import {
   useUpdatePromotionStatus, 
   useGeneratePromotionRoll 
 } from "@/queries/promotion.queries";
+import { openBlobInNewTab } from "@school/common-ui/blob";
 
 const GenerateResult = () => {
   const currentYear = new Date().getFullYear();
@@ -101,8 +102,7 @@ const GenerateResult = () => {
         { responseType: "blob" }
       );
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      openBlobInNewTab(blob);
     } catch {
       toast.error("Failed to download session marksheet");
     }
@@ -114,8 +114,7 @@ const GenerateResult = () => {
         responseType: "blob",
       });
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      openBlobInNewTab(blob);
     } catch {
       toast.error("Failed to download all marksheets");
     }

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useExams } from "@/queries/exam.queries";
 import { useClassMarks, type StudentMarkResponse } from "@/queries/marks.queries";
+import { openBlobInNewTab } from "@school/common-ui/blob";
 
 interface TeacherLevel {
   id: number;
@@ -124,17 +125,9 @@ const ViewMarks = () => {
         `/api/marks/${id}/${year}/${exam}/download`,
         { responseType: "blob" }
       );
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-      
-      if (newWindow) {
-        newWindow.location.href = url;
-      } else {
-        // Fallback to direct window.open if initial window was null
-        window.open(url, "_blank");
-      }
-
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      openBlobInNewTab(blob, newWindow ?? undefined);
       toast.dismiss(loadingToast);
-      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch {
       toast.dismiss(loadingToast);
       if (newWindow) newWindow.close();
@@ -159,17 +152,11 @@ const ViewMarks = () => {
         `/api/marks/class-exam/${className}/${year}/${exam}/download`,
         { responseType: "blob" }
       );
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-      
-      if (newWindow) {
-        newWindow.location.href = url;
-      } else {
-        window.open(url, "_blank");
-      }
-      
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      openBlobInNewTab(blob, newWindow ?? undefined);
+
       toast.dismiss(loadingToast);
       toast.success("PDFs generated successfully");
-      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch {
       toast.dismiss(loadingToast);
       if (newWindow) newWindow.close();

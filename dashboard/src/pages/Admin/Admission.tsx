@@ -1,4 +1,5 @@
 import { getFileUrl } from "@/lib/backend";
+import { downloadBlob } from "@school/common-ui/blob";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -294,16 +295,10 @@ function Admission() {
         const blob = new Blob([response.data], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `admissions_export_${new Date()
-          .toISOString()
-          .slice(0, 10)}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+        downloadBlob(
+          blob,
+          `admissions_export_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
       } catch (err) {
         console.error(err);
         setError("Failed to export Excel");
@@ -325,15 +320,8 @@ function Admission() {
           params,
         });
         const blob = new Blob([response.data], { type: "application/zip" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
         const yearPart = params.admission_year ? params.admission_year : "all";
-        a.download = `admission_images_${yearPart}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+        downloadBlob(blob, `admission_images_${yearPart}.zip`);
       } catch (err) {
         console.error(err);
         setError("Failed to export images");
@@ -1426,14 +1414,7 @@ function Admission() {
                       const blob = new Blob([response.data], {
                         type: "application/pdf",
                       });
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `${selectedAdmission.student_name_en}.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      window.URL.revokeObjectURL(url);
+                      downloadBlob(blob, `${selectedAdmission.student_name_en}.pdf`);
                     } catch (err) {
                       console.error(err);
                       setError("Failed to download PDF");

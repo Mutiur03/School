@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import Loading from "@/components/Loading";
+import { openBlobInNewTab } from "@school/common-ui/blob";
 
 interface ExamMarks {
   [examName: string]: number;
@@ -58,8 +59,7 @@ function ShowMarkSheet() {
         { responseType: "blob" }
       );
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      openBlobInNewTab(blob);
     } catch {
       alert("Failed to download PDF. Please try again.");
     } finally {

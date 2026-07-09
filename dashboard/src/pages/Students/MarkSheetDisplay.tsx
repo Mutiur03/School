@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Download, FileText } from "lucide-react";
 import axios from "axios";
 import { SectionCard } from "@/components";
+import { openBlobInNewTab } from "@school/common-ui/blob";
 
 interface MarksheetEntry {
   name: string;
@@ -51,8 +52,7 @@ const MarkSheetDisplay: React.FC<MarkSheetDisplayProps> = ({
         responseType: "blob",
       });
       const file = new Blob([response.data], { type: "application/pdf" });
-      const url = URL.createObjectURL(file);
-      window.open(url, "_blank");
+      openBlobInNewTab(file);
     } catch (error) {
       console.error("Open PDF failed", error);
     }

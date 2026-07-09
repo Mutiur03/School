@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { downloadBlob } from "@school/common-ui/blob";
 import { getFileUrl } from "@/lib/backend";
 import { useSchoolConfig } from "@/context/school";
 import type { Class6RegistrationRecord } from "@school/shared-schemas";
@@ -109,14 +110,10 @@ function Class6RegConfirmation() {
                 { responseType: "blob" },
             );
             const blob = new Blob([response.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `Class6_Reg_${registration.student_name_en?.replace(/\s+/g, "_")}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            downloadBlob(
+              blob,
+              `Class6_Reg_${registration.student_name_en?.replace(/\s+/g, "_")}.pdf`,
+            );
         } catch {
             toast.error("Failed to download PDF");
         } finally {
