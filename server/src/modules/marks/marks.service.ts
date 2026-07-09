@@ -21,7 +21,7 @@ const PDF_STYLES = {
 
 // Gap between table end and signature block (PDF points)
 const SIGNATURE_GAP_AFTER_TABLE = 40;
-const SIGNATURE_BLOCK_HEIGHT = 88;
+const SIGNATURE_BLOCK_HEIGHT = 76;
 const SIGNATURE_IMAGE_OFFSET = 28; // image bottom sits near dotted line
 const PAGE_CONTENT_BOTTOM = 812;
 
@@ -1549,6 +1549,44 @@ export class MarksService {
     return endY;
   }
 
+  private static drawFittedCenteredText(
+    doc: any,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    options: { fontSize?: number; minFontSize?: number; font?: string } = {},
+  ) {
+    const maxFontSize = options.fontSize ?? 10;
+    const minFontSize = options.minFontSize ?? 7;
+    const font = options.font ?? "Times-Roman";
+
+    let fontSize = maxFontSize;
+    doc.font(font).fillColor("#000000");
+
+    while (
+      fontSize > minFontSize &&
+      doc.fontSize(fontSize).widthOfString(text) > maxWidth
+    ) {
+      fontSize--;
+    }
+
+    doc.fontSize(fontSize);
+    const textWidth = doc.widthOfString(text);
+
+    if (textWidth <= maxWidth) {
+      doc.text(text, x + (maxWidth - textWidth) / 2, y, { lineBreak: false });
+      return;
+    }
+
+    const scaleX = maxWidth / textWidth;
+    doc.save();
+    doc.translate(x + maxWidth / 2, y);
+    doc.scale(scaleX, 1);
+    doc.text(text, -textWidth / 2, 0, { lineBreak: false });
+    doc.restore();
+  }
+
   private static drawSignatures(
     doc: any,
     signatures?: {
@@ -1574,19 +1612,25 @@ export class MarksService {
     }
 
     const textY = lineY + 8;
-    const lineWidth = 90;
+    const guardianStartX = 65;
+    const guardianLineWidth = 95;
+    const teacherStartX = 252.5;
+    const teacherLineWidth = 115;
+    const headStartX = 430;
+    const headLineWidth = 115;
 
     // Dotted lines for signatures
     doc.lineWidth(0.5).dash(1, { space: 1 });
 
-    const tStartX = 252.5;
-    const hStartX = 430;
-    const headLineWidth = 105;
-
     // Render Teacher signature if provided
     if (signatures?.teacher) {
       try {
-        doc.image(signatures.teacher, tStartX + (lineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
+        doc.image(
+          signatures.teacher,
+          teacherStartX + (teacherLineWidth - 60) / 2,
+          lineY - SIGNATURE_IMAGE_OFFSET,
+          { width: 60 },
+        );
       } catch (err) {
         console.error("Teacher signature image error:", err);
       }
@@ -1595,7 +1639,12 @@ export class MarksService {
     // Render Headmaster signature if provided
     if (signatures?.head) {
       try {
-        doc.image(signatures.head, hStartX + (headLineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
+        doc.image(
+          signatures.head,
+          headStartX + (headLineWidth - 60) / 2,
+          lineY - SIGNATURE_IMAGE_OFFSET,
+          { width: 60 },
+        );
       } catch (err) {
         console.error("Head signature image error:", err);
       }
@@ -1605,53 +1654,58 @@ export class MarksService {
       x: number,
       name: string | null | undefined,
       role: string,
-      width: number = lineWidth,
-      roleY: number,
+      width: number,
     ) => {
+      doc.fillColor("#000000").fontSize(10);
+
       if (name) {
-        doc.font("Times-Roman").fontSize(10).fillColor("#000000");
-        doc.text(name, x, textY, {
-          width,
-          align: "center",
+        this.drawFittedCenteredText(doc, name, x, textY, width, {
+          fontSize: 10,
+          font: "Times-Roman",
         });
+        this.drawFittedCenteredText(doc, role, x, textY + 12, width, {
+          fontSize: 10,
+          minFontSize: 8,
+          font: "Times-Bold",
+        });
+        return;
       }
 
-      doc
-        .font("Times-Bold")
-        .fontSize(10)
-        .fillColor("#000000")
-        .text(role, x, roleY, {
-          width,
-          align: "center",
-        });
+      this.drawFittedCenteredText(doc, role, x, textY, width, {
+        fontSize: 10,
+        font: "Times-Bold",
+      });
     };
 
-    doc.font("Times-Roman").fontSize(10);
-    const teacherNameHeight = signatures?.teacherName
-      ? doc.heightOfString(signatures.teacherName, { width: lineWidth })
-      : 0;
-    const headNameHeight = signatures?.headName
-      ? doc.heightOfString(signatures.headName, { width: headLineWidth })
-      : 0;
-    const roleY = textY + Math.max(teacherNameHeight, headNameHeight) + 4;
-
-    doc.moveTo(65, lineY).lineTo(65 + lineWidth, lineY).stroke();
     doc
-      .font("Times-Bold")
-      .fontSize(10)
-      .fillColor("#000000")
-      .text("Guardian", 65, roleY, { width: lineWidth, align: "center" });
+      .moveTo(guardianStartX, lineY)
+      .lineTo(guardianStartX + guardianLineWidth, lineY)
+      .stroke();
+    this.drawFittedCenteredText(doc, "Guardian", guardianStartX, textY, guardianLineWidth, {
+      fontSize: 10,
+      font: "Times-Bold",
+    });
 
-    doc.moveTo(252.5, lineY).lineTo(252.5 + lineWidth, lineY).stroke();
-    drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher", lineWidth, roleY);
-
-    doc.moveTo(hStartX, lineY).lineTo(hStartX + headLineWidth, lineY).stroke();
+    doc
+      .moveTo(teacherStartX, lineY)
+      .lineTo(teacherStartX + teacherLineWidth, lineY)
+      .stroke();
     drawNameAndRole(
-      hStartX,
+      teacherStartX,
+      signatures?.teacherName,
+      "Class Teacher",
+      teacherLineWidth,
+    );
+
+    doc
+      .moveTo(headStartX, lineY)
+      .lineTo(headStartX + headLineWidth, lineY)
+      .stroke();
+    drawNameAndRole(
+      headStartX,
       signatures?.headName,
       signatures?.headRole ?? "Headmaster",
       headLineWidth,
-      roleY,
     );
 
     doc.undash();
