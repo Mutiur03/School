@@ -1540,12 +1540,6 @@ export class MarksService {
     doc.font("Times-Bold").fontSize(10);
     const infoText = "EIIN: 121983, School Code: 5100";
     const websiteStr = typeof website === "string" ? website.trim() : "";
-
-    doc.text(infoText, 50, 90, {
-      align: "center",
-      width: 495,
-    });
-
     const headerOffset = websiteStr ? 14 : 0;
 
     if (websiteStr) {
@@ -1553,17 +1547,22 @@ export class MarksService {
       const websiteUrl = /^https?:\/\//i.test(websiteStr)
         ? websiteStr.replace(/\/+$/, "")
         : `https://${host}`;
-      doc.text(websiteUrl, 50, 104, {
+      doc.text(websiteUrl, 50, 90, {
         align: "center",
         width: 495,
       });
     }
 
+    doc.text(infoText, 50, 90 + headerOffset, {
+      align: "center",
+      width: 495,
+    });
+
     if (exam && (exam.exam || exam.year)) {
       const examName = exam.exam || "";
       const session = exam.year ? String(exam.year) : "";
       const headerText =
-        examName && session ? `${examName} - ${session}` : examName || session;
+        examName && session ? `${examName} ${session}` : examName || session;
 
       doc
         .fillColor("#000000")
