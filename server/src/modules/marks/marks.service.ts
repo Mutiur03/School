@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getRlsContext } from "@/config/rlsContextStore.js";
 import { getFileBuffer } from "@/config/r2.js";
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
@@ -18,10 +19,39 @@ const PDF_STYLES = {
   fontItalic: "Times-Italic",
 };
 
-// 1 inch gap between table end and signature block (PDF points)
-const SIGNATURE_GAP_AFTER_TABLE = 72;
-const SIGNATURE_BLOCK_HEIGHT = 52;
+// Gap between table end and signature block (PDF points)
+const SIGNATURE_GAP_AFTER_TABLE = 40;
+const SIGNATURE_BLOCK_HEIGHT = 64;
+const SIGNATURE_IMAGE_OFFSET = 28; // image bottom sits near dotted line
 const PAGE_CONTENT_BOTTOM = 812;
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function formatResultPublishDate(dateStr?: string | null): string | null {
+  if (!dateStr) return null;
+  const raw = String(dateStr).split("T")[0].trim();
+  const parts = raw.split("-").map(Number);
+  if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
+    const [year, month, day] = parts;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${String(day).padStart(2, "0")} ${MONTH_SHORT[month - 1]} ${year}`;
+    }
+  }
+  return raw || null;
+}
 
 export class MarksService {
   private static validateMarksData(data: any) {
@@ -632,7 +662,7 @@ export class MarksService {
             parent: { select: { name: true } },
           },
         },
-        exam: { select: { exam_name: true } },
+        exam: { select: { exam_name: true, result_date: true } },
       },
     });
     if (result.length === 0 || !result.some(m => m.marks !== null)) {
@@ -653,6 +683,7 @@ export class MarksService {
       return (a.subject.priority || 0) - (b.subject.priority || 0);
     });
     const enrollment = result[0].enrollment;
+    const resultDate = result[0].exam?.result_date ?? null;
     if (
       !this.checkAccess(
         user,
@@ -702,9 +733,11 @@ export class MarksService {
     const teacherSignature = level?.teacher?.signature
       ? await getFileBuffer(level.teacher.signature)
       : null;
+    const teacherName = level?.teacher?.name ?? null;
     const headSignature = headMsg?.teacher?.signature
       ? await getFileBuffer(headMsg.teacher.signature)
       : null;
+    const headName = headMsg?.teacher?.name ?? null;
 
     const highestMarksMap: Record<string, number> = {};
     const totalByStudent: Record<number, number> = {};
@@ -740,6 +773,7 @@ export class MarksService {
       exam: exam,
       classHighestTotal: classHighestTotal,
       fourth_subject_id: enrollment.fourth_subject_id,
+      result_date: resultDate,
     };
 
     const finalTableData = this.aggregatePaperMarks(result.map(m => ({
@@ -747,13 +781,10 @@ export class MarksService {
       highest_mark: highestMarksMap[m.subject_id] || 0
     })));
 
-    console.log(finalTableData);
-    console.log(finalTableData);
-    console.log(studentDetails);
     const buffer = await this.renderStudentReportPDF(
       studentDetails,
       finalTableData,
-      { teacher: teacherSignature, head: headSignature },
+      { teacher: teacherSignature, teacherName, head: headSignature, headName },
       website,
     );
     return { buffer, studentName };
@@ -829,6 +860,7 @@ export class MarksService {
               parent: { select: { name: true } },
             },
           },
+          exam: { select: { exam_name: true, result_date: true } },
         },
         orderBy: {
           subject: {
@@ -862,8 +894,10 @@ export class MarksService {
     });
 
     const classHighestTotal = Object.values(totalByEnrollment).length > 0 ? Math.max(...Object.values(totalByEnrollment)) : 0;
+    const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
     const headSignature = headMsg?.teacher?.signature ? await getFileBuffer(headMsg.teacher.signature) : null;
-    const teacherSigs: Record<string, Buffer | null> = {};
+    const headName = headMsg?.teacher?.name ?? null;
+    const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
     const chunks: Buffer[] = [];
@@ -892,6 +926,7 @@ export class MarksService {
           exam: examName,
           classHighestTotal,
           fourth_subject_id: enrollment.fourth_subject_id,
+          result_date: resultDate,
         };
 
         const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
@@ -902,10 +937,24 @@ export class MarksService {
         const sigKey = `${enrollment.class}_${enrollment.section}_${yearInt}`;
         if (!(sigKey in teacherSigs)) {
           const lv = await prisma.levels.findFirst({ where: { class_name: enrollment.class, section: enrollment.section, year: yearInt }, include: { teacher: true } });
-          teacherSigs[sigKey] = lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null;
+          teacherSigs[sigKey] = {
+            signature: lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null,
+            name: lv?.teacher?.name ?? null,
+          };
         }
 
-        await this.renderStudentMarksheetPage(doc, studentDetails, finalTableData, { teacher: teacherSigs[sigKey], head: headSignature }, website);
+        await this.renderStudentMarksheetPage(
+          doc,
+          studentDetails,
+          finalTableData,
+          {
+            teacher: teacherSigs[sigKey].signature,
+            teacherName: teacherSigs[sigKey].name,
+            head: headSignature,
+            headName,
+          },
+          website,
+        );
       }
       doc.end();
     });
@@ -951,7 +1000,7 @@ export class MarksService {
             parent: { select: { name: true } },
           },
         },
-        exam: { select: { id: true, exam_name: true } },
+        exam: { select: { id: true, exam_name: true, result_date: true } },
       },
       orderBy: {
         subject: {
@@ -1011,6 +1060,7 @@ export class MarksService {
 
     const studentGrouped: Record<number, Record<string, any[]>> = {};
     const studentInfoMap: Record<number, any> = {};
+    const resultDateByExam: Record<string, string | null> = {};
 
     marks.forEach((m) => {
       if (m.marks === null) return;
@@ -1019,6 +1069,10 @@ export class MarksService {
       if (!studentGrouped[sid]) studentGrouped[sid] = {};
       if (!studentGrouped[sid][en]) studentGrouped[sid][en] = [];
       studentGrouped[sid][en].push(m);
+
+      if (!(en in resultDateByExam)) {
+        resultDateByExam[en] = m.exam?.result_date ?? null;
+      }
 
       if (!studentInfoMap[sid]) {
         studentInfoMap[sid] = {
@@ -1049,7 +1103,8 @@ export class MarksService {
       const headSignature = headMsg?.teacher?.signature
         ? await getFileBuffer(headMsg.teacher.signature)
         : null;
-      const teacherSigs: Record<string, Buffer | null> = {};
+      const headName = headMsg?.teacher?.name ?? null;
+      const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
       const studentIdsOrdered = Object.keys(studentGrouped)
         .map(Number)
@@ -1077,18 +1132,38 @@ export class MarksService {
             },
             include: { teacher: true },
           });
-          teacherSigs[sigKey] = lv?.teacher?.signature
-            ? await getFileBuffer(lv.teacher.signature)
-            : null;
+          teacherSigs[sigKey] = {
+            signature: lv?.teacher?.signature
+              ? await getFileBuffer(lv.teacher.signature)
+              : null,
+            name: lv?.teacher?.name ?? null,
+          };
         }
-        const teacherSignature = teacherSigs[sigKey];
+        const teacherSignature = teacherSigs[sigKey].signature;
+        const teacherName = teacherSigs[sigKey].name;
 
         // Draw page shell
+        const allExamsTableData = exams.map((en) => ({
+          exam: en,
+          rows: this.aggregatePaperMarks(
+            studentGrouped[sid][en].map((m: any) => ({
+              ...m,
+              highest_mark: highestMarksMap[en]?.[m.subject_id] || 0,
+            })),
+          ),
+        }));
+        const consolidatedQrText = this.buildMarksQrText(info, allExamsTableData);
+
         const drawPageHeader = async (examDisplayName: string) => {
           this.drawProperBackground(doc);
           await this.drawWatermark(doc);
-          this.drawGradingSystemTable(doc, 440, 75);
-          this.drawProperHeader(doc, { ...info, exam: examDisplayName }, website);
+          this.drawGradingSystemTable(doc, 425, 75);
+          await this.drawProperHeader(
+            doc,
+            { ...info, exam: examDisplayName },
+            website,
+            consolidatedQrText,
+          );
           this.drawProperStudentInfo(doc, info);
         };
 
@@ -1123,7 +1198,14 @@ export class MarksService {
             ? ["Name of Subjects", "CQ", "MCQ", "PRAC", "Total", "Letter Grade", "Grade Point", "Highest Marks"]
             : ["Name of Subjects", "Obtained Marks", "Total", "Letter Grade", "Grade Point", "Highest Marks"];
 
-          const { y: tableY, colWidths } = this.drawProperTable(doc, doc.y, headers, finalTableData, info.class);
+          const { y: tableY, colWidths } = this.drawProperTable(
+            doc,
+            doc.y,
+            headers,
+            finalTableData,
+            info.class,
+            classHighestTotalByExam[examName] || 0,
+          );
           const summaryY = await this.drawSummary(
             doc,
             tableY,
@@ -1132,7 +1214,8 @@ export class MarksService {
             classHighestTotalByExam[examName] || 0,
             info.fourth_subject_id,
             info.year,
-            colWidths
+            colWidths,
+            resultDateByExam[examName] ?? null,
           );
           doc.y = summaryY;
         }
@@ -1141,7 +1224,9 @@ export class MarksService {
           doc,
           {
             teacher: teacherSignature,
+            teacherName,
             head: headSignature,
+            headName,
           },
           doc.y,
         );
@@ -1156,13 +1241,23 @@ export class MarksService {
     doc: any,
     student: any,
     tableData: any[],
-    signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    signatures?: {
+      teacher?: Buffer | null;
+      teacherName?: string | null;
+      head?: Buffer | null;
+      headName?: string | null;
+    },
     website?: string | null,
   ) {
     this.drawProperBackground(doc);
     await this.drawWatermark(doc);
-    this.drawGradingSystemTable(doc, 440, 75);
-    this.drawProperHeader(doc, student, website);
+    this.drawGradingSystemTable(doc, 425, 75);
+    await this.drawProperHeader(
+      doc,
+      student,
+      website,
+      this.buildMarksQrText(student, [{ exam: student.exam, rows: tableData }]),
+    );
     this.drawProperStudentInfo(doc, student);
 
     const y = doc.y + 5;
@@ -1193,6 +1288,7 @@ export class MarksService {
       headers,
       tableData,
       student.class,
+      student.classHighestTotal,
     );
 
     const tableEndY = await this.drawSummary(
@@ -1204,6 +1300,7 @@ export class MarksService {
       student.fourth_subject_id,
       student.year,
       colWidths,
+      student.result_date,
     );
 
     this.drawSignatures(doc, signatures, tableEndY);
@@ -1212,7 +1309,12 @@ export class MarksService {
   private static async renderStudentReportPDF(
     student: any,
     tableData: any[],
-    signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    signatures?: {
+      teacher?: Buffer | null;
+      teacherName?: string | null;
+      head?: Buffer | null;
+      headName?: string | null;
+    },
     website?: string | null,
   ): Promise<Buffer> {
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
@@ -1340,6 +1442,7 @@ export class MarksService {
     fourth_subject_id?: number | null,
     year?: number,
     colWidths?: number[],
+    resultDate?: string | null,
   ) {
     const { startX, contentWidth, rowHeight } = PDF_STYLES;
 
@@ -1430,12 +1533,32 @@ export class MarksService {
       this.drawDynamicText(doc, `${classHighestTotal || "-"}`, x5, rowY, actualColWidths[5], rowHeight, { align: "center", bold: true });
     }
 
-    return rowY + rowHeight;
+    let endY = rowY + rowHeight;
+    const formattedResultDate = formatResultPublishDate(resultDate);
+    if (formattedResultDate) {
+      const dateY = endY + 4;
+      doc
+        .font(PDF_STYLES.fontRegular)
+        .fontSize(PDF_STYLES.rowFontSize)
+        .fillColor("#000000");
+      doc.text(`Result Publish Date: ${formattedResultDate}`, startX, dateY, {
+        width: contentWidth,
+        align: "right",
+      });
+      endY = dateY + PDF_STYLES.rowHeight;
+    }
+
+    return endY;
   }
 
   private static drawSignatures(
     doc: any,
-    signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    signatures?: {
+      teacher?: Buffer | null;
+      teacherName?: string | null;
+      head?: Buffer | null;
+      headName?: string | null;
+    },
     tableEndY?: number,
   ) {
     doc.fontSize(10).font("Times-Bold").fillColor("#000000");
@@ -1463,7 +1586,7 @@ export class MarksService {
     // Render Teacher signature if provided
     if (signatures?.teacher) {
       try {
-        doc.image(signatures.teacher, tStartX + (lineWidth - 60) / 2, lineY - 40, { width: 60 });
+        doc.image(signatures.teacher, tStartX + (lineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
       } catch (err) {
         console.error("Teacher signature image error:", err);
       }
@@ -1472,23 +1595,58 @@ export class MarksService {
     // Render Headmaster signature if provided
     if (signatures?.head) {
       try {
-        doc.image(signatures.head, hStartX + (lineWidth - 60) / 2, lineY - 40, { width: 60 });
+        doc.image(signatures.head, hStartX + (lineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
       } catch (err) {
         console.error("Head signature image error:", err);
       }
     }
 
+    const drawNameAndRole = (
+      x: number,
+      name: string | null | undefined,
+      role: string,
+    ) => {
+      // Names always shown when available — independent of signature image
+      if (name) {
+        doc
+          .font("Times-Roman")
+          .fontSize(10)
+          .fillColor("#000000")
+          .text(name, x, textY, {
+            width: lineWidth,
+            align: "center",
+            lineBreak: false,
+          });
+        doc
+          .font("Times-Bold")
+          .fontSize(10)
+          .text(role, x, textY + 12, {
+            width: lineWidth,
+            align: "center",
+          });
+      } else {
+        doc
+          .font("Times-Bold")
+          .fontSize(10)
+          .fillColor("#000000")
+          .text(role, x, textY, {
+            width: lineWidth,
+            align: "center",
+          });
+      }
+    };
+
     doc.moveTo(65, lineY).lineTo(65 + lineWidth, lineY).stroke();
-    doc.text("Guardian", 65, textY, { width: lineWidth, align: "center" });
+    doc
+      .font("Times-Bold")
+      .fontSize(10)
+      .text("Guardian", 65, textY, { width: lineWidth, align: "center" });
 
     doc.moveTo(252.5, lineY).lineTo(252.5 + lineWidth, lineY).stroke();
-    doc.text("Class Teacher", 252.5, textY, {
-      width: lineWidth,
-      align: "center",
-    });
+    drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher");
 
     doc.moveTo(440, lineY).lineTo(440 + lineWidth, lineY).stroke();
-    doc.text("Headmaster", 440, textY, { width: lineWidth, align: "center" });
+    drawNameAndRole(440, signatures?.headName, "Headmaster");
 
     doc.undash();
   }
@@ -1532,11 +1690,48 @@ export class MarksService {
     );
   }
 
-  private static drawProperHeader(
+  private static buildMarksQrText(
+    student: any,
+    exams: { exam?: string | null; rows: any[] }[],
+  ): string {
+    const lines = [
+      `Name: ${student.name ?? ""}`,
+      `Class: ${student.class ?? ""}`,
+      `Section: ${student.section ?? ""}`,
+      `Roll: ${student.roll ?? ""}`,
+      `Year: ${student.year ?? ""}`,
+    ];
+
+    for (const examBlock of exams) {
+      if (examBlock.exam) {
+        lines.push(`Exam: ${examBlock.exam}`);
+      }
+      for (const row of examBlock.rows || []) {
+        const subject = row.subject ?? "Subject";
+        const marks = row.marks ?? "-";
+        lines.push(`${subject}: ${marks}`);
+      }
+    }
+
+    return lines.join("\n");
+  }
+
+  private static async drawProperHeader(
     doc: any,
     exam?: any,
     website?: string | null,
+    qrText?: string | null,
   ) {
+    // Mirror grading chart (x=425, y=75, w=120): QR on left, same top
+    // Align QR left edge with marks table (PDF_STYLES.startX = 50)
+    const qrSize = 85;
+    const qrX = PDF_STYLES.startX;
+    const qrY = 75;
+    const textLeft = qrX + qrSize + 10;
+    const textRight = 415;
+    const textWidth = textRight - textLeft;
+
+    // Top line spans full page — above side widgets
     doc
       .font("Times-Bold")
       .fontSize(10)
@@ -1546,8 +1741,8 @@ export class MarksService {
       });
 
     const schoolName = "PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL";
-    const maxWidth = 400;
-    let fontSize = 18;
+    const maxWidth = textWidth - 4;
+    let fontSize = 15;
     doc.font("Times-Bold");
     while (
       doc.fontSize(fontSize).widthOfString(schoolName) > maxWidth &&
@@ -1557,11 +1752,28 @@ export class MarksService {
     }
     doc
       .fontSize(fontSize)
-      .text(schoolName, 50, 55, { align: "center", width: 495 });
+      .text(schoolName, textLeft, 55, { align: "center", width: textWidth });
+
+    if (qrText) {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrText, {
+          margin: 1,
+          width: 260,
+          errorCorrectionLevel: "M",
+        });
+        doc.image(qrDataUrl, qrX, qrY, { width: qrSize });
+      } catch (err) {
+        console.error("Marksheet QR code error:", err);
+      }
+    }
+
     doc
       .font("Times-Bold")
       .fontSize(11)
-      .text("Panchbibi, Joypurhat.", 50, 75, { align: "center", width: 495 });
+      .text("Panchbibi, Joypurhat.", textLeft, 75, {
+        align: "center",
+        width: textWidth,
+      });
     doc.font("Times-Bold").fontSize(10);
     const infoText = "EIIN: 121983, School Code: 5100";
     const websiteStr = typeof website === "string" ? website.trim() : "";
@@ -1572,15 +1784,15 @@ export class MarksService {
       const websiteUrl = /^https?:\/\//i.test(websiteStr)
         ? websiteStr.replace(/\/+$/, "")
         : `https://${host}`;
-      doc.text(websiteUrl, 50, 90, {
+      doc.text(websiteUrl, textLeft, 90, {
         align: "center",
-        width: 495,
+        width: textWidth,
       });
     }
 
-    doc.text(infoText, 50, 90 + headerOffset, {
+    doc.text(infoText, textLeft, 90 + headerOffset, {
       align: "center",
-      width: 495,
+      width: textWidth,
     });
 
     if (exam && (exam.exam || exam.year)) {
@@ -1592,20 +1804,26 @@ export class MarksService {
       doc
         .fillColor("#000000")
         .font("Times-Bold")
-        .fontSize(16)
-        .text(headerText, 50, 105 + headerOffset, {
+        .fontSize(14)
+        .text(headerText, textLeft, 105 + headerOffset, {
           align: "center",
-          width: 495,
+          width: textWidth,
         });
     }
-    doc.rect(197.5, 128 + headerOffset, 200, 25).fill("#f3f4f6").stroke("#000000");
+
+    const titleW = 200;
+    const titleX = textLeft + (textWidth - titleW) / 2;
+    doc
+      .rect(titleX, 128 + headerOffset, titleW, 25)
+      .fill("#f3f4f6")
+      .stroke("#000000");
     doc
       .fillColor("#000000")
       .font("Times-Bold")
       .fontSize(14)
-      .text("ACADEMIC TRANSCRIPT", 197.5, 135 + headerOffset, {
+      .text("ACADEMIC TRANSCRIPT", titleX, 135 + headerOffset, {
         align: "center",
-        width: 200,
+        width: titleW,
       });
   }
 
@@ -1740,6 +1958,7 @@ export class MarksService {
     headers: string[],
     data: any[],
     className?: number,
+    classHighestTotal?: number,
   ) {
     const {
       startX,
@@ -1785,9 +2004,103 @@ export class MarksService {
     y += rowHeight;
     doc.font(fontRegular).fontSize(rowFontSize);
 
+    const drawExamSubjectsTotalRow = () => {
+      const examRows = data.filter((row: any) => row.assessment_type === "exam");
+      if (examRows.length === 0) return;
+
+      const examTotalMarks = examRows.reduce(
+        (sum: number, row: any) => sum + Number(row.marks || 0),
+        0,
+      );
+
+      if (y + rowHeight > 750) {
+        doc.addPage();
+        this.drawProperBackground(doc);
+        y = 50;
+      }
+
+      doc.lineWidth(0.5).rect(startX, y, contentWidth, rowHeight).stroke("#000000");
+
+      if (isBreakdown) {
+        const w03 = colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
+        this.drawDynamicText(doc, "Total Marks", startX + 5, y, w03 - 10, rowHeight, {
+          align: "right",
+          bold: true,
+          fontSize: rowFontSize,
+        });
+        doc.moveTo(startX + w03, y).lineTo(startX + w03, y + rowHeight).stroke();
+
+        const x4 = startX + w03;
+        this.drawDynamicText(doc, String(examTotalMarks), x4, y, colWidths[4], rowHeight, {
+          align: "center",
+          bold: true,
+          fontSize: rowFontSize,
+        });
+        doc.moveTo(x4 + colWidths[4], y).lineTo(x4 + colWidths[4], y + rowHeight).stroke();
+
+        const x5 = x4 + colWidths[4];
+        doc.moveTo(x5 + colWidths[5], y).lineTo(x5 + colWidths[5], y + rowHeight).stroke();
+
+        const x6 = x5 + colWidths[5];
+        doc.moveTo(x6 + colWidths[6], y).lineTo(x6 + colWidths[6], y + rowHeight).stroke();
+
+        const x7 = x6 + colWidths[6];
+        this.drawDynamicText(
+          doc,
+          `${classHighestTotal ?? "-"}`,
+          x7 + 2,
+          y,
+          colWidths[7] - 4,
+          rowHeight,
+          { align: "center", bold: true, fontSize: rowFontSize },
+        );
+      } else {
+        const w01 = colWidths[0] + colWidths[1];
+        this.drawDynamicText(doc, "Total Marks", startX + 5, y, w01 - 10, rowHeight, {
+          align: "right",
+          bold: true,
+          fontSize: rowFontSize,
+        });
+        doc.moveTo(startX + w01, y).lineTo(startX + w01, y + rowHeight).stroke();
+
+        const x2 = startX + w01;
+        this.drawDynamicText(doc, String(examTotalMarks), x2, y, colWidths[2], rowHeight, {
+          align: "center",
+          bold: true,
+          fontSize: rowFontSize,
+        });
+        doc.moveTo(x2 + colWidths[2], y).lineTo(x2 + colWidths[2], y + rowHeight).stroke();
+
+        const x3 = x2 + colWidths[2];
+        doc.moveTo(x3 + colWidths[3], y).lineTo(x3 + colWidths[3], y + rowHeight).stroke();
+
+        const x4 = x3 + colWidths[3];
+        doc.moveTo(x4 + colWidths[4], y).lineTo(x4 + colWidths[4], y + rowHeight).stroke();
+
+        const x5 = x4 + colWidths[4];
+        this.drawDynamicText(
+          doc,
+          `${classHighestTotal ?? "-"}`,
+          x5,
+          y,
+          colWidths[5],
+          rowHeight,
+          { align: "center", bold: true, fontSize: rowFontSize },
+        );
+      }
+
+      y += rowHeight;
+      doc.font(fontRegular).fontSize(rowFontSize);
+    };
+
     let lastType = "exam";
+    let examTotalDrawn = false;
     data.forEach((row: any) => {
       if (row.assessment_type !== lastType) {
+        if (lastType === "exam" && row.assessment_type === "continuous" && !examTotalDrawn) {
+          drawExamSubjectsTotalRow();
+          examTotalDrawn = true;
+        }
         y += 5;
         lastType = row.assessment_type;
 
@@ -2060,7 +2373,7 @@ export class MarksService {
       { range: "50% - 59%", lg: "B", gp: "3.00" },
       { range: "40% - 49%", lg: "C", gp: "2.00" },
       { range: "33% - 39%", lg: "D", gp: "1.00" },
-      { range: "01% - 32%", lg: "F", gp: "0.00" },
+      { range: "0% - 32%", lg: "F", gp: "0.00" },
     ];
 
     const rowWidth = 120;
