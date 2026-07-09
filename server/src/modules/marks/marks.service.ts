@@ -723,10 +723,7 @@ export class MarksService {
         },
         include: { teacher: true },
       }),
-      prisma.head_msg.findUnique({
-        where: { id: 1 },
-        include: { teacher: true },
-      }),
+      this.getHeadMsgForMarks(),
       this.getSchoolWebsite(),
     ]);
 
@@ -869,10 +866,7 @@ export class MarksService {
           }
         }
       }),
-      prisma.head_msg.findUnique({
-        where: { id: 1 },
-        include: { teacher: true },
-      }),
+      this.getHeadMsgForMarks(),
       this.getSchoolWebsite(),
     ]);
 
@@ -1097,10 +1091,7 @@ export class MarksService {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
 
       const [headMsg, website] = await Promise.all([
-        prisma.head_msg.findUnique({
-          where: { id: 1 },
-          include: { teacher: true },
-        }),
+        this.getHeadMsgForMarks(),
         this.getSchoolWebsite(),
       ]);
       const headSignature = headMsg?.teacher?.signature
@@ -1589,7 +1580,8 @@ export class MarksService {
     doc.lineWidth(0.5).dash(1, { space: 1 });
 
     const tStartX = 252.5;
-    const hStartX = 440;
+    const hStartX = 430;
+    const headLineWidth = 105;
 
     // Render Teacher signature if provided
     if (signatures?.teacher) {
@@ -1603,7 +1595,7 @@ export class MarksService {
     // Render Headmaster signature if provided
     if (signatures?.head) {
       try {
-        doc.image(signatures.head, hStartX + (lineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
+        doc.image(signatures.head, hStartX + (headLineWidth - 60) / 2, lineY - SIGNATURE_IMAGE_OFFSET, { width: 60 });
       } catch (err) {
         console.error("Head signature image error:", err);
       }
@@ -1613,6 +1605,7 @@ export class MarksService {
       x: number,
       name: string | null | undefined,
       role: string,
+      width: number = lineWidth,
     ) => {
       // Names always shown when available — independent of signature image
       if (name) {
@@ -1621,7 +1614,7 @@ export class MarksService {
           .fontSize(10)
           .fillColor("#000000")
           .text(name, x, textY, {
-            width: lineWidth,
+            width,
             align: "center",
             lineBreak: false,
           });
@@ -1629,7 +1622,7 @@ export class MarksService {
           .font("Times-Bold")
           .fontSize(10)
           .text(role, x, textY + 12, {
-            width: lineWidth,
+            width,
             align: "center",
           });
       } else {
@@ -1638,7 +1631,7 @@ export class MarksService {
           .fontSize(10)
           .fillColor("#000000")
           .text(role, x, textY, {
-            width: lineWidth,
+            width,
             align: "center",
           });
       }
@@ -1653,8 +1646,13 @@ export class MarksService {
     doc.moveTo(252.5, lineY).lineTo(252.5 + lineWidth, lineY).stroke();
     drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher");
 
-    doc.moveTo(440, lineY).lineTo(440 + lineWidth, lineY).stroke();
-    drawNameAndRole(440, signatures?.headName, signatures?.headRole ?? "Headmaster");
+    doc.moveTo(hStartX, lineY).lineTo(hStartX + headLineWidth, lineY).stroke();
+    drawNameAndRole(
+      hStartX,
+      signatures?.headName,
+      signatures?.headRole ?? "Headmaster",
+      headLineWidth,
+    );
 
     doc.undash();
   }
@@ -1696,6 +1694,15 @@ export class MarksService {
       school?.customDomain,
       school?.website,
     );
+  }
+
+  private static async getHeadMsgForMarks() {
+    const schoolId = getRlsContext()?.schoolId;
+    return prisma.head_msg.findFirst({
+      where: schoolId ? { school_id: schoolId } : undefined,
+      orderBy: { updated_at: "desc" },
+      include: { teacher: true },
+    });
   }
 
   private static buildMarksQrText(
