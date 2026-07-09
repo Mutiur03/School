@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && tsc-alias",
-    "db:migrate": "prisma generate && prisma migrate deploy && prisma db seed",
+    "db:migrate": "prisma generate && prisma migrate deploy",
     "build:docker": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",

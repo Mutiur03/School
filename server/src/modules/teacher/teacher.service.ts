@@ -379,10 +379,12 @@ export class TeacherService {
     teacherId?: number | null,
     message?: string | null,
     schoolId?: number,
+    headRole?: string | null,
   ) {
     const updateData: any = {};
     if (teacherId) updateData.head_id = parseInt(teacherId.toString());
     if (message !== undefined) updateData.head_message = message;
+    if (headRole !== undefined) updateData.head_role = headRole;
     if (schoolId) updateData.school_id = schoolId;
 
     const existing = await prisma.head_msg.findFirst({
@@ -403,6 +405,7 @@ export class TeacherService {
         data: {
           head_id: parseInt(teacherId.toString()),
           head_message: message ?? null,
+          head_role: headRole ?? "Headmaster",
           ...(schoolId ? { school_id: schoolId } : {}),
         },
       });

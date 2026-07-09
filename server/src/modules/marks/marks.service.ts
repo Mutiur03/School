@@ -738,6 +738,7 @@ export class MarksService {
       ? await getFileBuffer(headMsg.teacher.signature)
       : null;
     const headName = headMsg?.teacher?.name ?? null;
+    const headRole = headMsg?.head_role ?? "Headmaster";
 
     const highestMarksMap: Record<string, number> = {};
     const totalByStudent: Record<number, number> = {};
@@ -784,7 +785,7 @@ export class MarksService {
     const buffer = await this.renderStudentReportPDF(
       studentDetails,
       finalTableData,
-      { teacher: teacherSignature, teacherName, head: headSignature, headName },
+      { teacher: teacherSignature, teacherName, head: headSignature, headName, headRole },
       website,
     );
     return { buffer, studentName };
@@ -897,6 +898,7 @@ export class MarksService {
     const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
     const headSignature = headMsg?.teacher?.signature ? await getFileBuffer(headMsg.teacher.signature) : null;
     const headName = headMsg?.teacher?.name ?? null;
+    const headRole = headMsg?.head_role ?? "Headmaster";
     const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
@@ -952,6 +954,7 @@ export class MarksService {
             teacherName: teacherSigs[sigKey].name,
             head: headSignature,
             headName,
+            headRole,
           },
           website,
         );
@@ -1104,6 +1107,7 @@ export class MarksService {
         ? await getFileBuffer(headMsg.teacher.signature)
         : null;
       const headName = headMsg?.teacher?.name ?? null;
+      const headRole = headMsg?.head_role ?? "Headmaster";
       const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
       const studentIdsOrdered = Object.keys(studentGrouped)
@@ -1227,6 +1231,7 @@ export class MarksService {
             teacherName,
             head: headSignature,
             headName,
+            headRole,
           },
           doc.y,
         );
@@ -1246,6 +1251,7 @@ export class MarksService {
       teacherName?: string | null;
       head?: Buffer | null;
       headName?: string | null;
+      headRole?: string | null;
     },
     website?: string | null,
   ) {
@@ -1314,6 +1320,7 @@ export class MarksService {
       teacherName?: string | null;
       head?: Buffer | null;
       headName?: string | null;
+      headRole?: string | null;
     },
     website?: string | null,
   ): Promise<Buffer> {
@@ -1558,6 +1565,7 @@ export class MarksService {
       teacherName?: string | null;
       head?: Buffer | null;
       headName?: string | null;
+      headRole?: string | null;
     },
     tableEndY?: number,
   ) {
@@ -1646,7 +1654,7 @@ export class MarksService {
     drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher");
 
     doc.moveTo(440, lineY).lineTo(440 + lineWidth, lineY).stroke();
-    drawNameAndRole(440, signatures?.headName, "Headmaster");
+    drawNameAndRole(440, signatures?.headName, signatures?.headRole ?? "Headmaster");
 
     doc.undash();
   }

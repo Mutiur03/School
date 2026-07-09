@@ -591,6 +591,7 @@ model head_msg {
   id           Int      @id @default(autoincrement())
   head_id      Int
   head_message String?
+  head_role    String   @default("Headmaster") @db.VarChar(50)
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   teacher      teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)

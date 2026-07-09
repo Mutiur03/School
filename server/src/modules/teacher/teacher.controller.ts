@@ -284,12 +284,13 @@ export class TeacherController {
 
   static updateHeadMessageController = asyncHandler(
     async (req: Request, res: Response) => {
-      const { teacherId, message } = req.body;
+      const { teacherId, message, headRole } = req.body;
 
       const result = await TeacherService.updateHeadMessage(
         teacherId,
         message,
         req.schoolId,
+        headRole,
       );
       res
         .status(200)

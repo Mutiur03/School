@@ -7,12 +7,19 @@ import type { Teacher } from "@/types/teachers";
 interface HeadData {
   teacher?: Teacher;
   head_message?: string;
+  head_role?: string;
 }
+
+const HEAD_ROLE_OPTIONS = [
+  { value: "Headmaster", label: "Headmaster" },
+  { value: "Headmaster (Incharge)", label: "Headmaster (Incharge)" },
+] as const;
 
 
 function Head() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [headRole, setHeadRole] = useState<string>("Headmaster");
   const [message, setMessage] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -46,6 +53,7 @@ function Head() {
           if (headData?.teacher) setSelectedTeacherId(headData.teacher.id.toString());
           if (typeof headData?.head_message === "string")
             setMessage(headData.head_message);
+          if (headData?.head_role) setHeadRole(headData.head_role);
         }
       } catch (e) {
         if (isAxiosError(e))
@@ -70,9 +78,10 @@ function Head() {
     setError("");
     setSuccess("");
     try {
-      const payload: { teacherId?: string; message?: string } = {};
+      const payload: { teacherId?: string; message?: string; headRole?: string } = {};
       if (selectedTeacherId) payload.teacherId = selectedTeacherId;
       if (message.trim()) payload.message = message.trim();
+      if (headRole) payload.headRole = headRole;
       if (Object.keys(payload).length === 0) throw new Error("Nothing to save");
       await axios.post("/api/teachers/head-message", payload);
       setSuccess("Saved");
@@ -107,6 +116,25 @@ function Head() {
             ))}
           </select>
         </label>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Headmaster Role</legend>
+          <div className="flex flex-wrap gap-4">
+            {HEAD_ROLE_OPTIONS.map((option) => (
+              <label key={option.value} className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="headRole"
+                  value={option.value}
+                  checked={headRole === option.value}
+                  onChange={(e) => setHeadRole(e.target.value)}
+                  disabled={loading}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <textarea
           rows={5}
