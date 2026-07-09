@@ -3,6 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { downloadBlob } from "@school/common-ui/blob";
 import type { SchoolConfig } from "@/types";
 import type { Class6RegistrationRecord } from "@school/shared-schemas";
 
@@ -28,14 +29,10 @@ export default function Class6DownloadPDF({
             setDownloadingPDF(true);
             const response = await axios.get(pdfUrl, { responseType: "blob" });
             const blob = new Blob([response.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `Class6_Reg_${registration.student_name_en?.replace(/\s+/g, "_")}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            downloadBlob(
+              blob,
+              `Class6_Reg_${registration.student_name_en?.replace(/\s+/g, "_")}.pdf`,
+            );
         } catch {
             toast.error("Failed to download PDF");
         } finally {

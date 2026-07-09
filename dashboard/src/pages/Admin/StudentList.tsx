@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import ErrorMessage from "@/components/ErrorMessage";
 import { getFileUrl } from "@/lib/backend";
+import { downloadBlob, openBlobInNewTab } from "@school/common-ui/blob";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Student } from "@/types/students";
 import type { Subject } from "@/types/subjects";
@@ -306,11 +307,7 @@ function StudentList() {
       return { blob: response.data as Blob, headers: response.headers };
     },
     onSuccess: ({ blob }) => {
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      // Note: We don't revokeObjectURL here because the new tab needs it to load.
-      // Most browsers will handle the blob URL cleanup once the tab is closed
-      // or after some time.
+      openBlobInNewTab(blob);
       toast.success("Certificate opened in new tab!");
     },
     onError: (err: any) => {
@@ -575,13 +572,7 @@ function StudentList() {
       return response.data;
     },
     onSuccess: (data) => {
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "rotated_passwords.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadBlob(new Blob([data]), "rotated_passwords.xlsx");
       toast.success("Passwords rotated successfully. Excel downloaded.");
       setSelectedStudentIds(new Set());
       invalidateStudents();
@@ -674,13 +665,7 @@ function StudentList() {
     },
     onSuccess: (data) => {
       if (!isEditing) {
-        const url = window.URL.createObjectURL(new Blob([data]));
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", "students_credentials.xlsx");
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        downloadBlob(new Blob([data]), "students_credentials.xlsx");
       }
       handleCancel();
       toast.success(isEditing ? "Student updated successfully." : "Student added successfully. Credentials downloaded.");
@@ -881,13 +866,7 @@ function StudentList() {
       return response.data;
     },
     onSuccess: (data) => {
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "students_credentials.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadBlob(new Blob([data]), "students_credentials.xlsx");
 
       toast.success("Students uploaded successfully. Credentials downloaded.");
       setJsonData(null);

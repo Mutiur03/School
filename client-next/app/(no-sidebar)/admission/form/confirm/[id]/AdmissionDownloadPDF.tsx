@@ -3,6 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { downloadBlob } from "@school/common-ui/blob";
 import type { SchoolConfig } from "@/types";
 import type { ConfirmationAdmission_Props } from "@/queries/admission-form.queries";
 
@@ -32,14 +33,7 @@ function DownloadPDF({
                 { responseType: "blob" },
             );
             const blob = new Blob([response.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${admission.student_name_en}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            downloadBlob(blob, `${admission.student_name_en}.pdf`);
         } catch {
             toast.error("Failed to download PDF");
         } finally {
