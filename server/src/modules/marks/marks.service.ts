@@ -18,6 +18,11 @@ const PDF_STYLES = {
   fontItalic: "Times-Italic",
 };
 
+// 1 inch gap between table end and signature block (PDF points)
+const SIGNATURE_GAP_AFTER_TABLE = 72;
+const SIGNATURE_BLOCK_HEIGHT = 52;
+const PAGE_CONTENT_BOTTOM = 812;
+
 export class MarksService {
   private static validateMarksData(data: any) {
     if (!Array.isArray(data.students)) {
@@ -1130,13 +1135,16 @@ export class MarksService {
             colWidths
           );
           doc.y = summaryY;
-          doc.moveDown(1);
         }
 
-        this.drawSignatures(doc, {
-          teacher: teacherSignature,
-          head: headSignature,
-        });
+        this.drawSignatures(
+          doc,
+          {
+            teacher: teacherSignature,
+            head: headSignature,
+          },
+          doc.y,
+        );
       }
       doc.end();
     });
@@ -1187,7 +1195,7 @@ export class MarksService {
       student.class,
     );
 
-    await this.drawSummary(
+    const tableEndY = await this.drawSummary(
       doc,
       finalY,
       tableData,
@@ -1198,7 +1206,7 @@ export class MarksService {
       colWidths,
     );
 
-    this.drawSignatures(doc, signatures);
+    this.drawSignatures(doc, signatures, tableEndY);
   }
 
   private static async renderStudentReportPDF(
@@ -1261,6 +1269,7 @@ export class MarksService {
     let totalGP = 0;
     let isFailed = false;
     let subjectCount = 0;
+    const hasFourthSubject = fourthSubjectId !== null;
 
     marksData.forEach((row) => {
       if (row.assessment_type === "exam") {
@@ -1304,11 +1313,16 @@ export class MarksService {
       }
     });
 
-    const gpaResult = isFailed
-      ? 0.0
-      : subjectCount > 0
-        ? totalGP / subjectCount
-        : 0.0;
+    let gpaResult = 0.0;
+    if (!isFailed) {
+      if (!hasFourthSubject) {
+        // When no 4th subject is provided, apply requested normalization:
+        // GPA = (sum of exam-subject GPs - 2) / (exam-subject count - 1)
+        gpaResult = subjectCount > 1 ? (totalGP - 2.0) / (subjectCount - 1) : 0.0;
+      } else {
+        gpaResult = subjectCount > 0 ? totalGP / subjectCount : 0.0;
+      }
+    }
 
     return {
       gpa: Math.min(gpaResult, 5.0),
@@ -1416,17 +1430,28 @@ export class MarksService {
       this.drawDynamicText(doc, `${classHighestTotal || "-"}`, x5, rowY, actualColWidths[5], rowHeight, { align: "center", bold: true });
     }
 
-    const yFinal = rowY + rowHeight + 20;
-    return yFinal;
+    return rowY + rowHeight;
   }
 
   private static drawSignatures(
     doc: any,
     signatures?: { teacher?: Buffer | null; head?: Buffer | null },
+    tableEndY?: number,
   ) {
     doc.fontSize(10).font("Times-Bold").fillColor("#000000");
-    const lineY = 780;
-    const textY = 788;
+
+    let lineY =
+      tableEndY !== undefined
+        ? tableEndY + SIGNATURE_GAP_AFTER_TABLE
+        : PAGE_CONTENT_BOTTOM - SIGNATURE_BLOCK_HEIGHT;
+
+    if (lineY + SIGNATURE_BLOCK_HEIGHT > PAGE_CONTENT_BOTTOM) {
+      doc.addPage();
+      this.drawProperBackground(doc);
+      lineY = 100;
+    }
+
+    const textY = lineY + 8;
     const lineWidth = 90;
 
     // Dotted lines for signatures
