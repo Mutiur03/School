@@ -14,7 +14,7 @@
     },
     "./styles.css": "./dist/index.css",
     "./blob": {
-      "types": "./dist/blob.d.ts",
+      "types": "./dist/lib/blob.d.ts",
       "import": "./dist/lib/blob.js"
     }
   },

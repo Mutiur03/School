@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm run build -w @school/shared-schemas && npm run build -w client-next"
+  "buildCommand": "npm run build -w @school/shared-schemas && npm run build -w @school/common-ui && npm run build -w client-next"
 }
