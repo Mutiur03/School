@@ -21,7 +21,7 @@ const PDF_STYLES = {
 
 // Gap between table end and signature block (PDF points)
 const SIGNATURE_GAP_AFTER_TABLE = 40;
-const SIGNATURE_BLOCK_HEIGHT = 64;
+const SIGNATURE_BLOCK_HEIGHT = 88;
 const SIGNATURE_IMAGE_OFFSET = 28; // image bottom sits near dotted line
 const PAGE_CONTENT_BOTTOM = 812;
 
@@ -1606,45 +1606,44 @@ export class MarksService {
       name: string | null | undefined,
       role: string,
       width: number = lineWidth,
+      roleY: number,
     ) => {
-      // Names always shown when available — independent of signature image
       if (name) {
-        doc
-          .font("Times-Roman")
-          .fontSize(10)
-          .fillColor("#000000")
-          .text(name, x, textY, {
-            width,
-            align: "center",
-            lineBreak: false,
-          });
-        doc
-          .font("Times-Bold")
-          .fontSize(10)
-          .text(role, x, textY + 12, {
-            width,
-            align: "center",
-          });
-      } else {
-        doc
-          .font("Times-Bold")
-          .fontSize(10)
-          .fillColor("#000000")
-          .text(role, x, textY, {
-            width,
-            align: "center",
-          });
+        doc.font("Times-Roman").fontSize(10).fillColor("#000000");
+        doc.text(name, x, textY, {
+          width,
+          align: "center",
+        });
       }
+
+      doc
+        .font("Times-Bold")
+        .fontSize(10)
+        .fillColor("#000000")
+        .text(role, x, roleY, {
+          width,
+          align: "center",
+        });
     };
+
+    doc.font("Times-Roman").fontSize(10);
+    const teacherNameHeight = signatures?.teacherName
+      ? doc.heightOfString(signatures.teacherName, { width: lineWidth })
+      : 0;
+    const headNameHeight = signatures?.headName
+      ? doc.heightOfString(signatures.headName, { width: headLineWidth })
+      : 0;
+    const roleY = textY + Math.max(teacherNameHeight, headNameHeight) + 4;
 
     doc.moveTo(65, lineY).lineTo(65 + lineWidth, lineY).stroke();
     doc
       .font("Times-Bold")
       .fontSize(10)
-      .text("Guardian", 65, textY, { width: lineWidth, align: "center" });
+      .fillColor("#000000")
+      .text("Guardian", 65, roleY, { width: lineWidth, align: "center" });
 
     doc.moveTo(252.5, lineY).lineTo(252.5 + lineWidth, lineY).stroke();
-    drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher");
+    drawNameAndRole(252.5, signatures?.teacherName, "Class Teacher", lineWidth, roleY);
 
     doc.moveTo(hStartX, lineY).lineTo(hStartX + headLineWidth, lineY).stroke();
     drawNameAndRole(
@@ -1652,6 +1651,7 @@ export class MarksService {
       signatures?.headName,
       signatures?.headRole ?? "Headmaster",
       headLineWidth,
+      roleY,
     );
 
     doc.undash();
