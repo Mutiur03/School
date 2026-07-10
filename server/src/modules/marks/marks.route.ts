@@ -1,8 +1,15 @@
 import express from "express";
 import { MarksController } from "./marks.controller.js";
+import { PublicResultController } from "./public-result.controller.js";
 import AuthMiddleware from "@/middlewares/auth.middleware.js";
 
 const router = express.Router();
+
+// Public result checking (no auth; school scoped via subdomain RLS context).
+// Registered before the "/:id/..." routes so they are not shadowed.
+router.post("/public/verify", PublicResultController.verifyController);
+router.get("/public/result", PublicResultController.resultController);
+router.get("/public/download", PublicResultController.downloadController);
 
 router.post(
   "/addMarks",

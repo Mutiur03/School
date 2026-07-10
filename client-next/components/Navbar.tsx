@@ -263,7 +263,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
         id: "menu-item-3541",
         className:
           "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
-        href: String(school?.links?.results ?? "#"),
+        href: "/result",
         text: "Results",
       },
       {
