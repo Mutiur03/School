@@ -1416,9 +1416,13 @@ export class MarksService {
     let gpaResult = 0.0;
     if (!isFailed) {
       if (!hasFourthSubject) {
-        // When no 4th subject is provided, apply requested normalization:
-        // GPA = (sum of exam-subject GPs - 2) / (exam-subject count - 1)
-        gpaResult = subjectCount > 1 ? (totalGP - 2.0) / (subjectCount - 1) : 0.0;
+        if (className === 6 || className === 7 || className === 8) {
+          gpaResult = subjectCount > 0 ? totalGP / subjectCount : 0.0;
+        } else {
+          // When no 4th subject is provided, apply requested normalization:
+          // GPA = (sum of exam-subject GPs - 2) / (exam-subject count - 1)
+          gpaResult = subjectCount > 1 ? (totalGP - 2.0) / (subjectCount - 1) : 0.0;
+        }
       } else {
         gpaResult = subjectCount > 0 ? totalGP / subjectCount : 0.0;
       }
@@ -1449,17 +1453,21 @@ export class MarksService {
         ? await this.shouldApplyFourthSubjectBonus(className, year)
         : false;
 
-    const { gpa, totalMarks } = this.calculateGPA(
+    const { gpa } = this.calculateGPA(
       tableData,
       fourth_subject_id ?? null,
       applyBonus,
       className,
     );
+    const grandTotalMarks = tableData.reduce((sum: number, row: any) => {
+      const marks = Number(row.marks || 0);
+      return Number.isFinite(marks) ? sum + marks : sum;
+    }, 0);
 
     // If any key numeric is invalid, skip rendering the summary row entirely
     if (
       !Number.isFinite(gpa) ||
-      !Number.isFinite(totalMarks) ||
+      !Number.isFinite(grandTotalMarks) ||
       (classHighestTotal !== undefined &&
         classHighestTotal !== null &&
         !Number.isFinite(classHighestTotal))
@@ -1495,7 +1503,7 @@ export class MarksService {
       doc.moveTo(startX + w03, rowY).lineTo(startX + w03, rowY + rowHeight).stroke();
 
       const x4 = startX + w03;
-      this.drawDynamicText(doc, String(totalMarks), x4, rowY, actualColWidths[4], rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(doc, String(grandTotalMarks), x4, rowY, actualColWidths[4], rowHeight, { align: "center", bold: true });
       doc.moveTo(x4 + actualColWidths[4], rowY).lineTo(x4 + actualColWidths[4], rowY + rowHeight).stroke();
 
       const x5 = x4 + actualColWidths[4];
@@ -1516,7 +1524,7 @@ export class MarksService {
       doc.moveTo(startX + w01, rowY).lineTo(startX + w01, rowY + rowHeight).stroke();
 
       const x2 = startX + w01;
-      this.drawDynamicText(doc, String(totalMarks), x2, rowY, actualColWidths[2], rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(doc, String(grandTotalMarks), x2, rowY, actualColWidths[2], rowHeight, { align: "center", bold: true });
       doc.moveTo(x2 + actualColWidths[2], rowY).lineTo(x2 + actualColWidths[2], rowY + rowHeight).stroke();
 
       const x3 = x2 + actualColWidths[2]; // Column 3 (LG)
@@ -1539,7 +1547,7 @@ export class MarksService {
         .font(PDF_STYLES.fontRegular)
         .fontSize(PDF_STYLES.rowFontSize)
         .fillColor("#000000");
-      doc.text(`Result Publish Date: ${formattedResultDate}`, startX, dateY, {
+      doc.text(`Date of result published: ${formattedResultDate}`, startX, dateY, {
         width: contentWidth,
         align: "right",
       });
@@ -1799,18 +1807,20 @@ export class MarksService {
     const textLeft = qrX + qrSize + 10;
     const textRight = 415;
     const textWidth = textRight - textLeft;
+    const pageHeaderX = 50;
+    const pageHeaderWidth = 495;
 
     // Top line spans full page — above side widgets
     doc
       .font("Times-Bold")
       .fontSize(10)
-      .text("Government of the People's Republic of Bangladesh", 50, 40, {
+      .text("Government of the People's Republic of Bangladesh", pageHeaderX, 40, {
         align: "center",
-        width: 495,
+        width: pageHeaderWidth,
       });
 
     const schoolName = "PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL";
-    const maxWidth = textWidth - 4;
+    const maxWidth = pageHeaderWidth - 4;
     let fontSize = 15;
     doc.font("Times-Bold");
     while (
@@ -1821,7 +1831,7 @@ export class MarksService {
     }
     doc
       .fontSize(fontSize)
-      .text(schoolName, textLeft, 55, { align: "center", width: textWidth });
+      .text(schoolName, pageHeaderX, 55, { align: "center", width: pageHeaderWidth });
 
     if (qrText) {
       try {
@@ -2170,19 +2180,19 @@ export class MarksService {
           drawExamSubjectsTotalRow();
           examTotalDrawn = true;
         }
-        y += 5;
         lastType = row.assessment_type;
 
         doc
           .font(fontBold)
           .fontSize(headerFontSize - 1)
           .fillColor("#4b5563");
-        doc.text("CONTINUOUS ASSESSMENT", startX, y, {
+        this.drawDynamicText(doc, "CONTINUOUS ASSESSMENT", startX, y, contentWidth, rowHeight, {
           align: "center",
-          width: contentWidth,
+          bold: true,
+          fontSize: headerFontSize - 1,
         });
         doc.fillColor("#000000").font(fontRegular).fontSize(rowFontSize);
-        y += rowHeight - 5;
+        y += rowHeight;
       }
 
       const rowCount = row.isGroup && row.papers ? row.papers.length : 1;
