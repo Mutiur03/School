@@ -21,7 +21,10 @@ const PDF_STYLES = {
 };
 
 const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
-const MARKSHEET_IMAGE_SCALE = 4;
+const MARKSHEET_IMAGE_SCALE = 2;
+// true  -> rasterize PDF to images then re-embed (tamper-resistant, slow).
+// false -> return direct vector PDF (fast, selectable text).
+const RASTERIZE_MARKSHEET = true;
 const MARKSHEET_FONT_PATHS = {
   regular: [
     process.env.MARKSHEET_FONT_REGULAR,
@@ -44,18 +47,18 @@ const SIGNATURE_IMAGE_OFFSET = 28; // image bottom sits near dotted line
 const PAGE_CONTENT_BOTTOM = 812;
 
 const MONTH_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
+  "January",
+  "February",
+  "March",
+  "April",
   "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function formatResultPublishDate(dateStr?: string | null): string | null {
@@ -844,13 +847,15 @@ export class MarksService {
       this.getSchoolWebsite(),
     ]);
 
-    const teacherSignature = level?.teacher?.signature
-      ? await getFileBuffer(level.teacher.signature)
-      : null;
+    const [teacherSignature, headSignature] = await Promise.all([
+      level?.teacher?.signature
+        ? getFileBuffer(level.teacher.signature)
+        : null,
+      headMsg?.teacher?.signature
+        ? getFileBuffer(headMsg.teacher.signature)
+        : null,
+    ]);
     const teacherName = level?.teacher?.name ?? null;
-    const headSignature = headMsg?.teacher?.signature
-      ? await getFileBuffer(headMsg.teacher.signature)
-      : null;
     const headName = headMsg?.teacher?.name ?? null;
     const headRole = headMsg?.head_role ?? "Headmaster";
 
@@ -899,7 +904,7 @@ export class MarksService {
       { teacher: teacherSignature, teacherName, head: headSignature, headName, headRole },
       website,
     );
-    return { buffer: await this.convertPdfToImagePdf(buffer), studentName };
+    return { buffer: await this.finalizeMarksheetBuffer(buffer), studentName };
   }
 
   static async generateBulkExamMarksheetsPDF(
@@ -1078,7 +1083,7 @@ export class MarksService {
       }
       doc.end();
     });
-    return this.convertPdfToImagePdf(buffer);
+    return this.finalizeMarksheetBuffer(buffer);
   }
 
   static async generateAllMarksheetsPDF(
@@ -1394,7 +1399,7 @@ export class MarksService {
       }
       doc.end();
     });
-    return this.convertPdfToImagePdf(buffer);
+    return this.finalizeMarksheetBuffer(buffer);
   }
 
 
@@ -1514,6 +1519,10 @@ export class MarksService {
     if (boldFont) {
       doc.registerFont(PDF_STYLES.fontBold, boldFont);
     }
+  }
+
+  private static async finalizeMarksheetBuffer(buffer: Buffer): Promise<Buffer> {
+    return RASTERIZE_MARKSHEET ? this.convertPdfToImagePdf(buffer) : buffer;
   }
 
   private static async convertPdfToImagePdf(pdfBuffer: Buffer): Promise<Buffer> {
@@ -1773,7 +1782,7 @@ export class MarksService {
         .fillColor("#000000");
       doc.text(`Date of result published: ${formattedResultDate}`, startX, dateY, {
         width: contentWidth,
-        align: "right",
+        align: "left",
       });
       endY = dateY + PDF_STYLES.rowHeight;
     }
