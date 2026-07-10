@@ -1,6 +1,6 @@
 import { prisma } from "@/config/prisma.js";
 import { Prisma } from "@prisma/client";
-import { getRlsContext } from "@/config/rlsContextStore.js";
+import { getRlsContext, patchRlsContext } from "@/config/rlsContextStore.js";
 import { getFileBuffer } from "@/config/r2.js";
 import PDFDocument from "pdfkit";
 import { pdf } from "pdf-to-img";
@@ -126,6 +126,88 @@ export class MarksService {
     return false;
   }
 
+  /**
+   * Class-highest stats for one (exam, class, year), computed with DB
+   * aggregates instead of pulling every mark row into JS. Shared by the
+   * write-time cache refresh and the read-time lazy fallback.
+   * - highestBySubject: max mark per subject, across all assessment types.
+   * - classHighestTotal: max over per-student totals, exam-type subjects only
+   *   (feeds the "Total Marks" row).
+   * - classHighestGrandTotal: max over per-student totals across ALL subjects
+   *   incl. continuous (feeds the "Grand Total Marks" row).
+   */
+  static async computeStats(
+    client: Prisma.TransactionClient | typeof prisma,
+    examId: number,
+    klass: number,
+    year: number,
+  ): Promise<{
+    highestBySubject: Record<number, number>;
+    classHighestTotal: number;
+    classHighestGrandTotal: number;
+  }> {
+    const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
+      client.marks.groupBy({
+        by: ["subject_id"],
+        where: { exam_id: examId, enrollment: { class: klass, year } },
+        _max: { marks: true },
+      }),
+      client.marks.groupBy({
+        by: ["enrollment_id"],
+        where: {
+          exam_id: examId,
+          enrollment: { class: klass, year },
+          subject: { assessment_type: "exam" },
+        },
+        _sum: { marks: true },
+      }),
+      client.marks.groupBy({
+        by: ["enrollment_id"],
+        where: { exam_id: examId, enrollment: { class: klass, year } },
+        _sum: { marks: true },
+      }),
+    ]);
+
+    const highestBySubject: Record<number, number> = {};
+    for (const g of bySubject) {
+      highestBySubject[g.subject_id] = Number(g._max.marks ?? 0);
+    }
+    const examTotals = byEnrollmentExam.map((g) => Number(g._sum.marks ?? 0));
+    const classHighestTotal =
+      examTotals.length > 0 ? Math.max(...examTotals) : 0;
+    const grandTotals = byEnrollmentAll.map((g) => Number(g._sum.marks ?? 0));
+    const classHighestGrandTotal =
+      grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
+
+    return { highestBySubject, classHighestTotal, classHighestGrandTotal };
+  }
+
+  /**
+   * Recompute and persist the exam_class_stats cache row for one
+   * (exam, class, year). Runs inside the addMarks transaction; school_id is
+   * filled by the BEFORE INSERT trigger from the RLS context, exactly like the
+   * marks upsert, so the ON CONFLICT target includes school_id.
+   */
+  static async recomputeExamClassStats(
+    tx: Prisma.TransactionClient,
+    examId: number,
+    klass: number,
+    year: number,
+  ) {
+    const { highestBySubject, classHighestTotal, classHighestGrandTotal } =
+      await this.computeStats(tx, examId, klass, year);
+    await tx.$executeRaw`
+      INSERT INTO exam_class_stats (exam_id, "class", year, highest_by_subject, class_highest_total, class_highest_grand_total)
+      VALUES (${examId}, ${klass}, ${year}, ${JSON.stringify(highestBySubject)}::jsonb, ${classHighestTotal}, ${classHighestGrandTotal})
+      ON CONFLICT (exam_id, "class", year, school_id)
+      DO UPDATE SET
+        highest_by_subject = EXCLUDED.highest_by_subject,
+        class_highest_total = EXCLUDED.class_highest_total,
+        class_highest_grand_total = EXCLUDED.class_highest_grand_total,
+        updated_at = NOW()
+    `;
+  }
+
   static async addMarks(data: any, user: any) {
     this.validateMarksData(data);
     const { students, examName, year } = data;
@@ -168,6 +250,9 @@ export class MarksService {
 
     const enrollmentByStudent = new Map(
       enrollments.map((e) => [e.student_id, e]),
+    );
+    const enrollmentClassById = new Map(
+      enrollments.map((e) => [e.id, e.class]),
     );
     const subjectById = new Map(subjects.map((s) => [s.id, s]));
 
@@ -282,6 +367,26 @@ export class MarksService {
             marks = EXCLUDED.marks,
             updated_at = NOW()
         `;
+
+        // Refresh the cached class-highest stats for every (class) touched by
+        // this write, in the same tx so the aggregates see the rows just
+        // inserted. Marksheet generation reads these instead of rescanning.
+        // Flag inRlsTransaction so the Prisma RLS extension runs the groupBy
+        // ops directly on THIS tx (set_config already applied above) instead
+        // of spawning a nested transaction that can't see the uncommitted rows.
+        const affectedClasses = new Set<number>();
+        for (const r of rows) {
+          const cls = enrollmentClassById.get(r.enrollment_id);
+          if (cls !== undefined) affectedClasses.add(cls);
+        }
+        patchRlsContext({ inRlsTransaction: true });
+        try {
+          for (const cls of affectedClasses) {
+            await this.recomputeExamClassStats(tx, exam.id, cls, yearInt);
+          }
+        } finally {
+          patchRlsContext({ inRlsTransaction: false });
+        }
       });
     }
 
@@ -719,19 +824,13 @@ export class MarksService {
     const studentRoll = result[0].enrollment.roll;
     const studentSection = result[0].enrollment.section;
 
-    // Fetch class highest marks and signatures
-    const [allMarks, level, headMsg, website] = await Promise.all([
-      prisma.marks.findMany({
-        where: {
-          enrollment: { class: studentClass, year: parseInt(year) },
-          exam: { exam_name: exam },
-        },
-        select: {
-          marks: true,
-          subject_id: true,
-          subject: { select: { assessment_type: true } },
-          enrollment: { select: { student_id: true } },
-        },
+    // Class-highest stats come from the exam_class_stats cache (refreshed on
+    // every addMarks) instead of rescanning the whole class here.
+    const examId = result[0].exam_id;
+    const yearInt = parseInt(year);
+    const [statsRow, level, headMsg, website] = await Promise.all([
+      prisma.exam_class_stats.findFirst({
+        where: { exam_id: examId, class: studentClass, year: yearInt },
       }),
       prisma.levels.findFirst({
         where: {
@@ -755,30 +854,26 @@ export class MarksService {
     const headName = headMsg?.teacher?.name ?? null;
     const headRole = headMsg?.head_role ?? "Headmaster";
 
-    const highestMarksMap: Record<string, number> = {};
-    const totalByStudent: Record<number, number> = {};
-
-    allMarks.forEach((m: any) => {
-      // Always track highest per subject
-      const marksVal = Number(m.marks || 0);
-      if (
-        !highestMarksMap[m.subject_id] ||
-        marksVal > highestMarksMap[m.subject_id]
-      ) {
-        highestMarksMap[m.subject_id] = marksVal;
-      }
-
-      // Track total for class highest total (skip continuous)
-      if (m.subject.assessment_type === "continuous") return;
-
-      const sId = m.enrollment.student_id;
-      totalByStudent[sId] = (totalByStudent[sId] || 0) + marksVal;
-    });
-
-    const classHighestTotal =
-      Object.values(totalByStudent).length > 0
-        ? Math.max(...Object.values(totalByStudent))
-        : 0;
+    // Lazy fallback if the cache row is missing (marks predate this feature).
+    let highestMarksMap: Record<string, number>;
+    let classHighestTotal: number;
+    let classHighestGrandTotal: number;
+    if (statsRow) {
+      highestMarksMap =
+        (statsRow.highest_by_subject as Record<string, number>) ?? {};
+      classHighestTotal = statsRow.class_highest_total ?? 0;
+      classHighestGrandTotal = statsRow.class_highest_grand_total ?? 0;
+    } else {
+      const stats = await this.computeStats(
+        prisma,
+        examId,
+        studentClass,
+        yearInt,
+      );
+      highestMarksMap = stats.highestBySubject as Record<string, number>;
+      classHighestTotal = stats.classHighestTotal;
+      classHighestGrandTotal = stats.classHighestGrandTotal;
+    }
 
     const studentDetails = {
       name: studentName,
@@ -788,6 +883,7 @@ export class MarksService {
       year: parseInt(year),
       exam: exam,
       classHighestTotal: classHighestTotal,
+      classHighestGrandTotal: classHighestGrandTotal,
       fourth_subject_id: enrollment.fourth_subject_id,
       result_date: resultDate,
     };
@@ -890,10 +986,15 @@ export class MarksService {
 
     if (enrollments.length === 0) throw new Error("No students found");
 
+    // Not read from the exam_class_stats cache on purpose: this bulk path must
+    // load every student's marks to render them (marksByEnrollment) anyway, so
+    // highest-per-subject / class-highest-total are a free byproduct of the
+    // scan it already does. Caching would add a query without saving one.
     const highestMarksMap: Record<number, number> = {};
     const totalByEnrollment: Record<number, number> = {};
     const marksByEnrollment: Record<number, any[]> = {};
 
+    const grandTotalByEnrollment: Record<number, number> = {};
     allExamMarks.forEach((m) => {
       const marksVal = Number(m.marks || 0);
       if (!highestMarksMap[m.subject_id] || marksVal > highestMarksMap[m.subject_id]) {
@@ -902,11 +1003,13 @@ export class MarksService {
       if (m.subject.assessment_type === "exam") {
         totalByEnrollment[m.enrollment_id] = (totalByEnrollment[m.enrollment_id] || 0) + marksVal;
       }
+      grandTotalByEnrollment[m.enrollment_id] = (grandTotalByEnrollment[m.enrollment_id] || 0) + marksVal;
       if (!marksByEnrollment[m.enrollment_id]) marksByEnrollment[m.enrollment_id] = [];
       marksByEnrollment[m.enrollment_id].push(m);
     });
 
     const classHighestTotal = Object.values(totalByEnrollment).length > 0 ? Math.max(...Object.values(totalByEnrollment)) : 0;
+    const classHighestGrandTotal = Object.values(grandTotalByEnrollment).length > 0 ? Math.max(...Object.values(grandTotalByEnrollment)) : 0;
     const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
     const headSignature = headMsg?.teacher?.signature ? await getFileBuffer(headMsg.teacher.signature) : null;
     const headName = headMsg?.teacher?.name ?? null;
@@ -940,6 +1043,7 @@ export class MarksService {
           year: yearInt,
           exam: examName,
           classHighestTotal,
+          classHighestGrandTotal,
           fourth_subject_id: enrollment.fourth_subject_id,
           result_date: resultDate,
         };
@@ -1029,51 +1133,90 @@ export class MarksService {
     if (marks.length === 0) throw new Error("No marks found");
 
     const classesAffected = Array.from(new Set(marks.map((m) => m.enrollment.class)));
-    const allMarksForHighest = await prisma.marks.findMany({
-      where: {
-        enrollment: {
-          class: { in: classesAffected },
-          year: yearInt,
-        },
-        ...(examName ? { exam: { exam_name: examName } } : {}),
-      },
-      select: {
-        marks: true,
-        subject_id: true,
-        enrollment_id: true,
-        exam: { select: { exam_name: true } },
-        subject: { select: { assessment_type: true } },
-      },
-    });
+    const examIds = Array.from(new Set(marks.map((m) => m.exam_id)));
 
+    // Highest-per-subject and class-highest-total are read from the
+    // exam_class_stats cache (per exam+class), combined across the affected
+    // classes to match the previous behaviour, instead of a second full scan.
     const highestMarksMap: Record<string, Record<number, number>> = {};
-    const totalsByEnrollmentExam: Record<string, number> = {};
-    allMarksForHighest.forEach((m) => {
-      const en = m.exam.exam_name;
-      const mVal = Number(m.marks || 0);
-      if (!highestMarksMap[en]) highestMarksMap[en] = {};
-      if (
-        !highestMarksMap[en][m.subject_id] ||
-        mVal > highestMarksMap[en][m.subject_id]
-      ) {
-        highestMarksMap[en][m.subject_id] = mVal;
-      }
-      if (m.subject.assessment_type === "exam") {
-        const key = `${m.enrollment_id}_${en}`;
-        totalsByEnrollmentExam[key] = (totalsByEnrollmentExam[key] || 0) + mVal;
-      }
-    });
-
     const classHighestTotalByExam: Record<string, number> = {};
-    Object.entries(totalsByEnrollmentExam).forEach(([key, total]) => {
-      const exam = key.split("_")[1];
-      if (
-        !classHighestTotalByExam[exam] ||
-        total > classHighestTotalByExam[exam]
-      ) {
-        classHighestTotalByExam[exam] = total;
+    const classHighestGrandTotalByExam: Record<string, number> = {};
+
+    const mergeStats = (
+      examLabel: string,
+      highestBySubject: Record<string, number>,
+      classHighestTotal: number,
+      classHighestGrandTotal: number,
+    ) => {
+      if (!highestMarksMap[examLabel]) highestMarksMap[examLabel] = {};
+      for (const [sid, val] of Object.entries(highestBySubject)) {
+        const subjId = Number(sid);
+        const v = Number(val || 0);
+        if (
+          !highestMarksMap[examLabel][subjId] ||
+          v > highestMarksMap[examLabel][subjId]
+        ) {
+          highestMarksMap[examLabel][subjId] = v;
+        }
       }
+      if (
+        !classHighestTotalByExam[examLabel] ||
+        classHighestTotal > classHighestTotalByExam[examLabel]
+      ) {
+        classHighestTotalByExam[examLabel] = classHighestTotal;
+      }
+      if (
+        !classHighestGrandTotalByExam[examLabel] ||
+        classHighestGrandTotal > classHighestGrandTotalByExam[examLabel]
+      ) {
+        classHighestGrandTotalByExam[examLabel] = classHighestGrandTotal;
+      }
+    };
+
+    const statsRows = await prisma.exam_class_stats.findMany({
+      where: {
+        exam_id: { in: examIds },
+        class: { in: classesAffected },
+        year: yearInt,
+      },
+      include: { exam: { select: { exam_name: true } } },
     });
+    for (const row of statsRows) {
+      mergeStats(
+        row.exam.exam_name,
+        (row.highest_by_subject as Record<string, number>) ?? {},
+        row.class_highest_total ?? 0,
+        row.class_highest_grand_total ?? 0,
+      );
+    }
+
+    // Lazy fallback: fill any (exam, class) combo present in the data but
+    // missing from the cache (marks predate this feature).
+    const combos = new Map<
+      string,
+      { examId: number; klass: number; examName: string }
+    >();
+    for (const m of marks) {
+      const key = `${m.exam_id}_${m.enrollment.class}`;
+      if (!combos.has(key)) {
+        combos.set(key, {
+          examId: m.exam_id,
+          klass: m.enrollment.class,
+          examName: m.exam.exam_name,
+        });
+      }
+    }
+    const present = new Set(statsRows.map((r) => `${r.exam_id}_${r.class}`));
+    for (const c of combos.values()) {
+      if (present.has(`${c.examId}_${c.klass}`)) continue;
+      const s = await this.computeStats(prisma, c.examId, c.klass, yearInt);
+      mergeStats(
+        c.examName,
+        s.highestBySubject as Record<string, number>,
+        s.classHighestTotal,
+        s.classHighestGrandTotal,
+      );
+    }
 
     const studentGrouped: Record<number, Record<string, any[]>> = {};
     const studentInfoMap: Record<number, any> = {};
@@ -1232,6 +1375,7 @@ export class MarksService {
             info.year,
             colWidths,
             resultDateByExam[examName] ?? null,
+            classHighestGrandTotalByExam[examName] || 0,
           );
           doc.y = summaryY;
         }
@@ -1320,6 +1464,7 @@ export class MarksService {
       student.year,
       colWidths,
       student.result_date,
+      student.classHighestGrandTotal,
     );
 
     this.drawSignatures(doc, signatures, tableEndY);
@@ -1517,7 +1662,14 @@ export class MarksService {
     year?: number,
     colWidths?: number[],
     resultDate?: string | null,
+    classHighestGrandTotal?: number,
   ) {
+    // Grand Total row shows the class-highest grand total (all subjects); fall
+    // back to the exam-only highest if the grand value wasn't supplied.
+    const grandHighest =
+      classHighestGrandTotal !== undefined && classHighestGrandTotal !== null
+        ? classHighestGrandTotal
+        : classHighestTotal;
     const { startX, contentWidth, rowHeight } = PDF_STYLES;
 
     const applyBonus =
@@ -1587,7 +1739,7 @@ export class MarksService {
       doc.moveTo(x6 + actualColWidths[6], rowY).lineTo(x6 + actualColWidths[6], rowY + rowHeight).stroke();
 
       const x7 = x6 + actualColWidths[6];
-      this.drawDynamicText(doc, `${classHighestTotal || "-"}`, x7 + 2, rowY, actualColWidths[7] - 4, rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(doc, `${grandHighest || "-"}`, x7 + 2, rowY, actualColWidths[7] - 4, rowHeight, { align: "center", bold: true });
     } else {
       // Standard (6 cols): Subj(0), Obt(1), Total(2), LG(3), GP(4), High(5)
       // Merge 0-1 for Grand Total Label, Val in 2
@@ -1608,7 +1760,7 @@ export class MarksService {
       doc.moveTo(x4 + actualColWidths[4], rowY).lineTo(x4 + actualColWidths[4], rowY + rowHeight).stroke();
 
       const x5 = x4 + actualColWidths[4]; // Column 5 (Highest)
-      this.drawDynamicText(doc, `${classHighestTotal || "-"}`, x5, rowY, actualColWidths[5], rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(doc, `${grandHighest || "-"}`, x5, rowY, actualColWidths[5], rowHeight, { align: "center", bold: true });
     }
 
     let endY = rowY + rowHeight;
