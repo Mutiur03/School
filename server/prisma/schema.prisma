@@ -71,6 +71,7 @@ model School {
   sms_logs         sms_logs[]
   sms_settings     sms_settings?
   siteConfig       SchoolSiteConfig?
+  exam_class_stats exam_class_stats[]
 
   @@index([name])
   @@index([subdomain])
@@ -270,10 +271,29 @@ model exams {
   public_id     String?
   exam_routines exam_routines[]
   marks         marks[]
+  class_stats   exam_class_stats[]
   school_id     Int?
   school        School?         @relation(fields: [school_id], references: [id])
 
   @@unique([exam_name, exam_year, levels])
+  @@index([school_id])
+}
+
+model exam_class_stats {
+  id                  Int      @id @default(autoincrement())
+  exam_id             Int
+  class               Int
+  year                Int
+  highest_by_subject  Json     // { "<subject_id>": <maxMarks>, ... } across all assessment types
+  class_highest_total Int      @default(0) // max per-student total, exam-type subjects only
+  class_highest_grand_total Int @default(0) // max per-student total across ALL subjects (incl. continuous)
+  updated_at          DateTime @default(now()) @updatedAt
+  exam                exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  school_id           Int?
+  school              School?  @relation(fields: [school_id], references: [id])
+
+  @@unique([exam_id, class, year, school_id], name: "unique_exam_class_stats")
+  @@index([exam_id])
   @@index([school_id])
 }
 

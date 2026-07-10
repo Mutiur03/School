@@ -75,6 +75,7 @@ const TENANT_MODELS = new Set([
   "class_routine_pdf",
   "class_slot_time",
   "events",
+  "exam_class_stats",
   "exam_routines",
   "exams",
   "gallery",
