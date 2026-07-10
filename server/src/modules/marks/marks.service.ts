@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getRlsContext } from "@/config/rlsContextStore.js";
 import { getFileBuffer } from "@/config/r2.js";
 import PDFDocument from "pdfkit";
+import { pdf } from "pdf-to-img";
 import QRCode from "qrcode";
 import path from "path";
 import fs from "fs";
@@ -17,6 +18,23 @@ const PDF_STYLES = {
   fontBold: "Times-Bold",
   fontRegular: "Times-Roman",
   fontItalic: "Times-Italic",
+};
+
+const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
+const MARKSHEET_IMAGE_SCALE = 4;
+const MARKSHEET_FONT_PATHS = {
+  regular: [
+    process.env.MARKSHEET_FONT_REGULAR,
+    "C:\\Windows\\Fonts\\times.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+  ].filter(Boolean) as string[],
+  bold: [
+    process.env.MARKSHEET_FONT_BOLD,
+    "C:\\Windows\\Fonts\\timesbd.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
+  ].filter(Boolean) as string[],
 };
 
 // Gap between table end and signature block (PDF points)
@@ -785,7 +803,7 @@ export class MarksService {
       { teacher: teacherSignature, teacherName, head: headSignature, headName, headRole },
       website,
     );
-    return { buffer, studentName };
+    return { buffer: await this.convertPdfToImagePdf(buffer), studentName };
   }
 
   static async generateBulkExamMarksheetsPDF(
@@ -896,6 +914,7 @@ export class MarksService {
     const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    this.registerMarksheetFonts(doc);
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
@@ -905,7 +924,7 @@ export class MarksService {
     });
     if (studentsWithMarks.length === 0) throw new Error("No non-null marks found for any student in this class.");
 
-    return new Promise<Buffer>(async (resolve) => {
+    const buffer = await new Promise<Buffer>(async (resolve) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
 
       for (let i = 0; i < studentsWithMarks.length; i++) {
@@ -955,6 +974,7 @@ export class MarksService {
       }
       doc.end();
     });
+    return this.convertPdfToImagePdf(buffer);
   }
 
   static async generateAllMarksheetsPDF(
@@ -1084,10 +1104,11 @@ export class MarksService {
     });
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    this.registerMarksheetFonts(doc);
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-    return new Promise<Buffer>(async (resolve) => {
+    const buffer = await new Promise<Buffer>(async (resolve) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
 
       const [headMsg, website] = await Promise.all([
@@ -1229,6 +1250,7 @@ export class MarksService {
       }
       doc.end();
     });
+    return this.convertPdfToImagePdf(buffer);
   }
 
 
@@ -1316,6 +1338,7 @@ export class MarksService {
     website?: string | null,
   ): Promise<Buffer> {
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    this.registerMarksheetFonts(doc);
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
@@ -1329,6 +1352,55 @@ export class MarksService {
         website,
       );
       doc.end();
+    });
+  }
+
+  private static registerMarksheetFonts(doc: any) {
+    const regularFont = MARKSHEET_FONT_PATHS.regular.find((fontPath) =>
+      fs.existsSync(fontPath),
+    );
+    const boldFont = MARKSHEET_FONT_PATHS.bold.find((fontPath) =>
+      fs.existsSync(fontPath),
+    );
+
+    if (regularFont) {
+      doc.registerFont(PDF_STYLES.fontRegular, regularFont);
+    }
+    if (boldFont) {
+      doc.registerFont(PDF_STYLES.fontBold, boldFont);
+    }
+  }
+
+  private static async convertPdfToImagePdf(pdfBuffer: Buffer): Promise<Buffer> {
+    const sourcePdfDataUrl = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+    const sourceDocument = await pdf(sourcePdfDataUrl, {
+      scale: MARKSHEET_IMAGE_SCALE,
+    });
+    const doc = new (PDFDocument as any)({
+      autoFirstPage: false,
+      margin: 0,
+    });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+    return new Promise<Buffer>(async (resolve, reject) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      try {
+        for await (const pageImage of sourceDocument) {
+          doc.addPage({ size: A4_PAGE_SIZE, margin: 0 });
+          doc.image(pageImage, 0, 0, {
+            width: A4_PAGE_SIZE[0],
+            height: A4_PAGE_SIZE[1],
+          });
+        }
+        doc.end();
+      } catch (error) {
+        reject(error);
+      } finally {
+        sourceDocument.destroy();
+      }
     });
   }
 
