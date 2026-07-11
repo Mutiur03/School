@@ -45,6 +45,7 @@ const AddMarks = () => {
   const addMarksMutation = useAddMarksMutation();
 
   const [marksData, setMarksData] = useState<MarksData>({});
+  const [dirtyStudentIds, setDirtyStudentIds] = useState<Set<number>>(new Set());
   const [sections, setSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -128,8 +129,10 @@ const AddMarks = () => {
         };
       });
       setMarksData(initialData);
+      setDirtyStudentIds(new Set());
     } else {
       setMarksData((prev) => Object.keys(prev).length === 0 ? prev : {});
+      setDirtyStudentIds(new Set());
     }
   }, [existingMarks, subjectsForClass]);
 
@@ -192,6 +195,7 @@ const AddMarks = () => {
       }
       return { ...prev, [studentId]: { ...currentStudent, subjectMarks: updatedSubjectMarks } };
     });
+    setDirtyStudentIds((prev) => new Set(prev).add(studentId));
   }, [subjectsForClass]);
 
   const filteredStudents = useMemo(() => {
@@ -218,7 +222,11 @@ const AddMarks = () => {
       (s) => !specific || s.id === specific
     );
 
-    const submissionData = filteredStudents.map((student) => {
+    const studentsToSubmit = filteredStudents.filter((student) =>
+      dirtyStudentIds.has(student.student_id),
+    );
+
+    const submissionData = studentsToSubmit.map((student) => {
       const studentData = marksData[student.student_id];
       const subjectMarks = visibleSubjects.map((subject) => {
         const existingMark = studentData?.subjectMarks?.find(
@@ -240,7 +248,7 @@ const AddMarks = () => {
     });
 
     if (submissionData.length === 0) {
-      toast.error("No students found to submit marks for");
+      toast.error("No mark changes to save");
       return;
     }
 
@@ -250,6 +258,7 @@ const AddMarks = () => {
       year,
     }, {
       onSuccess: () => {
+        setDirtyStudentIds(new Set());
         refetchMarks();
       }
     });
