@@ -209,6 +209,7 @@ const cloneHeaders = ({ request, originalHost, slug }) => {
   const headers = new Headers(request.headers);
   headers.set("x-school-subdomain", slug);
   headers.set("x-tenant-host", originalHost);
+  headers.set("x-forwarded-host", originalHost);
 
   return headers;
 };
