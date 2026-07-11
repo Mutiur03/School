@@ -185,20 +185,91 @@ export class MarksService {
     return { highestBySubject, classHighestTotal, classHighestGrandTotal };
   }
 
+  private static classStatsEqual(
+    a: {
+      highestBySubject: unknown;
+      classHighestTotal: number;
+      classHighestGrandTotal: number;
+    },
+    b: {
+      highestBySubject: unknown;
+      classHighestTotal: number;
+      classHighestGrandTotal: number;
+    },
+  ): boolean {
+    return (
+      a.classHighestTotal === b.classHighestTotal &&
+      a.classHighestGrandTotal === b.classHighestGrandTotal &&
+      JSON.stringify(a.highestBySubject) === JSON.stringify(b.highestBySubject)
+    );
+  }
+
+  private static markRowChanged(
+    existing:
+      | {
+          cq_marks: number | null;
+          mcq_marks: number | null;
+          practical_marks: number | null;
+          marks: number | null;
+        }
+      | undefined,
+    next: {
+      cq_marks: number | null;
+      mcq_marks: number | null;
+      practical_marks: number | null;
+      marks: number | null;
+    },
+  ): boolean {
+    if (!existing) return true;
+    return (
+      existing.cq_marks !== next.cq_marks ||
+      existing.mcq_marks !== next.mcq_marks ||
+      existing.practical_marks !== next.practical_marks ||
+      existing.marks !== next.marks
+    );
+  }
+
   /**
    * Recompute and persist the exam_class_stats cache row for one
    * (exam, class, year). Runs inside the addMarks transaction; school_id is
    * filled by the BEFORE INSERT trigger from the RLS context, exactly like the
    * marks upsert, so the ON CONFLICT target includes school_id.
+   * Returns true when displayed class-highest values changed.
    */
   static async recomputeExamClassStats(
     tx: Prisma.TransactionClient,
     examId: number,
     klass: number,
     year: number,
-  ) {
+  ): Promise<boolean> {
+    const oldRow = await tx.exam_class_stats.findFirst({
+      where: { exam_id: examId, class: klass, year },
+      select: {
+        highest_by_subject: true,
+        class_highest_total: true,
+        class_highest_grand_total: true,
+      },
+    });
     const { highestBySubject, classHighestTotal, classHighestGrandTotal } =
       await this.computeStats(tx, examId, klass, year);
+    const nextStats = {
+      highestBySubject,
+      classHighestTotal,
+      classHighestGrandTotal,
+    };
+    if (
+      oldRow &&
+      this.classStatsEqual(
+        {
+          highestBySubject: oldRow.highest_by_subject,
+          classHighestTotal: oldRow.class_highest_total,
+          classHighestGrandTotal: oldRow.class_highest_grand_total,
+        },
+        nextStats,
+      )
+    ) {
+      return false;
+    }
     await tx.$executeRaw`
       INSERT INTO exam_class_stats (exam_id, "class", year, highest_by_subject, class_highest_total, class_highest_grand_total)
       VALUES (${examId}, ${klass}, ${year}, ${JSON.stringify(highestBySubject)}::jsonb, ${classHighestTotal}, ${classHighestGrandTotal})
@@ -209,6 +280,7 @@ export class MarksService {
         class_highest_grand_total = EXCLUDED.class_highest_grand_total,
         updated_at = NOW()
     `;
+    return true;
   }
 
   static async addMarks(data: any, user: any) {
@@ -338,17 +410,59 @@ export class MarksService {
     }
 
     const rows = Array.from(rowsByKey.values());
+    const studentIdByEnrollmentId = new Map(
+      enrollments.map((e) => [e.id, e.student_id]),
+    );
 
+    // Only touch rows whose values actually changed so updated_at (and
+    // marksheet input_hash) are not bumped for the whole class on one edit.
+    let changedRows = rows;
     if (rows.length > 0) {
+      const existingMarks = await prisma.marks.findMany({
+        where: {
+          exam_id: exam.id,
+          enrollment_id: { in: [...new Set(rows.map((r) => r.enrollment_id))] },
+          subject_id: { in: [...new Set(rows.map((r) => r.subject_id))] },
+        },
+        select: {
+          enrollment_id: true,
+          subject_id: true,
+          cq_marks: true,
+          mcq_marks: true,
+          practical_marks: true,
+          marks: true,
+        },
+      });
+      const existingByKey = new Map(
+        existingMarks.map((m) => [`${m.enrollment_id}_${m.subject_id}`, m]),
+      );
+      changedRows = rows.filter((r) =>
+        this.markRowChanged(
+          existingByKey.get(`${r.enrollment_id}_${r.subject_id}`),
+          r,
+        ),
+      );
+    }
+
+    const changedStudentIds = [
+      ...new Set(
+        changedRows
+          .map((r) => studentIdByEnrollmentId.get(r.enrollment_id))
+          .filter((id): id is number => id != null),
+      ),
+    ];
+
+    if (changedRows.length > 0) {
       // Single bulk upsert. Raw SQL bypasses the per-operation RLS extension,
       // so replicate its set_config calls inside the transaction; school_id
       // is filled by the BEFORE INSERT trigger from that context.
       const rlsContext = getRlsContext();
-      const values = rows.map(
+      const values = changedRows.map(
         (r) =>
           Prisma.sql`(${r.enrollment_id}, ${r.subject_id}, ${exam.id}, ${r.cq_marks}, ${r.mcq_marks}, ${r.practical_marks}, ${r.marks})`,
       );
 
+      const classesWithStatsChange: number[] = [];
       await prisma.$transaction(async (tx) => {
         if (rlsContext) {
           await tx.$executeRaw`
@@ -371,44 +485,41 @@ export class MarksService {
             updated_at = NOW()
         `;
 
-        // Refresh the cached class-highest stats for every (class) touched by
-        // this write, in the same tx so the aggregates see the rows just
-        // inserted. Marksheet generation reads these instead of rescanning.
-        // Flag inRlsTransaction so the Prisma RLS extension runs the groupBy
-        // ops directly on THIS tx (set_config already applied above) instead
-        // of spawning a nested transaction that can't see the uncommitted rows.
         const affectedClasses = new Set<number>();
-        for (const r of rows) {
+        for (const r of changedRows) {
           const cls = enrollmentClassById.get(r.enrollment_id);
           if (cls !== undefined) affectedClasses.add(cls);
         }
         patchRlsContext({ inRlsTransaction: true });
         try {
           for (const cls of affectedClasses) {
-            await this.recomputeExamClassStats(tx, exam.id, cls, yearInt);
+            const statsChanged = await this.recomputeExamClassStats(
+              tx,
+              exam.id,
+              cls,
+              yearInt,
+            );
+            if (statsChanged) classesWithStatsChange.push(cls);
           }
         } finally {
           patchRlsContext({ inRlsTransaction: false });
         }
       });
 
-      // If the result is already published, editing marks makes the affected
-      // students' (and their classmates', via class-highest) cached sheets
-      // stale. Re-generate in the background. Dynamic import breaks the
-      // marks <-> marksheet service require cycle.
       if (exam.visible) {
-        const affectedClasses = new Set<number>();
-        for (const r of rows) {
-          const cls = enrollmentClassById.get(r.enrollment_id);
-          if (cls !== undefined) affectedClasses.add(cls);
-        }
         try {
           const { MarksheetService } = await import("./marksheet.service.js");
-          await MarksheetService.invalidateClasses(
-            exam.id,
-            [...affectedClasses],
-            yearInt,
-          );
+          if (classesWithStatsChange.length > 0) {
+            // Class-highest on every sheet changed — whole class + bundle.
+            await MarksheetService.invalidateClasses(
+              exam.id,
+              classesWithStatsChange,
+              yearInt,
+            );
+          } else if (changedStudentIds.length > 0) {
+            // Only the edited student's own marks changed on the PDF.
+            await MarksheetService.invalidate(changedStudentIds, exam.id);
+          }
         } catch (invErr) {
           console.warn(
             "Marksheet invalidation failed after addMarks:",
@@ -420,7 +531,7 @@ export class MarksService {
 
     return {
       success: true,
-      count: rows.length,
+      count: changedRows.length,
       errors: errors.length > 0 ? errors : undefined,
     };
   }
