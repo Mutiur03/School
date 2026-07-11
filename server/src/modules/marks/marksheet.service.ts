@@ -425,6 +425,82 @@ export class MarksheetService {
     return { ...students, bundles: tally(bundleGrouped) };
   }
 
+  /**
+   * Re-enqueue after the current Bull job finishes. Same jobId cannot be added
+   * while a handler is still active; setImmediate runs after this job completes.
+   */
+  private static deferStudentRequeue(job: StudentJob): void {
+    setImmediate(() => {
+      marksheetQueue
+        .add(job, {
+          jobId: jobId(job.examId, job.studentId),
+          ...defaultJobOpts(PRIORITY_BACKFILL),
+        })
+        .catch((e) =>
+          logger.warn("[marksheet] requeue(student) failed", {
+            studentId: job.studentId,
+            examId: job.examId,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
+    });
+  }
+
+  private static deferBundleRequeue(job: BundleJob): void {
+    setImmediate(() => {
+      marksheetQueue
+        .add(job, {
+          jobId: bundleJobId(job.examId, job.class),
+          ...defaultJobOpts(PRIORITY_BACKFILL),
+        })
+        .catch((e) =>
+          logger.warn("[marksheet] requeue(bundle) failed", {
+            examId: job.examId,
+            class: job.class,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
+    });
+  }
+
+  /**
+   * True when a concurrent mark edit invalidated this row or changed inputs
+   * while we were rendering — do not promote to ready.
+   */
+  private static async studentJobStale(
+    studentId: number,
+    examId: number,
+    year: number,
+    hashAtStart: string,
+  ): Promise<boolean> {
+    const [hashAtEnd, row] = await Promise.all([
+      this.computeInputHash(studentId, examId, year),
+      prisma.marksheet_files.findUnique({
+        where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
+        select: { status: true },
+      }),
+    ]);
+    return hashAtEnd !== hashAtStart || row?.status !== "generating";
+  }
+
+  private static async bundleJobStale(
+    examId: number,
+    cls: number,
+    year: number,
+    hashAtStart: string,
+  ): Promise<boolean> {
+    const [hashAtEnd, row] = await Promise.all([
+      this.computeBundleHash(examId, cls, year),
+      prisma.marksheet_bundles.findUnique({
+        where: {
+          exam_id_class_section: { exam_id: examId, class: cls, section: "ALL" },
+        },
+        select: { status: true },
+      }),
+    ]);
+    return hashAtEnd !== hashAtStart || row?.status !== "generating";
+  }
+
   /** Queue entrypoint: dispatch to the student or bundle processor. */
   static async processJob(job: MarksheetJob): Promise<void> {
     if (job.kind === "bundle") {
@@ -463,24 +539,36 @@ export class MarksheetService {
         }
         logger.info("[marksheet] job(student): claimed", { studentId, examId });
 
+        const whereStudent = {
+          student_id_exam_id: { student_id: studentId, exam_id: examId },
+        };
         try {
-          const hash = await this.computeInputHash(studentId, examId, year);
+          const hashAtStart = await this.computeInputHash(studentId, examId, year);
           const row = await prisma.marksheet_files.findUnique({
-            where: {
-              student_id_exam_id: { student_id: studentId, exam_id: examId },
-            },
+            where: whereStudent,
             select: { input_hash: true, r2_key: true },
           });
           // Nothing changed and the object is still there — no render needed.
           if (
-            row?.input_hash === hash &&
+            row?.input_hash === hashAtStart &&
             row.r2_key &&
             (await headObject(row.r2_key))
           ) {
+            if (await this.studentJobStale(studentId, examId, year, hashAtStart)) {
+              await prisma.marksheet_files.update({
+                where: whereStudent,
+                data: { status: "pending", error: null },
+              });
+              this.deferStudentRequeue(job);
+              logger.info("[marksheet] job(student): DEFER after skip (concurrent edit)", {
+                studentId,
+                examId,
+                ms: Date.now() - t0,
+              });
+              return;
+            }
             await prisma.marksheet_files.update({
-              where: {
-                student_id_exam_id: { student_id: studentId, exam_id: examId },
-              },
+              where: whereStudent,
               data: { status: "ready", error: null },
             });
             logger.info("[marksheet] job(student): SKIP render (inputs unchanged)", {
@@ -496,7 +584,7 @@ export class MarksheetService {
             examId,
             reason: !row?.input_hash
               ? "first-render"
-              : row.input_hash !== hash
+              : row.input_hash !== hashAtStart
                 ? "inputs-changed"
                 : "r2-missing",
           });
@@ -509,14 +597,37 @@ export class MarksheetService {
             );
           const key = this.r2Key(schoolId, year, examId, studentId);
           await uploadToR2(key, buffer);
+
+          const hashAtEnd = await this.computeInputHash(studentId, examId, year);
+          const afterRender = await prisma.marksheet_files.findUnique({
+            where: whereStudent,
+            select: { status: true },
+          });
+          if (
+            hashAtEnd !== hashAtStart ||
+            afterRender?.status !== "generating"
+          ) {
+            await prisma.marksheet_files.update({
+              where: whereStudent,
+              data: { status: "pending", error: null },
+            });
+            this.deferStudentRequeue(job);
+            logger.info("[marksheet] job(student): DEFER after render (concurrent edit)", {
+              studentId,
+              examId,
+              key,
+              bytes: buffer.length,
+              ms: Date.now() - t0,
+            });
+            return;
+          }
+
           await prisma.marksheet_files.update({
-            where: {
-              student_id_exam_id: { student_id: studentId, exam_id: examId },
-            },
+            where: whereStudent,
             data: {
               status: "ready",
               r2_key: key,
-              input_hash: hash,
+              input_hash: hashAtEnd,
               student_name: studentName,
               generated_at: new Date(),
               error: null,
@@ -879,16 +990,29 @@ export class MarksheetService {
           exam_id_class_section: { exam_id: examId, class: cls, section: "ALL" },
         };
         try {
-          const hash = await this.computeBundleHash(examId, cls, year);
+          const hashAtStart = await this.computeBundleHash(examId, cls, year);
           const row = await prisma.marksheet_bundles.findUnique({
             where: whereKey,
             select: { input_hash: true, r2_key: true },
           });
           if (
-            row?.input_hash === hash &&
+            row?.input_hash === hashAtStart &&
             row.r2_key &&
             (await headObject(row.r2_key))
           ) {
+            if (await this.bundleJobStale(examId, cls, year, hashAtStart)) {
+              await prisma.marksheet_bundles.update({
+                where: whereKey,
+                data: { status: "pending", error: null },
+              });
+              this.deferBundleRequeue(job);
+              logger.info("[marksheet] job(bundle): DEFER after skip (concurrent edit)", {
+                examId,
+                class: cls,
+                ms: Date.now() - t0,
+              });
+              return;
+            }
             await prisma.marksheet_bundles.update({
               where: whereKey,
               data: { status: "ready", error: null },
@@ -911,12 +1035,37 @@ export class MarksheetService {
           );
           const key = this.r2BundleKey(schoolId, year, examId, cls);
           await uploadToR2(key, buffer);
+
+          const hashAtEnd = await this.computeBundleHash(examId, cls, year);
+          const afterRender = await prisma.marksheet_bundles.findUnique({
+            where: whereKey,
+            select: { status: true },
+          });
+          if (
+            hashAtEnd !== hashAtStart ||
+            afterRender?.status !== "generating"
+          ) {
+            await prisma.marksheet_bundles.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            this.deferBundleRequeue(job);
+            logger.info("[marksheet] job(bundle): DEFER after render (concurrent edit)", {
+              examId,
+              class: cls,
+              key,
+              bytes: buffer.length,
+              ms: Date.now() - t0,
+            });
+            return;
+          }
+
           await prisma.marksheet_bundles.update({
             where: whereKey,
             data: {
               status: "ready",
               r2_key: key,
-              input_hash: hash,
+              input_hash: hashAtEnd,
               generated_at: new Date(),
               error: null,
             },
