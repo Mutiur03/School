@@ -46,6 +46,7 @@ import registrationFormClass8Router from "./modules/registration/class-8/Form/re
 import registrationSettingsClass9Router from "./modules/registration/class-9/Settings/registrationSettingsClass9.route.js";
 import registrationFormClass9Router from "./modules/registration/class-9/Form/registrationFormClass9.route.js";
 import { check } from "./config/redis.js";
+import { startMarksheetWorker } from "./modules/marks/marksheet.worker.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
@@ -303,5 +304,6 @@ app.listen(PORT, () => {
     health: `http://localhost:${PORT}/api/health`,
   });
   check();
+  startMarksheetWorker();
 });
 export default app;

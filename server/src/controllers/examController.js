@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma.js";
 import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
+import { MarksheetService } from "../modules/marks/marksheet.service.js";
 
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
@@ -138,9 +139,39 @@ export const updateExamVisibilityController = async (req, res) => {
       where: { id: parsedExamId },
     });
 
+    // Publishing a result: warm the marksheet cache in the background so the
+    // heavy PDF rasterization happens before students request downloads.
+    let pregen;
+    if (visible && result) {
+      try {
+        console.log(
+          `[marksheet] publish: exam ${result.id} "${result.exam_name}" (${result.exam_year}) -> queueing marksheets`,
+        );
+        pregen = await MarksheetService.enqueueForExam(
+          result.id,
+          result.school_id,
+          result.exam_name,
+        );
+        await MarksheetService.enqueueBundlesForExam(
+          result.id,
+          result.school_id,
+          result.exam_name,
+        );
+        console.log(
+          `[marksheet] publish: exam ${result.id} queued ${pregen?.queued ?? 0} student marksheet(s)`,
+        );
+      } catch (queueErr) {
+        console.error(
+          "Failed to queue marksheet pregeneration:",
+          queueErr instanceof Error ? queueErr.message : queueErr,
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       data: result,
+      queued: pregen?.queued ?? 0,
       message: `Exam visibility updated to ${visible}`,
     });
   } catch (error) {

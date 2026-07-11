@@ -1,6 +1,7 @@
 import asyncHandler from "@/utils/asyncHandler.js";
 import { Request, Response } from "express";
 import { MarksService } from "./marks.service.js";
+import { MarksheetService } from "./marksheet.service.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
 
@@ -108,9 +109,9 @@ export class MarksController {
           "Student id, year, and exam are required parameters",
         );
       }
-      const { buffer, studentName } = await MarksService.generateMarksheetPDF(
-        id as string,
-        year as string,
+      const { buffer, studentName } = await MarksheetService.serve(
+        Number(id),
+        Number(year),
         exam as string,
         req.user,
       );
@@ -121,6 +122,19 @@ export class MarksController {
         `inline; filename="${filename}"`,
       );
       res.end(buffer);
+    },
+  );
+
+  static generationStatusController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { examId } = req.params;
+      if (!examId) {
+        throw new ApiError(400, "examId is required");
+      }
+      const counts = await MarksheetService.statusCounts(Number(examId));
+      res
+        .status(200)
+        .json(new ApiResponse(200, counts, "Marksheet status fetched"));
     },
   );
 
@@ -172,20 +186,25 @@ export class MarksController {
           "className, year, and exam are required parameters",
         );
       }
-      const pdfBuffer = await MarksService.generateBulkExamMarksheetsPDF(
-        year as string,
+      const result = await MarksheetService.serveBundle(
+        Number(year),
         className as string,
         exam as string,
-        undefined,
         req.user,
       );
+      if (result.kind === "redirect") {
+        res
+          .status(200)
+          .json(new ApiResponse(200, { url: result.url }, "Download ready"));
+        return;
+      }
       const filename = `class_${className}_${exam}_${year}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
         `inline; filename="${filename}"`,
       );
-      res.end(pdfBuffer);
+      res.end(result.buffer);
     },
   );
 

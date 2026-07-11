@@ -34,13 +34,63 @@ interface UserWithLevels {
   levels?: TeacherLevel[];
 }
 
+interface ViewMarksFilters {
+  year: string;
+  exam: string;
+  className: string;
+  section: string;
+  group: string;
+}
+
+const VIEW_MARKS_STORAGE_KEY = "viewMarks.filters";
+
+const loadViewMarksFilters = (): ViewMarksFilters | null => {
+  try {
+    const raw = localStorage.getItem(VIEW_MARKS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ViewMarksFilters>;
+    return {
+      year: parsed.year ?? String(new Date().getFullYear()),
+      exam: parsed.exam ?? "",
+      className: parsed.className ?? "",
+      section: parsed.section ?? "",
+      group: parsed.group ?? "",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const saveViewMarksFilters = (filters: ViewMarksFilters) => {
+  localStorage.setItem(VIEW_MARKS_STORAGE_KEY, JSON.stringify(filters));
+};
+
+let cachedInitialFilters: ViewMarksFilters | undefined;
+
+const getInitialViewMarksFilters = (): ViewMarksFilters => {
+  if (!cachedInitialFilters) {
+    cachedInitialFilters = loadViewMarksFilters() ?? {
+      year: new Date().getFullYear().toString(),
+      exam: "",
+      className: "",
+      section: "",
+      group: "",
+    };
+  }
+  return cachedInitialFilters;
+};
+
 const ViewMarks = () => {
   const { user } = useAuth();
-  const [className, setClassName] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear().toString());
-  const [exam, setExam] = useState("");
-  const [section, setSection] = useState("");
-  const [group, setGroup] = useState("");
+  const [className, setClassName] = useState(
+    () => getInitialViewMarksFilters().className,
+  );
+  const [year, setYear] = useState(() => getInitialViewMarksFilters().year);
+  const [exam, setExam] = useState(() => getInitialViewMarksFilters().exam);
+  const [section, setSection] = useState(
+    () => getInitialViewMarksFilters().section,
+  );
+  const [group, setGroup] = useState(() => getInitialViewMarksFilters().group);
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentMarkResponse | null>(null);
 
@@ -82,6 +132,10 @@ const ViewMarks = () => {
       availableGroups: Array.from(groups).sort()
     };
   }, [marksData]);
+
+  useEffect(() => {
+    saveViewMarksFilters({ year, exam, className, section, group });
+  }, [year, exam, className, section, group]);
 
   // Handle teacher assignments
   useEffect(() => {
@@ -140,27 +194,42 @@ const ViewMarks = () => {
       toast.error("Please select Class, Year and Exam");
       return;
     }
-    const loadingToast = toast.loading("Generating bulk PDFs...");
-    
+    const loadingToast = toast.loading("Generating transcript...");
+
     const newWindow = window.open("", "_blank");
     if (newWindow) {
-      newWindow.document.write("Generating all student marksheets... Please wait.");
+      newWindow.document.write("Loading marksheet... If this takes too long, please check for errors.");
     }
 
     try {
       const response = await axios.get(
         `/api/marks/class-exam/${className}/${year}/${exam}/download`,
-        { responseType: "blob" }
+        {
+          responseType: "blob",
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        },
       );
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      openBlobInNewTab(blob, newWindow ?? undefined);
-
+      const blob = response.data as Blob;
+      if (blob.type.includes("json")) {
+        const { data } = JSON.parse(await blob.text()) as {
+          data?: { url?: string };
+        };
+        const url = data?.url;
+        if (!url) throw new Error("Missing download URL");
+        if (newWindow) newWindow.location.href = url;
+        else window.open(url, "_blank");
+      } else {
+        openBlobInNewTab(
+          new Blob([blob], { type: "application/pdf" }),
+          newWindow ?? undefined,
+        );
+      }
       toast.dismiss(loadingToast);
-      toast.success("PDFs generated successfully");
     } catch {
       toast.dismiss(loadingToast);
       if (newWindow) newWindow.close();
-      toast.error("Failed to download all exam marksheets");
+      toast.error("Failed to download marksheet");
     }
   };
 

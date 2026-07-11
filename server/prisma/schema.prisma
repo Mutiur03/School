@@ -72,6 +72,8 @@ model School {
   sms_settings     sms_settings?
   siteConfig       SchoolSiteConfig?
   exam_class_stats exam_class_stats[]
+  marksheet_files  marksheet_files[]
+  marksheet_bundles marksheet_bundles[]
 
   @@index([name])
   @@index([subdomain])
@@ -294,6 +296,59 @@ model exam_class_stats {
 
   @@unique([exam_id, class, year, school_id], name: "unique_exam_class_stats")
   @@index([exam_id])
+  @@index([school_id])
+}
+
+// Pre-generated student marksheet PDFs cached in R2. NOT a tenant model:
+// school_id is set explicitly in code (no RLS trigger/policy). The Postgres
+// rows are pure cache — source of truth is marks; a lost R2 object regenerates.
+model marksheet_files {
+  id           Int       @id @default(autoincrement())
+  student_id   Int
+  exam_id      Int
+  exam_name    String    @db.VarChar(100) // denormalized so the worker/recovery need no tenant query
+  year         Int
+  status       String    @default("pending") // pending | generating | ready | failed
+  r2_key       String?
+  input_hash   String?   // fingerprint of render inputs; skip regen when unchanged
+  student_name String?   // for Content-Disposition filename when serving from cache
+  attempts     Int       @default(0)
+  error        String?
+  generated_at DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  school_id    Int
+  school       School    @relation(fields: [school_id], references: [id])
+
+  @@unique([student_id, exam_id], name: "student_id_exam_id")
+  @@index([exam_id, status])
+  @@index([school_id])
+  @@index([status])
+}
+
+// Pre-generated whole-class exam marksheet bundles (one PDF for a class+exam).
+// Same cache semantics as marksheet_files. Only the admin full-class view is
+// cached; teachers get a section-filtered subset generated inline.
+model marksheet_bundles {
+  id           Int       @id @default(autoincrement())
+  exam_id      Int
+  exam_name    String    @db.VarChar(100)
+  year         Int
+  class        Int
+  section      String    @default("ALL") @db.VarChar(20) // "ALL" = whole class
+  status       String    @default("pending") // pending | generating | ready | failed
+  r2_key       String?
+  input_hash   String?
+  attempts     Int       @default(0)
+  error        String?
+  generated_at DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  school_id    Int
+  school       School    @relation(fields: [school_id], references: [id])
+
+  @@unique([exam_id, class, section], name: "exam_id_class_section")
+  @@index([exam_id, status])
   @@index([school_id])
 }
 

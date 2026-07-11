@@ -391,6 +391,31 @@ export class MarksService {
           patchRlsContext({ inRlsTransaction: false });
         }
       });
+
+      // If the result is already published, editing marks makes the affected
+      // students' (and their classmates', via class-highest) cached sheets
+      // stale. Re-generate in the background. Dynamic import breaks the
+      // marks <-> marksheet service require cycle.
+      if (exam.visible) {
+        const affectedClasses = new Set<number>();
+        for (const r of rows) {
+          const cls = enrollmentClassById.get(r.enrollment_id);
+          if (cls !== undefined) affectedClasses.add(cls);
+        }
+        try {
+          const { MarksheetService } = await import("./marksheet.service.js");
+          await MarksheetService.invalidateClasses(
+            exam.id,
+            [...affectedClasses],
+            yearInt,
+          );
+        } catch (invErr) {
+          console.warn(
+            "Marksheet invalidation failed after addMarks:",
+            invErr instanceof Error ? invErr.message : invErr,
+          );
+        }
+      }
     }
 
     return {
@@ -2936,9 +2961,35 @@ export class MarksService {
       );
     }
 
-    return await prisma.student_enrollments.update({
+    const updated = await prisma.student_enrollments.update({
       where: { id: enrollment.id },
       data: { fourth_subject_id: subjectId },
     });
+
+    // 4th subject changes the rendered sheet. Invalidate any published exams'
+    // cached marksheets for this student.
+    try {
+      const publishedExamIds = await prisma.marks.findMany({
+        where: {
+          enrollment_id: enrollment.id,
+          exam: { visible: true, exam_year: yInt },
+        },
+        distinct: ["exam_id"],
+        select: { exam_id: true },
+      });
+      if (publishedExamIds.length > 0) {
+        const { MarksheetService } = await import("./marksheet.service.js");
+        for (const { exam_id } of publishedExamIds) {
+          await MarksheetService.invalidate([sId], exam_id);
+        }
+      }
+    } catch (invErr) {
+      console.warn(
+        "Marksheet invalidation failed after updateFourthSubject:",
+        invErr instanceof Error ? invErr.message : invErr,
+      );
+    }
+
+    return updated;
   }
 }

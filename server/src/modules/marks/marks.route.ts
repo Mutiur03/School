@@ -33,6 +33,24 @@ router.get(
 );
 
 router.get(
+  "/class-exam/:className/:year/:exam/download",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  MarksController.downloadClassExamMarksheetPDFController,
+);
+
+router.get(
+  "/generation-status/:examId",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  MarksController.generationStatusController,
+);
+
+router.get(
+  "/all/:year",
+  AuthMiddleware.authenticate(["admin"]),
+  MarksController.downloadAllMarksheetPDFController,
+);
+
+router.get(
   "/:id/:year/preview",
   AuthMiddleware.authenticate(["admin", "teacher", "student"]),
   MarksController.getIndividualSessionMarksPreviewController,
@@ -47,17 +65,6 @@ router.get(
   "/:id/:year/:exam/download",
   AuthMiddleware.authenticate(["admin", "teacher", "student"]),
   MarksController.generateMarksheetController,
-);
-router.get(
-  "/all/:year",
-  AuthMiddleware.authenticate(["admin"]),
-  MarksController.downloadAllMarksheetPDFController,
-);
-
-router.get(
-  "/class-exam/:className/:year/:exam/download",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
-  MarksController.downloadClassExamMarksheetPDFController,
 );
 
 router.post(

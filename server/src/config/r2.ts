@@ -2,7 +2,9 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
   CreateMultipartUploadCommand,
   UploadPartCommand,
   CompleteMultipartUploadCommand,
@@ -101,6 +103,62 @@ export const deleteFromR2 = async (key: string) => {
   } catch (error) {
     console.error("Error deleting from R2:", error);
   }
+};
+
+/** Upload a buffer directly (server-side put; no presign round-trip). */
+export const uploadToR2 = async (
+  key: string,
+  body: Buffer,
+  contentType = "application/pdf",
+) => {
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+};
+
+/** True if the object exists. Cheap (metadata only). */
+export const headObject = async (key: string): Promise<boolean> => {
+  if (!key) return false;
+  try {
+    await r2Client.send(
+      new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
+    );
+    return true;
+  } catch (error: any) {
+    if (
+      error.name === "NotFound" ||
+      error.name === "NoSuchKey" ||
+      error.$metadata?.httpStatusCode === 404
+    ) {
+      return false;
+    }
+    throw error;
+  }
+};
+
+/** List object keys under a prefix (paginated). For reconciliation sweeps. */
+export const listKeys = async (prefix: string): Promise<string[]> => {
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const res = await r2Client.send(
+      new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const obj of res.Contents ?? []) {
+      if (obj.Key) keys.push(obj.Key);
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+  return keys;
 };
 
 export const getFileBuffer = async (key: string) => {
