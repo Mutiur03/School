@@ -19,7 +19,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useExams } from "@/queries/exam.queries";
-import { useClassMarks, type StudentMarkResponse } from "@/queries/marks.queries";
+import {
+  useClassMarks,
+  useMarksheetGenerationStatus,
+  isMarksheetGenComplete,
+  hasStaleBundles,
+  type StudentMarkResponse,
+  type MarksheetGenStatus,
+} from "@/queries/marks.queries";
+import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
+import { BundleStalePreview } from "@/components/BundleStalePreview";
 import { openBlobInNewTab } from "@school/common-ui/blob";
 
 interface TeacherLevel {
@@ -110,6 +119,41 @@ const ViewMarks = () => {
     };
   }, [exams, year]);
 
+  const selectedExamId = useMemo(() => {
+    if (!exam || !year) return undefined;
+    return exams.find(
+      (e) => e.exam_name === exam && e.exam_year === Number(year),
+    )?.id;
+  }, [exams, exam, year]);
+
+  const { data: genStatus } = useMarksheetGenerationStatus(selectedExamId);
+
+  const startDownloadProgressToast = (
+    examId: number | undefined,
+    toastId: string,
+  ) => {
+    if (!examId) return () => undefined;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await axios.get<{ data: MarksheetGenStatus }>(
+          `/api/marks/generation-status/${examId}`,
+        );
+        const status = data.data;
+        if (status?.total > 0 && !isMarksheetGenComplete(status)) {
+          toast.loading(
+            `Generating marksheets… ${status.done}/${status.total}`,
+            { id: toastId },
+          );
+        }
+      } catch {
+        // Ignore polling errors while the download request is in flight.
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  };
+
   // Derived filter options from marks data
   const { subjects, availableSections, availableGroups } = useMemo(() => {
     const allSubjects = new Set<string>();
@@ -167,6 +211,7 @@ const ViewMarks = () => {
   const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const loadingToast = toast.loading("Generating transcript...");
+    const stopProgressToast = startDownloadProgressToast(selectedExamId, loadingToast);
     
     // Create new window immediately to bypass popup blockers
     const newWindow = window.open("", "_blank");
@@ -181,11 +226,12 @@ const ViewMarks = () => {
       );
       const blob = new Blob([response.data], { type: "application/pdf" });
       openBlobInNewTab(blob, newWindow ?? undefined);
-      toast.dismiss(loadingToast);
     } catch {
-      toast.dismiss(loadingToast);
       if (newWindow) newWindow.close();
       toast.error("Failed to download marksheet");
+    } finally {
+      stopProgressToast();
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -195,6 +241,7 @@ const ViewMarks = () => {
       return;
     }
     const loadingToast = toast.loading("Generating transcript...");
+    const stopProgressToast = startDownloadProgressToast(selectedExamId, loadingToast);
 
     const newWindow = window.open("", "_blank");
     if (newWindow) {
@@ -208,6 +255,7 @@ const ViewMarks = () => {
           responseType: "blob",
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
+          params: section ? { section } : undefined,
         },
       );
       const blob = response.data as Blob;
@@ -225,11 +273,12 @@ const ViewMarks = () => {
           newWindow ?? undefined,
         );
       }
-      toast.dismiss(loadingToast);
     } catch {
-      toast.dismiss(loadingToast);
       if (newWindow) newWindow.close();
       toast.error("Failed to download marksheet");
+    } finally {
+      stopProgressToast();
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -383,6 +432,10 @@ const ViewMarks = () => {
         </div>
       </SectionCard>
 
+      {exam && genStatus && !isMarksheetGenComplete(genStatus) && (
+        <MarksheetGenProgress status={genStatus} />
+      )}
+
       <SectionCard 
         noPadding 
         title="Student Marks"
@@ -390,14 +443,27 @@ const ViewMarks = () => {
         description={`Showing ${filteredData.length} records`}
         headerAction={
           className && exam && filteredData.length > 0 && (
-            <Button
-              size="sm"
-              onClick={downloadAllExamPDFs}
-              className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-all"
-            >
-              <Download className="w-4 h-4" />
-              Download All Exam PDFs
-            </Button>
+            <div className="flex flex-col items-end gap-2 max-w-xs">
+              {genStatus &&
+                hasStaleBundles(genStatus) &&
+                isMarksheetGenComplete(genStatus) && (
+                <BundleStalePreview
+                  items={genStatus.bundles.staleItems}
+                  classNum={className}
+                  sectionFilter={section || undefined}
+                  variant="block"
+                  className="text-left w-full"
+                />
+              )}
+              <Button
+                size="sm"
+                onClick={downloadAllExamPDFs}
+                className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-all shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                Download All Exam PDFs
+              </Button>
+            </div>
           )
         }
       >

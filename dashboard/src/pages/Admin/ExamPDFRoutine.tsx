@@ -13,6 +13,12 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import Loading from "@/components/Loading";
+import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
+import { BundleStalePreview } from "@/components/BundleStalePreview";
+import {
+  isMarksheetGenComplete,
+  type MarksheetGenStatus,
+} from "@/queries/marks.queries";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
@@ -39,20 +45,6 @@ interface UploadState {
   [key: number]: number | boolean | string | null;
 }
 
-interface GenTally {
-  pending: number;
-  generating: number;
-  ready: number;
-  failed: number;
-  skipped: number;
-  total: number;
-  done: number;
-}
-
-interface GenStatus extends GenTally {
-  bundles: GenTally;
-}
-
 function ExamPDFRoutine() {
   const [formData, setFormData] = useState<ExamFormData>({
     exam_name: "",
@@ -77,14 +69,8 @@ function ExamPDFRoutine() {
   const [selectedFiles, setSelectedFiles] = useState<UploadState>({});
 
   // Marksheet pre-generation progress, keyed by exam id.
-  const [genStatus, setGenStatus] = useState<Record<number, GenStatus>>({});
+  const [genStatus, setGenStatus] = useState<Record<number, MarksheetGenStatus>>({});
   const pollRefs = useRef<Record<number, ReturnType<typeof setInterval>>>({});
-
-  const isGenComplete = (s?: GenStatus) =>
-    !!s &&
-    s.total > 0 &&
-    s.done >= s.total &&
-    s.bundles.done >= s.bundles.total;
 
   const stopPolling = (examId: number) => {
     const handle = pollRefs.current[examId];
@@ -96,11 +82,11 @@ function ExamPDFRoutine() {
 
   const fetchGenStatus = async (examId: number) => {
     try {
-      const { data } = await axios.get<{ data: GenStatus }>(
+      const { data } = await axios.get<{ data: MarksheetGenStatus }>(
         `/api/marks/generation-status/${examId}`
       );
       setGenStatus((prev) => ({ ...prev, [examId]: data.data }));
-      if (isGenComplete(data.data)) stopPolling(examId);
+      if (isMarksheetGenComplete(data.data)) stopPolling(examId);
       return data.data;
     } catch {
       return undefined;
@@ -114,7 +100,7 @@ function ExamPDFRoutine() {
       ticks += 1;
       const status = await fetchGenStatus(examId);
       // Stop when everything is generated, or after a safety cap (~10 min).
-      if (isGenComplete(status) || ticks > 200) stopPolling(examId);
+      if (isMarksheetGenComplete(status) || ticks > 200) stopPolling(examId);
     }, 3000);
   };
 
@@ -126,18 +112,20 @@ function ExamPDFRoutine() {
     };
   }, []);
 
-  // When the exam list loads, fetch status once for published exams and keep
-  // polling any that still have work outstanding (e.g. after a page reload
-  // mid-generation).
+  // When the exam list loads, fetch status for any exam with outstanding work
+  // (published or hidden — workers keep generating after mark edits).
   useEffect(() => {
-    examList
-      .filter((e) => e.visible)
-      .forEach(async (e) => {
-        const status = await fetchGenStatus(e.id);
-        if (status && !isGenComplete(status) && !pollRefs.current[e.id]) {
-          startPolling(e.id);
-        }
-      });
+    examList.forEach(async (e) => {
+      const status = await fetchGenStatus(e.id);
+      if (
+        status &&
+        status.total > 0 &&
+        !isMarksheetGenComplete(status) &&
+        !pollRefs.current[e.id]
+      ) {
+        startPolling(e.id);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examList]);
 
@@ -244,15 +232,20 @@ function ExamPDFRoutine() {
             : "Result has been published"
         );
         const status = await fetchGenStatus(examId);
-        if (status && !isGenComplete(status)) startPolling(examId);
+        if (status && !isMarksheetGenComplete(status)) startPolling(examId);
       } else {
         toast.success("Result has been hidden");
-        stopPolling(examId);
-        setGenStatus((prev) => {
-          const next = { ...prev };
-          delete next[examId];
-          return next;
-        });
+        const status = await fetchGenStatus(examId);
+        if (status && !isMarksheetGenComplete(status)) {
+          if (!pollRefs.current[examId]) startPolling(examId);
+        } else {
+          stopPolling(examId);
+          setGenStatus((prev) => {
+            const next = { ...prev };
+            delete next[examId];
+            return next;
+          });
+        }
       }
       fetchExamList();
     } catch {
@@ -583,40 +576,18 @@ function ExamPDFRoutine() {
                           {exam.visible ? "Published" : "Hidden"}
                         </span>
                       </div>
-                      {exam.visible &&
-                        genStatus[exam.id] &&
-                        genStatus[exam.id].total > 0 &&
-                        (() => {
-                          const s = genStatus[exam.id];
-                          const pct = Math.round((s.done / s.total) * 100);
-                          const complete = isGenComplete(s);
-                          return (
-                            <div className="mt-2 w-40">
-                              <div className="flex justify-between text-[10px] font-medium text-muted-foreground mb-0.5">
-                                <span>
-                                  {complete
-                                    ? "Marksheets ready"
-                                    : "Generating marksheets"}
-                                </span>
-                                <span className="tabular-nums">
-                                  {s.done}/{s.total}
-                                </span>
-                              </div>
-                              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${complete ? "bg-green-500" : "bg-primary"
-                                    }`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              {s.failed > 0 && (
-                                <div className="text-[10px] text-destructive mt-0.5">
-                                  {s.failed} failed
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                      {genStatus[exam.id] && (
+                        <div className="flex flex-col gap-1">
+                          <MarksheetGenProgress
+                            status={genStatus[exam.id]}
+                            compact
+                          />
+                          <BundleStalePreview
+                            items={genStatus[exam.id].bundles.staleItems}
+                            variant="inline"
+                          />
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">

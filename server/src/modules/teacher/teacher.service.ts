@@ -16,6 +16,37 @@ export const sanitizeTeacher = (teacher: any) => {
   return rest;
 };
 
+async function invalidateMarksheetsForTeacher(teacherId: number): Promise<void> {
+  try {
+    const { MarksheetService } = await import(
+      "../marks/marksheet.service.js"
+    );
+    await MarksheetService.invalidateForTeacherProfile(teacherId);
+  } catch (err) {
+    console.warn(
+      "Marksheet invalidation failed after teacher profile change:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+async function invalidateMarksheetsForSchoolHead(
+  schoolId: number | undefined,
+): Promise<void> {
+  if (!schoolId) return;
+  try {
+    const { MarksheetService } = await import(
+      "../marks/marksheet.service.js"
+    );
+    await MarksheetService.invalidateForSchoolSignatureChange(schoolId);
+  } catch (err) {
+    console.warn(
+      "Marksheet invalidation failed after head message change:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
 export class TeacherService {
   static async getTeachersPaginated(
     params: {
@@ -194,6 +225,11 @@ export class TeacherService {
       );
     }
 
+    const existingTeacher = await prisma.teachers.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+
     const result = await prisma.teachers.update({
       where: { id },
       data: parsed.data,
@@ -202,6 +238,10 @@ export class TeacherService {
     // Clear head message cache
     const key = "head_msg_cache";
     await redis.del(key);
+
+    if (existingTeacher && existingTeacher.name !== parsed.data.name) {
+      await invalidateMarksheetsForTeacher(id);
+    }
 
     return sanitizeTeacher(result);
   }
@@ -263,6 +303,8 @@ export class TeacherService {
       where: { id },
       data: { signature: key || null },
     });
+
+    await invalidateMarksheetsForTeacher(id);
 
     return result;
   }
@@ -392,6 +434,10 @@ export class TeacherService {
       orderBy: { updated_at: "desc" },
     });
 
+    const headIdentityChanged =
+      teacherId != null ||
+      headRole !== undefined;
+
     if (existing) {
       await prisma.head_msg.update({
         where: { id: existing.id },
@@ -414,6 +460,10 @@ export class TeacherService {
     // Clear cache
     const key = `head_msg_cache_${schoolId ?? "global"}`;
     await redis.del(key);
+
+    if (headIdentityChanged) {
+      await invalidateMarksheetsForSchoolHead(schoolId);
+    }
 
     return { message: "Head message updated successfully" };
   }

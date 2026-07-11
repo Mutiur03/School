@@ -2,9 +2,27 @@ import { prisma } from "@/config/prisma.js";
 import { type LevelFormSchemaData } from "@school/shared-schemas";
 import { ApiError } from "@/utils/ApiError.js";
 
+async function invalidateMarksheetsForLevel(
+  className: number,
+  section: string,
+  year: number,
+): Promise<void> {
+  try {
+    const { MarksheetService } = await import(
+      "../marks/marksheet.service.js"
+    );
+    await MarksheetService.invalidateForClassSection(className, section, year);
+  } catch (err) {
+    console.warn(
+      "Marksheet invalidation failed after level change:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
 export class LevelService {
   static async addLevel(data: LevelFormSchemaData) {
-    return await prisma.levels.create({
+    const result = await prisma.levels.create({
       data: {
         class_name: data.class_name,
         section: data.section,
@@ -12,6 +30,12 @@ export class LevelService {
         teacher_id: data.teacher_id,
       },
     });
+    await invalidateMarksheetsForLevel(
+      result.class_name,
+      result.section,
+      result.year,
+    );
+    return result;
   }
 
   static async getAllLevels() {
@@ -46,7 +70,7 @@ export class LevelService {
       throw new ApiError(404, "Level assignment not found");
     }
 
-    return await prisma.levels.update({
+    const result = await prisma.levels.update({
       where: { id },
       data: {
         class_name: data.class_name,
@@ -55,6 +79,25 @@ export class LevelService {
         teacher_id: data.teacher_id,
       },
     });
+
+    await invalidateMarksheetsForLevel(
+      existingLevel.class_name,
+      existingLevel.section,
+      existingLevel.year,
+    );
+    if (
+      existingLevel.class_name !== data.class_name ||
+      existingLevel.section !== data.section ||
+      existingLevel.year !== data.year
+    ) {
+      await invalidateMarksheetsForLevel(
+        data.class_name,
+        data.section,
+        data.year,
+      );
+    }
+
+    return result;
   }
 
   static async deleteLevel(id: number) {
@@ -64,8 +107,16 @@ export class LevelService {
       throw new ApiError(404, "Level assignment not found");
     }
 
-    return await prisma.levels.delete({
+    const result = await prisma.levels.delete({
       where: { id },
     });
+
+    await invalidateMarksheetsForLevel(
+      existingLevel.class_name,
+      existingLevel.section,
+      existingLevel.year,
+    );
+
+    return result;
   }
 }
