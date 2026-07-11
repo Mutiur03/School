@@ -254,7 +254,7 @@ const resolveTenantTarget = (hostname, env) => {
     return {
       slug: clientSlug,
       origin: trimTrailingSlash(
-        String(env.CLIENT_PAGES_ORIGIN || "https://lbp-client.pages.dev").trim(),
+        String(env.CLIENT_PAGES_ORIGIN || "https://school-client-test.vercel.app").trim(),
       ),
     };
   }
@@ -485,6 +485,9 @@ export default {
 
         return finish(withCors(backendResponse, origin), "api-proxy");
       }
+
+      headers.delete("host");
+      headers.delete("content-length");
 
       return finish(await forwardRequest(request, targetUrl, headers), "pages-proxy");
     } catch (error) {

@@ -4,7 +4,6 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "client/**"
       - "dashboard/**"
       - "packages/**"
       - "package.json"
@@ -53,12 +52,6 @@ jobs:
             project_name: lbp-student
             env_file: .env.student.local
             default_role: student
-          - name: LBP Client
-            directory: client
-            workspace: client
-            build_script: build
-            project_name: lbp-client
-            env_file: .env.production.local
           - name: Super admin
             directory: dashboard
             workspace: dashboard
