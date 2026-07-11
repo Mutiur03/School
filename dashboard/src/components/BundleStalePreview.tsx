@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+// import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   filterStaleBundlesForContext,
@@ -43,27 +43,28 @@ export function BundleStalePreview({
   }
 
   return (
-    <div
-      className={cn(
-        "flex items-start gap-2 rounded-md border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
-        className,
-      )}
-    >
-      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-      <div className="min-w-0 space-y-1">
-        <p className="font-medium">
-          {filtered.length === 1
-            ? "This bundle will refresh on next download:"
-            : "These bundles will refresh on next download:"}
-        </p>
-        <ul className="list-disc pl-4 space-y-0.5 text-amber-700 dark:text-amber-300">
-          {filtered.map((item) => (
-            <li key={`${item.class}-${item.section}`}>
-              {formatBundleScope(item)}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    // <div
+    //   className={cn(
+    //     "flex items-start gap-2 rounded-md border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
+    //     className,
+    //   )}
+    // >
+    //   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+    //   <div className="min-w-0 space-y-1">
+    //     <p className="font-medium">
+    //       {filtered.length === 1
+    //         ? "This bundle will refresh on next download:"
+    //         : "These bundles will refresh on next download:"}
+    //     </p>
+    //     <ul className="list-disc pl-4 space-y-0.5 text-amber-700 dark:text-amber-300">
+    //       {filtered.map((item) => (
+    //         <li key={`${item.class}-${item.section}`}>
+    //           {formatBundleScope(item)}
+    //         </li>
+    //       ))}
+    //     </ul>
+    //   </div>
+    // </div>
+    <></>
   );
 }

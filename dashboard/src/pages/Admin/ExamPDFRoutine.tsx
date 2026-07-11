@@ -683,7 +683,7 @@ function ExamPDFRoutine() {
                               <div className="flex items-center gap-2 bg-muted dark:bg-card px-2 py-1 rounded text-xs">
                                 <FiFileText className="text-primary" />
                                 <span
-                                  className="truncate max-w-[120px]"
+                                  className="truncate max-w-30"
                                   title={typeof selectedFiles[exam.id] === "string" ? (selectedFiles[exam.id] as string) : undefined}
                                 >
                                   {selectedFiles[exam.id] &&

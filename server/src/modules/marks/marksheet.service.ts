@@ -608,9 +608,9 @@ export class MarksheetService {
   static async ensureQueuedForExam(examId: number): Promise<number> {
     const exam = await prisma.exams.findUnique({
       where: { id: examId },
-      select: { school_id: true, exam_name: true },
+      select: { school_id: true, exam_name: true, visible: true },
     });
-    if (!exam?.school_id) return 0;
+    if (!exam?.school_id || !exam.visible) return 0;
 
     const marks = await prisma.marks.findMany({
       where: { exam_id: examId, marks: { not: null } },

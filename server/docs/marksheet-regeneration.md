@@ -42,14 +42,14 @@ Legend: **✅ Auto** = background worker queued without a download. **❌ No** =
 | Change / event | Per-student exam | Class bundle | Session student | Session year |
 |----------------|------------------|--------------|-----------------|----------------|
 | **Publish exam** (`visible = true`) | ✅ Auto | ❌ No | ❌ No | ❌ No |
-| **Save marks** (only some students changed) | ✅ Auto (those students) | ❌ No* | ❌ No | ❌ No |
-| **Save marks** (class-highest changed) | ✅ Auto (whole class) | ❌ No* | ❌ No | ❌ No |
-| **4th subject changed** | ✅ Auto (that student, all exams in year) | ❌ No* | ❌ No* | ❌ No* |
+| **Save marks** (only some students changed) | ✅ Auto **if published** | ❌ No* | ❌ No | ❌ No |
+| **Save marks** (class-highest changed) | ✅ Auto **if published** (whole class) | ❌ No* | ❌ No | ❌ No |
+| **4th subject changed** | ✅ Auto **if exam published** | ❌ No* | ❌ No* | ❌ No* |
 | **Level create / update / delete** (class teacher) | ✅ Auto (students in section) | ✅ Auto (`section`, `ALL`, `A+B`) | ❌ No | ❌ No |
 | **Teacher name changed** | ✅ Auto (their sections) | ✅ Auto (same) | ❌ No | ❌ No |
 | **Teacher signature changed** | ✅ Auto | ✅ Auto | ❌ No | ❌ No |
 | **Head teacher / role changed** | ✅ Auto (whole school) | ✅ Auto (whole school) | ❌ No | ❌ No |
-| **Progress UI poll** (View Marks / Exam PDF Routine) | ✅ Auto if cache empty / `failed` | ❌ No | ❌ No | ❌ No |
+| **Progress UI poll** (View Marks / Exam PDF Routine) | ✅ Auto if cache empty / `failed` **and exam published** | ❌ No | ❌ No | ❌ No |
 | **Server restart** | ✅ Re-queues `pending` only | ✅ Re-queues `pending` bundles | ❌ No | ❌ No |
 | **Anyone downloads** | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale |
 
@@ -60,13 +60,14 @@ Legend: **✅ Auto** = background worker queued without a download. **❌ No** =
 ```
 AUTOMATIC (background worker):
   Publish              → per-student exam PDFs only
-  Mark save            → per-student (changed students, or whole class if class-highest changed)
-  4th subject          → per-student for that student (all exams in year)
+  Mark save            → per-student only when exam.visible = true
+  4th subject          → per-student only for published exams in that year
   Teacher / head / level → per-student + class bundles (affected scopes)
-  Progress UI poll     → per-student gap-fill only (ensureQueuedForExam)
+  Progress UI poll     → per-student gap-fill only when exam is published
 
-ON DOWNLOAD ONLY:
-  Class bundle         → after mark edits (unless teacher/head/level changed)
+ON DOWNLOAD ONLY (any visibility):
+  Unpublished exam     → per-student / bundle / session PDFs on request (hash check)
+  Class bundle         → after mark edits on published exams (unless teacher/head/level changed)
   Session PDFs         → always (first time and when hash stale)
   Any PDF type         → whenever cache is missing or hash does not match live data
 ```
@@ -91,17 +92,18 @@ These **queue Bull jobs** without anyone downloading.
 | | |
 |---|---|
 | **Where** | Enter marks screen |
-| **Logic** | Class-highest **values** changed → `invalidateClasses()` → whole class per-student PDFs |
-| | Otherwise → `invalidate(changedStudentIds)` → only changed students |
-| **Bundles** | Not invalidated — hash checked on next download |
+| **Published** (`exam.visible = true`) | Class-highest changed → `invalidateClasses()` → whole class; else → `invalidate(changedStudentIds)` |
+| **Unpublished** | Marks saved to DB only — **no** `invalidate`, **no** background PDF work |
+| **On download** | `serve()` hash check queues worker if stale/missing (works before or after publish) |
+| **Bundles** | Not invalidated on mark save — hash checked on next download |
 
 #### 3. 4th subject change
 
 | | |
 |---|---|
 | **Where** | Student fourth-subject update |
-| **Code** | `updateFourthSubject` → `invalidate([studentId])` for **every exam** in that year |
-| **PDFs** | Per-student only |
+| **Code** | `updateFourthSubject` → `invalidate([studentId])` for each **published** exam in that year |
+| **Unpublished exams** | No auto-invalidation — PDF refreshes on download |
 
 #### 4. Class-teacher assignment (levels)
 
@@ -134,7 +136,7 @@ These **queue Bull jobs** without anyone downloading.
 |---|---|
 | **Where** | View Marks or Exam PDF Routine polls `GET /api/marks/generation-status/:examId` |
 | **Code** | `ensureQueuedForExam()` before returning counts |
-| **When** | Marks exist but `marksheet_files` is empty or rows are `failed` |
+| **When** | Marks exist, exam is **published**, and `marksheet_files` is empty or rows are `failed` |
 | **PDFs** | Per-student only |
 
 #### 8. Server restart
@@ -173,7 +175,8 @@ These run **only when someone hits a download endpoint** and the stored hash say
 | Signature image replaced at same R2 path without DB change | Hash uses DB paths only |
 | Bundle after **mark-only** edit | Stale until download (UI shows outdated list) |
 | Session PDF after publish or mark save | On download only |
-| Empty cache with no publish, no progress UI, no download | Nothing starts the worker |
+| Save marks on **unpublished** exam | No invalidation; PDF on download only |
+| Save marks on **published** exam | Normal invalidate flow |
 
 ---
 
@@ -184,11 +187,11 @@ These run **only when someone hits a download endpoint** and the stored hash say
 | Trigger | Background queue? | Notes |
 |---------|-------------------|-------|
 | **Publish exam** | Yes | `enqueueForExam()` — all students with non-null marks |
-| **Save marks** (student changed, class-highest unchanged) | Yes | `invalidate(changedStudentIds)` |
-| **Save marks** (class-highest values changed) | Yes | `invalidateClasses()` — whole class |
-| **4th subject changed** | Yes | `invalidate([studentId])` for each exam in that year |
+| **Save marks** (student changed, class-highest unchanged) | Yes **if published** | `invalidate(changedStudentIds)` |
+| **Save marks** (class-highest values changed) | Yes **if published** | `invalidateClasses()` — whole class |
+| **4th subject changed** | Yes **if exam published** | `invalidate([studentId])` for each published exam in that year |
 | **Teacher / head / level assignment change** | Yes | `invalidateForClassSection` / `invalidateForTeacherProfile` / `invalidateForSchoolSignatureChange` |
-| **Progress UI poll** | Yes | `ensureQueuedForExam()` — gap-fill when marks exist but cache is empty or `failed` |
+| **Progress UI poll** | Yes **if published** | `ensureQueuedForExam()` — gap-fill when marks exist but cache is empty or `failed` |
 | **Server restart** | Yes | `recover()` re-queues rows still `pending` |
 | **Download** | If needed | `serve()` → hash check → wait for worker if stale |
 
@@ -502,15 +505,17 @@ Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
 ```
 1. Only upsert marks that actually changed (markRowChanged)
 2. Recompute exam_class_stats per affected class
-3. If class-highest VALUES changed → invalidateClasses (whole class students)
-   Else if students changed → invalidate(changedStudentIds) only
-4. Bundles are NOT invalidated here — hash check on next download
+3. IF exam.visible = false → skip marksheet invalidation (PDFs on download only)
+4. IF published AND class-highest VALUES changed → invalidateClasses (whole class students)
+   Else IF published AND students changed → invalidate(changedStudentIds) only
+5. Bundles are NOT invalidated here — hash check on next download
 ```
 
 | Edit scenario | Per-student auto queue? | Bundle |
 |---------------|-------------------------|--------|
-| One student, class-highest unchanged | That student only | On next download |
-| Class-highest changed | Whole class | On next download |
+| One student, class-highest unchanged (**published**) | That student only | On next download |
+| Class-highest changed (**published**) | Whole class | On next download |
+| Any mark edit (**unpublished**) | Nobody | On next download |
 | Class-teacher / head / signature change | Section students (or whole school) | **Auto-queue** section + `ALL` + matching `A+B` |
 | No value changes | Nobody | — |
 
@@ -654,7 +659,8 @@ sequenceDiagram
 | Question | Answer |
 |----------|--------|
 | What auto-generates on publish? | **Per-student exam PDFs only** |
-| What auto-generates on mark edit? | **Per-student** (or whole class if class-highest changed) |
+| What auto-generates on mark edit? | **Per-student** if exam **published** (or whole class if class-highest changed) |
+| Save marks while exam hidden? | **No** auto-invalidation — PDF on **download** only |
 | What auto-generates on teacher/head/level change? | **Per-student + class bundles** (affected scopes) |
 | What auto-generates on progress UI poll? | **Per-student gap-fill** (`ensureQueuedForExam`) |
 | Empty cache but marks exist — who starts jobs? | **Progress UI poll** → `ensureQueuedForExam` (View Marks / Exam PDF Routine) |

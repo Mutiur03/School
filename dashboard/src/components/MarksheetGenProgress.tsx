@@ -94,7 +94,7 @@ export function MarksheetGenProgress({
         )}
         {bundleStale > 0 && !bundleQueueActive && staleItems.length > 0 && (
           <ul
-            className="text-[10px] text-amber-600 dark:text-amber-500 mt-1 list-disc pl-3 space-y-0.5 max-w-[11rem]"
+            className="text-[10px] text-amber-600 dark:text-amber-500 mt-1 list-disc pl-3 space-y-0.5 max-w-44"
           >
             {staleItems.map((item) => (
               <li key={`${item.class}-${item.section}`} className="leading-tight">

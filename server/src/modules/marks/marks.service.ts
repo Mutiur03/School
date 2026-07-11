@@ -555,14 +555,17 @@ export class MarksService {
 
       try {
         const { MarksheetService } = await import("./marksheet.service.js");
-        if (classesWithStatsChange.length > 0) {
-          await MarksheetService.invalidateClasses(
-            exam.id,
-            classesWithStatsChange,
-            yearInt,
-          );
-        } else if (changedStudentIds.length > 0) {
-          await MarksheetService.invalidate(changedStudentIds, exam.id);
+        // Unpublished exams: save marks only — PDFs regenerate on download, not here.
+        if (exam.visible) {
+          if (classesWithStatsChange.length > 0) {
+            await MarksheetService.invalidateClasses(
+              exam.id,
+              classesWithStatsChange,
+              yearInt,
+            );
+          } else if (changedStudentIds.length > 0) {
+            await MarksheetService.invalidate(changedStudentIds, exam.id);
+          }
         }
       } catch (invErr) {
         console.warn(
@@ -669,6 +672,7 @@ export class MarksService {
               select: {
                 id: true,
                 name: true,
+                priority: true,
                 full_mark: true,
                 cq_mark: true,
                 mcq_mark: true,
@@ -700,6 +704,7 @@ export class MarksService {
         .map((mark: any) => ({
           subject_id: mark.subject.id,
           subject: mark.subject.name,
+          priority: mark.subject.priority ?? 0,
           cq_marks: mark.cq_marks,
           mcq_marks: mark.mcq_marks,
           practical_marks: mark.practical_marks,
@@ -3123,12 +3128,12 @@ export class MarksService {
       data: { fourth_subject_id: subjectId },
     });
 
-    // 4th subject changes the rendered sheet — invalidate worker cache always.
+    // 4th subject changes the rendered sheet — invalidate only for published exams.
     try {
       const affectedExams = await prisma.marks.findMany({
         where: {
           enrollment_id: enrollment.id,
-          exam: { exam_year: yInt },
+          exam: { exam_year: yInt, visible: true },
         },
         distinct: ["exam_id"],
         select: { exam_id: true },

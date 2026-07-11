@@ -37,6 +37,7 @@ export interface StudentMarkResponse {
   marks?: Array<{
     subject_id: number;
     subject: string;
+    priority?: number;
     cq_marks: number | null;
     mcq_marks: number | null;
     practical_marks: number | null;

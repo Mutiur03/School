@@ -156,24 +156,30 @@ const ViewMarks = () => {
 
   // Derived filter options from marks data
   const { subjects, availableSections, availableGroups } = useMemo(() => {
-    const allSubjects = new Set<string>();
+    const subjectPriority = new Map<string, number>();
     const sections = new Set<string>();
     const groups = new Set<string>();
 
     marksData.forEach((student) => {
       student.marks
-        ?.filter((subject) => subject.marks !== null)
-        .forEach((subject) => {
-          allSubjects.add(subject.subject);
+        ?.filter((mark) => mark.marks !== null)
+        .forEach((mark) => {
+          const prev = subjectPriority.get(mark.subject);
+          const p = mark.priority ?? 999;
+          if (prev === undefined || p < prev) {
+            subjectPriority.set(mark.subject, p);
+          }
         });
       if (student.section) sections.add(student.section);
       if (student.group) groups.add(student.group);
     });
 
     return {
-      subjects: Array.from(allSubjects).sort(),
+      subjects: [...subjectPriority.entries()]
+        .sort((a, b) => a[1] - b[1])
+        .map(([name]) => name),
       availableSections: Array.from(sections).sort(),
-      availableGroups: Array.from(groups).sort()
+      availableGroups: Array.from(groups).sort(),
     };
   }, [marksData]);
 
@@ -467,16 +473,16 @@ const ViewMarks = () => {
           )
         }
       >
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="overflow-x-auto min-h-100">
           <table className="w-full text-sm text-left border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/50 border-b border-border shadow-sm">
                 <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Roll</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic min-w-[200px]">Student Name</th>
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic min-w-50">Student Name</th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className="px-4 py-4 text-center font-semibold text-gray-900 dark:text-gray-100 italic min-w-[100px]"
+                    className="px-4 py-4 text-center font-semibold text-gray-900 dark:text-gray-100 italic min-w-25"
                   >
                     {subject}
                   </th>
@@ -657,6 +663,10 @@ const ViewMarks = () => {
                               );
                               return selectedStudent.marks
                                 .filter((mark) => mark.marks !== null)
+                                .sort(
+                                  (a, b) =>
+                                    (a.priority ?? 999) - (b.priority ?? 999),
+                                )
                                 .map((mark, index) => {
                                 // const percentage = mark.subject_info?.full_mark && mark.marks !== null
                                 //   ? (mark.marks / mark.subject_info.full_mark) * 100
