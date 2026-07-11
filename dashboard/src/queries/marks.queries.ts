@@ -120,12 +120,93 @@ export const useAddMarksMutation = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["class-marks"] });
+      queryClient.invalidateQueries({ queryKey: ["marksheet-gen-status"] });
       toast.success(data.message || "Marks saved successfully");
     },
     onError: (error: any) => {
       toast.error(
         error.response?.data?.error || "Failed to save marks"
       );
+    },
+  });
+};
+
+export interface StaleBundleItem {
+  class: number;
+  section: string;
+}
+
+export interface MarksheetGenTally {
+  pending: number;
+  generating: number;
+  ready: number;
+  failed: number;
+  skipped: number;
+  total: number;
+  done: number;
+  /** Ready rows whose hash no longer matches live inputs (bundles only). */
+  stale?: number;
+  /** Which bundle keys are stale (class + section scope). */
+  staleItems?: StaleBundleItem[];
+}
+
+/** Human label for a bundle cache key, e.g. "Class 10 (all sections)". */
+export const formatBundleScope = (item: StaleBundleItem): string =>
+  item.section === "ALL"
+    ? `Class ${item.class} (all sections)`
+    : `Class ${item.class} (${item.section})`;
+
+/** Stale bundles relevant to the current View Marks class/section filters. */
+export const filterStaleBundlesForContext = (
+  items: StaleBundleItem[] | undefined,
+  className: string | number | undefined,
+  sectionFilter?: string,
+): StaleBundleItem[] => {
+  const cls = Number(className);
+  if (!items?.length || !cls) return [];
+  return items.filter((b) => {
+    if (b.class !== cls) return false;
+    if (!sectionFilter) return true;
+    if (b.section === "ALL") return true;
+    if (b.section === sectionFilter) return true;
+    if (b.section.includes("+")) {
+      return b.section.split("+").includes(sectionFilter);
+    }
+    return false;
+  });
+};
+
+export const hasStaleBundles = (status?: MarksheetGenStatus | null) =>
+  (status?.bundles.stale ?? 0) > 0;
+
+export interface MarksheetGenStatus extends MarksheetGenTally {
+  bundles: MarksheetGenTally;
+}
+
+export const isMarksheetGenComplete = (status?: MarksheetGenStatus | null) =>
+  !!status &&
+  status.total > 0 &&
+  status.done >= status.total &&
+  status.pending === 0 &&
+  status.generating === 0 &&
+  (status.bundles.total === 0 ||
+    (status.bundles.pending === 0 && status.bundles.generating === 0));
+
+export const useMarksheetGenerationStatus = (examId: number | undefined) => {
+  return useQuery({
+    queryKey: ["marksheet-gen-status", examId],
+    queryFn: async () => {
+      const { data } = await axios.get<{ data: MarksheetGenStatus }>(
+        `/api/marks/generation-status/${examId}`,
+      );
+      return data.data;
+    },
+    enabled: !!examId,
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      if (!status || status.total === 0) return false;
+      if (hasStaleBundles(status)) return 30000;
+      return isMarksheetGenComplete(status) ? false : 3000;
     },
   });
 };

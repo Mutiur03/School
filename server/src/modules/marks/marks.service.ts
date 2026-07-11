@@ -129,6 +129,53 @@ export class MarksService {
     return false;
   }
 
+  /** Throws if the user may not download this student's marksheet for an exam. */
+  static async verifyMarksheetDownloadAccess(
+    studentId: number,
+    year: number | string,
+    examName: string,
+    user: any,
+  ): Promise<void> {
+    const yearInt = typeof year === "string" ? parseInt(year) : year;
+    const enrollment = await prisma.student_enrollments.findFirst({
+      where: { student_id: studentId, year: yearInt },
+      select: { class: true, section: true },
+    });
+    if (!enrollment) {
+      throw new Error("Student not enrolled for this year");
+    }
+    const hasMarks = examName
+      ? await prisma.marks.findFirst({
+          where: {
+            enrollment: { student_id: studentId, year: yearInt },
+            exam: { exam_name: examName, exam_year: yearInt },
+            marks: { not: null },
+          },
+          select: { id: true },
+        })
+      : await prisma.marks.findFirst({
+          where: {
+            enrollment: { student_id: studentId, year: yearInt },
+            marks: { not: null },
+          },
+          select: { id: true },
+        });
+    if (!hasMarks) {
+      throw new Error("No marks found for this student");
+    }
+    if (
+      !this.checkAccess(
+        user,
+        studentId,
+        enrollment.class,
+        enrollment.section,
+        yearInt,
+      )
+    ) {
+      throw new Error("You are not authorized to download this marksheet");
+    }
+  }
+
   /**
    * Class-highest stats for one (exam, class, year), computed with DB
    * aggregates instead of pulling every mark row into JS. Shared by the
@@ -506,26 +553,22 @@ export class MarksService {
         }
       });
 
-      if (exam.visible) {
-        try {
-          const { MarksheetService } = await import("./marksheet.service.js");
-          if (classesWithStatsChange.length > 0) {
-            // Class-highest on every sheet changed — whole class + bundle.
-            await MarksheetService.invalidateClasses(
-              exam.id,
-              classesWithStatsChange,
-              yearInt,
-            );
-          } else if (changedStudentIds.length > 0) {
-            // Only the edited student's own marks changed on the PDF.
-            await MarksheetService.invalidate(changedStudentIds, exam.id);
-          }
-        } catch (invErr) {
-          console.warn(
-            "Marksheet invalidation failed after addMarks:",
-            invErr instanceof Error ? invErr.message : invErr,
+      try {
+        const { MarksheetService } = await import("./marksheet.service.js");
+        if (classesWithStatsChange.length > 0) {
+          await MarksheetService.invalidateClasses(
+            exam.id,
+            classesWithStatsChange,
+            yearInt,
           );
+        } else if (changedStudentIds.length > 0) {
+          await MarksheetService.invalidate(changedStudentIds, exam.id);
         }
+      } catch (invErr) {
+        console.warn(
+          "Marksheet invalidation failed after addMarks:",
+          invErr instanceof Error ? invErr.message : invErr,
+        );
       }
     }
 
@@ -1049,6 +1092,7 @@ export class MarksService {
     examName: string,
     section?: string,
     user?: any,
+    sections?: string[],
   ) {
     const yearInt = parseInt(year);
     const classNum = parseInt(className);
@@ -1058,7 +1102,9 @@ export class MarksService {
       year: yearInt,
     };
 
-    if (user && user.role === "teacher") {
+    if (sections && sections.length > 0) {
+      where.section = { in: sections };
+    } else if (user && user.role === "teacher") {
       const assignedSections = user.levels
         ?.filter(
           (l: any) => l.class_name === classNum && l.year === yearInt
@@ -3077,20 +3123,19 @@ export class MarksService {
       data: { fourth_subject_id: subjectId },
     });
 
-    // 4th subject changes the rendered sheet. Invalidate any published exams'
-    // cached marksheets for this student.
+    // 4th subject changes the rendered sheet — invalidate worker cache always.
     try {
-      const publishedExamIds = await prisma.marks.findMany({
+      const affectedExams = await prisma.marks.findMany({
         where: {
           enrollment_id: enrollment.id,
-          exam: { visible: true, exam_year: yInt },
+          exam: { exam_year: yInt },
         },
         distinct: ["exam_id"],
         select: { exam_id: true },
       });
-      if (publishedExamIds.length > 0) {
+      if (affectedExams.length > 0) {
         const { MarksheetService } = await import("./marksheet.service.js");
-        for (const { exam_id } of publishedExamIds) {
+        for (const { exam_id } of affectedExams) {
           await MarksheetService.invalidate([sId], exam_id);
         }
       }

@@ -13,7 +13,7 @@ export type StudentJob = {
   schoolId: number;
 };
 
-// Whole-class exam bundle (one PDF for class+exam).
+// Whole-class or section-scoped exam bundle (one PDF for class+exam).
 export type BundleJob = {
   kind: "bundle";
   examId: number;
@@ -21,9 +21,28 @@ export type BundleJob = {
   year: number;
   class: number;
   schoolId: number;
+  /** "ALL" for admin whole class; single section or "A+B" for teacher scope. */
+  bundleSection?: string;
 };
 
-export type MarksheetJob = StudentJob | BundleJob;
+export type SessionStudentJob = {
+  kind: "session-student";
+  studentId: number;
+  year: number;
+  schoolId: number;
+};
+
+export type SessionYearJob = {
+  kind: "session-year";
+  year: number;
+  schoolId: number;
+};
+
+export type MarksheetJob =
+  | StudentJob
+  | BundleJob
+  | SessionStudentJob
+  | SessionYearJob;
 
 // Individual student marksheet pre-generation. Separate queue from the
 // admission pdfQueue so the two don't contend for the same workers.
@@ -47,5 +66,13 @@ export const defaultJobOpts = (priority: number): Bull.JobOptions => ({
 export const jobId = (examId: number, studentId: number) =>
   `ms:${examId}:${studentId}`;
 
-export const bundleJobId = (examId: number, cls: number) =>
-  `msb:${examId}:${cls}`;
+export const bundleJobId = (
+  examId: number,
+  cls: number,
+  bundleSection = "ALL",
+) => `msb:${examId}:${cls}:${bundleSection}`;
+
+export const sessionStudentJobId = (year: number, studentId: number) =>
+  `mss:${year}:${studentId}`;
+
+export const sessionYearJobId = (year: number) => `msy:${year}`;

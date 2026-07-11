@@ -139,8 +139,8 @@ export const updateExamVisibilityController = async (req, res) => {
       where: { id: parsedExamId },
     });
 
-    // Publishing a result: warm the marksheet cache in the background so the
-    // heavy PDF rasterization happens before students request downloads.
+    // Publishing a result: warm per-student marksheet cache in the background.
+    // Class bundles are generated on first download (hash-verified), not here.
     let pregen;
     if (visible && result) {
       try {
@@ -148,11 +148,6 @@ export const updateExamVisibilityController = async (req, res) => {
           `[marksheet] publish: exam ${result.id} "${result.exam_name}" (${result.exam_year}) -> queueing marksheets`,
         );
         pregen = await MarksheetService.enqueueForExam(
-          result.id,
-          result.school_id,
-          result.exam_name,
-        );
-        await MarksheetService.enqueueBundlesForExam(
           result.id,
           result.school_id,
           result.exam_name,

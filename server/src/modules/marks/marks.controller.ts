@@ -131,7 +131,9 @@ export class MarksController {
       if (!examId) {
         throw new ApiError(400, "examId is required");
       }
-      const counts = await MarksheetService.statusCounts(Number(examId));
+      const id = Number(examId);
+      await MarksheetService.ensureQueuedForExam(id);
+      const counts = await MarksheetService.statusCounts(id);
       res
         .status(200)
         .json(new ApiResponse(200, counts, "Marksheet status fetched"));
@@ -144,8 +146,9 @@ export class MarksController {
       if (!year) {
         throw new ApiError(400, "Year parameter is required");
       }
-      const pdfBuffer = await MarksService.generateAllMarksheetsPDF(
-        year as string,
+      const { buffer } = await MarksheetService.serveSessionYear(
+        Number(year),
+        req.user,
       );
       const filename = `all_marksheets_${year}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
@@ -153,7 +156,7 @@ export class MarksController {
         "Content-Disposition",
         `inline; filename="${filename}"`,
       );
-      res.end(pdfBuffer);
+      res.end(buffer);
     },
   );
 
@@ -163,9 +166,10 @@ export class MarksController {
       if (!id || !year) {
         throw new ApiError(400, "Student id and year are required");
       }
-      const pdfBuffer = await MarksService.generateAllMarksheetsPDF(
-        year as string,
-        id as string,
+      const { buffer } = await MarksheetService.serveSessionStudent(
+        Number(id),
+        Number(year),
+        req.user,
       );
       const filename = `session_marksheet_${id}_${year}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
@@ -173,7 +177,7 @@ export class MarksController {
         "Content-Disposition",
         `inline; filename="${filename}"`,
       );
-      res.end(pdfBuffer);
+      res.end(buffer);
     },
   );
 
@@ -186,25 +190,18 @@ export class MarksController {
           "className, year, and exam are required parameters",
         );
       }
+      const section =
+        typeof req.query.section === "string" ? req.query.section : undefined;
       const result = await MarksheetService.serveBundle(
         Number(year),
         className as string,
         exam as string,
         req.user,
+        section,
       );
-      if (result.kind === "redirect") {
-        res
-          .status(200)
-          .json(new ApiResponse(200, { url: result.url }, "Download ready"));
-        return;
-      }
-      const filename = `class_${className}_${exam}_${year}.pdf`;
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="${filename}"`,
-      );
-      res.end(result.buffer);
+      res
+        .status(200)
+        .json(new ApiResponse(200, { url: result.url }, "Download ready"));
     },
   );
 

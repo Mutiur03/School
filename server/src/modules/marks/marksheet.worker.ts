@@ -19,7 +19,14 @@ export function startMarksheetWorker(): void {
       jobId: job.id,
       kind: d?.kind ?? "student",
       examId: d?.examId,
-      target: d?.kind === "bundle" ? `class-${d?.class}` : d?.studentId,
+      target:
+        d?.kind === "bundle"
+          ? `class-${d?.class}:${d?.bundleSection ?? "ALL"}`
+          : d?.kind === "session-student"
+            ? `session-${d?.studentId}`
+            : d?.kind === "session-year"
+              ? `session-year-${d?.year}`
+              : d?.studentId,
     });
     await MarksheetService.processJob(job.data);
     return true;

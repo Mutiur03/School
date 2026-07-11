@@ -1,13 +1,427 @@
-# Marksheet regeneration — how it works
+# Marksheet PDF generation — overview
 
-This document explains when the system decides a marksheet needs to be regenerated, when the background worker actually re-renders the PDF, and how concurrent mark edits are handled.
+This document describes **all marksheet PDF types**, **when** they are generated, and **how** the worker/cache pipeline works.
 
-The system uses a **two-layer model**:
+**Rules (current):**
 
-1. **Staleness (DB status)** — something changed, so the row is marked `pending` and a job is queued.
-2. **Smart skip (input fingerprint)** — the worker compares a hash of render inputs; if nothing changed and the R2 file still exists, it skips the expensive PDF render.
+- All PDFs are rendered **only in the background worker** (PDFKit). HTTP handlers **never** render inline.
+- **Per-student exam PDFs** are pre-generated automatically on publish, mark changes, teacher/head invalidation, and when the **progress UI polls** `generation-status` (gap-fill for empty cache).
+- **Class bundles** (admin + teacher) generate **on download** (hash check), except they are **auto-queued** when a class-teacher or head assignment changes.
+- **Session PDFs** are generated **on download only**, with hash-verified R2 cache.
+- Postgres `marks` is the source of truth. R2 + cache tables are disposable cache.
 
-Postgres marks are the **source of truth**. R2 PDFs and `marksheet_files` / `marksheet_bundles` rows are **cache only**.
+---
+
+## PDF types at a glance
+
+| # | PDF | Who downloads | Cache table | R2 path pattern |
+|---|-----|---------------|-------------|-----------------|
+| 1 | **Per-student exam** | Student, teacher, admin, public | `marksheet_files` | `{school}/marksheets/{year}/{examId}/{studentId}.pdf` |
+| 2 | **Class bundle** | Admin (`ALL`), teacher (section) | `marksheet_bundles` | `{school}/marksheets/{year}/bundles/{examId}/class-{class}-{section}.pdf` |
+| 3 | **Session student** | Student, teacher, admin | *(none)* | `{school}/marksheets/{year}/session/student-{studentId}.pdf` |
+| 4 | **Session year** | Admin only | *(none)* | `{school}/marksheets/{year}/session/all.pdf` |
+
+**Renderer functions** (worker only):
+
+| PDF | Code |
+|-----|------|
+| Per-student exam | `MarksService.generateMarksheetPDF()` → `renderStudentReportPDF()` |
+| Class bundle | `MarksService.generateBulkExamMarksheetsPDF()` (one doc, page per student) |
+| Session (both) | `MarksService.generateAllMarksheetsPDF()` |
+
+---
+
+## What triggers what (master reference)
+
+This section answers: **when is PDF generation automatically triggered**, and **which change triggers which PDF type**.
+
+Legend: **✅ Auto** = background worker queued without a download. **❌ No** = not auto-queued (may still run **on download** if hash is stale). **On download** = only when someone hits a download endpoint.
+
+### Master trigger table
+
+| Change / event | Per-student exam | Class bundle | Session student | Session year |
+|----------------|------------------|--------------|-----------------|----------------|
+| **Publish exam** (`visible = true`) | ✅ Auto | ❌ No | ❌ No | ❌ No |
+| **Save marks** (only some students changed) | ✅ Auto (those students) | ❌ No* | ❌ No | ❌ No |
+| **Save marks** (class-highest changed) | ✅ Auto (whole class) | ❌ No* | ❌ No | ❌ No |
+| **4th subject changed** | ✅ Auto (that student, all exams in year) | ❌ No* | ❌ No* | ❌ No* |
+| **Level create / update / delete** (class teacher) | ✅ Auto (students in section) | ✅ Auto (`section`, `ALL`, `A+B`) | ❌ No | ❌ No |
+| **Teacher name changed** | ✅ Auto (their sections) | ✅ Auto (same) | ❌ No | ❌ No |
+| **Teacher signature changed** | ✅ Auto | ✅ Auto | ❌ No | ❌ No |
+| **Head teacher / role changed** | ✅ Auto (whole school) | ✅ Auto (whole school) | ❌ No | ❌ No |
+| **Progress UI poll** (View Marks / Exam PDF Routine) | ✅ Auto if cache empty / `failed` | ❌ No | ❌ No | ❌ No |
+| **Server restart** | ✅ Re-queues `pending` only | ✅ Re-queues `pending` bundles | ❌ No | ❌ No |
+| **Anyone downloads** | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale |
+
+\*Not auto-queued, but the dashboard shows them as **outdated** (`bundles.staleItems`); download regenerates from current marks.
+
+### Quick mental model
+
+```
+AUTOMATIC (background worker):
+  Publish              → per-student exam PDFs only
+  Mark save            → per-student (changed students, or whole class if class-highest changed)
+  4th subject          → per-student for that student (all exams in year)
+  Teacher / head / level → per-student + class bundles (affected scopes)
+  Progress UI poll     → per-student gap-fill only (ensureQueuedForExam)
+
+ON DOWNLOAD ONLY:
+  Class bundle         → after mark edits (unless teacher/head/level changed)
+  Session PDFs         → always (first time and when hash stale)
+  Any PDF type         → whenever cache is missing or hash does not match live data
+```
+
+---
+
+### Automatic triggers (detailed)
+
+These **queue Bull jobs** without anyone downloading.
+
+#### 1. Publish exam
+
+| | |
+|---|---|
+| **Where** | Exam PDF Routine → toggle **Published** |
+| **Code** | `enqueueForExam()` in `examController.js` |
+| **PDFs** | Per-student only — every student with non-null marks |
+| **Bundles** | Not pre-warmed |
+
+#### 2. Save marks (`addMarks`)
+
+| | |
+|---|---|
+| **Where** | Enter marks screen |
+| **Logic** | Class-highest **values** changed → `invalidateClasses()` → whole class per-student PDFs |
+| | Otherwise → `invalidate(changedStudentIds)` → only changed students |
+| **Bundles** | Not invalidated — hash checked on next download |
+
+#### 3. 4th subject change
+
+| | |
+|---|---|
+| **Where** | Student fourth-subject update |
+| **Code** | `updateFourthSubject` → `invalidate([studentId])` for **every exam** in that year |
+| **PDFs** | Per-student only |
+
+#### 4. Class-teacher assignment (levels)
+
+| | |
+|---|---|
+| **Where** | Level create / update / delete (`level.service.ts`) |
+| **Code** | `invalidateForClassSection(class, section, year)` |
+| **Per-student** | Students in that section who have marks |
+| **Bundles** | `section`, `ALL`, and matching `A+B` keys |
+
+#### 5. Teacher profile
+
+| | |
+|---|---|
+| **Name change** | `invalidateForTeacherProfile(teacherId)` — all sections that teacher teaches |
+| **Signature change** | Same (`teacher.service.ts`) |
+| **PDFs** | Per-student + bundles for affected sections |
+
+#### 6. Head teacher / head role
+
+| | |
+|---|---|
+| **Where** | School head settings (`teacher.service.ts`) |
+| **Code** | `invalidateForSchoolSignatureChange(schoolId)` |
+| **PDFs** | All per-student sheets + all bundles for that school |
+
+#### 7. Progress UI poll (gap-fill)
+
+| | |
+|---|---|
+| **Where** | View Marks or Exam PDF Routine polls `GET /api/marks/generation-status/:examId` |
+| **Code** | `ensureQueuedForExam()` before returning counts |
+| **When** | Marks exist but `marksheet_files` is empty or rows are `failed` |
+| **PDFs** | Per-student only |
+
+#### 8. Server restart
+
+| | |
+|---|---|
+| **Code** | `recover()` in `marksheet.worker.ts` on startup |
+| **Re-queues** | Rows still `pending`, or stuck `generating` → reset to `pending` |
+| **Does not** | Gap-fill missing rows (needs publish, progress poll, or download) |
+
+---
+
+### On-download triggers (not automatic)
+
+These run **only when someone hits a download endpoint** and the stored hash says the file is missing or stale.
+
+| PDF | Endpoint | Who |
+|-----|----------|-----|
+| Per-student exam | `GET /api/marks/:id/:year/:exam/download` | Student, teacher, admin, public |
+| Class bundle | `GET /api/marks/class-exam/:class/:year/:exam/download` | Admin (`ALL`), teacher (section) |
+| Session student | `GET /api/marks/:id/:year/download` | Student, teacher, admin |
+| Session year | `GET /api/marks/all/:year` | Admin |
+
+**Flow:** compute live hash → compare to cache → fresh? serve R2 → stale/missing? queue worker → poll (up to `MARKSHEET_SERVE_TIMEOUT_MS`) → serve R2.
+
+**Mark edits** do **not** auto-regenerate bundles or session PDFs — the UI lists outdated bundles in `bundles.staleItems`; download regenerates.
+
+---
+
+### What does **not** auto-trigger
+
+| Event | Why |
+|-------|-----|
+| Hiding / unpublishing an exam | No invalidation or regeneration |
+| Editing exam name or routine PDF upload | Not marksheet render input |
+| Signature image replaced at same R2 path without DB change | Hash uses DB paths only |
+| Bundle after **mark-only** edit | Stale until download (UI shows outdated list) |
+| Session PDF after publish or mark save | On download only |
+| Empty cache with no publish, no progress UI, no download | Nothing starts the worker |
+
+---
+
+## When each PDF is generated
+
+### Per-student exam PDF — **automatic + on download**
+
+| Trigger | Background queue? | Notes |
+|---------|-------------------|-------|
+| **Publish exam** | Yes | `enqueueForExam()` — all students with non-null marks |
+| **Save marks** (student changed, class-highest unchanged) | Yes | `invalidate(changedStudentIds)` |
+| **Save marks** (class-highest values changed) | Yes | `invalidateClasses()` — whole class |
+| **4th subject changed** | Yes | `invalidate([studentId])` for each exam in that year |
+| **Teacher / head / level assignment change** | Yes | `invalidateForClassSection` / `invalidateForTeacherProfile` / `invalidateForSchoolSignatureChange` |
+| **Progress UI poll** | Yes | `ensureQueuedForExam()` — gap-fill when marks exist but cache is empty or `failed` |
+| **Server restart** | Yes | `recover()` re-queues rows still `pending` |
+| **Download** | If needed | `serve()` → hash check → wait for worker if stale |
+
+**Endpoint:** `GET /api/marks/:id/:year/:exam/download`
+
+---
+
+### Class bundle PDF — **on download** (+ teacher/head auto-queue)
+
+Admin whole-class (`section: "ALL"`) and teacher section bundles (`A`, `A+B`, …) use the **same pipeline**; only the cache key differs.
+
+| Trigger | Background queue? | Notes |
+|---------|-------------------|-------|
+| **Publish exam** | **No** | Bundles are not pre-warmed |
+| **Mark edits** (any) | **No** | Staleness detected at download via hash |
+| **Class-teacher / head / level change** | **Yes** | `invalidateBundlesForClassSection` — `section`, `ALL`, matching `A+B` |
+| **Download** | Yes | `serveBundle()` → `waitForFreshBundlePdf()` |
+
+| Role | `bundleSection` key | PDF contents |
+|------|---------------------|--------------|
+| Admin | `ALL` | Entire class, all sections |
+| Teacher (one section filter) | e.g. `A` | That section only |
+| Teacher (no filter, multiple assignments) | e.g. `A+B` | All assigned sections |
+
+**Endpoint:** `GET /api/marks/class-exam/:class/:year/:exam/download?section=A`
+
+**UI:** View Marks → “Download All Exam PDFs”
+
+---
+
+### Session student PDF — **on download only**
+
+| Trigger | Background queue? |
+|---------|-------------------|
+| Publish / mark edits | **No** |
+| **Download** | Yes if hash stale or missing |
+
+**Endpoint:** `GET /api/marks/:id/:year/download`
+
+---
+
+### Session year PDF — **on download only**
+
+| Trigger | Background queue? |
+|---------|-------------------|
+| Publish / mark edits | **No** |
+| **Download** | Yes if hash stale or missing |
+
+**Endpoint:** `GET /api/marks/all/:year` (Generate Result page)
+
+---
+
+## High-level flow (all PDF types)
+
+```mermaid
+flowchart TB
+  subgraph auto ["Background automatic"]
+    P[Publish exam]
+    M[Mark save]
+    F[4th subject change]
+    T[Teacher / head / level change]
+    GS[Progress UI polls generation-status]
+  end
+
+  subgraph onreq ["On download only"]
+    D1[Download single exam PDF]
+    D2[Download class bundle]
+    D3[Download session PDF]
+  end
+
+  subgraph worker ["Worker marksheetQueue"]
+    W[processJob]
+  end
+
+  subgraph cache ["R2 + optional DB row"]
+    R2[(PDF in R2)]
+    DB[(marksheet_files / marksheet_bundles)]
+  end
+
+  P --> S[Per-student exam PDF]
+  M --> S
+  F --> S
+  T --> S
+  T --> B2[Class bundle PDF]
+  GS --> EQ[ensureQueuedForExam gap-fill]
+  EQ --> S
+  S --> DB
+  S --> W --> R2
+
+  D1 --> H1{Hash fresh?}
+  H1 -->|yes| R2
+  H1 -->|no| W
+
+  D2 --> B[Class bundle PDF]
+  B --> DB
+  B --> H2{Hash fresh?}
+  H2 -->|yes| R2
+  H2 -->|no| W
+
+  D3 --> SS[Session PDF]
+  SS --> H3{Hash fresh?}
+  H3 -->|yes| R2
+  H3 -->|no| W
+```
+
+### ASCII fallback (if Mermaid does not render)
+
+```
+AUTOMATIC (background):
+  Publish / mark edit / 4th subject / teacher-head-level change
+       → per-student exam PDF
+       → marksheet_files pending → worker → R2
+
+  Teacher-head-level change (bundles only)
+       → class bundle PDF for section + ALL + matching A+B
+
+  Progress UI polls GET /api/marks/generation-status/:examId
+       → ensureQueuedForExam() if marks exist but cache empty/failed
+       → same per-student pipeline as publish
+
+ON DOWNLOAD:
+  Any download endpoint
+       → compute hash vs cache
+       → fresh? serve R2
+       → stale? queue worker → wait → serve R2
+
+  Class bundle / session PDFs → not auto-queued on publish or mark edit
+  (bundles except teacher/head/level invalidation)
+```
+
+---
+
+## Per-student exam — detailed flow
+
+```mermaid
+sequenceDiagram
+  participant UI as Dashboard / Public
+  participant API as marks.controller
+  participant Svc as MarksheetService.serve
+  participant Q as Bull marksheetQueue
+  participant W as Worker processStudentJob
+  participant R2 as R2 storage
+  participant DB as marksheet_files
+
+  Note over UI,DB: Automatic path (publish / mark edit / gap-fill)
+  UI->>DB: invalidate or ensureQueued → status pending
+  UI->>Q: add job ms:examId:studentId
+  Q->>W: processStudentJob
+  W->>W: generateMarksheetPDF
+  W->>R2: upload PDF
+  W->>DB: status ready + input_hash
+
+  Note over UI,R2: Download path
+  UI->>API: GET /api/marks/:id/:year/:exam/download
+  API->>Svc: serve()
+  Svc->>DB: read row + computeInputHash
+  alt hash matches and R2 exists
+    Svc->>R2: getFileBuffer
+    Svc->>API: PDF buffer
+  else stale or missing
+    Svc->>Q: add job (PRIORITY_USER)
+    loop poll until ready or timeout
+      Svc->>DB: check status + hash
+    end
+    Svc->>R2: getFileBuffer
+    Svc->>API: PDF buffer
+  end
+  API->>UI: application/pdf
+```
+
+---
+
+## Class bundle — detailed flow
+
+```mermaid
+sequenceDiagram
+  participant UI as View Marks
+  participant API as downloadClassExamMarksheetPDF
+  participant Svc as serveBundle / waitForFreshBundlePdf
+  participant Q as Bull marksheetQueue
+  participant W as Worker processBundleJob
+  participant R2 as R2 storage
+  participant DB as marksheet_bundles
+
+  UI->>API: GET class-exam/.../download?section=A
+  API->>Svc: serveBundle(user, sectionQuery)
+  Svc->>Svc: resolveBundleSection (admin=ALL, teacher=A/A+B)
+  Svc->>DB: upsert pending if needed
+  alt hash fresh and R2 exists
+    Svc->>R2: signed URL
+    Svc->>API: { url }
+  else
+    Svc->>Q: add job msb:examId:class:section
+    Q->>W: processBundleJob
+    W->>W: generateBulkExamMarksheetsPDF
+    W->>R2: upload PDF
+    W->>DB: status ready + input_hash
+    Svc->>R2: signed URL
+    Svc->>API: { url }
+  end
+  API->>UI: JSON { data: { url } }
+  UI->>R2: open URL in new tab
+```
+
+**Important:** Bundles are **not** queued on publish or mark save. Mark edits make the hash stale; the next download regenerates. **Exception:** class-teacher, head, or level assignment changes auto-queue bundles for the affected section keys.
+
+---
+
+## Session PDFs — detailed flow
+
+```mermaid
+sequenceDiagram
+  participant UI as Generate Result / ShowMarkSheet
+  participant API as marks.controller
+  participant Svc as serveSessionStudent / serveSessionYear
+  participant Q as Bull marksheetQueue
+  participant W as Worker
+  participant R2 as R2 storage
+
+  UI->>API: GET /api/marks/:id/:year/download or /all/:year
+  API->>Svc: serve session
+  alt R2 PDF + .hash sidecar match live hash
+    Svc->>R2: getFileBuffer
+  else
+    Svc->>Q: mss:year:studentId or msy:year
+    Q->>W: generateAllMarksheetsPDF
+    W->>R2: upload PDF + .hash file
+    Svc->>R2: getFileBuffer
+  end
+  API->>UI: application/pdf
+```
+
+No `marksheet_files` / `marksheet_bundles` row. No dashboard progress bar.
 
 ---
 
@@ -17,309 +431,203 @@ Postgres marks are the **source of truth**. R2 PDFs and `marksheet_files` / `mar
 
 | Column | Purpose |
 |--------|---------|
-| `status` | `pending` \| `generating` \| `ready` \| `failed` \| `skipped` |
-| `r2_key` | Path to the cached PDF in R2 |
-| `input_hash` | SHA-256 fingerprint of everything that affects the rendered PDF |
-| `student_name` | Used for download filename when serving from cache |
+| `status` | `pending` \| `generating` \| `ready` \| `failed` \| `skipped` (legacy; cleaned on status poll) |
+| `r2_key` | Path to cached PDF in R2 |
+| `input_hash` | SHA-256 fingerprint of render inputs |
+| `student_name` | Download filename |
 
-Source: `server/prisma/schema.prisma` — `marksheet_files` model.
+### `marksheet_bundles` (class + exam + section scope)
 
-### `marksheet_bundles` (whole-class PDF per exam)
+Same status semantics. Unique key: `(exam_id, class, section)`.
 
-Same semantics as `marksheet_files`, but one row per `(exam_id, class, section="ALL")`.
+- `section = "ALL"` — admin whole class
+- `section = "A"` or `"A+B"` — teacher scope
 
-- **Cached:** admin full-class download only.
-- **Not cached:** teacher section-filtered views (always generated inline).
+Rows are created on **first bundle download**, not on publish.
 
-### `exam_class_stats` (class-highest cache)
+### Session PDFs
 
-| Column | Purpose |
-|--------|---------|
-| `highest_by_subject` | Max mark per subject in the class |
-| `class_highest_total` | Max per-student total (exam-type subjects) |
-| `class_highest_grand_total` | Max per-student total (all subjects) |
-| `updated_at` | Part of marksheet `input_hash` fingerprint |
-
-Recomputed inside the `addMarks` transaction. `updated_at` is only bumped when the **displayed values** actually change.
+Stored in R2 only. Staleness via companion file `{pdfKey}.hash`.
 
 ---
 
-## When a marksheet is marked stale (`status = pending`)
+## Input fingerprints (staleness)
 
-These events flip cache rows to `pending` and enqueue a Bull job on `marksheetQueue`.
+### Per-student — `computeInputHash`
 
-### 1. Exam is published
+| Field | Source |
+|-------|--------|
+| `n` | Mark row count for student |
+| `m` | Latest `marks.updated_at` |
+| `s` | `exam_class_stats.updated_at` (class-highest) |
+| `h` | Head message: `head_id`, `updated_at`, `head_role`, head teacher name + signature path |
+| `t` | Class teacher (`levels` for student's class+section+year): `teacher_id`, name, signature path |
+| `f` | `fourth_subject_id` |
+| `r` | Roll |
+| `sec` | Section |
 
-When an exam is made visible, all student marksheets and class bundles are pre-warmed in the background.
+### Bundle — `computeBundleHash`
 
-**File:** `server/src/controllers/examController.js`
+Includes `sec` (bundle section key), class-scoped mark aggregate (`n`, `m`), class stats (`s`), head (`h`), and **all class-teacher rows** in bundle scope (`t` — one section, multiple sections, or whole class for `ALL`).
 
-```js
-if (visible && result) {
-  pregen = await MarksheetService.enqueueForExam(result.id, result.school_id, result.exam_name);
-  await MarksheetService.enqueueBundlesForExam(result.id, result.school_id, result.exam_name);
-}
-```
+### Session — `computeSessionStudentHash` / `computeSessionYearHash`
 
-**File:** `server/src/modules/marks/marksheet.service.ts` — `enqueueForExam`
+Same head (`h`) and class-teacher data (`t` for student's section, or all `levels` for the year on admin session PDF).
 
-- Finds every student with at least one non-null mark for the exam.
-- Upserts `marksheet_files` with `status: "pending"`.
-- Pushes one job per student (deduped by `jobId`).
+**Still not detected:** signature **image file** replaced in R2 at the **same path** without changing `teachers.signature` or `head_msg`.
 
-### 2. Marks edited after publish (smart invalidation)
+---
 
-When marks are saved on a **published** exam (`exam.visible`), invalidation scope depends on whether **class-highest values** changed.
+## Bull queue job IDs
+
+| Pattern | PDF type |
+|---------|----------|
+| `ms:{examId}:{studentId}` | Per-student exam |
+| `msb:{examId}:{class}:{section}` | Class bundle |
+| `mss:{year}:{studentId}` | Session student |
+| `msy:{year}` | Session year |
+
+Concurrency: `MARKSHEET_WORKER_CONCURRENCY` (default `1`).
+
+Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
+
+---
+
+## Mark edit → invalidation (per-student only)
+
+**Teacher / head changes also auto-queue** (see below).
 
 **File:** `server/src/modules/marks/marks.service.ts` — `addMarks`
 
 ```
-1. Compare submitted marks against DB → only upsert rows that actually changed
+1. Only upsert marks that actually changed (markRowChanged)
 2. Recompute exam_class_stats per affected class
-3. If class-highest VALUES changed  → invalidateClasses (whole class + bundle)
-   Else if only student marks changed → invalidate(changedStudentIds) only
+3. If class-highest VALUES changed → invalidateClasses (whole class students)
+   Else if students changed → invalidate(changedStudentIds) only
+4. Bundles are NOT invalidated here — hash check on next download
 ```
 
-```ts
-if (classesWithStatsChange.length > 0) {
-  await MarksheetService.invalidateClasses(exam.id, classesWithStatsChange, yearInt);
-} else if (changedStudentIds.length > 0) {
-  await MarksheetService.invalidate(changedStudentIds, exam.id);
-}
-```
+| Edit scenario | Per-student auto queue? | Bundle |
+|---------------|-------------------------|--------|
+| One student, class-highest unchanged | That student only | On next download |
+| Class-highest changed | Whole class | On next download |
+| Class-teacher / head / signature change | Section students (or whole school) | **Auto-queue** section + `ALL` + matching `A+B` |
+| No value changes | Nobody | — |
 
-| Edit scenario | Who gets `pending` |
-|---------------|-------------------|
-| One student's mark, class-highest unchanged | **That student only** |
-| Mark change shifts class-highest (new top score, etc.) | **Whole class** + class bundle |
-| No actual value changes | **Nobody** (no DB write, no invalidation) |
+**4th subject:** `updateFourthSubject` → `invalidate([studentId])` for all exams in that year.
 
-**Why whole class when class-highest changes?** Class-highest figures are printed on every marksheet in that class. One student's mark can change what appears on all classmates' PDFs.
+### Teacher / head → auto-queue
 
-**File:** `server/src/modules/marks/marksheet.service.ts`
+| Trigger | What re-queues |
+|---------|----------------|
+| **Level create/update/delete** | Students in section + bundles (`section`, `ALL`, matching `A+B`) |
+| **Teacher name change** | All sections that teacher is assigned to |
+| **Teacher signature change** | Same |
+| **Head teacher or role change** | All marksheets + bundles for the school |
 
-- `invalidate(studentIds, examId)` — sets `pending` + re-enqueues those students.
-- `invalidateClasses(examId, classes, year)` — resolves all students in those classes, calls `invalidate`, then `invalidateBundles`.
+**Files:** `level.service.ts`, `teacher.service.ts` → `MarksheetService.invalidateForClassSection` / `invalidateForTeacherProfile` / `invalidateForSchoolSignatureChange`
 
-### 3. Mark form — only changed students submitted
-
-**File:** `dashboard/src/pages/Admin/AddMarks.tsx`
-
-The mark form tracks **dirty** students (cells actually edited). Submit sends only those students to `/api/marks/addMarks`, not the entire class roster.
-
-```ts
-const studentsToSubmit = filteredStudents.filter((s) =>
-  dirtyStudentIds.has(s.student_id),
-);
-```
-
-This pairs with the server-side `markRowChanged` filter so one edit does not touch every student's `marks.updated_at`.
-
-### 4. Fourth subject changed
-
-Changing a student's fourth subject changes what appears on their marksheet.
-
-**File:** `server/src/modules/marks/marks.service.ts` — `updateFourthSubject`
-
-- Finds all **published** exams for that enrollment/year.
-- Calls `MarksheetService.invalidate([studentId], exam_id)` for each.
-
-### 5. R2 object missing (self-heal)
-
-If the DB row says `ready` but the PDF is gone from R2 (lifecycle rule, manual delete, bucket wipe), the serve path flips the row back to `pending` and regenerates.
-
-**File:** `server/src/modules/marks/marksheet.service.ts` — `serve` / `serveBundle`
-
-```ts
-if (row?.status === "ready" && row.r2_key) {
-  const buf = await getFileBuffer(row.r2_key);
-  if (buf) return { buffer: buf, studentName: row.student_name };
-  // missing → self-heal
-  await prisma.marksheet_files.update({
-    where: { id: row.id },
-    data: { status: "pending", r2_key: null },
-  });
-}
-```
-
-Batch reconciliation: `reconcileExam()` (intended for nightly cron).
-
-### 6. Server restart recovery
-
-**File:** `server/src/modules/marks/marksheet.worker.ts` → `MarksheetService.recover`
-
-- Rows stuck in `generating` (worker died mid-job) → reset to `pending`.
-- All `pending` rows → re-enqueued on startup.
+`invalidate` and `invalidateForClassSection` only queue students who have **non-null marks** for the exam — avoids inflating progress with students who have no marks.
 
 ---
 
-## Input fingerprint (`input_hash`)
-
-Before rendering, the worker computes a hash of everything that changes the PDF.
-
-**File:** `server/src/modules/marks/marksheet.service.ts` — `computeInputHash`
-
-| Fingerprint field | Source | What it captures |
-|-------------------|--------|------------------|
-| `n` | `marks` aggregate `_count` | Number of mark rows for this student |
-| `m` | `marks` aggregate `_max.updated_at` | Latest mark edit timestamp |
-| `s` | `exam_class_stats.updated_at` | Class-highest cache (shared per class) |
-| `h` | `head_msg.updated_at` (latest) | Head message on the sheet |
-| `f` | `enrollment.fourth_subject_id` | Fourth subject |
-| `r` | `enrollment.roll` | Roll number |
-| `sec` | `enrollment.section` | Section |
-
-The JSON fingerprint is SHA-256 hashed and stored as `input_hash` when a PDF is successfully cached.
-
-**Not included in the hash:** teacher/head **signature image file** swaps. Those require explicit invalidation (not automatic today).
-
-Class bundles use `computeBundleHash` at class scope (`n`, `m`, `s`, `h` only).
-
----
-
-## Bull queue
-
-**File:** `server/src/modules/marks/marksheet.queue.ts`
-
-| Job ID pattern | Target |
-|----------------|--------|
-| `ms:{examId}:{studentId}` | Per-student marksheet |
-| `msb:{examId}:{class}` | Whole-class bundle |
-
-Bull **deduplicates** by `jobId`: if a job with the same ID is already waiting or active, a duplicate is not added. This matters during concurrent mark edits (see below).
-
-Default worker concurrency: `MARKSHEET_WORKER_CONCURRENCY` (default `1`).
-
----
-
-## Worker: regenerate, skip, or defer?
-
-**File:** `server/src/modules/marks/marksheet.service.ts` — `processStudentJob` / `processBundleJob`
-
-### Normal flow
+## Worker: regenerate, skip, or defer
 
 ```
-1. Claim row: pending/failed → generating (atomic updateMany)
-2. hashAtStart = computeInputHash(...)
-3. IF hashAtStart === stored input_hash AND R2 object exists
-     → check concurrent staleness (see below)
-     → SKIP render, set status = ready
+1. Claim row: pending/failed → generating
+2. hashAtStart = compute hash
+3. IF hash matches stored hash AND R2 exists
+     → check concurrent staleness → SKIP or DEFER
    ELSE
-     → Render PDF, upload to R2
-4. hashAtEnd = computeInputHash(...)
-5. IF hashAtEnd !== hashAtStart OR row.status !== "generating"
-     → DEFER: set pending, deferStudentRequeue (do NOT set ready)
+     → render PDF, upload R2
+4. IF hash changed mid-render OR row no longer generating
+     → DEFER: pending + re-queue after job completes
    ELSE
-     → set status = ready, save hashAtEnd
+     → ready + save hash
 ```
 
-Logged `reason` when rendering:
+**No marks for student:** worker **deletes** the `marksheet_files` row (does not leave `skipped`). Only students with real marks are ever queued (`invalidate` filters by marks table).
 
-| Reason | Condition |
-|--------|-----------|
-| `first-render` | No stored `input_hash` |
-| `inputs-changed` | New hash ≠ stored `input_hash` |
-| `r2-missing` | Hash matches but R2 object is gone |
+**Orphan `skipped` rows:** `statusCounts()` deletes any `skipped` student rows on each poll so progress totals stay accurate.
 
-### Concurrent edit protection (DEFER)
-
-If a second mark save happens while a PDF is mid-render:
-
-1. `invalidate` sets the row back to `pending` (status ≠ `generating`).
-2. Bull won't add a duplicate job (same `jobId` still active).
-3. Without DEFER, the running worker would overwrite `pending` → `ready` with stale data.
-
-**Fix:** after render (and on the skip path), the worker checks:
-
-```ts
-if (hashAtEnd !== hashAtStart || afterRender?.status !== "generating") {
-  await update({ status: "pending" });
-  deferStudentRequeue(job); // setImmediate — runs after Bull job completes
-  return; // do NOT set ready
-}
-```
-
-Logs: `DEFER after render (concurrent edit)` or `DEFER after skip (concurrent edit)`.
-
-**Terminal non-retry states:**
-
-- `skipped` — no marks to render (`"No marks found"`) or empty bundle.
-- `failed` — render error; Bull retries per job config (3 attempts, 5s backoff).
+Prevents a finished worker from promoting a stale PDF when a second edit happens mid-render.
 
 ---
 
-## Concurrent mark edits — full scenario
+## Progress UI
+
+| What | Where |
+|------|-------|
+| Per-student + bundle DB status | `GET /api/marks/generation-status/:examId` |
+| Dashboard bars | Exam PDF Routine, View Marks (`MarksheetGenProgress`) |
+| Session PDFs | No UI — server logs `[marksheet]` only |
+
+### Generation-status workflow
+
+Each poll runs **before** counts are returned:
 
 ```
-Teacher A saves subject 1 → class enqueued, worker starts student 1
-Teacher B saves subject 2 (before batch done) → student 1 row → pending
-Worker finishes student 1 → DEFER → pending + re-queue
-Worker runs student 1 again → PDF includes A + B → ready ✓
-Students 2..N (not started) → single queued job runs with both edits → ready ✓
+1. ensureQueuedForExam(examId)
+     → students with marks but no row, or status failed
+     → invalidate(needQueue) → pending rows + Bull jobs
+2. statusCounts(examId)
+     → delete orphan skipped rows
+     → students.total = count from marks table (not raw DB row count)
+     → students.done = ready count only
+     → bundles.stale + bundles.staleItems (hash mismatch on ready rows)
+     → bundles.done = ready minus stale
+3. Return JSON to dashboard (poll every 3s until complete)
 ```
 
-| Student state when B saves | Outcome |
-|----------------------------|---------|
-| Not started yet (waiting in queue) | One job runs with latest DB state ✓ |
-| Already finished before B | B's invalidation re-queues → regenerates ✓ |
-| Currently rendering when B saves | DEFER → re-queue → correct PDF ✓ |
+**Why gap-fill exists:** If `marksheet_files` is empty (DB wipe, never published, fresh deploy) but `marks` has data, polling alone used to show `0/N ready` with **no jobs queued**. Opening View Marks or Exam PDF Routine now starts generation automatically.
 
----
+**Complete when** (`isMarksheetGenComplete`):
 
-## On-demand download (`serve`)
+- Students: `done >= total` and `pending === 0` and `generating === 0`
+- Bundles (if any rows exist): `pending === 0` and `generating === 0` only — **stale bundles do not block** (they refresh on download)
 
-When a user downloads a marksheet, the API tries the cache first and does **not** block on the queue.
+**Stale bundle preview** (`bundles.staleItems`):
 
-**File:** `server/src/modules/marks/marksheet.service.ts` — `serve`
+- API returns `{ class, section }[]` for each outdated ready bundle
+- **View Marks** — amber box above “Download All Exam PDFs” when generation is complete but bundles are stale (filtered to selected class/section)
+- **Exam PDF Routine** — per-exam list under compact progress bar
+- Labels: `Class 10 (all sections)`, `Class 10 (A)`, `Class 10 (A+B)`, etc.
 
-```
-IF exam has school_id (cacheable)
-  IF row.status === "ready" AND R2 file exists
-    → return cached buffer (cache HIT)
-  ELSE
-    → generate inline via MarksService.generateMarksheetPDF
-    → upload to R2 + upsert row with fresh input_hash
-ELSE
-  → always generate inline (no caching)
-```
-
-Only school-scoped exams participate in caching.
-
----
-
-## End-to-end flow
+Bundle rows in `generation-status` only appear **after** at least one bundle download or teacher/head invalidation created a `marksheet_bundles` row.
 
 ```mermaid
-flowchart TD
-    A[Data change or publish] --> B{What changed?}
-    B -->|Publish exam| C["enqueueForExam → pending"]
-    B -->|Mark edit on visible exam| D{class-highest changed?}
-    D -->|Yes| E["invalidateClasses → whole class pending"]
-    D -->|No| F["invalidate changed students only"]
-    B -->|4th subject change| G["invalidate student → pending"]
-    B -->|R2 PDF missing| H["Self-heal → pending"]
+sequenceDiagram
+  participant UI as View Marks / Exam PDF Routine
+  participant API as generationStatusController
+  participant Svc as MarksheetService
+  participant Q as Bull marksheetQueue
+  participant DB as marksheet_files
 
-    C --> I[Bull queue]
-    E --> I
-    F --> I
-    G --> I
-    H --> I
-
-    I --> J["Worker claims pending/failed"]
-    J --> K[hashAtStart = computeInputHash]
-    K --> L{"hash match AND R2 exists?"}
-    L -->|Yes| M{"still generating AND hash stable?"}
-    M -->|Yes| N["SKIP render → ready"]
-    M -->|No| O["DEFER → pending + re-queue"]
-    L -->|No| P[Render PDF + upload R2]
-    P --> Q{"hashAtEnd === hashAtStart AND still generating?"}
-    Q -->|Yes| R["ready + save hashAtEnd"]
-    Q -->|No| O
-
-    S[User downloads] --> T{"ready AND R2 exists?"}
-    T -->|Yes| U[Serve cached PDF]
-    T -->|No| V[Generate inline + cache]
+  loop every 3s until complete
+    UI->>API: GET /api/marks/generation-status/:examId
+    API->>Svc: ensureQueuedForExam(examId)
+    alt marks exist, cache missing or failed
+      Svc->>DB: invalidate → pending rows
+      Svc->>Q: add jobs ms:examId:studentId
+    end
+    API->>Svc: statusCounts(examId)
+    Svc->>DB: delete skipped orphans
+    Svc->>API: total from marks, done = ready
+    API->>UI: { pending, generating, ready, done, total }
+  end
 ```
+
+---
+
+## Download endpoints summary
+
+| PDF | Endpoint | Response |
+|-----|----------|----------|
+| Per-student exam | `GET /api/marks/:id/:year/:exam/download` | PDF bytes |
+| Class bundle | `GET /api/marks/class-exam/:class/:year/:exam/download` | JSON `{ url }` |
+| Session student | `GET /api/marks/:id/:year/download` | PDF bytes |
+| Session year | `GET /api/marks/all/:year` | PDF bytes |
+| Public exam | `GET /api/marks/public/download?year=&exam=` | PDF bytes |
 
 ---
 
@@ -327,26 +635,34 @@ flowchart TD
 
 | File | Role |
 |------|------|
-| `server/src/modules/marks/marksheet.service.ts` | Cache, hash, invalidate, serve, worker, DEFER logic |
-| `server/src/modules/marks/marksheet.queue.ts` | Bull queue, job IDs, priorities |
-| `server/src/modules/marks/marksheet.worker.ts` | In-process worker + startup recovery |
-| `server/src/modules/marks/marks.service.ts` | `addMarks`, smart invalidation, `exam_class_stats` |
-| `server/src/controllers/examController.js` | Pre-generation on publish |
-| `server/src/modules/marks/marks.controller.ts` | Download endpoints, generation status |
-| `dashboard/src/pages/Admin/AddMarks.tsx` | Mark form — dirty-student tracking |
-| `server/prisma/schema.prisma` | `marksheet_files`, `marksheet_bundles`, `exam_class_stats` |
+| `server/src/modules/marks/marksheet.service.ts` | Serve, hash, invalidate, `ensureQueuedForExam`, worker jobs |
+| `server/src/modules/marks/marksheet.queue.ts` | Bull queue, job IDs |
+| `server/src/modules/marks/marksheet.worker.ts` | In-process worker + recovery |
+| `server/src/modules/marks/marks.service.ts` | PDF render + `addMarks` invalidation |
+| `server/src/controllers/examController.js` | Publish → `enqueueForExam` (students only) |
+| `server/src/modules/marks/marks.controller.ts` | Download + generation-status |
+| `dashboard/src/components/MarksheetGenProgress.tsx` | Progress UI + bundle stale list |
+| `dashboard/src/components/BundleStalePreview.tsx` | Stale bundle preview (View Marks, Exam PDF Routine) |
+| `dashboard/src/pages/Admin/ViewMarks.tsx` | Download all + progress |
+| `dashboard/src/pages/Admin/ExamPDFRoutine.tsx` | Publish + per-exam progress |
+| `dashboard/src/queries/marks.queries.ts` | `useMarksheetGenerationStatus`, `isMarksheetGenComplete` |
 
 ---
 
-## Practical summary
+## Quick reference
 
 | Question | Answer |
 |----------|--------|
-| Edit one student, class-highest unchanged | Only **that student's** marksheet is queued |
-| Edit shifts class-highest | **Whole class** + bundle queued |
-| Does the mark form submit the whole class? | **No** — only dirty (edited) students |
-| Does the server upsert unchanged marks? | **No** — `markRowChanged` filters first |
-| When is regen **skipped** despite `pending`? | Worker finds hash unchanged and R2 exists (false-positive invalidation) |
-| When is PDF **actually re-rendered**? | Hash changed, first render, R2 missing, or after DEFER re-queue |
-| Two teachers edit before batch completes? | DEFER ensures in-flight student re-queues with latest marks |
-| Source of truth? | `marks` table in Postgres; R2 is cache |
+| What auto-generates on publish? | **Per-student exam PDFs only** |
+| What auto-generates on mark edit? | **Per-student** (or whole class if class-highest changed) |
+| What auto-generates on teacher/head/level change? | **Per-student + class bundles** (affected scopes) |
+| What auto-generates on progress UI poll? | **Per-student gap-fill** (`ensureQueuedForExam`) |
+| Empty cache but marks exist — who starts jobs? | **Progress UI poll** → `ensureQueuedForExam` (View Marks / Exam PDF Routine) |
+| When do bundles generate? | **On download** (hash stale), or **auto** on teacher/head/level change |
+| How to see outdated bundles before download? | **`bundles.staleItems`** in generation-status + `BundleStalePreview` UI |
+| When do session PDFs generate? | **On download only** |
+| What does server restart re-queue? | **`pending`** student + bundle rows only (not gap-fill, not `failed`) |
+| How is progress `total` calculated? | **Students with marks** in `marks` table — not raw `marksheet_files` row count |
+| Teacher vs admin bundle? | Same worker path; different `section` cache key |
+| Inline PDF on download? | **Never** — worker + R2 always |
+| Source of truth? | Postgres `marks`; R2 is cache |
