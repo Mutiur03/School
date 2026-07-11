@@ -112,14 +112,17 @@ function ExamPDFRoutine() {
     };
   }, []);
 
-  // When the exam list loads, fetch status for any exam with outstanding work
-  // (published or hidden — workers keep generating after mark edits).
+  // When the exam list loads, fetch status for published exams or any with active jobs.
   useEffect(() => {
     examList.forEach(async (e) => {
       const status = await fetchGenStatus(e.id);
+      const active =
+        !!status &&
+        (status.pending > 0 || status.generating > 0);
       if (
         status &&
         status.total > 0 &&
+        (e.visible || active) &&
         !isMarksheetGenComplete(status) &&
         !pollRefs.current[e.id]
       ) {
@@ -576,18 +579,34 @@ function ExamPDFRoutine() {
                           {exam.visible ? "Published" : "Hidden"}
                         </span>
                       </div>
-                      {genStatus[exam.id] && (
-                        <div className="flex flex-col gap-1">
-                          <MarksheetGenProgress
-                            status={genStatus[exam.id]}
-                            compact
-                          />
-                          <BundleStalePreview
-                            items={genStatus[exam.id].bundles.staleItems}
-                            variant="inline"
-                          />
-                        </div>
-                      )}
+                      {(() => {
+                        const status = genStatus[exam.id];
+                        const active =
+                          !!status &&
+                          (status.pending > 0 || status.generating > 0);
+                        if (!exam.visible) {
+                          return (
+                            <p className="text-[10px] text-muted-foreground mt-2 max-w-44 leading-tight">
+                              {active
+                                ? "Finishing background jobs…"
+                                : "Hidden — marksheets refresh on publish or download"}
+                            </p>
+                          );
+                        }
+                        if (!status) return null;
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <MarksheetGenProgress
+                              status={status}
+                              compact
+                            />
+                            <BundleStalePreview
+                              items={status.bundles.staleItems}
+                              variant="inline"
+                            />
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
