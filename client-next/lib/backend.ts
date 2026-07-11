@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { headers } from "next/headers";
 import {
+  getDefaultTenantHost,
   getDevTenantHost,
   isBareLocalHost,
+  isTenantHost,
   isTenantLocalDevHost,
+  isVercelAppHost,
   resolveBackendBaseUrl,
+  serverBackendUrl,
 } from "./resolveBackend";
 
 // Re-exported from cdn.ts so Server Components can still import from one place.
@@ -72,7 +76,10 @@ function previewBody(body: unknown) {
 async function getRequestOrigin() {
   try {
     const incomingHeaders = await headers();
-    const host = incomingHeaders.get("x-forwarded-host") || incomingHeaders.get("host");
+    const host =
+      incomingHeaders.get("x-tenant-host") ||
+      incomingHeaders.get("x-forwarded-host") ||
+      incomingHeaders.get("host");
 
     if (!host) return undefined;
 
@@ -80,7 +87,7 @@ async function getRequestOrigin() {
     const protocol =
       forwardedProto || (host.includes("localhost") ? "http" : "https");
 
-    return `${protocol}://${host}`;
+    return `${protocol}://${host.split(",")[0]?.trim()}`;
   } catch {
     return undefined;
   }
@@ -90,19 +97,42 @@ export async function getBackendBaseUrl(): Promise<string> {
   const origin = await getRequestOrigin();
 
   if (!origin) {
-    return envBackend;
+    return envBackend || serverBackendUrl();
   }
 
   try {
     const { hostname, protocol } = new URL(origin);
-    return resolveBackendBaseUrl(hostname, protocol.replace(":", ""));
+    const effectiveHostname =
+      isVercelAppHost(hostname) && !isTenantHost(hostname)
+        ? getDefaultTenantHost() ?? hostname
+        : hostname;
+
+    return resolveBackendBaseUrl(
+      effectiveHostname,
+      protocol.replace(":", ""),
+    );
   } catch {
-    return envBackend;
+    return envBackend || serverBackendUrl();
   }
 }
 
 async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
   const requestOrigin = await getRequestOrigin();
+  const incomingHeaders = await headers();
+  const tenantHostHeader = incomingHeaders.get("x-tenant-host")?.trim();
+
+  if (tenantHostHeader) {
+    const protocol =
+      incomingHeaders.get("x-forwarded-proto") ||
+      (tenantHostHeader.includes("localhost") ? "http" : "https");
+
+    return {
+      Origin: `${protocol}://${tenantHostHeader}`,
+      "x-forwarded-host": tenantHostHeader,
+      "x-tenant-host": tenantHostHeader,
+    };
+  }
+
   if (!requestOrigin) return undefined;
 
   try {
@@ -118,12 +148,23 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
       };
     }
 
-    if (isTenantLocalDevHost(hostname)) {
+    if (isTenantLocalDevHost(hostname) || isTenantHost(hostname)) {
       return {
         Origin: `${proto}://${hostname}`,
         "x-forwarded-host": hostname,
         "x-tenant-host": hostname,
       };
+    }
+
+    if (isVercelAppHost(hostname)) {
+      const defaultTenantHost = getDefaultTenantHost();
+      if (defaultTenantHost) {
+        return {
+          Origin: `https://${defaultTenantHost}`,
+          "x-forwarded-host": defaultTenantHost,
+          "x-tenant-host": defaultTenantHost,
+        };
+      }
     }
 
     return {
