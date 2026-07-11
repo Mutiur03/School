@@ -2,7 +2,7 @@ import asyncHandler from "@/utils/asyncHandler.js";
 import { Request, Response } from "express";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
-import { MarksService } from "./marks.service.js";
+import { MarksheetService } from "./marksheet.service.js";
 import {
   PublicResultService,
   verifyPublicResultToken,
@@ -57,9 +57,9 @@ export class PublicResultController {
       // Enforce publication before generating the marksheet.
       await PublicResultService.assertExamPublished(String(exam));
 
-      const { buffer, studentName } = await MarksService.generateMarksheetPDF(
-        String(id),
-        String(year),
+      const { buffer, studentName } = await MarksheetService.serve(
+        Number(id),
+        Number(year),
         String(exam),
         PublicResultService.synthUser(id),
       );

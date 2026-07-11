@@ -11,6 +11,7 @@ import { getErrorMessage } from "@/lib/utils";
 declare module "axios" {
     interface AxiosRequestConfig {
         _skipAuthRefresh?: boolean;
+        _skipOfflineDetect?: boolean;
         _retry?: boolean;
     }
 }
@@ -205,7 +206,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 const originalRequest = error.config;
 
                 // Detect network errors (server unreachable)
-                if (isNetworkError(error)) {
+                if (isNetworkError(error) && !originalRequest?._skipOfflineDetect) {
                     setServerOffline(true);
                     return Promise.reject(error);
                 }

@@ -21,7 +21,9 @@
     "sms:fix-pending": "tsx prisma/scripts/fix-pending-sms-logs.ts",
     "sms:fix-pending:dry": "cross-env DRY_RUN=1 tsx prisma/scripts/fix-pending-sms-logs.ts",
     "stats:backfill": "tsx prisma/scripts/backfill-exam-class-stats.ts",
-    "stats:backfill:dry": "tsx prisma/scripts/backfill-exam-class-stats.ts --dry"
+    "stats:backfill:dry": "tsx prisma/scripts/backfill-exam-class-stats.ts --dry",
+    "marksheets:backfill": "tsx prisma/scripts/pregenerate-marksheets.ts",
+    "marksheets:backfill:dry": "tsx prisma/scripts/pregenerate-marksheets.ts --dry"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

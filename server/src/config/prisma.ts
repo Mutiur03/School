@@ -19,7 +19,6 @@ const globalForPrisma = global as unknown as {
   prisma: QueryLoggingPrismaClient | undefined;
 };
 
-const isProduction = process.env.NODE_ENV === "production";
 const logAllQueries = process.env.PRISMA_LOG_QUERIES === "true";
 const slowQueryMs = Number(process.env.PRISMA_SLOW_QUERY_MS || "500");
 
@@ -38,7 +37,10 @@ const basePrisma: QueryLoggingPrismaClient =
 if (!globalForPrisma.prisma) {
   basePrisma.$on("query", (event) => {
     const isSlow = event.duration >= slowQueryMs;
-    const shouldLog = logAllQueries || !isProduction || isSlow;
+    // Quiet by default: only surface slow queries (or everything when
+    // PRISMA_LOG_QUERIES=true). Previously every dev query logged, which
+    // flooded the console and buried app logs.
+    const shouldLog = logAllQueries || isSlow;
 
     if (shouldLog) {
       const logPayload = {
