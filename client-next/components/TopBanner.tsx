@@ -43,7 +43,7 @@ export async function TopBanner() {
                   target="_blank"
                   rel="noreferrer"
                   title={notice.title || ""}
-                  className="text-gray-900 hover:text-blue-600 mr-5 before:content-['▶'] before:mr-1 before:font-bold before:text-xs before:text-[#609513]"
+                  className="inline-flex items-center min-h-6 mr-8 text-gray-900 hover:text-blue-600 before:content-['▶'] before:mr-1 before:font-bold before:text-xs before:text-[#609513]"
                 > {notice.title}
                 </a>
               ))}
