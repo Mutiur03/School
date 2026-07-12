@@ -114,19 +114,19 @@ export function Chart({ school }: ChartProps) {
                   <div className="box-text">
                     <ul>
                       <li>
-                        <a title="সভার নোটিশ">সভার নোটিশ</a>
+                        <button type="button" className="as-link" title="সভার নোটিশ">সভার নোটিশ</button>
                       </li>
                       <li>
-                        <a title="অন্যান্য নোটিশ">অন্যান্য নোটিশ</a>
+                        <button type="button" className="as-link" title="অন্যান্য নোটিশ">অন্যান্য নোটিশ</button>
                       </li>
                       <li>
-                        <a title="অফিস আদেশ">অফিস আদেশ</a>
+                        <button type="button" className="as-link" title="অফিস আদেশ">অফিস আদেশ</button>
                       </li>
                       <li>
-                        <a title="সরকারি আদেশ">সরকারি আদেশ</a>
+                        <button type="button" className="as-link" title="সরকারি আদেশ">সরকারি আদেশ</button>
                       </li>
                       <li>
-                        <a title="অনাপত্তি পত্র (NOC) ">অনাপত্তি পত্র (NOC)</a>
+                        <button type="button" className="as-link" title="অনাপত্তি পত্র (NOC) ">অনাপত্তি পত্র (NOC)</button>
                       </li>
                     </ul>
                   </div>

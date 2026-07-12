@@ -17,9 +17,9 @@ export function ChartCitizenLink() {
   return (
     <ul>
       <li>
-        <a onClick={handleCitizenCharterClick} style={{ cursor: "pointer" }}>
+        <button type="button" onClick={handleCitizenCharterClick} className="as-link">
           সিটিজেন্‌স চার্টার
-        </a>
+        </button>
       </li>
     </ul>
   );

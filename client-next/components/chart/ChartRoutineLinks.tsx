@@ -27,9 +27,9 @@ export function ChartRoutineLinks() {
     <ul>
       {CLASS_LABELS.map((label) => (
         <li key={label}>
-          <a onClick={handleRoutineClick} style={{ cursor: "pointer" }}>
+          <button type="button" onClick={handleRoutineClick} className="as-link">
             {label}
-          </a>
+          </button>
         </li>
       ))}
     </ul>

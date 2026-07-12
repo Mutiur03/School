@@ -163,10 +163,14 @@ export function Header({
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`h-3 w-3 rounded-full border-0 ${currentSlide === index ? "bg-white" : "bg-white/50"
-                }`}
+              className="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent"
               aria-label={`Go to slide ${index + 1}`}
-            />
+            >
+              <span
+                className={`block h-3 w-3 rounded-full ${currentSlide === index ? "bg-white" : "bg-white/50"
+                  }`}
+              />
+            </button>
           ))}
         </div>
       </div>

@@ -215,14 +215,14 @@ export async function RightSidebar() {
               </a>
             </li>
             <li className="menu-item">
-              <a target="_blank" rel="noreferrer">
+              <button type="button" className="as-link">
                 e-Payment
-              </a>
+              </button>
             </li>
             <li className="menu-item">
-              <a target="_blank" rel="noreferrer">
+              <button type="button" className="as-link">
                 e-Library
-              </a>
+              </button>
             </li>
           </ul>
         </div>

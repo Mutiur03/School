@@ -50,12 +50,17 @@
     font-size: 13px;
 }
 
-.box-item .box-text ul li a {
+.box-item .box-text ul li a,
+.box-item .box-text ul li button {
     color: #000;
     margin-left: 15px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
 }
 
-.box-item .box-text ul li a:hover {
+.box-item .box-text ul li a:hover,
+.box-item .box-text ul li button:hover {
     opacity: .7;
     text-decoration: underline;
 }
@@ -84,7 +89,8 @@
     transition: all .5s;
 } */
 
-.box-item:hover a {
+.box-item:hover a,
+.box-item:hover button {
     color: #e32c28;
 }
 
