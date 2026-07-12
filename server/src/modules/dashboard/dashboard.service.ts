@@ -103,69 +103,70 @@ export class DashboardService {
     let events = [] as any[];
     let examSchedule = [] as any[];
 
-    try {
-      studentCount = await prisma.student_enrollments.count({
-        where: { year: year },
-      });
-    } catch (error: any) {
-      console.warn("Error fetching student count:", error.message);
-    }
+    // Independent queries — run in parallel while keeping per-query fallbacks.
+    const [studentRes, teacherRes, announcementRes, eventRes, examRes] =
+      await Promise.allSettled([
+        prisma.student_enrollments.count({
+          where: { year: year },
+        }),
+        prisma.teachers.count({
+          where: { available: true },
+        }),
+        prisma.notices.findMany({
+          select: {
+            id: true,
+            title: true,
+            created_at: true,
+            file: true,
+          },
+          orderBy: { created_at: "desc" },
+          take: 5,
+        }),
+        prisma.events.findMany({
+          select: {
+            id: true,
+            title: true,
+            date: true,
+            location: true,
+            details: true,
+          },
+          orderBy: { date: "asc" },
+        }),
+        prisma.exams.findMany({
+          where: {
+            exam_year: year,
+          },
+          select: {
+            exam_name: true,
+            start_date: true,
+            end_date: true,
+            exam_year: true,
+          },
+          orderBy: { start_date: "asc" },
+          take: 5,
+        }),
+      ]);
 
-    try {
-      teacherCount = await prisma.teachers.count({
-        where: { available: true },
-      });
-    } catch (error: any) {
-      console.warn("Error fetching teacher count:", error.message);
-    }
+    if (studentRes.status === "fulfilled") studentCount = studentRes.value;
+    else console.warn("Error fetching student count:", studentRes.reason?.message);
 
-    try {
-      announcements = await prisma.notices.findMany({
-        select: {
-          id: true,
-          title: true,
-          created_at: true,
-          file: true,
-        },
-        orderBy: { created_at: "desc" },
-        take: 5,
-      });
-    } catch (error: any) {
-      console.warn("Error fetching announcements:", error.message);
-    }
+    if (teacherRes.status === "fulfilled") teacherCount = teacherRes.value;
+    else console.warn("Error fetching teacher count:", teacherRes.reason?.message);
 
-    try {
-      events = await prisma.events.findMany({
-        select: {
-          id: true,
-          title: true,
-          date: true,
-          location: true,
-          details: true,
-        },
-        orderBy: { date: "asc" },
-      });
-    } catch (error: any) {
-      console.warn("Error fetching events:", error.message);
-    }
+    if (announcementRes.status === "fulfilled")
+      announcements = announcementRes.value;
+    else
+      console.warn(
+        "Error fetching announcements:",
+        announcementRes.reason?.message,
+      );
 
-    try {
-      examSchedule = await prisma.exams.findMany({
-        where: {
-          exam_year: year,
-        },
-        select: {
-          exam_name: true,
-          start_date: true,
-          end_date: true,
-          exam_year: true,
-        },
-        orderBy: { start_date: "asc" },
-        take: 5,
-      });
-    } catch (error: any) {
-      console.warn("Error fetching exam schedule:", error.message);
-    }
+    if (eventRes.status === "fulfilled") events = eventRes.value;
+    else console.warn("Error fetching events:", eventRes.reason?.message);
+
+    if (examRes.status === "fulfilled") examSchedule = examRes.value;
+    else
+      console.warn("Error fetching exam schedule:", examRes.reason?.message);
 
     // Filter events that are upcoming (date >= current date)
     const upcomingEvents = (events || [])

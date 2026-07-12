@@ -56,32 +56,49 @@ export class AttendenceService {
       let innerAbsentCount = 0;
       let innerPresentCount = 0;
 
-      for (const record of records) {
-        let { studentId, date, status } = record;
+      const prepared = records.map((record) => {
+        const { studentId, date, status } = record;
         const formattedDate = new Date(date).toLocaleDateString("en-CA", {
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
           timeZone: "Asia/Dhaka",
         });
+        return { studentId, status, formattedDate };
+      });
 
-        const existingRecord = await tx.attendence.findFirst({
-          where: { student_id: studentId, date: formattedDate },
-        });
+      // Pre-fetch every existing row for these students/dates in one query
+      // instead of a findFirst per record. Keyed by student+date; written
+      // back after each mutation so repeated pairs in the same batch behave
+      // exactly as the previous sequential lookups did.
+      const studentIds = [...new Set(prepared.map((p) => p.studentId))];
+      const dates = [...new Set(prepared.map((p) => p.formattedDate))];
+      const existingRows = await tx.attendence.findMany({
+        where: { student_id: { in: studentIds }, date: { in: dates } },
+      });
+      const existingByKey = new Map<string, any>(
+        existingRows.map((row) => [`${row.student_id}|${row.date}`, row]),
+      );
+
+      for (const { studentId, status, formattedDate } of prepared) {
+        const key = `${studentId}|${formattedDate}`;
+        const existingRecord = existingByKey.get(key);
 
         if (existingRecord) {
           const hasStatusChanged = existingRecord.status !== status;
-          await tx.attendence.update({
+          const updated = await tx.attendence.update({
             where: { id: existingRecord.id },
             data: {
               status,
               ...(hasStatusChanged ? { send_msg: false } : {}),
             },
           });
+          existingByKey.set(key, updated);
         } else {
-          await tx.attendence.create({
+          const created = await tx.attendence.create({
             data: { student_id: studentId, date: formattedDate, status },
           });
+          existingByKey.set(key, created);
         }
 
         innerProcessed.push({ studentId, date: formattedDate, status });
