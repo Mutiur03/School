@@ -48,15 +48,38 @@ export function Header({
   const titleEn = titleEnProp ?? String(school.name?.en ?? "");
 
   const [currentSlide, setCurrentSlide] = React.useState(0);
+  // Only mount images for slides that have been reached (plus the next one),
+  // so slides 2..n do not download during initial page load.
+  const [loadedSlides, setLoadedSlides] = React.useState<Set<number>>(
+    () => new Set([0, bannerImages.length > 1 ? 1 : 0])
+  );
+
+  const markLoaded = React.useCallback(
+    (index: number) => {
+      setLoadedSlides((prev) => {
+        const next = (index + 1) % bannerImages.length;
+        if (prev.has(index) && prev.has(next)) return prev;
+        const updated = new Set(prev);
+        updated.add(index);
+        updated.add(next); // preload the upcoming slide so transitions are not blank
+        return updated;
+      });
+    },
+    [bannerImages.length]
+  );
 
   React.useEffect(() => {
     if (!bannerImages.length) return;
     const slideInterval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % bannerImages.length);
+      setCurrentSlide((prev) => {
+        const next = (prev + 1) % bannerImages.length;
+        markLoaded(next);
+        return next;
+      });
     }, slideIntervalMs);
 
     return () => clearInterval(slideInterval);
-  }, [bannerImages.length, slideIntervalMs]);
+  }, [bannerImages.length, slideIntervalMs, markLoaded]);
 
 
   return (
@@ -71,16 +94,18 @@ export function Header({
         >
           {bannerImages.map((image, index) => (
             <div key={index} className="relative h-full min-w-full">
-              <Image
-                src={image}
-                alt={`Banner ${index + 1}`}
-                width={1920}
-                height={480}
-                sizes="100vw"
-                priority={index === 0}
-                fetchPriority={index === 0 ? "high" : "auto"}
-                className="h-full w-full object-cover object-top"
-              />
+              {loadedSlides.has(index) ? (
+                <Image
+                  src={image}
+                  alt={`Banner ${index + 1}`}
+                  width={1920}
+                  height={480}
+                  sizes="(max-width: 1140px) 100vw, 1140px"
+                  priority={index === 0}
+                  fetchPriority={index === 0 ? "high" : "auto"}
+                  className="h-full w-full object-cover object-top"
+                />
+              ) : null}
               <div className="absolute inset-0 bg-black/30"></div>
             </div>
           ))}
