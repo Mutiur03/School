@@ -41,6 +41,16 @@ superAdminSchoolRouterInternal.delete(
   AuthMiddleware.authenticate(["super_admin"]),
   SchoolController.deleteSchool,
 );
+superAdminSchoolRouterInternal.post(
+  "/:id/rotate-student-passwords",
+  AuthMiddleware.authenticate(["super_admin"]),
+  SchoolController.rotateStudentPasswords,
+);
+superAdminSchoolRouterInternal.get(
+  "/:id/students/export",
+  AuthMiddleware.authenticate(["super_admin"]),
+  SchoolController.exportStudents,
+);
 
 export const tenantSchoolRouter = Router();
 tenantSchoolRouter.use("/api/schools", tenantSchoolRouterInternal);

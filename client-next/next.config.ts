@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   images: {
-    unoptimized: true,
+    // unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
