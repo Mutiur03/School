@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: "Kalpurush";
+    src: url("/fonts/Kalpurush-v0.258.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: block;
+}
+
+html,
+body {
+    font-family: "Kalpurush", sans-serif;
+}
+
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
