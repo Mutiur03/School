@@ -7,6 +7,8 @@ import toast from "react-hot-toast";
 import { putFileToPresignedUrl } from "@/lib/uploadToR2";
 import {
   Building2,
+  Download,
+  KeyRound,
   Loader2,
   Mail,
   MapPin,
@@ -17,6 +19,7 @@ import {
   Trash2,
   UserCog,
 } from "lucide-react";
+import { downloadBlob } from "@school/common-ui/blob";
 import {
   addAdminSchema,
   createSchoolSchema,
@@ -104,6 +107,8 @@ function SchoolManagement() {
   const [fetchingAdmins, setFetchingAdmins] = useState(false);
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null);
+  const [rotatingId, setRotatingId] = useState<number | null>(null);
+  const [exportingId, setExportingId] = useState<number | null>(null);
 
   const {
     register: registerAdmin,
@@ -445,6 +450,47 @@ function SchoolManagement() {
     }
   };
 
+  const handleRotatePassword = async (id: number, name: string) => {
+    const confirmed = window.confirm(
+      `Rotate passwords for ALL students of "${name}"? New credentials will be downloaded as an Excel file. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setRotatingId(id);
+    try {
+      const { data } = await axios.post(
+        `/api/schools/${id}/rotate-student-passwords`,
+        undefined,
+        { responseType: "blob" },
+      );
+      const safeName = (name || "school").replace(/[^a-zA-Z0-9-_]/g, "_");
+      downloadBlob(new Blob([data]), `${safeName}_rotated_passwords.xlsx`);
+      toast.success("Student passwords rotated. Excel downloaded.");
+    } catch (error) {
+      console.error("Failed to rotate passwords", error);
+      toast.error("Failed to rotate passwords");
+    } finally {
+      setRotatingId(null);
+    }
+  };
+
+  const handleExportStudents = async (id: number, name: string) => {
+    setExportingId(id);
+    try {
+      const { data } = await axios.get(`/api/schools/${id}/students/export`, {
+        responseType: "blob",
+      });
+      const safeName = (name || "school").replace(/[^a-zA-Z0-9-_]/g, "_");
+      downloadBlob(new Blob([data]), `${safeName}_students.xlsx`);
+      toast.success("Students exported");
+    } catch (error) {
+      console.error("Failed to export students", error);
+      toast.error("Failed to export students");
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -533,6 +579,47 @@ function SchoolManagement() {
                 </button>
               )}
             </div>
+
+            {selectedSchoolId !== "new" && (
+              <div className="rounded-lg border bg-muted/40 p-4">
+                <p className="text-sm font-medium">Student Actions</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Applies to all students of this school.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleExportStudents(selectedSchoolId, schoolName)
+                    }
+                    disabled={exportingId === selectedSchoolId}
+                    className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-60"
+                  >
+                    {exportingId === selectedSchoolId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Download All Students
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleRotatePassword(selectedSchoolId, schoolName)
+                    }
+                    disabled={rotatingId === selectedSchoolId}
+                    className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-background px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+                  >
+                    {rotatingId === selectedSchoolId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="h-4 w-4" />
+                    )}
+                    Rotate All Student Passwords
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">

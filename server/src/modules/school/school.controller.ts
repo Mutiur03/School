@@ -70,6 +70,40 @@ export class SchoolController {
       .json(new ApiResponse(200, info, "School info fetched successfully"));
   });
 
+  static rotateStudentPasswords = asyncHandler(
+    async (req: any, res: Response) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) throw new ApiError(400, "Invalid school id");
+
+      const buffer = await SchoolService.rotateStudentPasswords(id);
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="school-${id}-rotated-passwords.xlsx"`,
+      );
+      res.status(200).send(buffer);
+    },
+  );
+
+  static exportStudents = asyncHandler(async (req: any, res: Response) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) throw new ApiError(400, "Invalid school id");
+
+    const buffer = await SchoolService.exportStudentsExcel(id);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="school-${id}-students.xlsx"`,
+    );
+    res.status(200).send(buffer);
+  });
+
   static getLogoUploadUrl = asyncHandler(async (req: Request, res: Response) => {
     const { fileName, contentType } = req.body as {
       fileName?: string;
