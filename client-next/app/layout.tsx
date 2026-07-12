@@ -68,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Navbar school={school!} />
             <hr className="border-t border-gray-300" />
             <TopBanner />
-            {children}
+            <main>{children}</main>
           </div>
           <Footer />
         </Providers>

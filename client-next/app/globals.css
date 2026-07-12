@@ -12,6 +12,19 @@ body {
     font-family: "Kalpurush", sans-serif;
 }
 
+/* Button reset so an onClick control can look like an inline link
+   without being a non-crawlable <a> (a11y + SEO). */
+.as-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: inherit;
+}
+
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);

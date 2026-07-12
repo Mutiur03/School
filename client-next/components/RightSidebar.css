@@ -83,11 +83,14 @@
     /* top: 10px; */
 }
 
-.sidebar-widget ul li a {
+.sidebar-widget ul li a,
+.sidebar-widget ul li button {
     color: #333;
     text-decoration: none;
     font-size: 14px;
-    display: block;
+    display: flex;
+    align-items: center;
+    min-height: 24px;
     transition: color 0.3s ease;
 }
 
@@ -96,8 +99,9 @@
 }
 
 .sidebar-widget ul li:hover a,
+.sidebar-widget ul li:hover button,
 .sidebar-widget ul li:hover:before {
-    color: #609513;
+    color: #4d7d10;
 }
 
 /* Specific image size constraints */
@@ -131,7 +135,7 @@
 
 /* More link styling */
 .more-link {
-    color: #609513 !important;
+    color: #4d7d10 !important;
     font-weight: 600;
     text-decoration: none;
     display: block;
@@ -199,7 +203,7 @@
 
 .calendar_wrap td.today {
     color: #fff !important;
-    background: #E91E63 !important;
+    background: #C2185B !important;
     font-weight: bold;
 }
 

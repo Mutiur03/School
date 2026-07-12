@@ -15,22 +15,20 @@ export async function NoticeBoard() {
               {(data ?? []).map((notice, index) => (
                 <li key={index} className="notice-item text-left">
                   <div className="notice-title">
-                    <h5>
-                      <a
-                        href={getFileUrl(notice.file) ?? "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {notice.title}
-                      </a>
-                    </h5>
+                    <a
+                      href={getFileUrl(notice.file) ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {notice.title}
+                    </a>
                   </div>
                 </li>
               ))}
             </ul>
-            <h4 className="text-right">
+            <div className="notices-view-all text-right">
               <Link href="/notices">View All</Link>
-            </h4>
+            </div>
           </div>
         </div>
       </div>

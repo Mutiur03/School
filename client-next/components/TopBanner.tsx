@@ -55,7 +55,6 @@ export async function TopBanner() {
           <Link
             href={"/notices"}
             className="inline-flex items-center px-3 py-1.5 border border-gray-400 text-gray-700 rounded text-sm bg-transparent hover:bg-gray-50"
-            aria-label="show-all"
           >
             সকল
           </Link>

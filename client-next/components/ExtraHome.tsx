@@ -43,15 +43,15 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
             </div>
           </div>
 
-          <h4 className="text-right">
+          <div className="text-right">
             <Link
               href={galleryPath}
-              aria-label="View all notices"
+              aria-label="View all photos"
               className="inline-flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform text-black bg-gray-300 py-1.5 px-2.5 mt-4 rounded-md no-underline "
             >
               View All
             </Link>
-          </h4>
+          </div>
         </div>
       </div>
 
@@ -64,6 +64,7 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
             <p>
               <iframe
                 src={embedUrl}
+                title="School location on Google Maps"
                 width="100%"
                 height="450"
                 style={{ border: 0 }}

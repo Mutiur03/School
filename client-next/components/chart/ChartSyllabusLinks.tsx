@@ -35,12 +35,13 @@ export function ChartSyllabusLinks() {
     <ul>
       {[6, 7, 8, 9, 10].map((classNum) => (
         <li key={classNum}>
-          <a
+          <button
+            type="button"
             onClick={() => handleSyllabusClick(classNum)}
-            style={{ cursor: "pointer" }}
+            className="as-link"
           >
             {CLASS_LABELS[classNum]}
-          </a>
+          </button>
         </li>
       ))}
     </ul>
