@@ -572,25 +572,35 @@ export class MarksheetService {
       return { queued: 0 };
     }
 
-    const jobs: { data: MarksheetJob; opts: any }[] = [];
-    for (const [studentId, yr] of targets) {
-      await prisma.marksheet_files.upsert({
-        where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
-        create: {
-          student_id: studentId,
-          exam_id: examId,
-          exam_name: examName,
-          year: yr,
-          school_id: schoolId,
-          status: "pending",
-        },
-        update: { status: "pending", error: null, exam_name: examName },
-      });
-      jobs.push({
+    const studentIds = [...targets.keys()];
+
+    // Reset any rows that already exist (mirrors the upsert `update` branch)…
+    await prisma.marksheet_files.updateMany({
+      where: { exam_id: examId, student_id: { in: studentIds } },
+      data: { status: "pending", error: null, exam_name: examName },
+    });
+    // …then create the ones that don't (mirrors the upsert `create` branch).
+    await prisma.marksheet_files.createMany({
+      data: [...targets].map(([studentId, yr]) => ({
+        student_id: studentId,
+        exam_id: examId,
+        exam_name: examName,
+        year: yr,
+        school_id: schoolId,
+        status: "pending",
+      })),
+      skipDuplicates: true,
+    });
+
+    const jobs: { data: MarksheetJob; opts: any }[] = [...targets].map(
+      ([studentId, yr]) => ({
         data: { studentId, examId, examName, year: yr, schoolId },
-        opts: { jobId: jobId(examId, studentId), ...defaultJobOpts(PRIORITY_BACKFILL) },
-      });
-    }
+        opts: {
+          jobId: jobId(examId, studentId),
+          ...defaultJobOpts(PRIORITY_BACKFILL),
+        },
+      }),
+    );
 
     await marksheetQueue.addBulk(jobs);
     logger.info("[marksheet] enqueue(exam): queued student jobs", {
@@ -732,18 +742,19 @@ export class MarksheetService {
       select: { student_id: true },
     });
     const have = new Set(existing.map((r) => r.student_id));
-    for (const id of eligible) {
-      if (have.has(id)) continue;
+    const missing = eligible.filter((id) => !have.has(id));
+    if (missing.length > 0) {
       await prisma.marksheet_files
-        .create({
-          data: {
+        .createMany({
+          data: missing.map((id) => ({
             student_id: id,
             exam_id: examId,
             exam_name: exam.exam_name,
             year: exam.exam_year,
-            school_id: exam.school_id,
+            school_id: exam.school_id!,
             status: "pending",
-          },
+          })),
+          skipDuplicates: true,
         })
         .catch(() => {});
     }

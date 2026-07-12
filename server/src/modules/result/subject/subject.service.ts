@@ -49,18 +49,33 @@ export class SubjectService {
       throw new ApiError(400, `Duplicate entries found in your file: ${internalDuplicates.join(", ")}`);
     }
 
-    const existingSubjects = [];
-    for (let subject of subjects) {
-      const result = await prisma.subjects.findFirst({
-        where: {
+    const subjectKey = (name: any, cls: any, group: any, year: any) =>
+      `${name}|${cls}|${group ?? null}|${year}`;
+
+    const matches = await prisma.subjects.findMany({
+      where: {
+        OR: subjects.map((subject) => ({
           name: subject.name,
           class: subject.class,
           group: subject.group || null,
           year: subject.year || current_year,
-        },
-      });
+        })),
+      },
+      select: { name: true, class: true, group: true, year: true },
+    });
+    const existingKeys = new Set(
+      matches.map((m) => subjectKey(m.name, m.class, m.group, m.year)),
+    );
 
-      if (result) {
+    const existingSubjects = [];
+    for (let subject of subjects) {
+      const key = subjectKey(
+        subject.name,
+        subject.class,
+        subject.group || null,
+        subject.year || current_year,
+      );
+      if (existingKeys.has(key)) {
         existingSubjects.push(
           `${subject.name} (Class ${subject.class}, ${subject.year || current_year})`,
         );
