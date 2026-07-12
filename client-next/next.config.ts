@@ -7,9 +7,6 @@ const projectRoot = dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@school/common-ui"],
-  outputFileTracingIncludes: {
-    "/*": ["./app/fonts/Kalpurush-v0.258.woff2"],
-  },
   turbopack: {
     root: projectRoot,
   },

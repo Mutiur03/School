@@ -10,8 +10,6 @@ import {
   getSchoolSiteUrl,
   serializeJsonLd,
 } from "@/lib/seo";
-import fs from "fs";
-import path from "path";
 import { Footer } from "@/components/Footer";
 import Header from "@/components/HeaderClient";
 import { Navbar } from "@/components/Navbar";
@@ -30,25 +28,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const assets = school?.assets;
   const siteUrl = getSchoolSiteUrl(school, await getRequestSiteUrl());
   const jsonLd = buildSchoolJsonLd(school, siteUrl);
-  const fontPath = path.join(process.cwd(), "app/fonts/Kalpurush-v0.258.woff2");
-  const fontBase64 = fs.readFileSync(fontPath).toString("base64");
 
   return (
     <html lang="en" className="h-full antialiased">
       <head>
-        <style dangerouslySetInnerHTML={{
-          __html: `
-          @font-face {
-            font-family: "Kalpurush";
-            src: url("data:font/woff2;base64,${fontBase64}") format("woff2");
-            font-weight: 100 900;
-            font-display: block;
-          }
-
-          html, body {
-            font-family: "Kalpurush", sans-serif;
-          }
-        `}} />
+        <link
+          rel="preload"
+          href="/fonts/Kalpurush-v0.258.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         <link rel="preload" href="/bg.png" as="image" fetchPriority="high" />
         <script
           type="application/ld+json"
