@@ -791,7 +791,7 @@ export class MarksService {
         enrollment: {
           include: { student: { select: { name: true } } },
         },
-        subject: true,
+        subject: { select: { name: true, priority: true } },
         exam: { select: { exam_name: true } },
       },
     });

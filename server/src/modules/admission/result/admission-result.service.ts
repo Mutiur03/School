@@ -46,45 +46,10 @@ function generateKey(
 }
 
 export class AdmissionResultService {
-  private static async fixLegacyPaths() {
-    const itemsToFix = await prisma.admission_result.findMany({
-      where: {
-        OR: [
-          { merit_list: { startsWith: "/" } },
-          { waiting_list_1: { startsWith: "/" } },
-          { waiting_list_2: { startsWith: "/" } },
-        ],
-      },
-    });
-
-    for (const item of itemsToFix) {
-      const updateData: Record<string, string> = {};
-
-      if (item.merit_list?.startsWith("/")) {
-        updateData.merit_list = item.merit_list.slice(1);
-      }
-      if (item.waiting_list_1?.startsWith("/")) {
-        updateData.waiting_list_1 = item.waiting_list_1.slice(1);
-      }
-      if (item.waiting_list_2?.startsWith("/")) {
-        updateData.waiting_list_2 = item.waiting_list_2.slice(1);
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await prisma.admission_result.update({
-          where: { id: item.id },
-          data: updateData,
-        });
-      }
-    }
-  }
-
   static async getAdmissionResults(filters: {
     class_name?: string;
     admission_year?: string;
   }) {
-    await this.fixLegacyPaths();
-
     const whereCondition: {
       class_name?: string;
       admission_year?: number;

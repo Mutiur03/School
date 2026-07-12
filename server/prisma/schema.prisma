@@ -161,8 +161,8 @@ model admin {
   password     String
   role         String  @default("admin")
   tokenVersion Int     @default(0)
-  school_id    Int?
-  school       School? @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([username])
   @@index([role])
@@ -195,8 +195,8 @@ model students {
   galleries       gallery[]             @relation("StudentGalleryUploader")
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
-  school_id       Int?
-  school          School?               @relation(fields: [school_id], references: [id])
+  school_id       Int @default(dbgenerated("app.current_school_id()"))
+  school          School               @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([login_id])
   @@index([batch])
@@ -225,8 +225,8 @@ model student_enrollments {
   fourth_subject_id Int?
   marks             marks[]
   student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id         Int?
-  school            School?   @relation(fields: [school_id], references: [id])
+  school_id         Int @default(dbgenerated("app.current_school_id()"))
+  school            School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
   fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
 
   @@unique([student_id, class, year])
@@ -247,8 +247,8 @@ model attendence {
   send_msg   Boolean  @default(false)
   created_at DateTime @default(now())
   student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id  Int?
-  school     School?  @relation(fields: [school_id], references: [id])
+  school_id  Int @default(dbgenerated("app.current_school_id()"))
+  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([student_id])
   @@index([date])
@@ -274,8 +274,8 @@ model exams {
   exam_routines exam_routines[]
   marks         marks[]
   class_stats   exam_class_stats[]
-  school_id     Int?
-  school        School?         @relation(fields: [school_id], references: [id])
+  school_id     Int @default(dbgenerated("app.current_school_id()"))
+  school        School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_name, exam_year, levels])
   @@index([school_id])
@@ -291,8 +291,8 @@ model exam_class_stats {
   class_highest_grand_total Int @default(0) // max per-student total across ALL subjects (incl. continuous)
   updated_at          DateTime @default(now()) @updatedAt
   exam                exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  school_id           Int?
-  school              School?  @relation(fields: [school_id], references: [id])
+  school_id           Int @default(dbgenerated("app.current_school_id()"))
+  school              School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, class, year, school_id], name: "unique_exam_class_stats")
   @@index([exam_id])
@@ -317,8 +317,8 @@ model marksheet_files {
   generated_at DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
-  school_id    Int
-  school       School    @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, exam_id], name: "student_id_exam_id")
   @@index([exam_id, status])
@@ -344,8 +344,8 @@ model marksheet_bundles {
   generated_at DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
-  school_id    Int
-  school       School    @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, class, section], name: "exam_id_class_section")
   @@index([exam_id, status])
@@ -359,8 +359,8 @@ model holidays {
   end_date    String?  @db.VarChar(10)
   description String?
   is_optional Boolean?
-  school_id   Int?
-  school      School?  @relation(fields: [school_id], references: [id])
+  school_id   Int @default(dbgenerated("app.current_school_id()"))
+  school      School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -380,8 +380,8 @@ model teachers {
   signature    String?
   head_msgs    head_msg[]
   levels       levels[]
-  school_id    Int?
-  school       School?    @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([phone])
@@ -400,8 +400,8 @@ model staffs {
   image       String?
   address     String?
   created_at  DateTime @default(now())
-  school_id   Int?
-  school      School?  @relation(fields: [school_id], references: [id])
+  school_id   Int @default(dbgenerated("app.current_school_id()"))
+  school      School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -413,8 +413,8 @@ model levels {
   year       Int
   teacher_id Int
   teacher    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
-  school_id  Int?
-  school     School?  @relation(fields: [school_id], references: [id])
+  school_id  Int @default(dbgenerated("app.current_school_id()"))
+  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([teacher_id])
   @@index([class_name, year])
@@ -446,8 +446,8 @@ model subjects {
   enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
   parent                subjects?             @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children              subjects[]            @relation("SubjectHierarchy")
-  school_id             Int?
-  school                School?               @relation(fields: [school_id], references: [id])
+  school_id             Int @default(dbgenerated("app.current_school_id()"))
+  school                School               @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([name, class, group, year, school_id])
   @@index([class, year])
@@ -472,8 +472,8 @@ model marks {
   enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
   exam            exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   subject         subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
-  school_id       Int?
-  school          School?             @relation(fields: [school_id], references: [id])
+  school_id       Int @default(dbgenerated("app.current_school_id()"))
+  school          School             @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
   @@index([enrollment_id])
@@ -488,8 +488,8 @@ model categories {
   category  String
   thumbnail String?
   galleries gallery[]
-  school_id Int?
-  school    School?   @relation(fields: [school_id], references: [id])
+  school_id Int @default(dbgenerated("app.current_school_id()"))
+  school    School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id, category])
   @@index([school_id])
@@ -509,8 +509,8 @@ model events {
   created_at   DateTime  @default(now())
   download_url String?
   galleries    gallery[]
-  school_id    Int?
-  school       School?   @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -528,8 +528,8 @@ model gallery {
   category      categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
   event         events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
   uploader      students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
-  school_id     Int?
-  school        School?     @relation(fields: [school_id], references: [id])
+  school_id     Int @default(dbgenerated("app.current_school_id()"))
+  school        School     @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -541,8 +541,8 @@ model notices {
   download_url String?
   public_id    String?
   created_at   DateTime @default(now())
-  school_id    Int?
-  school       School?  @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -574,8 +574,8 @@ model admission {
   serial_no_class7              String?
   serial_no_class8              String?
   serial_no_class9              String?
-  school_id                     Int?
-  school                        School?  @relation(fields: [school_id], references: [id])
+  school_id                     Int @default(dbgenerated("app.current_school_id()"))
+  school                        School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -588,8 +588,8 @@ model syllabus {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
-  school_id    Int?
-  school       School?  @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -600,8 +600,8 @@ model class_slot_time {
   end_time   String          @db.VarChar(8)
   created_at DateTime        @default(now())
   routines   class_routine[]
-  school_id  Int?
-  school     School?         @relation(fields: [school_id], references: [id])
+  school_id  Int @default(dbgenerated("app.current_school_id()"))
+  school     School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -614,8 +614,8 @@ model class_routine {
   subject    String          @db.VarChar(100)
   created_at DateTime        @default(now())
   slot       class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
-  school_id  Int?
-  school     School?         @relation(fields: [school_id], references: [id])
+  school_id  Int @default(dbgenerated("app.current_school_id()"))
+  school     School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([class, slot_id, day, school_id], name: "unique_class_slot_day")
   @@index([school_id])
@@ -630,8 +630,8 @@ model exam_routines {
   subject    String   @db.VarChar(100)
   created_at DateTime @default(now())
   exam       exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  school_id  Int?
-  school     School?  @relation(fields: [school_id], references: [id])
+  school_id  Int @default(dbgenerated("app.current_school_id()"))
+  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([exam_id, class])
   @@index([school_id])
@@ -643,8 +643,8 @@ model class_routine_pdf {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
-  school_id    Int?
-  school       School?  @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -656,8 +656,8 @@ model CitizenCharter {
   public_id    String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-  school_id    Int?
-  school       School?  @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -670,8 +670,8 @@ model head_msg {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   teacher      teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
-  school_id    Int?
-  school       School?  @relation(fields: [school_id], references: [id])
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -686,8 +686,8 @@ model ssc_reg {
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
-  school_id              Int?
-  school                 School?  @relation(fields: [school_id], references: [id])
+  school_id              Int @default(dbgenerated("app.current_school_id()"))
+  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
   classmates             String?
   classmates_source      String   @default("default")
 
@@ -757,8 +757,8 @@ model student_registration_ssc {
   upobritti                String?   @db.VarChar(10)
   roll_in_class_8          String?   @db.VarChar(20)
   section_in_class_8       String?   @db.VarChar(10)
-  school_id                Int?
-  school                   School?   @relation(fields: [school_id], references: [id])
+  school_id                Int @default(dbgenerated("app.current_school_id()"))
+  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
   scout_status             String?   @db.VarChar(10)
 
   @@index([birth_reg_no])
@@ -831,8 +831,8 @@ model admission_form {
   admission_year           Int?
   registration_no          String?   @db.VarChar(50)
   whatsapp_number          String?   @db.VarChar(11)
-  school_id                Int?
-  school                   School?   @relation(fields: [school_id], references: [id])
+  school_id                Int @default(dbgenerated("app.current_school_id()"))
+  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -853,8 +853,8 @@ model admission_result {
   waiting_list_2_public_id String?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
-  school_id                Int?
-  school                   School?  @relation(fields: [school_id], references: [id])
+  school_id                Int @default(dbgenerated("app.current_school_id()"))
+  school                   School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([class_name])
   @@index([admission_year])
@@ -876,8 +876,8 @@ model sms_logs {
   message_id      String?  @db.VarChar(100)
   sms_count       Int?
   student         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id       Int?
-  school          School?  @relation(fields: [school_id], references: [id])
+  school_id       Int @default(dbgenerated("app.current_school_id()"))
+  school          School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([attendance_date])
@@ -897,8 +897,8 @@ model class6_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
-  school_id              Int?
-  school                 School?  @relation(fields: [school_id], references: [id])
+  school_id              Int @default(dbgenerated("app.current_school_id()"))
+  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -957,8 +957,8 @@ model student_registration_class6 {
   class6_year              Int
   nearby_student_info      String?  @db.VarChar(200)
   scout_status             String?  @db.VarChar(10)
-  school_id                Int?
-  school                   School?  @relation(fields: [school_id], references: [id])
+  school_id                Int @default(dbgenerated("app.current_school_id()"))
+  school                   School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -980,8 +980,8 @@ model class8_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
-  school_id              Int?
-  school                 School?  @relation(fields: [school_id], references: [id])
+  school_id              Int @default(dbgenerated("app.current_school_id()"))
+  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -1039,8 +1039,8 @@ model student_registration_class8 {
   registration_no         String   @db.VarChar(50)
   class6_academic_session String   @db.VarChar(50)
   scout_status            String?  @db.VarChar(10)
-  school_id               Int?
-  school                  School?  @relation(fields: [school_id], references: [id])
+  school_id               Int @default(dbgenerated("app.current_school_id()"))
+  school                  School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])
