@@ -36,13 +36,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="h-full antialiased">
       <head>
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
-          integrity="sha512-Sfcb8v8pB+e+0f7FYq8VKcYfXnCrSW0a7HW0sXHUGbF6dU4mE0iQpQZbWq9T7yFR41x3SxgA2yZrO6wYkHfFvA=="
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
         <style dangerouslySetInnerHTML={{
           __html: `
           @font-face {

@@ -158,7 +158,7 @@ export async function RightSidebar() {
               </div>
             </div>
             <p>
-              <Link className="more-link" href="/message-from-head/">
+              <Link className="more-link" href="/message-from-head">
                 View Details →
               </Link>
             </p>
