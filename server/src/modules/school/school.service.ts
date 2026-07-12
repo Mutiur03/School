@@ -1,8 +1,11 @@
 import bcrypt from "bcrypt";
 import ExcelJS from "exceljs";
 import { prisma } from "../../config/prisma.js";
+import { redis } from "../../config/redis.js";
 import generatePassword from "../../utils/pwgenerator.js";
 import { ApiError } from "../../utils/ApiError.js";
+
+const schoolInfoKey = (id: number) => `school:info:${id}`;
 
 export class SchoolService {
   static async createSchool(data: any) {
@@ -34,20 +37,28 @@ export class SchoolService {
   }
 
   static async updateSchool(id: number, data: any) {
-    return prisma.school.update({
+    const updated = await prisma.school.update({
       where: { id },
       data,
     });
+    redis.del(schoolInfoKey(id)).catch(() => {});
+    return updated;
   }
 
   static async deleteSchool(id: number) {
-    return prisma.school.delete({
+    const deleted = await prisma.school.delete({
       where: { id },
     });
+    redis.del(schoolInfoKey(id)).catch(() => {});
+    return deleted;
   }
 
   static async getSchoolInfo(id: number) {
-    return prisma.school.findUnique({
+    const key = schoolInfoKey(id);
+    const cached = await redis.get(key).catch(() => null);
+    if (cached) return JSON.parse(cached);
+
+    const info = await prisma.school.findUnique({
       where: { id },
       select: {
         id: true,
@@ -64,6 +75,9 @@ export class SchoolService {
         establishedIn: true,
       },
     });
+
+    if (info) redis.set(key, JSON.stringify(info), "EX", 300).catch(() => {});
+    return info;
   }
 
   static async getCurrentSchoolInfo({ schoolId }: { schoolId?: number }) {

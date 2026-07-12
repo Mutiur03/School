@@ -10,6 +10,7 @@ process.env.TZ = "Asia/Dhaka";
 
 export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
+import compression from "compression";
 import { detailedRequestLogger } from "./middlewares/requestLogger.js";
 import logger from "./utils/logger.js";
 import examRouter from "./routes/examRoutes.js";
@@ -56,7 +57,6 @@ import {
 } from "./modules/school/school.route.js";
 import studentRouter from "./modules/student/student.route.js";
 import routerTeacher from "./modules/teacher/teacher.route.js";
-import expressStatusMonitor from "express-status-monitor";
 import generateToken from "@/utils/generateSetupToken.js";
 import subjectRouter from "./modules/result/subject/subject.route.js";
 import { schoolContextMiddleware } from "./middlewares/tenant.middleware.js";
@@ -121,6 +121,7 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(compression());
 app.get("/api/health", async (_req, res) => {
   let database: Awaited<ReturnType<typeof getDatabasePoolStats>> | {
     status: "unavailable";
@@ -166,25 +167,6 @@ const LimitReq = rateLimit({
     );
   },
 });
-app.use(
-  (expressStatusMonitor as any)({
-    spans: [
-      { interval: 1, retention: 60 },
-      { interval: 5, retention: 60 },
-      { interval: 15, retention: 60 },
-      { interval: 60, retention: 60 },
-      { interval: 300, retention: 288 },
-    ],
-    healthChecks: [
-      {
-        protocol: "http",
-        host: "localhost",
-        path: "/api/health",
-        port: PORT.toString(),
-      },
-    ],
-  }),
-);
 app.use(LimitReq);
 app.get(
   "/api/resetLimit",
