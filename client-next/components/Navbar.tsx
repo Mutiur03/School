@@ -323,6 +323,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                 <a
                   href={item.href || "#"}
                   className="nav-link"
+                  aria-label={item.isHome ? "Home" : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -347,6 +348,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                 <Link
                   href={item.href || "#"}
                   className="nav-link"
+                  aria-label={item.isHome ? "Home" : undefined}
                   onClick={(e) => {
                     if (item.dropdown) {
                       e.preventDefault();
