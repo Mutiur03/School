@@ -1,17 +1,26 @@
 import { prisma } from "@/config/prisma.js";
+import { redis } from "@/config/redis.js";
 
 import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
 import { ApiError } from "@/utils/ApiError.js";
 
+const noticesKey = (schoolId?: number) => `notices:${schoolId ?? "none"}`;
+
 export class NoticeService {
   async getNotices(limit?: number, schoolId?: number) {
-    const notices = await prisma.notices.findMany({
-      where: { school_id: schoolId },
-      orderBy: { created_at: "desc" },
-      ...(limit ? { take: limit } : {}),
-    });
+    const key = noticesKey(schoolId);
+    const cached = await redis.get(key).catch(() => null);
+    const notices = cached
+      ? JSON.parse(cached)
+      : await prisma.notices.findMany({
+          where: { school_id: schoolId },
+          orderBy: { created_at: "desc" },
+        });
 
-    return notices;
+    if (!cached)
+      redis.set(key, JSON.stringify(notices), "EX", 120).catch(() => {});
+
+    return limit ? notices.slice(0, limit) : notices;
   }
 
   async getPresignedUploadUrl(filename: string, contentType: string) {
@@ -39,6 +48,7 @@ export class NoticeService {
       },
     });
 
+    redis.del(noticesKey(schoolId)).catch(() => {});
     return notice;
   }
 
@@ -73,6 +83,7 @@ export class NoticeService {
       data: updateData,
     });
 
+    redis.del(noticesKey(schoolId)).catch(() => {});
     return updated;
   }
 
@@ -83,6 +94,7 @@ export class NoticeService {
     if (!existing) throw new ApiError(404, "Notice not found");
 
     await prisma.notices.delete({ where: { id } });
+    redis.del(noticesKey(schoolId)).catch(() => {});
 
     if (existing.public_id) {
       await deleteFromR2(existing.public_id);

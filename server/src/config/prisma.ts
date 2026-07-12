@@ -137,11 +137,9 @@ const extendedPrisma = basePrisma.$extends({
           patchRlsContext({ inRlsTransaction: true });
 
           await tx.$executeRaw`
-            SELECT set_config('app.is_super_admin', ${isSuperAdmin ? "1" : "0"}, true)
-          `;
-
-          await tx.$executeRaw`
-            SELECT set_config('app.school_id', ${schoolId ? String(schoolId) : ""}, true)
+            SELECT
+              set_config('app.is_super_admin', ${isSuperAdmin ? "1" : "0"}, true),
+              set_config('app.school_id', ${schoolId ? String(schoolId) : ""}, true)
           `;
 
           try {
