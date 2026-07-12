@@ -26,7 +26,9 @@ export const sanitizeStudent = (student: any) => {
 
 export class StudentService {
   static async getAlumni() {
-    const students = await prisma.students.findMany();
+    const students = await prisma.students.findMany({
+      omit: { password: true },
+    });
     return students.map(sanitizeStudent);
   }
 
@@ -183,6 +185,7 @@ export class StudentService {
     let result: any[] = [];
     if (userOptions.role === "admin") {
       result = await prisma.students.findMany({
+        where: { enrollments: { some: { year } } },
         include: {
           enrollments: {
             where: { year },
@@ -753,6 +756,7 @@ export class StudentService {
     }
 
     const result = await prisma.students.findMany({
+      where: { enrollments: { some: { year, class: level } } },
       include: {
         enrollments: {
           where: { year, class: level },
