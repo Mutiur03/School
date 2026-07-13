@@ -1035,16 +1035,23 @@ export class MarksService {
     let teacherRec:
       | { id: number | null; name: string | null; signature: string | null }
       | null = null;
-    if (frozenSignatories?.teacherId != null) {
-      const t = await prisma.teachers.findUnique({
-        where: { id: frozenSignatories.teacherId },
-        select: { id: true, name: true, signature: true },
-      });
-      teacherRec = {
-        id: frozenSignatories.teacherId,
-        name: t?.name ?? null,
-        signature: t?.signature ?? null,
-      };
+    if (frozenSignatories) {
+      // Frozen exam: the snapshotted teacher id is authoritative. A null id means
+      // the section had no class teacher when the sheet was finalized — keep it
+      // null rather than falling back to a teacher assigned after the freeze.
+      if (frozenSignatories.teacherId != null) {
+        const t = await prisma.teachers.findUnique({
+          where: { id: frozenSignatories.teacherId },
+          select: { id: true, name: true, signature: true },
+        });
+        teacherRec = {
+          id: frozenSignatories.teacherId,
+          name: t?.name ?? null,
+          signature: t?.signature ?? null,
+        };
+      } else {
+        teacherRec = null;
+      }
     } else {
       const level = await prisma.levels.findFirst({
         where: {
@@ -1071,17 +1078,23 @@ export class MarksService {
           role: string;
         }
       | null = null;
-    if (frozenSignatories?.headId != null) {
-      const t = await prisma.teachers.findUnique({
-        where: { id: frozenSignatories.headId },
-        select: { name: true, signature: true },
-      });
-      headRec = {
-        id: frozenSignatories.headId,
-        name: t?.name ?? null,
-        signature: t?.signature ?? null,
-        role: frozenSignatories.headRole ?? "Headmaster",
-      };
+    if (frozenSignatories) {
+      // Frozen exam: keep the snapshotted head. A null id means no head signed
+      // the finalized sheet — do not fall back to the current head assignment.
+      if (frozenSignatories.headId != null) {
+        const t = await prisma.teachers.findUnique({
+          where: { id: frozenSignatories.headId },
+          select: { name: true, signature: true },
+        });
+        headRec = {
+          id: frozenSignatories.headId,
+          name: t?.name ?? null,
+          signature: t?.signature ?? null,
+          role: frozenSignatories.headRole ?? "Headmaster",
+        };
+      } else {
+        headRec = null;
+      }
     } else {
       const headMsg = await this.getHeadMsgForMarks();
       headRec = headMsg
@@ -1285,17 +1298,23 @@ export class MarksService {
     let headRec:
       | { id: number | null; name: string | null; signature: string | null; role: string }
       | null;
-    if (frozenSignatories?.headId != null) {
-      const t = await prisma.teachers.findUnique({
-        where: { id: frozenSignatories.headId },
-        select: { name: true, signature: true },
-      });
-      headRec = {
-        id: frozenSignatories.headId,
-        name: t?.name ?? null,
-        signature: t?.signature ?? null,
-        role: frozenSignatories.headRole ?? "Headmaster",
-      };
+    if (frozenSignatories) {
+      // Frozen exam: keep the snapshotted head; a null id means no head signed
+      // the finalized bundle — do not fall back to the current head.
+      if (frozenSignatories.headId != null) {
+        const t = await prisma.teachers.findUnique({
+          where: { id: frozenSignatories.headId },
+          select: { name: true, signature: true },
+        });
+        headRec = {
+          id: frozenSignatories.headId,
+          name: t?.name ?? null,
+          signature: t?.signature ?? null,
+          role: frozenSignatories.headRole ?? "Headmaster",
+        };
+      } else {
+        headRec = null;
+      }
     } else {
       headRec = headMsg
         ? {
@@ -1357,16 +1376,23 @@ export class MarksService {
           let lvTeacher:
             | { id: number | null; name: string | null; signature: string | null }
             | null = null;
-          if (overrideTeacherId != null) {
-            const t = await prisma.teachers.findUnique({
-              where: { id: overrideTeacherId },
-              select: { name: true, signature: true },
-            });
-            lvTeacher = {
-              id: overrideTeacherId,
-              name: t?.name ?? null,
-              signature: t?.signature ?? null,
-            };
+          if (frozenSignatories) {
+            // Frozen bundle: only the snapshotted per-section teacher may sign.
+            // A section absent from the snapshot had no teacher when finalized —
+            // render it blank rather than pulling in a post-freeze assignment.
+            if (overrideTeacherId != null) {
+              const t = await prisma.teachers.findUnique({
+                where: { id: overrideTeacherId },
+                select: { name: true, signature: true },
+              });
+              lvTeacher = {
+                id: overrideTeacherId,
+                name: t?.name ?? null,
+                signature: t?.signature ?? null,
+              };
+            } else {
+              lvTeacher = null;
+            }
           } else {
             const lv = await prisma.levels.findFirst({
               where: {

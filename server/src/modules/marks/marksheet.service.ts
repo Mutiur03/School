@@ -42,11 +42,19 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export function isExamFrozen(resultDate: string | null | undefined): boolean {
   if (!resultDate) return false;
-  const d = new Date(resultDate);
-  if (Number.isNaN(d.getTime())) return false;
+  // result_date is a plain calendar date (VarChar(10), "YYYY-MM-DD"). Compare it
+  // as a date string against today's local calendar date so the frozen boundary
+  // is timezone-agnostic — never parse it to a Date (that pins UTC midnight and
+  // misclassifies the boundary day on non-UTC servers).
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(resultDate.trim());
+  if (!m) return false;
+  const resultDay = `${m[1]}-${m[2]}-${m[3]}`;
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return d.getTime() < startOfToday.getTime();
+  const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(now.getDate()).padStart(2, "0")}`;
+  return resultDay < todayLocal;
 }
 
 const SERVE_TIMEOUT_MS = Number(process.env.MARKSHEET_SERVE_TIMEOUT_MS || "180000");
@@ -256,6 +264,92 @@ export class MarksheetService {
       out.push({ sec, id, name: t?.name ?? null, sig: t?.signature ?? null });
     }
     return out;
+  }
+
+  /**
+   * Seed the signatory snapshot on student rows that don't have one yet, using
+   * the CURRENT head and each student's current section class-teacher. Called
+   * only for OPEN exams: it captures who was assigned while the exam was still
+   * open so that if the exam freezes before a first render (e.g. a backdated
+   * result_date, or a reassignment right after publish), the frozen sheet still
+   * pins the open-window staff instead of whoever is current at first render.
+   *
+   * Only fills rows where snapshot_head_id is null — rendered rows already carry
+   * an authoritative snapshot, and a reassignment while still open re-renders and
+   * refreshes it, so this must not clobber those.
+   */
+  private static async seedOpenSnapshot(
+    studentIds: number[],
+    examId: number,
+    year: number,
+  ): Promise<void> {
+    if (studentIds.length === 0) return;
+
+    // Cheap gate on the hot marks-entry path: skip entirely once every row is
+    // already seeded/rendered.
+    const unseeded = await prisma.marksheet_files.findMany({
+      where: {
+        exam_id: examId,
+        student_id: { in: studentIds },
+        snapshot_head_id: null,
+      },
+      select: { student_id: true },
+    });
+    if (unseeded.length === 0) return;
+    const unseededIds = unseeded.map((r) => r.student_id);
+
+    const [head, enrollments] = await Promise.all([
+      prisma.head_msg.findFirst({
+        orderBy: { updated_at: "desc" },
+        select: { head_id: true, head_role: true },
+      }),
+      prisma.student_enrollments.findMany({
+        where: { student_id: { in: unseededIds }, year },
+        select: { student_id: true, class: true, section: true },
+      }),
+    ]);
+    const headId = head?.head_id ?? null;
+    const headRole = head?.head_role ?? null;
+
+    const classSet = [...new Set(enrollments.map((e) => e.class))];
+    const sectionSet = [...new Set(enrollments.map((e) => e.section))];
+    const levels = classSet.length
+      ? await prisma.levels.findMany({
+          where: {
+            class_name: { in: classSet },
+            section: { in: sectionSet },
+            year,
+          },
+          select: { class_name: true, section: true, teacher_id: true },
+        })
+      : [];
+    const teacherByKey = new Map(
+      levels.map((l) => [`${l.class_name}_${l.section}`, l.teacher_id ?? null]),
+    );
+
+    // Group by resolved teacher id so each distinct snapshot value is one write.
+    const groups = new Map<number | null, number[]>();
+    for (const e of enrollments) {
+      const tid = teacherByKey.get(`${e.class}_${e.section}`) ?? null;
+      const arr = groups.get(tid) ?? [];
+      arr.push(e.student_id);
+      groups.set(tid, arr);
+    }
+
+    for (const [teacherId, ids] of groups) {
+      await prisma.marksheet_files.updateMany({
+        where: {
+          exam_id: examId,
+          student_id: { in: ids },
+          snapshot_head_id: null,
+        },
+        data: {
+          snapshot_head_id: headId,
+          snapshot_head_role: headRole,
+          snapshot_teacher_id: teacherId,
+        },
+      });
+    }
   }
 
   static r2Key(
@@ -801,7 +895,12 @@ export class MarksheetService {
     if (studentIds.length === 0) return;
     const exam = await prisma.exams.findUnique({
       where: { id: examId },
-      select: { school_id: true, exam_name: true, exam_year: true },
+      select: {
+        school_id: true,
+        exam_name: true,
+        exam_year: true,
+        result_date: true,
+      },
     });
     if (!exam?.school_id) return;
 
@@ -849,6 +948,14 @@ export class MarksheetService {
           skipDuplicates: true,
         })
         .catch(() => {});
+    }
+
+    // Seed the frozen-signatory snapshot while the exam is still open, so a
+    // sheet that freezes before it is ever rendered still pins the staff who
+    // were assigned during the open window (a later reassignment skips frozen
+    // exams and would otherwise never be captured).
+    if (!isExamFrozen(exam.result_date)) {
+      await this.seedOpenSnapshot(eligible, examId, exam.exam_year);
     }
 
     await marksheetQueue.addBulk(
