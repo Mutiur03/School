@@ -943,6 +943,11 @@ export class MarksService {
     year: string,
     exam: string,
     user: any,
+    frozenSignatories?: {
+      headId: number | null;
+      headRole: string | null;
+      teacherId: number | null;
+    },
   ) {
     const result = await prisma.marks.findMany({
       where: {
@@ -1015,33 +1020,90 @@ export class MarksService {
     // every addMarks) instead of rescanning the whole class here.
     const examId = result[0].exam_id;
     const yearInt = parseInt(year);
-    const [statsRow, level, headMsg, website] = await Promise.all([
+    const [statsRow, website] = await Promise.all([
       prisma.exam_class_stats.findFirst({
         where: { exam_id: examId, class: studentClass, year: yearInt },
       }),
-      prisma.levels.findFirst({
-        where: {
-          class_name: studentClass,
-          section: studentSection,
-          year: parseInt(year),
-        },
-        include: { teacher: true },
-      }),
-      this.getHeadMsgForMarks(),
       this.getSchoolWebsite(),
     ]);
 
+    // Resolve the signatories. For a frozen exam the worker passes the
+    // snapshotted ids so a later staff reassignment does not re-stamp the sheet;
+    // the person's CURRENT name/signature is still read (so a late signature
+    // upload by the same person still propagates). Open exams resolve the
+    // current class-teacher / head assignment as before.
+    let teacherRec:
+      | { id: number | null; name: string | null; signature: string | null }
+      | null = null;
+    if (frozenSignatories?.teacherId != null) {
+      const t = await prisma.teachers.findUnique({
+        where: { id: frozenSignatories.teacherId },
+        select: { id: true, name: true, signature: true },
+      });
+      teacherRec = {
+        id: frozenSignatories.teacherId,
+        name: t?.name ?? null,
+        signature: t?.signature ?? null,
+      };
+    } else {
+      const level = await prisma.levels.findFirst({
+        where: {
+          class_name: studentClass,
+          section: studentSection,
+          year: yearInt,
+        },
+        include: { teacher: true },
+      });
+      teacherRec = level
+        ? {
+            id: level.teacher_id ?? null,
+            name: level.teacher?.name ?? null,
+            signature: level.teacher?.signature ?? null,
+          }
+        : null;
+    }
+
+    let headRec:
+      | {
+          id: number | null;
+          name: string | null;
+          signature: string | null;
+          role: string;
+        }
+      | null = null;
+    if (frozenSignatories?.headId != null) {
+      const t = await prisma.teachers.findUnique({
+        where: { id: frozenSignatories.headId },
+        select: { name: true, signature: true },
+      });
+      headRec = {
+        id: frozenSignatories.headId,
+        name: t?.name ?? null,
+        signature: t?.signature ?? null,
+        role: frozenSignatories.headRole ?? "Headmaster",
+      };
+    } else {
+      const headMsg = await this.getHeadMsgForMarks();
+      headRec = headMsg
+        ? {
+            id: headMsg.head_id ?? null,
+            name: headMsg.teacher?.name ?? null,
+            signature: headMsg.teacher?.signature ?? null,
+            role: headMsg.head_role ?? "Headmaster",
+          }
+        : null;
+    }
+
     const [teacherSignature, headSignature] = await Promise.all([
-      level?.teacher?.signature
-        ? getFileBuffer(level.teacher.signature)
-        : null,
-      headMsg?.teacher?.signature
-        ? getFileBuffer(headMsg.teacher.signature)
-        : null,
+      teacherRec?.signature ? getFileBuffer(teacherRec.signature) : null,
+      headRec?.signature ? getFileBuffer(headRec.signature) : null,
     ]);
-    const teacherName = level?.teacher?.name ?? null;
-    const headName = headMsg?.teacher?.name ?? null;
-    const headRole = headMsg?.head_role ?? "Headmaster";
+    const teacherName = teacherRec?.name ?? null;
+    const headName = headRec?.name ?? null;
+    const headRole = headRec?.role ?? "Headmaster";
+    const usedTeacherId = teacherRec?.id ?? null;
+    const usedHeadId = headRec?.id ?? null;
+    const usedHeadRole = headRec?.role ?? null;
 
     // Lazy fallback if the cache row is missing (marks predate this feature).
     let highestMarksMap: Record<string, number>;
@@ -1088,7 +1150,13 @@ export class MarksService {
       { teacher: teacherSignature, teacherName, head: headSignature, headName, headRole },
       website,
     );
-    return { buffer: await this.finalizeMarksheetBuffer(buffer), studentName };
+    return {
+      buffer: await this.finalizeMarksheetBuffer(buffer),
+      studentName,
+      usedHeadId,
+      usedHeadRole,
+      usedTeacherId,
+    };
   }
 
   static async generateBulkExamMarksheetsPDF(
@@ -1098,9 +1166,17 @@ export class MarksService {
     section?: string,
     user?: any,
     sections?: string[],
+    frozenSignatories?: {
+      headId: number | null;
+      headRole: string | null;
+      teachersBySection: Record<string, number>;
+    },
   ) {
     const yearInt = parseInt(year);
     const classNum = parseInt(className);
+    // Records the class-teacher id actually used per section so the worker can
+    // persist the bundle's signatory snapshot.
+    const usedTeachersBySection: Record<string, number> = {};
 
     const where: any = {
       class: classNum,
@@ -1203,9 +1279,38 @@ export class MarksService {
     const classHighestTotal = Object.values(totalByEnrollment).length > 0 ? Math.max(...Object.values(totalByEnrollment)) : 0;
     const classHighestGrandTotal = Object.values(grandTotalByEnrollment).length > 0 ? Math.max(...Object.values(grandTotalByEnrollment)) : 0;
     const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
-    const headSignature = headMsg?.teacher?.signature ? await getFileBuffer(headMsg.teacher.signature) : null;
-    const headName = headMsg?.teacher?.name ?? null;
-    const headRole = headMsg?.head_role ?? "Headmaster";
+
+    // Head signatory: snapshotted id (frozen) resolves that person's current
+    // name/signature; otherwise the current head assignment.
+    let headRec:
+      | { id: number | null; name: string | null; signature: string | null; role: string }
+      | null;
+    if (frozenSignatories?.headId != null) {
+      const t = await prisma.teachers.findUnique({
+        where: { id: frozenSignatories.headId },
+        select: { name: true, signature: true },
+      });
+      headRec = {
+        id: frozenSignatories.headId,
+        name: t?.name ?? null,
+        signature: t?.signature ?? null,
+        role: frozenSignatories.headRole ?? "Headmaster",
+      };
+    } else {
+      headRec = headMsg
+        ? {
+            id: headMsg.head_id ?? null,
+            name: headMsg.teacher?.name ?? null,
+            signature: headMsg.teacher?.signature ?? null,
+            role: headMsg.head_role ?? "Headmaster",
+          }
+        : null;
+    }
+    const headSignature = headRec?.signature ? await getFileBuffer(headRec.signature) : null;
+    const headName = headRec?.name ?? null;
+    const headRole = headRec?.role ?? "Headmaster";
+    const usedHeadId = headRec?.id ?? null;
+    const usedHeadRole = headRec?.role ?? null;
     const teacherSigs: Record<string, { signature: Buffer | null; name: string | null }> = {};
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
@@ -1247,11 +1352,47 @@ export class MarksService {
 
         const sigKey = `${enrollment.class}_${enrollment.section}_${yearInt}`;
         if (!(sigKey in teacherSigs)) {
-          const lv = await prisma.levels.findFirst({ where: { class_name: enrollment.class, section: enrollment.section, year: yearInt }, include: { teacher: true } });
+          const overrideTeacherId =
+            frozenSignatories?.teachersBySection?.[enrollment.section];
+          let lvTeacher:
+            | { id: number | null; name: string | null; signature: string | null }
+            | null = null;
+          if (overrideTeacherId != null) {
+            const t = await prisma.teachers.findUnique({
+              where: { id: overrideTeacherId },
+              select: { name: true, signature: true },
+            });
+            lvTeacher = {
+              id: overrideTeacherId,
+              name: t?.name ?? null,
+              signature: t?.signature ?? null,
+            };
+          } else {
+            const lv = await prisma.levels.findFirst({
+              where: {
+                class_name: enrollment.class,
+                section: enrollment.section,
+                year: yearInt,
+              },
+              include: { teacher: true },
+            });
+            lvTeacher = lv
+              ? {
+                  id: lv.teacher_id ?? null,
+                  name: lv.teacher?.name ?? null,
+                  signature: lv.teacher?.signature ?? null,
+                }
+              : null;
+          }
           teacherSigs[sigKey] = {
-            signature: lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null,
-            name: lv?.teacher?.name ?? null,
+            signature: lvTeacher?.signature
+              ? await getFileBuffer(lvTeacher.signature)
+              : null,
+            name: lvTeacher?.name ?? null,
           };
+          if (lvTeacher?.id != null) {
+            usedTeachersBySection[enrollment.section] = lvTeacher.id;
+          }
         }
 
         await this.renderStudentMarksheetPage(
@@ -1270,7 +1411,12 @@ export class MarksService {
       }
       doc.end();
     });
-    return this.finalizeMarksheetBuffer(buffer);
+    return {
+      buffer: await this.finalizeMarksheetBuffer(buffer),
+      usedHeadId,
+      usedHeadRole,
+      usedTeachersBySection,
+    };
   }
 
   static async generateAllMarksheetsPDF(
