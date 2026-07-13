@@ -33,6 +33,22 @@ const WORKER_USER = { role: "admin" as const };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * An exam is "frozen" once its result_date (a YYYY-MM-DD string) is strictly in
+ * the past. Marksheets for a frozen exam pin the signatories that were in place
+ * when they were finalized, so a later head/class-teacher reassignment no longer
+ * regenerates or re-stamps them. Marks and class-highest stay live regardless.
+ * A missing/unparseable result_date is treated as NOT frozen (still open).
+ */
+export function isExamFrozen(resultDate: string | null | undefined): boolean {
+  if (!resultDate) return false;
+  const d = new Date(resultDate);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return d.getTime() < startOfToday.getTime();
+}
+
 const SERVE_TIMEOUT_MS = Number(process.env.MARKSHEET_SERVE_TIMEOUT_MS || "180000");
 const SERVE_POLL_MS = Number(process.env.MARKSHEET_SERVE_POLL_MS || "500");
 
@@ -200,6 +216,48 @@ export class MarksheetService {
     }));
   }
 
+  /**
+   * Head fingerprint resolved by a snapshotted teacher id (the "who"), reading
+   * that person's CURRENT name/signature. Used for frozen exams so a later head
+   * reassignment is ignored while the same person's later signature upload is not.
+   */
+  private static async headFingerprintById(
+    headId: number | null,
+    headRole: string | null,
+  ): Promise<{ id: number | null; role: string | null; name: string | null; sig: string | null }> {
+    if (headId == null) {
+      return { id: null, role: headRole ?? null, name: null, sig: null };
+    }
+    const t = await prisma.teachers.findUnique({
+      where: { id: headId },
+      select: { name: true, signature: true },
+    });
+    return {
+      id: headId,
+      role: headRole ?? "Headmaster",
+      name: t?.name ?? null,
+      sig: t?.signature ?? null,
+    };
+  }
+
+  /** Class-teacher fingerprint(s) resolved by snapshotted teacher id(s). */
+  private static async teacherFingerprintByIds(
+    sectionToTeacherId: Record<string, number>,
+  ): Promise<Array<{ sec: string; id: number; name: string | null; sig: string | null }>> {
+    const entries = Object.entries(sectionToTeacherId).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+    const out: Array<{ sec: string; id: number; name: string | null; sig: string | null }> = [];
+    for (const [sec, id] of entries) {
+      const t = await prisma.teachers.findUnique({
+        where: { id },
+        select: { name: true, signature: true },
+      });
+      out.push({ sec, id, name: t?.name ?? null, sig: t?.signature ?? null });
+    }
+    return out;
+  }
+
   static r2Key(
     schoolId: number,
     year: number,
@@ -258,10 +316,33 @@ export class MarksheetService {
     examId: number,
     year: number,
   ): Promise<string> {
-    const enrollment = await prisma.student_enrollments.findFirst({
-      where: { student_id: studentId, year },
-      select: { class: true, section: true, roll: true, fourth_subject_id: true },
-    });
+    const [enrollment, exam, snapRow] = await Promise.all([
+      prisma.student_enrollments.findFirst({
+        where: { student_id: studentId, year },
+        select: { class: true, section: true, roll: true, fourth_subject_id: true },
+      }),
+      prisma.exams.findUnique({
+        where: { id: examId },
+        select: { result_date: true },
+      }),
+      prisma.marksheet_files.findUnique({
+        where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
+        select: {
+          snapshot_head_id: true,
+          snapshot_head_role: true,
+          snapshot_teacher_id: true,
+        },
+      }),
+    ]);
+
+    // Frozen exams pin their signatories by the snapshotted ids (resolving the
+    // snapshotted person's current name/signature). Falls back to the current
+    // assignment until a first render has stored a snapshot.
+    const useSnapshot =
+      isExamFrozen(exam?.result_date) &&
+      !!snapRow &&
+      (snapRow.snapshot_head_id != null || snapRow.snapshot_teacher_id != null);
+
     const [markAgg, stats, head, classTeacher] = await Promise.all([
       prisma.marks.aggregate({
         where: { exam_id: examId, enrollment: { student_id: studentId, year } },
@@ -274,11 +355,22 @@ export class MarksheetService {
             select: { updated_at: true },
           })
         : Promise.resolve(null),
-      this.headMsgFingerprint(),
+      useSnapshot
+        ? this.headFingerprintById(
+            snapRow!.snapshot_head_id,
+            snapRow!.snapshot_head_role,
+          )
+        : this.headMsgFingerprint(),
       enrollment
-        ? this.classTeacherFingerprint(enrollment.class, year, [
-            enrollment.section,
-          ])
+        ? useSnapshot
+          ? this.teacherFingerprintByIds(
+              snapRow!.snapshot_teacher_id != null
+                ? { [enrollment.section]: snapRow!.snapshot_teacher_id }
+                : {},
+            )
+          : this.classTeacherFingerprint(enrollment.class, year, [
+              enrollment.section,
+            ])
         : Promise.resolve([]),
     ]);
 
@@ -839,7 +931,12 @@ export class MarksheetService {
           select: {
             exam_id: true,
             exam: {
-              select: { exam_name: true, school_id: true, exam_year: true },
+              select: {
+                exam_name: true,
+                school_id: true,
+                exam_year: true,
+                result_date: true,
+              },
             },
           },
         })
@@ -869,6 +966,21 @@ export class MarksheetService {
       const examName = exam?.exam_name;
       if (!schoolId || !examName) continue;
 
+      // Skip frozen exams: reassigning a class teacher must not regenerate a
+      // finalized sheet. The snapshotted signatory keeps it stable, and a
+      // same-person signature upload is picked up lazily on next download.
+      let resultDate = (exam as { result_date?: string | null }).result_date;
+      if (resultDate === undefined) {
+        resultDate =
+          (
+            await prisma.exams.findUnique({
+              where: { id: row.exam_id },
+              select: { result_date: true },
+            })
+          )?.result_date ?? null;
+      }
+      if (isExamFrozen(resultDate)) continue;
+
       const examStudentIds = await this.studentIdsWithMarksForExam(
         row.exam_id,
         studentIds,
@@ -887,7 +999,13 @@ export class MarksheetService {
     }
   }
 
-  /** Re-queue all cached marksheets for a school (head assignment / identity). */
+  /**
+   * Re-queue cached marksheets for a school after a head assignment / identity
+   * change. Scoped to exams that are still open (result_date not yet passed):
+   * finalized (frozen) marksheets keep the head who signed them, so a routine
+   * head change no longer regenerates the school's entire history. A frozen
+   * sheet still picks up a same-person signature upload lazily on next download.
+   */
   static async invalidateForSchoolSignatureChange(
     schoolId: number,
   ): Promise<void> {
@@ -895,16 +1013,37 @@ export class MarksheetService {
       schoolId,
     });
 
+    const exams = await prisma.exams.findMany({
+      where: { school_id: schoolId },
+      select: { id: true, result_date: true },
+    });
+    const openExamIds = exams
+      .filter((e) => !isExamFrozen(e.result_date))
+      .map((e) => e.id);
+
+    if (openExamIds.length === 0) {
+      logger.info(
+        "[marksheet] invalidate(school): all exams frozen, nothing to re-queue",
+        { schoolId },
+      );
+      return;
+    }
+
     await prisma.marksheet_files.updateMany({
       where: {
         school_id: schoolId,
+        exam_id: { in: openExamIds },
         status: { in: ["ready", "failed"] },
       },
       data: { status: "pending", error: null },
     });
 
     const pendingStudents = await prisma.marksheet_files.findMany({
-      where: { school_id: schoolId, status: "pending" },
+      where: {
+        school_id: schoolId,
+        exam_id: { in: openExamIds },
+        status: "pending",
+      },
       select: {
         student_id: true,
         exam_id: true,
@@ -934,13 +1073,18 @@ export class MarksheetService {
     await prisma.marksheet_bundles.updateMany({
       where: {
         school_id: schoolId,
+        exam_id: { in: openExamIds },
         status: { in: ["ready", "failed"] },
       },
       data: { status: "pending", error: null },
     });
 
     const pendingBundles = await prisma.marksheet_bundles.findMany({
-      where: { school_id: schoolId, status: "pending" },
+      where: {
+        school_id: schoolId,
+        exam_id: { in: openExamIds },
+        status: "pending",
+      },
       select: {
         exam_id: true,
         exam_name: true,
@@ -1292,10 +1436,35 @@ export class MarksheetService {
         };
         try {
           const hashAtStart = await this.computeInputHash(studentId, examId, year);
-          const row = await prisma.marksheet_files.findUnique({
-            where: whereStudent,
-            select: { input_hash: true, r2_key: true },
-          });
+          const [row, exam] = await Promise.all([
+            prisma.marksheet_files.findUnique({
+              where: whereStudent,
+              select: {
+                input_hash: true,
+                r2_key: true,
+                snapshot_head_id: true,
+                snapshot_head_role: true,
+                snapshot_teacher_id: true,
+              },
+            }),
+            prisma.exams.findUnique({
+              where: { id: examId },
+              select: { result_date: true },
+            }),
+          ]);
+          // A frozen exam re-renders with its snapshotted signatories so a later
+          // staff reassignment cannot re-stamp it. Until a first render has
+          // stored a snapshot, fall through to the current assignment.
+          const frozenSignatories =
+            isExamFrozen(exam?.result_date) &&
+            row &&
+            (row.snapshot_head_id != null || row.snapshot_teacher_id != null)
+              ? {
+                  headId: row.snapshot_head_id,
+                  headRole: row.snapshot_head_role,
+                  teacherId: row.snapshot_teacher_id,
+                }
+              : undefined;
           // Nothing changed and the object is still there — no render needed.
           if (
             row?.input_hash === hashAtStart &&
@@ -1336,12 +1505,13 @@ export class MarksheetService {
                 ? "inputs-changed"
                 : "r2-missing",
           });
-          const { buffer, studentName } =
+          const { buffer, studentName, usedHeadId, usedHeadRole, usedTeacherId } =
             await MarksService.generateMarksheetPDF(
               String(studentId),
               String(year),
               examName,
               WORKER_USER,
+              frozenSignatories,
             );
           const key = this.r2Key(schoolId, year, examId, studentId);
           await uploadToR2(key, buffer);
@@ -1377,6 +1547,9 @@ export class MarksheetService {
               r2_key: key,
               input_hash: hashAtEnd,
               student_name: studentName,
+              snapshot_head_id: usedHeadId,
+              snapshot_head_role: usedHeadRole,
+              snapshot_teacher_id: usedTeacherId,
               generated_at: new Date(),
               error: null,
             },
@@ -1458,6 +1631,37 @@ export class MarksheetService {
       bundleSection,
     );
     const bundleSections = this.parseBundleSections(bundleSection);
+
+    const [exam, snapRow] = await Promise.all([
+      prisma.exams.findUnique({
+        where: { id: examId },
+        select: { result_date: true },
+      }),
+      prisma.marksheet_bundles.findUnique({
+        where: {
+          exam_id_class_section: {
+            exam_id: examId,
+            class: cls,
+            section: bundleSection,
+          },
+        },
+        select: {
+          snapshot_head_id: true,
+          snapshot_head_role: true,
+          snapshot_teachers: true,
+        },
+      }),
+    ]);
+    const snapTeachers = (snapRow?.snapshot_teachers ?? null) as unknown as Record<
+      string,
+      number
+    > | null;
+    const useSnapshot =
+      isExamFrozen(exam?.result_date) &&
+      !!snapRow &&
+      (snapRow.snapshot_head_id != null ||
+        (snapTeachers != null && Object.keys(snapTeachers).length > 0));
+
     const [markAgg, stats, head, classTeachers] = await Promise.all([
       prisma.marks.aggregate({
         where: { exam_id: examId, enrollment: enrollmentWhere },
@@ -1468,8 +1672,15 @@ export class MarksheetService {
         where: { exam_id: examId, class: cls, year },
         select: { updated_at: true },
       }),
-      this.headMsgFingerprint(),
-      this.classTeacherFingerprint(cls, year, bundleSections),
+      useSnapshot
+        ? this.headFingerprintById(
+            snapRow!.snapshot_head_id,
+            snapRow!.snapshot_head_role,
+          )
+        : this.headMsgFingerprint(),
+      useSnapshot
+        ? this.teacherFingerprintByIds(snapTeachers ?? {})
+        : this.classTeacherFingerprint(cls, year, bundleSections),
     ]);
     const fingerprint = JSON.stringify({
       sec: bundleSection,
@@ -1797,10 +2008,37 @@ export class MarksheetService {
             year,
             bundleSection,
           );
-          const row = await prisma.marksheet_bundles.findUnique({
-            where: whereKey,
-            select: { input_hash: true, r2_key: true },
-          });
+          const [row, exam] = await Promise.all([
+            prisma.marksheet_bundles.findUnique({
+              where: whereKey,
+              select: {
+                input_hash: true,
+                r2_key: true,
+                snapshot_head_id: true,
+                snapshot_head_role: true,
+                snapshot_teachers: true,
+              },
+            }),
+            prisma.exams.findUnique({
+              where: { id: examId },
+              select: { result_date: true },
+            }),
+          ]);
+          const snapTeachers = (row?.snapshot_teachers ?? null) as unknown as Record<
+            string,
+            number
+          > | null;
+          const frozenSignatories =
+            isExamFrozen(exam?.result_date) &&
+            row &&
+            (row.snapshot_head_id != null ||
+              (snapTeachers != null && Object.keys(snapTeachers).length > 0))
+              ? {
+                  headId: row.snapshot_head_id,
+                  headRole: row.snapshot_head_role,
+                  teachersBySection: snapTeachers ?? {},
+                }
+              : undefined;
           if (
             row?.input_hash === hashAtStart &&
             row.r2_key &&
@@ -1847,13 +2085,19 @@ export class MarksheetService {
             section: bundleSection,
           });
           const sections = this.parseBundleSections(bundleSection);
-          const buffer = await MarksService.generateBulkExamMarksheetsPDF(
+          const {
+            buffer,
+            usedHeadId,
+            usedHeadRole,
+            usedTeachersBySection,
+          } = await MarksService.generateBulkExamMarksheetsPDF(
             String(year),
             String(cls),
             examName,
             sections?.length === 1 ? sections[0] : undefined,
             WORKER_USER,
             sections,
+            frozenSignatories,
           );
           const key = this.r2BundleKey(
             schoolId,
@@ -1900,6 +2144,9 @@ export class MarksheetService {
               status: "ready",
               r2_key: key,
               input_hash: hashAtEnd,
+              snapshot_head_id: usedHeadId,
+              snapshot_head_role: usedHeadRole,
+              snapshot_teachers: usedTeachersBySection,
               generated_at: new Date(),
               error: null,
             },
