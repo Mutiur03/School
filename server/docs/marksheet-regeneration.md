@@ -69,7 +69,7 @@ Legend: **✅ Auto** = background worker queued without a download. **❌ No** =
 | **Teacher name changed** | ✅ Auto (their sections) | ✅ Auto (same) | ❌ No | ❌ No |
 | **Teacher signature changed** | ✅ Auto | ✅ Auto | ❌ No | ❌ No |
 | **Head teacher / role changed** | ✅ Auto (whole school, open only) | ✅ Auto (whole school, open only) | ❌ No | ❌ No |
-| **Design version bump** (`MARKSHEET_DESIGN_VERSION`) | ✅ Auto **open exams only** (lazy hash; optional eager invalidate; visible does not matter) | ✅ Auto **open exams only** | ✅ On download | ✅ On download |
+| **Design version bump** (`MARKSHEET_DESIGN_VERSION`) | ✅ Auto **open exams only** on deploy/boot (DB `snapshot_design_version` ≠ constant → enqueue) | ✅ Auto **open exams only** | ✅ On download | ✅ On download |
 | **Progress UI poll** (View Marks / Exam PDF Routine) | ✅ Auto if cache empty / `failed` | ❌ No | ❌ No | ❌ No |
 | **Server restart** | ✅ Re-queues `pending` only | ✅ Re-queues `pending` bundles | ❌ No | ❌ No |
 | **Anyone downloads** | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale |
@@ -504,8 +504,8 @@ Same head (`h`) and class-teacher data (`t` for student's section, or all `level
 ### After a design / layout code change
 
 1. Bump `MARKSHEET_DESIGN_VERSION` in `marksheet.service.ts` (e.g. `"1"` → `"2"`).
-2. Deploy. Open exams go stale on next download (or call `MarksheetService.invalidateForDesignChange(schoolId)` for eager requeue).
-3. Frozen exams (`result_date` already past) keep existing R2 PDFs — no regen.
+2. Deploy. On worker start, `applyDesignVersionBumpIfNeeded` finds open-exam `marksheet_files` / `marksheet_bundles` where `snapshot_design_version` is null or ≠ the constant, marks them pending, and enqueues workers. Frozen exams are skipped.
+3. After regenerate, rows store the new `snapshot_design_version` — later boots find nothing outdated.
 ---
 
 ## Bull queue job IDs

@@ -1145,13 +1145,166 @@ export class MarksheetService {
   /**
    * Re-queue open-exam marksheets after a PDF layout / design change.
    * Same freeze rule as head changes: finalized (result_date passed) sheets
-   * keep their design. Prefer bumping MARKSHEET_DESIGN_VERSION so open exams
-   * also go stale lazily on next download; call this for eager requeue.
+   * keep their design. Prefer bumping MARKSHEET_DESIGN_VERSION — startup
+   * compares DB `snapshot_design_version` and mass-enqueues outdated open sheets.
    */
   static async invalidateForDesignChange(schoolId: number): Promise<void> {
     await this.invalidateOpenExamCaches(schoolId, "layout version bumped", {
       designVersion: MARKSHEET_DESIGN_VERSION,
     });
+  }
+
+  /**
+   * On deploy/boot: enqueue open-exam files/bundles whose
+   * `snapshot_design_version` is missing or ≠ MARKSHEET_DESIGN_VERSION.
+   * Frozen exams skipped. Idempotent — once rows are regenerated with the
+   * current version, later boots find nothing outdated.
+   */
+  static async applyDesignVersionBumpIfNeeded(): Promise<void> {
+    const schools = await prisma.school.findMany({ select: { id: true } });
+    let outdatedStudents = 0;
+    let outdatedBundles = 0;
+
+    for (const { id: schoolId } of schools) {
+      const counts = await runWithRlsContext(
+        { schoolId, isSuperAdmin: false },
+        () => this.enqueueOutdatedDesignForSchool(schoolId),
+      );
+      outdatedStudents += counts.students;
+      outdatedBundles += counts.bundles;
+    }
+
+    if (outdatedStudents === 0 && outdatedBundles === 0) {
+      logger.info("[marksheet] design bump: all open caches current", {
+        version: MARKSHEET_DESIGN_VERSION,
+      });
+      return;
+    }
+
+    logger.info("[marksheet] design bump: enqueued outdated open caches", {
+      version: MARKSHEET_DESIGN_VERSION,
+      students: outdatedStudents,
+      bundles: outdatedBundles,
+      schools: schools.length,
+    });
+  }
+
+  /** Enqueue open-exam rows for one school that are behind MARKSHEET_DESIGN_VERSION. */
+  private static async enqueueOutdatedDesignForSchool(
+    schoolId: number,
+  ): Promise<{ students: number; bundles: number }> {
+    const exams = await prisma.exams.findMany({
+      where: { school_id: schoolId },
+      select: { id: true, result_date: true },
+    });
+    const openExamIds = exams
+      .filter((e) => !isExamFrozen(e.result_date))
+      .map((e) => e.id);
+    if (openExamIds.length === 0) return { students: 0, bundles: 0 };
+
+    const outdatedWhere = {
+      school_id: schoolId,
+      exam_id: { in: openExamIds },
+      status: { in: ["ready", "failed"] as const },
+      OR: [
+        { snapshot_design_version: null },
+        { snapshot_design_version: { not: MARKSHEET_DESIGN_VERSION } },
+      ],
+    };
+
+    const [outdatedFiles, outdatedBundleRows] = await Promise.all([
+      prisma.marksheet_files.findMany({
+        where: outdatedWhere,
+        select: {
+          student_id: true,
+          exam_id: true,
+          exam_name: true,
+          year: true,
+        },
+      }),
+      prisma.marksheet_bundles.findMany({
+        where: outdatedWhere,
+        select: {
+          exam_id: true,
+          exam_name: true,
+          year: true,
+          class: true,
+          section: true,
+        },
+      }),
+    ]);
+
+    if (outdatedFiles.length === 0 && outdatedBundleRows.length === 0) {
+      return { students: 0, bundles: 0 };
+    }
+
+    if (outdatedFiles.length > 0) {
+      await prisma.marksheet_files.updateMany({
+        where: {
+          school_id: schoolId,
+          exam_id: { in: openExamIds },
+          student_id: { in: outdatedFiles.map((r) => r.student_id) },
+          status: { in: ["ready", "failed"] },
+          OR: [
+            { snapshot_design_version: null },
+            { snapshot_design_version: { not: MARKSHEET_DESIGN_VERSION } },
+          ],
+        },
+        data: { status: "pending", error: null },
+      });
+      await marksheetQueue.addBulk(
+        outdatedFiles.map((r) => ({
+          data: {
+            studentId: r.student_id,
+            examId: r.exam_id,
+            examName: r.exam_name,
+            year: r.year,
+            schoolId,
+          },
+          opts: {
+            jobId: jobId(r.exam_id, r.student_id),
+            ...defaultJobOpts(PRIORITY_BACKFILL),
+          },
+        })),
+      );
+    }
+
+    if (outdatedBundleRows.length > 0) {
+      await prisma.marksheet_bundles.updateMany({
+        where: {
+          school_id: schoolId,
+          exam_id: { in: openExamIds },
+          status: { in: ["ready", "failed"] },
+          OR: [
+            { snapshot_design_version: null },
+            { snapshot_design_version: { not: MARKSHEET_DESIGN_VERSION } },
+          ],
+        },
+        data: { status: "pending", error: null },
+      });
+      await marksheetQueue.addBulk(
+        outdatedBundleRows.map((r) => ({
+          data: {
+            kind: "bundle" as const,
+            examId: r.exam_id,
+            examName: r.exam_name,
+            year: r.year,
+            class: r.class,
+            schoolId,
+            bundleSection: r.section,
+          },
+          opts: {
+            jobId: bundleJobId(r.exam_id, r.class, r.section),
+            ...defaultJobOpts(PRIORITY_BACKFILL),
+          },
+        })),
+      );
+    }
+
+    return {
+      students: outdatedFiles.length,
+      bundles: outdatedBundleRows.length,
+    };
   }
 
   /** Flag ready/failed open-exam files+bundles pending and enqueue workers. */

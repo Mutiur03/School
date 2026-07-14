@@ -59,10 +59,12 @@ export function startMarksheetWorker(): void {
 
   logger.info("[marksheet] worker: started", { concurrency: CONCURRENCY });
 
-  // Recover stuck/pending sheets from a previous run. Non-blocking.
-  MarksheetService.recover().catch((e) =>
-    logger.warn("Marksheet recovery failed", {
-      error: e instanceof Error ? e.message : String(e),
-    }),
-  );
+  // Recover stuck/pending sheets from a previous run, then apply design bumps.
+  MarksheetService.recover()
+    .then(() => MarksheetService.applyDesignVersionBumpIfNeeded())
+    .catch((e) =>
+      logger.warn("Marksheet recovery / design bump failed", {
+        error: e instanceof Error ? e.message : String(e),
+      }),
+    );
 }
