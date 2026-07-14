@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import type { PublicResultVerifyData } from "@school/shared-schemas";
 import { prisma } from "@/config/prisma.js";
 import { env } from "@/config/env.js";
 import { ApiError } from "@/utils/ApiError.js";
@@ -33,7 +34,7 @@ export function verifyPublicResultToken(
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof jwt.TokenExpiredError) {
-      throw new ApiError(401, "Session expired. Please log in again.");
+      throw new ApiError(401, "Session expired. Please verify again.");
     }
     throw new ApiError(401, "Invalid token");
   }
@@ -41,77 +42,68 @@ export function verifyPublicResultToken(
 
 export class PublicResultService {
   /**
-   * Match a student by login_id + (father_phone OR mother_phone) within the
-   * current school (Prisma queries are RLS-scoped by resolved subdomain).
-   * Returns a short-lived token plus the published sessions/exams available.
+   * Match enrollment by year/class/section/roll + (father_phone OR mother_phone)
+   * within the current school (Prisma queries are RLS-scoped by subdomain).
+   * Returns a short-lived token plus published exams for that session year.
    */
-  static async verify(loginId: string, phone: string) {
-    const login = String(loginId ?? "").trim();
-    const phoneTrim = String(phone ?? "").trim();
+  static async verify(input: PublicResultVerifyData) {
+    const { year, class: classInt, section, roll, phone } = input;
 
-    if (!/^\d+$/.test(login)) {
-      throw new ApiError(400, "Login ID must be numeric");
-    }
-    if (!/^\d{11}$/.test(phoneTrim)) {
-      throw new ApiError(400, "Phone number must be 11 digits");
-    }
-
-    let loginBig: bigint;
-    try {
-      loginBig = BigInt(login);
-    } catch {
-      throw new ApiError(400, "Invalid login ID");
-    }
-
-    const student = await prisma.students.findFirst({
+    const enrollment = await prisma.student_enrollments.findFirst({
       where: {
-        login_id: loginBig,
-        available: true,
-        OR: [{ father_phone: phoneTrim }, { mother_phone: phoneTrim }],
+        year,
+        class: classInt,
+        section,
+        roll,
+        student: {
+          available: true,
+          OR: [{ father_phone: phone }, { mother_phone: phone }],
+        },
       },
-      select: { id: true, name: true },
+      select: {
+        student: { select: { id: true, name: true } },
+      },
     });
 
-    if (!student) {
-      throw new ApiError(401, "Invalid login ID or phone number");
+    if (!enrollment) {
+      throw new ApiError(
+        401,
+        "Invalid session, class, section, roll, or phone number",
+      );
     }
 
-    // Only published exams (visible=true) with actual marks.
+    const student = enrollment.student;
+
+    // Only published exams (visible=true) with actual marks for this session.
     const marks = await prisma.marks.findMany({
       where: {
-        enrollment: { student_id: student.id },
+        enrollment: { student_id: student.id, year },
         exam: { visible: true },
         marks: { not: null },
       },
       select: {
-        enrollment: { select: { year: true } },
         exam: { select: { exam_name: true, result_date: true } },
       },
     });
 
-    const byYear = new Map<
-      number,
-      Map<string, string | null>
-    >();
+    const exams = new Map<string, string | null>();
     for (const m of marks) {
-      const year = m.enrollment.year;
-      const name = m.exam.exam_name;
-      if (!byYear.has(year)) byYear.set(year, new Map());
-      const exams = byYear.get(year)!;
-      if (!exams.has(name)) exams.set(name, m.exam.result_date ?? null);
+      if (!exams.has(m.exam.exam_name)) {
+        exams.set(m.exam.exam_name, m.exam.result_date ?? null);
+      }
     }
 
-    const sessions = Array.from(byYear.entries())
-      .map(([year, exams]) => ({
+    const sessions = [
+      {
         year,
         exams: Array.from(exams.entries()).map(([exam_name, result_date]) => ({
           exam_name,
           result_date,
         })),
-      }))
-      .sort((a, b) => b.year - a.year);
+      },
+    ];
 
-    if (sessions.length === 0) {
+    if (exams.size === 0) {
       throw new ApiError(404, "No published result found for this student");
     }
 
@@ -134,13 +126,16 @@ export class PublicResultService {
   }
 
   /** On-screen marks table for a single published exam. */
-  static async getExamResult(studentId: number, year: string, exam: string) {
+  static async getExamResult(
+    studentId: number,
+    year: number,
+    exam: string,
+  ) {
     await this.assertPublished(exam);
-    const yearInt = parseInt(year);
 
     const marks = await prisma.marks.findMany({
       where: {
-        enrollment: { student_id: studentId, year: yearInt },
+        enrollment: { student_id: studentId, year },
         exam: { exam_name: exam, visible: true },
       },
       include: {

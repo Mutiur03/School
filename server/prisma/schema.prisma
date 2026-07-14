@@ -323,6 +323,9 @@ model marksheet_files {
   snapshot_head_id    Int?
   snapshot_head_role  String?   @db.VarChar(50)
   snapshot_teacher_id Int?
+  // Layout version captured at generation. Frozen exams pin this so a later
+  // MARKSHEET_DESIGN_VERSION bump does not regenerate finalized PDFs.
+  snapshot_design_version String? @db.VarChar(32)
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   school_id    Int @default(dbgenerated("app.current_school_id()"))
@@ -355,6 +358,8 @@ model marksheet_bundles {
   snapshot_head_id   Int?
   snapshot_head_role String?  @db.VarChar(50)
   snapshot_teachers  Json?
+  // See marksheet_files.snapshot_design_version.
+  snapshot_design_version String? @db.VarChar(32)
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   school_id    Int @default(dbgenerated("app.current_school_id()"))

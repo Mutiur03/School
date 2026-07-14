@@ -32,16 +32,22 @@ export class StudentService {
     return students.map(sanitizeStudent);
   }
 
-  static async getStudentsPaginated(params: {
-    year: number;
-    page: number;
-    limit: number;
-    level?: number;
-    section?: string;
-    search?: string;
-    religion?: string;
-    roll?: number;
-  }) {
+  static async getStudentsPaginated(
+    params: {
+      year: number;
+      page: number;
+      limit: number;
+      level?: number;
+      section?: string;
+      search?: string;
+      religion?: string;
+      roll?: number;
+    },
+    _user?: {
+      role?: string;
+      levels?: Array<{ class_name: number; section: string; year: number }>;
+    },
+  ) {
     const { year, page, limit, level, section, search, religion, roll } =
       params;
 
@@ -183,39 +189,14 @@ export class StudentService {
     } = {},
   ) {
     let result: any[] = [];
-    if (userOptions.role === "admin") {
+    // Admin and teacher both see the full year roster on the student list.
+    // Mutate endpoints remain admin-only.
+    if (userOptions.role === "admin" || userOptions.role === "teacher") {
       result = await prisma.students.findMany({
         where: { enrollments: { some: { year } } },
         include: {
           enrollments: {
             where: { year },
-            orderBy: { year: "desc" },
-          },
-        },
-      });
-    } else if (userOptions.role === "teacher") {
-      if (!userOptions.levels || userOptions.levels.length === 0) {
-        return [];
-      }
-      const levelConditions = userOptions.levels.map((level) => ({
-        class: level.class_name,
-        section: level.section,
-        year: level.year,
-      }));
-
-      result = await prisma.students.findMany({
-        where: {
-          enrollments: {
-            some: {
-              AND: [{ year }, { OR: levelConditions }],
-            },
-          },
-        },
-        include: {
-          enrollments: {
-            where: {
-              AND: [{ year }, { OR: levelConditions }],
-            },
             orderBy: { year: "desc" },
           },
         },
@@ -746,7 +727,14 @@ export class StudentService {
     });
   }
 
-  static async getClassStudents(year: number, level: number) {
+  static async getClassStudents(
+    year: number,
+    level: number,
+    _user?: {
+      role?: string;
+      levels?: Array<{ class_name: number; section: string; year: number }>;
+    },
+  ) {
     const currentYear = new Date().getFullYear();
     if (year < 2000 || year > currentYear + 5) {
       throw new ApiError(

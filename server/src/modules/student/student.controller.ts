@@ -85,7 +85,7 @@ export class StudentController {
             religion,
             roll,
           },
-          // req.user,
+          req.user,
         );
         res
           .status(200)
@@ -95,7 +95,7 @@ export class StudentController {
 
       const data =
         typeof level === "number" && !Number.isNaN(level)
-          ? await StudentService.getClassStudents(year, level)
+          ? await StudentService.getClassStudents(year, level, req.user)
           : await StudentService.getStudents(year, req.user);
 
       res

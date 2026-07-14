@@ -24,7 +24,7 @@ const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
 const MARKSHEET_IMAGE_SCALE = 2;
 // true  -> rasterize PDF to images then re-embed (tamper-resistant, slow).
 // false -> return direct vector PDF (fast, selectable text).
-const RASTERIZE_MARKSHEET = true;
+const RASTERIZE_MARKSHEET = false;
 const MARKSHEET_FONT_PATHS = {
   regular: [
     process.env.MARKSHEET_FONT_REGULAR,
@@ -555,17 +555,16 @@ export class MarksService {
 
       try {
         const { MarksheetService } = await import("./marksheet.service.js");
-        // Unpublished exams: save marks only — PDFs regenerate on download, not here.
-        if (exam.visible) {
-          if (classesWithStatsChange.length > 0) {
-            await MarksheetService.invalidateClasses(
-              exam.id,
-              classesWithStatsChange,
-              yearInt,
-            );
-          } else if (changedStudentIds.length > 0) {
-            await MarksheetService.invalidate(changedStudentIds, exam.id);
-          }
+        // Visible or not: keep open-exam caches fresh. Freeze is result_date only
+        // (same as head/teacher/design). Unpublished sheets still regen on mark edits.
+        if (classesWithStatsChange.length > 0) {
+          await MarksheetService.invalidateClasses(
+            exam.id,
+            classesWithStatsChange,
+            yearInt,
+          );
+        } else if (changedStudentIds.length > 0) {
+          await MarksheetService.invalidate(changedStudentIds, exam.id);
         }
       } catch (invErr) {
         console.warn(
@@ -3300,12 +3299,13 @@ export class MarksService {
       data: { fourth_subject_id: subjectId },
     });
 
-    // 4th subject changes the rendered sheet — invalidate only for published exams.
+    // 4th subject changes the rendered sheet — invalidate whether published or not.
+    // Freeze gate is result_date inside invalidate paths / design fingerprint.
     try {
       const affectedExams = await prisma.marks.findMany({
         where: {
           enrollment_id: enrollment.id,
-          exam: { exam_year: yInt, visible: true },
+          exam: { exam_year: yInt },
         },
         distinct: ["exam_id"],
         select: { exam_id: true },

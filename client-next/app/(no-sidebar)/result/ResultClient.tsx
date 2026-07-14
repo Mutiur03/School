@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Download, Eye, LogOut, Loader2 } from "lucide-react";
@@ -9,6 +11,12 @@ import {
   openBlobInNewTab,
   getFilenameFromContentDisposition,
 } from "@school/common-ui/blob";
+import {
+  filterNumericInput,
+  publicResultVerifySchema,
+  type PublicResultVerifyData,
+  type PublicResultVerifyInput,
+} from "@school/shared-schemas";
 
 interface ExamOption {
   exam_name: string;
@@ -43,6 +51,19 @@ interface ExamResult {
   total_full: number;
 }
 
+const SECTION_OPTIONS = ["A", "B", "C", "D", "E", "F"];
+const CLASS_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+const DEFAULT_VALUES: PublicResultVerifyInput = {
+  year: String(currentYear),
+  class: "",
+  section: "A",
+  roll: "",
+  phone: "",
+};
+
 function errMsg(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
     return (
@@ -53,10 +74,18 @@ function errMsg(error: unknown, fallback: string): string {
 }
 
 export default function ResultClient() {
-  const [loginId, setLoginId] = useState("");
-  const [phone, setPhone] = useState("");
-  const [verifying, setVerifying] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<PublicResultVerifyInput, unknown, PublicResultVerifyData>({
+    resolver: zodResolver(publicResultVerifySchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: "onSubmit",
+  });
 
+  const [verified, setVerified] = useState<PublicResultVerifyData | null>(null);
   const [session, setSession] = useState<VerifyResponse | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<string>("");
@@ -75,23 +104,11 @@ export default function ResultClient() {
     ? { Authorization: `Bearer ${session.token}` }
     : undefined;
 
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    if (!/^\d+$/.test(loginId.trim())) {
-      toast.error("Login ID must be numeric");
-      return;
-    }
-    if (!/^\d{11}$/.test(phone.trim())) {
-      toast.error("Phone number must be 11 digits");
-      return;
-    }
-    setVerifying(true);
+  async function onVerify(body: PublicResultVerifyData) {
     try {
-      const { data } = await axios.post("/api/marks/public/verify", {
-        loginId: loginId.trim(),
-        phone: phone.trim(),
-      });
+      const { data } = await axios.post("/api/marks/public/verify", body);
       const payload = data.data as VerifyResponse;
+      setVerified(body);
       setSession(payload);
       const firstYear = payload.sessions[0]?.year ?? null;
       const firstExam = payload.sessions[0]?.exams[0]?.exam_name ?? "";
@@ -102,17 +119,15 @@ export default function ResultClient() {
         await fetchResult(payload.token, firstYear, firstExam);
       }
     } catch (error) {
-      toast.error(errMsg(error, "Invalid login ID or phone number"));
-    } finally {
-      setVerifying(false);
+      toast.error(errMsg(error, "Could not verify student details"));
     }
   }
 
-  async function fetchResult(token: string, year: number, exam: string) {
+  async function fetchResult(token: string, yearNum: number, exam: string) {
     setLoadingResult(true);
     try {
       const { data } = await axios.get("/api/marks/public/result", {
-        params: { year, exam },
+        params: { year: yearNum, exam },
         headers: { Authorization: `Bearer ${token}` },
       });
       setResult(data.data as ExamResult);
@@ -124,10 +139,10 @@ export default function ResultClient() {
     }
   }
 
-  function handleSelect(year: number, exam: string) {
-    setSelectedYear(year);
+  function handleSelect(yearNum: number, exam: string) {
+    setSelectedYear(yearNum);
     setSelectedExam(exam);
-    if (session) fetchResult(session.token, year, exam);
+    if (session) fetchResult(session.token, yearNum, exam);
   }
 
   async function getPdf(): Promise<{ blob: Blob; filename: string } | null> {
@@ -169,73 +184,153 @@ export default function ResultClient() {
 
   function handleLogout() {
     setSession(null);
+    setVerified(null);
     setSelectedYear(null);
     setSelectedExam("");
     setResult(null);
-    setLoginId("");
-    setPhone("");
+    reset(DEFAULT_VALUES);
   }
 
-  // ---- Login screen ----
+  // ---- Lookup screen ----
   if (!session) {
     return (
       <div className="max-w-md mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">Check Result</h1>
         <p className="text-gray-600 mb-8">
-          Enter your Login ID and a registered phone number to view your result
-          and download your marksheet.
+          Enter session, class, section, roll, and a registered mobile number to
+          view your result and download your marksheet.
         </p>
         <form
-          onSubmit={handleVerify}
+          onSubmit={handleSubmit(onVerify)}
           className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-5"
+          noValidate
         >
           <div>
             <label
-              htmlFor="loginId"
+              htmlFor="year"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Login ID
+              Session
+            </label>
+            <select
+              id="year"
+              {...register("year")}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              {YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+            {errors.year && (
+              <p className="mt-1 text-xs text-red-600">{errors.year.message}</p>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="klass"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Class
+              </label>
+              <select
+                id="klass"
+                {...register("class")}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Select</option>
+                {CLASS_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              {errors.class && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.class.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="section"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Section
+              </label>
+              <select
+                id="section"
+                {...register("section")}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                {SECTION_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              {errors.section && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.section.message}
+                </p>
+              )}
+            </div>
+          </div>
+          <div>
+            <label
+              htmlFor="roll"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Roll
             </label>
             <input
-              id="loginId"
+              id="roll"
               inputMode="numeric"
-              value={loginId}
-              onChange={(e) =>
-                setLoginId(e.target.value.replace(/\D/g, ""))
-              }
+              {...register("roll", {
+                setValueAs: (v) => filterNumericInput(String(v ?? "")),
+              })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. 100234"
-              autoComplete="username"
+              placeholder="e.g. 12"
             />
+            {errors.roll && (
+              <p className="mt-1 text-xs text-red-600">{errors.roll.message}</p>
+            )}
           </div>
           <div>
             <label
               htmlFor="phone"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Phone Number
+              Mobile Number
             </label>
             <input
               id="phone"
               inputMode="numeric"
               maxLength={11}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              {...register("phone", {
+                setValueAs: (v) =>
+                  filterNumericInput(String(v ?? "")).slice(0, 11),
+              })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               placeholder="e.g. 01712345678"
               autoComplete="tel"
             />
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>
+            )}
             <p className="mt-1 text-xs text-gray-500">
               Use the father&apos;s or mother&apos;s phone number on record.
             </p>
           </div>
           <button
             type="submit"
-            disabled={verifying}
+            disabled={isSubmitting}
             className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {verifying && <Loader2 className="h-4 w-4 animate-spin" />}
-            {verifying ? "Verifying..." : "View Result"}
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? "Verifying..." : "View Result"}
           </button>
         </form>
       </div>
@@ -250,7 +345,13 @@ export default function ResultClient() {
           <h1 className="text-2xl font-bold text-gray-800">
             {session.student.name}
           </h1>
-          <p className="text-gray-500 text-sm">Login ID: {loginId}</p>
+          {verified && (
+            <p className="text-gray-500 text-sm">
+              Class {verified.class}
+              {verified.section} · Roll {verified.roll} · Session{" "}
+              {verified.year}
+            </p>
+          )}
         </div>
         <button
           onClick={handleLogout}
@@ -261,29 +362,31 @@ export default function ResultClient() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Year
-          </label>
-          <select
-            value={selectedYear ?? ""}
-            onChange={(e) => {
-              const year = Number(e.target.value);
-              const firstExam =
-                session.sessions.find((s) => s.year === year)?.exams[0]
-                  ?.exam_name ?? "";
-              handleSelect(year, firstExam);
-            }}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
-          >
-            {session.sessions.map((s) => (
-              <option key={s.year} value={s.year}>
-                {s.year}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
+        {session.sessions.length > 1 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Year
+            </label>
+            <select
+              value={selectedYear ?? ""}
+              onChange={(e) => {
+                const yearNum = Number(e.target.value);
+                const firstExam =
+                  session.sessions.find((s) => s.year === yearNum)?.exams[0]
+                    ?.exam_name ?? "";
+                handleSelect(yearNum, firstExam);
+              }}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+            >
+              {session.sessions.map((s) => (
+                <option key={s.year} value={s.year}>
+                  {s.year}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className={session.sessions.length > 1 ? "" : "sm:col-span-2"}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Exam
           </label>

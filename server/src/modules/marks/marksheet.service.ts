@@ -57,6 +57,25 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
   return resultDay < todayLocal;
 }
 
+/**
+ * Bump when marksheet PDF layout / draw code changes.
+ * Open exams (result_date not passed) go stale and regenerate.
+ * Frozen exams pin `snapshot_design_version` at generation — same rule as
+ * head/class-teacher: finalized PDFs keep the design that signed them.
+ */
+export const MARKSHEET_DESIGN_VERSION = "1";
+
+/** Design field for input hashes. Frozen + no snapshot → omit (legacy compat). */
+function designFingerprint(
+  frozen: boolean,
+  snapshotVersion: string | null | undefined,
+): { d?: string } {
+  if (frozen) {
+    return snapshotVersion ? { d: snapshotVersion } : {};
+  }
+  return { d: MARKSHEET_DESIGN_VERSION };
+}
+
 const SERVE_TIMEOUT_MS = Number(process.env.MARKSHEET_SERVE_TIMEOUT_MS || "180000");
 const SERVE_POLL_MS = Number(process.env.MARKSHEET_SERVE_POLL_MS || "500");
 
@@ -425,6 +444,7 @@ export class MarksheetService {
           snapshot_head_id: true,
           snapshot_head_role: true,
           snapshot_teacher_id: true,
+          snapshot_design_version: true,
         },
       }),
     ]);
@@ -432,8 +452,9 @@ export class MarksheetService {
     // Frozen exams pin their signatories by the snapshotted ids (resolving the
     // snapshotted person's current name/signature). Falls back to the current
     // assignment until a first render has stored a snapshot.
+    const frozen = isExamFrozen(exam?.result_date);
     const useSnapshot =
-      isExamFrozen(exam?.result_date) &&
+      frozen &&
       !!snapRow &&
       (snapRow.snapshot_head_id != null || snapRow.snapshot_teacher_id != null);
 
@@ -477,6 +498,7 @@ export class MarksheetService {
       f: enrollment?.fourth_subject_id ?? null,
       r: enrollment?.roll ?? null,
       sec: enrollment?.section ?? null,
+      ...designFingerprint(frozen, snapRow?.snapshot_design_version),
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
   }
@@ -804,9 +826,10 @@ export class MarksheetService {
   static async ensureQueuedForExam(examId: number): Promise<number> {
     const exam = await prisma.exams.findUnique({
       where: { id: examId },
-      select: { school_id: true, exam_name: true, visible: true },
+      select: { school_id: true, exam_name: true },
     });
-    if (!exam?.school_id || !exam.visible) return 0;
+    // Visible does not gate generation — only result_date freeze does.
+    if (!exam?.school_id) return 0;
 
     const marks = await prisma.marks.findMany({
       where: { exam_id: examId, marks: { not: null } },
@@ -1116,8 +1139,30 @@ export class MarksheetService {
   static async invalidateForSchoolSignatureChange(
     schoolId: number,
   ): Promise<void> {
-    logger.info("[marksheet] invalidate(school): head identity changed", {
+    await this.invalidateOpenExamCaches(schoolId, "head identity changed");
+  }
+
+  /**
+   * Re-queue open-exam marksheets after a PDF layout / design change.
+   * Same freeze rule as head changes: finalized (result_date passed) sheets
+   * keep their design. Prefer bumping MARKSHEET_DESIGN_VERSION so open exams
+   * also go stale lazily on next download; call this for eager requeue.
+   */
+  static async invalidateForDesignChange(schoolId: number): Promise<void> {
+    await this.invalidateOpenExamCaches(schoolId, "layout version bumped", {
+      designVersion: MARKSHEET_DESIGN_VERSION,
+    });
+  }
+
+  /** Flag ready/failed open-exam files+bundles pending and enqueue workers. */
+  private static async invalidateOpenExamCaches(
+    schoolId: number,
+    reason: string,
+    extra: Record<string, unknown> = {},
+  ): Promise<void> {
+    logger.info(`[marksheet] invalidate(school): ${reason}`, {
       schoolId,
+      ...extra,
     });
 
     const exams = await prisma.exams.findMany({
@@ -1131,7 +1176,7 @@ export class MarksheetService {
     if (openExamIds.length === 0) {
       logger.info(
         "[marksheet] invalidate(school): all exams frozen, nothing to re-queue",
-        { schoolId },
+        { schoolId, reason },
       );
       return;
     }
@@ -1657,6 +1702,7 @@ export class MarksheetService {
               snapshot_head_id: usedHeadId,
               snapshot_head_role: usedHeadRole,
               snapshot_teacher_id: usedTeacherId,
+              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
               generated_at: new Date(),
               error: null,
             },
@@ -1756,6 +1802,7 @@ export class MarksheetService {
           snapshot_head_id: true,
           snapshot_head_role: true,
           snapshot_teachers: true,
+          snapshot_design_version: true,
         },
       }),
     ]);
@@ -1763,8 +1810,9 @@ export class MarksheetService {
       string,
       number
     > | null;
+    const frozen = isExamFrozen(exam?.result_date);
     const useSnapshot =
-      isExamFrozen(exam?.result_date) &&
+      frozen &&
       !!snapRow &&
       (snapRow.snapshot_head_id != null ||
         (snapTeachers != null && Object.keys(snapTeachers).length > 0));
@@ -1796,6 +1844,7 @@ export class MarksheetService {
       s: stats?.updated_at ?? null,
       h: head,
       t: classTeachers,
+      ...designFingerprint(frozen, snapRow?.snapshot_design_version),
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
   }
@@ -1845,6 +1894,7 @@ export class MarksheetService {
       t: classTeacher,
       r: enrollment?.roll ?? null,
       f: enrollment?.fourth_subject_id ?? null,
+      d: MARKSHEET_DESIGN_VERSION,
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
   }
@@ -1864,6 +1914,7 @@ export class MarksheetService {
       m: markAgg._max?.updated_at ?? null,
       h: head,
       t: classTeachers,
+      d: MARKSHEET_DESIGN_VERSION,
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
   }
@@ -2254,6 +2305,7 @@ export class MarksheetService {
               snapshot_head_id: usedHeadId,
               snapshot_head_role: usedHeadRole,
               snapshot_teachers: usedTeachersBySection,
+              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
               generated_at: new Date(),
               error: null,
             },

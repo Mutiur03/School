@@ -48,6 +48,7 @@ const StudentRow = React.memo(
     onFourthSubjectChange,
     isUpdatingFourthSubject,
     showSeniorColumns,
+    readOnly,
   }: {
     student: Student;
     isSelected: boolean;
@@ -60,18 +61,21 @@ const StudentRow = React.memo(
     onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
     isUpdatingFourthSubject?: boolean;
     showSeniorColumns?: boolean;
+    readOnly?: boolean;
   }) => {
     return (
       <tr key={student.id} className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
-        <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect(student.id)}
-            aria-label={`Select ${student.name}`}
-            className="h-4 w-4"
-          />
-        </td>
+        {!readOnly && (
+          <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(student.id)}
+              aria-label={`Select ${student.name}`}
+              className="h-4 w-4"
+            />
+          </td>
+        )}
         <td className="px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-3 whitespace-nowrap text-sm font-medium">
           {student.image ? (
             <img
@@ -110,26 +114,33 @@ const StudentRow = React.memo(
         {showSeniorColumns && (
           <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm">
             {Number(student.class) >= 9 ? (
-              <select
-                className="px-2 py-1 border rounded bg-card text-xs focus:ring-1 focus:ring-primary outline-none min-w-[120px]"
-                value={student.fourth_subject_id || ""}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : null;
-                  onFourthSubjectChange(student.id, val);
-                }}
-                disabled={isUpdatingFourthSubject}
-              >
-                <option value="">Select 4th Sub</option>
-                {allSubjects
-                  .filter((s: Subject) => s.subject_type !== "main")
-                  .filter((s: Subject) => s.class === Number(student.class))
-                  .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
-                  .map((sub: Subject) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-              </select>
+              readOnly ? (
+                <span>
+                  {allSubjects.find((s) => s.id === student.fourth_subject_id)
+                    ?.name || "-"}
+                </span>
+              ) : (
+                <select
+                  className="px-2 py-1 border rounded bg-card text-xs focus:ring-1 focus:ring-primary outline-none min-w-[120px]"
+                  value={student.fourth_subject_id || ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : null;
+                    onFourthSubjectChange(student.id, val);
+                  }}
+                  disabled={isUpdatingFourthSubject}
+                >
+                  <option value="">Select 4th Sub</option>
+                  {allSubjects
+                    .filter((s: Subject) => s.subject_type !== "main")
+                    .filter((s: Subject) => s.class === Number(student.class))
+                    .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
+                    .map((sub: Subject) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                </select>
+              )
             ) : (
               <span className="text-muted-foreground opacity-50">-</span>
             )}
@@ -138,20 +149,28 @@ const StudentRow = React.memo(
 
         <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-right">
           <div className="flex justify-end flex-wrap gap-1.5">
-            <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
-            <input
-              type="file"
-              id={`file-upload-${student.id}`}
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => onImageUpload(e, student)}
-            />
+            {!readOnly && (
+              <>
+                <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
+                <input
+                  type="file"
+                  id={`file-upload-${student.id}`}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onImageUpload(e, student)}
+                />
+              </>
+            )}
             <ActionButton action="view" onClick={() => onView(student)} />
-            <ActionButton action="edit" onClick={() => onEdit(student)} />
-            <DeleteConfirmation
-              onDelete={() => onDelete(student)}
-              msg={`Are you sure you want to delete ${student.name}?`}
-            />
+            {!readOnly && (
+              <>
+                <ActionButton action="edit" onClick={() => onEdit(student)} />
+                <DeleteConfirmation
+                  onDelete={() => onDelete(student)}
+                  msg={`Are you sure you want to delete ${student.name}?`}
+                />
+              </>
+            )}
           </div>
         </td>
       </tr>
@@ -164,7 +183,8 @@ const StudentRow = React.memo(
     prev.allSubjects === next.allSubjects &&
     prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
     prev.onFourthSubjectChange === next.onFourthSubjectChange &&
-    prev.showSeniorColumns === next.showSeniorColumns,
+    prev.showSeniorColumns === next.showSeniorColumns &&
+    prev.readOnly === next.readOnly,
 );
 
 const defaultFormValues: StudentFormData = {
@@ -218,7 +238,7 @@ const demoExcelColumns = [
   "has_stipend",
 ];
 
-function StudentList() {
+function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(() => new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -961,9 +981,13 @@ function StudentList() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Student List"
-        description="Manage student records, add new students or upload via Excel."
+        description={
+          readOnly
+            ? "View all student records (read only)."
+            : "Manage student records, add new students or upload via Excel."
+        }
       >
-        {!showForm && (
+        {!readOnly && !showForm && (
           <Button
             type="button"
             onClick={() => setShowForm((prev) => !prev)}
@@ -973,7 +997,7 @@ function StudentList() {
           </Button>
         )}
       </PageHeader>
-      {showForm && (
+      {!readOnly && showForm && (
         <SectionCard className="mb-6 overflow-hidden">
             <h2 className="text-xl font-bold text-foreground mb-6">
               {isEditing ? "Update Student Info" : "Add New Student"}
@@ -1465,7 +1489,7 @@ function StudentList() {
         </div>
       </SectionCard>
       <SectionCard noPadding className="mb-6">
-        {hasSelectedStudents && (
+        {!readOnly && hasSelectedStudents && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-muted border-b border-border">
             <p className="text-sm font-medium text-foreground">
               {selectedStudentIds.size} student(s) selected
@@ -1519,15 +1543,17 @@ function StudentList() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted border-b border-border">
-                <th className="w-12 px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={handleSelectAllVisible}
-                    aria-label="Select all students"
-                    className="h-4 w-4"
-                  />
-                </th>
+                {!readOnly && (
+                  <th className="w-12 px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={handleSelectAllVisible}
+                      aria-label="Select all students"
+                      className="h-4 w-4"
+                    />
+                  </th>
+                )}
                 {[
                   "Student",
                   "Roll",
@@ -1549,7 +1575,7 @@ function StudentList() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={showSeniorColumns ? 8 : 6} className="py-12 text-center">
+                  <td colSpan={(showSeniorColumns ? 8 : 6) - (readOnly ? 1 : 0)} className="py-12 text-center">
                     <Loading />
                   </td>
                 </tr>
@@ -1576,12 +1602,13 @@ function StudentList() {
                         }}
                         isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
                         showSeniorColumns={showSeniorColumns}
+                        readOnly={readOnly}
                       />
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={showSeniorColumns ? 8 : 6}
+                    colSpan={(showSeniorColumns ? 8 : 6) - (readOnly ? 1 : 0)}
                     className="px-4 py-12 text-center text-sm text-muted-foreground dark:text-gray-400"
                   >
                     {errorMessage ||
@@ -1786,68 +1813,74 @@ function StudentList() {
 
               {/* Footer */}
               <div className="px-5 py-3 border-t border-border flex flex-wrap gap-2 justify-between items-center">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="default"
-                    disabled={testimonialMutation.isPending}
-                    onClick={() => testimonialMutation.mutate(popup.student!.id)}
-                  >
-                    {testimonialMutation.isPending ? (
-                      <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                        </svg>
-                        Generating…
-                      </span>
-                    ) : (
-                      "Generate Certificate"
+                {!readOnly ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={testimonialMutation.isPending}
+                      onClick={() => testimonialMutation.mutate(popup.student!.id)}
+                    >
+                      {testimonialMutation.isPending ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                          </svg>
+                          Generating…
+                        </span>
+                      ) : (
+                        "Generate Certificate"
+                      )}
+                    </Button>
+                    
+                    {popup.student.available && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 shadow-sm"
+                        disabled={tcMutation.isPending}
+                        onClick={() => setTcConfirmOpen(true)}
+                      >
+                        <UserMinus className="w-4 h-4 mr-2" />
+                        Give TC
+                      </Button>
                     )}
-                  </Button>
-                  
-                  {popup.student.available && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 shadow-sm"
-                      disabled={tcMutation.isPending}
-                      onClick={() => setTcConfirmOpen(true)}
-                    >
-                      <UserMinus className="w-4 h-4 mr-2" />
-                      Give TC
-                    </Button>
-                  )}
 
-                  {!popup.student.available && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all duration-200 shadow-sm"
-                      disabled={reactivateMutation.isPending}
-                      onClick={() => handleReactivate(popup.student!)}
-                    >
-                      <RotateCw className="w-4 h-4 mr-2" />
-                      Reactivate
-                    </Button>
-                  )}
-                </div>
+                    {!popup.student.available && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all duration-200 shadow-sm"
+                        disabled={reactivateMutation.isPending}
+                        onClick={() => handleReactivate(popup.student!)}
+                      >
+                        <RotateCw className="w-4 h-4 mr-2" />
+                        Reactivate
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div />
+                )}
                 
                 <Button onClick={closePopup} variant="outline" type="button">
                   Close
                 </Button>
 
-                <ConfirmationPopup
-                  open={tcConfirmOpen}
-                  onOpenChange={setTcConfirmOpen}
-                  onConfirm={() => {
-                    setTcConfirmOpen(false);
-                    if (popup.student) tcMutation.mutate(popup.student.id);
-                  }}
-                  confirmLabel="Confirm Issue TC"
-                  variant="destructive"
-                  msg={`Are you sure you want to issue a Transfer Certificate (TC) to ${popup.student.name}? This will mark them as inactive and they will no longer appear in active student lists.`}
-                />
+                {!readOnly && (
+                  <ConfirmationPopup
+                    open={tcConfirmOpen}
+                    onOpenChange={setTcConfirmOpen}
+                    onConfirm={() => {
+                      setTcConfirmOpen(false);
+                      if (popup.student) tcMutation.mutate(popup.student.id);
+                    }}
+                    confirmLabel="Confirm Issue TC"
+                    variant="destructive"
+                    msg={`Are you sure you want to issue a Transfer Certificate (TC) to ${popup.student.name}? This will mark them as inactive and they will no longer appear in active student lists.`}
+                  />
+                )}
               </div>
             </>
           )}

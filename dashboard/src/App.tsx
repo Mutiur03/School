@@ -169,6 +169,7 @@ function App() {
                       <Routes>
                         <Route path="/dashboard" element={<TeacherDashboard />} />
                         <Route path="/settings" element={<TeacherSettings />} />
+                        <Route path="/students" element={<StudentList readOnly />} />
                         <Route path="/mark-management" element={<AddMarks />} />
                         <Route path="/result/view-marks" element={<ViewMarks />} />
                         <Route path="/attendance" element={<Attendence />} />
