@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -52,19 +52,19 @@ interface ExamResult {
 }
 
 const SECTION_OPTIONS = [
-  { label: "Select Section", value: "" },
   { label: "A", value: "A" },
   { label: "B", value: "B" },
 ];
 const CLASS_OPTIONS = Array.from({ length: 5 }, (_, i) => i + 6);
+const ROLL_OPTIONS = Array.from({ length: 70 }, (_, i) => i + 1);
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 const DEFAULT_VALUES: PublicResultVerifyInput = {
   year: String(currentYear),
-  class: "",
-  section: "",
-  roll: "",
+  class: String(CLASS_OPTIONS[0]),
+  section: SECTION_OPTIONS[0].value,
+  roll: String(ROLL_OPTIONS[0]),
   phone: "",
 };
 
@@ -81,6 +81,7 @@ export default function ResultClient() {
   const {
     register,
     handleSubmit,
+    control,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<PublicResultVerifyInput, unknown, PublicResultVerifyData>({
@@ -88,6 +89,13 @@ export default function ResultClient() {
     defaultValues: DEFAULT_VALUES,
     mode: "onSubmit",
   });
+
+  const watchedYear = useWatch({ control, name: "year" });
+  const watchedClass = useWatch({ control, name: "class" });
+
+  const [formExams, setFormExams] = useState<ExamOption[]>([]);
+  const [formExam, setFormExam] = useState("");
+  const [loadingExams, setLoadingExams] = useState(false);
 
   const [verified, setVerified] = useState<PublicResultVerifyData | null>(null);
   const [session, setSession] = useState<VerifyResponse | null>(null);
@@ -108,19 +116,63 @@ export default function ResultClient() {
     ? { Authorization: `Bearer ${session.token}` }
     : undefined;
 
+  useEffect(() => {
+    const yearNum = Number(watchedYear);
+    const classNum = Number(watchedClass);
+    if (!yearNum || !classNum) {
+      setFormExams([]);
+      setFormExam("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingExams(true);
+    axios
+      .get("/api/marks/public/exams", {
+        params: { year: yearNum, class: classNum },
+      })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const exams = (data.data as ExamOption[]) ?? [];
+        setFormExams(exams);
+        setFormExam(exams[0]?.exam_name ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFormExams([]);
+        setFormExam("");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExams(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [watchedYear, watchedClass]);
+
   async function onVerify(body: PublicResultVerifyData) {
+    if (!formExam) {
+      toast.error("Select an exam");
+      return;
+    }
     try {
       const { data } = await axios.post("/api/marks/public/verify", body);
       const payload = data.data as VerifyResponse;
       setVerified(body);
       setSession(payload);
-      const firstYear = payload.sessions[0]?.year ?? null;
-      const firstExam = payload.sessions[0]?.exams[0]?.exam_name ?? "";
-      setSelectedYear(firstYear);
-      setSelectedExam(firstExam);
+      const yearNum = body.year;
+      const exams =
+        payload.sessions.find((s) => s.year === yearNum)?.exams ?? [];
+      const preferred =
+        exams.find((e) => e.exam_name === formExam)?.exam_name ??
+        exams[0]?.exam_name ??
+        "";
+      setSelectedYear(yearNum);
+      setSelectedExam(preferred);
       setResult(null);
-      if (firstYear != null && firstExam) {
-        await fetchResult(payload.token, firstYear, firstExam);
+      if (preferred) {
+        await fetchResult(payload.token, yearNum, preferred);
       }
     } catch (error) {
       toast.error(errMsg(error, "Could not verify student details"));
@@ -202,7 +254,7 @@ export default function ResultClient() {
         <h1 className="text-3xl font-bold mb-2 text-gray-800">Check Result</h1>
         <p className="text-gray-600 mb-8">
           Enter session, class, section, roll, and a registered mobile number to
-          view your result and download your marksheet.
+          view your result and download your academic transcript (marksheet).
         </p>
         <form
           onSubmit={handleSubmit(onVerify)}
@@ -244,7 +296,6 @@ export default function ResultClient() {
                 {...register("class")}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
-                <option value="">Select</option>
                 {CLASS_OPTIONS.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -270,7 +321,7 @@ export default function ResultClient() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {SECTION_OPTIONS.map((s) => (
-                  <option key={s.value || "empty"} value={s.value}>
+                  <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
                 ))}
@@ -289,18 +340,47 @@ export default function ResultClient() {
             >
               Roll
             </label>
-            <input
+            <select
               id="roll"
-              inputMode="numeric"
-              {...register("roll", {
-                setValueAs: (v) => filterNumericInput(String(v ?? "")),
-              })}
+              {...register("roll")}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. 12"
-            />
+            >
+              {ROLL_OPTIONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
             {errors.roll && (
               <p className="mt-1 text-xs text-red-600">{errors.roll.message}</p>
             )}
+          </div>
+          <div>
+            <label
+              htmlFor="exam"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Exam
+            </label>
+            <select
+              id="exam"
+              value={formExam}
+              onChange={(e) => setFormExam(e.target.value)}
+              disabled={loadingExams || formExams.length === 0}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+            >
+              {loadingExams ? (
+                <option value="">Loading exams...</option>
+              ) : formExams.length === 0 ? (
+                <option value="">No published exam</option>
+              ) : (
+                formExams.map((ex) => (
+                  <option key={ex.exam_name} value={ex.exam_name}>
+                    {ex.exam_name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
           <div>
             <label
@@ -330,7 +410,7 @@ export default function ResultClient() {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !formExam || loadingExams}
             className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -471,7 +551,7 @@ export default function ResultClient() {
               <button
                 onClick={handleView}
                 disabled={viewing || downloading}
-                className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 {viewing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

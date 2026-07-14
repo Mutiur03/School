@@ -42,6 +42,33 @@ export function verifyPublicResultToken(
 
 export class PublicResultService {
   /**
+   * Published exams for a session year whose `levels` include the given class.
+   * Safe to expose publicly (names + result dates only; gated by visible=true).
+   */
+  static async listPublishedExams(year: number, classInt: number) {
+    const exams = await prisma.exams.findMany({
+      where: {
+        exam_year: year,
+        visible: true,
+        levels: { has: classInt },
+      },
+      select: {
+        exam_name: true,
+        result_date: true,
+      },
+      orderBy: { result_date: "desc" },
+    });
+
+    // Distinct by name (levels uniqueness can yield same name across level arrays).
+    const seen = new Set<string>();
+    return exams.filter((e) => {
+      if (seen.has(e.exam_name)) return false;
+      seen.add(e.exam_name);
+      return true;
+    });
+  }
+
+  /**
    * Match enrollment by year/class/section/roll + (father_phone OR mother_phone)
    * within the current school (Prisma queries are RLS-scoped by subdomain).
    * Returns a short-lived token plus published exams for that session year.

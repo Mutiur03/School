@@ -59,6 +59,37 @@ export const publicResultVerifySchema = z
 export type PublicResultVerifyInput = z.input<typeof publicResultVerifySchema>;
 export type PublicResultVerifyData = z.infer<typeof publicResultVerifySchema>;
 
+/** Query params for GET /public/exams (published exams for a session + class). */
+export const publicResultExamsQuerySchema = z.object({
+  year: z
+    .union([z.string(), z.number()])
+    .transform((v) => String(v).trim())
+    .pipe(
+      z
+        .string()
+        .min(1, "Session is required")
+        .regex(/^\d{4}$/, "Session must be a 4-digit year")
+        .transform((v) => Number(v))
+        .refine((y) => y >= 2000 && y <= 2100, {
+          message: "Session year is invalid",
+        }),
+    ),
+  class: z
+    .union([z.string(), z.number()])
+    .transform((v) => String(v).trim())
+    .pipe(
+      z
+        .string()
+        .min(1, "Class is required")
+        .regex(CLASS_NUM, "Class must be between 1 and 10")
+        .transform((v) => Number(v)),
+    ),
+});
+
+export type PublicResultExamsQueryData = z.infer<
+  typeof publicResultExamsQuerySchema
+>;
+
 /** Query params for /public/result and /public/download. */
 export const publicResultQuerySchema = z.object({
   year: z

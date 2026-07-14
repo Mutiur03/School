@@ -7,6 +7,7 @@ const router = express.Router();
 
 // Public result checking (no auth; school scoped via subdomain RLS context).
 // Registered before the "/:id/..." routes so they are not shadowed.
+router.get("/public/exams", PublicResultController.examsController);
 router.post("/public/verify", PublicResultController.verifyController);
 router.get("/public/result", PublicResultController.resultController);
 router.get("/public/download", PublicResultController.downloadController);

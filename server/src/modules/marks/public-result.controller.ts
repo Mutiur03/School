@@ -2,6 +2,7 @@ import asyncHandler from "@/utils/asyncHandler.js";
 import { Request, Response } from "express";
 import { z } from "zod";
 import {
+  publicResultExamsQuerySchema,
   publicResultQuerySchema,
   publicResultVerifySchema,
 } from "@school/shared-schemas";
@@ -30,6 +31,22 @@ function parseInput<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 
 export class PublicResultController {
+  static examsController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { year, class: classInt } = parseInput(
+        publicResultExamsQuerySchema,
+        req.query,
+      );
+      const data = await PublicResultService.listPublishedExams(
+        year,
+        classInt,
+      );
+      res
+        .status(200)
+        .json(new ApiResponse(200, data, "Exams fetched successfully"));
+    },
+  );
+
   static verifyController = asyncHandler(
     async (req: Request, res: Response) => {
       const body = parseInput(publicResultVerifySchema, req.body ?? {});
