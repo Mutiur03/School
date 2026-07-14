@@ -1205,7 +1205,7 @@ export class MarksheetService {
     const outdatedWhere = {
       school_id: schoolId,
       exam_id: { in: openExamIds },
-      status: { in: ["ready", "failed"] as const },
+      status: { in: ["ready", "failed"] },
       OR: [
         { snapshot_design_version: null },
         { snapshot_design_version: { not: MARKSHEET_DESIGN_VERSION } },
