@@ -56,6 +56,17 @@ const SECTION_OPTIONS = [
   { label: "B", value: "B" },
 ];
 const CLASS_OPTIONS = Array.from({ length: 5 }, (_, i) => i + 6);
+const CLASS_WORD: Record<number, string> = {
+  6: "Six",
+  7: "Seven",
+  8: "Eight",
+  9: "Nine",
+  10: "Ten",
+};
+function classLabel(classNum: number | string): string {
+  const n = Number(classNum);
+  return CLASS_WORD[n] ?? String(classNum);
+}
 const ROLL_OPTIONS = Array.from({ length: 70 }, (_, i) => i + 1);
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
@@ -298,7 +309,7 @@ export default function ResultClient() {
               >
                 {CLASS_OPTIONS.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {classLabel(c)}
                   </option>
                 ))}
               </select>
@@ -431,7 +442,7 @@ export default function ResultClient() {
           </h1>
           {verified && (
             <p className="text-gray-500 text-sm">
-              Class {verified.class}
+              Class {classLabel(verified.class)}
               {verified.section} · Roll {verified.roll} · Session{" "}
               {verified.year}
             </p>
@@ -499,7 +510,8 @@ export default function ResultClient() {
           <>
             <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-gray-100 px-5 py-4 text-sm text-gray-600">
               <span>
-                <span className="text-gray-400">Class:</span> {result.student.class}
+                <span className="text-gray-400">Class:</span>{" "}
+                {classLabel(result.student.class)}
               </span>
               <span>
                 <span className="text-gray-400">Roll:</span> {result.student.roll}
