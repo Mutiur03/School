@@ -51,15 +51,19 @@ interface ExamResult {
   total_full: number;
 }
 
-const SECTION_OPTIONS = ["A", "B", "C", "D", "E", "F"];
-const CLASS_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const SECTION_OPTIONS = [
+  { label: "Select Section", value: "" },
+  { label: "A", value: "A" },
+  { label: "B", value: "B" },
+];
+const CLASS_OPTIONS = Array.from({ length: 5 }, (_, i) => i + 6);
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 const DEFAULT_VALUES: PublicResultVerifyInput = {
   year: String(currentYear),
   class: "",
-  section: "A",
+  section: "",
   roll: "",
   phone: "",
 };
@@ -266,8 +270,8 @@ export default function ResultClient() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {SECTION_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                  <option key={s.value || "empty"} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>

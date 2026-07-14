@@ -230,6 +230,7 @@ model student_enrollments {
   fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
 
   @@unique([student_id, class, year])
+  @@unique([school_id, year, class, section, roll], name: "enrollment_school_year_class_section_roll")
   @@index([student_id])
   @@index([class, year])
   @@index([class, section, year])
