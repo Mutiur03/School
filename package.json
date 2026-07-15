@@ -2,7 +2,6 @@
   "name": "school",
   "private": true,
   "workspaces": [
-    "client",
     "client-next",
     "dashboard",
     "server",
