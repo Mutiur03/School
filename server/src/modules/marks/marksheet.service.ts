@@ -140,16 +140,22 @@ export class MarksheetService {
   }
 
   /**
-   * Append a content fingerprint to a download URL so a CDN in front of the R2
-   * bucket treats a regenerated file (same key/path) as a new resource. The
-   * origin object is always overwritten fresh before the URL is handed out, but
-   * an edge cache keyed on the URL would otherwise serve the stale copy until
-   * its TTL expires. Varying the query string varies the cache key, forcing a
-   * revalidation. Uses `&` when the URL already carries query params (e.g. a
-   * presigned URL's signature), `?` otherwise.
+   * Append a content fingerprint to a *stable public* download URL so a CDN in
+   * front of the R2 bucket treats a regenerated file (same key/path) as a new
+   * resource. The origin object is always overwritten fresh before the URL is
+   * handed out, but an edge cache keyed on the URL would otherwise serve the
+   * stale copy until its TTL expires. Varying the query string varies the cache
+   * key, forcing a revalidation.
+   *
+   * Presigned URLs (SigV4) are returned unchanged: they sign the ENTIRE query
+   * string, so appending a param after signing invalidates the signature
+   * (SignatureDoesNotMatch). They also rotate their signature on every request,
+   * so a CDN cannot serve a stale copy by URL — they neither need nor tolerate
+   * busting. Only the R2_PUBLIC_URL path produces a stable, bustable URL.
    */
   private static withCacheBust(url: string, hash: string | null): string {
     if (!hash) return url;
+    if (/[?&]X-Amz-Signature=/i.test(url)) return url;
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}v=${hash.slice(0, 16)}`;
   }
