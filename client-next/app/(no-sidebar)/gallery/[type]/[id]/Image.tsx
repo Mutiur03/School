@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getFileUrl } from "@/lib/cdn";
 
 export interface ImageItem {
@@ -19,7 +19,13 @@ interface ImagesPageProps {
 export default function ImagesPage({ type, images }: ImagesPageProps) {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const activeThumbRef = useRef<HTMLButtonElement | null>(null);
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+    const lastFocusedRef = useRef<HTMLElement | null>(null);
     const [copied, setCopied] = useState(false);
+    const titleId = useId();
+
+    const closeLightbox = () => setSelectedIndex(null);
 
     const copyImage = async () => {
         if (selectedIndex === null) return;
@@ -36,9 +42,12 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
     useEffect(() => {
         if (selectedIndex === null) return;
 
+        lastFocusedRef.current = document.activeElement as HTMLElement | null;
+        closeButtonRef.current?.focus();
+
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
-                setSelectedIndex(null);
+                closeLightbox();
             } else if (e.key === "ArrowLeft") {
                 setSelectedIndex((prev) => {
                     if (prev === null) return null;
@@ -49,11 +58,32 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                     if (prev === null) return null;
                     return (prev + 1) % images.length;
                 });
+            } else if (e.key === "Tab" && dialogRef.current) {
+                const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         };
 
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
         window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            document.body.style.overflow = previousOverflow;
+            lastFocusedRef.current?.focus();
+        };
     }, [selectedIndex, images.length]);
 
     useEffect(() => {
@@ -82,10 +112,10 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
     return (
         <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-lg font-semibold text-pretty">
                     {type === "campus" ? "Campus Gallery" : "Event Gallery"}
                 </h2>
-                <Link href="/gallery" className="text-sm text-blue-600">
+                <Link href="/gallery" className="text-sm text-blue-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
                     Back to galleries
                 </Link>
             </div>
@@ -97,8 +127,9 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                     {images.map((img, idx) => (
                         <button
                             key={img.id}
+                            type="button"
                             onClick={() => setSelectedIndex(idx)}
-                            className="block rounded overflow-hidden bg-white border border-gray-100 hover:shadow-md focus:outline-none"
+                            className="block rounded overflow-hidden bg-white border border-gray-100 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                         >
                             <Image
                                 src={img.image_path ? getFileUrl(img.image_path) : "/placeholder.svg"}
@@ -114,9 +145,9 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
 
             {selectedIndex !== null && images[selectedIndex] && (
                 <div
-                    className="fixed inset-0 bg-opacity-60 flex items-center justify-center z-1001 p-4"
-                    onClick={() => setSelectedIndex(null)}
-                    style={{ backdropFilter: "blur(6px)" }}
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-1001 p-4"
+                    style={{ overscrollBehavior: "contain" }}
+                    onClick={closeLightbox}
                 >
                     <style>{`
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -124,15 +155,22 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
           `}</style>
 
                     <div
-                        className="max-w-4xl w-full max-h-full rounded-sm bg-white p-4 flex flex-col"
+                        ref={dialogRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby={titleId}
+                        className="max-w-4xl w-full max-h-full rounded-sm bg-white p-4 flex flex-col overflow-y-auto"
+                        style={{ overscrollBehavior: "contain" }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => setSelectedIndex(null)}
+                                    ref={closeButtonRef}
+                                    type="button"
+                                    onClick={closeLightbox}
                                     aria-label="Close"
-                                    className="text-white bg-black p-2 rounded-full hover:bg-black/80"
+                                    className="text-white bg-black p-2 rounded-full hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -140,6 +178,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
+                                        aria-hidden="true"
                                     >
                                         <path
                                             strokeLinecap="round"
@@ -151,9 +190,10 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                 </button>
 
                                 <button
+                                    type="button"
                                     onClick={copyImage}
                                     aria-label="Copy image URL"
-                                    className="text-white p-2 bg-black rounded-full hover:bg-black/80"
+                                    className="text-white p-2 bg-black rounded-full hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -161,6 +201,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
+                                        aria-hidden="true"
                                     >
                                         <path
                                             strokeLinecap="round"
@@ -177,10 +218,12 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                     </svg>
                                 </button>
 
-                                {copied && <span className="text-white text-sm ml-2">Copied!</span>}
+                                <span className="text-gray-700 text-sm ml-2" aria-live="polite">
+                                    {copied ? "Copied!" : ""}
+                                </span>
                             </div>
 
-                            <div className="text-black text-sm">
+                            <div id={titleId} className="text-black text-sm">
                                 {selectedIndex + 1}/{images.length}
                             </div>
                         </div>
@@ -193,17 +236,18 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                         : "/placeholder.svg"
                                 }
                                 alt={images[selectedIndex].caption || "full image"}
-                                className="w-full h-auto max-h-[70vh] object-contain rounded filter brightness-100"
+                                className="w-full h-auto max-h-[70vh] object-contain rounded"
                                 width={100}
                                 height={100}
                             />
                             <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     goPrev();
                                 }}
                                 aria-label="Previous"
-                                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-40 text-white rounded-full p-2 hover:bg-opacity-60"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-2 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -211,6 +255,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
+                                    aria-hidden="true"
                                 >
                                     <path
                                         strokeLinecap="round"
@@ -222,12 +267,13 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                             </button>
 
                             <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     goNext();
                                 }}
                                 aria-label="Next"
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-40 text-white rounded-full p-2 hover:bg-opacity-60"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-2 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -235,6 +281,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
+                                    aria-hidden="true"
                                 >
                                     <path
                                         strokeLinecap="round"
@@ -246,11 +293,11 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                             </button>
                         </div>
 
-                        {images[selectedIndex].caption && (
-                            <div className="text-white mt-2 text-sm">
+                        {images[selectedIndex].caption ? (
+                            <div className="text-gray-800 mt-2 text-sm">
                                 {images[selectedIndex].caption}
                             </div>
-                        )}
+                        ) : null}
 
                         <div className="mt-3 overflow-x-auto py-2 no-scrollbar">
                             <div className="flex gap-2 items-center px-1">
@@ -259,9 +306,12 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                     return (
                                         <button
                                             key={thumb.id}
+                                            type="button"
                                             onClick={() => setSelectedIndex(i)}
                                             ref={isActive ? activeThumbRef : undefined}
-                                            className={`shrink-0 rounded overflow-hidden border-2 transition-transform duration-150 ${isActive ? "border-blue-400 scale-105" : "border-transparent"
+                                            aria-label={`View image ${i + 1}`}
+                                            aria-current={isActive ? "true" : undefined}
+                                            className={`shrink-0 rounded overflow-hidden border-2 transition-transform duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "border-blue-400 scale-105" : "border-transparent"
                                                 }`}
                                             style={{ width: 80, height: 60 }}
                                         >
@@ -272,7 +322,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                                                         : "/placeholder.svg"
                                                 }
                                                 alt={thumb.caption || `thumb-${i}`}
-                                                className={`w-full h-full object-cover ${isActive ? "filter brightness-100" : "filter brightness-75"
+                                                className={`w-full h-full object-cover ${isActive ? "" : "brightness-75"
                                                     }`}
                                                 width={80}
                                                 height={60}

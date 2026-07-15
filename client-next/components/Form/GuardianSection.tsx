@@ -107,6 +107,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
         <SectionHeader title="Guardian Information">
             <FieldRow
                 label="Guardian is not the father:"
+                htmlFor="guardian_is_not_father"
                 isRequired={false}
                 error={undefined}
                 tooltip={metadata?.guardian?.is_not_father?.tooltip}
@@ -114,6 +115,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
             >
                 <label className="inline-flex items-start sm:items-center gap-2">
                     <input
+                        id="guardian_is_not_father"
                         type="checkbox"
                         {...register("guardian_is_not_father", {
                             onChange: (e) => {
@@ -194,14 +196,16 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
 
                         <FieldRow
                             label="Relationship with Guardian:"
+                            htmlFor="guardian_relation"
                             isRequired={isRequired("guardian_relation")}
                             error={errors.guardian_relation}
                             tooltip={metadata?.guardian?.relation?.tooltip}
                             instruction={metadata?.guardian?.relation?.instruction}
                         >
                             <select
+                                id="guardian_relation"
                                 {...register("guardian_relation")}
-                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
+                                className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 transition-[border-color,box-shadow]"
                             >
                                 <option value="">
                                     Select Relationship / সম্পর্ক নির্বাচন করুন
@@ -217,6 +221,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
 
                     <FieldRow
                         label="Guardian's Address:"
+                        htmlFor="guardian_address_same_as_permanent"
                         isRequired={false}
                         error={undefined}
                         tooltip={metadata?.guardian?.address_same?.tooltip}
@@ -224,6 +229,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
                     >
                         <label className="inline-flex items-center gap-2 mb-2">
                             <input
+                                id="guardian_address_same_as_permanent"
                                 type="checkbox"
                                 {...register("guardian_address_same_as_permanent", {
                                     onChange: (e) => {

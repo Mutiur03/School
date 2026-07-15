@@ -53,6 +53,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
         <div className="space-y-2">
             <FieldRow
                 label="District:"
+                htmlFor={f("district")}
                 isRequired={isRequired(f("district"))}
                 error={errors[f("district")]}
                 tooltip={districtTooltip}
@@ -66,7 +67,8 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                         },
                     })}
                     disabled={disabled}
-                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    autoComplete="address-level1"
+                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                     <option value="">Select District</option>
                     {districts.map((d) => (
@@ -79,6 +81,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
 
             <FieldRow
                 label="Upazila/Thana:"
+                htmlFor={f("upazila")}
                 isRequired={isRequired(f("upazila"))}
                 error={errors[f("upazila")]}
                 tooltip={upazilaTooltip}
@@ -88,7 +91,8 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
                     id={f("upazila")}
                     {...register(f("upazila"))}
                     disabled={disabled || !districtValue}
-                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    autoComplete="address-level2"
+                    className="block w-full border rounded px-3 py-2 text-sm sm:text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                     <option value="">Select Upazila/Thana</option>
                     {upazilas.map((u) => (

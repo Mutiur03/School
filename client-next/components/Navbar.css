@@ -445,7 +445,7 @@ header#masthead {
         height: 2px;
         background-color: #333;
         border-radius: 1px;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         transform-origin: center;
     }
 

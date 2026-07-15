@@ -62,7 +62,7 @@
     position: relative;
     padding: 8px 15px 8px 25px;
     border-bottom: 1px solid #f0f0f0;
-    transition: all 0.3s ease-in-out;
+    transition: background-color 0.3s ease-in-out;
 }
 
 .sidebar-widget ul li:last-child {
@@ -75,7 +75,7 @@
     content: "▶";
     padding-left: 0;
     font-size: 12px;
-    transition: all 0.3s ease-in-out;
+    transition: color 0.3s ease-in-out;
     display: inline-block;
     margin-left: 0;
     position: absolute;
@@ -143,7 +143,7 @@
     padding: 8px;
     background: #f8f9fa;
     border-radius: 4px;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .more-link:hover {
@@ -193,7 +193,7 @@
     border: 1px solid #ddd;
     font-size: 14px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .calendar_wrap tbody td:hover {
@@ -224,7 +224,7 @@
 
 /* Links and transitions */
 a {
-    transition: all 0.3s ease-in-out;
+    transition: color 0.3s ease-in-out, opacity 0.3s ease-in-out;
     color: #333;
     text-decoration: none;
 }

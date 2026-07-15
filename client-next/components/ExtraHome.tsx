@@ -33,7 +33,7 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
                 >
                   <Image
                     src={placeholderImage}
-                    alt={`gallery-${i}`}
+                    alt=""
                     width={160}
                     height={160}
                     className="w-full h-full object-cover block"
@@ -47,7 +47,7 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
             <Link
               href={galleryPath}
               aria-label="View all photos"
-              className="inline-flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform text-black bg-gray-300 py-1.5 px-2.5 mt-4 rounded-md no-underline "
+              className="inline-flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-[box-shadow,transform] duration-300 ease-in-out text-black bg-gray-300 py-1.5 px-2.5 mt-4 rounded-md no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
             >
               View All
             </Link>

@@ -46,6 +46,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-100 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow"
+        >
+          Skip to main content
+        </a>
         <Analytics measurementId={school?.gaMeasurementId} />
         {/* {process.env.NEXT_PUBLIC_OBSERVA_PUBLIC_KEY && (
           <Observa
@@ -68,7 +74,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Navbar school={school!} />
             <hr className="border-t border-gray-300" />
             <TopBanner />
-            <main>{children}</main>
+            <main id="main-content" tabIndex={-1} className="outline-none">
+              {children}
+            </main>
           </div>
           <Footer />
         </Providers>

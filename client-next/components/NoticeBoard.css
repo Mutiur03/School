@@ -33,7 +33,7 @@
     padding: 6px 10px;
     border-radius: 6px;
     text-decoration: none;
-    transition: all 0.3s ease-in-out;
+    transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
 }
 
 .notices-front .notices-view-all a:hover {
@@ -60,7 +60,7 @@ ul.notices_front_list li .notice-title .fa {
 ul.notices_front_list li .notice-title a {
     color: #000;
     text-decoration: none;
-    transition: all 0.3s ease-in-out;
+    transition: opacity 0.3s ease-in-out, color 0.3s ease-in-out;
 }
 
 ul.notices_front_list li .notice-title a:hover {

@@ -8,7 +8,6 @@ export async function TopBanner() {
   return (
     <div
       className="w-full mt-2 bg-gray-50 border-t border-b border-gray-100"
-      aria-hidden={false}
     >
       <style>{`
         @keyframes marquee-scroll {
@@ -23,18 +22,25 @@ export async function TopBanner() {
         .marquee-track:hover {
           animation-play-state: paused;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .marquee-track {
+            animation: none;
+            flex-wrap: wrap;
+            white-space: normal;
+          }
+        }
       `}</style>
 
       <div className="max-w-6xl mx-auto px-4 py-1 flex items-center justify-between gap-3">
-        <div className="flex-1 overflow-hidden">
-          {!data ? (
+        <div className="flex-1 overflow-hidden min-w-0">
+          {!data || data.length === 0 ? (
             <span className="text-gray-500 text-sm leading-6">
               কোনো নোটিশ নেই
             </span>
           ) : (
             <div
               className="marquee-track text-sm leading-6"
-              style={{ animationDuration: `${duration}s`, animationDelay: '5s' }}
+              style={{ animationDuration: `${duration}s`, animationDelay: "5s" }}
             >
               {data.map((notice, i) => (
                 <a
@@ -43,8 +49,9 @@ export async function TopBanner() {
                   target="_blank"
                   rel="noreferrer"
                   title={notice.title || ""}
-                  className="inline-flex items-center min-h-6 mr-8 text-gray-900 hover:text-blue-600 before:content-['▶'] before:mr-1 before:font-bold before:text-xs before:text-[#609513]"
-                > {notice.title}
+                  className="inline-flex items-center min-h-6 mr-8 text-gray-900 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 before:content-['▶'] before:mr-1 before:font-bold before:text-xs before:text-[#609513]"
+                >
+                  {notice.title}
                 </a>
               ))}
             </div>
@@ -53,8 +60,8 @@ export async function TopBanner() {
 
         <div className="shrink-0">
           <Link
-            href={"/notices"}
-            className="inline-flex items-center px-3 py-1.5 border border-gray-400 text-gray-700 rounded text-sm bg-transparent hover:bg-gray-50"
+            href="/notices"
+            className="inline-flex items-center px-3 py-1.5 border border-gray-400 text-gray-700 rounded text-sm bg-transparent hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             সকল
           </Link>
@@ -62,6 +69,6 @@ export async function TopBanner() {
       </div>
     </div>
   );
-};
+}
 
 export default TopBanner;

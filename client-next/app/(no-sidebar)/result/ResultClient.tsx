@@ -381,7 +381,7 @@ export default function ResultClient() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
             >
               {loadingExams ? (
-                <option value="">Loading exams...</option>
+                <option value="">Loading exams…</option>
               ) : formExams.length === 0 ? (
                 <option value="">No published exam</option>
               ) : (
@@ -402,14 +402,16 @@ export default function ResultClient() {
             </label>
             <input
               id="phone"
+              type="tel"
               inputMode="numeric"
               maxLength={11}
+              spellCheck={false}
               {...register("phone", {
                 setValueAs: (v) =>
                   filterNumericInput(String(v ?? "")).slice(0, 11),
               })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. 01712345678"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+              placeholder="e.g. 01712345678…"
               autoComplete="tel"
             />
             {errors.phone && (
@@ -422,10 +424,10 @@ export default function ResultClient() {
           <button
             type="submit"
             disabled={isSubmitting || !formExam || loadingExams}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? "Verifying..." : "View Result"}
+            {isSubmitting ? "Verifying…" : "View Result"}
           </button>
         </form>
       </div>
@@ -459,10 +461,14 @@ export default function ResultClient() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {session.sessions.length > 1 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="result-year"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Year
             </label>
             <select
+              id="result-year"
               value={selectedYear ?? ""}
               onChange={(e) => {
                 const yearNum = Number(e.target.value);
@@ -471,7 +477,7 @@ export default function ResultClient() {
                     ?.exam_name ?? "";
                 handleSelect(yearNum, firstExam);
               }}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
             >
               {session.sessions.map((s) => (
                 <option key={s.year} value={s.year}>
@@ -482,15 +488,19 @@ export default function ResultClient() {
           </div>
         )}
         <div className={session.sessions.length > 1 ? "" : "sm:col-span-2"}>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="result-exam"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Exam
           </label>
           <select
+            id="result-exam"
             value={selectedExam}
             onChange={(e) =>
               selectedYear != null && handleSelect(selectedYear, e.target.value)
             }
-            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
           >
             {examsForYear.map((ex) => (
               <option key={ex.exam_name} value={ex.exam_name}>
@@ -504,7 +514,7 @@ export default function ResultClient() {
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
         {loadingResult ? (
           <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading result...
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading result…
           </div>
         ) : result ? (
           <>

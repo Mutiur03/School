@@ -25,9 +25,10 @@ export default function GalleryClient({
         <div className="p-4">
             <div className="flex gap-2 mb-4">
                 <button
+                    type="button"
                     onClick={() => setActive("campus")}
                     aria-pressed={active === "campus"}
-                    className={`px-3 py-2 rounded-md border transition focus:outline-none ${active === "campus"
+                    className={`px-3 py-2 rounded-md border transition-[background-color,border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${active === "campus"
                             ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
                             : "border-gray-300 bg-white hover:bg-gray-50"
                         }`}
@@ -35,9 +36,10 @@ export default function GalleryClient({
                     Campus Gallery
                 </button>
                 <button
+                    type="button"
                     onClick={() => setActive("event")}
                     aria-pressed={active === "event"}
-                    className={`px-3 py-2 rounded-md border transition focus:outline-none ${active === "event"
+                    className={`px-3 py-2 rounded-md border transition-[background-color,border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${active === "event"
                             ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
                             : "border-gray-300 bg-white hover:bg-gray-50"
                         }`}

@@ -70,15 +70,39 @@ export function Header({
 
   React.useEffect(() => {
     if (!bannerImages.length) return;
-    const slideInterval = setInterval(() => {
-      setCurrentSlide((prev) => {
-        const next = (prev + 1) % bannerImages.length;
-        markLoaded(next);
-        return next;
-      });
-    }, slideIntervalMs);
 
-    return () => clearInterval(slideInterval);
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let slideInterval: ReturnType<typeof setInterval> | undefined;
+
+    const stop = () => {
+      if (slideInterval !== undefined) {
+        clearInterval(slideInterval);
+        slideInterval = undefined;
+      }
+    };
+
+    const start = () => {
+      if (mq.matches || slideInterval !== undefined) return;
+      slideInterval = setInterval(() => {
+        setCurrentSlide((prev) => {
+          const next = (prev + 1) % bannerImages.length;
+          markLoaded(next);
+          return next;
+        });
+      }, slideIntervalMs);
+    };
+
+    const sync = () => {
+      stop();
+      start();
+    };
+
+    sync();
+    mq.addEventListener("change", sync);
+    return () => {
+      stop();
+      mq.removeEventListener("change", sync);
+    };
   }, [bannerImages.length, slideIntervalMs, markLoaded]);
 
 
@@ -89,7 +113,7 @@ export function Header({
 
       <div className="relative h-70 overflow-hidden md:h-80">
         <div
-          className="flex h-full transition-transform duration-500 ease-in-out"
+          className="flex h-full transition-transform duration-500 ease-in-out motion-reduce:transition-none"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
           {bannerImages.map((image, index) => (
@@ -163,9 +187,14 @@ export function Header({
           {bannerImages.map((_, index) => (
             <button
               key={index}
-              onClick={() => setCurrentSlide(index)}
-              className="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent"
+              type="button"
+              onClick={() => {
+                setCurrentSlide(index);
+                markLoaded(index);
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
               aria-label={`Go to slide ${index + 1}`}
+              aria-current={currentSlide === index ? "true" : undefined}
             >
               <span
                 className={`block h-3 w-3 rounded-full ${currentSlide === index ? "bg-white" : "bg-white/50"
