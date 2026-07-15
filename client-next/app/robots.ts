@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getRequestSiteUrl, getSchoolSiteUrl } from "@/lib/seo";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const school = await fetchSchoolConfig();
   const siteUrl = getSchoolSiteUrl(school, await getRequestSiteUrl());

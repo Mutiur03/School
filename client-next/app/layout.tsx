@@ -17,6 +17,10 @@ import { TopBanner } from "@/components/TopBanner";
 import governmentLogoImage from "../assets/images/gov-logo.png";
 import { Analytics as VAnalytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+
+// Multi-tenant: every page needs Host / x-tenant-host at request time.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();
   return buildSchoolMetadata(school);

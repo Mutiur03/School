@@ -1,5 +1,6 @@
 import envPreferredRole from "@/lib/role";
 import axios from "axios";
+import type { AxiosResponse } from "axios";
 import { createContext, useEffect, useState, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
@@ -77,6 +78,15 @@ interface SuperAdminUser extends BaseUser {
 export type User = AdminUser | TeacherUser | StudentUser | SuperAdminUser;
 
 export type { AdminUser, TeacherUser, StudentUser, SuperAdminUser };
+
+type RefreshSessionResponse = {
+    success: boolean;
+    message?: string;
+    data?: {
+        user?: User;
+        accessToken?: string;
+    };
+};
 
 interface UnifiedAuthContextType {
     user: User | null;
@@ -163,17 +173,35 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     const [accessToken, setAccessTokenState] = useState<string | null>(null);
     const accessTokenRef = useRef<string | null>(null);
     const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const refreshPromiseRef = useRef<Promise<AxiosResponse<RefreshSessionResponse>> | null>(null);
+    const rateLimitToastAtRef = useRef(0);
 
     const setAccessToken = (token: string | null) => {
         accessTokenRef.current = token;
         setAccessTokenState(token);
     };
 
+    const notifyRateLimited = useCallback(() => {
+        const now = Date.now();
+        // Avoid toast spam from parallel 401s / offline polls
+        if (now - rateLimitToastAtRef.current < 15_000) return;
+        rateLimitToastAtRef.current = now;
+        toast.error("Rate limit hit. Please wait a moment.");
+    }, []);
+
+    // Single-flight: concurrent 401s / checkAuth share one refresh request
     const refreshSession = useCallback((timeout?: number) => {
-        return axios.post("/api/auth/sessions/refresh", {}, {
+        if (refreshPromiseRef.current) {
+            return refreshPromiseRef.current;
+        }
+        const promise = axios.post<RefreshSessionResponse>("/api/auth/sessions/refresh", {}, {
             _skipAuthRefresh: true,
             timeout,
+        }).finally(() => {
+            refreshPromiseRef.current = null;
         });
+        refreshPromiseRef.current = promise;
+        return promise;
     }, []);
 
     const isSuperAdminAllowed = () => envPreferredRole === "super_admin";
@@ -258,7 +286,9 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                         console.error(`Refresh failed with status ${status}:`, message);
 
                         if (status === 429) {
-                            toast.error("Rate limit hit. Please wait a moment.");
+                            notifyRateLimited();
+                            // Keep existing session; do not force logout on rate limit
+                            return Promise.reject(refreshError);
                         }
                     }
                     // Refresh failed or returned success:false — clear auth state
@@ -273,7 +303,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             axios.interceptors.request.eject(requestInterceptor);
             axios.interceptors.response.eject(responseInterceptor);
         };
-    }, [refreshSession, serverOffline]);
+    }, [notifyRateLimited, refreshSession, serverOffline]);
 
     const checkAuth = useCallback(async (showLoading = true) => {
         if (showLoading) setLoading(true);
@@ -314,18 +344,24 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 setServerOffline(true);
                 // Do NOT clear user — keep existing auth state if any
             } else {
-                // Auth failure — no active session
                 const status = getErrorStatus(error);
                 const message = getResponseMessage(error);
                 console.warn(`No active session found (Status ${status}):`, message);
 
-                setUser(null);
-                setServerOffline(false);
+                if (status === 429) {
+                    notifyRateLimited();
+                    setServerOffline(false);
+                    // Keep existing session; rate limit is not an auth failure
+                } else {
+                    setUser(null);
+                    setAccessToken(null);
+                    setServerOffline(false);
+                }
             }
         } finally {
             setLoading(false);
         }
-    }, [refreshSession]);
+    }, [notifyRateLimited, refreshSession]);
 
     useEffect(() => {
         checkAuth();
@@ -340,12 +376,42 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
         if (serverOffline) {
             retryIntervalRef.current = setInterval(async () => {
                 try {
-                    await refreshSession(5000);
-                    // If we get here, server is back
+                    const refreshRes = await refreshSession(5000);
+                    const userData = refreshRes.data?.data?.user;
+                    const refreshedAccessToken = refreshRes.data?.data?.accessToken;
+
                     setServerOffline(false);
-                    checkAuth();
-                } catch {
-                    // Still offline, keep polling
+                    // Apply refresh result directly — avoid a second refresh via checkAuth
+                    if (refreshRes.data?.success && userData) {
+                        if (userData?.role === "super_admin" && !isSuperAdminAllowed()) {
+                            setAccessToken(null);
+                            setUser(null);
+                            return;
+                        }
+                        setAccessToken(refreshedAccessToken ?? null);
+                        setUser(userData);
+                        if (userData?.role) {
+                            setPreferredRole(userData.role as UserRole);
+                        }
+                    } else {
+                        setUser(null);
+                        setAccessToken(null);
+                    }
+                } catch (error) {
+                    if (isNetworkError(error)) {
+                        // Still unreachable — keep polling
+                        return;
+                    }
+                    if (getErrorStatus(error) === 429) {
+                        notifyRateLimited();
+                        // Pause offline polling so we do not dig into a rate-limit hole
+                        setServerOffline(false);
+                        return;
+                    }
+                    // Server is reachable but session is invalid — stop the loop
+                    setServerOffline(false);
+                    setUser(null);
+                    setAccessToken(null);
                 }
             }, 5000);
         } else {
@@ -361,7 +427,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
                 retryIntervalRef.current = null;
             }
         };
-    }, [checkAuth, refreshSession, serverOffline]);
+    }, [notifyRateLimited, refreshSession, serverOffline]);
 
     const retryAuth = () => {
         setServerOffline(false);

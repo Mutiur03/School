@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { cache } from "react";
 import { headers } from "next/headers";
 import {
   getDefaultTenantHost,
@@ -73,24 +74,54 @@ function previewBody(body: unknown) {
   }
 }
 
-async function getRequestOrigin() {
+type RequestContext = {
+  host?: string;
+  proto?: string;
+  tenantHost?: string;
+};
+
+/** True when Next threw because headers() was used during static generation. */
+function isDynamicServerUsageError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    (error as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE"
+  );
+}
+
+const getRequestContext = cache(async (): Promise<RequestContext> => {
   try {
     const incomingHeaders = await headers();
-    const host =
-      incomingHeaders.get("x-tenant-host") ||
+    const tenantHost = incomingHeaders.get("x-tenant-host")?.trim() || undefined;
+    const host = (
+      tenantHost ||
       incomingHeaders.get("x-forwarded-host") ||
-      incomingHeaders.get("host");
+      incomingHeaders.get("host") ||
+      ""
+    )
+      .split(",")[0]
+      ?.trim();
 
-    if (!host) return undefined;
+    const forwardedProto = incomingHeaders.get("x-forwarded-proto") || undefined;
+    const proto =
+      forwardedProto ||
+      (host?.includes("localhost") ? "http" : host ? "https" : undefined);
 
-    const forwardedProto = incomingHeaders.get("x-forwarded-proto");
-    const protocol =
-      forwardedProto || (host.includes("localhost") ? "http" : "https");
-
-    return `${protocol}://${host.split(",")[0]?.trim()}`;
-  } catch {
-    return undefined;
+    return { host: host || undefined, proto, tenantHost };
+  } catch (error) {
+    // During `next build` static generation there is no request; fall back to env.
+    if (!isDynamicServerUsageError(error)) {
+      console.warn("[backend] failed to read request headers:", error);
+    }
+    return {};
   }
+});
+
+async function getRequestOrigin() {
+  const { host, proto } = await getRequestContext();
+  if (!host || !proto) return undefined;
+  return `${proto}://${host}`;
 }
 
 export async function getBackendBaseUrl(): Promise<string> {
@@ -117,40 +148,36 @@ export async function getBackendBaseUrl(): Promise<string> {
 }
 
 async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
-  const requestOrigin = await getRequestOrigin();
-  const incomingHeaders = await headers();
-  const tenantHostHeader = incomingHeaders.get("x-tenant-host")?.trim();
+  const { host, proto, tenantHost } = await getRequestContext();
 
-  if (tenantHostHeader) {
-    const protocol =
-      incomingHeaders.get("x-forwarded-proto") ||
-      (tenantHostHeader.includes("localhost") ? "http" : "https");
-
+  if (tenantHost) {
+    const protocol = proto || (tenantHost.includes("localhost") ? "http" : "https");
     return {
-      Origin: `${protocol}://${tenantHostHeader}`,
-      "x-forwarded-host": tenantHostHeader,
-      "x-tenant-host": tenantHostHeader,
+      Origin: `${protocol}://${tenantHost}`,
+      "x-forwarded-host": tenantHost,
+      "x-tenant-host": tenantHost,
     };
   }
 
-  if (!requestOrigin) return undefined;
+  if (!host || !proto) return undefined;
 
   try {
+    const requestOrigin = `${proto}://${host}`;
     const { hostname, protocol } = new URL(requestOrigin);
-    const proto = protocol.replace(":", "");
+    const resolvedProto = protocol.replace(":", "");
 
     if (isBareLocalHost(hostname)) {
-      const tenantHost = getDevTenantHost();
+      const resolvedTenantHost = getDevTenantHost();
       return {
-        Origin: `${proto}://${tenantHost}`,
-        "x-forwarded-host": tenantHost,
-        "x-tenant-host": tenantHost,
+        Origin: `${resolvedProto}://${resolvedTenantHost}`,
+        "x-forwarded-host": resolvedTenantHost,
+        "x-tenant-host": resolvedTenantHost,
       };
     }
 
     if (isTenantLocalDevHost(hostname) || isTenantHost(hostname)) {
       return {
-        Origin: `${proto}://${hostname}`,
+        Origin: `${resolvedProto}://${hostname}`,
         "x-forwarded-host": hostname,
         "x-tenant-host": hostname,
       };
@@ -169,7 +196,7 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
 
     return {
       Origin: requestOrigin,
-      "x-forwarded-host": new URL(requestOrigin).host,
+      "x-forwarded-host": host,
     };
   } catch {
     return undefined;

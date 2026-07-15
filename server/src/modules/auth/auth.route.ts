@@ -32,6 +32,20 @@ const authLimiter = rateLimit({
   store: authStore,
 });
 
+// Refresh is polled by the dashboard (token expiry, offline retry, multi-tab).
+// Keep it off the login bucket so idle sessions do not lock users out of auth.
+const sessionStore = new MemoryStore();
+const sessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "development" ? 2000 : 600,
+  message: {
+    message: "Too many session requests, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: sessionStore,
+});
+
 const passwordResetStore = new MemoryStore();
 const passwordResetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -75,8 +89,8 @@ superAdminRouter.delete(
 
 const sessionRouter = express.Router();
 sessionRouter.use(requireSchoolContextOrSuperAdminHostMiddleware);
-sessionRouter.post("/refresh", AuthController.refresh_token);
-sessionRouter.delete("/", AuthController.logout);
+sessionRouter.post("/refresh", sessionLimiter, AuthController.refresh_token);
+sessionRouter.delete("/", sessionLimiter, AuthController.logout);
 
 const tenantRouter = express.Router();
 tenantRouter.post(
@@ -139,7 +153,7 @@ superAdminAuthRouter.use(
 );
 
 export const sharedAuthSessionRouter = express.Router();
-sharedAuthSessionRouter.use("/api/auth/sessions", authLimiter, sessionRouter);
+sharedAuthSessionRouter.use("/api/auth/sessions", sessionRouter);
 
 export const tenantAuthRouter = express.Router();
 tenantAuthRouter.use("/api/auth", authLimiter, tenantRouter);
