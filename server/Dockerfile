@@ -31,8 +31,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # ---------------- BUILD STAGE ----------------
 FROM ${NODE_IMAGE} AS builder
 
-ARG GITHUB_TOKEN
-ENV GITHUB_TOKEN=$GITHUB_TOKEN
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /app/packages/shared-schemas
@@ -42,7 +40,6 @@ RUN --mount=type=cache,target=/root/.npm \
 
 WORKDIR /app/server
 COPY server/package*.json ./
-COPY .npmrc ./
 RUN --mount=type=cache,target=/root/.npm \
     npm install --ignore-scripts
 
@@ -58,14 +55,11 @@ RUN npx prisma generate && npm run build
 # ---------------- RUNTIME STAGE ----------------
 FROM runtime-base AS runtime
 
-ARG GITHUB_TOKEN
-ENV GITHUB_TOKEN=$GITHUB_TOKEN
 ENV NODE_ENV=production
 
 WORKDIR /app/server
 
 COPY --from=builder /app/server/package*.json ./
-COPY --from=builder /app/server/.npmrc ./
 COPY --from=builder /app/packages/shared-schemas/package.json /app/packages/shared-schemas/
 COPY --from=builder /app/packages/shared-schemas/dist /app/packages/shared-schemas/dist
 COPY --from=builder /app/packages/shared-schemas/node_modules /app/packages/shared-schemas/node_modules

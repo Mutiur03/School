@@ -57,8 +57,6 @@ jobs:
           context: .
           file: ./server/Dockerfile
           push: true
-          build-args: |
-            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Stable scope so Chromium/apt layer + BuildKit caches reuse across pushes (not mixed with other workflows).
