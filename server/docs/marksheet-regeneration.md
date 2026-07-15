@@ -419,6 +419,12 @@ sequenceDiagram
 
 **Important:** Bundles are **not** queued on publish or mark save. Mark edits make the hash stale; the next download regenerates. **Exception:** class-teacher, head, or level assignment changes auto-queue bundles for the affected section keys.
 
+### CDN cache-busting on the bundle URL
+
+The bundle is the only PDF type delivered as a **public/presigned URL to the R2 object** (via `getDownloadUrl`) rather than streamed through the API as bytes — the per-student, session-student, and session-year downloads all return `res.end(buffer)` from a dynamic endpoint that hash-checks on every request, so no CDN caches them by name.
+
+R2 keys are **stable across regeneration** (`.../bundles/{examId}/class-{class}-{section}.pdf`), so if `R2_PUBLIC_URL` fronts the bucket with a CDN (e.g. a Cloudflare custom domain, which caches `.pdf` by default), an edge cache keyed on the URL would serve the **stale** copy after a regen even though the origin object was overwritten fresh. `waitForFreshBundlePdf` appends `?v={input_hash}` (`withCacheBust`) to the returned URL so a content change varies the cache key and forces revalidation. The separator is `&` when the URL already carries query params (presigned signature), `?` otherwise. Presigned URLs (no `R2_PUBLIC_URL`) go straight to the S3 endpoint and aren't CDN-cached, so the param is harmless there.
+
 ---
 
 ## Session PDFs — detailed flow
