@@ -66,7 +66,7 @@ const StudentRow = memo(
                 !isAbsent && onToggle(student.id, !!checked)
               }
               disabled={isAbsent}
-              className={`h-5 w-5 border-2 transition-all ${isAbsent ? "border-muted opacity-50" : isRunAwayed ? "bg-amber-500 border-amber-600 scale-110 shadow-md" : "border-slate-400 bg-white hover:border-amber-500 hover:scale-110 shadow-sm"}`}
+              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? "border-muted opacity-50" : isRunAwayed ? "bg-amber-500 border-amber-600 scale-110 shadow-md" : "border-slate-400 bg-white hover:border-amber-500 hover:scale-110 shadow-sm"}`}
             />
           </div>
         </td>

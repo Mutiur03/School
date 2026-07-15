@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Separator } from "@/components/ui/separator";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface GalleryImage {
   id: number;
@@ -38,6 +39,7 @@ interface GroupedGalleries {
 }
 
 export default function RejectedImages() {
+  const { confirm, dialog } = useConfirmDialog();
   const [groupedGalleries, setGroupedGalleries] = useState<GroupedGalleries>({
     events: {},
     categories: {},
@@ -130,7 +132,12 @@ export default function RejectedImages() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this image?")) return;
+    const ok = await confirm({
+      title: "Delete image?",
+      msg: "Are you sure you want to delete this image?",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       await axios.delete(`/api/gallery/deleteGallery/${id}`);
       toast.success("Image deleted successfully!");
@@ -142,12 +149,12 @@ export default function RejectedImages() {
   };
 
   const handleDeleteAll = async (images: GalleryImage[]) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete all ${images.length} images?`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Delete all images?",
+      msg: `Are you sure you want to delete all ${images.length} images?`,
+      confirmLabel: "Delete All",
+    });
+    if (!ok) return;
     try {
       const ids = images.map((img) => img.id);
       await axios.post("/api/gallery/deleteMultiple", { ids });
@@ -268,7 +275,7 @@ export default function RejectedImages() {
                   setSelectedGroup(images);
                   setCurrentIndex(index);
                 }}
-                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 cursor-pointer"
               >
                 <div className="relative aspect-square">
                   <img
@@ -319,6 +326,7 @@ export default function RejectedImages() {
   const hasAnyPending = hasEvents || hasCategories;
   return (
     <div className="container mx-auto px-4 py-8">
+      {dialog}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-3xl md:text-4xl font-bold text-center md:text-left">
           Pending Gallery Approvals
@@ -540,7 +548,7 @@ export default function RejectedImages() {
                           setDirection(idx > currentIndex ? 1 : -1);
                           setCurrentIndex(idx);
                         }}
-                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${idx === currentIndex
+                        className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-[color,background-color,border-color,box-shadow,opacity,transform] ${idx === currentIndex
                             ? "bg-primary w-4 md:w-6"
                             : "bg-white/50 hover:bg-white/80"
                           }`}

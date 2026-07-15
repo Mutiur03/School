@@ -15,6 +15,7 @@ import { subjectFormSchema, type SubjectFormSchemaData, VALID_GROUPS } from "@sc
 import ErrorMessage from "@/components/ErrorMessage";
 import { useSubjects, useAddSubjects, useUpdateSubject, useDeleteSubject, useCloneSubjects } from "@/queries/subject.queries";
 import type { Subject } from "@/types/subjects";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 // --- Sub-components (Memoized for performance) ---
 
@@ -462,7 +463,7 @@ const SubjectForm = React.memo(({
       </fieldset>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className={`space-y-1.5 transition-all duration-300 ${classNum >= 9 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+        <div className={`space-y-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${classNum >= 9 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
           <label className="text-sm font-medium">Group</label>
           <select
             {...register("group")}
@@ -537,6 +538,7 @@ const ExcelUploadForm = React.memo(({
 ));
 
 const NewSubject: React.FC = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
   const addSubjectsMutation = useAddSubjects();
   const updateSubjectMutation = useUpdateSubject();
@@ -1016,19 +1018,24 @@ const NewSubject: React.FC = () => {
     const fromYear = filterYear - 1;
     const toYear = filterYear;
 
-    if (!window.confirm(`Clone all subjects from ${fromYear} to ${toYear}? This will only work if ${toYear} has no subjects yet.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Clone subjects?",
+      msg: `Clone all subjects from ${fromYear} to ${toYear}? This will only work if ${toYear} has no subjects yet.`,
+      confirmLabel: "Clone Subjects",
+      variant: "default",
+    });
+    if (!ok) return;
 
     try {
       await cloneSubjectsMutation.mutateAsync({ fromYear, toYear });
     } catch (error) {
       console.error("Clone error:", error);
     }
-  }, [filterYear, cloneSubjectsMutation]);
+  }, [filterYear, cloneSubjectsMutation, confirm]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      {dialog}
       <PageHeader
         title="Subject Management"
         description="Manage school subjects, marks, and groups."

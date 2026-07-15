@@ -418,7 +418,7 @@ function SchoolSettings() {
                       setValue("upazila", "", { shouldValidate: true });
                     },
                   })}
-                  className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+                  className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] appearance-none"
                 >
                   <option value="">Select District</option>
                   {districts.map((d: District) => (
@@ -440,7 +440,7 @@ function SchoolSettings() {
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <select
                   {...register("upazila")}
-                  className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none disabled:opacity-50"
+                  className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] appearance-none disabled:opacity-50"
                   disabled={!district}
                 >
                   <option value="">Select Upazila</option>
@@ -541,7 +541,7 @@ function SchoolSettings() {
           <button
             type="submit"
             disabled={loading || logoUploading}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 focus:ring-4 focus:ring-primary/20 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 focus:ring-4 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Save />}
             {schoolId ? "Update Settings" : "Save Settings"}

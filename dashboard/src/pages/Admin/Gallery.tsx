@@ -26,6 +26,7 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Event {
   id: number;
@@ -61,6 +62,7 @@ interface FormValues {
 }
 
 export default function Gallery() {
+  const { confirm, dialog } = useConfirmDialog();
   const [files, setFiles] = useState<File[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [galleryData, setGalleryData] = useState<GalleryData | null>(null);
@@ -337,12 +339,12 @@ export default function Gallery() {
   };
 
   const handleRejectAll = async (images: GalleryImage[]) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete all ${images.length} images?`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Delete all images?",
+      msg: `Are you sure you want to delete all ${images.length} images?`,
+      confirmLabel: "Delete All",
+    });
+    if (!ok) return;
 
     try {
       const ids = images.map((img) => img.id);
@@ -356,8 +358,12 @@ export default function Gallery() {
   };
 
   const handleCategoryDelete = async (category_id: number) => {
-    if (!window.confirm("Are you sure you want to delete this category?"))
-      return;
+    const ok = await confirm({
+      title: "Delete category?",
+      msg: "Are you sure you want to delete this category?",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
 
     try {
       await axios.delete(`/api/gallery/deleteCategoryGallery/${category_id}`);
@@ -455,7 +461,7 @@ export default function Gallery() {
                   setSelectedGroup(images);
                   setCurrentIndex(index);
                 }}
-                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 cursor-pointer"
               >
                 <div className="relative aspect-square">
                   <img
@@ -503,6 +509,7 @@ export default function Gallery() {
 
   return (
     <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      {dialog}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Gallery</h1>
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
@@ -927,7 +934,7 @@ export default function Gallery() {
                           setDirection(idx > currentIndex! ? 1 : -1);
                           setCurrentIndex(idx);
                         }}
-                        className={`w-3 h-3 rounded-full transition-all ${idx === currentIndex
+                        className={`w-3 h-3 rounded-full transition-[color,background-color,border-color,box-shadow,opacity,transform] ${idx === currentIndex
                           ? "bg-primary w-6"
                           : "bg-white/50 hover:bg-white/80"
                           }`}

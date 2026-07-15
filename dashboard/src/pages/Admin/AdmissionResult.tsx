@@ -2,6 +2,7 @@ import React, { useState, useEffect, type JSX } from "react";
 import axios, { isAxiosError } from "axios";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface AdmissionResult {
   id: number;
@@ -31,6 +32,7 @@ interface ListType {
 }
 
 function AdmissionResult() {
+  const { confirm, dialog } = useConfirmDialog();
   const [results, setResults] = useState<AdmissionResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -327,9 +329,12 @@ function AdmissionResult() {
   };
 
   const handleDelete = async (id: number): Promise<void> => {
-    if (!window.confirm("Are you sure you want to delete this result?")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Delete result?",
+      msg: "Are you sure you want to delete this result?",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
 
     try {
       await axios.delete(`/api/admission-result/${id}`);
@@ -396,6 +401,7 @@ function AdmissionResult() {
 
   return (
     <div className="max-w-7xl mx-auto mt-10 px-4 pb-10">
+      {dialog}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold mb-1">Admission Results</h1>

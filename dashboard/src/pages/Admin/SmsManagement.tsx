@@ -1093,7 +1093,7 @@ function SmsManagement() {
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedClasses([])}
-                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
+                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                     >
                       <Trash2 className="w-3 h-3 mr-1" />
                       Clear Selection

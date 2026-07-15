@@ -64,7 +64,11 @@ const StudentRow = React.memo(
     readOnly?: boolean;
   }) => {
     return (
-      <tr key={student.id} className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}>
+      <tr
+        key={student.id}
+        className={`transition-colors ${isSelected ? "bg-sidebar-accent" : "hover:bg-muted/50"}`}
+        style={{ contentVisibility: "auto", containIntrinsicSize: "auto 3.5rem" }}
+      >
         {!readOnly && (
           <td className="px-2 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-center">
             <input
@@ -993,7 +997,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
             onClick={() => setShowForm((prev) => !prev)}
             disabled={loading}
           >
-            {loading ? "Loading..." : "+ Add Student"}
+            {loading ? "Loading…" : "+ Add Student"}
           </Button>
         )}
       </PageHeader>
@@ -1279,7 +1283,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                     </Button>
                     <Button type="submit" disabled={formMutation.isPending} className="min-w-28">
                       {formMutation.isPending
-                        ? (isEditing ? "Updating Student..." : "Adding Student...")
+                        ? (isEditing ? "Updating Student…" : "Adding Student…")
                         : (isEditing ? "Update" : "Add Student")}
                     </Button>
                   </div>
@@ -1387,7 +1391,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       type="submit"
                       disabled={!fileUploaded || excelMutation.isPending}
                     >
-                      {excelMutation.isPending ? "Uploading Students..." : "Upload"}
+                      {excelMutation.isPending ? "Uploading Students…" : "Upload"}
                     </Button>
                   </div>
                 </form>
@@ -1412,7 +1416,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
               <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search by name or phone..."
+                placeholder="Search by name or phone…"
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => {
@@ -1502,7 +1506,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
               className="w-full sm:w-auto"
             >
               {bulkRotateMutation.isPending
-                ? "Rotating..."
+                ? "Rotating…"
                 : `Rotate ${selectedStudentIds.size} Passwords`}
             </Button>
             <Button
@@ -1513,7 +1517,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
               className="w-full sm:w-auto"
             >
               {bulkDeleteMutation.isPending
-                ? "Deleting..."
+                ? "Deleting…"
                 : `Delete ${selectedStudentIds.size} Selected`}
             </Button>
             <ConfirmationPopup
@@ -1637,7 +1641,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   setPage(1);
                 }}
               >
-                {[50, 100, 200].map((v) => (
+                {[25, 50, 100].map((v) => (
                   <option key={v} value={v}>
                     {v}
                   </option>
@@ -1701,7 +1705,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
         </div>
       </SectionCard>
       {popup.visible && popup.student && (
-        <Popup open onOpenChange={(o) => !o && closePopup()} size="md">
+        <Popup open onOpenChange={(o) => !o && closePopup()} size="md" aria-label="Student Details">
           {popup.type === "view" && (
             <>
               {/* Header */}
@@ -1838,7 +1842,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       <Button
                         type="button"
                         variant="outline"
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 shadow-sm"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-[color,background-color,border-color] duration-200 shadow-sm"
                         disabled={tcMutation.isPending}
                         onClick={() => setTcConfirmOpen(true)}
                       >
@@ -1851,7 +1855,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       <Button
                         type="button"
                         variant="outline"
-                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all duration-200 shadow-sm"
+                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-[color,background-color,border-color] duration-200 shadow-sm"
                         disabled={reactivateMutation.isPending}
                         onClick={() => handleReactivate(popup.student!)}
                       >

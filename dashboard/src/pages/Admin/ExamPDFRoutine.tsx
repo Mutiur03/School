@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
 import { uploadToR2 } from "@/lib/uploadToR2";
 import { getFileUrl } from "@/lib/backend";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface ExamFormData {
   exam_name: string;
@@ -46,6 +47,7 @@ interface UploadState {
 }
 
 function ExamPDFRoutine() {
+  const { confirm, dialog } = useConfirmDialog();
   const [formData, setFormData] = useState<ExamFormData>({
     exam_name: "",
     exam_year: new Date().getFullYear(),
@@ -323,8 +325,12 @@ function ExamPDFRoutine() {
 
 
   const handleRemovePDF = async (examId: number) => {
-    if (!window.confirm("Are you sure you want to remove the PDF routine?"))
-      return;
+    const ok = await confirm({
+      title: "Remove PDF routine?",
+      msg: "Are you sure you want to remove the PDF routine?",
+      confirmLabel: "Remove PDF",
+    });
+    if (!ok) return;
     try {
       await axios.delete(`/api/exams/removeRoutinePDF/${examId}`);
       toast.success("PDF routine removed");
@@ -340,6 +346,7 @@ function ExamPDFRoutine() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
+      {dialog}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-light ">Exam Management</h1>
         <Button

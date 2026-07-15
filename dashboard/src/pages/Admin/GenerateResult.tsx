@@ -141,7 +141,7 @@ const GenerateResult = () => {
               <select
                 value={year}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
               >
                 {Array.from({ length: 5 }, (_, i) => (
                   <option key={i} value={currentYear - i}>
@@ -153,7 +153,7 @@ const GenerateResult = () => {
             <Button
               onClick={handleGenerateResult}
               disabled={isUpdatingStatus}
-              className="w-full h-11 font-bold shadow-sm transition-all hover:shadow-md"
+              className="w-full h-11 font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
             >
               {isUpdatingStatus ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
               Generate Pass/Fail Status
@@ -177,7 +177,7 @@ const GenerateResult = () => {
               <select
                 value={year}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
               >
                 {Array.from({ length: 5 }, (_, i) => (
                   <option key={i} value={currentYear - i}>
@@ -190,7 +190,7 @@ const GenerateResult = () => {
               onClick={handleGenerateRoll}
               disabled={isGeneratingRoll}
               variant="secondary"
-              className="w-full h-11 font-bold shadow-sm transition-all hover:shadow-md border border-border"
+              className="w-full h-11 font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md border border-border"
             >
               {isGeneratingRoll ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
               Generate Next Year Rolls
@@ -214,7 +214,7 @@ const GenerateResult = () => {
             <select
               value={year}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
             >
               {Array.from({ length: 5 }, (_, i) => (
                 <option key={i} value={currentYear - i}>
@@ -231,7 +231,7 @@ const GenerateResult = () => {
             <select
               value={selectedClass}
               onChange={(e) => handleClassChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
             >
               <option value="">All Classes</option>
               {[6, 7, 8, 9, 10].map((num) => (
@@ -249,7 +249,7 @@ const GenerateResult = () => {
             <select
               value={classSection}
               onChange={(e) => handleSectionChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
               disabled={!selectedClass}
             >
               <option value="">All Sections</option>
@@ -268,7 +268,7 @@ const GenerateResult = () => {
             <select
               value={group}
               onChange={(e) => handleGroupChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
               disabled={Number(selectedClass) < 9}
             >
               <option value="">All Groups</option>
@@ -293,7 +293,7 @@ const GenerateResult = () => {
               size="sm"
               variant="outline"
               onClick={downloadAllMarksheetPDF}
-              className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-none"
+              className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-none"
             >
               <Download className="w-3.5 h-3.5" />
               Download All PDFs
@@ -334,7 +334,7 @@ const GenerateResult = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: Math.min(idx * 0.03, 0.5) }}
-                    className="hover:bg-muted/30 transition-all group"
+                    className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group"
                   >
                     <td className="px-6 py-4 text-center border-r border-border/50">
                       <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold ${
@@ -361,7 +361,7 @@ const GenerateResult = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-none"
+                          className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-none"
                           onClick={() => downloadSessionMarksheet(student.id)}
                         >
                           <Download className="w-3.5 h-3.5" />

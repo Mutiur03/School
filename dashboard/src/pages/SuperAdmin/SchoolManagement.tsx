@@ -29,6 +29,7 @@ import {
   type Upazila,
 } from "@school/shared-schemas";
 import { getFileUrl } from "@/lib/backend";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface SchoolData {
   id?: number;
@@ -95,6 +96,7 @@ const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
 });
 
 function SchoolManagement() {
+  const { confirm, dialog } = useConfirmDialog();
   const [schools, setSchools] = useState<SchoolData[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | "new">("new");
   const [fetching, setFetching] = useState(false);
@@ -381,9 +383,11 @@ function SchoolManagement() {
   const handleDelete = async () => {
     if (selectedSchoolId === "new") return;
 
-    const confirmed = window.confirm(
-      `Delete school "${schoolName || "this school"}"? This action cannot be undone.`,
-    );
+    const confirmed = await confirm({
+      title: "Delete school?",
+      msg: `Delete school "${schoolName || "this school"}"? This action cannot be undone.`,
+      confirmLabel: "Delete School",
+    });
     if (!confirmed) return;
 
     setDeleting(true);
@@ -430,9 +434,11 @@ function SchoolManagement() {
   const handleDeleteAdmin = async (admin: SchoolAdmin) => {
     if (selectedSchoolId === "new") return;
 
-    const confirmed = window.confirm(
-      `Delete admin "${admin.username}" from this school?`,
-    );
+    const confirmed = await confirm({
+      title: "Delete admin?",
+      msg: `Delete admin "${admin.username}" from this school?`,
+      confirmLabel: "Delete Admin",
+    });
     if (!confirmed) return;
 
     setDeletingAdminId(admin.id);
@@ -451,9 +457,11 @@ function SchoolManagement() {
   };
 
   const handleRotatePassword = async (id: number, name: string) => {
-    const confirmed = window.confirm(
-      `Rotate passwords for ALL students of "${name}"? New credentials will be downloaded as an Excel file. This cannot be undone.`,
-    );
+    const confirmed = await confirm({
+      title: "Rotate student passwords?",
+      msg: `Rotate passwords for ALL students of "${name}"? New credentials will be downloaded as an Excel file. This cannot be undone.`,
+      confirmLabel: "Rotate Passwords",
+    });
     if (!confirmed) return;
 
     setRotatingId(id);
@@ -493,6 +501,7 @@ function SchoolManagement() {
 
   return (
     <div className="mx-auto max-w-7xl p-6 space-y-6">
+      {dialog}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

@@ -3,6 +3,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { uploadToR2 } from "@/lib/uploadToR2";
 import { getFileUrl } from "@/lib/backend";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface PDFData {
   id: string;
@@ -11,6 +12,7 @@ interface PDFData {
 }
 
 function ClassRoutinePDF() {
+  const { confirm, dialog } = useConfirmDialog();
   const [pdf, setPDF] = useState<PDFData | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -63,7 +65,13 @@ function ClassRoutinePDF() {
   };
 
   const handleDelete = async (): Promise<void> => {
-    if (!pdf || !window.confirm("Delete this PDF?")) return;
+    if (!pdf) return;
+    const ok = await confirm({
+      title: "Delete PDF?",
+      msg: "Delete this class routine PDF?",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     await axios.delete(`/api/class-routine/pdf/${pdf.id}`);
     setPDF(null);
     setFile(null);
@@ -74,6 +82,7 @@ function ClassRoutinePDF() {
 
   return (
     <div className="max-w-md mx-auto mt-10 bg-background rounded-xl shadow-lg p-8 border border-border">
+      {dialog}
       <h2 className="text-primary font-bold text-2xl mb-6 tracking-tight">
         Class Routine PDF
       </h2>

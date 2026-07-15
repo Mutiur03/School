@@ -14,7 +14,7 @@ import {
 } from "react-icons/fa6";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation, NavLink } from "react-router-dom";
+import { useLocation, NavLink, useNavigate } from "react-router-dom";
 import {
   Megaphone,
   Calendar,
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/useAuth";
 import useNavigationStore from "@/store/navigation.Store";
+import ConfirmationPopup from "@/components/ConfirmationPopup";
 
 interface SidebarProps {
   sidebarExpanded: boolean;
@@ -413,9 +414,12 @@ const Sidebar = ({
   navbarRef,
 }: SidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { isDirty, resetDirty } = useNavigationStore();
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const pendingHref = useRef<string | null>(null);
 
   const sidebarItems = useMemo(() => (user ? getRoutesByRole(user.role) : []), [user]);
 
@@ -484,7 +488,6 @@ const Sidebar = ({
   }, [open, onClose, navbarRef]);
 
   const toggleDropdown = (dropdownId: string | null) => {
-    console.log("Toggling:", dropdownId);
     if (sidebarExpanded) {
       setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
     } else {
@@ -492,22 +495,40 @@ const Sidebar = ({
     }
   };
 
-  const handleNavigation = (e: React.MouseEvent) => {
-    if (isDirty) {
-      const proceed = window.confirm(
-        "You have unsaved attendance changes. Leaving this page will discard them. Are you sure you want to proceed?"
-      );
-      if (!proceed) {
-        e.preventDefault();
-        return false;
-      }
-      resetDirty();
+  const requestNavigate = (e: React.MouseEvent, href: string) => {
+    if (!isDirty) return true;
+    e.preventDefault();
+    pendingHref.current = href;
+    setLeaveOpen(true);
+    return false;
+  };
+
+  const confirmLeave = () => {
+    const href = pendingHref.current;
+    pendingHref.current = null;
+    setLeaveOpen(false);
+    resetDirty();
+    if (href) {
+      navigate(href);
+      if (window.innerWidth < 768 && onClose) onClose();
     }
-    return true;
   };
 
   return (
     <>
+      <ConfirmationPopup
+        open={leaveOpen}
+        onOpenChange={(open) => {
+          setLeaveOpen(open);
+          if (!open) pendingHref.current = null;
+        }}
+        onConfirm={confirmLeave}
+        title="Leave without saving?"
+        msg="You have unsaved attendance changes. Leaving this page will discard them."
+        confirmLabel="Discard & Leave"
+        cancelLabel="Stay"
+        variant="destructive"
+      />
       <motion.aside
         initial={false}
         animate={{
@@ -529,13 +550,13 @@ const Sidebar = ({
                         <NavLink
                           to={item.link as string}
                           className={() =>
-                            `flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-all duration-200 ${isPathActive(item.link)
+                            `flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-[color,background-color,box-shadow] duration-200 ${isPathActive(item.link)
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
                           onClick={(e) => {
-                            if (!handleNavigation(e)) return;
+                            if (!requestNavigate(e, item.link as string)) return;
                             setOpenDropdown(null);
                             if (window.innerWidth < 768 && onClose) {
                               onClose();
@@ -556,13 +577,14 @@ const Sidebar = ({
                       ) : (
                         <div>
                           <button
-                            className={`flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-all duration-200 ${sidebarExpanded
+                            className={`flex items-center w-full px-3 py-2 rounded-sm text-md font-medium transition-[color,background-color,box-shadow] duration-200 ${sidebarExpanded
                               ? "justify-between gap-3"
                               : "justify-center"
                               } ${openDropdown === item.id
                                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                               }`}
+                            type="button"
                             onClick={() => toggleDropdown(item.id)}
                           >
                             <div
@@ -610,13 +632,13 @@ const Sidebar = ({
                                       <NavLink
                                         to={subItem.link}
                                         className={({ isActive }: { isActive: boolean }) =>
-                                          `flex items-center w-full px-3 py-1.5 rounded-sm text-md transition-all duration-200 ${isActive
+                                          `flex items-center w-full px-3 py-1.5 rounded-sm text-md transition-[color,background-color,box-shadow] duration-200 ${isActive
                                             ? "bg-primary text-primary-foreground font-medium shadow-sm"
                                             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                           }`
                                         }
                                         onClick={(e) => {
-                                          if (!handleNavigation(e)) return;
+                                          if (!requestNavigate(e, subItem.link)) return;
                                           if (
                                             window.innerWidth < 768 &&
                                             onClose

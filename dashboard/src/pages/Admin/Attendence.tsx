@@ -10,6 +10,7 @@ import {
   useSendAttendanceSms,
 } from "@/queries/attendence.queries.js";
 import useNavigationStore from "@/store/navigation.Store";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import PageHeader from "@/components/PageHeader.js";
 import SectionCard from "@/components/SectionCard.js";
 import StatsCard from "@/components/StatsCard.js";
@@ -60,6 +61,7 @@ const months = [
 ];
 
 function Attendance() {
+  const { confirm, dialog } = useConfirmDialog();
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -359,11 +361,13 @@ function Attendance() {
     });
   };
 
-  const handleClassChange = (newClass: number | "") => {
+  const handleClassChange = async (newClass: number | "") => {
     if (Object.keys(localAttendance).length > 0) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Changing the class will discard them. Proceed?",
-      );
+      const proceed = await confirm({
+        title: "Discard unsaved changes?",
+        msg: "You have unsaved changes. Changing the class will discard them.",
+        confirmLabel: "Discard & Continue",
+      });
       if (!proceed) return;
     }
     setLocalAttendance({});
@@ -371,33 +375,39 @@ function Attendance() {
     setSelectedSection("");
   };
 
-  const handleSectionChange = (newSection: string) => {
+  const handleSectionChange = async (newSection: string) => {
     if (Object.keys(localAttendance).length > 0) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Changing the section will discard them. Proceed?",
-      );
+      const proceed = await confirm({
+        title: "Discard unsaved changes?",
+        msg: "You have unsaved changes. Changing the section will discard them.",
+        confirmLabel: "Discard & Continue",
+      });
       if (!proceed) return;
     }
     setLocalAttendance({});
     setSelectedSection(newSection);
   };
 
-  const handleMonthChange = (newMonth: number) => {
+  const handleMonthChange = async (newMonth: number) => {
     if (Object.keys(localAttendance).length > 0) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Changing the month will discard them. Proceed?",
-      );
+      const proceed = await confirm({
+        title: "Discard unsaved changes?",
+        msg: "You have unsaved changes. Changing the month will discard them.",
+        confirmLabel: "Discard & Continue",
+      });
       if (!proceed) return;
     }
     setLocalAttendance({});
     setSelectedMonth(newMonth);
   };
 
-  const handleYearChange = (newYear: number) => {
+  const handleYearChange = async (newYear: number) => {
     if (Object.keys(localAttendance).length > 0) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Changing the year will discard them. Proceed?",
-      );
+      const proceed = await confirm({
+        title: "Discard unsaved changes?",
+        msg: "You have unsaved changes. Changing the year will discard them.",
+        confirmLabel: "Discard & Continue",
+      });
       if (!proceed) return;
     }
     setLocalAttendance({});
@@ -436,6 +446,7 @@ function Attendance() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
+      {dialog}
       <PageHeader
         title="Attendance Management"
         description="Monitor and record student attendance across different classes and sections."
@@ -491,7 +502,7 @@ function Attendance() {
                   Object.keys(localAttendance).length === 0) ||
                 !students.length
               }
-              className="shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
             >
               {addAttendanceMutation.isPending ? (
                 <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
@@ -677,7 +688,7 @@ function Attendance() {
                   <button
                     key={day}
                     onClick={() => toggleVisibleDay(day)}
-                    className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-all ${
+                    className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                       visibleDays.includes(day)
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-background text-muted-foreground border-input hover:border-primary/50"

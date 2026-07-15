@@ -188,7 +188,7 @@ const NoticeUploadPage = () => {
                         id="title"
                         placeholder="e.g. Annual Sports Day 2026 Schedule"
                         {...register("title")}
-                        className={`bg-background focus:ring-2 focus:ring-primary/20 transition-all ${errors.title ? 'border-destructive' : ''}`}
+                        className={`bg-background focus:ring-2 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${errors.title ? 'border-destructive' : ''}`}
                       />
                       {errors.title && <p className="text-xs text-destructive mt-1">{errors.title.message}</p>}
                     </div>
@@ -198,7 +198,7 @@ const NoticeUploadPage = () => {
                         id="created_at"
                         type="date"
                         {...register("created_at")}
-                        className="bg-background focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="bg-background focus:ring-2 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                       />
                     </div>
 
@@ -208,7 +208,7 @@ const NoticeUploadPage = () => {
                       </label>
 
                       <div
-                        className={`flex items-center justify-between gap-3 p-1.5 rounded-2xl border bg-slate-50/10 min-h-[58px] transition-all ${errors.file ? 'border-destructive' : 'border-slate-200 dark:border-slate-800'}`}
+                        className={`flex items-center justify-between gap-3 p-1.5 rounded-2xl border bg-slate-50/10 min-h-[58px] transition-[color,background-color,border-color,box-shadow,opacity,transform] ${errors.file ? 'border-destructive' : 'border-slate-200 dark:border-slate-800'}`}
                       >
                         <div className="flex items-center gap-4">
                           <input
@@ -295,7 +295,7 @@ const NoticeUploadPage = () => {
               placeholder="Search notices..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-muted/30 border-transparent focus:bg-background focus:border-border transition-all h-9"
+              className="pl-9 bg-muted/30 border-transparent focus:bg-background focus:border-border transition-[color,background-color,border-color,box-shadow,opacity,transform] h-9"
             />
           </div>
         }

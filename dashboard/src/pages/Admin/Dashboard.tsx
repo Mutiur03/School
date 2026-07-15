@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -42,7 +42,6 @@ const COLORS = {
 function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [attendanceDays, setAttendanceDays] = useState<AttendanceRange>(7);
-  const navigate = useNavigate();
 
   const {
     data: dashboardData,
@@ -125,7 +124,7 @@ function Dashboard() {
           <p className="text-muted-foreground mb-6">{errorMessage}</p>
           <button
             onClick={() => refetchOverview()}
-            className="px-6 py-2 bg-primary text-white rounded-lg hover:shadow-lg transition-all"
+            className="px-6 py-2 bg-primary text-white rounded-lg hover:shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform]"
           >
             Try Again
           </button>
@@ -340,12 +339,12 @@ function Dashboard() {
               <SectionCard
                 title="Recent Notices"
                 headerAction={
-                  <button
-                    onClick={() => navigate("/admin/notice")}
-                    className="text-primary text-sm font-medium hover:underline"
+                  <Link
+                    to="/admin/notice"
+                    className="text-primary text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                   >
                     View All
-                  </button>
+                  </Link>
                 }
               >
                 <div className="space-y-4">
@@ -355,14 +354,18 @@ function Dashboard() {
                         href={getFileUrl(notice.url)}
                         target="_blank"
                         key={notice.id}
-                        className="block border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-all"
+                        className="block border-l-4 border-primary bg-muted/30 p-4 rounded-r-lg group cursor-pointer hover:bg-muted/50 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                       >
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-sm sm:text-base group-hover:text-primary transition-colors line-clamp-1">
                             {notice.title}
                           </h4>
                           <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">
-                            {new Date(notice.date).toLocaleDateString()}
+                            {new Date(notice.date).toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
                           </span>
                         </div>
                       </a>
@@ -377,12 +380,12 @@ function Dashboard() {
               <SectionCard
                 title="Upcoming Events"
                 headerAction={
-                  <button
-                    onClick={() => navigate("/admin/events")}
-                    className="text-primary text-sm font-medium hover:underline"
+                  <Link
+                    to="/admin/events"
+                    className="text-primary text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                   >
                     View All
-                  </button>
+                  </Link>
                 }
               >
                 <div className="space-y-4">
@@ -394,7 +397,7 @@ function Dashboard() {
                       >
                         <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
                           <span className="text-xs font-bold uppercase">
-                            {new Date(event.date).toLocaleString("default", {
+                            {new Date(event.date).toLocaleString("en-GB", {
                               month: "short",
                             })}
                           </span>
@@ -434,7 +437,7 @@ function Dashboard() {
                   href={getFileUrl(notice.url)}
                   target="_blank"
                   key={notice.id}
-                  className="block p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all bg-card"
+                  className="block p-5 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] bg-card"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider">
@@ -459,7 +462,7 @@ function Dashboard() {
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="group overflow-hidden rounded-xl border border-border bg-card hover:shadow-lg transition-all"
+                  className="group overflow-hidden rounded-xl border border-border bg-card hover:shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                 >
                   <div className="h-32 bg-primary/5 flex items-center justify-center border-b border-border transition-colors group-hover:bg-primary/10">
                     <Calendar className="w-12 h-12 text-primary opacity-20" />
@@ -594,7 +597,7 @@ function Dashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 sm:px-6 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center gap-2 shrink-0 ${
+                className={`px-4 sm:px-6 py-2.5 rounded-lg font-bold text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-2 shrink-0 ${
                   activeTab === tab.id
                     ? "bg-card text-primary shadow-sm border border-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/5"

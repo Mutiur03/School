@@ -326,7 +326,7 @@ const ViewMarks = () => {
               <Calendar className="w-3 h-3" /> Year
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
               value={year}
               onChange={(e) => setYear(e.target.value)}
             >
@@ -343,7 +343,7 @@ const ViewMarks = () => {
               <FileSpreadsheet className="w-3 h-3" /> Exam
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
               value={exam}
               onChange={(e) => handleExamChange(e.target.value)}
             >
@@ -361,7 +361,7 @@ const ViewMarks = () => {
               <GraduationCap className="w-3 h-3" /> Class
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
               value={className}
               onChange={(e) => handleClassChange(e.target.value)}
               disabled={!exam}
@@ -390,7 +390,7 @@ const ViewMarks = () => {
               <Users className="w-3 h-3" /> Section
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
               value={section}
               onChange={(e) => setSection(e.target.value)}
               disabled={!className || availableSections.length === 0}
@@ -422,7 +422,7 @@ const ViewMarks = () => {
               <Layers className="w-3 h-3" /> Group
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-all dark:bg-zinc-900 disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
               value={group}
               onChange={(e) => setGroup(e.target.value)}
               disabled={!className || availableGroups.length === 0}
@@ -464,7 +464,7 @@ const ViewMarks = () => {
               <Button
                 size="sm"
                 onClick={downloadAllExamPDFs}
-                className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-all shrink-0"
+                className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] shrink-0"
               >
                 <Download className="w-4 h-4" />
                 Download All Exam PDFs
@@ -528,7 +528,7 @@ const ViewMarks = () => {
                       key={data.student_id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="hover:bg-muted/30 transition-all group"
+                      className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group"
                     >
                       <td className="px-6 py-4 text-center font-medium tabular-nums border-r border-border/50">{data.roll}</td>
                       <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors uppercase border-r border-border/50">
@@ -547,7 +547,7 @@ const ViewMarks = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white border-green-500/20 shadow-none h-8 px-3 gap-1.5 transition-all"
+                            className="bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white border-green-500/20 shadow-none h-8 px-3 gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                             onClick={() => showStudentDetails(data)}
                           >
                             <Info className="w-3.5 h-3.5" />
@@ -556,7 +556,7 @@ const ViewMarks = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-primary/10 text-primary hover:bg-primary hover:text-white border-primary/20 shadow-none h-8 px-3 gap-1.5 transition-all"
+                            className="bg-primary/10 text-primary hover:bg-primary hover:text-white border-primary/20 shadow-none h-8 px-3 gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                             onClick={(e) => downloadMarksheet(data.student_id, e)}
                           >
                             <Download className="w-3.5 h-3.5" />

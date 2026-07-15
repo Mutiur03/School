@@ -43,7 +43,7 @@ export default function ServerOffline({ isOverlay = false }: { isOverlay?: boole
                 <Button
                     onClick={retryAuth}
                     variant="outline"
-                    className="gap-2 font-bold border-border hover:bg-muted transition-all"
+                    className="gap-2 font-bold border-border hover:bg-muted transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                 >
                     <RefreshCw className="w-4 h-4" />
                     Retry Now

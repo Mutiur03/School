@@ -950,7 +950,7 @@ const Class8RegForm = () => {
                                     if (!selectedReg) return;
                                     handlePreviewPDF(selectedReg.id);
                                 }}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all font-semibold shadow-md"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-semibold shadow-md"
                             >
                                 <FileText size={18} />
                                 Preview PDF
@@ -978,7 +978,7 @@ const Class8RegForm = () => {
                                     }
                                 }}
                                 disabled={pdfDownloading}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-md disabled:opacity-50"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-semibold shadow-md disabled:opacity-50"
                             >
                                 {pdfDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                                 {pdfDownloading ? "Generating PDF..." : "Download PDF"}
@@ -989,7 +989,7 @@ const Class8RegForm = () => {
                                         handleStatusUpdate(selectedReg.id, "approved");
                                         setShowDetails(false);
                                     }}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-md"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-semibold shadow-md"
                                 >
                                     <CheckCircle2 size={18} />
                                     Approve Now
@@ -998,7 +998,7 @@ const Class8RegForm = () => {
                         </div>
                         <button
                             onClick={() => setShowDetails(false)}
-                            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-semibold"
+                            className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-semibold"
                         >
                             Close Preview
                         </button>
@@ -1021,7 +1021,7 @@ const Class8RegForm = () => {
                                     <button
                                         key={s}
                                         onClick={() => setEditFormData({ ...editFormData, status: s })}
-                                        className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${editFormData.status === s
+                                        className={`flex items-center justify-between p-4 rounded-xl border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${editFormData.status === s
                                             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                                             : "border-gray-100 dark:border-gray-700 hover:border-border dark:hover:border-gray-600"
                                             }`}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/useAuth";
@@ -10,6 +10,13 @@ import { getErrorMessage } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 
 type UserRole = "admin" | "teacher" | "student" | "super_admin";
+
+const roleTabClass = (active: boolean) =>
+  `flex-1 py-3 text-sm font-black rounded-md transition-[background-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+    active
+      ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+      : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+  }`;
 
 function Login() {
   const { loginAdmin, loginSuperAdmin, user, isAdmin, isSuperAdmin, isTeacher, isStudent, loginStudent, loginTeacher } = useAuth();
@@ -230,7 +237,7 @@ function Login() {
           </p>
         </div>
 
-        <Card className="border border-white/40 dark:border-white/5 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] bg-white/95 dark:bg-gray-900/90 backdrop-blur-3xl rounded-3xl overflow-hidden transition-all duration-500 border-b-primary/20">
+        <Card className="border border-white/40 dark:border-white/5 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] bg-white/95 dark:bg-gray-900/90 backdrop-blur-3xl rounded-3xl overflow-hidden transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-500 border-b-primary/20">
           <CardContent className="pt-10 pb-8 px-6 sm:px-10">
             <div className="flex justify-center mb-8">
               <div className="flex p-1.5 bg-muted/80 dark:bg-slate-800/50 rounded-md w-full shadow-inner border border-border dark:border-slate-700/30">
@@ -238,21 +245,21 @@ function Login() {
                   envPreferredRole ? (<>
                     <button
                       // onClick={() => navigate("/admin/login")}
-                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
+                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/admin")
                       //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
                       //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
                       //   }`}
-                      className="flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                      className="flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
                     >
                       {/* Admin */}
                     </button>
                     <button
                       // onClick={() => navigate("/teacher/login")}
-                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/teacher")
+                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/teacher")
                       //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
                       //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
                       //   }`}
-                      className="flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                      className="flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
 
                     >
                       {/* Teacher */}
@@ -263,11 +270,11 @@ function Login() {
                     </button>
                     <button
                       // onClick={() => navigate("/student/login")}
-                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/student")
+                      // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/student")
                       //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
                       //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
                       //   }`}
-                      className="flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
+                      className="flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
 
                     >
                       {/* Student */}
@@ -275,33 +282,24 @@ function Login() {
 
                   </>
                   ) : (<>
-                    <button
-                      onClick={() => navigate("/admin/login")}
-                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/admin")
-                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        }`}
+                    <Link
+                      to="/admin/login"
+                      className={roleTabClass(location.pathname.includes("/admin"))}
                     >
                       Admin
-                    </button>
-                    <button
-                      onClick={() => navigate("/teacher/login")}
-                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/teacher")
-                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        }`}
+                    </Link>
+                    <Link
+                      to="/teacher/login"
+                      className={roleTabClass(location.pathname.includes("/teacher"))}
                     >
                       Teacher
-                    </button>
-                    <button
-                      onClick={() => navigate("/student/login")}
-                      className={`flex-1 py-3 text-sm font-black rounded-md transition-all duration-300 ${location.pathname.includes("/student")
-                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        }`}
+                    </Link>
+                    <Link
+                      to="/student/login"
+                      className={roleTabClass(location.pathname.includes("/student"))}
                     >
                       Student
-                    </button>
+                    </Link>
                   </>)
                 ) : (
                   <div className="w-full py-3 text-center text-sm font-black text-primary dark:text-primary-foreground bg-white/50 dark:bg-slate-800/50 rounded-md shadow-sm border border-primary/10 dark:border-primary/20 tracking-wider">
@@ -331,9 +329,9 @@ function Login() {
               // Password Reset Form
               <div className="space-y-5">
                 {resetMessage && (
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-md animate-in fade-in duration-500">
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-md animate-in fade-in duration-500" role="status" aria-live="polite">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-sm font-medium text-green-800 dark:text-green-300">{resetMessage}</span>
@@ -342,9 +340,9 @@ function Login() {
                 )}
 
                 {resetError && (
-                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in shake duration-500">
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in shake duration-500" role="alert" aria-live="assertive">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-sm font-medium text-red-800 dark:text-red-300">{resetError}</span>
@@ -355,17 +353,17 @@ function Login() {
                 {resetStep === "request" ? (
                   <form onSubmit={handlePasswordResetRequest} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
+                      <label htmlFor="reset-identity" className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
                         {role === "student" ? (
                           <>
-                            <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             Login ID
                           </>
                         ) : (
                           <>
-                            <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                             Email
@@ -374,65 +372,78 @@ function Login() {
                       </label>
                       {role === "student" ? (
                         <Input
+                          id="reset-identity"
                           type="text"
-                          placeholder="e.g., 10001"
+                          name="login_id"
+                          placeholder="e.g., 10001…"
                           required
+                          autoComplete="username"
+                          spellCheck={false}
                           value={resetLoginID}
                           onChange={(e) => setResetLoginID(e.target.value)}
-                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
+                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-[border-color,box-shadow]"
                         />
                       ) : (
                         <Input
+                          id="reset-identity"
                           type="email"
-                          placeholder="e.g., user@example.com"
+                          name="email"
+                          placeholder="e.g., user@example.com…"
                           required
+                          autoComplete="email"
+                          spellCheck={false}
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
-                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
+                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-[border-color,box-shadow]"
                         />
                       )}
                     </div>
                     <Button
                       type="submit"
                       disabled={isResetting}
-                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-[transform,opacity] duration-300 transform active:scale-[0.98]"
                     >
                       {isResetting ? (
                         <div className="flex items-center justify-center">
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Processing...
+                          Processing…
                         </div>
                       ) : "Send Reset Code"}
                     </Button>
                   </form>
                 ) : resetStep === "verify" ? (
                   <div className="space-y-6">
-                    <div className="flex justify-between gap-2 px-2" onPaste={handlePaste}>
+                    <div className="flex justify-between gap-2 px-2" onPaste={handlePaste} role="group" aria-label="Verification code">
                       {resetCode.map((digit, index) => (
                         <input
                           key={index}
                           ref={codeInputRefs[index]}
                           type="text"
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? "one-time-code" : "off"}
+                          spellCheck={false}
                           maxLength={1}
                           value={digit}
+                          aria-label={`Digit ${index + 1}`}
                           onChange={(e) => handleCodeChange(index, e.target.value)}
                           onKeyDown={(e) => handleKeyDown(index, e)}
-                          className="w-full h-14 text-center text-2xl font-black border-2 rounded-md border-border bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all dark:text-white shadow-sm"
+                          className="w-full h-14 text-center text-2xl font-black border-2 rounded-md border-border bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-[border-color,box-shadow] dark:text-white shadow-sm"
                         />
                       ))}
                     </div>
                     <Button
                       onClick={handleCodeVerify}
                       disabled={isResetting}
-                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-[transform,opacity] duration-300 transform active:scale-[0.98]"
                     >
-                      {isResetting ? "Verifying..." : "Verify Code"}
+                      {isResetting ? "Verifying…" : "Verify Code"}
                     </Button>
                     <div className="text-center">
                       <button
+                        type="button"
                         onClick={() => setResetStep("request")}
                         className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest"
                       >
@@ -443,55 +454,63 @@ function Login() {
                 ) : (
                   <form onSubmit={handlePasswordResetVerify} className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">New Password</label>
+                      <label htmlFor="new-password" className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">New Password</label>
                       <div className="relative">
                         <Input
+                          id="new-password"
                           type={showNewPassword ? "text" : "password"}
-                          placeholder="Minimum 8 characters"
+                          name="new-password"
+                          placeholder="Minimum 8 characters…"
                           required
+                          autoComplete="new-password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-all"
+                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-[border-color,box-shadow]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary focus:outline-none transition-colors"
+                          aria-label={showNewPassword ? "Hide password" : "Show password"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors"
                         >
-                          {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showNewPassword ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
                         </button>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">Confirm Password</label>
+                      <label htmlFor="confirm-password" className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">Confirm Password</label>
                       <div className="relative">
                         <Input
+                          id="confirm-password"
                           type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your new password"
+                          name="confirm-password"
+                          placeholder="Confirm your new password…"
                           required
+                          autoComplete="new-password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-all"
+                          className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-[border-color,box-shadow]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary focus:outline-none transition-colors"
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors"
                         >
-                          {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showConfirmPassword ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
                         </button>
                       </div>
                     </div>
                     <Button
                       type="submit"
                       disabled={isResetting}
-                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98]"
+                      className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-black rounded-md shadow-lg shadow-primary/20 transition-[transform,opacity] duration-300 transform active:scale-[0.98]"
                     >
                       {isResetting ? (
-                        "Updating..."
+                        "Updating…"
                       ) : (
                         <div className="flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                           </svg>
                           <span>Update Password</span>
@@ -574,24 +593,24 @@ function Login() {
                 className="space-y-6"
               >
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
+                  <label htmlFor="login-identity" className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
                     {(location.pathname.includes("/super_admin") || role === "super_admin" || location.pathname.includes("/teacher")) ? (
                       <>
-                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                         Email Address
                       </>
                     ) : location.pathname.includes("/student") ? (
                       <>
-                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         Student ID
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         Username
@@ -600,61 +619,77 @@ function Login() {
                   </label>
                   {(location.pathname.includes("/super_admin") || role === "super_admin" || location.pathname.includes("/teacher")) ? (
                     <Input
+                      id="login-identity"
                       type="email"
-                      placeholder={location.pathname.includes("/super_admin") || role === "super_admin" ? "e.g., superadmin@example.com" : "e.g., teacher@example.com"}
+                      name="email"
+                      placeholder={location.pathname.includes("/super_admin") || role === "super_admin" ? "e.g., superadmin@example.com…" : "e.g., teacher@example.com…"}
                       required
+                      autoComplete="email"
+                      spellCheck={false}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
+                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-[border-color,box-shadow]"
                     />
                   ) : location.pathname.includes("/student") ? (
                     <Input
+                      id="login-identity"
                       type="text"
-                      placeholder="e.g., 220101"
+                      name="login_id"
+                      placeholder="e.g., 220101…"
                       required
                       pattern="\d{6}"
                       title="Login ID must be exactly 6 digits"
                       maxLength={6}
                       minLength={6}
+                      autoComplete="username"
+                      spellCheck={false}
+                      inputMode="numeric"
                       value={loginID}
                       onChange={(e) => setLoginID(e.target.value)}
-                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
+                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-[border-color,box-shadow]"
                     />
                   ) : (
                     <Input
+                      id="login-identity"
                       type="text"
-                      placeholder="e.g., admin_user"
+                      name="username"
+                      placeholder="e.g., admin_user…"
                       required
+                      autoComplete="username"
+                      spellCheck={false}
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-all"
+                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md transition-[border-color,box-shadow]"
                     />
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
-                    <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <label htmlFor="login-password" className="text-xs font-black text-muted-foreground flex items-center uppercase tracking-widest">
+                    <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2h2v-2l2.257-3.257A6 6 0 0119 9z" />
                     </svg>
                     Secure Password
                   </label>
                   <div className="relative">
                     <Input
+                      id="login-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       type={showLoginPassword ? "text" : "password"}
                       placeholder="••••••••"
                       name="password"
+                      autoComplete="current-password"
                       required
-                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-all dark:text-white"
+                      className="h-12 border-border dark:border-border/50 bg-input focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-md pr-10 transition-[border-color,box-shadow] dark:text-white"
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+                      aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                     >
-                      {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {showLoginPassword ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
                     </button>
                   </div>
                 </div>
@@ -670,18 +705,18 @@ function Login() {
                   </div>
                 )}
                 {loginError && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in fade-in duration-300 mb-4">
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md animate-in fade-in duration-300 mb-4" role="alert" aria-live="assertive">
                     <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-xs font-medium text-red-800 dark:text-red-300">{loginError}</span>
                     </div>
                   </div>
                 )}
-                <Button className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground font-black rounded-md shadow-lg shadow-primary/20 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+                <Button className="w-full h-12 bg-linear-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground font-black rounded-md shadow-lg shadow-primary/20 transition-[transform,opacity] duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
                   <span>Sign In</span>
-                  <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
                 </Button>

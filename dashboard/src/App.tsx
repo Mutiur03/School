@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense } from "react";
+import { useRef, useState, useEffect, Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -17,58 +17,47 @@ import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
-// Normal imports
-import { TeacherDashboard, TeacherSettings } from "./pages/Teachers/index.ts";
-import { AddLevel, AddMarks, Admission, AdmissionResult, AdmissionSettings, AlumniList, Attendence, StayCheck, CitizenCharter, Class6RegForm, Class8RegForm, ClassRoutinePDF, Dashboard, Events, ExamPDFRoutine, Gallery, GenerateResult, Head, Holidays, NewSubject, Notice, PendingImages, RejectedImages, ShowMarkSheet, SmsManagement, Class9RegForm, StaffList, StudentList, Syllabus, TeacherList, UpdateStatus, ViewMarks } from "./pages/Admin/index.ts";
-import { StudentDashboard, Result } from "./pages/Students/index.ts";
-import SchoolSettings from "./pages/Admin/SchoolSettings.tsx";
-import SuperAdminDashboard from "./pages/SuperAdmin/Dashboard.tsx";
-import SchoolManagement from "./pages/SuperAdmin/SchoolManagement.tsx";
-// Normal imports end
 
-// --- Lazy-loaded Components ---
-
-// Admin Pages
-// const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
-// const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
-// const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
-// const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
-// const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
-// const Attendence = lazy(() => import("./pages/Admin/Attendence"));
-// const Notice = lazy(() => import("./pages/Admin/Notice"));
-// const Holidays = lazy(() => import("./pages/Admin/Holidays"));
-// const Events = lazy(() => import("./pages/Admin/Events"));
-// const Gallery = lazy(() => import("./pages/Admin/Gallery"));
-// const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
-// const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
-// const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
-// const StudentList = lazy(() => import("./pages/Admin/StudentList"));
-// const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
-// const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
-// const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
-// const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
-// const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
-// const Head = lazy(() => import("./pages/Admin/Head"));
-// const StaffList = lazy(() => import("./pages/Admin/StaffList"));
-// const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
-// const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
-// const Admission = lazy(() => import("./pages/Admin/Admission"));
-// const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
-// const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
-// const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
-// const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
-// const SSCRegForm = lazy(() => import("./pages/Admin/SSCRegForm"));
-// const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
-// const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
-
-// // Teacher Pages
-// const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard.tsx"));
-// const TeacherSettings = lazy(() => import("./pages/Teachers/index.ts").then(m => ({ default: m.TeacherSettings })));
-
-// // Student Pages
-// const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard.tsx"));
-// const Result = lazy(() => import("./pages/Students/Result.tsx"));
-// Lazy import ends
+// Route pages — lazy to keep initial shell small
+const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard"));
+const TeacherSettings = lazy(() => import("./pages/Teachers/TeacherSettings"));
+const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard"));
+const Result = lazy(() => import("./pages/Students/Result"));
+const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
+const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
+const StudentList = lazy(() => import("./pages/Admin/StudentList"));
+const AlumniList = lazy(() => import("./pages/Admin/AlumniList"));
+const TeacherList = lazy(() => import("./pages/Admin/TeacherList"));
+const StaffList = lazy(() => import("./pages/Admin/StaffList"));
+const Head = lazy(() => import("./pages/Admin/Head"));
+const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
+const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
+const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
+const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
+const SchoolSettings = lazy(() => import("./pages/Admin/SchoolSettings"));
+const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
+const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
+const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
+const UpdateStatus = lazy(() => import("./pages/Admin/UpdateStatus"));
+const Attendence = lazy(() => import("./pages/Admin/Attendence"));
+const StayCheck = lazy(() => import("./pages/Admin/StayCheck"));
+const SmsManagement = lazy(() => import("./pages/Admin/SmsManagement"));
+const Notice = lazy(() => import("./pages/Admin/Notice"));
+const Holidays = lazy(() => import("./pages/Admin/Holidays"));
+const Admission = lazy(() => import("./pages/Admin/Admission"));
+const AdmissionSettings = lazy(() => import("./pages/Admin/AdmissionSettings"));
+const AdmissionResult = lazy(() => import("./pages/Admin/AdmissionResult"));
+const Syllabus = lazy(() => import("./pages/Admin/Syllabus"));
+const ClassRoutinePDF = lazy(() => import("./pages/Admin/ClassRoutinePDF"));
+const Events = lazy(() => import("./pages/Admin/Events"));
+const Gallery = lazy(() => import("./pages/Admin/Gallery"));
+const PendingImages = lazy(() => import("./pages/Admin/PendingImages"));
+const RejectedImages = lazy(() => import("./pages/Admin/RejectedImages"));
+const Class9RegForm = lazy(() => import("./pages/Admin/Class9RegForm"));
+const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
+const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdmin/Dashboard"));
+const SchoolManagement = lazy(() => import("./pages/SuperAdmin/SchoolManagement"));
 
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth >= 768);
@@ -108,6 +97,9 @@ function App() {
       </div>
     );
   }
+
+  const contentShellClass =
+    "content-area flex-1 overflow-y-auto relative px-4 transition-[margin,width] duration-100 md:ml-60 md:w-[calc(100%-15rem)]";
 
   return (
     <>
@@ -165,7 +157,7 @@ function App() {
                   <div className="flex flex-col">
                     <Navbar ref={navbarRef} onBurgerClick={() => setSidebarOpen((prev) => !prev)} />
                     <Sidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} open={sidebarOpen} onClose={() => setSidebarOpen(false)} navbarRef={navbarRef} />
-                    <div className="content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]">
+                    <div className={contentShellClass}>
                       <Routes>
                         <Route path="/dashboard" element={<TeacherDashboard />} />
                         <Route path="/settings" element={<TeacherSettings />} />
@@ -189,7 +181,7 @@ function App() {
                   <div className="flex flex-col">
                     <Navbar ref={navbarRef} onBurgerClick={() => setSidebarOpen((prev) => !prev)} />
                     <Sidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} open={sidebarOpen} onClose={() => setSidebarOpen(false)} navbarRef={navbarRef} />
-                    <div className="content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]">
+                    <div className={contentShellClass}>
                       <Routes>
                         <Route path="/dashboard" element={<StudentDashboard />} />
                         <Route path="/result" element={<Result />} />
@@ -208,7 +200,7 @@ function App() {
                   <div className="flex flex-col">
                     <Navbar ref={navbarRef} onBurgerClick={() => setSidebarOpen((prev) => !prev)} />
                     <Sidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} open={sidebarOpen} onClose={() => setSidebarOpen(false)} navbarRef={navbarRef} />
-                    <div className="content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]">
+                    <div className={contentShellClass}>
                       <Routes>
                         <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/result/view-marks" element={<ViewMarks />} />
@@ -258,7 +250,7 @@ function App() {
                   <div className="flex flex-col">
                     <Navbar ref={navbarRef} onBurgerClick={() => setSidebarOpen((prev) => !prev)} />
                     <Sidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} open={sidebarOpen} onClose={() => setSidebarOpen(false)} navbarRef={navbarRef} />
-                    <div className="content-area flex-1 overflow-y-auto relative px-4 transition-all duration-100 md:ml-60 md:w-[calc(100%-15rem)]">
+                    <div className={contentShellClass}>
                       <Routes>
                         <Route path="/dashboard" element={<SuperAdminDashboard />} />
                         <Route path="/settings/school" element={<SchoolManagement />} />

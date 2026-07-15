@@ -81,7 +81,7 @@ export function MarksheetGenProgress({
         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
           <div
             className={cn(
-              "h-full rounded-full transition-all duration-500",
+              "h-full rounded-full transition-[width,background-color] duration-500",
               complete ? "bg-green-500" : "bg-primary",
             )}
             style={{ width: `${pct}%` }}
@@ -140,7 +140,7 @@ export function MarksheetGenProgress({
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-500",
+            "h-full rounded-full transition-[width,background-color] duration-500",
             complete ? "bg-green-500" : "bg-primary",
           )}
           style={{ width: `${pct}%` }}

@@ -25,8 +25,10 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getFileUrl } from "@/lib/backend";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 export default function TeacherSettings() {
+    const { confirm, dialog } = useConfirmDialog();
     const { user, checkAuth } = useContext(UnifiedAuthContext);
     const teacher = user as TeacherUser;
     const [activeTab, setActiveTab] = useState("profile");
@@ -141,6 +143,7 @@ export default function TeacherSettings() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
+            {dialog}
             <PageHeader
                 title="Teacher Account Settings"
                 description="Manage your professional profile and account security settings."
@@ -161,7 +164,7 @@ export default function TeacherSettings() {
                             <SectionCard title="Profile Photo" icon={<Camera size={18} />}>
                                 <div className="flex flex-col items-center py-6">
                                     <div className="relative group">
-                                        <div className="w-48 h-48 rounded-2xl overflow-hidden border-4 border-background shadow-xl bg-muted flex items-center justify-center transition-all duration-300 group-hover:shadow-2xl">
+                                        <div className="w-48 h-48 rounded-2xl overflow-hidden border-4 border-background shadow-xl bg-muted flex items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 group-hover:shadow-2xl">
                                             {teacher.image ? (
                                                 <img 
                                                     src={getFileUrl(teacher.image)} 
@@ -180,7 +183,7 @@ export default function TeacherSettings() {
                                         <button 
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={uploading}
-                                            className="absolute -bottom-3 -right-3 p-3 bg-primary text-white rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 ring-4 ring-background"
+                                            className="absolute -bottom-3 -right-3 p-3 bg-primary text-white rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50 ring-4 ring-background"
                                             title="Update Profile Picture"
                                         >
                                             <Camera size={20} />
@@ -227,7 +230,7 @@ export default function TeacherSettings() {
                             <SectionCard title="Digital Signature" icon={<PenTool size={18} />}>
                                 <div className="flex flex-col sm:flex-row items-center gap-8 py-4">
                                     <div className="relative group shrink-0">
-                                        <div className="w-40 h-24 rounded-xl overflow-hidden border-2 border-dashed border-border flex items-center justify-center bg-muted/30 transition-all group-hover:bg-muted/50">
+                                        <div className="w-40 h-24 rounded-xl overflow-hidden border-2 border-dashed border-border flex items-center justify-center bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group-hover:bg-muted/50">
                                             {teacher.signature ? (
                                                 <img 
                                                     src={getFileUrl(teacher.signature)} 
@@ -246,7 +249,7 @@ export default function TeacherSettings() {
                                         <button 
                                             onClick={() => signatureInputRef.current?.click()}
                                             disabled={uploadingSignature}
-                                            className="absolute -bottom-2 -right-2 p-2 bg-primary text-white rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                            className="absolute -bottom-2 -right-2 p-2 bg-primary text-white rounded-lg shadow-md hover:scale-105 active:scale-95 transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50"
                                             title="Update Signature"
                                         >
                                             <PenTool size={14} />
@@ -273,16 +276,20 @@ export default function TeacherSettings() {
                                                     size="sm" 
                                                     className="h-8 text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-50"
                                                     onClick={async () => {
-                                                        if (window.confirm("Are you sure you want to remove your digital signature?")) {
-                                                            try {
-                                                                const { data } = await axios.delete(`/api/teachers/${teacher.id}/signature`);
-                                                                if (data.success) {
-                                                                    toast.success("Signature removed");
-                                                                    await checkAuth();
-                                                                }
-                                                            } catch (err) {
-                                                                toast.error("Failed to remove signature");
+                                                        const ok = await confirm({
+                                                            title: "Remove signature?",
+                                                            msg: "Are you sure you want to remove your digital signature?",
+                                                            confirmLabel: "Remove",
+                                                        });
+                                                        if (!ok) return;
+                                                        try {
+                                                            const { data } = await axios.delete(`/api/teachers/${teacher.id}/signature`);
+                                                            if (data.success) {
+                                                                toast.success("Signature removed");
+                                                                await checkAuth();
                                                             }
+                                                        } catch (err) {
+                                                            toast.error("Failed to remove signature");
                                                         }
                                                     }}
                                                 >
@@ -404,7 +411,7 @@ function SecurityForm() {
                             value={form.currentPassword} 
                             onChange={(e) => setForm({...form, currentPassword: e.target.value})} 
                             required 
-                            className="h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-all font-mono"
+                            className="h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-mono"
                             placeholder="••••••••"
                         />
                         <button 
@@ -427,7 +434,7 @@ function SecurityForm() {
                                 value={form.newPassword} 
                                 onChange={(e) => setForm({...form, newPassword: e.target.value})} 
                                 required 
-                                className="h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-all font-mono"
+                                className="h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-mono"
                                 placeholder="Min. 8 chars"
                             />
                             <button 
@@ -446,7 +453,7 @@ function SecurityForm() {
                                     <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Strength: {strengthLabel}</span>
                                     <div className="flex gap-1">
                                         {[1, 2, 3, 4].map(i => (
-                                            <div key={i} className={`h-1 w-6 rounded-full transition-all duration-500 ${i <= strength ? strengthColor : 'bg-muted'}`} />
+                                            <div key={i} className={`h-1 w-6 rounded-full transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-500 ${i <= strength ? strengthColor : 'bg-muted'}`} />
                                         ))}
                                     </div>
                                 </div>
@@ -463,7 +470,7 @@ function SecurityForm() {
                                 value={form.confirmPassword} 
                                 onChange={(e) => setForm({...form, confirmPassword: e.target.value})} 
                                 required 
-                                className={`h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-all font-mono ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400 focus:ring-red-500/10' : ''}`}
+                                className={`h-12 rounded-xl border-border/60 focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] font-mono ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400 focus:ring-red-500/10' : ''}`}
                                 placeholder="Match your password"
                             />
                             <button 

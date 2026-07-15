@@ -48,7 +48,7 @@ const MarkInput: React.FC<{
         onChange={handleChange}
         disabled={disabled}
         placeholder={disabled ? "—" : `/${maxMark}`}
-        className={`w-14 sm:w-16 p-1.5 sm:p-2 border border-border rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all ${
+        className={`w-14 sm:w-16 p-1.5 sm:p-2 border border-border rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           disabled ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
         }`}
       />

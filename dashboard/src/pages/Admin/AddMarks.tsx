@@ -446,7 +446,7 @@ const AddMarks = () => {
                   placeholder="Search name or roll..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                 />
                 <svg
                   className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
@@ -597,7 +597,7 @@ const AddMarks = () => {
                 type="submit"
                 size="lg"
                 disabled={addMarksMutation.isPending}
-                className="w-full sm:w-auto px-10 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full sm:w-auto px-10 font-bold shadow-lg shadow-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
               >
                 {addMarksMutation.isPending ? (
                   <>
