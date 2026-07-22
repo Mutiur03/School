@@ -2158,12 +2158,12 @@ export class MarksService {
         width: contentWidth,
         align: "left",
       });
-      endY = dateY + PDF_STYLES.rowHeight;
+      endY = dateY + (returnDate ? 13 : PDF_STYLES.rowHeight);
     }
 
     const formattedReturnDate = formatMarksheetDate(returnDate);
     if (formattedReturnDate) {
-      const returnY = endY + 4;
+      const returnY = endY + 2;
       doc
         .font(PDF_STYLES.fontRegular)
         .fontSize(PDF_STYLES.rowFontSize)
