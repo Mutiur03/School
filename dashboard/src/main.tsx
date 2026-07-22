@@ -14,6 +14,15 @@ axios.defaults.withCredentials = true;
 
 initSentry();
 
+// After a deploy, old tabs may request stale hashed chunks (404). Reload once to pick up the new asset map.
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  const reloadKey = "vite-preload-reload";
+  if (sessionStorage.getItem(reloadKey)) return;
+  sessionStorage.setItem(reloadKey, "1");
+  window.location.reload();
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

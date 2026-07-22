@@ -38,6 +38,7 @@ export const addExamController = async (req, res) => {
         start_date: exam.start_date || null,
         end_date: exam.end_date || null,
         result_date: exam.result_date || null,
+        return_date: exam.return_date || null,
       })),
     });
 
@@ -63,8 +64,15 @@ export const addExamController = async (req, res) => {
 
 export const updateExamController = async (req, res) => {
   const { examId } = req.params;
-  const { exam_name, exam_year, levels, start_date, end_date, result_date } =
-    req.body;
+  const {
+    exam_name,
+    exam_year,
+    levels,
+    start_date,
+    end_date,
+    result_date,
+    return_date,
+  } = req.body;
   const parsedExamId = parseInt(examId);
 
   try {
@@ -77,6 +85,7 @@ export const updateExamController = async (req, res) => {
         start_date: start_date || null,
         end_date: end_date || null,
         result_date: result_date || null,
+        return_date: return_date || null,
       },
     });
 
@@ -90,6 +99,24 @@ export const updateExamController = async (req, res) => {
     const updated = await prisma.exams.findFirst({
       where: { id: parsedExamId },
     });
+
+    // Exam fields (name/dates) print on the marksheet — re-queue published
+    // exams now instead of waiting for the next download to notice the
+    // cache is stale.
+    if (updated?.visible) {
+      try {
+        await MarksheetService.enqueueForExam(
+          updated.id,
+          updated.school_id,
+          updated.exam_name,
+        );
+      } catch (queueErr) {
+        console.error(
+          "Failed to queue marksheet regeneration after exam update:",
+          queueErr instanceof Error ? queueErr.message : queueErr,
+        );
+      }
+    }
 
     return res.status(200).json({
       success: true,

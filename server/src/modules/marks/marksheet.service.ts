@@ -436,7 +436,7 @@ export class MarksheetService {
       }),
       prisma.exams.findUnique({
         where: { id: examId },
-        select: { result_date: true },
+        select: { exam_name: true, result_date: true, return_date: true },
       }),
       prisma.marksheet_files.findUnique({
         where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
@@ -498,6 +498,9 @@ export class MarksheetService {
       f: enrollment?.fourth_subject_id ?? null,
       r: enrollment?.roll ?? null,
       sec: enrollment?.section ?? null,
+      en: exam?.exam_name ?? null,
+      rd: exam?.result_date ?? null,
+      retd: exam?.return_date ?? null,
       ...designFingerprint(frozen, snapRow?.snapshot_design_version),
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
@@ -1941,7 +1944,7 @@ export class MarksheetService {
     const [exam, snapRow] = await Promise.all([
       prisma.exams.findUnique({
         where: { id: examId },
-        select: { result_date: true },
+        select: { exam_name: true, result_date: true, return_date: true },
       }),
       prisma.marksheet_bundles.findUnique({
         where: {
@@ -1997,6 +2000,9 @@ export class MarksheetService {
       s: stats?.updated_at ?? null,
       h: head,
       t: classTeachers,
+      en: exam?.exam_name ?? null,
+      rd: exam?.result_date ?? null,
+      retd: exam?.return_date ?? null,
       ...designFingerprint(frozen, snapRow?.snapshot_design_version),
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");

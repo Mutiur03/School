@@ -61,7 +61,7 @@ const MONTH_SHORT = [
   "December",
 ];
 
-function formatResultPublishDate(dateStr?: string | null): string | null {
+function formatMarksheetDate(dateStr?: string | null): string | null {
   if (!dateStr) return null;
   const raw = String(dateStr).split("T")[0].trim();
   const parts = raw.split("-").map(Number);
@@ -976,7 +976,7 @@ export class MarksService {
             parent: { select: { name: true } },
           },
         },
-        exam: { select: { exam_name: true, result_date: true } },
+        exam: { select: { exam_name: true, result_date: true, return_date: true } },
       },
     });
     if (result.length === 0 || !result.some(m => m.marks !== null)) {
@@ -998,6 +998,7 @@ export class MarksService {
     });
     const enrollment = result[0].enrollment;
     const resultDate = result[0].exam?.result_date ?? null;
+    const returnDate = result[0].exam?.return_date ?? null;
     if (
       !this.checkAccess(
         user,
@@ -1149,6 +1150,7 @@ export class MarksService {
       classHighestGrandTotal: classHighestGrandTotal,
       fourth_subject_id: enrollment.fourth_subject_id,
       result_date: resultDate,
+      return_date: returnDate,
     };
 
     const finalTableData = this.aggregatePaperMarks(result.map(m => ({
@@ -1252,7 +1254,7 @@ export class MarksService {
               parent: { select: { name: true } },
             },
           },
-          exam: { select: { exam_name: true, result_date: true } },
+          exam: { select: { exam_name: true, result_date: true, return_date: true } },
         },
         orderBy: {
           subject: {
@@ -1291,6 +1293,7 @@ export class MarksService {
     const classHighestTotal = Object.values(totalByEnrollment).length > 0 ? Math.max(...Object.values(totalByEnrollment)) : 0;
     const classHighestGrandTotal = Object.values(grandTotalByEnrollment).length > 0 ? Math.max(...Object.values(grandTotalByEnrollment)) : 0;
     const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
+    const returnDate = allExamMarks[0]?.exam?.return_date ?? null;
 
     // Head signatory: snapshotted id (frozen) resolves that person's current
     // name/signature; otherwise the current head assignment.
@@ -1361,6 +1364,7 @@ export class MarksService {
           classHighestGrandTotal,
           fourth_subject_id: enrollment.fourth_subject_id,
           result_date: resultDate,
+          return_date: returnDate,
         };
 
         const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
@@ -1484,7 +1488,14 @@ export class MarksService {
             parent: { select: { name: true } },
           },
         },
-        exam: { select: { id: true, exam_name: true, result_date: true } },
+        exam: {
+          select: {
+            id: true,
+            exam_name: true,
+            result_date: true,
+            return_date: true,
+          },
+        },
       },
       orderBy: {
         subject: {
@@ -1584,6 +1595,7 @@ export class MarksService {
     const studentGrouped: Record<number, Record<string, any[]>> = {};
     const studentInfoMap: Record<number, any> = {};
     const resultDateByExam: Record<string, string | null> = {};
+    const returnDateByExam: Record<string, string | null> = {};
 
     marks.forEach((m) => {
       if (m.marks === null) return;
@@ -1595,6 +1607,7 @@ export class MarksService {
 
       if (!(en in resultDateByExam)) {
         resultDateByExam[en] = m.exam?.result_date ?? null;
+        returnDateByExam[en] = m.exam?.return_date ?? null;
       }
 
       if (!studentInfoMap[sid]) {
@@ -1739,6 +1752,7 @@ export class MarksService {
             colWidths,
             resultDateByExam[examName] ?? null,
             classHighestGrandTotalByExam[examName] || 0,
+            returnDateByExam[examName] ?? null,
           );
           doc.y = summaryY;
         }
@@ -1828,6 +1842,7 @@ export class MarksService {
       colWidths,
       student.result_date,
       student.classHighestGrandTotal,
+      student.return_date,
     );
 
     this.drawSignatures(doc, signatures, tableEndY);
@@ -2030,6 +2045,7 @@ export class MarksService {
     colWidths?: number[],
     resultDate?: string | null,
     classHighestGrandTotal?: number,
+    returnDate?: string | null,
   ) {
     // Grand Total row shows the class-highest grand total (all subjects); fall
     // back to the exam-only highest if the grand value wasn't supplied.
@@ -2131,7 +2147,7 @@ export class MarksService {
     }
 
     let endY = rowY + rowHeight;
-    const formattedResultDate = formatResultPublishDate(resultDate);
+    const formattedResultDate = formatMarksheetDate(resultDate);
     if (formattedResultDate) {
       const dateY = endY + 4;
       doc
@@ -2143,6 +2159,22 @@ export class MarksService {
         align: "left",
       });
       endY = dateY + PDF_STYLES.rowHeight;
+    }
+
+    const formattedReturnDate = formatMarksheetDate(returnDate);
+    if (formattedReturnDate) {
+      const returnY = endY + 4;
+      doc
+        .font(PDF_STYLES.fontRegular)
+        .fontSize(PDF_STYLES.rowFontSize)
+        .fillColor("#000000");
+      doc.text(
+        `This academic transcript (mark sheet) must be returned by ${formattedReturnDate}.`,
+        startX,
+        returnY,
+        { width: contentWidth, align: "left" },
+      );
+      endY = returnY + PDF_STYLES.rowHeight;
     }
 
     return endY;

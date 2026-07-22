@@ -309,7 +309,7 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student" | "super_admin") 
       roles: ["teacher"],
     },
     {
-      label: "Students",
+      label: "Students' Info",
       icon: FaUsers,
       dropdown: false,
       link: "/teacher/students",

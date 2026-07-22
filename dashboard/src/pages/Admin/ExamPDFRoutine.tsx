@@ -33,6 +33,7 @@ interface ExamFormData {
   start_date: string;
   end_date: string;
   result_date: string;
+  return_date: string;
 }
 
 interface Exam extends ExamFormData {
@@ -55,6 +56,7 @@ function ExamPDFRoutine() {
     start_date: "",
     end_date: "",
     result_date: "",
+    return_date: "",
   });
   const currentYear = new Date().getFullYear();
 
@@ -266,6 +268,7 @@ function ExamPDFRoutine() {
       start_date: exam.start_date?.split("T")[0] || "",
       end_date: exam.end_date?.split("T")[0] || "",
       result_date: exam.result_date?.split("T")[0] || "",
+      return_date: exam.return_date?.split("T")[0] || "",
     });
     setEditingExam(exam);
     setIsFormVisible(true);
@@ -464,6 +467,30 @@ function ExamPDFRoutine() {
                   className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-normal mb-1">
+                  Marksheet Return Date <span className="text-muted-foreground">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    name="return_date"
+                    value={formData.return_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  />
+                  {formData.return_date && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setFormData({ ...formData, return_date: "" })}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-2">
@@ -559,6 +586,12 @@ function ExamPDFRoutine() {
                         <div>
                           Result:{" "}
                           {format(new Date(exam.result_date), "dd MMM yyyy")}
+                        </div>
+                        <div>
+                          Return:{" "}
+                          {exam.return_date
+                            ? format(new Date(exam.return_date), "dd MMM yyyy")
+                            : "-"}
                         </div>
                       </div>
                     </td>

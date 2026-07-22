@@ -267,6 +267,7 @@ model exams {
   start_date    String          @db.VarChar(10)
   end_date      String          @db.VarChar(10)
   result_date   String          @db.VarChar(10)
+  return_date   String?         @db.VarChar(10)
   visible       Boolean         @default(false)
   created_at    DateTime        @default(now())
   routine       String?
