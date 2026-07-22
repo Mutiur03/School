@@ -68,7 +68,7 @@ function formatMarksheetDate(dateStr?: string | null): string | null {
   if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
     const [year, month, day] = parts;
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return `${String(day).padStart(2, "0")} ${MONTH_SHORT[month - 1]} ${year}`;
+      return `${String(day).padStart(2, "0")} ${MONTH_SHORT[month - 1]}, ${year}`;
     }
   }
   return raw || null;
@@ -2312,7 +2312,7 @@ export class MarksService {
       .moveTo(guardianStartX, lineY)
       .lineTo(guardianStartX + guardianLineWidth, lineY)
       .stroke();
-    this.drawFittedCenteredText(doc, "Guardian", guardianStartX, textY, guardianLineWidth, {
+    this.drawFittedCenteredText(doc, "Guardian's Signature", guardianStartX, textY, guardianLineWidth, {
       fontSize: 10,
       font: "Times-Bold",
     });
@@ -2536,12 +2536,12 @@ export class MarksService {
         const grayscaleBuffer = await sharp(logoPath).grayscale().toBuffer();
         doc.save();
         doc.opacity(0.1);
-        doc.image(grayscaleBuffer, 150, 290, { width: 300 });
+        doc.image(grayscaleBuffer, 150, 236, { width: 300 });
         doc.restore();
       } catch (e) {
         doc.save();
         doc.opacity(0.1);
-        doc.image(logoPath, 150, 290, { width: 300 });
+        doc.image(logoPath, 150, 236, { width: 300 });
         doc.restore();
       }
     }
@@ -2808,7 +2808,7 @@ export class MarksService {
         doc
           .font(fontBold)
           .fontSize(headerFontSize - 1)
-          .fillColor("#4b5563");
+          .fillColor("#000000");
         this.drawDynamicText(doc, "CONTINUOUS ASSESSMENT", startX, y, contentWidth, rowHeight, {
           align: "center",
           bold: true,
