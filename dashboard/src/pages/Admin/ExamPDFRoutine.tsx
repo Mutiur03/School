@@ -190,6 +190,7 @@ function ExamPDFRoutine() {
       start_date: "",
       end_date: "",
       result_date: "",
+      return_date: "",
     });
     setEditingExam(null);
     setIsFormVisible(false);
