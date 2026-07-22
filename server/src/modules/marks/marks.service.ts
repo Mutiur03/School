@@ -43,7 +43,10 @@ const MARKSHEET_FONT_PATHS = {
 // Gap between table end and signature block (PDF points)
 const SIGNATURE_GAP_AFTER_TABLE = 40;
 const SIGNATURE_BLOCK_HEIGHT = 76;
-const SIGNATURE_IMAGE_OFFSET = 28; // image bottom sits near dotted line
+const SIGNATURE_IMAGE_WIDTH = 60;
+// Bottom of signature must sit exactly on dotted line; image can only grow
+// upward, capped so it never crosses into the content above the gap.
+const SIGNATURE_IMAGE_MAX_HEIGHT = SIGNATURE_GAP_AFTER_TABLE - 10;
 const PAGE_CONTENT_BOTTOM = 812;
 
 const MONTH_SHORT = [
@@ -2258,9 +2261,13 @@ export class MarksService {
       try {
         doc.image(
           signatures.teacher,
-          teacherStartX + (teacherLineWidth - 60) / 2,
-          lineY - SIGNATURE_IMAGE_OFFSET,
-          { width: 60 },
+          teacherStartX + (teacherLineWidth - SIGNATURE_IMAGE_WIDTH) / 2,
+          lineY - SIGNATURE_IMAGE_MAX_HEIGHT,
+          {
+            fit: [SIGNATURE_IMAGE_WIDTH, SIGNATURE_IMAGE_MAX_HEIGHT],
+            align: "center",
+            valign: "bottom",
+          },
         );
       } catch (err) {
         console.error("Teacher signature image error:", err);
@@ -2272,9 +2279,13 @@ export class MarksService {
       try {
         doc.image(
           signatures.head,
-          headStartX + (headLineWidth - 60) / 2,
-          lineY - SIGNATURE_IMAGE_OFFSET,
-          { width: 60 },
+          headStartX + (headLineWidth - SIGNATURE_IMAGE_WIDTH) / 2,
+          lineY - SIGNATURE_IMAGE_MAX_HEIGHT,
+          {
+            fit: [SIGNATURE_IMAGE_WIDTH, SIGNATURE_IMAGE_MAX_HEIGHT],
+            align: "center",
+            valign: "bottom",
+          },
         );
       } catch (err) {
         console.error("Head signature image error:", err);

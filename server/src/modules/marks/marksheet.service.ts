@@ -63,7 +63,7 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = "2";
+export const MARKSHEET_DESIGN_VERSION = "3";
 
 /** Design field for input hashes. Frozen + no snapshot → omit (legacy compat). */
 function designFingerprint(
