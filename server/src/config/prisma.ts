@@ -86,7 +86,6 @@ const TENANT_MODELS = new Set([
   "levels",
   "marks",
   "notices",
-  "schoolsiteconfig",
   "sms_logs",
   "sms_settings",
   "ssc_reg",

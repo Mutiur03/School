@@ -35,6 +35,15 @@ model School {
   nationalizedYear String?                       @map("nationalized_year") @db.VarChar(20)
   subdomain        String?                       @unique @db.VarChar(100)
   customDomain     String?                       @unique @db.VarChar(255)
+  gaMeasurementId  String?                       @map("ga_measurement_id") @db.VarChar(50)
+  descriptions     Json?
+  academicProfile  Json?                         @map("academic_profile")
+  identifiersExtra Json?                         @map("identifiers_extra")
+  sidebarConfig    Json?                         @map("sidebar_config")
+  menuItems        Json?                         @map("menu_items")
+  homeCharts       Json?                         @map("home_charts")
+  seo              Json?
+  theme            Json?
   createdAt        DateTime                      @default(now())
   updatedAt        DateTime                      @updatedAt
   students         students[]
@@ -70,7 +79,6 @@ model School {
   head_msgs        head_msg[]
   sms_logs         sms_logs[]
   sms_settings     sms_settings?
-  siteConfig       SchoolSiteConfig?
   exam_class_stats exam_class_stats[]
   marksheet_files  marksheet_files[]
   marksheet_bundles marksheet_bundles[]
@@ -78,55 +86,6 @@ model School {
   @@index([name])
   @@index([subdomain])
   @@index([customDomain])
-}
-
-/// Optional 1:1 public website configuration (menu, sidebar, SEO, home charts) per school.
-/// Use when most content is DB-driven; scalar fields on School remain the fast path for branding.
-model SchoolSiteConfig {
-  id       Int    @id @default(autoincrement())
-  schoolId Int    @unique @map("school_id")
-  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-  nameBn      String? @map("name_bn") @db.VarChar(300)
-  nameShortBn String? @map("name_short_bn") @db.VarChar(50)
-  centerCode  String? @map("center_code") @db.VarChar(50)
-
-  governmentLogo String? @map("government_logo")
-  headerLogo     String? @map("header_logo")
-  bannerUrls     Json?   @map("banner_urls")
-
-  resultsUrl      String? @map("results_url")
-  teacherLoginUrl String? @map("teacher_login_url")
-  studentLoginUrl String? @map("student_login_url")
-
-  address          String? @db.VarChar(500)
-  location         String? @db.VarChar(200)
-  nationalizedYear String? @map("nationalized_year") @db.VarChar(20)
-
-  mapEmbedUrl String? @map("map_embed_url") @db.Text
-
-  /// { main: string, sub: string }
-  descriptions     Json?
-  /// Matches frontend academic profile object
-  academicProfile  Json? @map("academic_profile")
-  /// e.g. { eiin, centerCode } when not stored only on School
-  identifiersExtra Json? @map("identifiers_extra")
-  /// Sidebar: important/quick/useful/hotlines/sidebarMenu/sections
-  sidebarConfig    Json? @map("sidebar_config")
-  /// Navbar MenuItem[] tree
-  menuItems        Json? @map("menu_items")
-  /// Home page chart / link grid sections
-  homeCharts       Json? @map("home_charts")
-  /// { defaultTitle, defaultDescription, ogImage, ... }
-  seo              Json?
-  /// { primaryColor, fonts, ... }
-  theme            Json?
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([schoolId])
-  @@map("school_site_configs")
 }
 
 enum SetupTokenRole {

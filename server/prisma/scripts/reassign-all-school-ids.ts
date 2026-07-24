@@ -132,42 +132,6 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
   }
 }
 
-async function reconcileSchoolSiteConfigs(targetId: number): Promise<void> {
-  const forTarget = await prisma.schoolSiteConfig.findUnique({
-    where: { schoolId: targetId },
-  });
-  const others = await prisma.schoolSiteConfig.findMany({
-    where: { schoolId: { not: targetId } },
-  });
-
-  if (others.length === 0) return;
-
-  if (dryRun) {
-    console.log(
-      `[DRY_RUN] Would reconcile school_site_configs: ${others.length} non-target row(s); target has config: ${!!forTarget}`,
-    );
-    return;
-  }
-
-  if (forTarget) {
-    await prisma.schoolSiteConfig.deleteMany({
-      where: { schoolId: { not: targetId } },
-    });
-    return;
-  }
-
-  const [keep, ...rest] = others;
-  await prisma.schoolSiteConfig.update({
-    where: { id: keep.id },
-    data: { schoolId: targetId },
-  });
-  if (rest.length > 0) {
-    await prisma.schoolSiteConfig.deleteMany({
-      where: { id: { in: rest.map((r) => r.id) } },
-    });
-  }
-}
-
 function schoolIdWhere(targetId: number) {
   return {
     OR: [{ school_id: null }, { school_id: { not: targetId } }],
@@ -179,7 +143,6 @@ async function main() {
   console.log(`Target school id: ${targetId}${dryRun ? " (DRY_RUN)" : ""}`);
 
   await preflightMergeConflicts(targetId);
-  await reconcileSchoolSiteConfigs(targetId);
 
   if (dryRun) {
     const w = schoolIdWhere(targetId);

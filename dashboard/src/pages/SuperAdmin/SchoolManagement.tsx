@@ -34,18 +34,31 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 interface SchoolData {
   id?: number;
   name: string;
-  shortName: string;
-  eiin: string;
+  shortName?: string;
+  nameBn?: string;
+  eiin?: string;
+  centerCode?: string;
   logo: string;
-  favicon: string;
+  favicon?: string;
+  governmentLogo?: string;
+  headerLogo?: string;
   district: string;
   upazila: string;
+  address?: string;
+  location?: string;
   phone: string;
   email: string;
-  slogan: string;
-  establishedIn: number;
-  subdomain: string;
-  customDomain: string;
+  website?: string;
+  mapEmbedUrl?: string;
+  slogan?: string;
+  establishedIn?: number;
+  nationalizedYear?: string;
+  resultsUrl?: string;
+  teacherLoginUrl?: string;
+  studentLoginUrl?: string;
+  subdomain?: string;
+  customDomain?: string;
+  gaMeasurementId?: string;
 }
 
 interface SchoolAdmin {
@@ -66,33 +79,59 @@ type SchoolFormValues = z.input<typeof createSchoolSchema>;
 const createEmptySchool = (): SchoolFormValues => ({
   name: "",
   shortName: "",
+  nameBn: "",
   eiin: "",
+  centerCode: "",
   logo: "",
   favicon: "",
+  governmentLogo: "",
+  headerLogo: "",
   district: "",
   upazila: "",
+  address: "",
+  location: "",
   phone: "",
   email: "",
   slogan: "",
   establishedIn: currentYear,
+  nationalizedYear: "",
   subdomain: "",
   customDomain: "",
+  website: "",
+  resultsUrl: "",
+  teacherLoginUrl: "",
+  studentLoginUrl: "",
+  mapEmbedUrl: "",
+  gaMeasurementId: "",
 });
 
 const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
   name: school?.name ?? "",
   shortName: school?.shortName ?? "",
+  nameBn: school?.nameBn ?? "",
   eiin: school?.eiin ?? "",
+  centerCode: school?.centerCode ?? "",
   logo: school?.logo ?? "",
   favicon: school?.favicon ?? "",
+  governmentLogo: school?.governmentLogo ?? "",
+  headerLogo: school?.headerLogo ?? "",
   district: school?.district ?? "",
   upazila: school?.upazila ?? "",
+  address: school?.address ?? "",
+  location: school?.location ?? "",
   phone: school?.phone ?? "",
   email: school?.email ?? "",
   slogan: school?.slogan ?? "",
   establishedIn: school?.establishedIn ?? currentYear,
+  nationalizedYear: school?.nationalizedYear ?? "",
   subdomain: school?.subdomain ?? "",
   customDomain: school?.customDomain ?? "",
+  website: school?.website ?? "",
+  resultsUrl: school?.resultsUrl ?? "",
+  teacherLoginUrl: school?.teacherLoginUrl ?? "",
+  studentLoginUrl: school?.studentLoginUrl ?? "",
+  mapEmbedUrl: school?.mapEmbedUrl ?? "",
+  gaMeasurementId: school?.gaMeasurementId ?? "",
 });
 
 function SchoolManagement() {
@@ -630,184 +669,360 @@ function SchoolManagement() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">School Name</label>
-                <input
-                  {...register("name")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. Dhaka Residential Model College"
-                />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Short Name</label>
-                <input
-                  {...register("shortName")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. DRMC"
-                />
-                {errors.shortName && <p className="mt-1 text-xs text-red-600">{errors.shortName.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">EIIN</label>
-                <input
-                  {...register("eiin")}
-                  inputMode="numeric"
-                  maxLength={6}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. 123456"
-                />
-                {errors.eiin && <p className="mt-1 text-xs text-red-600">{errors.eiin.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Subdomain</label>
-                <input
-                  {...register("subdomain")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. lbp"
-                />
-                {errors.subdomain && <p className="mt-1 text-xs text-red-600">{errors.subdomain.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Custom Domain</label>
-                <input
-                  {...register("customDomain")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. school.edu"
-                />
-                {errors.customDomain && <p className="mt-1 text-xs text-red-600">{errors.customDomain.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">District</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <select
-                    {...register("district", {
-                      onChange: () => {
-                        setValue("upazila", "", { shouldValidate: true });
-                      },
-                    })}
-                    className="w-full rounded-md border px-3 py-2 pl-10"
-                  >
-                    <option value="">Select District</option>
-                    {districts.map((d: District) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {errors.district && <p className="mt-1 text-xs text-red-600">{errors.district.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Upazila</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <select
-                    {...register("upazila")}
-                    className="w-full rounded-md border px-3 py-2 pl-10"
-                    disabled={!district}
-                  >
-                    <option value="">Select Upazila</option>
-                    {district &&
-                      getUpazilasByDistrict(district).map((u: Upazila) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                {errors.upazila && <p className="mt-1 text-xs text-red-600">{errors.upazila.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1 flex items-center gap-1">
-                  <Phone className="h-4 w-4" /> Phone
-                </label>
-                <input
-                  {...register("phone")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. 01712345678"
-                />
-                {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1 flex items-center gap-1">
-                  <Mail className="h-4 w-4" /> Email
-                </label>
-                <input
-                  type="email"
-                  {...register("email")}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="e.g. school@example.com"
-                />
-                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Slogan</label>
-                <input
-                  {...register("slogan")}
-                  className="w-full rounded-md border px-3 py-2"
-                />
-                {errors.slogan && <p className="mt-1 text-xs text-red-600">{errors.slogan.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Established In</label>
-                <input
-                  type="number"
-                  {...register("establishedIn")}
-                  className="w-full rounded-md border px-3 py-2"
-                />
-                {errors.establishedIn && (
-                  <p className="mt-1 text-xs text-red-600">{errors.establishedIn.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Logo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  disabled={logoUploading}
-                  className="w-full rounded-md border px-3 py-2"
-                />
-                {logoPreviewUrl && (
-                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <img
-                      src={logoPreviewUrl}
-                      alt="Selected logo preview"
-                      className="h-10 w-10 rounded border object-contain"
+            <div className="space-y-6">
+              {/* Section 1: General & Board Info */}
+              <div className="rounded-lg border p-4 space-y-4 bg-card/50">
+                <h3 className="font-semibold text-sm text-primary flex items-center gap-1.5 border-b pb-2">
+                  <Building2 className="h-4 w-4" />
+                  General & Board Identification
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1">School Name (English)</label>
+                    <input
+                      {...register("name")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. Dhaka Residential Model College"
                     />
-                    <span>Logo ready to upload</span>
+                    {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
                   </div>
-                )}
-                {!logoPreviewUrl && logoValue && logoValue.startsWith("http") && (
-                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <img
-                      src={logoValue}
-                      alt="Uploaded logo preview"
-                      className="h-10 w-10 rounded border object-contain"
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1">School Name (Bengali / বাংলা নাম)</label>
+                    <input
+                      {...register("nameBn")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. ঢাকা রেসিডেনসিয়াল মডেল কলেজ"
                     />
-                    <span>Logo uploaded</span>
+                    {errors.nameBn && <p className="mt-1 text-xs text-red-600">{errors.nameBn.message}</p>}
                   </div>
-                )}
-                {!logoPreviewUrl && logoValue  && (
-                  <img src={getFileUrl(logoValue)} alt="" className="w-20" />
-                )}
-                {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Short Name</label>
+                    <input
+                      {...register("shortName")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. DRMC"
+                    />
+                    {errors.shortName && <p className="mt-1 text-xs text-red-600">{errors.shortName.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">EIIN</label>
+                    <input
+                      {...register("eiin")}
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. 123456"
+                    />
+                    {errors.eiin && <p className="mt-1 text-xs text-red-600">{errors.eiin.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Center Code</label>
+                    <input
+                      {...register("centerCode")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. 102"
+                    />
+                    {errors.centerCode && <p className="mt-1 text-xs text-red-600">{errors.centerCode.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Established In</label>
+                    <input
+                      type="number"
+                      {...register("establishedIn")}
+                      className="w-full rounded-md border px-3 py-2"
+                    />
+                    {errors.establishedIn && (
+                      <p className="mt-1 text-xs text-red-600">{errors.establishedIn.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Nationalized Year</label>
+                    <input
+                      {...register("nationalizedYear")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. 1980"
+                    />
+                    {errors.nationalizedYear && <p className="mt-1 text-xs text-red-600">{errors.nationalizedYear.message}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1">Slogan / Motto</label>
+                    <input
+                      {...register("slogan")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. Knowledge is Power"
+                    />
+                    {errors.slogan && <p className="mt-1 text-xs text-red-600">{errors.slogan.message}</p>}
+                  </div>
+                </div>
               </div>
 
+              {/* Section 2: Contact & Physical Location */}
+              <div className="rounded-lg border p-4 space-y-4 bg-card/50">
+                <h3 className="font-semibold text-sm text-primary flex items-center gap-1.5 border-b pb-2">
+                  <MapPin className="h-4 w-4" />
+                  Contact & Location
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1 flex items-center gap-1">
+                      <Phone className="h-4 w-4" /> Phone
+                    </label>
+                    <input
+                      {...register("phone")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. 01712345678"
+                    />
+                    {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 flex items-center gap-1">
+                      <Mail className="h-4 w-4" /> Email
+                    </label>
+                    <input
+                      type="email"
+                      {...register("email")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. school@example.com"
+                    />
+                    {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">District</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <select
+                        {...register("district", {
+                          onChange: () => {
+                            setValue("upazila", "", { shouldValidate: true });
+                          },
+                        })}
+                        className="w-full rounded-md border px-3 py-2 pl-10"
+                      >
+                        <option value="">Select District</option>
+                        {districts.map((d: District) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {errors.district && <p className="mt-1 text-xs text-red-600">{errors.district.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Upazila</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <select
+                        {...register("upazila")}
+                        className="w-full rounded-md border px-3 py-2 pl-10"
+                        disabled={!district}
+                      >
+                        <option value="">Select Upazila</option>
+                        {district &&
+                          getUpazilasByDistrict(district).map((u: Upazila) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    {errors.upazila && <p className="mt-1 text-xs text-red-600">{errors.upazila.message}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1">Full Postal Address</label>
+                    <input
+                      {...register("address")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. Mirpur Road, Mohammadpur, Dhaka-1207"
+                    />
+                    {errors.address && <p className="mt-1 text-xs text-red-600">{errors.address.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Short Location Summary</label>
+                    <input
+                      {...register("location")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. Mohammadpur, Dhaka"
+                    />
+                    {errors.location && <p className="mt-1 text-xs text-red-600">{errors.location.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Google Maps Embed URL</label>
+                    <input
+                      {...register("mapEmbedUrl")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://www.google.com/maps/embed?pb=..."
+                    />
+                    {errors.mapEmbedUrl && <p className="mt-1 text-xs text-red-600">{errors.mapEmbedUrl.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Subdomains & Portal Links */}
+              <div className="rounded-lg border p-4 space-y-4 bg-card/50">
+                <h3 className="font-semibold text-sm text-primary flex items-center gap-1.5 border-b pb-2">
+                  <Building2 className="h-4 w-4" />
+                  Routing & Portal Links
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Subdomain</label>
+                    <input
+                      {...register("subdomain")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. drmc"
+                    />
+                    {errors.subdomain && <p className="mt-1 text-xs text-red-600">{errors.subdomain.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Custom Domain</label>
+                    <input
+                      {...register("customDomain")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. drmc.edu.bd"
+                    />
+                    {errors.customDomain && <p className="mt-1 text-xs text-red-600">{errors.customDomain.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">External Website URL</label>
+                    <input
+                      {...register("website")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://drmc.edu.bd"
+                    />
+                    {errors.website && <p className="mt-1 text-xs text-red-600">{errors.website.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Results Portal Link</label>
+                    <input
+                      {...register("resultsUrl")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://results.drmc.edu.bd"
+                    />
+                    {errors.resultsUrl && <p className="mt-1 text-xs text-red-600">{errors.resultsUrl.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Teacher Login URL</label>
+                    <input
+                      {...register("teacherLoginUrl")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://drmc.edu.bd/teacher-login"
+                    />
+                    {errors.teacherLoginUrl && <p className="mt-1 text-xs text-red-600">{errors.teacherLoginUrl.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Student Login URL</label>
+                    <input
+                      {...register("studentLoginUrl")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://drmc.edu.bd/student-login"
+                    />
+                    {errors.studentLoginUrl && <p className="mt-1 text-xs text-red-600">{errors.studentLoginUrl.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Google Analytics Measurement ID (GA4)</label>
+                    <input
+                      {...register("gaMeasurementId")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. G-XXXXXXXXXX"
+                    />
+                    {errors.gaMeasurementId && <p className="mt-1 text-xs text-red-600">{errors.gaMeasurementId.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Logos & Branding */}
+              <div className="rounded-lg border p-4 space-y-4 bg-card/50">
+                <h3 className="font-semibold text-sm text-primary flex items-center gap-1.5 border-b pb-2">
+                  <Building2 className="h-4 w-4" />
+                  Logos & Graphics
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Main School Logo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={logoUploading}
+                      className="w-full rounded-md border px-3 py-2"
+                    />
+                    {logoPreviewUrl && (
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                        <img
+                          src={logoPreviewUrl}
+                          alt="Selected logo preview"
+                          className="h-10 w-10 rounded border object-contain"
+                        />
+                        <span>Logo ready to upload</span>
+                      </div>
+                    )}
+                    {!logoPreviewUrl && logoValue && logoValue.startsWith("http") && (
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                        <img
+                          src={logoValue}
+                          alt="Uploaded logo preview"
+                          className="h-10 w-10 rounded border object-contain"
+                        />
+                        <span>Logo uploaded</span>
+                      </div>
+                    )}
+                    {!logoPreviewUrl && logoValue && (
+                      <img src={getFileUrl(logoValue)} alt="" className="w-20" />
+                    )}
+                    {errors.logo && <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Favicon URL / Path</label>
+                    <input
+                      {...register("favicon")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://.../favicon.ico"
+                    />
+                    {errors.favicon && <p className="mt-1 text-xs text-red-600">{errors.favicon.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Govt Emblem Logo URL</label>
+                    <input
+                      {...register("governmentLogo")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://.../govt-logo.png"
+                    />
+                    {errors.governmentLogo && <p className="mt-1 text-xs text-red-600">{errors.governmentLogo.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Header Banner Logo URL</label>
+                    <input
+                      {...register("headerLogo")}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="e.g. https://.../header-logo.png"
+                    />
+                    {errors.headerLogo && <p className="mt-1 text-xs text-red-600">{errors.headerLogo.message}</p>}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end">
