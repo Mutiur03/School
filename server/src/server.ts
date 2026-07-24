@@ -7,8 +7,6 @@ process.env.TZ = "Asia/Dhaka";
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
-
-export const TTL = process.env.PDF_CACHE_TTL || "300";
 import cors from "cors";
 import compression from "compression";
 import { detailedRequestLogger } from "./middlewares/requestLogger.js";
@@ -47,7 +45,7 @@ import registrationFormClass8Router from "./modules/registration/class-8/Form/re
 import registrationSettingsClass9Router from "./modules/registration/class-9/Settings/registrationSettingsClass9.route.js";
 import registrationFormClass9Router from "./modules/registration/class-9/Form/registrationFormClass9.route.js";
 import { check } from "./config/redis.js";
-import { startMarksheetWorker } from "./modules/marks/marksheet.worker.js";
+import { startMarksheetWorker, drainMarksheetQueue } from "./modules/marks/marksheet.worker.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
@@ -265,7 +263,7 @@ app.use(
   },
 );
 generateToken();
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   const logsPath = path.resolve("logs");
   fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
@@ -286,4 +284,36 @@ app.listen(PORT, () => {
   check();
   startMarksheetWorker();
 });
+
+let shuttingDown = false;
+const gracefulShutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`Received ${signal}, draining marksheet worker…`);
+
+  try {
+    await drainMarksheetQueue();
+  } catch (e) {
+    logger.warn("Marksheet queue drain error during shutdown", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  await new Promise<void>((resolve) => {
+    httpServer.close(() => {
+      logger.info("HTTP server closed");
+      resolve();
+    });
+  });
+
+  process.exit(0);
+};
+
+process.on("SIGTERM", () => {
+  void gracefulShutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  void gracefulShutdown("SIGINT");
+});
+
 export default app;

@@ -44,8 +44,8 @@ export type MarksheetJob =
   | SessionStudentJob
   | SessionYearJob;
 
-// Individual student marksheet pre-generation. Separate queue from the
-// admission pdfQueue so the two don't contend for the same workers.
+// Individual student marksheet pre-generation. Separate queue so PDF work
+// does not contend with other Bull queues on the same Redis.
 // PDF render can exceed Bull's default 30s lock; without a longer lock the
 // job is marked stalled and fails with "job stalled more than allowable limit"
 // even though the worker is still working.

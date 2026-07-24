@@ -3,8 +3,6 @@ import archiver from "archiver";
 import * as XLSX from "xlsx";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@/config/prisma.js";
-import { redis } from "@/config/redis.js";
-import { pdfQueue } from "@/utils/pdfQueue.js";
 import { getUploadUrl, deleteFromR2, r2Client } from "@/config/r2.js";
 import { ApiError } from "@/utils/ApiError.js";
 import type { AdmissionPhotoUploadData } from "@school/shared-schemas";
@@ -63,27 +61,6 @@ const checkDuplicates = async (data: Record<string, any>, excludeId: string | nu
   }
 
   return duplicates;
-};
-
-const queuePdfGeneration = async (id: string) => {
-  const statusKey = `pdf:${id}:status`;
-  await redis.set(statusKey, "generating");
-  try {
-    await pdfQueue.add(
-      { admissionId: id },
-      {
-        jobId: `pdf:${id}`,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
-  } catch (queueErr) {
-    console.error(
-      "Failed to add PDF job to queue:",
-      queueErr instanceof Error ? queueErr.message : queueErr,
-    );
-    await redis.set(statusKey, "failed");
-  }
 };
 
 export class AdmissionFormService {
@@ -155,7 +132,6 @@ export class AdmissionFormService {
     const dataToCreate = { ...payload, photo_path: photoPath };
 
     const rec = await prisma.admission_form.create({ data: dataToCreate });
-    await queuePdfGeneration(rec.id);
 
     return {
       id: rec.id,
@@ -211,7 +187,6 @@ export class AdmissionFormService {
     });
     console.log(updated);
 
-    await queuePdfGeneration(id);
     return updated;
   }
 

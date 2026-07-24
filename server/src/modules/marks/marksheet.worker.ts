@@ -8,8 +8,14 @@ import { MarksheetService } from "./marksheet.service.js";
 const parsed = Number(process.env.MARKSHEET_WORKER_CONCURRENCY);
 const CONCURRENCY = Math.max(
   1,
-  Number.isFinite(parsed) && parsed > 0 ? parsed :1,
+  Number.isFinite(parsed) && parsed > 0 ? parsed : 1,
 );
+
+/** Wait for active jobs before exit — under lockDuration (5 min). */
+const DRAIN_TIMEOUT_MS = Number(
+  process.env.MARKSHEET_DRAIN_TIMEOUT_MS || String(3 * 60 * 1000),
+);
+const DRAIN_POLL_MS = 2000;
 
 let started = false;
 
@@ -66,4 +72,48 @@ export function startMarksheetWorker(): void {
         error: e instanceof Error ? e.message : String(e),
       }),
     );
+}
+
+/**
+ * Pause local processing and wait for in-flight marksheet jobs to finish.
+ * Call on SIGTERM/SIGINT before closing the HTTP server.
+ */
+export async function drainMarksheetQueue(
+  timeoutMs: number = DRAIN_TIMEOUT_MS,
+): Promise<void> {
+  try {
+    await marksheetQueue.pause(true);
+  } catch (e) {
+    logger.warn("[marksheet] drain: pause failed", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    let active = 0;
+    try {
+      active = await marksheetQueue.getActiveCount();
+    } catch (e) {
+      logger.warn("[marksheet] drain: getActiveCount failed", {
+        error: e instanceof Error ? e.message : String(e),
+      });
+      break;
+    }
+    if (active === 0) {
+      logger.info("[marksheet] drain: no active jobs");
+      return;
+    }
+    logger.info("[marksheet] drain: waiting for active jobs", {
+      active,
+      remainingMs: Math.max(0, deadline - Date.now()),
+    });
+    await new Promise((r) => setTimeout(r, DRAIN_POLL_MS));
+  }
+
+  const leftover = await marksheetQueue.getActiveCount().catch(() => -1);
+  logger.warn("[marksheet] drain: timeout with jobs still active", {
+    active: leftover,
+    timeoutMs,
+  });
 }
