@@ -40,6 +40,12 @@ router.get(
 );
 
 router.get(
+  "/class-exam/:className/:year/:exam/summary.xlsx",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  MarksController.downloadClassExamSummaryExcelController,
+);
+
+router.get(
   "/generation-status/:examId",
   AuthMiddleware.authenticate(["admin", "teacher"]),
   MarksController.generationStatusController,

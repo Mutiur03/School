@@ -2308,7 +2308,7 @@ export class MarksService {
         .font(PDF_STYLES.fontRegular)
         .fontSize(PDF_STYLES.rowFontSize)
         .fillColor("#000000");
-      doc.text(`Date of result published: ${formattedResultDate}`, startX, dateY, {
+      doc.text(`Date of result published: ${formattedResultDate}.`, startX, dateY, {
         width: contentWidth,
         align: "left",
       });
@@ -2745,7 +2745,7 @@ export class MarksService {
     this.drawDynamicText(doc, String(student.roll || "-"), 410, row2Y, 50, lineHeight, { fontSize: 11, font: "Times-Roman" });
   }
 
-  private static getGradeByPercentage(
+  static getGradeByPercentage(
     percentage: number,
     breakdown?: {
       total?: number;
@@ -2967,15 +2967,26 @@ export class MarksService {
         }
         lastType = row.assessment_type;
 
+        // Nudge label down so it sits closer to the continuous assessment table.
+        const caLabelNudge = 6;
+        const caLabelFontSize = headerFontSize + 1;
         doc
           .font(fontBold)
-          .fontSize(headerFontSize - 1)
+          .fontSize(caLabelFontSize)
           .fillColor("#000000");
-        this.drawDynamicText(doc, "CONTINUOUS ASSESSMENT", startX, y, contentWidth, rowHeight, {
-          align: "center",
-          bold: true,
-          fontSize: headerFontSize - 1,
-        });
+        this.drawDynamicText(
+          doc,
+          "Continuous assessment",
+          startX,
+          y + caLabelNudge,
+          contentWidth,
+          rowHeight - caLabelNudge,
+          {
+            align: "center",
+            bold: true,
+            fontSize: caLabelFontSize,
+          },
+        );
         doc.fillColor("#000000").font(fontRegular).fontSize(rowFontSize);
         y += rowHeight;
       }

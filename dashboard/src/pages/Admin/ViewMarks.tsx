@@ -29,7 +29,7 @@ import {
 } from "@/queries/marks.queries";
 import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
 import { BundleStalePreview } from "@/components/BundleStalePreview";
-import { openBlobInNewTab } from "@school/common-ui/blob";
+import { downloadBlob, openBlobInNewTab } from "@school/common-ui/blob";
 
 interface TeacherLevel {
   id: number;
@@ -286,6 +286,42 @@ const ViewMarks = () => {
     }
   };
 
+  const downloadSummaryExcel = async () => {
+    if (!className || !year || !exam) {
+      toast.error("Please select Class, Year and Exam");
+      return;
+    }
+    const loadingToast = toast.loading("Generating summary Excel...");
+    try {
+      const response = await axios.get(
+        `/api/marks/class-exam/${className}/${year}/${exam}/summary.xlsx`,
+        {
+          responseType: "blob",
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          params: section ? { section } : undefined,
+        },
+      );
+      const disposition = response.headers["content-disposition"] as
+        | string
+        | undefined;
+      const match = disposition?.match(/filename="([^"]+)"/);
+      const filename =
+        match?.[1] ??
+        `${className}${section || "All"}_Summary_${exam}_${year}.xlsx`;
+      downloadBlob(
+        new Blob([response.data], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        filename,
+      );
+    } catch {
+      toast.error("Failed to download summary Excel");
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
   const showStudentDetails = (student: StudentMarkResponse) => {
     setSelectedStudent(student);
     setShowDetailsPopup(true);
@@ -447,7 +483,7 @@ const ViewMarks = () => {
         description={`Showing ${filteredData.length} records`}
         headerAction={
           className && exam && filteredData.length > 0 && (
-            <div className="flex flex-col items-end gap-2 max-w-xs">
+            <div className="flex flex-col items-end gap-2 max-w-md">
               {genStatus &&
                 hasStaleBundles(genStatus) &&
                 isMarksheetGenComplete(genStatus) && (
@@ -459,14 +495,25 @@ const ViewMarks = () => {
                   className="text-left w-full"
                 />
               )}
-              <Button
-                size="sm"
-                onClick={downloadAllExamPDFs}
-                className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] shrink-0"
-              >
-                <Download className="w-4 h-4" />
-                Download All Exam PDFs
-              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  onClick={downloadAllExamPDFs}
+                  className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  Download All Exam PDFs
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={downloadSummaryExcel}
+                  className="gap-2 h-9 px-4 shrink-0"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Download Summary Excel
+                </Button>
+              </div>
             </div>
           )
         }

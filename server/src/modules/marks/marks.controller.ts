@@ -2,6 +2,7 @@ import asyncHandler from "@/utils/asyncHandler.js";
 import { Request, Response } from "express";
 import { MarksService } from "./marks.service.js";
 import { MarksheetService } from "./marksheet.service.js";
+import { ClassSummaryService } from "./class-summary.service.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
 
@@ -202,6 +203,37 @@ export class MarksController {
       res
         .status(200)
         .json(new ApiResponse(200, { url: result.url }, "Download ready"));
+    },
+  );
+
+  static downloadClassExamSummaryExcelController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { className, year, exam } = req.params;
+      if (!className || !year || !exam) {
+        throw new ApiError(
+          400,
+          "className, year, and exam are required parameters",
+        );
+      }
+      const section =
+        typeof req.query.section === "string" ? req.query.section : undefined;
+      const { buffer, filename } =
+        await ClassSummaryService.generateClassSummaryExcel(
+          className as string,
+          year as string,
+          exam as string,
+          req.user,
+          section,
+        );
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.end(buffer);
     },
   );
 
