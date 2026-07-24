@@ -48,16 +48,6 @@ export class SchoolController {
       .json(new ApiResponse(200, school, "School updated successfully"));
   });
 
-  static deleteSchool = asyncHandler(async (req: any, res: Response) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) throw new ApiError(400, "Invalid school id");
-
-    await SchoolService.deleteSchool(id);
-    res
-      .status(200)
-      .json(new ApiResponse(200, null, "School deleted successfully"));
-  });
-
   static getSchoolPublicInfo = asyncHandler(async (req: any, res: Response) => {
     const info = await SchoolService.getCurrentSchoolInfo({
       schoolId: req.schoolId,

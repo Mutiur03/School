@@ -45,14 +45,6 @@ export class SchoolService {
     return updated;
   }
 
-  static async deleteSchool(id: number) {
-    const deleted = await prisma.school.delete({
-      where: { id },
-    });
-    redis.del(schoolInfoKey(id)).catch(() => {});
-    return deleted;
-  }
-
   static async getSchoolInfo(id: number) {
     const key = schoolInfoKey(id);
     const cached = await redis.get(key).catch(() => null);

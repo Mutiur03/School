@@ -140,7 +140,6 @@ function SchoolManagement() {
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | "new">("new");
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
@@ -419,30 +418,6 @@ function SchoolManagement() {
     }
   };
 
-  const handleDelete = async () => {
-    if (selectedSchoolId === "new") return;
-
-    const confirmed = await confirm({
-      title: "Delete school?",
-      msg: `Delete school "${schoolName || "this school"}"? This action cannot be undone.`,
-      confirmLabel: "Delete School",
-    });
-    if (!confirmed) return;
-
-    setDeleting(true);
-    try {
-      await axios.delete(`/api/schools/${selectedSchoolId}`);
-      toast.success("School deleted");
-      startNewSchool();
-      await fetchSchools();
-    } catch (error) {
-      console.error("Failed to delete school", error);
-      toast.error("Failed to delete school");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const onAddAdmin = async (values: AdminFormValues) => {
     if (selectedSchoolId === "new") {
       toast.error("Save the school before adding admins");
@@ -611,21 +586,6 @@ function SchoolManagement() {
                   ? `Edit: ${schoolName || "School"}`
                   : "Create New School"}
               </h2>
-              {selectedSchoolId !== "new" && (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting || saving}
-                  className="inline-flex items-center gap-2 rounded-md border border-red-300 px-3 py-2 text-sm text-red-600"
-                >
-                  {deleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Delete
-                </button>
-              )}
             </div>
 
             {selectedSchoolId !== "new" && (
@@ -1028,7 +988,7 @@ function SchoolManagement() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={saving || deleting || logoUploading}
+                disabled={saving || logoUploading}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

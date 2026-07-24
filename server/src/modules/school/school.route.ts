@@ -36,11 +36,6 @@ superAdminSchoolRouterInternal.put(
   validate(updateSchoolSchema),
   SchoolController.updateSchool,
 );
-superAdminSchoolRouterInternal.delete(
-  "/:id",
-  AuthMiddleware.authenticate(["super_admin"]),
-  SchoolController.deleteSchool,
-);
 superAdminSchoolRouterInternal.post(
   "/:id/rotate-student-passwords",
   AuthMiddleware.authenticate(["super_admin"]),
