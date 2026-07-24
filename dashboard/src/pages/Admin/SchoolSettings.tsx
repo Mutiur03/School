@@ -29,17 +29,30 @@ interface SchoolData {
   id?: number;
   name?: string | null;
   shortName?: string | null;
+  nameBn?: string | null;
   eiin?: string | null;
+  centerCode?: string | null;
   logo?: string | null;
   favicon?: string | null;
+  governmentLogo?: string | null;
+  headerLogo?: string | null;
   district?: string | null;
   upazila?: string | null;
+  address?: string | null;
+  location?: string | null;
   phone?: string | null;
   email?: string | null;
+  website?: string | null;
+  mapEmbedUrl?: string | null;
   slogan?: string | null;
   establishedIn?: number | null;
+  nationalizedYear?: string | null;
+  resultsUrl?: string | null;
+  teacherLoginUrl?: string | null;
+  studentLoginUrl?: string | null;
   subdomain?: string | null;
   customDomain?: string | null;
+  gaMeasurementId?: string | null;
 }
 
 type SchoolFormValues = z.input<typeof createSchoolSchema>;
@@ -50,33 +63,59 @@ const currentYear = new Date().getFullYear();
 const createDefaultValues = (): SchoolFormValues => ({
   name: "",
   shortName: "",
+  nameBn: "",
   eiin: "",
+  centerCode: "",
   logo: "",
   favicon: "",
+  governmentLogo: "",
+  headerLogo: "",
   district: "",
   upazila: "",
+  address: "",
+  location: "",
   phone: "",
   email: "",
   slogan: "",
   establishedIn: currentYear,
+  nationalizedYear: "",
   subdomain: "",
   customDomain: "",
+  website: "",
+  resultsUrl: "",
+  teacherLoginUrl: "",
+  studentLoginUrl: "",
+  mapEmbedUrl: "",
+  gaMeasurementId: "",
 });
 
 const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
   name: school?.name ?? "",
   shortName: school?.shortName ?? "",
+  nameBn: school?.nameBn ?? "",
   eiin: school?.eiin ?? "",
+  centerCode: school?.centerCode ?? "",
   logo: school?.logo ?? "",
   favicon: school?.favicon ?? "",
+  governmentLogo: school?.governmentLogo ?? "",
+  headerLogo: school?.headerLogo ?? "",
   district: school?.district ?? "",
   upazila: school?.upazila ?? "",
+  address: school?.address ?? "",
+  location: school?.location ?? "",
   phone: school?.phone ?? "",
   email: school?.email ?? "",
   slogan: school?.slogan ?? "",
   establishedIn: school?.establishedIn ?? currentYear,
+  nationalizedYear: school?.nationalizedYear ?? "",
   subdomain: school?.subdomain ?? "",
   customDomain: school?.customDomain ?? "",
+  website: school?.website ?? "",
+  resultsUrl: school?.resultsUrl ?? "",
+  teacherLoginUrl: school?.teacherLoginUrl ?? "",
+  studentLoginUrl: school?.studentLoginUrl ?? "",
+  mapEmbedUrl: school?.mapEmbedUrl ?? "",
+  gaMeasurementId: school?.gaMeasurementId ?? "",
 });
 
 function SchoolSettings() {
