@@ -14,12 +14,12 @@ import { MarksService } from "./marks.service.js";
 import {
   marksheetQueue,
   defaultJobOpts,
+  enqueueUserPriority,
   jobId,
   bundleJobId,
   sessionStudentJobId,
   sessionYearJobId,
   PRIORITY_BACKFILL,
-  PRIORITY_USER,
   type MarksheetJob,
   type StudentJob,
   type BundleJob,
@@ -63,7 +63,7 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = "4";
+export const MARKSHEET_DESIGN_VERSION = "6";
 
 /** Design field for input hashes. Frozen + no snapshot → omit (legacy compat). */
 function designFingerprint(
@@ -626,12 +626,7 @@ export class MarksheetService {
       },
       update: { status: "pending", error: null, exam_name: examName },
     });
-    await marksheetQueue
-      .add(job, {
-        jobId: jobId(examId, studentId),
-        ...defaultJobOpts(PRIORITY_USER),
-      })
-      .catch(() => {});
+    await enqueueUserPriority(job, jobId(examId, studentId)).catch(() => {});
 
     logger.info("[marksheet] serve: waiting for worker", { studentId, examId });
 
@@ -729,15 +724,10 @@ export class MarksheetService {
       },
       update: { status: "pending", error: null, exam_name: examName },
     });
-    await marksheetQueue
-      .add(
-        { ...job, kind: "bundle", bundleSection },
-        {
-          jobId: bundleJobId(examId, cls, bundleSection),
-          ...defaultJobOpts(PRIORITY_USER),
-        },
-      )
-      .catch(() => {});
+    await enqueueUserPriority(
+      { ...job, kind: "bundle", bundleSection },
+      bundleJobId(examId, cls, bundleSection),
+    ).catch(() => {});
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
@@ -2191,12 +2181,9 @@ export class MarksheetService {
       year,
       schoolId,
     };
-    await marksheetQueue
-      .add(job, {
-        jobId: sessionStudentJobId(year, studentId),
-        ...defaultJobOpts(PRIORITY_USER),
-      })
-      .catch(() => {});
+    await enqueueUserPriority(job, sessionStudentJobId(year, studentId)).catch(
+      () => {},
+    );
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
@@ -2243,12 +2230,7 @@ export class MarksheetService {
     if (fresh) return fresh;
 
     const job: SessionYearJob = { kind: "session-year", year, schoolId };
-    await marksheetQueue
-      .add(job, {
-        jobId: sessionYearJobId(year),
-        ...defaultJobOpts(PRIORITY_USER),
-      })
-      .catch(() => {});
+    await enqueueUserPriority(job, sessionYearJobId(year)).catch(() => {});
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {

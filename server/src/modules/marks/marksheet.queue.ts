@@ -46,8 +46,16 @@ export type MarksheetJob =
 
 // Individual student marksheet pre-generation. Separate queue from the
 // admission pdfQueue so the two don't contend for the same workers.
+// PDF render can exceed Bull's default 30s lock; without a longer lock the
+// job is marked stalled and fails with "job stalled more than allowable limit"
+// even though the worker is still working.
 export const marksheetQueue = new Bull<MarksheetJob>("marksheetQueue", {
   redis: { host, port: 6379 },
+  settings: {
+    lockDuration: 5 * 60 * 1000, // 5 min — cover slow PDF + R2 upload
+    stalledInterval: 60 * 1000,
+    maxStalledCount: 2,
+  },
 });
 
 // Lower priority value = processed first. User-triggered warmups jump ahead of
@@ -62,6 +70,43 @@ export const defaultJobOpts = (priority: number): Bull.JobOptions => ({
   removeOnComplete: true,
   removeOnFail: 200,
 });
+
+/**
+ * Enqueue (or promote) a job at user priority. If the same jobId is already
+ * waiting as backfill, remove + re-add so it jumps ahead of the bulk queue.
+ * Active jobs are left alone (almost done).
+ */
+export async function enqueueUserPriority(
+  data: MarksheetJob,
+  id: string,
+): Promise<void> {
+  const opts = { jobId: id, ...defaultJobOpts(PRIORITY_USER) };
+  const existing = await marksheetQueue.getJob(id);
+
+  if (!existing) {
+    await marksheetQueue.add(data, opts);
+    return;
+  }
+
+  const state = await existing.getState();
+  if (state === "active" || state === "completed") {
+    return;
+  }
+
+  const currentPriority = existing.opts?.priority ?? PRIORITY_BACKFILL;
+  if (state === "failed" || currentPriority > PRIORITY_USER) {
+    try {
+      await existing.remove();
+    } catch {
+      // Race: job became active between getState and remove — leave it.
+      return;
+    }
+    await marksheetQueue.add(data, opts);
+    return;
+  }
+
+  // Already waiting at user priority (or better).
+}
 
 export const jobId = (examId: number, studentId: number) =>
   `ms:${examId}:${studentId}`;

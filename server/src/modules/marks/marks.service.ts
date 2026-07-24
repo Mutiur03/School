@@ -837,6 +837,113 @@ export class MarksService {
     return grouped.sort((a, b) => a.priority - b.priority);
   }
 
+  /** Subjects that appear as marksheet rows (papers + singles; not main parents). */
+  private static readonly MARKSHEET_SUBJECT_SELECT = {
+    id: true,
+    name: true,
+    priority: true,
+    assessment_type: true,
+    full_mark: true,
+    pass_mark: true,
+    cq_mark: true,
+    mcq_mark: true,
+    practical_mark: true,
+    cq_pass_mark: true,
+    mcq_pass_mark: true,
+    practical_pass_mark: true,
+    marking_scheme: true,
+    subject_type: true,
+    parent_id: true,
+    group: true,
+    parent: { select: { name: true } },
+  } as const;
+
+  /** Class roster used when filling empty subjects onto a marksheet. */
+  static async loadMarksheetSubjects(classNum: number, year: number) {
+    return prisma.subjects.findMany({
+      where: {
+        class: classNum,
+        year,
+        subject_type: { not: "main" },
+      },
+      select: this.MARKSHEET_SUBJECT_SELECT,
+      orderBy: [{ priority: "asc" }, { id: "asc" }],
+    });
+  }
+
+  private static subjectMatchesStudentGroup(
+    subject: { group?: string | null },
+    studentGroup?: string | null,
+  ) {
+    if (!studentGroup) return true;
+    return !subject.group || subject.group === "" || subject.group === studentGroup;
+  }
+
+  /**
+   * Ensure every class subject appears on the sheet. Subjects with no marks row
+   * are rendered as "-" (null marks) instead of being omitted.
+   */
+  static fillMissingSubjectMarks(
+    existingMarks: any[],
+    subjects: Awaited<ReturnType<typeof MarksService.loadMarksheetSubjects>>,
+    studentGroup: string | null | undefined,
+    base: {
+      enrollment_id: number;
+      exam_id: number;
+      enrollment?: any;
+      exam?: any;
+    },
+  ) {
+    const bySubjectId = new Map<number, any>();
+    for (const m of existingMarks) {
+      bySubjectId.set(m.subject_id, m);
+    }
+
+    const filled: any[] = [];
+    for (const sub of subjects) {
+      if (!this.subjectMatchesStudentGroup(sub, studentGroup)) continue;
+      const existing = bySubjectId.get(sub.id);
+      if (existing) {
+        filled.push(existing);
+        bySubjectId.delete(sub.id);
+      } else {
+        filled.push({
+          enrollment_id: base.enrollment_id,
+          exam_id: base.exam_id,
+          subject_id: sub.id,
+          cq_marks: null,
+          mcq_marks: null,
+          practical_marks: null,
+          marks: null,
+          enrollment: base.enrollment ?? existingMarks[0]?.enrollment,
+          exam: base.exam ?? existingMarks[0]?.exam,
+          subject: sub,
+        });
+      }
+    }
+
+    // Keep orphan rows (e.g. subject removed from roster) so data is not lost.
+    for (const leftover of bySubjectId.values()) {
+      filled.push(leftover);
+    }
+
+    filled.sort((a, b) => {
+      if (
+        a.subject.assessment_type === "exam" &&
+        b.subject.assessment_type !== "exam"
+      )
+        return -1;
+      if (
+        a.subject.assessment_type !== "exam" &&
+        b.subject.assessment_type === "exam"
+      )
+        return 1;
+      return (a.subject.priority || 0) - (b.subject.priority || 0);
+    });
+
+    return filled;
+  }
+
   static aggregatePaperMarks(marksList: any[]) {
     const aggregatedData: Record<number, any> = {};
     const finalData: any[] = [];
@@ -848,10 +955,10 @@ export class MarksService {
         if (!aggregatedData[pid]) {
           aggregatedData[pid] = {
             subject: sub.parent?.name || "Main Subject",
-            marks: 0,
-            cq_marks: 0,
-            mcq_marks: 0,
-            practical_marks: 0,
+            marks: null as number | null,
+            cq_marks: null as number | null,
+            mcq_marks: null as number | null,
+            practical_marks: null as number | null,
             full_mark: 0,
             cq_mark: 0,
             mcq_mark: 0,
@@ -869,10 +976,12 @@ export class MarksService {
           };
         }
         const g = aggregatedData[pid];
-        g.marks += mark.marks || 0;
-        g.cq_marks += mark.cq_marks || 0;
-        g.mcq_marks += mark.mcq_marks || 0;
-        g.practical_marks += mark.practical_marks || 0;
+        if (mark.marks != null) g.marks = (g.marks ?? 0) + mark.marks;
+        if (mark.cq_marks != null) g.cq_marks = (g.cq_marks ?? 0) + mark.cq_marks;
+        if (mark.mcq_marks != null) g.mcq_marks = (g.mcq_marks ?? 0) + mark.mcq_marks;
+        if (mark.practical_marks != null) {
+          g.practical_marks = (g.practical_marks ?? 0) + mark.practical_marks;
+        }
         g.full_mark += sub.full_mark || 0;
         g.cq_mark += sub.cq_mark || 0;
         g.mcq_mark += sub.mcq_mark || 0;
@@ -984,19 +1093,6 @@ export class MarksService {
       throw new Error("No marks found for this student");
     }
 
-    result.sort((a, b) => {
-      if (
-        a.subject.assessment_type === "exam" &&
-        b.subject.assessment_type !== "exam"
-      )
-        return -1;
-      if (
-        a.subject.assessment_type !== "exam" &&
-        b.subject.assessment_type === "exam"
-      )
-        return 1;
-      return (a.subject.priority || 0) - (b.subject.priority || 0);
-    });
     const enrollment = result[0].enrollment;
     const resultDate = result[0].exam?.result_date ?? null;
     const returnDate = result[0].exam?.return_date ?? null;
@@ -1021,12 +1117,25 @@ export class MarksService {
     // every addMarks) instead of rescanning the whole class here.
     const examId = result[0].exam_id;
     const yearInt = parseInt(year);
-    const [statsRow, website] = await Promise.all([
+    const [statsRow, website, classSubjects] = await Promise.all([
       prisma.exam_class_stats.findFirst({
         where: { exam_id: examId, class: studentClass, year: yearInt },
       }),
       this.getSchoolWebsite(),
+      this.loadMarksheetSubjects(studentClass, yearInt),
     ]);
+
+    const filledResult = this.fillMissingSubjectMarks(
+      result,
+      classSubjects,
+      enrollment.group,
+      {
+        enrollment_id: enrollment.id,
+        exam_id: examId,
+        enrollment,
+        exam: result[0].exam,
+      },
+    );
 
     // Resolve the signatories. For a frozen exam the worker passes the
     // snapshotted ids so a later staff reassignment does not re-stamp the sheet;
@@ -1154,7 +1263,7 @@ export class MarksService {
       return_date: returnDate,
     };
 
-    const finalTableData = this.aggregatePaperMarks(result.map(m => ({
+    const finalTableData = this.aggregatePaperMarks(filledResult.map(m => ({
       ...m,
       highest_mark: highestMarksMap[m.subject_id] || 0
     })));
@@ -1223,7 +1332,7 @@ export class MarksService {
       where.section = section;
     }
 
-    const [enrollments, allExamMarks, headMsg, website] = await Promise.all([
+    const [enrollments, allExamMarks, headMsg, website, classSubjects] = await Promise.all([
       prisma.student_enrollments.findMany({
         where,
         include: { student: { select: { id: true, name: true } } },
@@ -1265,6 +1374,7 @@ export class MarksService {
       }),
       this.getHeadMsgForMarks(),
       this.getSchoolWebsite(),
+      this.loadMarksheetSubjects(classNum, yearInt),
     ]);
 
     if (enrollments.length === 0) throw new Error("No students found");
@@ -1353,7 +1463,17 @@ export class MarksService {
         const enrollment = studentsWithMarks[i];
         if (i > 0) doc.addPage();
 
-        const studentMarks = marksByEnrollment[enrollment.id];
+        const studentMarks = this.fillMissingSubjectMarks(
+          marksByEnrollment[enrollment.id] || [],
+          classSubjects,
+          enrollment.group,
+          {
+            enrollment_id: enrollment.id,
+            exam_id: allExamMarks[0]?.exam_id,
+            enrollment,
+            exam: allExamMarks[0]?.exam,
+          },
+        );
         const studentDetails = {
           name: enrollment.student.name,
           class: enrollment.class,
@@ -1617,10 +1737,18 @@ export class MarksService {
           section: m.enrollment.section,
           roll: m.enrollment.roll,
           year: m.enrollment.year,
+          group: m.enrollment.group,
           fourth_subject_id: m.enrollment.fourth_subject_id,
         };
       }
     });
+
+    const subjectsByClass = new Map<number, Awaited<ReturnType<typeof MarksService.loadMarksheetSubjects>>>();
+    await Promise.all(
+      classesAffected.map(async (cls) => {
+        subjectsByClass.set(cls, await this.loadMarksheetSubjects(cls, yearInt));
+      }),
+    );
 
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
     this.registerMarksheetFonts(doc);
@@ -1678,15 +1806,30 @@ export class MarksService {
         const teacherName = teacherSigs[sigKey].name;
 
         // Draw page shell
-        const allExamsTableData = exams.map((en) => ({
-          exam: en,
-          rows: this.aggregatePaperMarks(
-            studentGrouped[sid][en].map((m: any) => ({
-              ...m,
-              highest_mark: highestMarksMap[en]?.[m.subject_id] || 0,
-            })),
-          ),
-        }));
+        const classSubjects = subjectsByClass.get(info.class) || [];
+        const allExamsTableData = exams.map((en) => {
+          const raw = studentGrouped[sid][en] || [];
+          const filled = this.fillMissingSubjectMarks(
+            raw,
+            classSubjects,
+            info.group,
+            {
+              enrollment_id: raw[0]?.enrollment_id,
+              exam_id: raw[0]?.exam_id,
+              enrollment: raw[0]?.enrollment,
+              exam: raw[0]?.exam,
+            },
+          );
+          return {
+            exam: en,
+            rows: this.aggregatePaperMarks(
+              filled.map((m: any) => ({
+                ...m,
+                highest_mark: highestMarksMap[en]?.[m.subject_id] || 0,
+              })),
+            ),
+          };
+        });
         const consolidatedQrText = this.buildMarksQrText(info, allExamsTableData);
 
         const drawPageHeader = async (examDisplayName: string) => {
@@ -1707,7 +1850,18 @@ export class MarksService {
 
         for (let j = 0; j < exams.length; j++) {
           const examName = exams[j];
-          const studentMarks = studentGrouped[sid][examName];
+          const rawMarks = studentGrouped[sid][examName] || [];
+          const studentMarks = this.fillMissingSubjectMarks(
+            rawMarks,
+            classSubjects,
+            info.group,
+            {
+              enrollment_id: rawMarks[0]?.enrollment_id,
+              exam_id: rawMarks[0]?.exam_id,
+              enrollment: rawMarks[0]?.enrollment,
+              exam: rawMarks[0]?.exam,
+            },
+          );
 
           const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
             ...m,
@@ -2941,17 +3095,20 @@ export class MarksService {
         const mx =
           startX + colWidths.slice(0, middleStart).reduce((a, b) => a + b, 0);
         const fullMark = Number(row.full_mark);
-        const grade = this.getGradeByPercentage((row.marks / fullMark) * 100, {
-          total: row.marks,
-          total_pass: row.pass_mark,
-          cq: row.cq_marks,
-          cq_pass: row.cq_pass_mark,
-          mcq: row.mcq_marks,
-          mcq_pass: row.mcq_pass_mark,
-          pr: row.practical_marks,
-          pr_pass: row.practical_pass_mark,
-          marking_scheme: row.marking_scheme,
-        });
+        const hasMarks = row.marks !== null && row.marks !== undefined;
+        const grade = hasMarks
+          ? this.getGradeByPercentage((row.marks / fullMark) * 100, {
+              total: row.marks,
+              total_pass: row.pass_mark,
+              cq: row.cq_marks,
+              cq_pass: row.cq_pass_mark,
+              mcq: row.mcq_marks,
+              mcq_pass: row.mcq_pass_mark,
+              pr: row.practical_marks,
+              pr_pass: row.practical_pass_mark,
+              marking_scheme: row.marking_scheme,
+            })
+          : { lg: "-", gp: NaN };
 
         this.drawDynamicText(doc, row.marks ?? "-", mx + 5, y, colWidths[middleStart] - 10, totalHeight, {
           fontSize: rowFontSize,
@@ -2961,7 +3118,14 @@ export class MarksService {
           fontSize: rowFontSize,
           align: "center",
         });
-        this.drawDynamicText(doc, grade.gp.toFixed(2), mx + colWidths[middleStart] + colWidths[middleStart + 1] + 5, y, colWidths[middleStart + 2] - 10, totalHeight, {
+        this.drawDynamicText(
+          doc,
+          Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
+          mx + colWidths[middleStart] + colWidths[middleStart + 1] + 5,
+          y,
+          colWidths[middleStart + 2] - 10,
+          totalHeight,
+          {
           fontSize: rowFontSize,
           align: "center",
         });
@@ -2978,18 +3142,21 @@ export class MarksService {
         }
 
         const fullMark = Number(row.full_mark || 100);
-        const grade = this.getGradeByPercentage((row.marks / fullMark) * 100, {
-          total: row.marks,
-          total_pass: row.pass_mark,
-          cq: row.cq_marks,
-          cq_pass: row.cq_pass_mark,
-          mcq: row.mcq_marks,
-          mcq_pass: row.mcq_pass_mark,
-          pr: row.practical_marks,
-          pr_pass: row.practical_pass_mark,
-          className: className,
-          marking_scheme: row.marking_scheme,
-        });
+        const hasMarks = row.marks !== null && row.marks !== undefined;
+        const grade = hasMarks
+          ? this.getGradeByPercentage((row.marks / fullMark) * 100, {
+              total: row.marks,
+              total_pass: row.pass_mark,
+              cq: row.cq_marks,
+              cq_pass: row.cq_pass_mark,
+              mcq: row.mcq_marks,
+              mcq_pass: row.mcq_pass_mark,
+              pr: row.practical_marks,
+              pr_pass: row.practical_pass_mark,
+              className: className,
+              marking_scheme: row.marking_scheme,
+            })
+          : { lg: "-", gp: NaN };
 
         let cols: string[] = [];
         if (isBreakdown) {
@@ -3000,7 +3167,7 @@ export class MarksService {
             String(row.practical_marks ?? "-"),
             String(row.marks ?? "-"),
             grade.lg,
-            grade.gp.toFixed(2),
+            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
             row.highest_mark ? String(row.highest_mark) : "-",
           ];
         } else {
@@ -3009,7 +3176,7 @@ export class MarksService {
             String(row.marks ?? "-"),
             String(row.marks ?? "-"),
             grade.lg,
-            grade.gp.toFixed(2),
+            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
             row.highest_mark ? String(row.highest_mark) : "-",
           ];
         }

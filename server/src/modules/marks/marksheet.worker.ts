@@ -1,15 +1,14 @@
-import os from "os";
 import logger from "@/utils/logger.js";
 import { marksheetQueue } from "./marksheet.queue.js";
 import { MarksheetService } from "./marksheet.service.js";
 
-// Render + rasterize is CPU-bound; keep concurrency low so the shared event
-// loop stays responsive during a publish backfill. Tune via env; defaults to
-// the machine's logical CPU/thread count when MARKSHEET_WORKER_CONCURRENCY is
-// unset or invalid.
+// Render is CPU-bound on the shared Node event loop. Default concurrency is
+// low so a design-bump backfill does not stall jobs past Bull's lock.
+// Override with MARKSHEET_WORKER_CONCURRENCY when needed.
+const parsed = Number(process.env.MARKSHEET_WORKER_CONCURRENCY);
 const CONCURRENCY = Math.max(
   1,
-  Number(process.env.MARKSHEET_WORKER_CONCURRENCY) || os.cpus().length,
+  Number.isFinite(parsed) && parsed > 0 ? parsed :1,
 );
 
 let started = false;
