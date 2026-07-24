@@ -85,9 +85,7 @@ const MarkSheetDisplay: React.FC<MarkSheetDisplayProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {marks
-              .filter((entry) => entry.marks !== null)
-              .map((entry, index) => (
+            {marks.map((entry, index) => (
               <tr key={index} className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group">
                 <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors uppercase">
                   {entry.subject}

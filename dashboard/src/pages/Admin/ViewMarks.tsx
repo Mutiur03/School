@@ -161,15 +161,13 @@ const ViewMarks = () => {
     const groups = new Set<string>();
 
     marksData.forEach((student) => {
-      student.marks
-        ?.filter((mark) => mark.marks !== null)
-        .forEach((mark) => {
-          const prev = subjectPriority.get(mark.subject);
-          const p = mark.priority ?? 999;
-          if (prev === undefined || p < prev) {
-            subjectPriority.set(mark.subject, p);
-          }
-        });
+      student.marks?.forEach((mark) => {
+        const prev = subjectPriority.get(mark.subject);
+        const p = mark.priority ?? 999;
+        if (prev === undefined || p < prev) {
+          subjectPriority.set(mark.subject, p);
+        }
+      });
       if (student.section) sections.add(student.section);
       if (student.group) groups.add(student.group);
     });
@@ -662,7 +660,6 @@ const ViewMarks = () => {
                                 (mark) => mark.subject_info?.marking_scheme === "BREAKDOWN"
                               );
                               return selectedStudent.marks
-                                .filter((mark) => mark.marks !== null)
                                 .sort(
                                   (a, b) =>
                                     (a.priority ?? 999) - (b.priority ?? 999),
