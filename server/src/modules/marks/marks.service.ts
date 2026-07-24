@@ -701,9 +701,7 @@ export class MarksService {
       group: enrollment.group,
       section: enrollment.section,
       fourth_subject_id: enrollment.fourth_subject_id,
-      marks: (enrollment.marks || [])
-        .filter((mark: any) => mark.marks !== null)
-        .map((mark: any) => ({
+      marks: (enrollment.marks || []).map((mark: any) => ({
           subject_id: mark.subject.id,
           subject: mark.subject.name,
           priority: mark.subject.priority ?? 0,
@@ -1601,7 +1599,6 @@ export class MarksService {
     const returnDateByExam: Record<string, string | null> = {};
 
     marks.forEach((m) => {
-      if (m.marks === null) return;
       const sid = m.enrollment.student_id;
       const en = m.exam.exam_name;
       if (!studentGrouped[sid]) studentGrouped[sid] = {};
@@ -2152,7 +2149,7 @@ export class MarksService {
     let endY = rowY + rowHeight;
     const formattedResultDate = formatMarksheetDate(resultDate);
     if (formattedResultDate) {
-      const dateY = endY + 4;
+      const dateY = endY + 8;
       doc
         .font(PDF_STYLES.fontRegular)
         .fontSize(PDF_STYLES.rowFontSize)
