@@ -15,6 +15,7 @@ import {
   marksheetQueue,
   defaultJobOpts,
   enqueueUserPriority,
+  ensureJobQueued,
   jobId,
   bundleJobId,
   sessionStudentJobId,
@@ -837,8 +838,10 @@ export class MarksheetService {
 
   /**
    * If students have marks but no cache row (or only failed), queue generation.
-   * Called when the progress UI polls generation-status so an empty DB still
-   * starts the worker without requiring a re-publish.
+   * Also re-queues pending/failed class bundles whose Bull jobs were lost
+   * (stall, restart, jobId orphan). Called when the progress UI polls
+   * generation-status so an empty DB still starts the worker without requiring
+   * a re-publish.
    */
   static async ensureQueuedForExam(examId: number): Promise<number> {
     const exam = await prisma.exams.findUnique({
@@ -860,7 +863,9 @@ export class MarksheetService {
           .filter((id): id is number => id != null),
       ),
     ];
-    if (studentIds.length === 0) return 0;
+    if (studentIds.length === 0) {
+      return this.ensureBundlesQueuedForExam(examId);
+    }
 
     const existing = await prisma.marksheet_files.findMany({
       where: { exam_id: examId, student_id: { in: studentIds } },
@@ -877,14 +882,121 @@ export class MarksheetService {
       return st !== "ready" && st !== "pending" && st !== "generating";
     });
 
-    if (needQueue.length === 0) return 0;
+    let queued = 0;
+    if (needQueue.length > 0) {
+      await this.invalidate(needQueue, examId);
+      queued += needQueue.length;
+      logger.info("[marksheet] ensureQueued: gap-fill for exam", {
+        examId,
+        count: needQueue.length,
+      });
+    }
 
-    await this.invalidate(needQueue, examId);
-    logger.info("[marksheet] ensureQueued: gap-fill for exam", {
-      examId,
-      count: needQueue.length,
+    // Pending rows whose Bull job was lost (stall / restart) never leave pending
+    // unless we re-add them — invalidate() skips status===pending.
+    const pendingStudents = await prisma.marksheet_files.findMany({
+      where: {
+        exam_id: examId,
+        student_id: { in: studentIds },
+        status: { in: ["pending", "failed"] },
+      },
+      select: {
+        student_id: true,
+        exam_id: true,
+        exam_name: true,
+        year: true,
+        school_id: true,
+      },
     });
-    return needQueue.length;
+    for (const r of pendingStudents) {
+      const didAdd = await ensureJobQueued(
+        {
+          studentId: r.student_id,
+          examId: r.exam_id,
+          examName: r.exam_name,
+          year: r.year,
+          schoolId: r.school_id,
+        },
+        jobId(r.exam_id, r.student_id),
+      );
+      if (didAdd) queued++;
+    }
+
+    queued += await this.ensureBundlesQueuedForExam(examId);
+    return queued;
+  }
+
+  /**
+   * Re-queue class bundles stuck in pending/failed (or orphaned generating)
+   * when their Bull job is missing — otherwise status stays pending forever.
+   */
+  private static async ensureBundlesQueuedForExam(
+    examId: number,
+  ): Promise<number> {
+    // Orphaned generating: worker died after claim, job gone from Redis.
+    const generating = await prisma.marksheet_bundles.findMany({
+      where: { exam_id: examId, status: "generating" },
+      select: {
+        exam_id: true,
+        exam_name: true,
+        year: true,
+        class: true,
+        section: true,
+        school_id: true,
+      },
+    });
+    for (const row of generating) {
+      const id = bundleJobId(row.exam_id, row.class, row.section);
+      const job = await marksheetQueue.getJob(id);
+      const state = job ? await job.getState() : null;
+      if (state === "active") continue;
+      await prisma.marksheet_bundles.updateMany({
+        where: {
+          exam_id: row.exam_id,
+          class: row.class,
+          section: row.section,
+          status: "generating",
+        },
+        data: { status: "pending", error: null },
+      });
+    }
+
+    const pendingBundles = await prisma.marksheet_bundles.findMany({
+      where: { exam_id: examId, status: { in: ["pending", "failed"] } },
+      select: {
+        exam_id: true,
+        exam_name: true,
+        year: true,
+        class: true,
+        section: true,
+        school_id: true,
+      },
+    });
+    if (pendingBundles.length === 0) return 0;
+
+    let added = 0;
+    for (const r of pendingBundles) {
+      const didAdd = await ensureJobQueued(
+        {
+          kind: "bundle",
+          examId: r.exam_id,
+          examName: r.exam_name,
+          year: r.year,
+          class: r.class,
+          schoolId: r.school_id,
+          bundleSection: r.section,
+        },
+        bundleJobId(r.exam_id, r.class, r.section),
+      );
+      if (didAdd) added++;
+    }
+    if (added > 0) {
+      logger.info("[marksheet] ensureQueued: re-queued pending bundles", {
+        examId,
+        count: added,
+      });
+    }
+    return added;
   }
 
   /** Students with at least one non-null mark for this exam. */

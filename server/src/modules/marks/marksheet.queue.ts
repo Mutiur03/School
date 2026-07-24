@@ -108,6 +108,38 @@ export async function enqueueUserPriority(
   // Already waiting at user priority (or better).
 }
 
+/**
+ * Ensure a backfill job exists in Redis for a DB `pending` row.
+ * Handles lost/stalled jobs: failed/completed orphans are removed and re-added.
+ * Returns true when a new job was added.
+ */
+export async function ensureJobQueued(
+  data: MarksheetJob,
+  id: string,
+  priority: number = PRIORITY_BACKFILL,
+): Promise<boolean> {
+  const opts = { jobId: id, ...defaultJobOpts(priority) };
+  const existing = await marksheetQueue.getJob(id);
+
+  if (!existing) {
+    await marksheetQueue.add(data, opts);
+    return true;
+  }
+
+  const state = await existing.getState();
+  if (state === "active" || state === "waiting" || state === "delayed") {
+    return false;
+  }
+
+  try {
+    await existing.remove();
+  } catch {
+    return false;
+  }
+  await marksheetQueue.add(data, opts);
+  return true;
+}
+
 export const jobId = (examId: number, studentId: number) =>
   `ms:${examId}:${studentId}`;
 
