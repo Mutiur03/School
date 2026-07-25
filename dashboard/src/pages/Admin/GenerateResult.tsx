@@ -92,7 +92,7 @@ const GenerateResult = () => {
   const filteredStudents = useMemo(() => {
     return students
       .filter((s) => !group || s.group === group)
-      .sort((a, b) => (a.section || "").localeCompare(b.section || "") || (a.roll || 0) - (b.roll || 0));
+      .sort((a, b) => (a.section || "").localeCompare(b.section || "") || (Number(a.roll) || 0) - (Number(b.roll) || 0));
   }, [students, group]);
 
   const downloadSessionMarksheet = async (studentId: number) => {

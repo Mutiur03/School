@@ -87,7 +87,7 @@ const AddMarks = () => {
 
   useEffect(() => {
     if (user?.role === "teacher" && user.levels && user.levels.length > 0) {
-      const assignmentsInYear = user.levels.filter((l: any) => l.year === Number(year));
+      const assignmentsInYear = user.levels.filter((l: { year: number }) => l.year === Number(year));
       if (assignmentsInYear.length === 1) {
         const assignment = assignmentsInYear[0];
         if (examName) {
@@ -211,8 +211,15 @@ const AddMarks = () => {
         );
       })
       .sort((a: Student, b: Student) => {
-        const secCmp = a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" });
-        return secCmp !== 0 ? secCmp : a.roll - b.roll;
+        const secCmp = a.section.localeCompare(b.section, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        if (secCmp !== 0) return secCmp;
+        const rollA = Number(a.roll) || 0;
+        const rollB = Number(b.roll) || 0;
+        if (rollA !== rollB) return rollA - rollB;
+        return a.name.localeCompare(b.name);
       });
   }, [students, group, section, searchQuery]);
 
@@ -349,7 +356,7 @@ const AddMarks = () => {
                       if (user?.role === "admin") return true;
                       if (user?.role === "teacher") {
                         return user.levels?.some(
-                          (l: any) =>
+                          (l: { class_name: number; year: number }) =>
                             l.class_name === Number(cls) &&
                             l.year === Number(year),
                         );
@@ -395,7 +402,7 @@ const AddMarks = () => {
                     if (user?.role === "admin") return true;
                     if (user?.role === "teacher") {
                       return user.levels?.some(
-                        (l: any) =>
+                        (l: { class_name: number; year: number; section: string }) =>
                           l.class_name === Number(level) &&
                           l.section === sec &&
                           l.year === Number(year)

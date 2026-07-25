@@ -37,7 +37,7 @@ export class PublicResultController {
         publicResultExamsQuerySchema,
         req.query,
       );
-      const data = await PublicResultService.listPublishedExams(
+      const data = await PublicResultService.listExams(
         year,
         classInt,
       );

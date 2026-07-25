@@ -59,7 +59,7 @@ export const publicResultVerifySchema = z
 export type PublicResultVerifyInput = z.input<typeof publicResultVerifySchema>;
 export type PublicResultVerifyData = z.infer<typeof publicResultVerifySchema>;
 
-/** Query params for GET /public/exams (published exams for a session + class). */
+/** Query params for GET /public/exams (exams for a session + class). */
 export const publicResultExamsQuerySchema = z.object({
   year: z
     .union([z.string(), z.number()])

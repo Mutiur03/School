@@ -288,7 +288,11 @@ export class ClassSummaryService {
             },
           },
         },
-        orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
+        orderBy: [
+          { section: "asc" },
+          { roll: "asc" },
+          { student: { name: "asc" } },
+        ],
       }),
       MarksService.loadMarksheetSubjects(cls, yearInt),
       MarksService.shouldApplyFourthSubjectBonus(cls, yearInt),

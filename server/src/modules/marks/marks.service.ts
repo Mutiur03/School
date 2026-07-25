@@ -624,7 +624,11 @@ export class MarksService {
       include: {
         student: { select: { id: true, name: true } },
       },
-      orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
+      orderBy: [
+        { section: "asc" },
+        { roll: "asc" },
+        { student: { name: "asc" } },
+      ],
     });
 
     return students.map((enrollment: any) => ({
@@ -686,7 +690,11 @@ export class MarksService {
           },
         },
       },
-      orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
+      orderBy: [
+        { section: "asc" },
+        { roll: "asc" },
+        { student: { name: "asc" } },
+      ],
     });
 
     if (result.length === 0) {

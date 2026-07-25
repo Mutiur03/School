@@ -25,6 +25,27 @@ body {
     text-align: inherit;
 }
 
+/* Public result — sealed marksheet idle motion */
+@keyframes result-seal-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.result-seal-float {
+    animation: result-seal-float 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .result-seal-float {
+        animation: none;
+    }
+}
+
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);

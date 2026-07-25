@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { Download, Eye, LogOut, Loader2 } from "lucide-react";
+import { Download, Eye, LogOut, Loader2, AlertTriangle } from "lucide-react";
 import {
   downloadBlob,
   openBlobInNewTab,
@@ -17,11 +17,9 @@ import {
   type PublicResultVerifyData,
   type PublicResultVerifyInput,
 } from "@school/shared-schemas";
+import type { PublicExamOption } from "@/queries/public-result.queries";
 
-interface ExamOption {
-  exam_name: string;
-  result_date: string | null;
-}
+type ExamOption = PublicExamOption;
 interface SessionOption {
   year: number;
   exams: ExamOption[];
@@ -68,12 +66,13 @@ function classLabel(classNum: number | string): string {
   return CLASS_WORD[n] ?? String(classNum);
 }
 const ROLL_OPTIONS = Array.from({ length: 70 }, (_, i) => i + 1);
+const DEFAULT_CLASS = CLASS_OPTIONS[0];
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 const DEFAULT_VALUES: PublicResultVerifyInput = {
   year: String(currentYear),
-  class: String(CLASS_OPTIONS[0]),
+  class: String(DEFAULT_CLASS),
   section: SECTION_OPTIONS[0].value,
   roll: String(ROLL_OPTIONS[0]),
   phone: "",
@@ -88,7 +87,27 @@ function errMsg(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function ResultClient() {
+function formatResultDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
+}
+
+type ResultClientProps = {
+  initialYear: number;
+  initialClass: number;
+  initialExams: ExamOption[];
+};
+
+export default function ResultClient({
+  initialYear,
+  initialClass,
+  initialExams,
+}: ResultClientProps) {
   const {
     register,
     handleSubmit,
@@ -97,16 +116,21 @@ export default function ResultClient() {
     formState: { errors, isSubmitting },
   } = useForm<PublicResultVerifyInput, unknown, PublicResultVerifyData>({
     resolver: zodResolver(publicResultVerifySchema),
-    defaultValues: DEFAULT_VALUES,
+    defaultValues: {
+      ...DEFAULT_VALUES,
+      year: String(initialYear),
+      class: String(initialClass),
+    },
     mode: "onSubmit",
   });
 
   const watchedYear = useWatch({ control, name: "year" });
   const watchedClass = useWatch({ control, name: "class" });
 
-  const [formExams, setFormExams] = useState<ExamOption[]>([]);
-  const [formExam, setFormExam] = useState("");
+  const [formExams, setFormExams] = useState<ExamOption[]>(initialExams);
+  const [formExam, setFormExam] = useState(initialExams[0]?.exam_name ?? "");
   const [loadingExams, setLoadingExams] = useState(false);
+  const skipInitialExamFetch = useRef(true);
 
   const [verified, setVerified] = useState<PublicResultVerifyData | null>(null);
   const [session, setSession] = useState<VerifyResponse | null>(null);
@@ -115,6 +139,7 @@ export default function ResultClient() {
 
   const [result, setResult] = useState<ExamResult | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
+  const [unpublished, setUnpublished] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -122,6 +147,11 @@ export default function ResultClient() {
     if (!session || selectedYear == null) return [];
     return session.sessions.find((s) => s.year === selectedYear)?.exams ?? [];
   }, [session, selectedYear]);
+
+  const selectedExamMeta = useMemo(
+    () => examsForYear.find((e) => e.exam_name === selectedExam) ?? null,
+    [examsForYear, selectedExam],
+  );
 
   const authHeader = session
     ? { Authorization: `Bearer ${session.token}` }
@@ -135,6 +165,17 @@ export default function ResultClient() {
       setFormExam("");
       return;
     }
+
+    // First paint already has the server-fetched list for the default year/class.
+    if (
+      skipInitialExamFetch.current &&
+      yearNum === initialYear &&
+      classNum === initialClass
+    ) {
+      skipInitialExamFetch.current = false;
+      return;
+    }
+    skipInitialExamFetch.current = false;
 
     let cancelled = false;
     setLoadingExams(true);
@@ -160,7 +201,7 @@ export default function ResultClient() {
     return () => {
       cancelled = true;
     };
-  }, [watchedYear, watchedClass]);
+  }, [watchedYear, watchedClass, initialYear, initialClass]);
 
   async function onVerify(body: PublicResultVerifyData) {
     if (!formExam) {
@@ -175,16 +216,23 @@ export default function ResultClient() {
       const yearNum = body.year;
       const exams =
         payload.sessions.find((s) => s.year === yearNum)?.exams ?? [];
-      const preferred =
-        exams.find((e) => e.exam_name === formExam)?.exam_name ??
-        exams[0]?.exam_name ??
-        "";
+      const preferredMeta =
+        exams.find((e) => e.exam_name === formExam) ??
+        formExams.find((e) => e.exam_name === formExam) ??
+        exams[0] ??
+        null;
+      const preferred = preferredMeta?.exam_name ?? formExam;
       setSelectedYear(yearNum);
       setSelectedExam(preferred);
       setResult(null);
-      if (preferred) {
-        await fetchResult(payload.token, yearNum, preferred);
+
+      const isPublished = preferredMeta?.visible === true;
+      if (!isPublished) {
+        setUnpublished(true);
+        return;
       }
+      setUnpublished(false);
+      await fetchResult(payload.token, yearNum, preferred);
     } catch (error) {
       toast.error(errMsg(error, "Could not verify student details"));
     }
@@ -192,6 +240,7 @@ export default function ResultClient() {
 
   async function fetchResult(token: string, yearNum: number, exam: string) {
     setLoadingResult(true);
+    setUnpublished(false);
     try {
       const { data } = await axios.get("/api/marks/public/result", {
         params: { year: yearNum, exam },
@@ -200,6 +249,10 @@ export default function ResultClient() {
       setResult(data.data as ExamResult);
     } catch (error) {
       setResult(null);
+      if (axios.isAxiosError(error) && error.response?.status === 403) {
+        setUnpublished(true);
+        return;
+      }
       toast.error(errMsg(error, "Could not load result"));
     } finally {
       setLoadingResult(false);
@@ -209,7 +262,18 @@ export default function ResultClient() {
   function handleSelect(yearNum: number, exam: string) {
     setSelectedYear(yearNum);
     setSelectedExam(exam);
-    if (session) fetchResult(session.token, yearNum, exam);
+    if (!session) return;
+
+    const meta =
+      session.sessions
+        .find((s) => s.year === yearNum)
+        ?.exams.find((e) => e.exam_name === exam) ?? null;
+    if (meta && meta.visible === false) {
+      setResult(null);
+      setUnpublished(true);
+      return;
+    }
+    fetchResult(session.token, yearNum, exam);
   }
 
   async function getPdf(): Promise<{ blob: Blob; filename: string } | null> {
@@ -255,6 +319,7 @@ export default function ResultClient() {
     setSelectedYear(null);
     setSelectedExam("");
     setResult(null);
+    setUnpublished(false);
     reset(DEFAULT_VALUES);
   }
 
@@ -383,7 +448,7 @@ export default function ResultClient() {
               {loadingExams ? (
                 <option value="">Loading exams…</option>
               ) : formExams.length === 0 ? (
-                <option value="">No published exam</option>
+                <option value="">No exam found</option>
               ) : (
                 formExams.map((ex) => (
                   <option key={ex.exam_name} value={ex.exam_name}>
@@ -451,10 +516,11 @@ export default function ResultClient() {
           )}
         </div>
         <button
+          type="button"
           onClick={handleLogout}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
         >
-          <LogOut className="h-4 w-4" /> Exit
+          <LogOut className="h-4 w-4" aria-hidden="true" /> Exit
         </button>
       </div>
 
@@ -515,6 +581,58 @@ export default function ResultClient() {
         {loadingResult ? (
           <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading result…
+          </div>
+        ) : unpublished || selectedExamMeta?.visible === false ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="relative overflow-hidden px-6 py-16 text-center sm:py-20"
+          >
+            <div className="relative mx-auto flex max-w-md flex-col items-center">
+              <div className="mb-7 flex h-24 w-24 items-center justify-center rounded-2xl border border-amber-200/80 bg-amber-50 shadow-[0_12px_40px_-16px_rgba(180,83,9,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <AlertTriangle
+                  className="result-seal-float h-12 w-12 text-amber-600"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+              </div>
+
+              <h2 className="text-balance text-2xl font-bold tracking-tight text-[#1b3a5c] sm:text-[1.65rem]">
+                Not Published Yet
+              </h2>
+              <p className="mt-3 text-pretty text-base leading-relaxed text-slate-600">
+                The results have not been published yet. Check back after the
+                school releases this exam.
+              </p>
+
+              {(selectedExam || selectedExamMeta?.result_date) && (
+                <div className="mt-6 flex w-full max-w-sm flex-col gap-2 rounded-lg border border-[#1b3a5c]/12 bg-white/80 px-4 py-3 text-left backdrop-blur-sm">
+                  {selectedExam && (
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                        Exam
+                      </p>
+                      <p
+                        className="truncate text-sm font-semibold text-[#1b3a5c]"
+                        translate="no"
+                      >
+                        {selectedExam}
+                      </p>
+                    </div>
+                  )}
+                  {selectedExamMeta?.result_date && (
+                    <div className="min-w-0 border-t border-slate-100 pt-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                        Result date
+                      </p>
+                      <p className="text-sm tabular-nums text-slate-700">
+                        {formatResultDate(selectedExamMeta.result_date)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ) : result ? (
           <>

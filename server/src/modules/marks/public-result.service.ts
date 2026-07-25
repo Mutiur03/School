@@ -20,6 +20,14 @@ function signPublicResultToken(studentId: number): string {
   );
 }
 
+/** Days between a "YYYY-MM-DD" date and today; Infinity when unparseable. */
+function daysFromToday(isoDate: string | null): number {
+  if (!isoDate) return Number.POSITIVE_INFINITY;
+  const time = Date.parse(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(time)) return Number.POSITIVE_INFINITY;
+  return Math.abs(time - Date.now()) / 86_400_000;
+}
+
 /** Verify a public-result token. Throws ApiError(401) on any problem. */
 export function verifyPublicResultToken(
   token: string | undefined,
@@ -42,36 +50,49 @@ export function verifyPublicResultToken(
 
 export class PublicResultService {
   /**
-   * Published exams for a session year whose `levels` include the given class.
-   * Safe to expose publicly (names + result dates only; gated by visible=true).
+   * Exams for a session year whose `levels` include the given class, ordered so
+   * the exam with the result date nearest to today comes first — that is the one
+   * a visitor is most likely checking. Includes unpublished exams so the public
+   * form can list them; visibility is enforced when fetching marks / marksheets.
    */
-  static async listPublishedExams(year: number, classInt: number) {
+  static async listExams(year: number, classInt: number) {
     const exams = await prisma.exams.findMany({
       where: {
         exam_year: year,
-        visible: true,
         levels: { has: classInt },
       },
       select: {
         exam_name: true,
         result_date: true,
+        visible: true,
       },
-      orderBy: { result_date: "desc" },
+      orderBy: [{ result_date: "desc" }, { exam_name: "asc" }],
     });
 
     // Distinct by name (levels uniqueness can yield same name across level arrays).
     const seen = new Set<string>();
-    return exams.filter((e) => {
+    const distinct = exams.filter((e) => {
       if (seen.has(e.exam_name)) return false;
       seen.add(e.exam_name);
       return true;
     });
+
+    return distinct.sort((a, b) => {
+      const diff = daysFromToday(a.result_date) - daysFromToday(b.result_date);
+      if (diff !== 0) return diff;
+      return a.exam_name.localeCompare(b.exam_name);
+    });
+  }
+
+  /** @deprecated Prefer listExams — kept name alias for older call sites. */
+  static async listPublishedExams(year: number, classInt: number) {
+    return this.listExams(year, classInt);
   }
 
   /**
    * Match enrollment by year/class/section/roll + (father_phone OR mother_phone)
    * within the current school (Prisma queries are RLS-scoped by subdomain).
-   * Returns a short-lived token plus published exams for that session year.
+   * Returns a short-lived token plus exams for that session (published or not).
    */
   static async verify(input: PublicResultVerifyData) {
     const { year, class: classInt, section, roll, phone } = input;
@@ -100,44 +121,12 @@ export class PublicResultService {
     }
 
     const student = enrollment.student;
-
-    // Only published exams (visible=true) with actual marks for this session.
-    const marks = await prisma.marks.findMany({
-      where: {
-        enrollment: { student_id: student.id, year },
-        exam: { visible: true },
-        marks: { not: null },
-      },
-      select: {
-        exam: { select: { exam_name: true, result_date: true } },
-      },
-    });
-
-    const exams = new Map<string, string | null>();
-    for (const m of marks) {
-      if (!exams.has(m.exam.exam_name)) {
-        exams.set(m.exam.exam_name, m.exam.result_date ?? null);
-      }
-    }
-
-    const sessions = [
-      {
-        year,
-        exams: Array.from(exams.entries()).map(([exam_name, result_date]) => ({
-          exam_name,
-          result_date,
-        })),
-      },
-    ];
-
-    if (exams.size === 0) {
-      throw new ApiError(404, "No published result found for this student");
-    }
+    const exams = await this.listExams(year, classInt);
 
     return {
       token: signPublicResultToken(student.id),
       student: { id: student.id, name: student.name },
-      sessions,
+      sessions: [{ year, exams }],
     };
   }
 
@@ -148,7 +137,7 @@ export class PublicResultService {
       select: { id: true },
     });
     if (!examRow) {
-      throw new ApiError(404, "Result not published");
+      throw new ApiError(403, "The results have not been published yet.");
     }
   }
 

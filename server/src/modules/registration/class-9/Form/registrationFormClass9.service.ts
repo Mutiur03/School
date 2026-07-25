@@ -245,7 +245,7 @@ export class RegistrationFormClass9Service {
 
     const registrations = await prisma.student_registration_ssc.findMany({
       where,
-      orderBy: { roll: "asc" },
+      orderBy: [{ section: "asc" }, { roll: "asc" }],
     });
 
     const registrationsForExport = registrations.map((registration) => {
@@ -300,7 +300,7 @@ export class RegistrationFormClass9Service {
 
     const registrations = await prisma.student_registration_ssc.findMany({
       where,
-      orderBy: { roll: "asc" },
+      orderBy: [{ section: "asc" }, { roll: "asc" }],
     });
 
     if (registrations.length === 0) {

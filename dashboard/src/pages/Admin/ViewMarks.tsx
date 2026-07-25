@@ -331,16 +331,28 @@ const ViewMarks = () => {
     setSelectedStudent(null);
   };
 
-  const filteredData = marksData.filter((student) => {
-    if (!student.marks || student.marks.length === 0) return false;
-    const hasAnyMarks = student.marks.some(
-      (m) => m.marks !== null && m.marks !== undefined
-    );
-    if (!hasAnyMarks) return false;
-    const sectionMatch = !section || (student.section || "") === section;
-    const groupMatch = !group || (student.group || "") === group;
-    return sectionMatch && groupMatch;
-  });
+  const filteredData = marksData
+    .filter((student) => {
+      if (!student.marks || student.marks.length === 0) return false;
+      const hasAnyMarks = student.marks.some(
+        (m) => m.marks !== null && m.marks !== undefined
+      );
+      if (!hasAnyMarks) return false;
+      const sectionMatch = !section || (student.section || "") === section;
+      const groupMatch = !group || (student.group || "") === group;
+      return sectionMatch && groupMatch;
+    })
+    .sort((a, b) => {
+      const secCmp = (a.section || "").localeCompare(b.section || "", undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      if (secCmp !== 0) return secCmp;
+      const rollA = Number(a.roll) || 0;
+      const rollB = Number(b.roll) || 0;
+      if (rollA !== rollB) return rollA - rollB;
+      return (a.name || "").localeCompare(b.name || "");
+    });
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -521,6 +533,7 @@ const ViewMarks = () => {
           <table className="w-full text-sm text-left border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/50 border-b border-border shadow-sm">
+                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Section</th>
                 <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Roll</th>
                 <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic min-w-50">Student Name</th>
                 {subjects.map((subject) => (
@@ -537,7 +550,7 @@ const ViewMarks = () => {
             <tbody className="divide-y divide-border">
               {marksLoading ? (
                 <tr>
-                  <td colSpan={subjects.length + 3} className="py-20">
+                  <td colSpan={subjects.length + 4} className="py-20">
                     <div className="flex flex-col items-center justify-center gap-4">
                       <Loading />
                       <p className="text-muted-foreground animate-pulse font-medium">Loading results...</p>
@@ -547,7 +560,7 @@ const ViewMarks = () => {
               ) : filteredData.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={subjects.length + 3}
+                    colSpan={subjects.length + 4}
                     className="py-20 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-2 opacity-50">
@@ -574,6 +587,9 @@ const ViewMarks = () => {
                       animate={{ opacity: 1 }}
                       className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group"
                     >
+                      <td className="px-6 py-4 text-center font-medium uppercase border-r border-border/50">
+                        {data.section || "—"}
+                      </td>
                       <td className="px-6 py-4 text-center font-medium tabular-nums border-r border-border/50">{data.roll}</td>
                       <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors uppercase border-r border-border/50">
                         {data.name}
