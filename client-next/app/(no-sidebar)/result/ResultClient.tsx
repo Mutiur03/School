@@ -87,16 +87,6 @@ function errMsg(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function formatResultDate(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(d);
-}
-
 type ResultClientProps = {
   initialYear: number;
   initialClass: number;
@@ -600,38 +590,9 @@ export default function ResultClient({
               <h2 className="text-balance text-2xl font-bold tracking-tight text-[#1b3a5c] sm:text-[1.65rem]">
                 Not Published Yet
               </h2>
-              <p className="mt-3 text-pretty text-base leading-relaxed text-slate-600">
-                The results have not been published yet. Check back after the
-                school releases this exam.
+              <p className="mt-3 text-pretty text-lg leading-relaxed text-slate-600">
+                Check back after the school releases the results.
               </p>
-
-              {(selectedExam || selectedExamMeta?.result_date) && (
-                <div className="mt-6 flex w-full max-w-sm flex-col gap-2 rounded-lg border border-[#1b3a5c]/12 bg-white/80 px-4 py-3 text-left backdrop-blur-sm">
-                  {selectedExam && (
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                        Exam
-                      </p>
-                      <p
-                        className="truncate text-sm font-semibold text-[#1b3a5c]"
-                        translate="no"
-                      >
-                        {selectedExam}
-                      </p>
-                    </div>
-                  )}
-                  {selectedExamMeta?.result_date && (
-                    <div className="min-w-0 border-t border-slate-100 pt-2">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                        Result date
-                      </p>
-                      <p className="text-sm tabular-nums text-slate-700">
-                        {formatResultDate(selectedExamMeta.result_date)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         ) : result ? (
