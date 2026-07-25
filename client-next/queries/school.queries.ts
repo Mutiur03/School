@@ -39,9 +39,7 @@ const defaultSchoolConfig: SchoolConfig = {
     playgroundArea: "160 decimals",
   },
   links: {
-    results: "https://student.lbphs.gov.bd/",
-    teacherLogin: "https://teacher.lbphs.gov.bd/",
-    studentLogin: "https://student.lbphs.gov.bd/",
+    results: "/result",
   },
   sidebarLinks: {
     important: [
@@ -247,6 +245,11 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
       established: info.establishedIn
         ? String(info.establishedIn)
         : defaultSchoolConfig.history.established,
+    },
+    links: {
+      results: getOptionalString(info.resultsUrl) ?? "/result",
+      teacherLogin: getOptionalString(info.teacherLoginUrl),
+      studentLogin: getOptionalString(info.studentLoginUrl),
     },
   };
 };

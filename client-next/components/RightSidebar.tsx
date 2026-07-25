@@ -2,6 +2,7 @@ import "./RightSidebar.css";
 import Link from "next/link";
 
 import { getFileUrl } from "@/lib/backend";
+import { isExternalHref } from "@/lib/links";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import Image from "next/image";
 import { fetchHeadMasterMsg } from "@/queries/teacher.queries";
@@ -204,16 +205,36 @@ export async function RightSidebar() {
         </div>
         <div className="menu-sidebar-menu-container">
           <ul className="menu">
-            <li className="menu-item">
-              <a target="_blank" href={links.teacherLogin} rel="noreferrer">
-                Teacher Log in
-              </a>
-            </li>
-            <li className="menu-item">
-              <a target="_blank" href={links.studentLogin} rel="noreferrer">
-                Student Log in
-              </a>
-            </li>
+            {links.teacherLogin && (
+              <li className="menu-item">
+                {isExternalHref(links.teacherLogin) ? (
+                  <a
+                    target="_blank"
+                    href={links.teacherLogin}
+                    rel="noreferrer"
+                  >
+                    Teacher Log in
+                  </a>
+                ) : (
+                  <Link href={links.teacherLogin}>Teacher Log in</Link>
+                )}
+              </li>
+            )}
+            {links.studentLogin && (
+              <li className="menu-item">
+                {isExternalHref(links.studentLogin) ? (
+                  <a
+                    target="_blank"
+                    href={links.studentLogin}
+                    rel="noreferrer"
+                  >
+                    Student Log in
+                  </a>
+                ) : (
+                  <Link href={links.studentLogin}>Student Log in</Link>
+                )}
+              </li>
+            )}
             <li className="menu-item">
               <button type="button" className="as-link">
                 e-Payment

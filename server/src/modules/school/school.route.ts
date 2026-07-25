@@ -8,7 +8,7 @@ const tenantSchoolRouterInternal = Router();
 tenantSchoolRouterInternal.get("/public", SchoolController.getSchoolPublicInfo);
 tenantSchoolRouterInternal.put(
   "/:id",
-  AuthMiddleware.authenticate(["super_admin", "admin"]),
+  AuthMiddleware.authenticate(["super_admin"]),
   validate(updateSchoolSchema),
   SchoolController.updateSchool,
 );
@@ -16,7 +16,7 @@ tenantSchoolRouterInternal.put(
 const superAdminSchoolRouterInternal = Router();
 superAdminSchoolRouterInternal.post(
   "/logo-upload-url",
-  AuthMiddleware.authenticate(["super_admin", "admin"]),
+  AuthMiddleware.authenticate(["super_admin"]),
   SchoolController.getLogoUploadUrl,
 );
 superAdminSchoolRouterInternal.post(

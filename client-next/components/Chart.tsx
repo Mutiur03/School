@@ -20,6 +20,7 @@ import emergencyCallServicesImage from "../assets/images/Emergency-call-Services
 import { ChartRoutineLinks } from "./chart/ChartRoutineLinks";
 import { ChartSyllabusLinks } from "./chart/ChartSyllabusLinks";
 import { ChartCitizenLink } from "./chart/ChartCitizenLink";
+import { isExternalHref } from "@/lib/links";
 
 export type ChartProps = {
   school?: {
@@ -44,7 +45,7 @@ function BoxImage({ src, alt }: { src: StaticImageData; alt: string }) {
 }
 
 export function Chart({ school }: ChartProps) {
-  const resultsUrl = school?.links?.results ?? "#";
+  const resultsUrl = school?.links?.results ?? "/result";
 
   return (
     <div className="front-boxs-area">
@@ -215,40 +216,42 @@ export function Chart({ school }: ChartProps) {
             </div>
 
             <div className="text-left col-md-6">
-              <div className="box-item">
-                <div className="box-title">
-                  <h3>ফলাফল</h3>
-                </div>
-                <div className="flex">
-                  <div className="box-img">
-                    <BoxImage src={resultIconImage} alt="" />
+                <div className="box-item">
+                  <div className="box-title">
+                    <h3>ফলাফল</h3>
                   </div>
-                  <div className="box-text">
-                    <ul>
-                      {[6, 7, 8, 9, 10].map((cls) => (
-                        <li key={cls}>
-                          <a
-                            href={resultsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {cls === 6
-                              ? "ষষ্ঠ শ্রেণি"
-                              : cls === 7
-                                ? "সপ্তম শ্রেণি"
-                                : cls === 8
-                                  ? "অষ্টম শ্রেণি"
-                                  : cls === 9
-                                    ? "নবম শ্রেণি"
-                                    : "দশম শ্রেণি"}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="flex">
+                    <div className="box-img">
+                      <BoxImage src={resultIconImage} alt="" />
+                    </div>
+                    <div className="box-text">
+                      <ul>
+                        {[
+                          { cls: 6, label: "ষষ্ঠ শ্রেণি" },
+                          { cls: 7, label: "সপ্তম শ্রেণি" },
+                          { cls: 8, label: "অষ্টম শ্রেণি" },
+                          { cls: 9, label: "নবম শ্রেণি" },
+                          { cls: 10, label: "দশম শ্রেণি" },
+                        ].map(({ cls, label }) => (
+                          <li key={cls}>
+                            {isExternalHref(resultsUrl) ? (
+                              <a
+                                href={resultsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {label}
+                              </a>
+                            ) : (
+                              <Link href={resultsUrl}>{label}</Link>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="text-left col-md-6">
               <div className="box-item">

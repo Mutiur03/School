@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { MenuItem } from "../types";
 import { useRoutinePDF } from "@/hooks/useSchoolData";
 import { getFileUrl } from "@/lib/cdn";
+import { isExternalHref } from "@/lib/links";
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -38,11 +39,12 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   const isExternalLink = (href?: string | null) => {
     if (!href) return false;
+    if (typeof window === "undefined") return isExternalHref(href);
     try {
       const url = new URL(href, window.location.href);
       return url.origin !== window.location.origin;
     } catch {
-      return /^(https?:|mailto:|tel:|\/\/)/i.test(href);
+      return isExternalHref(href);
     }
   };
 
@@ -75,6 +77,24 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       setActiveSubDropdown(null);
     }
   };
+
+  const portalLinks = school?.links ?? {};
+  const loginDropdown = [
+    portalLinks.teacherLogin
+      ? {
+        id: "menu-item-3548",
+        href: portalLinks.teacherLogin,
+        text: "Teacher",
+      }
+      : null,
+    portalLinks.studentLogin
+      ? {
+        id: "menu-item-3549",
+        href: portalLinks.studentLogin,
+        text: "Student",
+      }
+      : null,
+  ].filter((item) => item !== null);
 
   const menuItems: MenuItem[] =
     menuItemsProp ??
@@ -263,7 +283,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
         id: "menu-item-3541",
         className:
           "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
-        href: "/result",
+        href: portalLinks.results ?? "/result",
         text: "Results",
       },
       {
@@ -273,17 +293,18 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
         href: "/at-a-glance",
         text: "Contact",
       },
-      {
-        id: "menu-item-3542",
-        className:
-          "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left",
-        href: "#",
-        text: "Login",
-        dropdown: [
-          { id: "menu-item-3548", href: String(school?.links?.teacherLogin ?? "#"), text: "Teacher" },
-          { id: "menu-item-3549", href: String(school?.links?.studentLogin ?? "#"), text: "Student" },
-        ],
-      },
+      ...(loginDropdown.length
+        ? [
+          {
+            id: "menu-item-3542",
+            className:
+              "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left",
+            href: "#",
+            text: "Login",
+            dropdown: loginDropdown,
+          },
+        ]
+        : []),
     ];
 
   return (

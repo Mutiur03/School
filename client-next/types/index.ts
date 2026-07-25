@@ -135,10 +135,11 @@ export type SchoolSeoConfig = {
   noIndex?: boolean;
 };
 
+/** Portal links come from the school record; a missing value hides its link. */
 export type SchoolLinks = {
-  results: string;
-  teacherLogin: string;
-  studentLogin: string;
+  results?: string;
+  teacherLogin?: string;
+  studentLogin?: string;
 };
 
 export type SchoolConfig = {

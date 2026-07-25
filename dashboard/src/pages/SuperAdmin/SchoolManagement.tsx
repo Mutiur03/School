@@ -837,6 +837,11 @@ function SchoolManagement() {
                   <Building2 className="h-4 w-4" />
                   Routing & Portal Links
                 </h3>
+                <p className="text-xs text-muted-foreground">
+                  Portal links power the public site menu and sidebar. Results
+                  defaults to <code>/result</code> when blank. Leave teacher or
+                  student login blank to hide that link.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Subdomain</label>
@@ -873,7 +878,7 @@ function SchoolManagement() {
                     <input
                       {...register("resultsUrl")}
                       className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://results.drmc.edu.bd"
+                      placeholder="Blank = /result, or e.g. https://results.example.com"
                     />
                     {errors.resultsUrl && <p className="mt-1 text-xs text-red-600">{errors.resultsUrl.message}</p>}
                   </div>

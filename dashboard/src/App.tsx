@@ -34,7 +34,6 @@ const CitizenCharter = lazy(() => import("./pages/Admin/CitizenCharter"));
 const GenerateResult = lazy(() => import("./pages/Admin/GenerateResult"));
 const ShowMarkSheet = lazy(() => import("./pages/Admin/ShowMarkSheet"));
 const ExamPDFRoutine = lazy(() => import("./pages/Admin/ExamPDFRoutine"));
-const SchoolSettings = lazy(() => import("./pages/Admin/SchoolSettings"));
 const AddMarks = lazy(() => import("./pages/Admin/AddMarks"));
 const NewSubject = lazy(() => import("./pages/Admin/NewSubject"));
 const AddLevel = lazy(() => import("./pages/Admin/AddLevel"));
@@ -213,7 +212,6 @@ function App() {
                         <Route path="/result/generate-result" element={<GenerateResult />} />
                         <Route path="/finalmarkSheet/:studentId/:year" element={<ShowMarkSheet />} />
                         <Route path="/settings/add-exam" element={<ExamPDFRoutine />} />
-                        <Route path="/settings/school" element={<SchoolSettings />} />
                         <Route path="/result/add-marks" element={<AddMarks />} />
                         <Route path="/result/add-subject" element={<NewSubject />} />
                         <Route path="/result/assigned-teachers" element={<AddLevel />} />
