@@ -137,6 +137,12 @@ export interface StaleBundleItem {
   section: string;
 }
 
+export interface FailedBundleItem {
+  class: number;
+  section: string;
+  error?: string | null;
+}
+
 export interface MarksheetGenTally {
   pending: number;
   generating: number;
@@ -149,6 +155,8 @@ export interface MarksheetGenTally {
   stale?: number;
   /** Which bundle keys are stale (class + section scope). */
   staleItems?: StaleBundleItem[];
+  /** Which bundles failed, with last error message when available. */
+  failedItems?: FailedBundleItem[];
 }
 
 /** Human label for a bundle cache key, e.g. "Class 10 (all sections)". */

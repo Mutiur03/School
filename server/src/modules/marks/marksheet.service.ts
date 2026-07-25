@@ -1702,8 +1702,18 @@ export class MarksheetService {
       bundles.generating +
       bundles.failed;
     const staleBundles = await this.listStaleBundles(examId);
+    const failedBundles = await prisma.marksheet_bundles.findMany({
+      where: { exam_id: examId, status: "failed" },
+      select: { class: true, section: true, error: true },
+      orderBy: [{ class: "asc" }, { section: "asc" }],
+    });
     bundles.stale = staleBundles.length;
     bundles.staleItems = staleBundles;
+    bundles.failedItems = failedBundles.map((b) => ({
+      class: b.class,
+      section: b.section,
+      error: b.error,
+    }));
     bundles.done = Math.max(0, bundles.ready - staleBundles.length);
     return { ...students, bundles };
   }

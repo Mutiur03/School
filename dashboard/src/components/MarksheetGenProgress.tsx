@@ -175,10 +175,22 @@ export function MarksheetGenProgress({
             </ul>
           )}
           {status.bundles.failed > 0 && (
-            <p className="text-xs text-destructive">
-              {status.bundles.failed} bundle
-              {status.bundles.failed === 1 ? "" : "s"} failed to generate
-            </p>
+            <div className="text-xs text-destructive space-y-1">
+              <p>
+                {status.bundles.failed} bundle
+                {status.bundles.failed === 1 ? "" : "s"} failed to generate
+              </p>
+              {(status.bundles.failedItems?.length ?? 0) > 0 && (
+                <ul className="list-disc pl-4">
+                  {status.bundles.failedItems!.map((item) => (
+                    <li key={`fail-${item.class}-${item.section}`}>
+                      {formatBundleScope(item)}
+                      {item.error ? ` — ${item.error}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       )}
