@@ -35,6 +35,30 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Keep HTML/RSC out of Cloudflare edge cache across deploys.
+      // Hashed /_next/static assets stay long-cached below.
+      {
+        source: "/((?!_next/static|_next/image|fonts/).*)",
+        headers: [
+          {
+            key: "CDN-Cache-Control",
+            value: "no-store",
+          },
+          {
+            key: "Cloudflare-CDN-Cache-Control",
+            value: "no-store",
+          },
+        ],
+      },
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
     ];
   },
   async rewrites() {

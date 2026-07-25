@@ -154,6 +154,25 @@ const withAdditionalHeaders = (response, headers) => {
   });
 };
 
+/** Keep HTML shells out of Cloudflare edge cache so deploys show up immediately. */
+const withHtmlNoStore = (response) => {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("text/html")) {
+    return response;
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  headers.set("CDN-Cache-Control", "no-store");
+  headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+};
+
 const logAndReturn = ({
   response,
   id,
@@ -490,7 +509,10 @@ export default {
       headers.delete("host");
       headers.delete("content-length");
 
-      return finish(await forwardRequest(request, targetUrl, headers), "pages-proxy");
+      return finish(
+        withHtmlNoStore(await forwardRequest(request, targetUrl, headers)),
+        "pages-proxy",
+      );
     } catch (error) {
       logRequest("error", "tenant-router.error", {
         id,

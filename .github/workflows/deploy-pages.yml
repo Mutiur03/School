@@ -110,3 +110,129 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+  # After every Pages app is live, wipe Cloudflare edge caches so custom
+  # domains don't keep an old index.html / HTML shell.
+  #
+  # Dynamic zone handling (pick one):
+  # - CF_PURGE_ZONE_NAMES: comma-separated zone names, e.g.
+  #     mutiurrahman.com,lbphs.gov.bd
+  #   Add a new custom domain later by appending to this secret.
+  # - Or leave CF_PURGE_ZONE_NAMES empty → purge every zone this API token
+  #   can list (scope the token to only school-related zones).
+  # - CF_PURGE_ZONE_IDS still works as an explicit override if set.
+  purge-cdn:
+    name: Purge Cloudflare CDN
+    needs: deploy-pages
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Purge Cloudflare zones
+        shell: bash
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_PURGE_ZONE_NAMES: ${{ secrets.CF_PURGE_ZONE_NAMES }}
+          CF_PURGE_ZONE_IDS: ${{ secrets.CF_PURGE_ZONE_IDS }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CF_API_TOKEN:-}" ]; then
+            echo "::warning::Skipping CDN purge — CF_API_TOKEN is not set."
+            exit 0
+          fi
+
+          auth_header="Authorization: Bearer ${CF_API_TOKEN}"
+          api="https://api.cloudflare.com/client/v4"
+
+          declare -a ZONE_IDS=()
+
+          if [ -n "${CF_PURGE_ZONE_IDS:-}" ]; then
+            IFS=',' read -ra RAW_IDS <<< "$CF_PURGE_ZONE_IDS"
+            for id in "${RAW_IDS[@]}"; do
+              id="$(echo "$id" | xargs)"
+              [ -n "$id" ] && ZONE_IDS+=("$id")
+            done
+            echo "Using explicit CF_PURGE_ZONE_IDS (${#ZONE_IDS[@]} zone(s))."
+          else
+            # Page through every zone visible to this token.
+            page=1
+            declare -a ALL_ZONES=()
+            while :; do
+              payload="$(curl -sS -H "$auth_header" \
+                "${api}/zones?per_page=50&page=${page}")"
+              echo "$payload" | grep -q '"success":true' || {
+                echo "::error::Failed to list Cloudflare zones."
+                echo "$payload"
+                exit 1
+              }
+              # id|name pairs
+              while IFS= read -r line; do
+                [ -n "$line" ] && ALL_ZONES+=("$line")
+              done < <(echo "$payload" | python3 -c '
+          import json,sys
+          data=json.load(sys.stdin)
+          for z in data.get("data") or data.get("result") or []:
+              print(f"{z["id"]}|{z["name"]}")
+          ')
+              total_pages="$(echo "$payload" | python3 -c '
+          import json,sys
+          r=json.load(sys.stdin).get("result_info") or {}
+          print(r.get("total_pages") or 1)
+          ')"
+              if [ "$page" -ge "$total_pages" ]; then
+                break
+              fi
+              page=$((page + 1))
+            done
+
+            if [ -n "${CF_PURGE_ZONE_NAMES:-}" ]; then
+              IFS=',' read -ra WANTED <<< "$CF_PURGE_ZONE_NAMES"
+              declare -A WANT_SET=()
+              for name in "${WANTED[@]}"; do
+                name="$(echo "$name" | xargs | tr '[:upper:]' '[:lower:]')"
+                [ -n "$name" ] && WANT_SET["$name"]=1
+              done
+              for entry in "${ALL_ZONES[@]}"; do
+                id="${entry%%|*}"
+                name="$(echo "${entry#*|}" | tr '[:upper:]' '[:lower:]')"
+                if [ -n "${WANT_SET[$name]:-}" ]; then
+                  ZONE_IDS+=("$id")
+                  echo "Matched zone name: $name → $id"
+                fi
+              done
+              if [ "${#ZONE_IDS[@]}" -eq 0 ]; then
+                echo "::error::CF_PURGE_ZONE_NAMES set, but no matching zones found for this token."
+                echo "Visible zones:"
+                printf '  %s\n' "${ALL_ZONES[@]#*|}"
+                exit 1
+              fi
+            else
+              for entry in "${ALL_ZONES[@]}"; do
+                ZONE_IDS+=("${entry%%|*}")
+                echo "Will purge zone: ${entry#*|}"
+              done
+              echo "CF_PURGE_ZONE_NAMES unset — purging all ${#ZONE_IDS[@]} zone(s) visible to the token."
+            fi
+          fi
+
+          if [ "${#ZONE_IDS[@]}" -eq 0 ]; then
+            echo "::warning::No Cloudflare zones to purge."
+            exit 0
+          fi
+
+          failed=0
+          for zone in "${ZONE_IDS[@]}"; do
+            echo "Purging zone ${zone}…"
+            response="$(curl -sS -X POST \
+              "${api}/zones/${zone}/purge_cache" \
+              -H "$auth_header" \
+              -H "Content-Type: application/json" \
+              --data '{"purge_everything":true}')"
+            echo "$response"
+            echo "$response" | grep -q '"success":true' || failed=1
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more Cloudflare purge requests failed."
+            exit 1
+          fi
