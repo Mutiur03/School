@@ -1336,7 +1336,11 @@ export class MarksService {
       prisma.student_enrollments.findMany({
         where,
         include: { student: { select: { id: true, name: true } } },
-        orderBy: [{ roll: "asc" }, { student: { name: "asc" } }],
+        orderBy: [
+          { section: "asc" },
+          { roll: "asc" },
+          { student: { name: "asc" } },
+        ],
       }),
       prisma.marks.findMany({
         where: {
@@ -1774,6 +1778,10 @@ export class MarksService {
         .sort((a, b) => {
           const sa = studentInfoMap[a];
           const sb = studentInfoMap[b];
+          const sectionCmp = String(sa.section ?? "").localeCompare(
+            String(sb.section ?? ""),
+          );
+          if (sectionCmp !== 0) return sectionCmp;
           if (sa.roll !== sb.roll) return sa.roll - sb.roll;
           return sa.name.localeCompare(sb.name);
         });
