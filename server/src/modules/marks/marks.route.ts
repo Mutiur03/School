@@ -40,9 +40,9 @@ router.get(
 );
 
 router.get(
-  "/class-exam/:className/:year/:exam/summary.xlsx",
+  "/class-exam/:className/:year/:exam/summary.pdf",
   AuthMiddleware.authenticate(["admin", "teacher"]),
-  MarksController.downloadClassExamSummaryExcelController,
+  MarksController.downloadClassExamSummaryPDFController,
 );
 
 router.get(

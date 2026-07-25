@@ -206,7 +206,7 @@ export class MarksController {
     },
   );
 
-  static downloadClassExamSummaryExcelController = asyncHandler(
+  static downloadClassExamSummaryPDFController = asyncHandler(
     async (req: Request, res: Response) => {
       const { className, year, exam } = req.params;
       if (!className || !year || !exam) {
@@ -218,17 +218,14 @@ export class MarksController {
       const section =
         typeof req.query.section === "string" ? req.query.section : undefined;
       const { buffer, filename } =
-        await ClassSummaryService.generateClassSummaryExcel(
+        await ClassSummaryService.generateClassSummaryPDF(
           className as string,
           year as string,
           exam as string,
           req.user,
           section,
         );
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      );
+      res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${filename}"`,

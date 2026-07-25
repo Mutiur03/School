@@ -13,6 +13,7 @@ import {
   Users, 
   Layers, 
   FileSpreadsheet,
+  FileText,
   X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -286,15 +287,15 @@ const ViewMarks = () => {
     }
   };
 
-  const downloadSummaryExcel = async () => {
+  const downloadSummaryPDF = async () => {
     if (!className || !year || !exam) {
       toast.error("Please select Class, Year and Exam");
       return;
     }
-    const loadingToast = toast.loading("Generating summary Excel...");
+    const loadingToast = toast.loading("Generating summary PDF...");
     try {
       const response = await axios.get(
-        `/api/marks/class-exam/${className}/${year}/${exam}/summary.xlsx`,
+        `/api/marks/class-exam/${className}/${year}/${exam}/summary.pdf`,
         {
           responseType: "blob",
           maxContentLength: Infinity,
@@ -308,15 +309,13 @@ const ViewMarks = () => {
       const match = disposition?.match(/filename="([^"]+)"/);
       const filename =
         match?.[1] ??
-        `${className}${section || "All"}_Summary_${exam}_${year}.xlsx`;
+        `${className}${section || "All"}_Summary_${exam}_${year}.pdf`;
       downloadBlob(
-        new Blob([response.data], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
+        new Blob([response.data], { type: "application/pdf" }),
         filename,
       );
     } catch {
-      toast.error("Failed to download summary Excel");
+      toast.error("Failed to download summary PDF");
     } finally {
       toast.dismiss(loadingToast);
     }
@@ -507,11 +506,11 @@ const ViewMarks = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={downloadSummaryExcel}
+                  onClick={downloadSummaryPDF}
                   className="gap-2 h-9 px-4 shrink-0"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Download Summary Excel
+                  <FileText className="w-4 h-4" />
+                  Download Summary PDF
                 </Button>
               </div>
             </div>

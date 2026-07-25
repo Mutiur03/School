@@ -1,4 +1,5 @@
-import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
+import fs from "fs";
 import { prisma } from "@/config/prisma.js";
 import { getRlsContext } from "@/config/rlsContextStore.js";
 import { ApiError } from "@/utils/ApiError.js";
@@ -44,6 +45,11 @@ type StudentSummaryRow = {
   failed: number;
 };
 
+type ColSpan = {
+  col: SubjectCol;
+  widths: number[];
+};
+
 const CLASS_NAMES: Record<string, string> = {
   "6": "Six",
   "7": "Seven",
@@ -51,6 +57,51 @@ const CLASS_NAMES: Record<string, string> = {
   "9": "Nine",
   "10": "Ten",
 };
+
+/** US Legal portrait in PDF points; landscape is applied via layout. */
+const LEGAL_SIZE = "LEGAL";
+const PAGE_MARGIN = 14;
+/** Match Excel column character widths, with a wider Names column. */
+const COL_UNITS = { roll: 8, name: 28, cell: 6 } as const;
+const TITLE_H = 16;
+const SUBTITLE_H = 14;
+const CLASSLINE_H = 13;
+const HEADER_ROW_H = 14;
+const DATA_ROW_H = 13;
+const FOOTER_RESERVE = 10;
+const HEADER_FILL = "#F3F4F6";
+const BORDER = "#000000";
+const TEXT = "#000000";
+/** Below this cell width (pt), shrink fonts/rows so content still fits. */
+const COMFORTABLE_CELL_W = 18;
+const MIN_FONT = 4.5;
+const MIN_DATA_ROW_H = 9;
+const MIN_HEADER_ROW_H = 9;
+
+const FONT_REGULAR = "Times-Roman";
+const FONT_BOLD = "Times-Bold";
+const TIMES_FONT_PATHS = {
+  regular: [
+    process.env.MARKSHEET_FONT_REGULAR,
+    "C:\\Windows\\Fonts\\times.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+  ].filter(Boolean) as string[],
+  bold: [
+    process.env.MARKSHEET_FONT_BOLD,
+    "C:\\Windows\\Fonts\\timesbd.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+  ].filter(Boolean) as string[],
+};
+
+/** Prefer real Times New Roman from disk; otherwise PDF built-in Times. */
+function registerSummaryFonts(doc: any) {
+  const regular = TIMES_FONT_PATHS.regular.find((p) => fs.existsSync(p));
+  const bold = TIMES_FONT_PATHS.bold.find((p) => fs.existsSync(p));
+  if (regular) doc.registerFont(FONT_REGULAR, regular);
+  if (bold) doc.registerFont(FONT_BOLD, bold);
+}
 
 function classText(classNum: number | string): string {
   return CLASS_NAMES[String(classNum)] || String(classNum);
@@ -94,7 +145,6 @@ function countFailed(
     if (row.assessment_type !== "exam") continue;
     const obtained = Number(row.marks);
     if (!Number.isFinite(obtained)) {
-      // Missing marks count as fail for non-optional subjects.
       const isOptional = row.subject_id === fourthSubjectId;
       if (!(isOptional && applyBonus)) failed++;
       continue;
@@ -105,6 +155,34 @@ function countFailed(
     if (grade.lg === "F") failed++;
   }
   return failed;
+}
+
+function sectionSortKey(section: string | null): string {
+  return (section || "").trim().toUpperCase() || "~";
+}
+
+function groupRowsBySection(
+  rows: StudentSummaryRow[],
+): { section: string; rows: StudentSummaryRow[] }[] {
+  const map = new Map<string, StudentSummaryRow[]>();
+  for (const row of rows) {
+    const key = (row.section || "").trim() || "—";
+    const list = map.get(key);
+    if (list) list.push(row);
+    else map.set(key, [row]);
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => sectionSortKey(a).localeCompare(sectionSortKey(b)))
+    .map(([section, sectionRows]) => ({
+      section,
+      rows: sectionRows.sort(
+        (x, y) =>
+          (x.roll ?? Number.MAX_SAFE_INTEGER) -
+            (y.roll ?? Number.MAX_SAFE_INTEGER) ||
+          x.name.localeCompare(y.name),
+      ),
+    }));
 }
 
 export class ClassSummaryService {
@@ -129,14 +207,13 @@ export class ClassSummaryService {
         }
         return sectionQuery;
       }
-      return null; // all assigned sections
+      return null;
     }
 
-    // admin (and others with route access): honor optional section filter
     return sectionQuery || null;
   }
 
-  static async generateClassSummaryExcel(
+  static async generateClassSummaryPDF(
     className: string,
     year: string,
     exam: string,
@@ -225,7 +302,8 @@ export class ClassSummaryService {
       throw new ApiError(404, "No marks found for this class and exam");
     }
 
-    const examId = withMarks[0].marks[0]?.exam_id ?? withMarks[0].marks[0]?.exam?.id;
+    const examId =
+      withMarks[0].marks[0]?.exam_id ?? withMarks[0].marks[0]?.exam?.id;
 
     const studentRows: StudentSummaryRow[] = [];
     const colMap = new Map<number, SubjectCol>();
@@ -255,7 +333,6 @@ export class ClassSummaryService {
         })),
       );
 
-      // Summary sheet treats missing marks as 0 / F (like the sample Excel).
       for (const row of aggregated) {
         if (row.marks == null) row.marks = 0;
         if (row.isGroup && Array.isArray(row.papers)) {
@@ -265,7 +342,9 @@ export class ClassSummaryService {
         }
       }
 
-      const examRows = aggregated.filter((r: any) => r.assessment_type === "exam");
+      const examRows = aggregated.filter(
+        (r: any) => r.assessment_type === "exam",
+      );
       const fourthId = enrollment.fourth_subject_id ?? null;
       const { gpa, totalMarks } = MarksService.calculateGPA(
         examRows,
@@ -338,198 +417,440 @@ export class ClassSummaryService {
       (a, b) => a.priority - b.priority || a.subjectId - b.subjectId,
     );
 
-    const buffer = await this.buildWorkbook({
+    const buffer = await this.buildPdf({
       schoolName: school?.name ?? "School",
       exam,
       year: yearInt,
       classNum: cls,
-      sectionLabel: sectionFilter ?? "All Sections",
       columns,
       rows: studentRows,
     });
 
     const sectionPart = sectionFilter ? String(sectionFilter) : "All";
     const safeExam = exam.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_");
-    const filename = `${cls}${sectionPart}_Summary_${safeExam}_${yearInt}.xlsx`;
+    const filename = `${cls}${sectionPart}_Summary_${safeExam}_${yearInt}.pdf`;
 
     return { buffer, filename };
   }
 
-  private static async buildWorkbook(opts: {
+  private static async buildPdf(opts: {
     schoolName: string;
     exam: string;
     year: number;
     classNum: number;
-    sectionLabel: string;
     columns: SubjectCol[];
     rows: StudentSummaryRow[];
   }): Promise<Buffer> {
-    const { schoolName, exam, year, classNum, sectionLabel, columns, rows } =
-      opts;
+    const { schoolName, exam, year, classNum, columns, rows } = opts;
+    // Legal landscape: 14" × 8.5" → 1008 × 612 pt
+    const pageW = 1008;
+    const pageH = 612;
+    const contentW = pageW - PAGE_MARGIN * 2;
+    const contentX = PAGE_MARGIN;
 
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Summary", {
-      views: [{ state: "frozen", ySplit: 6 }],
+    // Same column proportions as the Excel sheet (8 / 22 / 6…).
+    const subjectUnits = columns.reduce(
+      (s, c) => s + (c.kind === "paper" ? 5 : 3),
+      0,
+    );
+    const totalCharUnits =
+      COL_UNITS.roll + COL_UNITS.name + COL_UNITS.cell * (subjectUnits + 3);
+    const u = contentW / totalCharUnits;
+    const rollW = COL_UNITS.roll * u;
+    const nameW = COL_UNITS.name * u;
+    const cellW = COL_UNITS.cell * u;
+
+    // When many subjects squeeze columns, compact fonts + row heights to fit.
+    const densityScale = Math.min(1, Math.max(0.55, cellW / COMFORTABLE_CELL_W));
+    const dataFont = Math.max(MIN_FONT, 9 * densityScale);
+    const headerFont = Math.max(MIN_FONT, 8 * densityScale);
+    const headerLabelFont = Math.max(MIN_FONT, 9 * densityScale);
+    const dataRowH = Math.max(MIN_DATA_ROW_H, DATA_ROW_H * densityScale);
+    const headerRowH = Math.max(MIN_HEADER_ROW_H, HEADER_ROW_H * densityScale);
+
+    const spans: ColSpan[] = [];
+    for (const col of columns) {
+      const n = col.kind === "paper" ? 5 : 3;
+      spans.push({ col, widths: Array.from({ length: n }, () => cellW) });
+    }
+    const totalMarksW = cellW;
+    const gpaW = cellW;
+    const failedW = cellW;
+
+    const subjectsW = spans.reduce(
+      (s, sp) => s + sp.widths.reduce((a, b) => a + b, 0),
+      0,
+    );
+    const totalsX = contentX + rollW + nameW + subjectsW;
+
+    const sections = groupRowsBySection(rows);
+    const doc = new (PDFDocument as any)({
+      size: LEGAL_SIZE,
+      layout: "landscape",
+      margin: PAGE_MARGIN,
+      autoFirstPage: false,
+      info: {
+        Title: `${schoolName} — ${exam} ${year} Class Summary`,
+        Author: schoolName,
+      },
     });
 
-    // Column layout: A=Roll, B=Name, then subject blocks, then Total/GPA/Failed
-    type Span = { start: number; end: number; col: SubjectCol };
-    const spans: Span[] = [];
-    let cursor = 3; // 1-based Excel col; start after Roll+Name
-    for (const col of columns) {
-      const width = col.kind === "paper" ? 5 : 3;
-      spans.push({ start: cursor, end: cursor + width - 1, col });
-      cursor += width;
-    }
-    const totalMarksCol = cursor;
-    const gpaCol = cursor + 1;
-    const failedCol = cursor + 2;
-    const lastCol = failedCol;
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    registerSummaryFonts(doc);
 
-    sheet.mergeCells(1, 1, 1, lastCol);
-    sheet.mergeCells(2, 1, 2, lastCol);
-    sheet.mergeCells(3, 1, 3, lastCol);
-
-    const title1 = sheet.getCell(1, 1);
-    title1.value = schoolName;
-    title1.font = { bold: true, size: 14 };
-    title1.alignment = { horizontal: "center", vertical: "middle" };
-
-    const title2 = sheet.getCell(2, 1);
-    title2.value = `${exam} ${year}`;
-    title2.font = { bold: true, size: 12 };
-    title2.alignment = { horizontal: "center", vertical: "middle" };
-
-    const title3 = sheet.getCell(3, 1);
-    title3.value = `Class: ${classText(classNum)}, Section: ${sectionLabel}`;
-    title3.font = { bold: true, size: 11 };
-    title3.alignment = { horizontal: "center", vertical: "middle" };
-
-    // Roll / Names span rows 4-6
-    sheet.mergeCells(4, 1, 6, 1);
-    sheet.mergeCells(4, 2, 6, 2);
-    sheet.getCell(4, 1).value = "Roll No";
-    sheet.getCell(4, 2).value = "Names";
-
-    for (const span of spans) {
-      if (span.col.kind === "paper") {
-        // Subject name over first row of header; 1st/2nd/Total on row 5; Mark/LG/GP on row 6
-        sheet.mergeCells(4, span.start, 4, span.end);
-        sheet.getCell(4, span.start).value = span.col.name;
-
-        sheet.getCell(5, span.start).value = "1st";
-        sheet.getCell(5, span.start + 1).value = "2nd";
-        sheet.mergeCells(5, span.start + 2, 5, span.end);
-        sheet.getCell(5, span.start + 2).value = "Total";
-
-        sheet.getCell(6, span.start).value = "Mark";
-        sheet.getCell(6, span.start + 1).value = "Mark";
-        sheet.getCell(6, span.start + 2).value = "Mark";
-        sheet.getCell(6, span.start + 3).value = "LG";
-        sheet.getCell(6, span.start + 4).value = "GP";
-      } else {
-        sheet.mergeCells(4, span.start, 5, span.end);
-        sheet.getCell(4, span.start).value = span.col.name;
-        sheet.getCell(6, span.start).value = "Mark";
-        sheet.getCell(6, span.start + 1).value = "LG";
-        sheet.getCell(6, span.start + 2).value = "GP";
-      }
-    }
-
-    sheet.mergeCells(4, totalMarksCol, 6, totalMarksCol);
-    sheet.getCell(4, totalMarksCol).value = "Total Marks";
-    sheet.mergeCells(4, gpaCol, 6, gpaCol);
-    sheet.getCell(4, gpaCol).value = "GPA";
-    sheet.mergeCells(4, failedCol, 6, failedCol);
-    sheet.getCell(4, failedCol).value = "Total\nFailed";
-
-    const headerFill: ExcelJS.Fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF3F4F6" },
+    const fillRect = (x: number, y: number, w: number, h: number, color: string) => {
+      doc.save();
+      doc.rect(x, y, w, h).fill(color);
+      doc.restore();
     };
-    for (let r = 4; r <= 6; r++) {
-      for (let c = 1; c <= lastCol; c++) {
-        const cell = sheet.getCell(r, c);
-        cell.font = { bold: true, size: 9 };
-        cell.alignment = {
-          horizontal: "center",
-          vertical: "middle",
-          wrapText: true,
-        };
-        cell.fill = headerFill;
-        cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
-        };
+
+    const strokeRect = (x: number, y: number, w: number, h: number) => {
+      doc.lineWidth(0.5).strokeColor(BORDER).rect(x, y, w, h).stroke();
+    };
+
+    const fitFontSize = (
+      text: string,
+      maxW: number,
+      preferred: number,
+      bold: boolean,
+    ): number => {
+      doc.font(bold ? FONT_BOLD : FONT_REGULAR);
+      let size = preferred;
+      while (size > MIN_FONT) {
+        doc.fontSize(size);
+        if (doc.widthOfString(text) <= maxW) return size;
+        size -= 0.5;
       }
-    }
+      return MIN_FONT;
+    };
 
-    sheet.getColumn(1).width = 8;
-    sheet.getColumn(2).width = 22;
-    for (let c = 3; c <= lastCol; c++) {
-      sheet.getColumn(c).width = 6;
-    }
+    const truncateToWidth = (text: string, maxW: number): string => {
+      if (doc.widthOfString(text) <= maxW) return text;
+      const ellipsis = "…";
+      let lo = 0;
+      let hi = text.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const candidate = text.slice(0, mid) + ellipsis;
+        if (doc.widthOfString(candidate) <= maxW) lo = mid;
+        else hi = mid - 1;
+      }
+      return lo > 0 ? text.slice(0, lo) + ellipsis : ellipsis;
+    };
 
-    let dataRow = 7;
-    for (const row of rows) {
-      const excelRow = sheet.getRow(dataRow);
-      excelRow.getCell(1).value = row.roll ?? "";
-      excelRow.getCell(2).value = row.name;
+    const writeInBox = (
+      text: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      opts: {
+        bold?: boolean;
+        size?: number;
+        align?: "left" | "center";
+        wrap?: boolean;
+        /** Shrink font to fit; truncate only if still too wide at min size. */
+        compact?: boolean;
+      } = {},
+    ) => {
+      const preferred = opts.size ?? dataFont;
+      const align = opts.align ?? "center";
+      const bold = !!opts.bold;
+      const prevX = doc.x;
+      const prevY = doc.y;
+      const pad = 1.5;
+      const innerW = Math.max(1, w - pad * 2);
+
+      doc.font(bold ? FONT_BOLD : FONT_REGULAR).fillColor(TEXT);
+
+      let size = preferred;
+      let display = text;
+
+      if (opts.wrap) {
+        size = preferred;
+        while (size > MIN_FONT) {
+          doc.fontSize(size);
+          const textH = doc.heightOfString(display, {
+            width: innerW,
+            align,
+          });
+          if (textH <= h - 2) break;
+          size -= 0.5;
+        }
+      } else if (opts.compact !== false) {
+        size = fitFontSize(display, innerW, preferred, bold);
+        doc.fontSize(size);
+        display = truncateToWidth(display, innerW);
+      } else {
+        doc.fontSize(size);
+        display = truncateToWidth(display, innerW);
+      }
+
+      doc.fontSize(size);
+      doc.save();
+      doc.rect(x, y, w, h).clip();
+
+      if (opts.wrap) {
+        const textH = doc.heightOfString(display, {
+          width: innerW,
+          align,
+        });
+        const blockH = Math.min(textH, h);
+        const top = y + (h - blockH) / 2;
+        doc.text(display, x + pad, top, {
+          width: innerW,
+          height: h,
+          align,
+          lineBreak: true,
+        });
+      } else {
+        // baseline:'middle' + center Y → true vertical center inside the cell
+        doc.text(display, x + pad, y + h / 2, {
+          width: innerW,
+          align,
+          lineBreak: false,
+          baseline: "middle",
+        });
+      }
+
+      doc.restore();
+      doc.x = prevX;
+      doc.y = prevY;
+    };
+
+    const drawCentered = (
+      text: string,
+      y: number,
+      fontSize: number,
+    ) => {
+      doc.font(FONT_BOLD).fontSize(fontSize).fillColor(TEXT);
+      doc.text(text, contentX, y, {
+        width: contentW,
+        align: "center",
+        lineBreak: false,
+      });
+    };
+
+    const spanX = (span: ColSpan): number => {
+      let x = contentX + rollW + nameW;
+      for (const s of spans) {
+        if (s === span) return x;
+        for (const w of s.widths) x += w;
+      }
+      return x;
+    };
+
+    /** Excel header rows 4–6: merged Roll/Names; subject blocks; Total Marks/GPA/Total Failed. */
+    const drawTableHeader = (y: number) => {
+      const h1 = headerRowH;
+      const h2 = headerRowH;
+      const h3 = headerRowH;
+      const headerH = h1 + h2 + h3;
+
+      fillRect(contentX, y, contentW, headerH, HEADER_FILL);
+
+      strokeRect(contentX, y, rollW, headerH);
+      writeInBox("Roll No", contentX, y, rollW, headerH, {
+        bold: true,
+        size: headerLabelFont,
+      });
+      strokeRect(contentX + rollW, y, nameW, headerH);
+      writeInBox("Names", contentX + rollW, y, nameW, headerH, {
+        bold: true,
+        size: headerLabelFont,
+      });
+
+      for (const span of spans) {
+        const x0 = spanX(span);
+        const blockW = span.widths.reduce((a, b) => a + b, 0);
+
+        if (span.col.kind === "paper") {
+          strokeRect(x0, y, blockW, h1);
+          writeInBox(span.col.name, x0, y, blockW, h1, {
+            bold: true,
+            size: headerFont,
+          });
+
+          strokeRect(x0, y + h1, span.widths[0], h2);
+          writeInBox("1st", x0, y + h1, span.widths[0], h2, {
+            bold: true,
+            size: headerFont,
+          });
+          strokeRect(x0 + span.widths[0], y + h1, span.widths[1], h2);
+          writeInBox("2nd", x0 + span.widths[0], y + h1, span.widths[1], h2, {
+            bold: true,
+            size: headerFont,
+          });
+          const totalBlockW =
+            span.widths[2] + span.widths[3] + span.widths[4];
+          strokeRect(
+            x0 + span.widths[0] + span.widths[1],
+            y + h1,
+            totalBlockW,
+            h2,
+          );
+          writeInBox(
+            "Total",
+            x0 + span.widths[0] + span.widths[1],
+            y + h1,
+            totalBlockW,
+            h2,
+            { bold: true, size: headerFont },
+          );
+
+          const sub = ["Mark", "Mark", "Mark", "LG", "GP"];
+          let sx = x0;
+          for (let i = 0; i < 5; i++) {
+            strokeRect(sx, y + h1 + h2, span.widths[i], h3);
+            writeInBox(sub[i], sx, y + h1 + h2, span.widths[i], h3, {
+              bold: true,
+              size: headerFont,
+            });
+            sx += span.widths[i];
+          }
+        } else {
+          strokeRect(x0, y, blockW, h1 + h2);
+          writeInBox(span.col.name, x0, y, blockW, h1 + h2, {
+            bold: true,
+            size: headerFont,
+          });
+          const sub = ["Mark", "LG", "GP"];
+          let sx = x0;
+          for (let i = 0; i < 3; i++) {
+            strokeRect(sx, y + h1 + h2, span.widths[i], h3);
+            writeInBox(sub[i], sx, y + h1 + h2, span.widths[i], h3, {
+              bold: true,
+              size: headerFont,
+            });
+            sx += span.widths[i];
+          }
+        }
+      }
+
+      strokeRect(totalsX, y, totalMarksW, headerH);
+      writeInBox("Total Marks", totalsX, y, totalMarksW, headerH, {
+        bold: true,
+        size: headerFont,
+        wrap: true,
+      });
+      strokeRect(totalsX + totalMarksW, y, gpaW, headerH);
+      writeInBox("GPA", totalsX + totalMarksW, y, gpaW, headerH, {
+        bold: true,
+        size: headerLabelFont,
+      });
+      strokeRect(totalsX + totalMarksW + gpaW, y, failedW, headerH);
+      writeInBox(
+        "Total\nFailed",
+        totalsX + totalMarksW + gpaW,
+        y,
+        failedW,
+        headerH,
+        { bold: true, size: headerFont, wrap: true },
+      );
+
+      return headerH;
+    };
+
+    const drawDataRow = (row: StudentSummaryRow, y: number) => {
+      const writeCell = (
+        x: number,
+        w: number,
+        value: string | number,
+        align: "left" | "center" = "center",
+      ) => {
+        strokeRect(x, y, w, dataRowH);
+        writeInBox(String(value), x, y, w, dataRowH, {
+          size: dataFont,
+          align,
+          compact: true,
+        });
+      };
+
+      writeCell(contentX, rollW, row.roll ?? "");
+      writeCell(contentX + rollW, nameW, row.name, "left");
 
       for (const span of spans) {
         const cell = row.cells[span.col.subjectId];
-        if (!cell) {
-          if (span.col.kind === "paper") {
-            excelRow.getCell(span.start).value = 0;
-            excelRow.getCell(span.start + 1).value = 0;
-            excelRow.getCell(span.start + 2).value = 0;
-            excelRow.getCell(span.start + 3).value = "F";
-            excelRow.getCell(span.start + 4).value = 0;
-          } else {
-            excelRow.getCell(span.start).value = 0;
-            excelRow.getCell(span.start + 1).value = "F";
-            excelRow.getCell(span.start + 2).value = 0;
+        const values: (string | number)[] =
+          span.col.kind === "paper"
+            ? cell && cell.kind === "paper"
+              ? [cell.first, cell.second, cell.total, cell.lg, cell.gp]
+              : [0, 0, 0, "F", 0]
+            : cell && cell.kind === "single"
+              ? [cell.mark, cell.lg, cell.gp]
+              : [0, "F", 0];
+
+        let x = spanX(span);
+        for (let i = 0; i < span.widths.length; i++) {
+          writeCell(x, span.widths[i], values[i] ?? "");
+          x += span.widths[i];
+        }
+      }
+
+      writeCell(totalsX, totalMarksW, row.totalMarks);
+      writeCell(totalsX + totalMarksW, gpaW, row.gpa);
+      writeCell(totalsX + totalMarksW + gpaW, failedW, row.failed);
+    };
+
+    const startSectionPage = (
+      sectionLabel: string,
+      pageIndexInSection: number,
+    ) => {
+      doc.addPage({
+        size: LEGAL_SIZE,
+        layout: "landscape",
+        margin: PAGE_MARGIN,
+      });
+      let y = PAGE_MARGIN;
+
+      drawCentered(schoolName, y, 14);
+      y += TITLE_H;
+      drawCentered(`${exam} ${year}`, y, 12);
+      y += SUBTITLE_H;
+      const sectionTitle =
+        pageIndexInSection > 0
+          ? `Class: ${classText(classNum)}, Section: ${sectionLabel} (cont.)`
+          : `Class: ${classText(classNum)}, Section: ${sectionLabel}`;
+      drawCentered(sectionTitle, y, 11);
+      y += CLASSLINE_H + 2;
+
+      const headerH = drawTableHeader(y);
+      return y + headerH;
+    };
+
+    return new Promise<Buffer>((resolve, reject) => {
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      try {
+        for (const { section, rows: sectionRows } of sections) {
+          let pageInSection = 0;
+          let y = startSectionPage(section, pageInSection);
+          const maxY = pageH - PAGE_MARGIN - FOOTER_RESERVE;
+
+          for (const row of sectionRows) {
+            if (y + dataRowH > maxY) {
+              pageInSection += 1;
+              y = startSectionPage(section, pageInSection);
+            }
+            drawDataRow(row, y);
+            y += dataRowH;
           }
-          continue;
         }
-        if (cell.kind === "paper") {
-          excelRow.getCell(span.start).value = cell.first;
-          excelRow.getCell(span.start + 1).value = cell.second;
-          excelRow.getCell(span.start + 2).value = cell.total;
-          excelRow.getCell(span.start + 3).value = cell.lg;
-          excelRow.getCell(span.start + 4).value = cell.gp;
-        } else {
-          excelRow.getCell(span.start).value = cell.mark;
-          excelRow.getCell(span.start + 1).value = cell.lg;
-          excelRow.getCell(span.start + 2).value = cell.gp;
+
+        if (sections.length === 0) {
+          doc.addPage({
+            size: LEGAL_SIZE,
+            layout: "landscape",
+            margin: PAGE_MARGIN,
+          });
         }
+
+        doc.end();
+      } catch (err) {
+        reject(err);
       }
-
-      excelRow.getCell(totalMarksCol).value = row.totalMarks;
-      excelRow.getCell(gpaCol).value = row.gpa;
-      excelRow.getCell(failedCol).value = row.failed;
-
-      for (let c = 1; c <= lastCol; c++) {
-        const cell = excelRow.getCell(c);
-        cell.alignment = {
-          horizontal: c === 2 ? "left" : "center",
-          vertical: "middle",
-        };
-        cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
-        };
-        cell.font = { size: 9 };
-      }
-      dataRow++;
-    }
-
-    const arrayBuffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(arrayBuffer);
+    });
   }
 }
