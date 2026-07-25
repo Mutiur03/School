@@ -66,6 +66,36 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
  */
 export const MARKSHEET_DESIGN_VERSION = "8";
 
+/**
+ * Bulk render aborts for a class with nothing to draw — no enrollments, or
+ * enrollments but not a single non-null mark. Neither is a failure: there is
+ * simply no bundle to produce, so the row is terminal (`skipped`) rather than
+ * retried forever.
+ */
+const EMPTY_BUNDLE_MESSAGES = [
+  "No students found",
+  "No non-null marks found",
+];
+
+function isEmptyBundleError(message: string): boolean {
+  return EMPTY_BUNDLE_MESSAGES.some((m) => message.includes(m));
+}
+
+/**
+ * Consecutive automatic retries allowed for a failed bundle before the poll
+ * driven re-queue gives up. Reset on an explicit download and on success, so
+ * only an unattended failure loop is capped.
+ */
+const MAX_BUNDLE_ATTEMPTS = 5;
+
+/** Stable ISO for hash fingerprints — Date vs string must not flip the digest. */
+function isoStamp(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
+}
+
 /** Design field for input hashes. Frozen + no snapshot → omit (legacy compat). */
 function designFingerprint(
   frozen: boolean,
@@ -180,14 +210,14 @@ export class MarksheetService {
   }
 
   private static async headMsgFingerprint(): Promise<{
-    u: Date | null;
+    u: string | null;
     id: number | null;
     role: string | null;
     name: string | null;
     sig: string | null;
   }> {
     const head = await prisma.head_msg.findFirst({
-      orderBy: { updated_at: "desc" },
+      orderBy: [{ updated_at: "desc" }, { id: "desc" }],
       select: {
         updated_at: true,
         head_id: true,
@@ -196,7 +226,7 @@ export class MarksheetService {
       },
     });
     return {
-      u: head?.updated_at ?? null,
+      u: isoStamp(head?.updated_at),
       id: head?.head_id ?? null,
       role: head?.head_role ?? null,
       name: head?.teacher?.name ?? null,
@@ -225,7 +255,7 @@ export class MarksheetService {
         teacher_id: true,
         teacher: { select: { name: true, signature: true } },
       },
-      orderBy: [{ section: "asc" }],
+      orderBy: [{ section: "asc" }, { teacher_id: "asc" }],
     });
     return rows.map((r) => ({
       sec: r.section,
@@ -254,7 +284,7 @@ export class MarksheetService {
         teacher_id: true,
         teacher: { select: { name: true, signature: true } },
       },
-      orderBy: [{ class_name: "asc" }, { section: "asc" }],
+      orderBy: [{ class_name: "asc" }, { section: "asc" }, { teacher_id: "asc" }],
     });
     return rows.map((r) => ({
       cls: r.class_name,
@@ -513,8 +543,8 @@ export class MarksheetService {
 
     const fingerprint = JSON.stringify({
       n: markAgg._count?._all ?? 0,
-      m: markAgg._max?.updated_at ?? null,
-      s: stats?.updated_at ?? null,
+      m: isoStamp(markAgg._max?.updated_at),
+      s: isoStamp(stats?.updated_at),
       h: head,
       t: classTeacher,
       f: enrollment?.fourth_subject_id ?? null,
@@ -723,7 +753,14 @@ export class MarksheetService {
         school_id: schoolId,
         status: "pending",
       },
-      update: { status: "pending", error: null, exam_name: examName },
+      // An explicit download is a fresh intent: clear the automatic-retry
+      // budget so a previously capped bundle is attempted again.
+      update: {
+        status: "pending",
+        error: null,
+        exam_name: examName,
+        attempts: 0,
+      },
     });
     await enqueueUserPriority(
       { ...job, kind: "bundle", bundleSection },
@@ -962,7 +999,13 @@ export class MarksheetService {
     }
 
     const pendingBundles = await prisma.marksheet_bundles.findMany({
-      where: { exam_id: examId, status: { in: ["pending", "failed"] } },
+      where: {
+        exam_id: examId,
+        OR: [
+          { status: "pending" },
+          { status: "failed", attempts: { lt: MAX_BUNDLE_ATTEMPTS } },
+        ],
+      },
       select: {
         exam_id: true,
         exam_name: true,
@@ -1718,31 +1761,56 @@ export class MarksheetService {
     return { ...students, bundles };
   }
 
-  /** Ready bundle rows whose stored hash no longer matches live marks/stats. */
+  /**
+   * Ready bundle rows that need regen. Once a live-hash mismatch is seen we
+   * clear `input_hash` so the row stays "stale" across polls until download
+   * regenerates it — without that pin, a flaky fingerprint (or a concurrent
+   * regen) can make staleItems thrash request-to-request.
+   */
   private static async listStaleBundles(
     examId: number,
   ): Promise<{ class: number; section: string }[]> {
     const rows = await prisma.marksheet_bundles.findMany({
       where: { exam_id: examId, status: "ready" },
-      select: { class: true, section: true, year: true, input_hash: true },
+      select: {
+        id: true,
+        class: true,
+        section: true,
+        year: true,
+        input_hash: true,
+      },
+      orderBy: [{ class: "asc" }, { section: "asc" }],
     });
     if (rows.length === 0) return [];
 
-    const staleFlags = await Promise.all(
-      rows.map(async (row) => {
-        const liveHash = await this.computeBundleHash(
-          examId,
-          row.class,
-          row.year,
-          row.section,
-        );
-        const stale = !row.input_hash || row.input_hash !== liveHash;
-        return stale ? { class: row.class, section: row.section } : null;
-      }),
-    );
-    return staleFlags.filter(
-      (item): item is { class: number; section: string } => item != null,
-    );
+    const stale: { class: number; section: string }[] = [];
+    const pinIds: number[] = [];
+
+    for (const row of rows) {
+      if (!row.input_hash) {
+        stale.push({ class: row.class, section: row.section });
+        continue;
+      }
+      const liveHash = await this.computeBundleHash(
+        examId,
+        row.class,
+        row.year,
+        row.section,
+      );
+      if (row.input_hash !== liveHash) {
+        stale.push({ class: row.class, section: row.section });
+        pinIds.push(row.id);
+      }
+    }
+
+    if (pinIds.length > 0) {
+      await prisma.marksheet_bundles.updateMany({
+        where: { id: { in: pinIds } },
+        data: { input_hash: null },
+      });
+    }
+
+    return stale;
   }
 
   /**
@@ -2132,8 +2200,8 @@ export class MarksheetService {
     const fingerprint = JSON.stringify({
       sec: bundleSection,
       n: markAgg._count?._all ?? 0,
-      m: markAgg._max?.updated_at ?? null,
-      s: stats?.updated_at ?? null,
+      m: isoStamp(markAgg._max?.updated_at),
+      s: isoStamp(stats?.updated_at),
       h: head,
       t: classTeachers,
       en: exam?.exam_name ?? null,
@@ -2184,7 +2252,7 @@ export class MarksheetService {
     ]);
     const fingerprint = JSON.stringify({
       n: markAgg._count?._all ?? 0,
-      m: markAgg._max?.updated_at ?? null,
+      m: isoStamp(markAgg._max?.updated_at),
       h: head,
       t: classTeacher,
       r: enrollment?.roll ?? null,
@@ -2206,7 +2274,7 @@ export class MarksheetService {
     ]);
     const fingerprint = JSON.stringify({
       n: markAgg._count?._all ?? 0,
-      m: markAgg._max?.updated_at ?? null,
+      m: isoStamp(markAgg._max?.updated_at),
       h: head,
       t: classTeachers,
       d: MARKSHEET_DESIGN_VERSION,
@@ -2595,6 +2663,7 @@ export class MarksheetService {
               snapshot_design_version: MARKSHEET_DESIGN_VERSION,
               generated_at: new Date(),
               error: null,
+              attempts: 0,
             },
           });
           logger.info("[marksheet] job(bundle): READY", {
@@ -2607,7 +2676,7 @@ export class MarksheetService {
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          const isEmpty = message.includes("No students found");
+          const isEmpty = isEmptyBundleError(message);
           await prisma.marksheet_bundles
             .update({
               where: whereKey,
@@ -2618,10 +2687,11 @@ export class MarksheetService {
             })
             .catch(() => {});
           if (isEmpty) {
-            logger.info("[marksheet] job(bundle): SKIPPED (no students)", {
+            logger.info("[marksheet] job(bundle): SKIPPED (nothing to render)", {
               examId,
               class: cls,
               section: bundleSection,
+              reason: message,
             });
             return;
           }
@@ -2642,6 +2712,17 @@ export class MarksheetService {
    * and re-enqueue everything still pending. Safe to run on every boot.
    */
   static async recover(): Promise<void> {
+    // Bundles recorded `failed` for a class that has nothing to render. The
+    // outcome is already known, so settle them terminal rather than leaving
+    // them for the poll-driven re-queue to retry.
+    await prisma.marksheet_bundles.updateMany({
+      where: {
+        status: "failed",
+        OR: EMPTY_BUNDLE_MESSAGES.map((m) => ({ error: { contains: m } })),
+      },
+      data: { status: "skipped", error: null, attempts: 0 },
+    });
+
     await Promise.all([
       prisma.marksheet_files.updateMany({
         where: { status: "generating" },
