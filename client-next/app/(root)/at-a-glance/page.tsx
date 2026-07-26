@@ -1,4 +1,5 @@
 import { fetchSchoolConfig } from "@/queries/school.queries";
+import Image from "next/image";
 
 export default async function At_a_glance() {
 
@@ -71,7 +72,7 @@ export default async function At_a_glance() {
         { label: "Campus / Land Area", value: campusArea },
         { label: "Playground", value: playgroundArea },
         { label: "Headmaster", value: headmaster },
-        { label: "School Colors", value: colors },
+        { label: "Uniform Color", value: colors },
 
         {
             label: "Description",
@@ -132,7 +133,7 @@ export default async function At_a_glance() {
                     <li>Founded: {established}</li>
                     <li>Nationalized: {nationalized}</li>
                     <li>Motto: “{motto}”</li>
-                    <li>School Colors: {colors}</li>
+                    <li>Uniform Color: {colors}</li>
                 </ul>
             ),
         },
@@ -145,7 +146,9 @@ export default async function At_a_glance() {
             label: "Campus Image",
             value: (
                 <div className="w-full max-w-md">
-                    <img
+                    <Image
+                        width={400}
+                        height={300}
                         src={campusImage}
                         alt="School Campus"
                         className="object-cover w-full h-48 rounded-md shadow-sm"

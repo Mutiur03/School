@@ -34,7 +34,7 @@ const defaultSchoolConfig: SchoolConfig = {
     board: "Rajshahi Education Board",
     motto: "Learn it and give all",
     headmaster: "Md Ataur Rahman",
-    colors: "White & Navy Blue",
+    colors: "Shirt: White, Pant: Navy Blue",
     campusArea: "~548 decimals (campus), 54 rooms",
     playgroundArea: "160 decimals",
   },

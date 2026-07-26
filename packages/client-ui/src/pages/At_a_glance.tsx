@@ -74,7 +74,7 @@ export default function At_a_glance() {
     { label: "Campus / Land Area", value: campusArea },
     { label: "Playground", value: playgroundArea },
     { label: "Headmaster", value: headmaster },
-    { label: "School Colors", value: colors },
+    { label: "Uniform Color", value: colors },
 
     {
       label: "Description",
@@ -135,7 +135,7 @@ export default function At_a_glance() {
           <li>Founded: {established}</li>
           <li>Nationalized: {nationalized}</li>
           <li>Motto: “{motto}”</li>
-          <li>School Colors: {colors}</li>
+          <li>Uniform Color: {colors}</li>
         </ul>
       ),
     },
