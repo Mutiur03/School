@@ -47,6 +47,38 @@ export const useAddAttendance = () => {
   });
 };
 
+export const useSaveAndSendAttendance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      records: any[];
+      date: string;
+      level: number;
+      section: string;
+      year: number;
+    }) => {
+      const response = await axios.post("/api/attendance/save-and-send", payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+      if (data.data?.smsError) {
+        toast.error(data.message || `Attendance saved, but SMS failed`);
+      } else {
+        toast.success(data.message || "Attendance saved and SMS sent");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to save attendance and send SMS");
+    },
+  });
+};
+
 export const useAttendanceStats = (params: { date: string; level: number; section: string; year: number }) => {
   return useQuery({
     queryKey: ["attendance-stats", params],

@@ -25,6 +25,30 @@ export class AttendenceController {
     res.status(200).json(new ApiResponse(200, result, "Attendance processed successfully"));
   });
 
+  static saveAndSendAttendanceController = asyncHandler(async (req: Request, res: Response) => {
+    const { records, date, level, section, year } = req.body;
+    if (!records || !Array.isArray(records)) {
+      throw new ApiError(400, "Invalid records format");
+    }
+    if (!date || !level || !section || !year) {
+      throw new ApiError(400, "Missing required parameters");
+    }
+
+    const result = await AttendenceService.saveAndSendAttendanceSMS({
+      records,
+      date: date as string,
+      level: parseInt(level as string),
+      section: section as string,
+      year: parseInt(year as string),
+    });
+
+    const message = result.smsError
+      ? `Attendance saved, but SMS failed: ${result.smsError}`
+      : "Attendance saved and SMS process completed";
+
+    res.status(200).json(new ApiResponse(200, result, message));
+  });
+
   static getAttendanceStatsController = asyncHandler(async (req: Request, res: Response) => {
     const { date, level, section, year } = req.query;
     if (!date || !level || !section || !year) {

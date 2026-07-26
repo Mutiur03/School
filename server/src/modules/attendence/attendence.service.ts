@@ -310,6 +310,31 @@ export class AttendenceService {
     };
   }
 
+  static async saveAndSendAttendanceSMS(payload: {
+    records: any[];
+    date: string;
+    level: number;
+    section: string;
+    year: number;
+  }) {
+    const { records, date, level, section, year } = payload;
+
+    const saved = await this.addAttendence(records);
+
+    // Attendance is already persisted at this point, so an SMS failure is
+    // reported back instead of thrown to keep the save from being lost.
+    try {
+      const sms = await this.sendAttendanceSMS({ date, level, section, year });
+      return { ...saved, sms, smsError: null };
+    } catch (error: any) {
+      return {
+        ...saved,
+        sms: null,
+        smsError: error?.message || "Failed to send attendance SMS",
+      };
+    }
+  }
+
   static async getAttendanceStats(filters: {
     date: string;
     level: number;

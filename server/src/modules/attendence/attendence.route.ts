@@ -8,6 +8,10 @@ router.get("/getAttendence", AttendenceController.getAttendenceController);
 router.post("/addAttendence", AttendenceController.addAttendenceController);
 router.get("/getStats", AttendenceController.getAttendanceStatsController);
 router.post("/send-sms", AttendenceController.sendAttendanceSMSController);
+router.post(
+  "/save-and-send",
+  AttendenceController.saveAndSendAttendanceController,
+);
 
 const attendenceRouter = express.Router();
 attendenceRouter.use("/api/attendance", router);

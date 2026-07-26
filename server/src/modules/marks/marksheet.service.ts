@@ -143,15 +143,20 @@ export class MarksheetService {
     return where;
   }
 
-  /** DB/R2 key for admin whole-class or teacher section-scoped bundles. */
+  /** DB/R2 key for admin whole-class / one-section, or teacher section-scoped bundles. */
   static resolveBundleSection(
     user: any,
     cls: number,
     year: number,
     sectionQuery?: string,
   ): string {
-    if (user?.role === "admin") return "ALL";
-    if (user?.role !== "teacher") return "ALL";
+    const requested = sectionQuery?.trim() || undefined;
+
+    if (user?.role === "admin") {
+      // Admin may download whole class (ALL) or one section when UI passes ?section=
+      return requested || "ALL";
+    }
+    if (user?.role !== "teacher") return requested || "ALL";
 
     const assignedSections = (user.levels ?? [])
       .filter((l: any) => l.class_name === cls && l.year === year)
@@ -161,11 +166,11 @@ export class MarksheetService {
     if (assignedSections.length === 0) {
       throw new Error("You are not assigned to this class.");
     }
-    if (sectionQuery) {
-      if (!assignedSections.includes(sectionQuery)) {
+    if (requested) {
+      if (!assignedSections.includes(requested)) {
         throw new Error("You are not assigned to this section.");
       }
-      return sectionQuery;
+      return requested;
     }
     return [...new Set(assignedSections)].sort().join("+");
   }
@@ -2284,8 +2289,8 @@ export class MarksheetService {
 
   /**
    * Serve a class exam bundle via worker + hash-verified R2 cache.
-   * Bundles (admin ALL and teacher section scope) are generated on download
-   * only — never pre-queued on publish or mark edits.
+   * Bundles (admin ALL or one section, teacher section scope) generate on
+   * download only — never pre-queued on publish or mark edits.
    */
   static async serveBundle(
     year: number,

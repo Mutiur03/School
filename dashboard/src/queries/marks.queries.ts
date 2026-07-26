@@ -176,7 +176,7 @@ export const filterStaleBundlesForContext = (
   return items.filter((b) => {
     if (b.class !== cls) return false;
     if (!sectionFilter) return true;
-    if (b.section === "ALL") return true;
+    // Section filter active → only that section's bundle (not whole-class ALL)
     if (b.section === sectionFilter) return true;
     if (b.section.includes("+")) {
       return b.section.split("+").includes(sectionFilter);

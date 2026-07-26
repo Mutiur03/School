@@ -513,7 +513,9 @@ const ViewMarks = () => {
                   className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] shrink-0"
                 >
                   <Download className="w-4 h-4" />
-                  Download All Exam PDFs
+                  {section
+                    ? `Download Section ${section} PDFs`
+                    : "Download All Exam PDFs"}
                 </Button>
                 <Button
                   size="sm"
@@ -522,7 +524,9 @@ const ViewMarks = () => {
                   className="gap-2 h-9 px-4 shrink-0"
                 >
                   <FileText className="w-4 h-4" />
-                  Download Summary PDF
+                  {section
+                    ? `Download Section ${section} Summary`
+                    : "Download Summary PDF"}
                 </Button>
               </div>
             </div>

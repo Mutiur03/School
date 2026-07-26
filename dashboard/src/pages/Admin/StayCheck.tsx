@@ -4,9 +4,8 @@ import { toast } from "react-hot-toast";
 import {
   useAttendance,
   useAttendanceOverview,
-  useAddAttendance,
   useSmsSettings,
-  useSendAttendanceSms,
+  useSaveAndSendAttendance,
 } from "@/queries/attendence.queries.js";
 import useNavigationStore from "@/store/navigation.Store";
 import PageHeader from "@/components/PageHeader.js";
@@ -17,7 +16,6 @@ import {
   CheckCircle2,
   Filter,
   Save,
-  Send,
   AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -119,8 +117,7 @@ function StayCheck() {
       section: selectedSection || undefined,
     });
 
-  const addAttendanceMutation = useAddAttendance();
-  const sendSmsMutation = useSendAttendanceSms();
+  const saveAndSendMutation = useSaveAndSendAttendance();
   const students = (studentsData?.data || []) as StudentOverview[];
 
   const { attendanceMap, sentMap } = useMemo(() => {
@@ -215,7 +212,7 @@ function StayCheck() {
     return segments;
   }, [smsSettings, students, getStatus, sentMap, todayIso]);
 
-  const saveStayCheck = async () => {
+  const saveAndSendStayCheck = async () => {
     if (!selectedClass || !selectedSection) {
       toast.error("Please select both class and section");
       return;
@@ -227,23 +224,21 @@ function StayCheck() {
       status: getStatus(s.id),
     }));
 
-    addAttendanceMutation.mutate(recordsToSave, {
-      onSuccess: () => {
-        setLocalAttendance({});
-        resetDirty();
-        toast.success("Stay check updated successfully");
+    saveAndSendMutation.mutate(
+      {
+        records: recordsToSave,
+        date: todayIso,
+        level: selectedClass as number,
+        section: selectedSection,
+        year: selectedYear,
       },
-    });
-  };
-
-  const handleSendSms = () => {
-    if (!selectedClass || !selectedSection) return;
-    sendSmsMutation.mutate({
-      date: todayIso,
-      level: selectedClass as number,
-      section: selectedSection,
-      year: selectedYear,
-    });
+      {
+        onSuccess: () => {
+          setLocalAttendance({});
+          resetDirty();
+        },
+      },
+    );
   };
 
   const classes = [6, 7, 8, 9, 10];
@@ -265,23 +260,18 @@ function StayCheck() {
           )}
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              onClick={handleSendSms}
+              onClick={saveAndSendStayCheck}
               disabled={
-                sendSmsMutation.isPending ||
+                saveAndSendMutation.isPending ||
                 !selectedClass ||
-                stats.runAwayed === 0
+                !selectedSection ||
+                !students.length
               }
             >
-              <Send className="w-4 h-4 mr-2" />
-              Notify Parents
-            </Button>
-            <Button
-              onClick={saveStayCheck}
-              disabled={addAttendanceMutation.isPending || !selectedClass}
-            >
               <Save className="w-4 h-4 mr-2" />
-              Save Record
+              {saveAndSendMutation.isPending
+                ? "Saving & Sending..."
+                : "Save & Send SMS"}
             </Button>
           </div>
         </div>

@@ -4,10 +4,9 @@ import { toast } from "react-hot-toast";
 import {
   useAttendance,
   useAttendanceOverview,
-  useAddAttendance,
   useAttendanceStats,
   useSmsSettings,
-  useSendAttendanceSms,
+  useSaveAndSendAttendance,
 } from "@/queries/attendence.queries.js";
 import useNavigationStore from "@/store/navigation.Store";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -25,7 +24,6 @@ import {
   Eye,
   EyeOff,
   Clock,
-  Send,
   AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,8 +98,7 @@ function Attendance() {
     year: selectedYear,
   });
 
-  const addAttendanceMutation = useAddAttendance();
-  const sendSmsMutation = useSendAttendanceSms();
+  const saveAndSendMutation = useSaveAndSendAttendance();
   const statsToDisplay = persistentStats?.data;
 
   const classes = [6, 7, 8, 9, 10];
@@ -133,21 +130,6 @@ function Attendance() {
   }, [attendanceRecords, selectedMonth, selectedYear]);
 
   const students = (studentsData?.data || []) as StudentOverview[];
-
-  const hasTodayRecords = useMemo(() => {
-    const todayDay = currentDate.getDate();
-    const isToday =
-      selectedMonth === currentDate.getMonth() &&
-      selectedYear === currentDate.getFullYear();
-    if (!isToday || !attendanceRecords?.data) return false;
-
-    return attendanceRecords.data.some((record: any) => {
-      return (
-        record.date ===
-        `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`
-      );
-    });
-  }, [attendanceRecords, currentDate, selectedMonth, selectedYear]);
 
   const handleAttendanceChange = (
     studentId: number,
@@ -327,7 +309,7 @@ function Attendance() {
     todayIso,
   ]);
 
-  const saveAttendance = async () => {
+  const saveAndSendAttendance = async () => {
     if (!selectedClass || !selectedSection) {
       toast.error("Please select both class and section");
       return;
@@ -343,22 +325,29 @@ function Attendance() {
       return;
     }
 
-    const recordsToSave: any[] = [];
-    students.forEach((student) => {
-      const status = getStatus(student.id, todayDay);
-      recordsToSave.push({
-        studentId: student.id,
-        date: `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`,
-        status,
-      });
-    });
+    const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
 
-    addAttendanceMutation.mutate(recordsToSave, {
-      onSuccess: () => {
-        setLocalAttendance({});
-        resetDirty();
+    const recordsToSave = students.map((student) => ({
+      studentId: student.id,
+      date,
+      status: getStatus(student.id, todayDay),
+    }));
+
+    saveAndSendMutation.mutate(
+      {
+        records: recordsToSave,
+        date,
+        level: selectedClass as number,
+        section: selectedSection,
+        year: selectedYear,
       },
-    });
+      {
+        onSuccess: () => {
+          setLocalAttendance({});
+          resetDirty();
+        },
+      },
+    );
   };
 
   const handleClassChange = async (newClass: number | "") => {
@@ -430,20 +419,6 @@ function Attendance() {
     setVisibleDays([currentDate.getDate()]);
   };
 
-  const handleSendSms = () => {
-    if (!selectedClass || !selectedSection || !selectedYear) return;
-
-    const todayDay = currentDate.getDate();
-    const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
-
-    sendSmsMutation.mutate({
-      date,
-      level: selectedClass as number,
-      section: selectedSection,
-      year: selectedYear,
-    });
-  };
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
       {dialog}
@@ -467,51 +442,27 @@ function Attendance() {
           )}
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              onClick={handleSendSms}
+              onClick={saveAndSendAttendance}
               disabled={
-                sendSmsMutation.isPending ||
+                saveAndSendMutation.isPending ||
                 !selectedClass ||
                 !selectedSection ||
                 !(
                   selectedMonth === currentDate.getMonth() &&
                   selectedYear === currentDate.getFullYear()
                 ) ||
-                !hasTodayRecords
-              }
-              className="shadow-sm"
-            >
-              {sendSmsMutation.isPending ? (
-                <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4 mr-2" />
-              )}
-              {sendSmsMutation.isPending ? "Sending..." : "Send SMS"}
-            </Button>
-            <Button
-              onClick={saveAttendance}
-              disabled={
-                addAttendanceMutation.isPending ||
-                !selectedClass ||
-                !selectedSection ||
-                !(
-                  selectedMonth === currentDate.getMonth() &&
-                  selectedYear === currentDate.getFullYear()
-                ) ||
-                (hasTodayRecords &&
-                  Object.keys(localAttendance).length === 0) ||
                 !students.length
               }
               className="shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
             >
-              {addAttendanceMutation.isPending ? (
+              {saveAndSendMutation.isPending ? (
                 <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {addAttendanceMutation.isPending
-                ? "Saving..."
-                : "Save Attendance"}
+              {saveAndSendMutation.isPending
+                ? "Saving & Sending..."
+                : "Save & Send SMS"}
             </Button>
           </div>
         </div>
