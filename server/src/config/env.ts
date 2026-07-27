@@ -38,6 +38,9 @@ const envSchema = z.object({
 
   PRISMA_LOG_QUERIES: z.enum(["true", "false"]).optional(),
   PRISMA_SLOW_QUERY_MS: z.string().optional(),
+
+  /** Express trust proxy hops (e.g. "1" behind nginx). "true"/"false" also accepted. */
+  TRUST_PROXY: z.string().optional(),
 });
 
 export const validateEnv = () => {

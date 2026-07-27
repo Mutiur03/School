@@ -68,6 +68,16 @@ import { getDatabasePoolStats } from "./utils/dbMetrics.js";
 
 const app = express();
 const PORT = env.PORT || 5000;
+
+/** Behind nginx-proxy / load balancer in production — required for rate-limit IP keys. */
+const resolveTrustProxy = (): boolean | number => {
+  const raw = env.TRUST_PROXY?.trim().toLowerCase();
+  if (raw === "false" || raw === "0") return false;
+  if (raw === "true") return true;
+  if (raw && /^\d+$/.test(raw)) return Number(raw);
+  return env.NODE_ENV === "production" ? 1 : false;
+};
+app.set("trust proxy", resolveTrustProxy());
 const configuredOrigins = (env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim().toLowerCase())
