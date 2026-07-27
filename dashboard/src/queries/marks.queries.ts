@@ -185,6 +185,9 @@ export const filterStaleBundlesForContext = (
   });
 };
 
+export const MARKSHEET_GEN_POLL_MS = 8_000;
+export const MARKSHEET_GEN_STALE_POLL_MS = 60_000;
+
 export const hasStaleBundles = (status?: MarksheetGenStatus | null) =>
   (status?.bundles.stale ?? 0) > 0;
 
@@ -214,8 +217,8 @@ export const useMarksheetGenerationStatus = (examId: number | undefined) => {
     refetchInterval: (query) => {
       const status = query.state.data;
       if (!status || status.total === 0) return false;
-      if (hasStaleBundles(status)) return 30000;
-      return isMarksheetGenComplete(status) ? false : 3000;
+      if (hasStaleBundles(status)) return MARKSHEET_GEN_STALE_POLL_MS;
+      return isMarksheetGenComplete(status) ? false : MARKSHEET_GEN_POLL_MS;
     },
   });
 };

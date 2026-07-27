@@ -77,6 +77,10 @@ const EMPTY_BUNDLE_MESSAGES = [
   "No non-null marks found",
 ];
 
+/** Throttle gap-fill on generation-status polls (avoids heavy DB work every few seconds). */
+const ensureQueuedLastRun = new Map<number, number>();
+const ENSURE_QUEUED_COOLDOWN_MS = 30_000;
+
 function isEmptyBundleError(message: string): boolean {
   return EMPTY_BUNDLE_MESSAGES.some((m) => message.includes(m));
 }
@@ -885,6 +889,14 @@ export class MarksheetService {
    * generation-status so an empty DB still starts the worker without requiring
    * a re-publish.
    */
+  static async ensureQueuedForExamIfDue(examId: number): Promise<number> {
+    const now = Date.now();
+    const last = ensureQueuedLastRun.get(examId) ?? 0;
+    if (now - last < ENSURE_QUEUED_COOLDOWN_MS) return 0;
+    ensureQueuedLastRun.set(examId, now);
+    return this.ensureQueuedForExam(examId);
+  }
+
   static async ensureQueuedForExam(examId: number): Promise<number> {
     const exam = await prisma.exams.findUnique({
       where: { id: examId },

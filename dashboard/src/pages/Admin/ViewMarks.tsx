@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/context/useAuth";
 import { toast } from "react-hot-toast";
 import axios from "axios";
@@ -26,7 +26,6 @@ import {
   isMarksheetGenComplete,
   hasStaleBundles,
   type StudentMarkResponse,
-  type MarksheetGenStatus,
 } from "@/queries/marks.queries";
 import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
 import { BundleStalePreview } from "@/components/BundleStalePreview";
@@ -128,32 +127,18 @@ const ViewMarks = () => {
   }, [exams, exam, year]);
 
   const { data: genStatus } = useMarksheetGenerationStatus(selectedExamId);
+  const downloadProgressToastRef = useRef<string | null>(null);
 
-  const startDownloadProgressToast = (
-    examId: number | undefined,
-    toastId: string,
-  ) => {
-    if (!examId) return () => undefined;
-
-    const interval = setInterval(async () => {
-      try {
-        const { data } = await axios.get<{ data: MarksheetGenStatus }>(
-          `/api/marks/generation-status/${examId}`,
-        );
-        const status = data.data;
-        if (status?.total > 0 && !isMarksheetGenComplete(status)) {
-          toast.loading(
-            `Generating marksheets… ${status.done}/${status.total}`,
-            { id: toastId },
-          );
-        }
-      } catch {
-        // Ignore polling errors while the download request is in flight.
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  };
+  useEffect(() => {
+    const toastId = downloadProgressToastRef.current;
+    if (!toastId || !genStatus || genStatus.total === 0) return;
+    if (!isMarksheetGenComplete(genStatus)) {
+      toast.loading(
+        `Generating marksheets… ${genStatus.done}/${genStatus.total}`,
+        { id: toastId },
+      );
+    }
+  }, [genStatus]);
 
   // Derived filter options from marks data
   const { subjects, availableSections, availableGroups } = useMemo(() => {
@@ -216,7 +201,7 @@ const ViewMarks = () => {
   const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const loadingToast = toast.loading("Generating transcript...");
-    const stopProgressToast = startDownloadProgressToast(selectedExamId, loadingToast);
+    downloadProgressToastRef.current = loadingToast;
     
     // Create new window immediately to bypass popup blockers
     const newWindow = window.open("", "_blank");
@@ -235,7 +220,7 @@ const ViewMarks = () => {
       if (newWindow) newWindow.close();
       toast.error("Failed to download marksheet");
     } finally {
-      stopProgressToast();
+      downloadProgressToastRef.current = null;
       toast.dismiss(loadingToast);
     }
   };
@@ -246,7 +231,7 @@ const ViewMarks = () => {
       return;
     }
     const loadingToast = toast.loading("Generating transcript...");
-    const stopProgressToast = startDownloadProgressToast(selectedExamId, loadingToast);
+    downloadProgressToastRef.current = loadingToast;
 
     const newWindow = window.open("", "_blank");
     if (newWindow) {
@@ -282,7 +267,7 @@ const ViewMarks = () => {
       if (newWindow) newWindow.close();
       toast.error("Failed to download marksheet");
     } finally {
-      stopProgressToast();
+      downloadProgressToastRef.current = null;
       toast.dismiss(loadingToast);
     }
   };

@@ -17,6 +17,7 @@ import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
 import { BundleStalePreview } from "@/components/BundleStalePreview";
 import {
   isMarksheetGenComplete,
+  MARKSHEET_GEN_POLL_MS,
   type MarksheetGenStatus,
 } from "@/queries/marks.queries";
 import { format } from "date-fns";
@@ -104,8 +105,8 @@ function ExamPDFRoutine() {
       ticks += 1;
       const status = await fetchGenStatus(examId);
       // Stop when everything is generated, or after a safety cap (~10 min).
-      if (isMarksheetGenComplete(status) || ticks > 200) stopPolling(examId);
-    }, 3000);
+      if (isMarksheetGenComplete(status) || ticks > 75) stopPolling(examId);
+    }, MARKSHEET_GEN_POLL_MS);
   };
 
   // Clear any live intervals on unmount.

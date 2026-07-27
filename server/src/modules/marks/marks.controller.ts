@@ -133,7 +133,7 @@ export class MarksController {
         throw new ApiError(400, "examId is required");
       }
       const id = Number(examId);
-      await MarksheetService.ensureQueuedForExam(id);
+      await MarksheetService.ensureQueuedForExamIfDue(id);
       const counts = await MarksheetService.statusCounts(id);
       res
         .status(200)
