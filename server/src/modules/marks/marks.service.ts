@@ -2344,7 +2344,14 @@ export class MarksService {
         returnY,
         { width: contentWidth, align: "left" },
       );
-      endY = returnY + PDF_STYLES.rowHeight;
+      const correctionsY = returnY + 13;
+      doc.text(
+        "Please contact the class teacher for any corrections.",
+        startX,
+        correctionsY,
+        { width: contentWidth, align: "left" },
+      );
+      endY = correctionsY + PDF_STYLES.rowHeight;
     }
 
     return endY;
