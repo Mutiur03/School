@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense, lazy } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -17,6 +17,7 @@ import TopLoadingBar from "./components/TopLoadingBar.tsx";
 import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
+import { lazyWithReload as lazy } from "./lib/lazyWithReload.ts";
 
 // Route pages — lazy to keep initial shell small
 const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard"));

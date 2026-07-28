@@ -8,19 +8,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import backend from "./lib/backend.ts";
 import { initSentry, Sentry } from "./lib/sentry.ts";
+import {
+  clearStaleChunkReloadGuard,
+  isStaleChunkError,
+  reloadOnceForStaleChunk,
+} from "./lib/lazyWithReload.ts";
 
 axios.defaults.baseURL = backend;
 axios.defaults.withCredentials = true;
 
 initSentry();
 
-// After a deploy, old tabs may request stale hashed chunks (404). Reload once to pick up the new asset map.
+// After a deploy, old tabs may request stale hashed chunks. Reload once to pick up the new asset map.
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
-  const reloadKey = "vite-preload-reload";
-  if (sessionStorage.getItem(reloadKey)) return;
-  sessionStorage.setItem(reloadKey, "1");
-  window.location.reload();
+  reloadOnceForStaleChunk();
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  if (!isStaleChunkError(event.reason)) return;
+  if (reloadOnceForStaleChunk()) event.preventDefault();
+});
+
+window.addEventListener("load", () => {
+  // Successful boot — allow a future deploy in this tab to recover again.
+  window.setTimeout(() => clearStaleChunkReloadGuard(), 15_000);
 });
 
 const queryClient = new QueryClient({
@@ -36,7 +48,26 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
+    <Sentry.ErrorBoundary
+      fallback={({ resetError }) => (
+        <div style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
+          <p>Something went wrong loading this page.</p>
+          <button
+            type="button"
+            onClick={() => {
+              clearStaleChunkReloadGuard();
+              resetError();
+              window.location.reload();
+            }}
+          >
+            Reload
+          </button>
+        </div>
+      )}
+      onError={(error) => {
+        if (isStaleChunkError(error)) reloadOnceForStaleChunk();
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <UnifiedAuthProvider>
           <BrowserRouter>

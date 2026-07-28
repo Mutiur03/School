@@ -1,8 +1,19 @@
 # Cloudflare Pages headers — keep SPA shells fresh after deploys.
 # More-specific /assets/* rule wins over /* for hashed Vite bundles.
+# /assets/404.html forces missing hashed chunks to real 404 (not SPA index.html).
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  CDN-Cache-Control: no-store
+  Cloudflare-CDN-Cache-Control: no-store
 
 /*
   Cache-Control: no-cache, no-store, must-revalidate
+  CDN-Cache-Control: no-store
+  Cloudflare-CDN-Cache-Control: no-store
+
+/assets/404.html
+  Cache-Control: no-store
   CDN-Cache-Control: no-store
   Cloudflare-CDN-Cache-Control: no-store
 
