@@ -3829,9 +3829,9 @@ export class MarksService {
   }
 
   /**
-   * Set the same 4th subject on every enrollment in a class (9 or 10) for a year.
-   * Optional group limits the update to Science / Commerce / Humanities.
-   * Admin only.
+   * Set the same 4th subject on every enrollment in a class (9 or 10) + group
+   * for a year. Group is required so Science / Commerce / Humanities are never
+   * mixed. Admin only.
    */
   static async bulkUpdateFourthSubject(
     classNum: number,
@@ -3848,6 +3848,15 @@ export class MarksService {
     }
     if (!Number.isFinite(year) || year < 2000) {
       throw new Error("Valid year is required");
+    }
+    const groupName = typeof group === "string" ? group.trim() : "";
+    if (!groupName) {
+      throw new Error("Group is required (Science, Commerce, or Humanities)");
+    }
+    if (!["Science", "Commerce", "Humanities"].includes(groupName)) {
+      throw new Error(
+        `Invalid group: ${groupName}. Allowed: Science, Commerce, Humanities`,
+      );
     }
 
     if (subjectId != null) {
@@ -3869,9 +3878,9 @@ export class MarksService {
       if (subject.subject_type === "main") {
         throw new Error("Cannot set a main (group) subject as 4th subject");
       }
-      if (group && subject.group && subject.group !== group) {
+      if (subject.group && subject.group !== groupName) {
         throw new Error(
-          `Subject group (${subject.group}) does not match filter group (${group})`,
+          `Subject group (${subject.group}) does not match selected group (${groupName})`,
         );
       }
     }
@@ -3879,7 +3888,7 @@ export class MarksService {
     const where: Prisma.student_enrollmentsWhereInput = {
       class: classNum,
       year,
-      ...(group ? { group } : {}),
+      group: groupName,
     };
 
     const enrollments = await prisma.student_enrollments.findMany({

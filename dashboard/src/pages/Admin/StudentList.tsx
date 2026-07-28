@@ -1539,8 +1539,8 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   Bulk Update 4th Subject
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Set or clear the 4th subject for all Class 9 or 10 students in{" "}
-                  {year}. Optional group limits the update.
+                  Set or clear the 4th subject for one class + group in {year}.
+                  Science, Commerce, and Humanities must be updated separately.
                 </p>
               </div>
               <div className="space-y-3">
@@ -1561,7 +1561,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Group (optional)
+                    Group <span className="text-destructive">*</span>
                   </label>
                   <select
                     className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
@@ -1571,7 +1571,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       setBulkFourthSubjectId("");
                     }}
                   >
-                    <option value="">All groups</option>
+                    <option value="">Select group</option>
                     {VALID_GROUPS.map((g) => (
                       <option key={g} value={g}>
                         {g}
@@ -1587,7 +1587,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                     className="w-full px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                     value={bulkFourthSubjectId}
                     onChange={(e) => setBulkFourthSubjectId(e.target.value)}
-                    disabled={!bulkFourthClass}
+                    disabled={!bulkFourthClass || !bulkFourthGroup}
                   >
                     <option value="">Select subject</option>
                     <option value="__clear__">None (clear)</option>
@@ -1612,6 +1612,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   type="button"
                   disabled={
                     !bulkFourthClass ||
+                    !bulkFourthGroup ||
                     !bulkFourthSubjectId ||
                     bulkUpdateFourthSubjectMutation.isPending
                   }
@@ -1628,7 +1629,8 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
             open={bulkFourthConfirmOpen}
             onOpenChange={setBulkFourthConfirmOpen}
             onConfirm={() => {
-              if (!bulkFourthClass || !bulkFourthSubjectId) return;
+              if (!bulkFourthClass || !bulkFourthGroup || !bulkFourthSubjectId)
+                return;
               setBulkFourthConfirmOpen(false);
               setBulkFourthOpen(false);
               bulkUpdateFourthSubjectMutation.mutate({
@@ -1638,23 +1640,19 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   bulkFourthSubjectId === "__clear__"
                     ? null
                     : Number(bulkFourthSubjectId),
-                group: bulkFourthGroup || null,
+                group: bulkFourthGroup,
               });
             }}
             confirmLabel="Apply to all"
             variant="default"
             msg={
               bulkFourthSubjectId === "__clear__"
-                ? `Clear 4th subject for all Class ${bulkFourthClass} students${
-                    bulkFourthGroup ? ` in ${bulkFourthGroup}` : ""
-                  } (${year})?`
+                ? `Clear 4th subject for all Class ${bulkFourthClass} ${bulkFourthGroup} students (${year})?`
                 : `Set 4th subject to "${
                     bulkFourthSubjects.find(
                       (s) => s.id === Number(bulkFourthSubjectId),
                     )?.name ?? "selected"
-                  }" for all Class ${bulkFourthClass} students${
-                    bulkFourthGroup ? ` in ${bulkFourthGroup}` : ""
-                  } (${year})? This overwrites existing 4th subjects.`
+                  }" for all Class ${bulkFourthClass} ${bulkFourthGroup} students (${year})? This overwrites existing 4th subjects.`
             }
           />
         </>

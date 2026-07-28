@@ -275,6 +275,17 @@ export class MarksController {
       if (klass !== 9 && klass !== 10) {
         throw new ApiError(400, "class must be 9 or 10");
       }
+      const groupName =
+        typeof group === "string" && group.trim() ? group.trim() : "";
+      if (!groupName) {
+        throw new ApiError(
+          400,
+          "group is required (Science, Commerce, or Humanities)",
+        );
+      }
+      if (!["Science", "Commerce", "Humanities"].includes(groupName)) {
+        throw new ApiError(400, `Invalid group: ${groupName}`);
+      }
       const normalizedSubjectId =
         subjectId === null ||
         subjectId === undefined ||
@@ -290,7 +301,7 @@ export class MarksController {
         yearInt,
         normalizedSubjectId,
         req.user,
-        typeof group === "string" && group.trim() ? group.trim() : null,
+        groupName,
       );
       res.status(200).json(
         new ApiResponse(
