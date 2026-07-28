@@ -6,6 +6,7 @@
  *   - highest_by_subject      : max mark per subject (all assessment types)
  *   - class_highest_total      : max per-student total (exam-type subjects only)
  *   - class_highest_grand_total: max per-student total (ALL subjects)
+ *   - stats_by_group           : class 9/10 only, per Science/Commerce/Humanities
  * matching MarksService.computeStats exactly.
  *
  * Usage (from server/):
@@ -33,12 +34,95 @@ const dryRun =
   process.env.DRY_RUN === "true" ||
   process.argv.includes("--dry");
 
+const GROUPED_CLASSES = new Set([9, 10]);
+const STUDENT_GROUPS = ["Science", "Commerce", "Humanities"] as const;
+
+type ClassStatsSnapshot = {
+  highestBySubject: Record<number, number>;
+  classHighestTotal: number;
+  classHighestGrandTotal: number;
+};
+
+type StatsByGroup = Record<string, ClassStatsSnapshot>;
+
 type Combo = {
   schoolId: number;
   examId: number;
   klass: number;
   year: number;
 };
+
+async function computeStats(
+  schoolId: number,
+  examId: number,
+  klass: number,
+  year: number,
+  group?: string,
+): Promise<ClassStatsSnapshot> {
+  const enrollmentWhere: { class: number; year: number; group?: string } = {
+    class: klass,
+    year,
+  };
+  if (group) enrollmentWhere.group = group;
+
+  const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
+    prisma.marks.groupBy({
+      by: ["subject_id"],
+      where: {
+        exam_id: examId,
+        school_id: schoolId,
+        enrollment: enrollmentWhere,
+      },
+      _max: { marks: true },
+    }),
+    prisma.marks.groupBy({
+      by: ["enrollment_id"],
+      where: {
+        exam_id: examId,
+        school_id: schoolId,
+        enrollment: enrollmentWhere,
+        subject: { assessment_type: "exam" },
+      },
+      _sum: { marks: true },
+    }),
+    prisma.marks.groupBy({
+      by: ["enrollment_id"],
+      where: {
+        exam_id: examId,
+        school_id: schoolId,
+        enrollment: enrollmentWhere,
+      },
+      _sum: { marks: true },
+    }),
+  ]);
+
+  const highestBySubject: Record<number, number> = {};
+  for (const g of bySubject) {
+    highestBySubject[g.subject_id] = Number(g._max.marks ?? 0);
+  }
+  const examTotals = byEnrollmentExam.map((g) => Number(g._sum.marks ?? 0));
+  const classHighestTotal =
+    examTotals.length > 0 ? Math.max(...examTotals) : 0;
+  const grandTotals = byEnrollmentAll.map((g) => Number(g._sum.marks ?? 0));
+  const classHighestGrandTotal =
+    grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
+
+  return { highestBySubject, classHighestTotal, classHighestGrandTotal };
+}
+
+async function computeGroupedClassStatsAll(
+  schoolId: number,
+  examId: number,
+  klass: number,
+  year: number,
+): Promise<{ classWide: ClassStatsSnapshot; byGroup: StatsByGroup }> {
+  const byGroup: StatsByGroup = {};
+  for (const g of STUDENT_GROUPS) {
+    byGroup[g] = await computeStats(schoolId, examId, klass, year, g);
+  }
+  const classWide = await computeStats(schoolId, examId, klass, year);
+  return { classWide, byGroup };
+}
 
 async function main() {
   // Map every enrollment to its (class, year, school).
@@ -82,46 +166,31 @@ async function main() {
 
   let done = 0;
   for (const c of combos.values()) {
-    const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
-      prisma.marks.groupBy({
-        by: ["subject_id"],
-        where: {
-          exam_id: c.examId,
-          school_id: c.schoolId,
-          enrollment: { class: c.klass, year: c.year },
-        },
-        _max: { marks: true },
-      }),
-      prisma.marks.groupBy({
-        by: ["enrollment_id"],
-        where: {
-          exam_id: c.examId,
-          school_id: c.schoolId,
-          enrollment: { class: c.klass, year: c.year },
-          subject: { assessment_type: "exam" },
-        },
-        _sum: { marks: true },
-      }),
-      prisma.marks.groupBy({
-        by: ["enrollment_id"],
-        where: {
-          exam_id: c.examId,
-          school_id: c.schoolId,
-          enrollment: { class: c.klass, year: c.year },
-        },
-        _sum: { marks: true },
-      }),
-    ]);
+    let highestBySubject: Record<string, number>;
+    let classHighestTotal: number;
+    let classHighestGrandTotal: number;
+    let statsByGroup: StatsByGroup | null = null;
 
-    const highestBySubject: Record<string, number> = {};
-    for (const g of bySubject) {
-      highestBySubject[g.subject_id] = Number(g._max.marks ?? 0);
+    if (GROUPED_CLASSES.has(c.klass)) {
+      const grouped = await computeGroupedClassStatsAll(
+        c.schoolId,
+        c.examId,
+        c.klass,
+        c.year,
+      );
+      highestBySubject = grouped.classWide.highestBySubject as Record<
+        string,
+        number
+      >;
+      classHighestTotal = grouped.classWide.classHighestTotal;
+      classHighestGrandTotal = grouped.classWide.classHighestGrandTotal;
+      statsByGroup = grouped.byGroup;
+    } else {
+      const stats = await computeStats(c.schoolId, c.examId, c.klass, c.year);
+      highestBySubject = stats.highestBySubject as Record<string, number>;
+      classHighestTotal = stats.classHighestTotal;
+      classHighestGrandTotal = stats.classHighestGrandTotal;
     }
-    const examTotals = byEnrollmentExam.map((g) => Number(g._sum.marks ?? 0));
-    const classHighestTotal = examTotals.length > 0 ? Math.max(...examTotals) : 0;
-    const grandTotals = byEnrollmentAll.map((g) => Number(g._sum.marks ?? 0));
-    const classHighestGrandTotal =
-      grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
 
     await prisma.exam_class_stats.upsert({
       where: {
@@ -140,11 +209,13 @@ async function main() {
         highest_by_subject: highestBySubject,
         class_highest_total: classHighestTotal,
         class_highest_grand_total: classHighestGrandTotal,
+        stats_by_group: statsByGroup,
       },
       update: {
         highest_by_subject: highestBySubject,
         class_highest_total: classHighestTotal,
         class_highest_grand_total: classHighestGrandTotal,
+        stats_by_group: statsByGroup,
       },
     });
     done++;

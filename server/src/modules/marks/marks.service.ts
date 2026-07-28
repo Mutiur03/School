@@ -45,6 +45,17 @@ const MARKSHEET_FONT_PATHS = {
 const SIGNATURE_GAP_AFTER_TABLE = 40;
 const SIGNATURE_BLOCK_HEIGHT = 88;
 const SIGNATURE_IMAGE_WIDTH = 60;
+
+const GROUPED_CLASSES = new Set([9, 10]);
+const STUDENT_GROUPS = ["Science", "Commerce", "Humanities"] as const;
+
+type ClassStatsSnapshot = {
+  highestBySubject: Record<number, number>;
+  classHighestTotal: number;
+  classHighestGrandTotal: number;
+};
+
+type StatsByGroup = Record<string, ClassStatsSnapshot>;
 // Bottom of signature must sit exactly on dotted line; image can only grow
 // upward, capped so it never crosses into the content above the gap.
 const SIGNATURE_IMAGE_MAX_HEIGHT = SIGNATURE_GAP_AFTER_TABLE - 10;
@@ -184,40 +195,86 @@ export class MarksService {
    * Class-highest stats for one (exam, class, year), computed with DB
    * aggregates instead of pulling every mark row into JS. Shared by the
    * write-time cache refresh and the read-time lazy fallback.
+   * For class 9/10 pass `group` to scope stats to Science/Commerce/Humanities.
    * - highestBySubject: max mark per subject, across all assessment types.
    * - classHighestTotal: max over per-student totals, exam-type subjects only
    *   (feeds the "Total Marks" row).
    * - classHighestGrandTotal: max over per-student totals across ALL subjects
    *   incl. continuous (feeds the "Grand Total Marks" row).
    */
+  static isGroupedClass(klass: number): boolean {
+    return GROUPED_CLASSES.has(klass);
+  }
+
+  static normalizeStudentGroup(
+    group: string | null | undefined,
+  ): string | null {
+    const g = typeof group === "string" ? group.trim() : "";
+    return g || null;
+  }
+
+  static statsFromRow(
+    statsRow: {
+      highest_by_subject: unknown;
+      class_highest_total: number;
+      class_highest_grand_total: number;
+      stats_by_group?: unknown;
+    } | null,
+    klass: number,
+    group: string | null | undefined,
+  ): ClassStatsSnapshot | null {
+    if (!statsRow) return null;
+    if (this.isGroupedClass(klass)) {
+      const groupName = this.normalizeStudentGroup(group);
+      if (!groupName) return null;
+      const byGroup = (statsRow.stats_by_group ?? {}) as StatsByGroup;
+      const gStats = byGroup[groupName];
+      if (!gStats) return null;
+      return {
+        highestBySubject: gStats.highestBySubject ?? {},
+        classHighestTotal: gStats.classHighestTotal ?? 0,
+        classHighestGrandTotal: gStats.classHighestGrandTotal ?? 0,
+      };
+    }
+    return {
+      highestBySubject:
+        (statsRow.highest_by_subject as Record<number, number>) ?? {},
+      classHighestTotal: statsRow.class_highest_total ?? 0,
+      classHighestGrandTotal: statsRow.class_highest_grand_total ?? 0,
+    };
+  }
+
   static async computeStats(
     client: Prisma.TransactionClient | typeof prisma,
     examId: number,
     klass: number,
     year: number,
-  ): Promise<{
-    highestBySubject: Record<number, number>;
-    classHighestTotal: number;
-    classHighestGrandTotal: number;
-  }> {
+    group?: string | null,
+  ): Promise<ClassStatsSnapshot> {
+    const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
+      class: klass,
+      year,
+    };
+    if (group) enrollmentWhere.group = group;
+
     const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
       client.marks.groupBy({
         by: ["subject_id"],
-        where: { exam_id: examId, enrollment: { class: klass, year } },
+        where: { exam_id: examId, enrollment: enrollmentWhere },
         _max: { marks: true },
       }),
       client.marks.groupBy({
         by: ["enrollment_id"],
         where: {
           exam_id: examId,
-          enrollment: { class: klass, year },
+          enrollment: enrollmentWhere,
           subject: { assessment_type: "exam" },
         },
         _sum: { marks: true },
       }),
       client.marks.groupBy({
         by: ["enrollment_id"],
-        where: { exam_id: examId, enrollment: { class: klass, year } },
+        where: { exam_id: examId, enrollment: enrollmentWhere },
         _sum: { marks: true },
       }),
     ]);
@@ -236,22 +293,63 @@ export class MarksService {
     return { highestBySubject, classHighestTotal, classHighestGrandTotal };
   }
 
+  static async computeGroupedClassStatsAll(
+    client: Prisma.TransactionClient | typeof prisma,
+    examId: number,
+    klass: number,
+    year: number,
+  ): Promise<{ classWide: ClassStatsSnapshot; byGroup: StatsByGroup }> {
+    const byGroup: StatsByGroup = {};
+    await Promise.all(
+      STUDENT_GROUPS.map(async (g) => {
+        byGroup[g] = await this.computeStats(client, examId, klass, year, g);
+      }),
+    );
+    const classWide = await this.computeStats(client, examId, klass, year);
+    return { classWide, byGroup };
+  }
+
+  static async resolveStudentClassStats(
+    client: Prisma.TransactionClient | typeof prisma,
+    statsRow: {
+      highest_by_subject: unknown;
+      class_highest_total: number;
+      class_highest_grand_total: number;
+      stats_by_group?: unknown;
+    } | null,
+    examId: number,
+    klass: number,
+    year: number,
+    group: string | null | undefined,
+  ): Promise<ClassStatsSnapshot> {
+    const fromCache = this.statsFromRow(statsRow, klass, group);
+    if (fromCache) return fromCache;
+    const groupName = this.normalizeStudentGroup(group);
+    if (this.isGroupedClass(klass) && groupName) {
+      return this.computeStats(client, examId, klass, year, groupName);
+    }
+    return this.computeStats(client, examId, klass, year);
+  }
+
   private static classStatsEqual(
     a: {
       highestBySubject: unknown;
       classHighestTotal: number;
       classHighestGrandTotal: number;
+      statsByGroup?: unknown;
     },
     b: {
       highestBySubject: unknown;
       classHighestTotal: number;
       classHighestGrandTotal: number;
+      statsByGroup?: unknown;
     },
   ): boolean {
     return (
       a.classHighestTotal === b.classHighestTotal &&
       a.classHighestGrandTotal === b.classHighestGrandTotal &&
-      JSON.stringify(a.highestBySubject) === JSON.stringify(b.highestBySubject)
+      JSON.stringify(a.highestBySubject) === JSON.stringify(b.highestBySubject) &&
+      JSON.stringify(a.statsByGroup ?? null) === JSON.stringify(b.statsByGroup ?? null)
     );
   }
 
@@ -472,14 +570,32 @@ export class MarksService {
         highest_by_subject: true,
         class_highest_total: true,
         class_highest_grand_total: true,
+        stats_by_group: true,
       },
     });
-    const { highestBySubject, classHighestTotal, classHighestGrandTotal } =
-      await this.computeStats(tx, examId, klass, year);
+    let highestBySubject: Record<number, number>;
+    let classHighestTotal: number;
+    let classHighestGrandTotal: number;
+    let statsByGroup: StatsByGroup | null = null;
+    if (this.isGroupedClass(klass)) {
+      const grouped = await this.computeGroupedClassStatsAll(
+        tx,
+        examId,
+        klass,
+        year,
+      );
+      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } =
+        grouped.classWide);
+      statsByGroup = grouped.byGroup;
+    } else {
+      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } =
+        await this.computeStats(tx, examId, klass, year));
+    }
     const nextStats = {
       highestBySubject,
       classHighestTotal,
       classHighestGrandTotal,
+      statsByGroup,
     };
     if (
       oldRow &&
@@ -488,6 +604,7 @@ export class MarksService {
           highestBySubject: oldRow.highest_by_subject,
           classHighestTotal: oldRow.class_highest_total,
           classHighestGrandTotal: oldRow.class_highest_grand_total,
+          statsByGroup: oldRow.stats_by_group,
         },
         nextStats,
       )
@@ -495,13 +612,14 @@ export class MarksService {
       return false;
     }
     await tx.$executeRaw`
-      INSERT INTO exam_class_stats (exam_id, "class", year, highest_by_subject, class_highest_total, class_highest_grand_total)
-      VALUES (${examId}, ${klass}, ${year}, ${JSON.stringify(highestBySubject)}::jsonb, ${classHighestTotal}, ${classHighestGrandTotal})
+      INSERT INTO exam_class_stats (exam_id, "class", year, highest_by_subject, class_highest_total, class_highest_grand_total, stats_by_group)
+      VALUES (${examId}, ${klass}, ${year}, ${JSON.stringify(highestBySubject)}::jsonb, ${classHighestTotal}, ${classHighestGrandTotal}, ${statsByGroup ? JSON.stringify(statsByGroup) : null}::jsonb)
       ON CONFLICT (exam_id, "class", year, school_id)
       DO UPDATE SET
         highest_by_subject = EXCLUDED.highest_by_subject,
         class_highest_total = EXCLUDED.class_highest_total,
         class_highest_grand_total = EXCLUDED.class_highest_grand_total,
+        stats_by_group = EXCLUDED.stats_by_group,
         updated_at = NOW()
     `;
     return true;
@@ -1443,26 +1561,20 @@ export class MarksService {
     const usedHeadId = headRec?.id ?? null;
     const usedHeadRole = headRec?.role ?? null;
 
-    // Lazy fallback if the cache row is missing (marks predate this feature).
-    let highestMarksMap: Record<string, number>;
-    let classHighestTotal: number;
-    let classHighestGrandTotal: number;
-    if (statsRow) {
-      highestMarksMap =
-        (statsRow.highest_by_subject as Record<string, number>) ?? {};
-      classHighestTotal = statsRow.class_highest_total ?? 0;
-      classHighestGrandTotal = statsRow.class_highest_grand_total ?? 0;
-    } else {
-      const stats = await this.computeStats(
-        prisma,
-        examId,
-        studentClass,
-        yearInt,
-      );
-      highestMarksMap = stats.highestBySubject as Record<string, number>;
-      classHighestTotal = stats.classHighestTotal;
-      classHighestGrandTotal = stats.classHighestGrandTotal;
-    }
+    const resolvedStats = await this.resolveStudentClassStats(
+      prisma,
+      statsRow,
+      examId,
+      studentClass,
+      yearInt,
+      enrollment.group,
+    );
+    const highestMarksMap = resolvedStats.highestBySubject as Record<
+      string,
+      number
+    >;
+    const classHighestTotal = resolvedStats.classHighestTotal;
+    const classHighestGrandTotal = resolvedStats.classHighestGrandTotal;
 
     const studentDetails = {
       name: studentName,
@@ -1571,6 +1683,7 @@ export class MarksService {
           exam: { exam_name: examName },
         },
         include: {
+          enrollment: { select: { id: true, group: true } },
           subject: {
             select: {
               id: true,
@@ -1612,26 +1725,88 @@ export class MarksService {
     // load every student's marks to render them (marksByEnrollment) anyway, so
     // highest-per-subject / class-highest-total are a free byproduct of the
     // scan it already does. Caching would add a query without saving one.
+    const isGrouped = this.isGroupedClass(classNum);
     const highestMarksMap: Record<number, number> = {};
+    const highestMarksByGroup: Record<string, Record<number, number>> = {};
     const totalByEnrollment: Record<number, number> = {};
+    const totalByGroupAndEnrollment: Record<string, Record<number, number>> =
+      {};
     const marksByEnrollment: Record<number, any[]> = {};
-
     const grandTotalByEnrollment: Record<number, number> = {};
+    const grandTotalByGroupAndEnrollment: Record<
+      string,
+      Record<number, number>
+    > = {};
+
     allExamMarks.forEach((m) => {
       const marksVal = Number(m.marks || 0);
-      if (!highestMarksMap[m.subject_id] || marksVal > highestMarksMap[m.subject_id]) {
-        highestMarksMap[m.subject_id] = marksVal;
+      const groupKey = this.normalizeStudentGroup(m.enrollment.group);
+
+      if (isGrouped && groupKey) {
+        if (!highestMarksByGroup[groupKey]) highestMarksByGroup[groupKey] = {};
+        if (
+          !highestMarksByGroup[groupKey][m.subject_id] ||
+          marksVal > highestMarksByGroup[groupKey][m.subject_id]
+        ) {
+          highestMarksByGroup[groupKey][m.subject_id] = marksVal;
+        }
+        if (m.subject.assessment_type === "exam") {
+          if (!totalByGroupAndEnrollment[groupKey]) {
+            totalByGroupAndEnrollment[groupKey] = {};
+          }
+          totalByGroupAndEnrollment[groupKey][m.enrollment_id] =
+            (totalByGroupAndEnrollment[groupKey][m.enrollment_id] || 0) +
+            marksVal;
+        }
+        if (!grandTotalByGroupAndEnrollment[groupKey]) {
+          grandTotalByGroupAndEnrollment[groupKey] = {};
+        }
+        grandTotalByGroupAndEnrollment[groupKey][m.enrollment_id] =
+          (grandTotalByGroupAndEnrollment[groupKey][m.enrollment_id] || 0) +
+          marksVal;
+      } else {
+        if (
+          !highestMarksMap[m.subject_id] ||
+          marksVal > highestMarksMap[m.subject_id]
+        ) {
+          highestMarksMap[m.subject_id] = marksVal;
+        }
+        if (m.subject.assessment_type === "exam") {
+          totalByEnrollment[m.enrollment_id] =
+            (totalByEnrollment[m.enrollment_id] || 0) + marksVal;
+        }
+        grandTotalByEnrollment[m.enrollment_id] =
+          (grandTotalByEnrollment[m.enrollment_id] || 0) + marksVal;
       }
-      if (m.subject.assessment_type === "exam") {
-        totalByEnrollment[m.enrollment_id] = (totalByEnrollment[m.enrollment_id] || 0) + marksVal;
+
+      if (!marksByEnrollment[m.enrollment_id]) {
+        marksByEnrollment[m.enrollment_id] = [];
       }
-      grandTotalByEnrollment[m.enrollment_id] = (grandTotalByEnrollment[m.enrollment_id] || 0) + marksVal;
-      if (!marksByEnrollment[m.enrollment_id]) marksByEnrollment[m.enrollment_id] = [];
       marksByEnrollment[m.enrollment_id].push(m);
     });
 
-    const classHighestTotal = Object.values(totalByEnrollment).length > 0 ? Math.max(...Object.values(totalByEnrollment)) : 0;
-    const classHighestGrandTotal = Object.values(grandTotalByEnrollment).length > 0 ? Math.max(...Object.values(grandTotalByEnrollment)) : 0;
+    const classHighestTotalByGroup: Record<string, number> = {};
+    const classHighestGrandTotalByGroup: Record<string, number> = {};
+    for (const [groupKey, totals] of Object.entries(totalByGroupAndEnrollment)) {
+      const vals = Object.values(totals);
+      classHighestTotalByGroup[groupKey] =
+        vals.length > 0 ? Math.max(...vals) : 0;
+    }
+    for (const [groupKey, totals] of Object.entries(
+      grandTotalByGroupAndEnrollment,
+    )) {
+      const vals = Object.values(totals);
+      classHighestGrandTotalByGroup[groupKey] =
+        vals.length > 0 ? Math.max(...vals) : 0;
+    }
+
+    const classHighestTotal = Object.values(totalByEnrollment).length > 0
+      ? Math.max(...Object.values(totalByEnrollment))
+      : 0;
+    const classHighestGrandTotal =
+      Object.values(grandTotalByEnrollment).length > 0
+        ? Math.max(...Object.values(grandTotalByEnrollment))
+        : 0;
     const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
     const returnDate = allExamMarks[0]?.exam?.return_date ?? null;
 
@@ -1706,6 +1881,20 @@ export class MarksService {
             exam: allExamMarks[0]?.exam,
           },
         );
+        const studentGroup = this.normalizeStudentGroup(enrollment.group);
+        const studentHighestMap =
+          isGrouped && studentGroup
+            ? highestMarksByGroup[studentGroup] ?? {}
+            : highestMarksMap;
+        const studentClassHighestTotal =
+          isGrouped && studentGroup
+            ? classHighestTotalByGroup[studentGroup] ?? 0
+            : classHighestTotal;
+        const studentClassHighestGrandTotal =
+          isGrouped && studentGroup
+            ? classHighestGrandTotalByGroup[studentGroup] ?? 0
+            : classHighestGrandTotal;
+
         const studentDetails = {
           name: enrollment.student.name,
           class: enrollment.class,
@@ -1713,8 +1902,8 @@ export class MarksService {
           roll: enrollment.roll,
           year: yearInt,
           exam: examName,
-          classHighestTotal,
-          classHighestGrandTotal,
+          classHighestTotal: studentClassHighestTotal,
+          classHighestGrandTotal: studentClassHighestGrandTotal,
           fourth_subject_id: enrollment.fourth_subject_id,
           result_date: resultDate,
           return_date: returnDate,
@@ -1722,7 +1911,7 @@ export class MarksService {
 
         const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
           ...m,
-          highest_mark: highestMarksMap[m.subject_id] || 0
+          highest_mark: studentHighestMap[m.subject_id] || 0
         })));
 
         const sigKey = `${enrollment.class}_${enrollment.section}_${yearInt}`;
@@ -1868,11 +2057,23 @@ export class MarksService {
     const examIds = Array.from(new Set(marks.map((m) => m.exam_id)));
 
     // Highest-per-subject and class-highest-total are read from the
-    // exam_class_stats cache (per exam+class), combined across the affected
-    // classes to match the previous behaviour, instead of a second full scan.
+    // exam_class_stats cache (per exam+class). Class 9/10 use group-scoped
+    // stats (Science / Commerce / Humanities); other classes stay class-wide.
     const highestMarksMap: Record<string, Record<number, number>> = {};
+    const highestMarksMapByGroup: Record<
+      string,
+      Record<string, Record<number, number>>
+    > = {};
     const classHighestTotalByExam: Record<string, number> = {};
     const classHighestGrandTotalByExam: Record<string, number> = {};
+    const classHighestTotalByExamAndGroup: Record<
+      string,
+      Record<string, number>
+    > = {};
+    const classHighestGrandTotalByExamAndGroup: Record<
+      string,
+      Record<string, number>
+    > = {};
 
     const mergeStats = (
       examLabel: string,
@@ -1905,6 +2106,37 @@ export class MarksService {
       }
     };
 
+    const mergeGroupStats = (
+      examLabel: string,
+      groupName: string,
+      stats: ClassStatsSnapshot,
+    ) => {
+      if (!highestMarksMapByGroup[examLabel]) {
+        highestMarksMapByGroup[examLabel] = {};
+      }
+      if (!highestMarksMapByGroup[examLabel][groupName]) {
+        highestMarksMapByGroup[examLabel][groupName] = {};
+      }
+      for (const [sid, val] of Object.entries(stats.highestBySubject)) {
+        const subjId = Number(sid);
+        const v = Number(val || 0);
+        const bucket = highestMarksMapByGroup[examLabel][groupName];
+        if (!bucket[subjId] || v > bucket[subjId]) {
+          bucket[subjId] = v;
+        }
+      }
+      if (!classHighestTotalByExamAndGroup[examLabel]) {
+        classHighestTotalByExamAndGroup[examLabel] = {};
+      }
+      classHighestTotalByExamAndGroup[examLabel][groupName] =
+        stats.classHighestTotal;
+      if (!classHighestGrandTotalByExamAndGroup[examLabel]) {
+        classHighestGrandTotalByExamAndGroup[examLabel] = {};
+      }
+      classHighestGrandTotalByExamAndGroup[examLabel][groupName] =
+        stats.classHighestGrandTotal;
+    };
+
     const statsRows = await prisma.exam_class_stats.findMany({
       where: {
         exam_id: { in: examIds },
@@ -1914,12 +2146,31 @@ export class MarksService {
       include: { exam: { select: { exam_name: true } } },
     });
     for (const row of statsRows) {
-      mergeStats(
-        row.exam.exam_name,
-        (row.highest_by_subject as Record<string, number>) ?? {},
-        row.class_highest_total ?? 0,
-        row.class_highest_grand_total ?? 0,
-      );
+      if (this.isGroupedClass(row.class)) {
+        const byGroup = row.stats_by_group as StatsByGroup | null;
+        if (byGroup && Object.keys(byGroup).length > 0) {
+          for (const [groupName, gStats] of Object.entries(byGroup)) {
+            mergeGroupStats(row.exam.exam_name, groupName, gStats);
+          }
+        } else {
+          const grouped = await this.computeGroupedClassStatsAll(
+            prisma,
+            row.exam_id,
+            row.class,
+            yearInt,
+          );
+          for (const [groupName, gStats] of Object.entries(grouped.byGroup)) {
+            mergeGroupStats(row.exam.exam_name, groupName, gStats);
+          }
+        }
+      } else {
+        mergeStats(
+          row.exam.exam_name,
+          (row.highest_by_subject as Record<string, number>) ?? {},
+          row.class_highest_total ?? 0,
+          row.class_highest_grand_total ?? 0,
+        );
+      }
     }
 
     // Lazy fallback: fill any (exam, class) combo present in the data but
@@ -1941,13 +2192,25 @@ export class MarksService {
     const present = new Set(statsRows.map((r) => `${r.exam_id}_${r.class}`));
     for (const c of combos.values()) {
       if (present.has(`${c.examId}_${c.klass}`)) continue;
-      const s = await this.computeStats(prisma, c.examId, c.klass, yearInt);
-      mergeStats(
-        c.examName,
-        s.highestBySubject as Record<string, number>,
-        s.classHighestTotal,
-        s.classHighestGrandTotal,
-      );
+      if (this.isGroupedClass(c.klass)) {
+        const grouped = await this.computeGroupedClassStatsAll(
+          prisma,
+          c.examId,
+          c.klass,
+          yearInt,
+        );
+        for (const [groupName, gStats] of Object.entries(grouped.byGroup)) {
+          mergeGroupStats(c.examName, groupName, gStats);
+        }
+      } else {
+        const s = await this.computeStats(prisma, c.examId, c.klass, yearInt);
+        mergeStats(
+          c.examName,
+          s.highestBySubject as Record<string, number>,
+          s.classHighestTotal,
+          s.classHighestGrandTotal,
+        );
+      }
     }
 
     const studentGrouped: Record<number, Record<string, any[]>> = {};
@@ -2030,6 +2293,33 @@ export class MarksService {
 
         const info = studentInfoMap[sid];
         const exams = Object.keys(studentGrouped[sid]);
+        const studentGroup = this.normalizeStudentGroup(info.group);
+        const isGroupedStudent = this.isGroupedClass(info.class);
+        const highestMarkForSubject = (examLabel: string, subjectId: number) => {
+          if (isGroupedStudent && studentGroup) {
+            return (
+              highestMarksMapByGroup[examLabel]?.[studentGroup]?.[subjectId] || 0
+            );
+          }
+          return highestMarksMap[examLabel]?.[subjectId] || 0;
+        };
+        const classHighestTotalForExam = (examLabel: string) => {
+          if (isGroupedStudent && studentGroup) {
+            return (
+              classHighestTotalByExamAndGroup[examLabel]?.[studentGroup] || 0
+            );
+          }
+          return classHighestTotalByExam[examLabel] || 0;
+        };
+        const classHighestGrandTotalForExam = (examLabel: string) => {
+          if (isGroupedStudent && studentGroup) {
+            return (
+              classHighestGrandTotalByExamAndGroup[examLabel]?.[studentGroup] ||
+              0
+            );
+          }
+          return classHighestGrandTotalByExam[examLabel] || 0;
+        };
 
         const sigKey = `${info.class}_${info.section}_${info.year}`;
         if (!(sigKey in teacherSigs)) {
@@ -2073,7 +2363,7 @@ export class MarksService {
             rows: this.aggregatePaperMarks(
               filled.map((m: any) => ({
                 ...m,
-                highest_mark: highestMarksMap[en]?.[m.subject_id] || 0,
+                highest_mark: highestMarkForSubject(en, m.subject_id),
               })),
             ),
           };
@@ -2113,7 +2403,7 @@ export class MarksService {
 
           const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
             ...m,
-            highest_mark: highestMarksMap[examName]?.[m.subject_id] || 0
+            highest_mark: highestMarkForSubject(examName, m.subject_id),
           })));
 
           // Check for space before rendering this exam's table
@@ -2141,19 +2431,19 @@ export class MarksService {
             headers,
             finalTableData,
             info.class,
-            classHighestTotalByExam[examName] || 0,
+            classHighestTotalForExam(examName),
           );
           const summaryY = await this.drawSummary(
             doc,
             tableY,
             finalTableData,
             info.class,
-            classHighestTotalByExam[examName] || 0,
+            classHighestTotalForExam(examName),
             info.fourth_subject_id,
             info.year,
             colWidths,
             resultDateByExam[examName] ?? null,
-            classHighestGrandTotalByExam[examName] || 0,
+            classHighestGrandTotalForExam(examName),
             returnDateByExam[examName] ?? null,
           );
           doc.y = summaryY;

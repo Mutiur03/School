@@ -64,7 +64,7 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = "12";
+export const MARKSHEET_DESIGN_VERSION = "13";
 
 /**
  * Bulk render aborts for a class with nothing to draw — no enrollments, or

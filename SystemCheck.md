@@ -268,6 +268,12 @@ docker build --no-cache -fserver/Dockerfile -t school-server .
 <!-- #restore -->
 docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < C:\Users\Mutiur\Downloads\backup.sql
 
+ docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers --clean < C:\Users\Mutiur\Downloads\backup_res.sql
+
+ docker exec -i prod-postgres_school-1 psql -U mutiur -d postgres -c "DROP DATABASE school WITH (FORCE);"
+  docker exec -i prod-postgres_school-1 psql -U mutiur -d postgres -c "CREATE DATABASE school OWNER mutiur;"
+  docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --no-owner --no-acl < C:\Users\Mutiur\Downloads\backup_res.sql
+
 <!-- #backup -->
 docker exec -i lbp-postgres_school-1 pg_dump -U mutiur -d school -F c > backup.sql
 scp root@IP:/root/backups/backup.sql ./

@@ -250,6 +250,7 @@ model exam_class_stats {
   highest_by_subject  Json     // { "<subject_id>": <maxMarks>, ... } across all assessment types
   class_highest_total Int      @default(0) // max per-student total, exam-type subjects only
   class_highest_grand_total Int @default(0) // max per-student total across ALL subjects (incl. continuous)
+  stats_by_group      Json?    // class 9/10 only: { "<group>": { highestBySubject, classHighestTotal, classHighestGrandTotal } }
   updated_at          DateTime @default(now()) @updatedAt
   exam                exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   school_id           Int @default(dbgenerated("app.current_school_id()"))
