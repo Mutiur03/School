@@ -2723,7 +2723,7 @@ export class MarksService {
         this.drawFittedCenteredText(doc, role, x, textY + 12, width, {
           fontSize: 10,
           minFontSize: 8,
-          font: "Times-Bold",
+          font: "Times-Roman",
         });
         if (phone) {
           this.drawFittedCenteredText(doc, phone, x, textY + 24, width, {
@@ -2737,7 +2737,7 @@ export class MarksService {
 
       this.drawFittedCenteredText(doc, role, x, textY, width, {
         fontSize: 10,
-        font: "Times-Bold",
+        font: "Times-Roman",
       });
       if (phone) {
         this.drawFittedCenteredText(doc, phone, x, textY + 12, width, {
@@ -2778,7 +2778,6 @@ export class MarksService {
       signatures?.headName,
       signatures?.headRole ?? "Headmaster",
       headLineWidth,
-      signatures?.schoolPhone,
     );
 
     doc.undash();
@@ -2875,11 +2874,10 @@ export class MarksService {
     const qrSize = 85;
     const qrX = PDF_STYLES.startX;
     const qrY = 75;
-    const textLeft = qrX + qrSize + 10;
-    const textRight = 415;
-    const textWidth = textRight - textLeft;
-    const pageHeaderX = 50;
-    const pageHeaderWidth = 495;
+    // Center header text on the full content width (same band as school name),
+    // not the asymmetric gap between QR and grading chart.
+    const pageHeaderX = PDF_STYLES.startX;
+    const pageHeaderWidth = PDF_STYLES.contentWidth;
 
     // Top line spans full page — above side widgets
     doc
@@ -2920,9 +2918,9 @@ export class MarksService {
     doc
       .font("Times-Bold")
       .fontSize(11)
-      .text("Panchbibi, Joypurhat.", textLeft, 75, {
+      .text("Panchbibi, Joypurhat.", pageHeaderX, 75, {
         align: "center",
-        width: textWidth,
+        width: pageHeaderWidth,
       });
     doc.font("Times-Bold").fontSize(10);
     const infoText = "EIIN: 121983, School Code: 5100";
@@ -2934,15 +2932,15 @@ export class MarksService {
       const websiteUrl = /^https?:\/\//i.test(websiteStr)
         ? websiteStr.replace(/\/+$/, "")
         : `https://${host}`;
-      doc.text(websiteUrl, textLeft, 90, {
+      doc.text(websiteUrl, pageHeaderX, 90, {
         align: "center",
-        width: textWidth,
+        width: pageHeaderWidth,
       });
     }
 
-    doc.text(infoText, textLeft, 90 + headerOffset, {
+    doc.text(infoText, pageHeaderX, 90 + headerOffset, {
       align: "center",
-      width: textWidth,
+      width: pageHeaderWidth,
     });
 
     if (exam && (exam.exam || exam.year)) {
@@ -2955,14 +2953,14 @@ export class MarksService {
         .fillColor("#000000")
         .font("Times-Bold")
         .fontSize(14)
-        .text(headerText, textLeft, 105 + headerOffset, {
+        .text(headerText, pageHeaderX, 105 + headerOffset, {
           align: "center",
-          width: textWidth,
+          width: pageHeaderWidth,
         });
     }
 
     const titleW = 200;
-    const titleX = textLeft + (textWidth - titleW) / 2;
+    const titleX = pageHeaderX + (pageHeaderWidth - titleW) / 2;
     doc
       .rect(titleX, 128 + headerOffset, titleW, 25)
       .fill("#f3f4f6")
@@ -3828,5 +3826,101 @@ export class MarksService {
     }
 
     return updated;
+  }
+
+  /**
+   * Set the same 4th subject on every enrollment in a class (9 or 10) for a year.
+   * Optional group limits the update to Science / Commerce / Humanities.
+   * Admin only.
+   */
+  static async bulkUpdateFourthSubject(
+    classNum: number,
+    year: number,
+    subjectId: number | null,
+    user: any,
+    group?: string | null,
+  ) {
+    if (user?.role !== "admin") {
+      throw new Error("Only admin can bulk-update 4th subjects");
+    }
+    if (classNum !== 9 && classNum !== 10) {
+      throw new Error("Bulk 4th subject update is only for class 9 or 10");
+    }
+    if (!Number.isFinite(year) || year < 2000) {
+      throw new Error("Valid year is required");
+    }
+
+    if (subjectId != null) {
+      const subject = await prisma.subjects.findFirst({
+        where: { id: subjectId },
+        select: {
+          id: true,
+          class: true,
+          subject_type: true,
+          group: true,
+        },
+      });
+      if (!subject) {
+        throw new Error("Subject not found");
+      }
+      if (subject.class !== classNum) {
+        throw new Error(`Subject belongs to class ${subject.class}, not ${classNum}`);
+      }
+      if (subject.subject_type === "main") {
+        throw new Error("Cannot set a main (group) subject as 4th subject");
+      }
+      if (group && subject.group && subject.group !== group) {
+        throw new Error(
+          `Subject group (${subject.group}) does not match filter group (${group})`,
+        );
+      }
+    }
+
+    const where: Prisma.student_enrollmentsWhereInput = {
+      class: classNum,
+      year,
+      ...(group ? { group } : {}),
+    };
+
+    const enrollments = await prisma.student_enrollments.findMany({
+      where,
+      select: { id: true, student_id: true },
+    });
+
+    if (enrollments.length === 0) {
+      return { updatedCount: 0, studentIds: [] as number[] };
+    }
+
+    const enrollmentIds = enrollments.map((e) => e.id);
+    const studentIds = enrollments.map((e) => e.student_id);
+
+    const result = await prisma.student_enrollments.updateMany({
+      where: { id: { in: enrollmentIds } },
+      data: { fourth_subject_id: subjectId },
+    });
+
+    try {
+      const affectedExams = await prisma.marks.findMany({
+        where: {
+          enrollment_id: { in: enrollmentIds },
+          exam: { exam_year: year },
+        },
+        distinct: ["exam_id"],
+        select: { exam_id: true },
+      });
+      if (affectedExams.length > 0) {
+        const { MarksheetService } = await import("./marksheet.service.js");
+        for (const { exam_id } of affectedExams) {
+          await MarksheetService.invalidate(studentIds, exam_id);
+        }
+      }
+    } catch (invErr) {
+      console.warn(
+        "Marksheet invalidation failed after bulkUpdateFourthSubject:",
+        invErr instanceof Error ? invErr.message : invErr,
+      );
+    }
+
+    return { updatedCount: result.count, studentIds };
   }
 }

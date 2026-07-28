@@ -29,7 +29,10 @@ import type { Student } from "@/types/students";
 import type { Subject } from "@/types/subjects";
 import { useStudents } from "@/queries/students.queries";
 import { useSubjects } from "@/queries/subject.queries";
-import { useUpdateFourthSubjectMutation } from "@/queries/marks.queries";
+import {
+  useUpdateFourthSubjectMutation,
+  useBulkUpdateFourthSubjectMutation,
+} from "@/queries/marks.queries";
 
 
 
@@ -133,7 +136,7 @@ const StudentRow = React.memo(
                   }}
                   disabled={isUpdatingFourthSubject}
                 >
-                  <option value="">Select 4th Sub</option>
+                  <option value="">None</option>
                   {allSubjects
                     .filter((s: Subject) => s.subject_type !== "main")
                     .filter((s: Subject) => s.class === Number(student.class))
@@ -277,9 +280,28 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
   const [tcConfirmOpen, setTcConfirmOpen] = useState(false);
+  const [bulkFourthClass, setBulkFourthClass] = useState<"9" | "10" | "">("");
+  const [bulkFourthGroup, setBulkFourthGroup] = useState("");
+  const [bulkFourthSubjectId, setBulkFourthSubjectId] = useState("");
+  const [bulkFourthConfirmOpen, setBulkFourthConfirmOpen] = useState(false);
 
   const { data: allSubjectsData = [] } = useSubjects();
   const updateFourthSubjectMutation = useUpdateFourthSubjectMutation();
+  const bulkUpdateFourthSubjectMutation = useBulkUpdateFourthSubjectMutation();
+
+  const bulkFourthSubjects = useMemo(() => {
+    if (!bulkFourthClass) return [];
+    const klass = Number(bulkFourthClass);
+    return allSubjectsData
+      .filter((s) => s.subject_type !== "main")
+      .filter((s) => s.class === klass)
+      .filter(
+        (s) =>
+          !bulkFourthGroup ||
+          !s.group ||
+          s.group === bulkFourthGroup,
+      );
+  }, [allSubjectsData, bulkFourthClass, bulkFourthGroup]);
 
   const tcMutation = useMutation({
     mutationFn: async (studentId: number) => {
@@ -1492,6 +1514,119 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
           </div>
         </div>
       </SectionCard>
+      {!readOnly && (
+        <SectionCard className="mb-6">
+          <div className="flex flex-col gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Bulk Update 4th Subject
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Set the same 4th subject for all Class 9 or Class 10 students in the selected year
+                {year ? ` (${year})` : ""}.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Class</label>
+                <select
+                  className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                  value={bulkFourthClass}
+                  onChange={(e) => {
+                    setBulkFourthClass(e.target.value as "9" | "10" | "");
+                    setBulkFourthSubjectId("");
+                  }}
+                >
+                  <option value="">Select class</option>
+                  <option value="9">Class 9</option>
+                  <option value="10">Class 10</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Group (optional)</label>
+                <select
+                  className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                  value={bulkFourthGroup}
+                  onChange={(e) => {
+                    setBulkFourthGroup(e.target.value);
+                    setBulkFourthSubjectId("");
+                  }}
+                >
+                  <option value="">All groups</option>
+                  {VALID_GROUPS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">4th Subject</label>
+                <select
+                  className="px-3 py-2 border rounded-md bg-card border-border text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none min-w-[160px]"
+                  value={bulkFourthSubjectId}
+                  onChange={(e) => setBulkFourthSubjectId(e.target.value)}
+                  disabled={!bulkFourthClass}
+                >
+                  <option value="">Select subject</option>
+                  <option value="__clear__">None (clear)</option>
+                  {bulkFourthSubjects.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                      {sub.group ? ` (${sub.group})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                type="button"
+                disabled={
+                  !bulkFourthClass ||
+                  !bulkFourthSubjectId ||
+                  bulkUpdateFourthSubjectMutation.isPending
+                }
+                onClick={() => setBulkFourthConfirmOpen(true)}
+              >
+                {bulkUpdateFourthSubjectMutation.isPending
+                  ? "Updating…"
+                  : "Apply to all"}
+              </Button>
+              <ConfirmationPopup
+                open={bulkFourthConfirmOpen}
+                onOpenChange={setBulkFourthConfirmOpen}
+                onConfirm={() => {
+                  if (!bulkFourthClass || !bulkFourthSubjectId) return;
+                  setBulkFourthConfirmOpen(false);
+                  bulkUpdateFourthSubjectMutation.mutate({
+                    class: Number(bulkFourthClass),
+                    year,
+                    subjectId:
+                      bulkFourthSubjectId === "__clear__"
+                        ? null
+                        : Number(bulkFourthSubjectId),
+                    group: bulkFourthGroup || null,
+                  });
+                }}
+                confirmLabel="Apply to all"
+                variant="default"
+                msg={
+                  bulkFourthSubjectId === "__clear__"
+                    ? `Clear 4th subject for all Class ${bulkFourthClass} students${
+                        bulkFourthGroup ? ` in ${bulkFourthGroup}` : ""
+                      } (${year})?`
+                    : `Set 4th subject to "${
+                        bulkFourthSubjects.find(
+                          (s) => s.id === Number(bulkFourthSubjectId),
+                        )?.name ?? "selected"
+                      }" for all Class ${bulkFourthClass} students${
+                        bulkFourthGroup ? ` in ${bulkFourthGroup}` : ""
+                      } (${year})? This overwrites existing 4th subjects.`
+                }
+              />
+            </div>
+          </div>
+        </SectionCard>
+      )}
       <SectionCard noPadding className="mb-6">
         {!readOnly && hasSelectedStudents && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-muted border-b border-border">

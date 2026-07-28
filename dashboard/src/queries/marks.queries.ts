@@ -248,3 +248,36 @@ export const useUpdateFourthSubjectMutation = () => {
     },
   });
 };
+
+export const useBulkUpdateFourthSubjectMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      class: number;
+      year: number;
+      subjectId: number | null;
+      group?: string | null;
+    }) => {
+      const response = await axios.post(
+        "/api/marks/bulk-update-fourth-subject",
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["class-marks"] });
+      queryClient.invalidateQueries({ queryKey: ["marks-students"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["student-preview"] });
+      toast.success(
+        data.message ||
+          `4th subject updated for ${data.data?.updatedCount ?? 0} student(s)`,
+      );
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.error || "Failed to bulk-update 4th subject",
+      );
+    },
+  });
+};

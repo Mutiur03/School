@@ -240,10 +240,20 @@ export class MarksController {
       if (!studentId || !year) {
         throw new ApiError(400, "studentId and year are required");
       }
+      const normalizedSubjectId =
+        subjectId === null ||
+        subjectId === undefined ||
+        subjectId === "" ||
+        subjectId === "null"
+          ? null
+          : Number(subjectId);
+      if (normalizedSubjectId !== null && !Number.isFinite(normalizedSubjectId)) {
+        throw new ApiError(400, "subjectId must be a number or null");
+      }
       const result = await MarksService.updateFourthSubject(
         studentId,
         year,
-        subjectId,
+        normalizedSubjectId,
         req.user,
       );
       res
@@ -251,6 +261,44 @@ export class MarksController {
         .json(
           new ApiResponse(200, result, "4th subject updated successfully"),
         );
+    },
+  );
+
+  static bulkUpdateFourthSubjectController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { class: classNum, year, subjectId, group } = req.body;
+      const klass = Number(classNum);
+      const yearInt = Number(year);
+      if (!klass || !yearInt) {
+        throw new ApiError(400, "class and year are required");
+      }
+      if (klass !== 9 && klass !== 10) {
+        throw new ApiError(400, "class must be 9 or 10");
+      }
+      const normalizedSubjectId =
+        subjectId === null ||
+        subjectId === undefined ||
+        subjectId === "" ||
+        subjectId === "null"
+          ? null
+          : Number(subjectId);
+      if (normalizedSubjectId !== null && !Number.isFinite(normalizedSubjectId)) {
+        throw new ApiError(400, "subjectId must be a number or null");
+      }
+      const result = await MarksService.bulkUpdateFourthSubject(
+        klass,
+        yearInt,
+        normalizedSubjectId,
+        req.user,
+        typeof group === "string" && group.trim() ? group.trim() : null,
+      );
+      res.status(200).json(
+        new ApiResponse(
+          200,
+          result,
+          `4th subject updated for ${result.updatedCount} student(s)`,
+        ),
+      );
     },
   );
 }

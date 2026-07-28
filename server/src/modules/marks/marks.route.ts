@@ -80,6 +80,12 @@ router.post(
   MarksController.updateFourthSubjectController,
 );
 
+router.post(
+  "/bulk-update-fourth-subject",
+  AuthMiddleware.authenticate(["admin"]),
+  MarksController.bulkUpdateFourthSubjectController,
+);
+
 const marksRouter = express.Router();
 marksRouter.use("/api/marks", router);
 
