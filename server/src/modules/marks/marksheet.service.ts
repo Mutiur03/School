@@ -1751,8 +1751,11 @@ export class MarksheetService {
     const rawStudents = tally(grouped);
     const students = {
       ...rawStudents,
-      // Progress = real marksheets only (students with marks), not skipped junk.
-      total: expectedStudents,
+      total:
+        rawStudents.ready +
+        rawStudents.pending +
+        rawStudents.generating +
+        rawStudents.failed,
       done: rawStudents.ready,
     };
     const bundles = tally(bundleGrouped);

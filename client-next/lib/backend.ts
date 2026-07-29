@@ -74,6 +74,74 @@ function previewBody(body: unknown) {
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function getFetchErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause && typeof cause === "object" && "code" in cause) {
+    return String((cause as { code?: unknown }).code);
+  }
+
+  return undefined;
+}
+
+function isRetryableFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const code = getFetchErrorCode(error);
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "UND_ERR_SOCKET" ||
+    code === "UND_ERR_CONNECT_TIMEOUT"
+  ) {
+    return true;
+  }
+
+  return error.message.toLowerCase().includes("fetch failed");
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  options?: { retries?: number; backoffMs?: number },
+): Promise<Response> {
+  const retries = options?.retries ?? 2;
+  const backoffMs = options?.backoffMs ?? 400;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...init,
+        // Reuse TCP connections where the runtime supports it.
+        keepalive: true,
+      });
+
+      if (attempt < retries && [502, 503, 504, 524].includes(res.status)) {
+        await sleep(backoffMs * (attempt + 1));
+        continue;
+      }
+
+      return res;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < retries && isRetryableFetchError(error)) {
+        await sleep(backoffMs * (attempt + 1));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
 type RequestContext = {
   host?: string;
   proto?: string;
@@ -261,7 +329,7 @@ async function get<T>(url: string, options?: any) {
   });
 
   try {
-    const res = await fetch(requestUrl, {
+    const res = await fetchWithRetry(requestUrl, {
       method: "GET",
       headers: apiHeaders,
       cache,
