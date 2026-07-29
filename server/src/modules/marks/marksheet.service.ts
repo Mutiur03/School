@@ -1083,17 +1083,6 @@ export class MarksheetService {
     ];
   }
 
-  /** Distinct students with non-null marks for an exam (source of truth for counts). */
-  private static async expectedStudentMarksheetCount(
-    examId: number,
-  ): Promise<number> {
-    const rows = await prisma.marks.findMany({
-      where: { exam_id: examId, marks: { not: null } },
-      distinct: ["enrollment_id"],
-      select: { enrollment_id: true },
-    });
-    return rows.length;
-  }
 
   /**
    * Mark the given students' sheets stale and re-enqueue. Only students with
@@ -1719,7 +1708,7 @@ export class MarksheetService {
       where: { exam_id: examId, status: "skipped" },
     });
 
-    const [grouped, bundleGrouped, expectedStudents] = await Promise.all([
+    const [grouped, bundleGrouped] = await Promise.all([
       prisma.marksheet_files.groupBy({
         by: ["status"],
         where: { exam_id: examId },
@@ -1730,7 +1719,6 @@ export class MarksheetService {
         where: { exam_id: examId },
         _count: { _all: true },
       }),
-      this.expectedStudentMarksheetCount(examId),
     ]);
     const tally = (rows: typeof grouped) => {
       const out: any = {
@@ -1751,8 +1739,11 @@ export class MarksheetService {
     const rawStudents = tally(grouped);
     const students = {
       ...rawStudents,
-      // Progress = real marksheets only (students with marks), not skipped junk.
-      total: expectedStudents,
+      total:
+        rawStudents.ready +
+        rawStudents.pending +
+        rawStudents.generating +
+        rawStudents.failed,
       done: rawStudents.ready,
     };
     const bundles = tally(bundleGrouped);
