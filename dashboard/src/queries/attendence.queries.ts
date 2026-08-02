@@ -121,3 +121,31 @@ export const useSendAttendanceSms = () => {
     },
   });
 };
+
+/** Request monthly attendance sheet PDF (queued + R2). Returns PDF blob. */
+export async function downloadAttendanceSheet(params: {
+  year: number;
+  /** 0–11 month index (matches Attendance page state) */
+  monthIndex: number;
+  level: number;
+  section: string;
+}): Promise<Blob> {
+  const response = await axios.get("/api/attendance/sheet/download", {
+    params: {
+      year: params.year,
+      month: params.monthIndex,
+      monthIndex: 1,
+      level: params.level,
+      section: params.section,
+    },
+    responseType: "blob",
+    timeout: 130_000,
+  });
+  const blob = response.data as Blob;
+  if (blob.type?.includes("json")) {
+    const err = JSON.parse(await blob.text()) as { message?: string };
+    throw new Error(err.message || "Failed to export attendance sheet");
+  }
+  return new Blob([blob], { type: "application/pdf" });
+}
+

@@ -2,6 +2,7 @@ import { prisma } from "@/config/prisma.js";
 import { SMSService } from "@/utils/sms.service.js";
 import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
 import { SmsLogsService, SmsLogInfo } from "../sms-logs/sms-logs.service.js";
+import { AttendanceSheetService } from "./attendence-sheet.service.js";
 
 export class AttendenceService {
   static async getAllAttendence(filters: {
@@ -32,18 +33,34 @@ export class AttendenceService {
       where.student = {
         enrollments: {
           some: {
-            class: level,
-            section: section,
-            year: year,
+            ...(level !== undefined ? { class: level } : {}),
+            ...(section ? { section } : {}),
+            ...(year !== undefined ? { year } : {}),
           },
         },
       };
     }
 
-    return await prisma.attendence.findMany({
+    // Explicit select so status (incl. run-awayed) is always in the payload.
+    const rows = await prisma.attendence.findMany({
       where,
-      orderBy: { date: "desc" },
+      select: {
+        id: true,
+        student_id: true,
+        date: true,
+        status: true,
+        send_msg: true,
+        created_at: true,
+        school_id: true,
+      },
+      orderBy: [{ date: "desc" }, { student_id: "asc" }],
     });
+
+    // Normalize status whitespace so "run-awayed" comparisons never miss.
+    return rows.map((r) => ({
+      ...r,
+      status: typeof r.status === "string" ? r.status.trim() : r.status,
+    }));
   }
 
   static async addAttendence(records: any[]) {
@@ -113,6 +130,9 @@ export class AttendenceService {
     });
 
     const { processed, absentCount, presentCount } = result;
+
+    // Regen cached attendance PDF(s) for affected class/section/month.
+    AttendanceSheetService.invalidateFromRecords(processed).catch(() => {});
 
     return {
       processed: processed.length,
@@ -321,6 +341,23 @@ export class AttendenceService {
 
     const saved = await this.addAttendence(records);
 
+    // Hint scopes the PDF invalidate (addAttendence already fired a best-effort
+    // invalidateFromRecords; this ensures the known class/section is covered).
+    const formatted = records.map((r) => {
+      const formattedDate = new Date(r.date).toLocaleDateString("en-CA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: "Asia/Dhaka",
+      });
+      return { studentId: r.studentId, date: formattedDate };
+    });
+    AttendanceSheetService.invalidateFromRecords(formatted, {
+      level,
+      section,
+      year,
+    }).catch(() => {});
+
     // Attendance is already persisted at this point, so an SMS failure is
     // reported back instead of thrown to keep the save from being lost.
     try {
@@ -393,6 +430,7 @@ export class AttendenceService {
     return {
       present: attendanceSummary.present,
       absent: attendanceSummary.absent,
+      runAwayed: attendanceSummary["run-awayed"] || 0,
       sms: {
         successful: smsSummary.sent,
         failed: smsSummary.failed,

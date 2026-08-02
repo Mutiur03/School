@@ -200,22 +200,36 @@ export class MarksheetService {
     return `${url}${sep}v=${hash.slice(0, 16)}`;
   }
 
-  private static async uploadWithHash(
-    key: string,
-    buffer: Buffer,
-    hash: string,
-  ): Promise<void> {
-    await uploadToR2(key, buffer);
-    await uploadToR2(`${key}.hash`, Buffer.from(hash, "utf8"), "text/plain");
-  }
+  /** student_id = 0 means the school-year "all" session PDF. */
+  private static readonly SESSION_YEAR_STUDENT_ID = 0;
 
-  private static async isR2HashFresh(
-    key: string,
+  private static async isSessionCacheFresh(
+    schoolId: number,
+    year: number,
+    studentId: number,
     hash: string,
-  ): Promise<boolean> {
-    if (!(await headObject(key))) return false;
-    const hashBuf = await getFileBuffer(`${key}.hash`);
-    return hashBuf?.toString("utf8") === hash;
+  ): Promise<{ r2_key: string } | null> {
+    const row = await prisma.marksheet_sessions.findUnique({
+      where: {
+        marksheet_session_scope: {
+          school_id: schoolId,
+          year,
+          student_id: studentId,
+        },
+      },
+      select: { status: true, input_hash: true, r2_key: true },
+    });
+    if (
+      !row ||
+      row.status !== "ready" ||
+      !row.r2_key ||
+      !row.input_hash ||
+      row.input_hash !== hash
+    ) {
+      return null;
+    }
+    if (!(await headObject(row.r2_key))) return null;
+    return { r2_key: row.r2_key };
   }
 
   private static async headMsgFingerprint(): Promise<{
@@ -2361,17 +2375,39 @@ export class MarksheetService {
     if (!schoolId) {
       throw new Error("Session marksheet cache is unavailable.");
     }
-    const key = this.r2SessionStudentKey(schoolId, year, studentId);
     const hash = await this.computeSessionStudentHash(studentId, year);
 
     const tryServeFresh = async () => {
-      if (!(await this.isR2HashFresh(key, hash))) return null;
-      const buf = await getFileBuffer(key);
+      const fresh = await this.isSessionCacheFresh(
+        schoolId,
+        year,
+        studentId,
+        hash,
+      );
+      if (!fresh) return null;
+      const buf = await getFileBuffer(fresh.r2_key);
       return buf ? { buffer: buf } : null;
     };
 
     let fresh = await tryServeFresh();
     if (fresh) return fresh;
+
+    await prisma.marksheet_sessions.upsert({
+      where: {
+        marksheet_session_scope: {
+          school_id: schoolId,
+          year,
+          student_id: studentId,
+        },
+      },
+      create: {
+        school_id: schoolId,
+        year,
+        student_id: studentId,
+        status: "pending",
+      },
+      update: { status: "pending", error: null, attempts: 0 },
+    });
 
     const job: SessionStudentJob = {
       kind: "session-student",
@@ -2415,17 +2451,40 @@ export class MarksheetService {
       throw new Error("Session marksheet cache is unavailable.");
     }
 
-    const key = this.r2SessionYearKey(schoolId, year);
+    const studentId = this.SESSION_YEAR_STUDENT_ID;
     const hash = await this.computeSessionYearHash(year);
 
     const tryServeFresh = async () => {
-      if (!(await this.isR2HashFresh(key, hash))) return null;
-      const buf = await getFileBuffer(key);
+      const fresh = await this.isSessionCacheFresh(
+        schoolId,
+        year,
+        studentId,
+        hash,
+      );
+      if (!fresh) return null;
+      const buf = await getFileBuffer(fresh.r2_key);
       return buf ? { buffer: buf } : null;
     };
 
     let fresh = await tryServeFresh();
     if (fresh) return fresh;
+
+    await prisma.marksheet_sessions.upsert({
+      where: {
+        marksheet_session_scope: {
+          school_id: schoolId,
+          year,
+          student_id: studentId,
+        },
+      },
+      create: {
+        school_id: schoolId,
+        year,
+        student_id: studentId,
+        status: "pending",
+      },
+      update: { status: "pending", error: null, attempts: 0 },
+    });
 
     const job: SessionYearJob = { kind: "session-year", year, schoolId };
     await enqueueUserPriority(job, sessionYearJobId(year)).catch(() => {});
@@ -2452,35 +2511,204 @@ export class MarksheetService {
     await runWithRlsContext(
       { schoolId, isSuperAdmin: false, inRlsTransaction: false },
       async () => {
-        const buffer = await MarksService.generateAllMarksheetsPDF(
-          String(year),
-          String(studentId),
-        );
-        const key = this.r2SessionStudentKey(schoolId, year, studentId);
-        const hash = await this.computeSessionStudentHash(studentId, year);
-        await this.uploadWithHash(key, buffer, hash);
-        logger.info("[marksheet] job(session-student): READY", {
-          studentId,
-          year,
-          bytes: buffer.length,
+        const whereKey = {
+          marksheet_session_scope: {
+            school_id: schoolId,
+            year,
+            student_id: studentId,
+          },
+        };
+        await prisma.marksheet_sessions.upsert({
+          where: whereKey,
+          create: {
+            school_id: schoolId,
+            year,
+            student_id: studentId,
+            status: "generating",
+            attempts: 1,
+          },
+          update: {
+            status: "generating",
+            attempts: { increment: 1 },
+            error: null,
+          },
         });
+
+        try {
+          const hashAtStart = await this.computeSessionStudentHash(
+            studentId,
+            year,
+          );
+          const existing = await prisma.marksheet_sessions.findUnique({
+            where: whereKey,
+            select: { input_hash: true, r2_key: true },
+          });
+          if (
+            existing?.input_hash === hashAtStart &&
+            existing.r2_key &&
+            (await headObject(existing.r2_key))
+          ) {
+            await prisma.marksheet_sessions.update({
+              where: whereKey,
+              data: { status: "ready", error: null },
+            });
+            logger.info("[marksheet] job(session-student): SKIP render", {
+              studentId,
+              year,
+            });
+            return;
+          }
+
+          const buffer = await MarksService.generateAllMarksheetsPDF(
+            String(year),
+            String(studentId),
+          );
+          const key = this.r2SessionStudentKey(schoolId, year, studentId);
+          const hashAtEnd = await this.computeSessionStudentHash(
+            studentId,
+            year,
+          );
+          if (hashAtEnd !== hashAtStart) {
+            await prisma.marksheet_sessions.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            setImmediate(() => {
+              enqueueUserPriority(
+                job,
+                sessionStudentJobId(year, studentId),
+              ).catch(() => {});
+            });
+            logger.info(
+              "[marksheet] job(session-student): DEFER after render (concurrent edit)",
+              { studentId, year, bytes: buffer.length },
+            );
+            return;
+          }
+
+          await uploadToR2(key, buffer);
+          await prisma.marksheet_sessions.update({
+            where: whereKey,
+            data: {
+              status: "ready",
+              r2_key: key,
+              input_hash: hashAtEnd,
+              generated_at: new Date(),
+              error: null,
+            },
+          });
+          logger.info("[marksheet] job(session-student): READY", {
+            studentId,
+            year,
+            bytes: buffer.length,
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          await prisma.marksheet_sessions
+            .update({
+              where: whereKey,
+              data: { status: "failed", error: msg.slice(0, 500) },
+            })
+            .catch(() => {});
+          throw e;
+        }
       },
     );
   }
 
   static async processSessionYearJob(job: SessionYearJob): Promise<void> {
     const { year, schoolId } = job;
+    const studentId = this.SESSION_YEAR_STUDENT_ID;
     await runWithRlsContext(
       { schoolId, isSuperAdmin: false, inRlsTransaction: false },
       async () => {
-        const buffer = await MarksService.generateAllMarksheetsPDF(String(year));
-        const key = this.r2SessionYearKey(schoolId, year);
-        const hash = await this.computeSessionYearHash(year);
-        await this.uploadWithHash(key, buffer, hash);
-        logger.info("[marksheet] job(session-year): READY", {
-          year,
-          bytes: buffer.length,
+        const whereKey = {
+          marksheet_session_scope: {
+            school_id: schoolId,
+            year,
+            student_id: studentId,
+          },
+        };
+        await prisma.marksheet_sessions.upsert({
+          where: whereKey,
+          create: {
+            school_id: schoolId,
+            year,
+            student_id: studentId,
+            status: "generating",
+            attempts: 1,
+          },
+          update: {
+            status: "generating",
+            attempts: { increment: 1 },
+            error: null,
+          },
         });
+
+        try {
+          const hashAtStart = await this.computeSessionYearHash(year);
+          const existing = await prisma.marksheet_sessions.findUnique({
+            where: whereKey,
+            select: { input_hash: true, r2_key: true },
+          });
+          if (
+            existing?.input_hash === hashAtStart &&
+            existing.r2_key &&
+            (await headObject(existing.r2_key))
+          ) {
+            await prisma.marksheet_sessions.update({
+              where: whereKey,
+              data: { status: "ready", error: null },
+            });
+            logger.info("[marksheet] job(session-year): SKIP render", { year });
+            return;
+          }
+
+          const buffer = await MarksService.generateAllMarksheetsPDF(
+            String(year),
+          );
+          const key = this.r2SessionYearKey(schoolId, year);
+          const hashAtEnd = await this.computeSessionYearHash(year);
+          if (hashAtEnd !== hashAtStart) {
+            await prisma.marksheet_sessions.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            setImmediate(() => {
+              enqueueUserPriority(job, sessionYearJobId(year)).catch(() => {});
+            });
+            logger.info(
+              "[marksheet] job(session-year): DEFER after render (concurrent edit)",
+              { year, bytes: buffer.length },
+            );
+            return;
+          }
+
+          await uploadToR2(key, buffer);
+          await prisma.marksheet_sessions.update({
+            where: whereKey,
+            data: {
+              status: "ready",
+              r2_key: key,
+              input_hash: hashAtEnd,
+              generated_at: new Date(),
+              error: null,
+            },
+          });
+          logger.info("[marksheet] job(session-year): READY", {
+            year,
+            bytes: buffer.length,
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          await prisma.marksheet_sessions
+            .update({
+              where: whereKey,
+              data: { status: "failed", error: msg.slice(0, 500) },
+            })
+            .catch(() => {});
+          throw e;
+        }
       },
     );
   }
@@ -2716,8 +2944,9 @@ export class MarksheetService {
   }
 
   /**
-   * Startup recovery: reset sheets stuck in `generating` (worker died mid-job)
-   * and re-enqueue everything still pending. Safe to run on every boot.
+   * Startup recovery: reset sheets stuck in `generating` or left `failed`,
+   * and re-enqueue them. Empty-bundle failures stay terminal (`skipped`).
+   * Safe to run on every boot.
    */
   static async recover(): Promise<void> {
     // Bundles recorded `failed` for a class that has nothing to render. The
@@ -2733,14 +2962,15 @@ export class MarksheetService {
 
     await Promise.all([
       prisma.marksheet_files.updateMany({
-        where: { status: "generating" },
-        data: { status: "pending" },
+        where: { status: { in: ["generating", "failed"] } },
+        data: { status: "pending", error: null },
       }),
       prisma.marksheet_bundles.updateMany({
-        where: { status: "generating" },
-        data: { status: "pending" },
+        where: { status: { in: ["generating", "failed"] } },
+        data: { status: "pending", error: null },
       }),
     ]);
+
     const [pending, pendingBundles] = await Promise.all([
       prisma.marksheet_files.findMany({
         where: { status: "pending" },
@@ -2764,45 +2994,48 @@ export class MarksheetService {
         },
       }),
     ]);
-    if (pending.length > 0) {
-      await marksheetQueue.addBulk(
-        pending.map((r) => ({
-          data: {
-            studentId: r.student_id,
-            examId: r.exam_id,
-            examName: r.exam_name,
-            year: r.year,
-            schoolId: r.school_id,
-          },
-          opts: {
-            jobId: jobId(r.exam_id, r.student_id),
-            ...defaultJobOpts(PRIORITY_BACKFILL),
-          },
-        })),
+
+    // ensureJobQueued clears Redis failed/completed orphans before re-add
+    // (addBulk alone would collide on existing failed jobIds).
+    let queuedStudents = 0;
+    for (const r of pending) {
+      const ok = await ensureJobQueued(
+        {
+          studentId: r.student_id,
+          examId: r.exam_id,
+          examName: r.exam_name,
+          year: r.year,
+          schoolId: r.school_id,
+        },
+        jobId(r.exam_id, r.student_id),
+        PRIORITY_BACKFILL,
       );
+      if (ok) queuedStudents++;
     }
-    if (pendingBundles.length > 0) {
-      await marksheetQueue.addBulk(
-        pendingBundles.map((r) => ({
-          data: {
-            kind: "bundle" as const,
-            examId: r.exam_id,
-            examName: r.exam_name,
-            year: r.year,
-            class: r.class,
-            schoolId: r.school_id,
-            bundleSection: r.section,
-          },
-          opts: {
-            jobId: bundleJobId(r.exam_id, r.class, r.section),
-            ...defaultJobOpts(PRIORITY_BACKFILL),
-          },
-        })),
+
+    let queuedBundles = 0;
+    for (const r of pendingBundles) {
+      const ok = await ensureJobQueued(
+        {
+          kind: "bundle" as const,
+          examId: r.exam_id,
+          examName: r.exam_name,
+          year: r.year,
+          class: r.class,
+          schoolId: r.school_id,
+          bundleSection: r.section,
+        },
+        bundleJobId(r.exam_id, r.class, r.section),
+        PRIORITY_BACKFILL,
       );
+      if (ok) queuedBundles++;
     }
-    logger.info("[marksheet] recover: re-enqueued pending on startup", {
+
+    logger.info("[marksheet] recover: re-enqueued pending/failed on startup", {
       students: pending.length,
       bundles: pendingBundles.length,
+      queuedStudents,
+      queuedBundles,
     });
   }
 

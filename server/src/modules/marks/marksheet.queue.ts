@@ -89,12 +89,16 @@ export async function enqueueUserPriority(
   }
 
   const state = await existing.getState();
-  if (state === "active" || state === "completed") {
+  if (state === "active") {
     return;
   }
 
   const currentPriority = existing.opts?.priority ?? PRIORITY_BACKFILL;
-  if (state === "failed" || currentPriority > PRIORITY_USER) {
+  if (
+    state === "failed" ||
+    state === "completed" ||
+    currentPriority > PRIORITY_USER
+  ) {
     try {
       await existing.remove();
     } catch {

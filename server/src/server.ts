@@ -46,6 +46,10 @@ import registrationSettingsClass9Router from "./modules/registration/class-9/Set
 import registrationFormClass9Router from "./modules/registration/class-9/Form/registrationFormClass9.route.js";
 import { check } from "./config/redis.js";
 import { startMarksheetWorker, drainMarksheetQueue } from "./modules/marks/marksheet.worker.js";
+import {
+  startAttendanceSheetWorker,
+  drainAttendanceSheetQueue,
+} from "./modules/attendence/attendence-sheet.worker.js";
 import rateLimit from "express-rate-limit";
 import { MemoryStore } from "express-rate-limit";
 import AuthMiddleware from "./middlewares/auth.middleware.js";
@@ -295,18 +299,19 @@ const httpServer = app.listen(PORT, () => {
   });
   check();
   startMarksheetWorker();
+  startAttendanceSheetWorker();
 });
 
 let shuttingDown = false;
 const gracefulShutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
-  logger.info(`Received ${signal}, draining marksheet worker…`);
+  logger.info(`Received ${signal}, draining marksheet + attendance-sheet workers…`);
 
   try {
-    await drainMarksheetQueue();
+    await Promise.all([drainMarksheetQueue(), drainAttendanceSheetQueue()]);
   } catch (e) {
-    logger.warn("Marksheet queue drain error during shutdown", {
+    logger.warn("Queue drain error during shutdown", {
       error: e instanceof Error ? e.message : String(e),
     });
   }

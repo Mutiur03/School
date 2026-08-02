@@ -7,6 +7,7 @@ import {
   useAttendanceStats,
   useSmsSettings,
   useSaveAndSendAttendance,
+  downloadAttendanceSheet,
 } from "@/queries/attendence.queries.js";
 import useNavigationStore from "@/store/navigation.Store";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -25,9 +26,11 @@ import {
   EyeOff,
   Clock,
   AlertTriangle,
+  FileDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateSMSCount } from "@school/shared-schemas";
+import { openBlobInNewTab } from "@school/common-ui/blob";
 
 interface StudentOverview {
   id: number;
@@ -100,6 +103,7 @@ function Attendance() {
 
   const saveAndSendMutation = useSaveAndSendAttendance();
   const statsToDisplay = persistentStats?.data;
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const classes = [6, 7, 8, 9, 10];
   const sections = ["A", "B"];
@@ -154,9 +158,17 @@ function Attendance() {
     });
   };
 
-  const getStatus = (studentId: number, day: number) => {
+  const getRecordedStatus = (
+    studentId: number,
+    day: number,
+  ): AttendanceStatus | null => {
     const key = `${studentId}-${day}`;
-    return localAttendance[key] || attendanceMap[key] || "absent";
+    return localAttendance[key] || attendanceMap[key] || null;
+  };
+
+  /** Today edit default = absent when unmarked. */
+  const getStatus = (studentId: number, day: number): AttendanceStatus => {
+    return getRecordedStatus(studentId, day) || "absent";
   };
 
   const realtimeStats = useMemo(() => {
@@ -327,11 +339,19 @@ function Attendance() {
 
     const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
 
-    const recordsToSave = students.map((student) => ({
-      studentId: student.id,
-      date,
-      status: getStatus(student.id, todayDay),
-    }));
+    // Never overwrite Stay-Check "run-awayed" with morning present/absent.
+    const recordsToSave = students.map((student) => {
+      const recorded = getRecordedStatus(student.id, todayDay);
+      const status =
+        recorded === "run-awayed"
+          ? "run-awayed"
+          : getStatus(student.id, todayDay);
+      return {
+        studentId: student.id,
+        date,
+        status,
+      };
+    });
 
     saveAndSendMutation.mutate(
       {
@@ -419,17 +439,63 @@ function Attendance() {
     setVisibleDays([currentDate.getDate()]);
   };
 
+  const exportAttendancePdf = async () => {
+    if (!selectedClass || !selectedSection) {
+      toast.error("Select class and section first");
+      return;
+    }
+    if (Object.keys(localAttendance).length > 0) {
+      const proceed = await confirm({
+        title: "Unsaved Changes",
+        msg: "You have unsaved attendance changes. Export uses saved data only. Continue?",
+        confirmLabel: "Export Anyway",
+      });
+      if (!proceed) return;
+    }
+
+    const loadingToast = toast.loading("Generating attendance sheet…");
+    setExportingPdf(true);
+    const preview = window.open("", "_blank");
+    if (preview) {
+      preview.document.write(
+        "Preparing attendance sheet… If this takes too long, check for errors.",
+      );
+    }
+
+    try {
+      const blob = await downloadAttendanceSheet({
+        year: selectedYear,
+        monthIndex: selectedMonth,
+        level: selectedClass as number,
+        section: selectedSection,
+      });
+      openBlobInNewTab(blob, preview ?? undefined);
+      toast.success("Attendance sheet ready", { id: loadingToast });
+    } catch (error: any) {
+      if (preview) preview.close();
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to export attendance sheet",
+        { id: loadingToast },
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-5">
       {dialog}
       <PageHeader
         title="Attendance Management"
         description="Monitor and record student attendance across different classes and sections."
+        className="mb-0"
       >
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
           {smsEstimate.cost > 0 && (
             <div
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full self-end ${
                 smsSettings?.sms_balance < smsEstimate.cost
                   ? "bg-red-100 text-red-700 animate-pulse"
                   : "bg-primary/10 text-primary"
@@ -440,8 +506,39 @@ function Attendance() {
                 " (Insufficient Balance!)"}
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
+              type="button"
+              variant="secondary"
+              onClick={exportAttendancePdf}
+              disabled={
+                exportingPdf ||
+                !selectedClass ||
+                !selectedSection ||
+                !students.length
+              }
+              title={
+                !selectedClass || !selectedSection
+                  ? "Select class and section to export"
+                  : !students.length
+                    ? "No students to export"
+                    : "Export monthly attendance sheet as PDF"
+              }
+              aria-label="Export attendance sheet as PDF"
+              className="min-w-[9.5rem] shadow-sm border border-border bg-card text-foreground hover:bg-muted transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            >
+              {exportingPdf ? (
+                <RefreshCcw
+                  className="w-4 h-4 mr-2 animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <FileDown className="w-4 h-4 mr-2" aria-hidden="true" />
+              )}
+              {exportingPdf ? "Exporting…" : "Export PDF"}
+            </Button>
+            <Button
+              type="button"
               onClick={saveAndSendAttendance}
               disabled={
                 saveAndSendMutation.isPending ||
@@ -453,76 +550,79 @@ function Attendance() {
                 ) ||
                 !students.length
               }
-              className="shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
+              className="min-w-[9.5rem] shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
             >
               {saveAndSendMutation.isPending ? (
-                <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+                <RefreshCcw
+                  className="w-4 h-4 mr-2 animate-spin"
+                  aria-hidden="true"
+                />
               ) : (
-                <Save className="w-4 h-4 mr-2" />
+                <Save className="w-4 h-4 mr-2" aria-hidden="true" />
               )}
               {saveAndSendMutation.isPending
-                ? "Saving & Sending..."
+                ? "Saving & Sending…"
                 : "Save & Send SMS"}
             </Button>
           </div>
         </div>
       </PageHeader>
 
-      <div className="relative space-y-4">
+      <div className="relative space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-            <RefreshCcw className="w-4 h-4" />
-            Today's Attendance Overview
+            <RefreshCcw className="w-4 h-4" aria-hidden="true" />
+            Today&apos;s Attendance Overview
           </h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           <StatsCard
             label="Total Students"
             value={realtimeStats.total}
             color="indigo"
-            icon={<Users className="w-5 h-5" />}
+            icon={<Users className="w-5 h-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="Present"
             value={realtimeStats.present}
             color="emerald"
-            icon={<CheckCircle2 className="w-5 h-5" />}
+            icon={<CheckCircle2 className="w-5 h-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="Absent"
             value={realtimeStats.absent}
             color="red"
-            icon={<XCircle className="w-5 h-5" />}
+            icon={<XCircle className="w-5 h-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
-            label="Running Away"
+            label="Run Away"
             value={realtimeStats.runAwayed}
             color="amber"
-            icon={<AlertTriangle className="w-5 h-5" />}
+            icon={<AlertTriangle className="w-5 h-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="SMS Success"
             value={statsToDisplay?.sms?.successful || 0}
             color="blue"
-            icon={<RefreshCcw className="w-5 h-5" />}
+            icon={<RefreshCcw className="w-5 h-5" aria-hidden="true" />}
             loading={false}
           />
           <StatsCard
             label="SMS Failed"
             value={statsToDisplay?.sms?.failed || 0}
             color="amber"
-            icon={<Filter className="w-5 h-5" />}
+            icon={<Filter className="w-5 h-5" aria-hidden="true" />}
             loading={false}
           />
           <StatsCard
             label="Pending SMS"
             value={statsToDisplay?.sms?.pending || 0}
             color="violet"
-            icon={<Clock className="w-5 h-5" />}
+            icon={<Clock className="w-5 h-5" aria-hidden="true" />}
             loading={false}
           />
         </div>
@@ -534,9 +634,14 @@ function Attendance() {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Month</label>
+            <label htmlFor="attendance-month" className="text-sm font-medium">
+              Month
+            </label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              id="attendance-month"
+              name="month"
+              autoComplete="off"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={selectedMonth}
               onChange={(e) => handleMonthChange(parseInt(e.target.value))}
             >
@@ -549,9 +654,14 @@ function Attendance() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Year</label>
+            <label htmlFor="attendance-year" className="text-sm font-medium">
+              Year
+            </label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              id="attendance-year"
+              name="year"
+              autoComplete="off"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={selectedYear}
               onChange={(e) => handleYearChange(parseInt(e.target.value))}
             >
@@ -568,9 +678,14 @@ function Attendance() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Class</label>
+            <label htmlFor="attendance-class" className="text-sm font-medium">
+              Class
+            </label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              id="attendance-class"
+              name="class"
+              autoComplete="off"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={selectedClass}
               onChange={(e) => {
                 handleClassChange(
@@ -588,9 +703,14 @@ function Attendance() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Section</label>
+            <label htmlFor="attendance-section" className="text-sm font-medium">
+              Section
+            </label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              id="attendance-section"
+              name="section"
+              autoComplete="off"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={selectedSection}
               onChange={(e) => handleSectionChange(e.target.value)}
               disabled={!selectedClass}
@@ -638,8 +758,11 @@ function Attendance() {
                 (day) => (
                   <button
                     key={day}
+                    type="button"
                     onClick={() => toggleVisibleDay(day)}
-                    className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
+                    aria-label={`Toggle day ${day}`}
+                    aria-pressed={visibleDays.includes(day)}
+                    className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       visibleDays.includes(day)
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-background text-muted-foreground border-input hover:border-primary/50"
@@ -663,6 +786,24 @@ function Attendance() {
         icon={<Users className="w-5 h-5 text-primary" />}
         noPadding
       >
+        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-border bg-muted/20 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground/70">Legend</span>
+          <span className="inline-flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+            Present
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <XCircle className="w-3.5 h-3.5 text-red-400" aria-hidden="true" />
+            Absent
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+            <span className="font-bold text-amber-600">R</span> Run Away
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground/80">
+            <span className="w-3.5 text-center">—</span> Not marked
+          </span>
+        </div>
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full border-collapse">
             <thead>
@@ -679,7 +820,7 @@ function Attendance() {
                 {visibleDays.map((day) => (
                   <th
                     key={day}
-                    className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[60px]"
+                    className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[60px] tabular-nums"
                   >
                     {day}
                   </th>
@@ -747,39 +888,63 @@ function Attendance() {
                         day === currentDate.getDate() &&
                         selectedMonth === currentDate.getMonth() &&
                         selectedYear === currentDate.getFullYear();
-                      const status = getStatus(student.id, day);
+                      const recorded = getRecordedStatus(student.id, day);
+                      const status = recorded || "absent";
                       return (
                         <td key={day} className="px-2 py-3 text-center">
-                          {isToday ? (
-                            status === "run-awayed" ? (
-                              <div className="flex items-center justify-center">
-                                <AlertTriangle className="w-5 h-5 text-amber-500 animate-pulse" />
-                              </div>
-                            ) : (
-                              <input
-                                type="checkbox"
-                                checked={status === "present"}
-                                disabled={!student.available}
-                                onChange={(e) =>
-                                  handleAttendanceChange(
-                                    student.id,
-                                    day,
-                                    e.target.checked,
-                                  )
-                                }
-                                className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          {isToday && recorded !== "run-awayed" ? (
+                            <input
+                              type="checkbox"
+                              checked={status === "present"}
+                              disabled={!student.available}
+                              aria-label={`Mark ${student.name} present on day ${day}`}
+                              onChange={(e) =>
+                                handleAttendanceChange(
+                                  student.id,
+                                  day,
+                                  e.target.checked,
+                                )
+                              }
+                              className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          ) : recorded === "present" ? (
+                            <div
+                              className="flex items-center justify-center"
+                              title="Present"
+                            >
+                              <CheckCircle2
+                                className="w-4 h-4 text-emerald-500"
+                                aria-hidden="true"
                               />
-                            )
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              {status === "present" ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                              ) : status === "run-awayed" ? (
-                                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                              ) : (
-                                <XCircle className="w-4 h-4 text-red-400" />
-                              )}
                             </div>
+                          ) : recorded === "run-awayed" ? (
+                            <div
+                              className="flex items-center justify-center"
+                              title="Run Away"
+                              aria-label={`${student.name} run away on day ${day}`}
+                            >
+                              <AlertTriangle
+                                className="w-4 h-4 text-amber-500 stroke-[2.75] drop-shadow-[0_0_3px_rgba(245,158,11,0.55)]"
+                                aria-hidden="true"
+                              />
+                            </div>
+                          ) : recorded === "absent" ? (
+                            <div
+                              className="flex items-center justify-center"
+                              title="Absent"
+                            >
+                              <XCircle
+                                className="w-4 h-4 text-red-400"
+                                aria-hidden="true"
+                              />
+                            </div>
+                          ) : (
+                            <span
+                              className="text-muted-foreground/50 text-xs"
+                              title="Not marked"
+                            >
+                              —
+                            </span>
                           )}
                         </td>
                       );
@@ -795,14 +960,6 @@ function Attendance() {
                             Inactive
                           </span>
                         )}
-                        {getStatus(student.id, currentDate.getDate()) ===
-                          "run-awayed" &&
-                          selectedMonth === currentDate.getMonth() &&
-                          selectedYear === currentDate.getFullYear() && (
-                            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight bg-amber-50 px-1 rounded border border-amber-100">
-                              Running Away
-                            </span>
-                          )}
                       </div>
                     </td>
                   </tr>

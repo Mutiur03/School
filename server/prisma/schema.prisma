@@ -82,6 +82,8 @@ model School {
   exam_class_stats exam_class_stats[]
   marksheet_files  marksheet_files[]
   marksheet_bundles marksheet_bundles[]
+  marksheet_sessions marksheet_sessions[]
+  attendance_sheets attendance_sheets[]
 
   @@index([name])
   @@index([subdomain])
@@ -330,6 +332,59 @@ model marksheet_bundles {
   @@unique([exam_id, class, section], name: "exam_id_class_section")
   @@index([exam_id, status])
   @@index([school_id])
+}
+
+// Session marksheet PDFs (all exams for one student, or whole-year admin PDF).
+// Hash lives in DB — R2 stores the PDF only. Tenant-scoped via school_id + RLS.
+// student_id = 0 means the school-year "all students" bundle.
+model marksheet_sessions {
+  id           Int       @id @default(autoincrement())
+  year         Int
+  student_id   Int // 0 = whole-year admin; otherwise one student
+  status       String    @default("pending") // pending | generating | ready | failed
+  r2_key       String?
+  input_hash   String?
+  attempts     Int       @default(0)
+  error        String?
+  generated_at DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([school_id, year, student_id], name: "marksheet_session_scope")
+  @@index([school_id, status])
+  @@index([status])
+}
+
+// Pre-generated monthly attendance sheet PDFs cached in R2 (same cache
+// semantics as marksheet_bundles). Keyed by class+section+year+month.
+// Source of truth is attendence rows; a lost R2 object regenerates.
+model attendance_sheets {
+  id           Int       @id @default(autoincrement())
+  year         Int
+  month        Int // 1–12
+  class        Int
+  section      String    @db.VarChar(20)
+  status       String    @default("pending") // pending | generating | ready | failed
+  r2_key       String?
+  input_hash   String?
+  attempts     Int       @default(0)
+  error        String?
+  generated_at DateTime?
+  design_version String? @db.VarChar(32)
+  // Class teacher pinned at generation; after the month ends, reassignment
+  // must not change the sheet (same rule as marksheet signatories post-publish).
+  snapshot_teacher_id   Int?
+  snapshot_teacher_name String? @db.VarChar(200)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([school_id, year, month, class, section], name: "attendance_sheet_scope")
+  @@index([school_id, status])
+  @@index([status])
 }
 
 model holidays {

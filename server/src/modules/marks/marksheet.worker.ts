@@ -24,6 +24,15 @@ export function startMarksheetWorker(): void {
   if (started) return;
   started = true;
 
+  // Drain pauses the queue in Redis; that pause survives restarts.
+  marksheetQueue
+    .resume()
+    .catch((e) =>
+      logger.warn("[marksheet] worker: resume failed", {
+        error: e instanceof Error ? e.message : String(e),
+      }),
+    );
+
   marksheetQueue.process(CONCURRENCY, async (job) => {
     const d: any = job.data;
     logger.debug("[marksheet] worker: picked up job", {

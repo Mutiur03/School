@@ -1,0 +1,10 @@
+---
+description: Never run DB migrations without permission (canonical text in AGENTS.md)
+alwaysApply: true
+---
+
+# No migrations without permission
+
+Follow **`AGENTS.md`** at the repo root (section "Database migrations").
+
+Never run `prisma migrate *`, `db push`, or any schema-apply command unless the user explicitly asks in that message. Writing migration files and `prisma generate` are OK. If migrate is needed, ask and wait.

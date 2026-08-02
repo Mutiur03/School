@@ -218,10 +218,18 @@ function StayCheck() {
       return;
     }
 
-    const recordsToSave = students.map((s) => ({
-      studentId: s.id,
+    // Only persist rows the user actually changed — avoids mass-overwrite
+    // of run-awayed back to present/absent if the map is stale.
+    const dirtyIds = Object.keys(localAttendance);
+    if (dirtyIds.length === 0) {
+      toast.error("No changes to save");
+      return;
+    }
+
+    const recordsToSave = dirtyIds.map((id) => ({
+      studentId: Number(id),
       date: todayIso,
-      status: getStatus(s.id),
+      status: getStatus(Number(id)),
     }));
 
     saveAndSendMutation.mutate(

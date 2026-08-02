@@ -12,6 +12,10 @@ router.post(
   "/save-and-send",
   AttendenceController.saveAndSendAttendanceController,
 );
+router.get(
+  "/sheet/download",
+  AttendenceController.downloadAttendanceSheetController,
+);
 
 const attendenceRouter = express.Router();
 attendenceRouter.use("/api/attendance", router);
