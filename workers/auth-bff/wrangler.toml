@@ -12,6 +12,14 @@ routes = [
 BACKEND_URL = "https://apisms.mutiurrahman.com"
 
 [observability]
+enabled = true
+head_sampling_rate = 1
+
 [observability.logs]
 enabled = true
-invocation_logs = false
+invocation_logs = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
