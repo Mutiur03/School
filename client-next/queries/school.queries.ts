@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { api, getFileUrl } from "@/lib/backend";
 import type { SchoolConfig } from "@/types";
 
@@ -254,7 +255,8 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   };
 };
 
-export const fetchSchoolConfig = (async () => {
+/** Deduped per RSC request (layout metadata + body + Footer). */
+export const fetchSchoolConfig = cache(async () => {
   try {
     const primary = await api.get<Record<string, unknown>>("/api/schools/public", {
       revalidate: 60,
@@ -262,7 +264,10 @@ export const fetchSchoolConfig = (async () => {
     const mappedPrimary = mapPublicSchoolInfoToConfig(primary?.data);
     if (mappedPrimary) return mappedPrimary;
   } catch (error) {
-    console.error("Error fetching school config from /api/schools/public:", error);
+    console.warn(
+      "Error fetching school config from /api/schools/public:",
+      error instanceof Error ? error.message : error,
+    );
   }
 
   try {
@@ -272,7 +277,10 @@ export const fetchSchoolConfig = (async () => {
     const mappedLegacy = mapPublicSchoolInfoToConfig(legacy?.data);
     if (mappedLegacy) return mappedLegacy;
   } catch (error) {
-    console.error("Error fetching school config from /api/school/getConfig:", error);
+    console.warn(
+      "Error fetching school config from /api/school/getConfig:",
+      error instanceof Error ? error.message : error,
+    );
   }
 
   return defaultSchoolConfig;

@@ -1,6 +1,6 @@
 import { getFileUrl } from "@/lib/cdn"
 import { getAdmissionData } from "@/queries/admission.queries"
-import Link from "next/link"
+import Link from "@/components/Link"
 
 async function AdmissionFormNotice() {
     const { preview_url, download_url, admission_open } = await getAdmissionData()

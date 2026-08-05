@@ -19,6 +19,9 @@ export { resolveClientAxiosBaseUrl } from "./resolveBackend";
 const envBackend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "") || "";
 const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === "true";
 
+/** Per-attempt deadline. Serverless + Cloudflare often reset idle keepalives; fail fast and retry. */
+const FETCH_TIMEOUT_MS = Number(process.env.API_FETCH_TIMEOUT_MS || 8_000);
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -87,8 +90,19 @@ function getFetchErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" ||
+      error.name === "TimeoutError" ||
+      error.message.toLowerCase().includes("aborted") ||
+      error.message.toLowerCase().includes("timeout"))
+  );
+}
+
 function isRetryableFetchError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
+  if (isAbortError(error)) return true;
 
   const code = getFetchErrorCode(error);
   if (
@@ -96,12 +110,45 @@ function isRetryableFetchError(error: unknown): boolean {
     code === "ECONNRESET" ||
     code === "ECONNREFUSED" ||
     code === "UND_ERR_SOCKET" ||
-    code === "UND_ERR_CONNECT_TIMEOUT"
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "UND_ERR_HEADERS_TIMEOUT" ||
+    code === "UND_ERR_BODY_TIMEOUT"
   ) {
     return true;
   }
 
   return error.message.toLowerCase().includes("fetch failed");
+}
+
+function mergeAbortSignals(
+  ...signals: Array<AbortSignal | null | undefined>
+): AbortSignal | undefined {
+  const active = signals.filter((s): s is AbortSignal => Boolean(s));
+  if (active.length === 0) return undefined;
+  if (active.length === 1) return active[0];
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any(active);
+  }
+  return active[0];
+}
+
+function createAttemptSignal(userSignal?: AbortSignal | null): {
+  signal?: AbortSignal;
+  cleanup: () => void;
+} {
+  const timeoutSignal =
+    typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      : undefined;
+
+  if (!timeoutSignal && !userSignal) {
+    return { signal: undefined, cleanup: () => undefined };
+  }
+
+  return {
+    signal: mergeAbortSignals(userSignal, timeoutSignal),
+    cleanup: () => undefined,
+  };
 }
 
 async function fetchWithRetry(
@@ -110,15 +157,17 @@ async function fetchWithRetry(
   options?: { retries?: number; backoffMs?: number },
 ): Promise<Response> {
   const retries = options?.retries ?? 2;
-  const backoffMs = options?.backoffMs ?? 400;
+  const backoffMs = options?.backoffMs ?? 250;
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const { signal, cleanup } = createAttemptSignal(init.signal);
     try {
+      // Do not set keepalive: true — dead sockets on Vercel serverless cause
+      // ECONNRESET / UND_ERR_SOCKET against Cloudflare-fronted backends.
       const res = await fetch(url, {
         ...init,
-        // Reuse TCP connections where the runtime supports it.
-        keepalive: true,
+        signal,
       });
 
       if (attempt < retries && [502, 503, 504, 524].includes(res.status)) {
@@ -136,6 +185,8 @@ async function fetchWithRetry(
       }
 
       throw error;
+    } finally {
+      cleanup();
     }
   }
 
@@ -349,9 +400,17 @@ async function get<T>(url: string, options?: any) {
 
     return normalizeApiResponse<T>(JSON.parse(text));
   } catch (error) {
-    logApiResponse("GET", requestUrl, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    const code = getFetchErrorCode(error);
+    const message = error instanceof Error ? error.message : String(error);
+    // Soft-fail: keep pages up when the backend blips. Avoid dumping full
+    // TypeError stacks into Vercel error logs on every transient failure.
+    if (debugApi) {
+      logApiResponse("GET", requestUrl, { error: message, code });
+    } else if (isRetryableFetchError(error)) {
+      console.warn(`[API] GET soft-fail ${url}: ${code || message}`);
+    } else {
+      console.warn(`[API] GET soft-fail ${url}: ${message}`);
+    }
     return normalizeApiResponse<T>(null);
   }
 }

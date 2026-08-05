@@ -1,5 +1,5 @@
 import "./RightSidebar.css";
-import Link from "next/link";
+import Link from "@/components/Link";
 
 import { getFileUrl } from "@/lib/backend";
 import { isExternalHref } from "@/lib/links";

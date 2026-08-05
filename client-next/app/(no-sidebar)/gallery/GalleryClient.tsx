@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useState } from "react";
 import type { GalleryItem } from "@/queries/gallery.queries";
 import Image from "next/image";

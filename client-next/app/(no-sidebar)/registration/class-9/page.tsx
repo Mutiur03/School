@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { getFileUrl } from "@/lib/cdn";
 import { getClass9RegistrationSettings } from "@/queries/class9-registration.queries";
 

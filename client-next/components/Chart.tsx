@@ -1,7 +1,7 @@
 import "./Chart.css";
 import Image from "next/image";
 import type { StaticImageData } from "next/image";
-import Link from "next/link";
+import Link from "@/components/Link";
 
 import image01 from "../assets/images/01.png";
 import academicImage from "../assets/images/academic.png";

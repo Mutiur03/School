@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import axios from "axios";
 import toast from "react-hot-toast";
 import Image from "next/image";

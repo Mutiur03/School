@@ -1,5 +1,5 @@
 import "./ExtraHome.css";
-import Link from "next/link";
+import Link from "@/components/Link";
 
 import placeholderImage from "../assets/images/placeholder.svg";
 import Image from "next/image";

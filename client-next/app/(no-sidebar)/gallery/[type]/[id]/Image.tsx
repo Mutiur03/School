@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useEffect, useId, useRef, useState } from "react";
 import { getFileUrl } from "@/lib/cdn";
 

@@ -1,6 +1,6 @@
 import { fetchNotices } from "@/queries/notice.queries";
 import { getFileUrl } from "@/lib/backend";
-import Link from "next/link";
+import Link from "@/components/Link";
 
 export async function TopBanner() {
   const data = await fetchNotices(5);

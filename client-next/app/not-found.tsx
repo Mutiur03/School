@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { FileQuestion, Home, Megaphone, Search, Users } from "lucide-react";
 
 const quickLinks = [

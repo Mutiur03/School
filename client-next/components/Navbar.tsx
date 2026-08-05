@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import "./Navbar.css";
-import Link from "next/link";
+import Link from "@/components/Link";
 import type { MenuItem } from "../types";
 import { useRoutinePDF } from "@/hooks/useSchoolData";
 import { getFileUrl } from "@/lib/cdn";

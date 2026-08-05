@@ -1,5 +1,5 @@
 import "./NoticeBoard.css";
-import Link from "next/link";
+import Link from "@/components/Link";
 import  { getFileUrl } from "@/lib/backend";
 import {  fetchNotices } from "@/queries/notice.queries";
 
