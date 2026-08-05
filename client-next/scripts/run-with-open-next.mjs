@@ -9,11 +9,11 @@ process.env.WRANGLER_BUILD_PLATFORM ??= "node";
 process.env.WRANGLER_BUILD_CONDITIONS ??= "";
 
 /**
- * OpenNext's patchVercelOgLibrary copyFileSync's to
- * `.open-next/.../node_modules/next/dist/compiled/@vercel/og/index.edge.js`
- * without mkdir — fails in monorepos when that folder wasn't NFT-traced.
+ * OpenNext's patchVercelOgLibrary (monorepo / incomplete NFT):
+ * 1) copyFileSync to `@vercel/og/index.edge.js` without mkdir
+ * 2) renameSync Geist-Regular.ttf → .bin without copying the font first
  */
-function patchOpenNextVercelOgMkdir() {
+function patchOpenNextVercelOgLibrary() {
   const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
   const monorepoRoot = path.join(appRoot, "..");
   const candidates = [
@@ -27,42 +27,83 @@ function patchOpenNextVercelOgMkdir() {
     ),
   ];
 
+  const marker = "/* open-next-school-og-patch */";
+
   for (const file of candidates) {
     if (!fs.existsSync(file)) continue;
     let src = fs.readFileSync(file, "utf8");
-    if (src.includes("mkdirSync(path.dirname(outputEdgePath)")) {
+    if (src.includes(marker)) {
       return;
     }
 
     if (!src.includes('from "node:fs"')) continue;
 
     src = src.replace(/import \{([^}]+)\} from "node:fs";/, (full, inner) => {
-      if (inner.includes("mkdirSync")) return full;
-      return `import {${inner.replace(/\s+$/, "")}, mkdirSync } from "node:fs";`;
+      let next = inner;
+      if (!next.includes("mkdirSync")) next = `${next.replace(/\s+$/, "")}, mkdirSync `;
+      if (!next.includes("readdirSync")) next = `${next.replace(/\s+$/, "")}, readdirSync `;
+      return `import {${next}} from "node:fs";`;
     });
 
-    const needle =
+    const mkdirNeedle =
       "if (!existsSync(outputEdgePath)) {\n            const tracedEdgePath";
-    const replacement =
+    const mkdirReplacement =
       "if (!existsSync(outputEdgePath)) {\n            mkdirSync(path.dirname(outputEdgePath), { recursive: true });\n            const tracedEdgePath";
-
-    if (!src.includes(needle)) {
-      console.warn(
-        "[open-next patch] Could not locate vercel/og copyFile site; skipping mkdir patch.",
-      );
-      return;
+    if (src.includes(mkdirNeedle) && !src.includes("mkdirSync(path.dirname(outputEdgePath)")) {
+      src = src.replace(mkdirNeedle, mkdirReplacement);
     }
 
-    src = src.replace(needle, replacement);
+    // After yoga.wasm copy, also copy sibling assets (fonts, resvg.wasm, …).
+    const yogaNeedle =
+      "if (existsSync(tracedWasmPath)) {\n                copyFileSync(tracedWasmPath, path.join(outputDir, \"yoga.wasm\"));\n            }";
+    const yogaReplacement = `${yogaNeedle}
+            const tracedOgDir = path.dirname(tracedEdgePath);
+            if (existsSync(tracedOgDir)) {
+                for (const name of readdirSync(tracedOgDir)) {
+                    if (name === "satori" || name === "index.edge.js" || name === "yoga.wasm") continue;
+                    const from = path.join(tracedOgDir, name);
+                    const to = path.join(outputDir, name);
+                    if (existsSync(from) && !existsSync(to)) {
+                        try { copyFileSync(from, to); } catch { /* skip dirs */ }
+                    }
+                }
+            }`;
+    if (src.includes(yogaNeedle) && !src.includes("tracedOgDir")) {
+      src = src.replace(yogaNeedle, yogaReplacement);
+    }
+
+    const renameNeedle =
+      "renameSync(path.join(outputDir, fontFileName), path.join(outputDir, `${fontFileName}.bin`));";
+    const renameReplacement = `const fontSrc = path.join(outputDir, fontFileName);
+                const fontDest = path.join(outputDir, \`\${fontFileName}.bin\`);
+                if (!existsSync(fontSrc)) {
+                    const tracedFontPath = path.join(path.dirname(traceInfoPath), tracedNodePath.replace("index.node.js", fontFileName));
+                    if (existsSync(tracedFontPath)) {
+                        mkdirSync(path.dirname(fontSrc), { recursive: true });
+                        copyFileSync(tracedFontPath, fontSrc);
+                    }
+                }
+                if (existsSync(fontSrc) && !existsSync(fontDest)) {
+                    renameSync(fontSrc, fontDest);
+                }`;
+    if (src.includes(renameNeedle)) {
+      src = src.replace(renameNeedle, renameReplacement);
+    } else if (!src.includes("fontDest")) {
+      console.warn(
+        "[open-next patch] Could not locate vercel/og renameSync site; font patch skipped.",
+      );
+    }
+
+    src = `${marker}\n${src}`;
     fs.writeFileSync(file, src);
     console.log(
-      `[open-next patch] Added mkdirSync before @vercel/og copy → ${path.relative(monorepoRoot, file)}`,
+      `[open-next patch] Patched @vercel/og mkdir+font copy → ${path.relative(monorepoRoot, file)}`,
     );
     return;
   }
 }
 
-patchOpenNextVercelOgMkdir();
+patchOpenNextVercelOgLibrary();
 
 const [cmd, ...args] = process.argv.slice(2);
 if (!cmd) {

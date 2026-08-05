@@ -12,12 +12,12 @@ const require = createRequire(import.meta.url);
 const isOpenNextBuild = process.env.OPEN_NEXT === "1";
 
 /**
- * Monorepo NFT often ships a partial `next` tree into /var/task.
- * Always include the full next/dist + @swc/helpers (next/dist/client/lib/console.js
- * requires `@swc/helpers/_/_interop_require_default`; node-environment.js requires
- * sibling baseline/extension files).
+ * Vercel (monorepo): trace from repo root so hoisted next/@swc/helpers land in /var/task.
+ * OpenNext: do NOT set monorepo tracing root — client-next has its own package-lock, so
+ * OpenNext's packagePath is "" and expects flat `.next/standalone/.next/...`. Nesting under
+ * `client-next/` (via monorepo tracing root) breaks the CF build with missing pages-manifest.
  */
-const nextTracingIncludes = [
+const vercelTracingIncludes = [
   "../node_modules/next/dist/**/*",
   "../node_modules/next/setup-node-env.js",
   "../node_modules/next/package.json",
@@ -30,16 +30,28 @@ const nextTracingIncludes = [
 ];
 
 const nextConfig: NextConfig = {
-  // Standalone is required by OpenNext; last known-good Vercel prod also used it.
   output: "standalone",
-  // Trace from monorepo root so hoisted deps resolve into the serverless bundle.
-  outputFileTracingRoot: monorepoRoot,
-  outputFileTracingIncludes: {
-    "/*": nextTracingIncludes,
-  },
+  ...(isOpenNextBuild
+    ? {
+        // Flat standalone layout for OpenNext; next-build.mjs copies full next into it.
+        outputFileTracingIncludes: {
+          "/*": [
+            "../node_modules/next/dist/**/*",
+            "../node_modules/@swc/helpers/**/*",
+            "node_modules/@swc/helpers/**/*",
+          ],
+        },
+      }
+    : {
+        outputFileTracingRoot: monorepoRoot,
+        outputFileTracingIncludes: {
+          "/*": vercelTracingIncludes,
+        },
+      }),
   transpilePackages: ["@school/common-ui"],
   turbopack: {
-    root: projectRoot,
+    // Keep in sync with tracing root when set (Next warns if they diverge).
+    root: isOpenNextBuild ? projectRoot : monorepoRoot,
   },
   images: {
     // Cloudflare Images binding not enabled yet — skip optimizer on CF builds.
