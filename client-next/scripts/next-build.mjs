@@ -86,3 +86,36 @@ for (const dest of uniqueDests) {
   fs.cpSync(nextSrc, dest, { recursive: true, force: true });
   console.log(`[open-next patch] Copied full next → ${path.relative(appRoot, dest)}`);
 }
+
+/**
+ * next/dist/client/lib/console.js requires `@swc/helpers/_/_interop_require_default`.
+ * Ensure helpers sit next to the standalone next install (monorepo NFT often omits them).
+ */
+const helpersSrcCandidates = [
+  path.join(nextSrc, "node_modules", "@swc", "helpers"),
+  path.join(appRoot, "node_modules", "@swc", "helpers"),
+  path.join(monorepoRoot, "node_modules", "@swc", "helpers"),
+];
+const helpersSrc = helpersSrcCandidates.find((p) =>
+  fs.existsSync(path.join(p, "_", "_interop_require_default")),
+);
+
+if (helpersSrc) {
+  const helpersDests = new Set(
+    uniqueDests.map((nextDest) =>
+      path.join(path.dirname(nextDest), "@swc", "helpers"),
+    ),
+  );
+  helpersDests.add(path.join(standaloneRoot, "node_modules", "@swc", "helpers"));
+  for (const dest of helpersDests) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.cpSync(helpersSrc, dest, { recursive: true, force: true });
+    console.log(
+      `[open-next patch] Copied @swc/helpers → ${path.relative(appRoot, dest)}`,
+    );
+  }
+} else {
+  console.warn(
+    "[open-next patch] @swc/helpers not found — OpenNext bundle may miss interop helpers.",
+  );
+}
