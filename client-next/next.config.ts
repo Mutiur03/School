@@ -10,6 +10,10 @@ const isOpenNextBuild = process.env.OPEN_NEXT === "1";
 const nextConfig: NextConfig = {
   // Required by OpenNext/Cloudflare; Vercel ignores the standalone folder and is fine.
   output: "standalone",
+  // Help NFT keep Next server internals for OpenNext's esbuild pass (monorepo hoist).
+  outputFileTracingIncludes: {
+    "/*": ["../node_modules/next/dist/**/*"],
+  },
   transpilePackages: ["@school/common-ui"],
   turbopack: {
     root: projectRoot,

@@ -62,6 +62,8 @@ jobs:
               echo "NEXT_PUBLIC_DEFAULT_TENANT_HOST=${DEFAULT_TENANT_HOST}"
             fi
             echo "OPEN_NEXT=1"
+            echo "WRANGLER_BUILD_CONDITIONS="
+            echo "WRANGLER_BUILD_PLATFORM=node"
           } > .env.production
           echo "Wrote client-next/.env.production (values redacted)."
 
