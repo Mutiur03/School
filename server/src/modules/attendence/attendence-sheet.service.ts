@@ -23,7 +23,7 @@ import {
 } from "./attendence-sheet.queue.js";
 
 /** Bump to force regen of all cached attendance sheets. */
-export const ATTENDANCE_SHEET_DESIGN_VERSION = "24";
+export const ATTENDANCE_SHEET_DESIGN_VERSION = "28";
 
 /**
  * A month is "ended" once Asia/Dhaka calendar has moved past it. Ended-month
@@ -50,7 +50,7 @@ function designFingerprint(
   return { d: ATTENDANCE_SHEET_DESIGN_VERSION };
 }
 
-const STUDENTS_PER_PAGE = 45;
+const STUDENTS_PER_PAGE = 40;
 const SERVE_TIMEOUT_MS = Number(
   process.env.ATTENDANCE_SHEET_SERVE_TIMEOUT_MS || "120000",
 );
@@ -58,7 +58,7 @@ const SERVE_POLL_MS = Number(
   process.env.ATTENDANCE_SHEET_SERVE_POLL_MS || "500",
 );
 /** true = render PDF in the request; false = Bull queue + poll (default). */
-export const ATTENDANCE_SHEET_INLINE = process.env.NODE_ENV !== "production";
+export const ATTENDANCE_SHEET_INLINE = process.env.NODE_ENV !== "production" || true;
 const FONT_REGULAR = "Times-Roman";
 const FONT_BOLD = "Times-Bold";
 const TIMES_FONT_PATHS = {
@@ -1709,8 +1709,9 @@ export class AttendanceSheetService {
 
     // —— Table ——
     // Pack STUDENTS_PER_PAGE rows into remaining page height.
+    // Leave 1.5" blank at the bottom (signatures / stamps when printed).
     const tableTop = y;
-    const footerReserve = 28;
+    const footerReserve = 1.5 * 72; // 1.5 inches in PDF points
     const tableBottom = Math.min(pageH - footerReserve, doc.page.maxY() - 2);
     const availableH = Math.max(120, tableBottom - tableTop);
 
