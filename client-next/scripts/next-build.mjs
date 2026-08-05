@@ -119,3 +119,36 @@ if (helpersSrc) {
     "[open-next patch] @swc/helpers not found — OpenNext bundle may miss interop helpers.",
   );
 }
+
+/**
+ * OpenNext esbuild resolves styled-jsx via require('./dist/index'). Monorepo NFT
+ * often leaves only the package root stub without dist/.
+ */
+const styledJsxSrcCandidates = [
+  path.join(nextSrc, "node_modules", "styled-jsx"),
+  path.join(appRoot, "node_modules", "styled-jsx"),
+  path.join(monorepoRoot, "node_modules", "styled-jsx"),
+];
+const styledJsxSrc = styledJsxSrcCandidates.find((p) =>
+  fs.existsSync(path.join(p, "dist", "index", "index.js")),
+);
+
+if (styledJsxSrc) {
+  const styledJsxDests = new Set(
+    uniqueDests.map((nextDest) =>
+      path.join(path.dirname(nextDest), "styled-jsx"),
+    ),
+  );
+  styledJsxDests.add(path.join(standaloneRoot, "node_modules", "styled-jsx"));
+  for (const dest of styledJsxDests) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.cpSync(styledJsxSrc, dest, { recursive: true, force: true });
+    console.log(
+      `[open-next patch] Copied styled-jsx → ${path.relative(appRoot, dest)}`,
+    );
+  }
+} else {
+  console.warn(
+    "[open-next patch] styled-jsx not found — OpenNext bundle may fail resolving ./dist/index.",
+  );
+}

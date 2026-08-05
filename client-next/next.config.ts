@@ -38,7 +38,9 @@ const nextConfig: NextConfig = {
           "/*": [
             "../node_modules/next/dist/**/*",
             "../node_modules/@swc/helpers/**/*",
+            "../node_modules/styled-jsx/**/*",
             "node_modules/@swc/helpers/**/*",
+            "node_modules/styled-jsx/**/*",
           ],
         },
       }
