@@ -4,14 +4,19 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 
+// Dual deploy: same next.config for Vercel + OpenNext/Cloudflare.
+const isOpenNextBuild = process.env.OPEN_NEXT === "1";
+
 const nextConfig: NextConfig = {
+  // Required by OpenNext/Cloudflare; Vercel ignores the standalone folder and is fine.
   output: "standalone",
   transpilePackages: ["@school/common-ui"],
   turbopack: {
     root: projectRoot,
   },
   images: {
-    // unoptimized: true,
+    // Cloudflare Images binding not enabled yet — skip optimizer on CF builds.
+    ...(isOpenNextBuild ? { unoptimized: true } : {}),
     qualities: [50, 75],
     remotePatterns: [
       {
@@ -64,3 +69,7 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Enables Cloudflare bindings during `next dev` when previewing dual-deploy setup.
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+initOpenNextCloudflareForDev();

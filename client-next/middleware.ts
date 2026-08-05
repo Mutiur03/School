@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getDevTenantHost, isBareLocalHost } from "@/lib/resolveBackend";
 
-export function proxy(request: NextRequest) {
+/**
+ * Edge middleware (not Next 16 `proxy.ts` / Node middleware).
+ * Required for dual deploy: OpenNext Cloudflare does not support Node middleware yet.
+ * Logic is Edge-safe (headers only) and works on Vercel too.
+ */
+export function middleware(request: NextRequest) {
   const hostname = (request.headers.get("host") ?? "").split(":")[0];
 
   if (!isBareLocalHost(hostname) || !request.nextUrl.pathname.startsWith("/api/")) {
