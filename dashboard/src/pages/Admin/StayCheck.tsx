@@ -273,7 +273,8 @@ function StayCheck() {
                 saveAndSendMutation.isPending ||
                 !selectedClass ||
                 !selectedSection ||
-                !students.length
+                !students.length ||
+                Object.keys(localAttendance).length === 0
               }
             >
               <Save className="w-4 h-4 mr-2" />
