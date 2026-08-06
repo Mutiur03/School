@@ -18,6 +18,7 @@ import ServerOffline from "./pages/Common/ServerOffline.tsx";
 import Login from "./pages/Common/Login.tsx";
 import NotFound from "./pages/Common/not-found.tsx";
 import { lazyWithReload as lazy } from "./lib/lazyWithReload.ts";
+import { registerRoutePrefetchers } from "./lib/routePrefetch.ts";
 
 // Route pages — lazy to keep initial shell small
 const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard"));
@@ -58,6 +59,52 @@ const Class6RegForm = lazy(() => import("./pages/Admin/Class6RegForm"));
 const Class8RegForm = lazy(() => import("./pages/Admin/Class8RegForm"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdmin/Dashboard"));
 const SchoolManagement = lazy(() => import("./pages/SuperAdmin/SchoolManagement"));
+
+/** Sidebar hover warms these chunks. Add/remove paths here anytime. */
+registerRoutePrefetchers({
+  "/admin/dashboard": Dashboard,
+  "/admin/students/student-list": StudentList,
+  "/admin/students/alumni-list": AlumniList,
+  "/admin/administration/teacher-list": TeacherList,
+  "/admin/administration/staff-list": StaffList,
+  "/admin/administration/head": Head,
+  "/admin/result/add-subject": NewSubject,
+  "/admin/result/assigned-teachers": AddLevel,
+  "/admin/result/add-marks": AddMarks,
+  "/admin/result/view-marks": ViewMarks,
+  "/admin/result/generate-result": GenerateResult,
+  "/admin/result/customize-result": UpdateStatus,
+  "/admin/registration/class-6": Class6RegForm,
+  "/admin/registration/class-8": Class8RegForm,
+  "/admin/registration/class-9": Class9RegForm,
+  "/admin/admission/form": Admission,
+  "/admin/admission/settings": AdmissionSettings,
+  "/admin/admission/result": AdmissionResult,
+  "/admin/settings/add-exam": ExamPDFRoutine,
+  "/admin/syllabus": Syllabus,
+  "/admin/classRoutine": ClassRoutinePDF,
+  "/admin/citizencharter": CitizenCharter,
+  "/admin/attendance": Attendence,
+  "/admin/attendance-double": StayCheck,
+  "/admin/sms-management": SmsManagement,
+  "/admin/notice": Notice,
+  "/admin/holiday": Holidays,
+  "/admin/events": Events,
+  "/admin/gallery/upload": Gallery,
+  "/admin/gallery/pending": PendingImages,
+  "/admin/gallery/rejected": RejectedImages,
+  "/teacher/dashboard": TeacherDashboard,
+  "/teacher/settings": TeacherSettings,
+  "/teacher/students": StudentList,
+  "/teacher/mark-management": AddMarks,
+  "/teacher/result/view-marks": ViewMarks,
+  "/teacher/attendance": Attendence,
+  "/teacher/attendance-double": StayCheck,
+  "/student/dashboard": StudentDashboard,
+  "/student/result": Result,
+  "/super_admin/dashboard": SuperAdminDashboard,
+  "/super_admin/settings/school": SchoolManagement,
+});
 
 function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth >= 768);

@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/context/useAuth";
 import useNavigationStore from "@/store/navigation.Store";
 import ConfirmationPopup from "@/components/ConfirmationPopup";
+import { prefetchRoute } from "@/lib/routePrefetch";
 
 interface SidebarProps {
   sidebarExpanded: boolean;
@@ -550,6 +551,8 @@ const Sidebar = ({
                               : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             } ${sidebarExpanded ? "gap-3" : "justify-center"}`
                           }
+                          onMouseEnter={() => prefetchRoute(item.link)}
+                          onFocus={() => prefetchRoute(item.link)}
                           onClick={(e) => {
                             if (!requestNavigate(e, item.link as string)) return;
                             setOpenDropdown(null);
@@ -581,6 +584,9 @@ const Sidebar = ({
                               }`}
                             type="button"
                             onClick={() => toggleDropdown(item.id)}
+                            onMouseEnter={() => {
+                              item.items?.forEach((sub) => prefetchRoute(sub.link));
+                            }}
                           >
                             <div
                               className={`flex items-center ${sidebarExpanded ? "gap-3" : ""
@@ -632,6 +638,8 @@ const Sidebar = ({
                                             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                           }`
                                         }
+                                        onMouseEnter={() => prefetchRoute(subItem.link)}
+                                        onFocus={() => prefetchRoute(subItem.link)}
                                         onClick={(e) => {
                                           if (!requestNavigate(e, subItem.link)) return;
                                           if (

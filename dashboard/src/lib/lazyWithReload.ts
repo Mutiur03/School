@@ -56,22 +56,38 @@ export function clearStaleChunkReloadGuard(): void {
   window.history.replaceState({}, "", url.pathname + url.search + url.hash);
 }
 
+export type PrefetchableLazyComponent<T extends ComponentType<any>> =
+  LazyExoticComponent<T> & {
+    prefetch: () => Promise<void>;
+  };
+
 /**
  * Like React.lazy, but on a missing/stale chunk reload once to fetch fresh HTML.
  * Avoids the white-screen MIME / undefined.default crash after deploys.
+ * `.prefetch()` warms the same chunk promise used by the lazy render.
  */
 export function lazyWithReload<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
-): LazyExoticComponent<T> {
-  return lazy(async () => {
-    try {
-      return await factory();
-    } catch (err) {
-      if (isStaleChunkError(err) && reloadOnceForStaleChunk()) {
-        // Hang the promise until the page unloads from reload.
-        return new Promise(() => {});
-      }
-      throw err;
+): PrefetchableLazyComponent<T> {
+  let pending: Promise<{ default: T }> | undefined;
+
+  const load = (): Promise<{ default: T }> => {
+    if (!pending) {
+      pending = factory().catch((err: unknown) => {
+        pending = undefined;
+        if (isStaleChunkError(err) && reloadOnceForStaleChunk()) {
+          // Hang until the page unloads from reload.
+          return new Promise<{ default: T }>(() => {});
+        }
+        throw err;
+      });
     }
-  });
+    return pending;
+  };
+
+  const Comp = lazy(load) as PrefetchableLazyComponent<T>;
+  Comp.prefetch = async () => {
+    await load();
+  };
+  return Comp;
 }
