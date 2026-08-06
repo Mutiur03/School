@@ -9,22 +9,40 @@ import { getDevTenantHost, isBareLocalHost } from "@/lib/resolveBackend";
  */
 export function middleware(request: NextRequest) {
   const hostname = (request.headers.get("host") ?? "").split(":")[0];
+  const { pathname } = request.nextUrl;
 
-  if (!isBareLocalHost(hostname) || !request.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.next();
+  let response: NextResponse;
+
+  if (isBareLocalHost(hostname) && pathname.startsWith("/api/")) {
+    const tenantHost = getDevTenantHost();
+    const headers = new Headers(request.headers);
+    headers.set("x-forwarded-host", tenantHost);
+    headers.set("x-tenant-host", tenantHost);
+    headers.set("origin", `http://${tenantHost}`);
+    response = NextResponse.next({ request: { headers } });
+  } else {
+    response = NextResponse.next();
   }
 
-  const tenantHost = getDevTenantHost();
-  const headers = new Headers(request.headers);
-  headers.set("x-forwarded-host", tenantHost);
-  headers.set("x-tenant-host", tenantHost);
-  headers.set("origin", `http://${tenantHost}`);
+  // CDN-friendly HTML caching (per-host on Vercel/CF). Skip immutable Next assets.
+  if (
+    !pathname.startsWith("/_next/") &&
+    !pathname.startsWith("/api/") &&
+    !pathname.includes(".")
+  ) {
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300",
+    );
+    response.headers.set("Vary", "Host, Accept-Encoding");
+  }
 
-  return NextResponse.next({
-    request: { headers },
-  });
+  return response;
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    "/api/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
+  ],
 };

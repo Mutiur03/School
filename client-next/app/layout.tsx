@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "./providers";
 import { Analytics } from "@/components/Analytics";
+import { VercelTelemetry } from "@/components/VercelTelemetry";
 import { fetchSchoolConfig } from "@/queries/school.queries";
 import {
   buildSchoolJsonLd,
@@ -15,11 +16,14 @@ import Header from "@/components/HeaderClient";
 import { Navbar } from "@/components/Navbar";
 import { TopBanner } from "@/components/TopBanner";
 import governmentLogoImage from "../assets/images/gov-logo.png";
-import { Analytics as VAnalytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 
-// Multi-tenant: every page needs Host / x-tenant-host at request time.
-export const dynamic = "force-dynamic";
+/**
+ * Multi-tenant: headers()/Host still force dynamic rendering.
+ * Do not use force-dynamic — it disables fetch Data Cache / ISR-style
+ * revalidation that both Vercel and OpenNext R2 cache rely on.
+ * API GETs are cached per tenant host (see lib/backend.ts).
+ */
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();
@@ -56,8 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to main content
         </a>
         <Analytics measurementId={school?.gaMeasurementId} />
-        <VAnalytics />
-        <SpeedInsights />
+        <VercelTelemetry />
         <Providers>
           <div className="container">
             <Header

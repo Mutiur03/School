@@ -213,7 +213,7 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
       ...defaultSchoolConfig.assets,
       logo: defaultSchoolConfig.assets.logo,
       headerLogo: defaultSchoolConfig.assets.headerLogo,
-      favicon: getFileUrl(getString(info.logo, "")) || "/favicon.ico",
+      favicon: getFileUrl(getString(info.logo, "")) || undefined,
     },
     seo: {
       title:
@@ -259,7 +259,7 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
 export const fetchSchoolConfig = cache(async () => {
   try {
     const primary = await api.get<Record<string, unknown>>("/api/schools/public", {
-      revalidate: 60,
+      revalidate: 300,
     });
     const mappedPrimary = mapPublicSchoolInfoToConfig(primary?.data);
     if (mappedPrimary) return mappedPrimary;
@@ -272,7 +272,7 @@ export const fetchSchoolConfig = cache(async () => {
 
   try {
     const legacy = await api.get<Record<string, unknown>>("/api/school/getConfig", {
-      revalidate: 60,
+      revalidate: 300,
     });
     const mappedLegacy = mapPublicSchoolInfoToConfig(legacy?.data);
     if (mappedLegacy) return mappedLegacy;

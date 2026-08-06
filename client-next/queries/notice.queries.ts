@@ -7,7 +7,7 @@ export const fetchNotices = cache(async (limit?: number): Promise<NoticeItem[]> 
   try {
     const response = await api.get<NoticeItem[]>("/api/notices/getNotices", {
       params: { limit },
-      revalidate: 60,
+      revalidate: 120,
     });
     return response.data || [];
   } catch (error) {

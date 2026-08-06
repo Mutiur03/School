@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { headers } from "next/headers";
 import {
   getDefaultTenantHost,
@@ -342,8 +343,11 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 }
 
 async function get<T>(url: string, options?: any) {
-  const { params, revalidate = 60, cache } = options || {};
+  const { params, revalidate = 120, cache: fetchCache } = options || {};
   const backend = await getBackendBaseUrl();
+  const { host, tenantHost } = await getRequestContext();
+  // Same backend URL is shared across tenants; key cache by tenant host.
+  const tenantKey = (tenantHost || host || "default").toLowerCase();
 
   if (!backend) {
     logApiRequest("GET", url, backend, {
@@ -371,48 +375,73 @@ async function get<T>(url: string, options?: any) {
       : "";
   const requestUrl = `${backend}${url}${query}`;
   const apiHeaders = await getApiFetchHeaders();
+  // Serializable so unstable_cache revalidation does not reuse another tenant's closure.
+  const headersJson = JSON.stringify(apiHeaders ?? {});
 
   logApiRequest("GET", requestUrl, backend, {
     params: sanitizedParams,
     revalidate,
-    cache,
+    cache: fetchCache,
+    tenantKey,
     apiHeaders,
   });
 
-  try {
-    const res = await fetchWithRetry(requestUrl, {
-      method: "GET",
-      headers: apiHeaders,
-      cache,
-      next: cache === "no-store" ? undefined : { revalidate }, // SSR caching
-    });
-    const text = await res.text();
+  const runFetch = async (
+    cachedUrl: string,
+    cachedTenant: string,
+    cachedHeadersJson: string,
+  ): Promise<ApiResponse<T>> => {
+    const cachedHeaders = JSON.parse(cachedHeadersJson) as HeadersInit;
+    try {
+      const res = await fetchWithRetry(cachedUrl, {
+        method: "GET",
+        headers: cachedHeaders,
+        // Tenant isolation is via unstable_cache key args, not Next fetch cache.
+        cache: "no-store",
+      });
+      const text = await res.text();
 
-    logApiResponse("GET", requestUrl, {
-      status: res.status,
-      ok: res.ok,
-      bodyPreview: previewBody(text),
-    });
+      logApiResponse("GET", cachedUrl, {
+        status: res.status,
+        ok: res.ok,
+        bodyPreview: previewBody(text),
+        tenantKey: cachedTenant,
+      });
 
-    if (!res.ok) {
+      if (!res.ok) {
+        return normalizeApiResponse<T>(null);
+      }
+
+      return normalizeApiResponse<T>(JSON.parse(text));
+    } catch (error) {
+      const code = getFetchErrorCode(error);
+      const message = error instanceof Error ? error.message : String(error);
+      if (debugApi) {
+        logApiResponse("GET", cachedUrl, {
+          error: message,
+          code,
+          tenantKey: cachedTenant,
+        });
+      } else if (isRetryableFetchError(error)) {
+        console.warn(`[API] GET soft-fail ${url}: ${code || message}`);
+      } else {
+        console.warn(`[API] GET soft-fail ${url}: ${message}`);
+      }
       return normalizeApiResponse<T>(null);
     }
+  };
 
-    return normalizeApiResponse<T>(JSON.parse(text));
-  } catch (error) {
-    const code = getFetchErrorCode(error);
-    const message = error instanceof Error ? error.message : String(error);
-    // Soft-fail: keep pages up when the backend blips. Avoid dumping full
-    // TypeError stacks into Vercel error logs on every transient failure.
-    if (debugApi) {
-      logApiResponse("GET", requestUrl, { error: message, code });
-    } else if (isRetryableFetchError(error)) {
-      console.warn(`[API] GET soft-fail ${url}: ${code || message}`);
-    } else {
-      console.warn(`[API] GET soft-fail ${url}: ${message}`);
-    }
-    return normalizeApiResponse<T>(null);
+  if (fetchCache === "no-store") {
+    return runFetch(requestUrl, tenantKey, headersJson);
   }
+
+  // Args are part of the cache key → lbphs.gov.bd ≠ other-school.mutiurrahman.com
+  const cachedGet = unstable_cache(runFetch, ["api-get"], {
+    revalidate,
+    tags: [`tenant:${tenantKey}`, `api:${url}`],
+  });
+
+  return cachedGet(requestUrl, tenantKey, headersJson);
 }
 
 async function post<T>(url: string, body?: any) {

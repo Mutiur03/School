@@ -60,6 +60,21 @@ export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string) {
   );
 }
 
+/**
+ * Public canonical origin for SEO (Search Console / OG).
+ * Prefer configured school website so backup hosts (e.g. backup.lbphs.gov.bd)
+ * do not publish a second canonical logo/site identity.
+ */
+export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string) {
+  return (
+    normalizeUrl(school.seo?.canonicalUrl) ||
+    normalizeUrl(school.contact.website) ||
+    normalizeUrl(requestUrl) ||
+    normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    "http://localhost:3000"
+  );
+}
+
 export function resolveSeoAssetUrl(
   value: string | undefined | null,
   siteUrl: string,
@@ -113,10 +128,12 @@ export async function buildSchoolMetadata(
   school: SchoolConfig,
 ): Promise<Metadata> {
   const requestUrl = await getRequestSiteUrl();
-  const siteUrl = getSchoolSiteUrl(school, requestUrl);
+  // Tenant data always comes from Host via fetchSchoolConfig(); canonical URL
+  // prefers the school's public website so Google indexes one identity per school.
+  const siteUrl = getCanonicalSiteUrl(school, requestUrl);
   const title = clean(school.seo?.title) || school.name.en || "School Website";
   const description = getSeoDescription(school);
-  const iconUrl = getSchoolIconUrl(school, siteUrl) || "/favicon.ico";
+  const iconUrl = getSchoolIconUrl(school, siteUrl) || "/favicon";
   const imageUrl =
     resolveSeoAssetUrl(school.seo?.image, siteUrl) ||
     resolveSeoAssetUrl(school.assets.headerLogo, siteUrl) ||

@@ -56,9 +56,13 @@ const nextConfig: NextConfig = {
     root: isOpenNextBuild ? projectRoot : monorepoRoot,
   },
   images: {
-    // Cloudflare Images binding not enabled yet — skip optimizer on CF builds.
+    // Prefer optimizer on Vercel. On OpenNext/CF, use unoptimized unless a
+    // custom loader is configured — CF Images binding is not wired yet.
     ...(isOpenNextBuild ? { unoptimized: true } : {}),
-    qualities: [50, 75],
+    // Slightly lower default quality reduces LCP bytes on both platforms.
+    qualities: [45, 50, 75],
+    formats: ["image/avif", "image/webp"],
+    // minimumCacheTTL: 60 * 60 * 24 * 7,
     remotePatterns: [
       {
         protocol: "https",
@@ -78,6 +82,42 @@ const nextConfig: NextConfig = {
           {
             key: "Link",
             value: "</bg.png>; rel=preload; as=image; fetchpriority=high",
+          },
+        ],
+      },
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/bg.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/logo.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/header.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
           },
         ],
       },

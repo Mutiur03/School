@@ -62,6 +62,7 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
           </div>
           <div className="textwidget">
             <p>
+              {/* Defer map network until near viewport — big Lighthouse savings. */}
               <iframe
                 src={embedUrl}
                 title="School location on Google Maps"

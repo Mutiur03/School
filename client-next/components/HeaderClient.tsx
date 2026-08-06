@@ -124,7 +124,7 @@ export function Header({
                   alt={`Banner ${index + 1}`}
                   width={1920}
                   height={480}
-                  quality={50}
+                  quality={45}
                   sizes="(max-width: 1140px) 100vw, 1140px"
                   priority={index === 0}
                   fetchPriority={index === 0 ? "high" : "auto"}
