@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 type LinkProps = ComponentProps<typeof NextLink>;
 
 /** Paths that should prefetch on viewport. Edit this list to expand later. */
-const PREFETCH_PATHS = ["/notices"] as const;
+const PREFETCH_PATHS = ["/", "/notices", "/at-a-glance"] as const;
 
 const PREFETCH_PATH_SET = new Set<string>(PREFETCH_PATHS);
 
