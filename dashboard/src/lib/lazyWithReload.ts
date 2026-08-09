@@ -71,16 +71,26 @@ export function lazyWithReload<T extends ComponentType<any>>(
 ): PrefetchableLazyComponent<T> {
   let pending: Promise<{ default: T }> | undefined;
 
+  const recover = (err: unknown): Promise<{ default: T }> => {
+    pending = undefined;
+    if (isStaleChunkError(err) && reloadOnceForStaleChunk()) {
+      // Hang until the page unloads from reload.
+      return new Promise<{ default: T }>(() => {});
+    }
+    throw err;
+  };
+
   const load = (): Promise<{ default: T }> => {
     if (!pending) {
-      pending = factory().catch((err: unknown) => {
-        pending = undefined;
-        if (isStaleChunkError(err) && reloadOnceForStaleChunk()) {
-          // Hang until the page unloads from reload.
-          return new Promise<{ default: T }>(() => {});
+      pending = factory().then((mod) => {
+        // A stale/partial chunk can resolve to undefined (or lack a default)
+        // instead of rejecting — the crash is then a plain "reading 'default'"
+        // TypeError past any .catch. Treat it as a stale chunk too.
+        if (!mod || typeof mod.default === "undefined") {
+          return recover(new TypeError("Cannot read properties of undefined (reading 'default')"));
         }
-        throw err;
-      });
+        return mod;
+      }, recover);
     }
     return pending;
   };

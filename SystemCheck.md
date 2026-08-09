@@ -264,22 +264,54 @@ docker builder prune -a
 docker build -f server/Dockerfile -t school-server .
 docker build --no-cache -fserver/Dockerfile -t school-server .
 
+-- Backup
+#!/bin/bash
 
-<!-- #restore -->
-docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < C:\Users\Mutiur\Downloads\backup.sql
+# Configuration
+CONTAINER_NAME="lbp-postgres_school-1"
+DB_USER="mutiur"
+DB_NAME="school"
 
- docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers --clean < C:\Users\Mutiur\Downloads\backup_res.sql
+GDRIVE_REMOTE="School_Drive"
+LOCAL_TMP_DIR="/root/db_temp"
+TIMESTAMP=$(date "+%Y-%m-%d_%H-%M")
 
- docker exec -i prod-postgres_school-1 psql -U mutiur -d postgres -c "DROP DATABASE school WITH (FORCE);"
-  docker exec -i prod-postgres_school-1 psql -U mutiur -d postgres -c "CREATE DATABASE school OWNER mutiur;"
-  docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --no-owner --no-acl < C:\Users\Mutiur\Downloads\backup_res.sql
+# Custom compressed binary format (.dump) handles FK dependencies automatically during restore
+BACKUP_FILE="${LOCAL_TMP_DIR}/${DB_NAME}_${TIMESTAMP}.dump"
 
-<!-- #backup -->
-docker exec -i lbp-postgres_school-1 pg_dump -U mutiur -d school -F c > backup.sql
-scp root@IP:/root/backups/backup.sql ./
+echo "=== Docker DB Backup Started at $(date) ==="
 
+# 1. Clean up and create temporary workspace
+rm -rf "$LOCAL_TMP_DIR"
+mkdir -p "$LOCAL_TMP_DIR"
 
-docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --data-only --disable-triggers < "/home/mutiur03/Downloads/backup.sql"
+# 2. Run pg_dump inside the running Docker container
+# Using '-F c' (custom format) allows clean restoration without FK order errors
+echo "Executing pg_dump inside container..."
+docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" -F c "$DB_NAME" > "$BACKUP_FILE"
+
+# 3. Check if the backup file was successfully created and is not empty
+if [ ! -s "$BACKUP_FILE" ]; then
+    echo "ERROR: Backup file is empty or database dump failed!"
+    exit 1
+fi
+
+# 4. Upload the single .dump file directly to Google Drive
+echo "Uploading custom binary dump to Google Drive..."
+rclone copy "$BACKUP_FILE" "${GDRIVE_REMOTE}:PostgresBackups" --quiet
+
+# 5. Clean up local temporary files
+echo "Cleaning up local files..."
+rm -rf "$LOCAL_TMP_DIR"
+
+# 6. Automatically delete backups older than 7 days from Google Drive
+echo "Cleaning up backups older than 7 days from Google Drive..."
+rclone delete "${GDRIVE_REMOTE}:PostgresBackups" --min-age 7d --rmdirs --quiet
+
+echo "=== Docker DB Backup Completed Successfully at $(date) ==="
+
+-- Restore 
+docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --clean --no-owner < ./school_2026-08-07_10-51.dump
 
 
 -- As superuser/owner
