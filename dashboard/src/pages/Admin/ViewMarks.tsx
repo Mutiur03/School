@@ -133,10 +133,15 @@ const ViewMarks = () => {
     const toastId = downloadProgressToastRef.current;
     if (!toastId || !genStatus || genStatus.total === 0) return;
     if (!isMarksheetGenComplete(genStatus)) {
-      toast.loading(
-        `Generating marksheets… ${genStatus.done}/${genStatus.total}`,
-        { id: toastId },
-      );
+      const studentBusy =
+        genStatus.pending + genStatus.generating > 0;
+      const bundleBusy =
+        genStatus.bundles.pending + genStatus.bundles.generating > 0;
+      const label =
+        bundleBusy && !studentBusy
+          ? `Generating class bundles… ${genStatus.bundles.done}/${genStatus.bundles.total}`
+          : `Generating marksheets… ${genStatus.done}/${genStatus.total}`;
+      toast.loading(label, { id: toastId });
     }
   }, [genStatus]);
 

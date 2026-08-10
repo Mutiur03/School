@@ -135,6 +135,8 @@ export class MarksController {
       const id = Number(examId);
       await MarksheetService.ensureQueuedForExamIfDue(id);
       const counts = await MarksheetService.statusCounts(id);
+      // Progress must not be cached (CDN/browser 304s freeze the UI mid-queue).
+      res.setHeader("Cache-Control", "no-store");
       res
         .status(200)
         .json(new ApiResponse(200, counts, "Marksheet status fetched"));

@@ -202,7 +202,18 @@ export const isMarksheetGenComplete = (status?: MarksheetGenStatus | null) =>
   status.pending === 0 &&
   status.generating === 0 &&
   (status.bundles.total === 0 ||
-    (status.bundles.pending === 0 && status.bundles.generating === 0));
+    (status.bundles.pending === 0 &&
+      status.bundles.generating === 0 &&
+      // ready-but-hash-stale still counts as unfinished for the progress UI
+      (status.bundles.done ?? 0) >= status.bundles.total));
+
+/** Student or class-bundle queue still draining. */
+export const isMarksheetQueueActive = (status?: MarksheetGenStatus | null) =>
+  !!status &&
+  (status.pending > 0 ||
+    status.generating > 0 ||
+    (status.bundles?.pending ?? 0) > 0 ||
+    (status.bundles?.generating ?? 0) > 0);
 
 export const useMarksheetGenerationStatus = (examId: number | undefined) => {
   return useQuery({

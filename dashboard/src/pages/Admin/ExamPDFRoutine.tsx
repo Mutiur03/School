@@ -123,7 +123,10 @@ function ExamPDFRoutine() {
       const status = await fetchGenStatus(e.id);
       const active =
         !!status &&
-        (status.pending > 0 || status.generating > 0);
+        (status.pending > 0 ||
+          status.generating > 0 ||
+          status.bundles.pending > 0 ||
+          status.bundles.generating > 0);
       if (
         status &&
         status.total > 0 &&
@@ -625,7 +628,10 @@ function ExamPDFRoutine() {
                         const status = genStatus[exam.id];
                         const active =
                           !!status &&
-                          (status.pending > 0 || status.generating > 0);
+                          (status.pending > 0 ||
+                            status.generating > 0 ||
+                            status.bundles.pending > 0 ||
+                            status.bundles.generating > 0);
                         if (!exam.visible) {
                           return (
                             <p className="text-[10px] text-muted-foreground mt-2 max-w-44 leading-tight">

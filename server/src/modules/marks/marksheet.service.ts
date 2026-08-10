@@ -2597,6 +2597,7 @@ export class MarksheetService {
                 snapshot_head_role: true,
                 snapshot_teacher_id: true,
                 snapshot_signatory_detail: true,
+                snapshot_design_version: true,
               },
             }),
             prisma.exams.findUnique({
@@ -2605,6 +2606,12 @@ export class MarksheetService {
             }),
           ]);
           const frozen = isExamFrozen(exam?.result_date);
+          // Frozen sheets keep the design they were sealed with — never bump to
+          // live MARKSHEET_DESIGN_VERSION mid-job (that flips the hash and
+          // livelocks DEFER after render).
+          const designToStore = frozen
+            ? (row?.snapshot_design_version ?? MARKSHEET_DESIGN_VERSION)
+            : MARKSHEET_DESIGN_VERSION;
           let signatoryDetail = this.parseSignatoryDetail(
             row?.snapshot_signatory_detail,
           );
@@ -2736,33 +2743,27 @@ export class MarksheetService {
           const key = this.r2Key(schoolId, year, examId, studentId);
           await uploadToR2(key, buffer);
 
-          const detailToStore = await this.captureStudentSignatoryDetail(
-            schoolId,
-            examId,
-            {
-              id: usedHeadId,
-              role: usedHeadRole,
-              name: usedHeadName,
-              signature: usedHeadSignature,
-            },
-            {
-              id: usedTeacherId,
-              name: usedTeacherName,
-              signature: usedTeacherSignature,
-              phone: usedTeacherPhone,
-            },
-          );
-          // Persist detail before end-hash so frozen fingerprints stay stable.
-          await prisma.marksheet_files.update({
-            where: whereStudent,
-            data: {
-              snapshot_head_id: usedHeadId,
-              snapshot_head_role: usedHeadRole,
-              snapshot_teacher_id: usedTeacherId,
-              snapshot_signatory_detail: detailToStore,
-              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
-            },
-          });
+          // Reuse pre-hash detail when present. Re-capturing after render and
+          // writing it before hashAtEnd was flipping frozen fingerprints
+          // (live path+ETag → frozen path) and causing infinite DEFER.
+          const detailToStore =
+            signatoryDetail ??
+            (await this.captureStudentSignatoryDetail(
+              schoolId,
+              examId,
+              {
+                id: usedHeadId,
+                role: usedHeadRole,
+                name: usedHeadName,
+                signature: usedHeadSignature,
+              },
+              {
+                id: usedTeacherId,
+                name: usedTeacherName,
+                signature: usedTeacherSignature,
+                phone: usedTeacherPhone,
+              },
+            ));
 
           const hashAtEnd = await this.computeInputHash(studentId, examId, year);
           const afterRender = await prisma.marksheet_files.findUnique({
@@ -2799,7 +2800,7 @@ export class MarksheetService {
               snapshot_head_role: usedHeadRole,
               snapshot_teacher_id: usedTeacherId,
               snapshot_signatory_detail: detailToStore,
-              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
+              snapshot_design_version: designToStore,
               generated_at: new Date(),
               error: null,
             },
@@ -3643,9 +3644,15 @@ export class MarksheetService {
               snapshot_head_role: true,
               snapshot_teachers: true,
               snapshot_signatory_detail: true,
+              snapshot_design_version: true,
             },
           });
           const frozen = isExamFrozen(examRow?.result_date);
+          // Frozen bundles keep sealed design — writing live version before
+          // hashAtEnd caused DEFER after merge livelock.
+          const designToStore = frozen
+            ? (snapRow?.snapshot_design_version ?? MARKSHEET_DESIGN_VERSION)
+            : MARKSHEET_DESIGN_VERSION;
           const snapTeachers = (snapRow?.snapshot_teachers ??
             null) as Record<string, number> | null;
           if (
@@ -3983,7 +3990,6 @@ export class MarksheetService {
           const usedTeachersBySection: Record<string, number> = {};
           let usedHeadId: number | null = null;
           let usedHeadRole: string | null = null;
-          let usedDesignVersion: string | null = MARKSHEET_DESIGN_VERSION;
           let bundleHeadDetail: {
             name: string | null;
             signature: string | null;
@@ -4013,24 +4019,13 @@ export class MarksheetService {
                 phone: null,
               };
             }
-            if (fileRow.snapshot_design_version) {
-              usedDesignVersion = fileRow.snapshot_design_version;
-            }
           }
           const bundleSignatoryDetail = {
             head: bundleHeadDetail,
             teachers: bundleTeachersDetail,
           };
-          await prisma.marksheet_bundles.update({
-            where: whereKey,
-            data: {
-              snapshot_head_id: usedHeadId,
-              snapshot_head_role: usedHeadRole,
-              snapshot_teachers: usedTeachersBySection,
-              snapshot_signatory_detail: bundleSignatoryDetail,
-              snapshot_design_version: usedDesignVersion,
-            },
-          });
+          // Do NOT write snapshots before hashAtEnd — that changed the frozen
+          // fingerprint mid-job and livelocked DEFER after merge.
 
           const hashAtEnd = await this.computeBundleHash(
             examId,
@@ -4077,7 +4072,7 @@ export class MarksheetService {
               snapshot_head_role: usedHeadRole,
               snapshot_teachers: usedTeachersBySection,
               snapshot_signatory_detail: bundleSignatoryDetail,
-              snapshot_design_version: usedDesignVersion,
+              snapshot_design_version: designToStore,
               generated_at: new Date(),
               error: null,
               attempts: 0,

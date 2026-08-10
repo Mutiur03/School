@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isMarksheetGenComplete,
+  isMarksheetQueueActive,
   formatBundleScope,
   type MarksheetGenStatus,
 } from "@/queries/marks.queries";
@@ -60,7 +61,8 @@ export function MarksheetGenProgress({
 
   const pct = Math.round((status.done / status.total) * 100);
   const complete = isMarksheetGenComplete(status);
-  const inProgress = status.pending + status.generating > 0;
+  const inProgress = isMarksheetQueueActive(status);
+  const studentInProgress = status.pending + status.generating > 0;
   const bundleAllFresh =
     status.bundles.total > 0 &&
     !bundleQueueActive &&
@@ -68,15 +70,24 @@ export function MarksheetGenProgress({
     status.bundles.done >= status.bundles.total;
 
   if (compact) {
+    const label = complete
+      ? "Marksheets ready"
+      : bundleQueueActive && !studentInProgress
+        ? "Class bundles"
+        : "Generating marksheets";
+    const countLabel =
+      bundleQueueActive && !studentInProgress
+        ? `${status.bundles.done}/${status.bundles.total}`
+        : `${status.done}/${status.total}`;
+    const barPct =
+      bundleQueueActive && !studentInProgress && status.bundles.total > 0
+        ? Math.round((status.bundles.done / status.bundles.total) * 100)
+        : pct;
     return (
       <div className={cn("mt-2 w-40", className)}>
         <div className="flex justify-between text-[10px] font-medium text-muted-foreground mb-0.5">
-          <span>
-            {complete ? "Marksheets ready" : "Generating marksheets"}
-          </span>
-          <span className="tabular-nums">
-            {status.done}/{status.total}
-          </span>
+          <span>{label}</span>
+          <span className="tabular-nums">{countLabel}</span>
         </div>
         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
           <div
@@ -84,12 +95,17 @@ export function MarksheetGenProgress({
               "h-full rounded-full transition-[width,background-color] duration-500",
               complete ? "bg-green-500" : "bg-primary",
             )}
-            style={{ width: `${pct}%` }}
+            style={{ width: `${barPct}%` }}
           />
         </div>
         {status.failed > 0 && (
           <div className="text-[10px] text-destructive mt-0.5">
             {status.failed} failed
+          </div>
+        )}
+        {bundleQueueActive && studentInProgress && status.bundles.total > 0 && (
+          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+            Bundles {status.bundles.done}/{status.bundles.total}
           </div>
         )}
         {bundleStale > 0 && !bundleQueueActive && staleItems.length > 0 && (
@@ -123,7 +139,9 @@ export function MarksheetGenProgress({
             <p className="text-sm font-medium text-foreground">
               {complete
                 ? "Marksheets ready"
-                : "Generating marksheets in background"}
+                : bundleQueueActive && !studentInProgress
+                  ? "Generating class bundles in background"
+                  : "Generating marksheets in background"}
             </p>
             {!complete && inProgress && (
               <p className="text-xs text-muted-foreground">
@@ -133,7 +151,9 @@ export function MarksheetGenProgress({
           </div>
         </div>
         <span className="text-sm font-semibold tabular-nums text-foreground shrink-0">
-          {status.done}/{status.total}
+          {bundleQueueActive && !studentInProgress
+            ? `${status.bundles.done}/${status.bundles.total}`
+            : `${status.done}/${status.total}`}
         </span>
       </div>
 
@@ -143,7 +163,15 @@ export function MarksheetGenProgress({
             "h-full rounded-full transition-[width,background-color] duration-500",
             complete ? "bg-green-500" : "bg-primary",
           )}
-          style={{ width: `${pct}%` }}
+          style={{
+            width: `${
+              bundleQueueActive && !studentInProgress && status.bundles.total > 0
+                ? Math.round(
+                    (status.bundles.done / status.bundles.total) * 100,
+                  )
+                : pct
+            }%`,
+          }}
         />
       </div>
 
