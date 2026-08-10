@@ -7,7 +7,7 @@ import { MarksheetService } from "./marksheet.service.js";
 // Override with MARKSHEET_WORKER_CONCURRENCY when needed.
 const parsed = Number(process.env.MARKSHEET_WORKER_CONCURRENCY);
 const CONCURRENCY = Math.max(
-  10,
+  1,
   Number.isFinite(parsed) && parsed > 0 ? parsed : 1,
 );
 
