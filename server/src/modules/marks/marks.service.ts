@@ -1,7 +1,7 @@
 import { prisma } from "@/config/prisma.js";
 import { Prisma } from "@prisma/client";
 import { getRlsContext, patchRlsContext } from "@/config/rlsContextStore.js";
-import { getFileBuffer } from "@/config/r2.js";
+import { getFileBuffer, headObjectEtag } from "@/config/r2.js";
 import logger from "@/utils/logger.js";
 import PDFDocument from "pdfkit";
 import { pdf } from "pdf-to-img";
@@ -1384,6 +1384,15 @@ export class MarksService {
       headId: number | null;
       headRole: string | null;
       teacherId: number | null;
+      /** When set, use these instead of live teacher rows (history freeze). */
+      detail?: {
+        head?: { name: string | null; signature: string | null } | null;
+        teacher?: {
+          name: string | null;
+          signature: string | null;
+          phone: string | null;
+        } | null;
+      } | null;
     },
   ) {
     const result = await prisma.marks.findMany({
@@ -1452,8 +1461,10 @@ export class MarksService {
       this.getSchoolMarksheetMeta(),
       this.loadMarksheetSubjects(studentClass, yearInt),
     ]);
-    const website = schoolMeta.website;
     const schoolPhone = schoolMeta.phone;
+    const logoBuffer = schoolMeta.logoKey
+      ? await getFileBuffer(schoolMeta.logoKey)
+      : null;
 
     const filledResult = this.fillMissingSubjectMarks(
       result,
@@ -1468,18 +1479,23 @@ export class MarksService {
     );
 
     // Resolve the signatories. For a frozen exam the worker passes the
-    // snapshotted ids so a later staff reassignment does not re-stamp the sheet;
-    // the person's CURRENT name/signature is still read (so a late signature
-    // upload by the same person still propagates). Open exams resolve the
-    // current class-teacher / head assignment as before.
+    // snapshotted ids (+ optional name/signature/phone detail). Detail pins
+    // history; without it (legacy rows) we still resolve live-by-id once.
     let teacherRec:
       | { id: number | null; name: string | null; signature: string | null; phone: string | null }
       | null = null;
     if (frozenSignatories) {
-      // Frozen exam: the snapshotted teacher id is authoritative. A null id means
-      // the section had no class teacher when the sheet was finalized — keep it
-      // null rather than falling back to a teacher assigned after the freeze.
-      if (frozenSignatories.teacherId != null) {
+      if (frozenSignatories.detail?.teacher) {
+        teacherRec =
+          frozenSignatories.teacherId != null
+            ? {
+                id: frozenSignatories.teacherId,
+                name: frozenSignatories.detail.teacher.name,
+                signature: frozenSignatories.detail.teacher.signature,
+                phone: frozenSignatories.detail.teacher.phone,
+              }
+            : null;
+      } else if (frozenSignatories.teacherId != null) {
         const t = await prisma.teachers.findUnique({
           where: { id: frozenSignatories.teacherId },
           select: { id: true, name: true, signature: true, phone: true },
@@ -1521,9 +1537,17 @@ export class MarksService {
         }
       | null = null;
     if (frozenSignatories) {
-      // Frozen exam: keep the snapshotted head. A null id means no head signed
-      // the finalized sheet — do not fall back to the current head assignment.
-      if (frozenSignatories.headId != null) {
+      if (frozenSignatories.detail?.head) {
+        headRec =
+          frozenSignatories.headId != null
+            ? {
+                id: frozenSignatories.headId,
+                name: frozenSignatories.detail.head.name,
+                signature: frozenSignatories.detail.head.signature,
+                role: frozenSignatories.headRole ?? "Headmaster",
+              }
+            : null;
+      } else if (frozenSignatories.headId != null) {
         const t = await prisma.teachers.findUnique({
           where: { id: frozenSignatories.headId },
           select: { name: true, signature: true },
@@ -1607,7 +1631,8 @@ export class MarksService {
         headRole,
         schoolPhone,
       },
-      website,
+      schoolMeta,
+      logoBuffer,
     );
     return {
       buffer: await this.finalizeMarksheetBuffer(buffer),
@@ -1615,383 +1640,11 @@ export class MarksService {
       usedHeadId,
       usedHeadRole,
       usedTeacherId,
-    };
-  }
-
-  static async generateBulkExamMarksheetsPDF(
-    year: string,
-    className: string,
-    examName: string,
-    section?: string,
-    user?: any,
-    sections?: string[],
-    frozenSignatories?: {
-      headId: number | null;
-      headRole: string | null;
-      teachersBySection: Record<string, number>;
-    },
-  ) {
-    const yearInt = parseInt(year);
-    const classNum = parseInt(className);
-    // Records the class-teacher id actually used per section so the worker can
-    // persist the bundle's signatory snapshot.
-    const usedTeachersBySection: Record<string, number> = {};
-
-    const where: any = {
-      class: classNum,
-      year: yearInt,
-    };
-
-    if (sections && sections.length > 0) {
-      where.section = { in: sections };
-    } else if (user && user.role === "teacher") {
-      const assignedSections = user.levels
-        ?.filter(
-          (l: any) => l.class_name === classNum && l.year === yearInt
-        )
-        .map((l: any) => l.section);
-
-      if (!assignedSections || assignedSections.length === 0) {
-        throw new Error("You are not assigned to this class.");
-      }
-
-      if (section) {
-        if (!assignedSections.includes(section)) {
-          throw new Error("You are not assigned to this section.");
-        }
-        where.section = section;
-      } else {
-        where.section = { in: assignedSections };
-      }
-    } else if (section) {
-      where.section = section;
-    }
-
-    const [enrollments, allExamMarks, headMsg, schoolMeta, classSubjects] = await Promise.all([
-      prisma.student_enrollments.findMany({
-        where,
-        include: { student: { select: { id: true, name: true } } },
-        orderBy: [
-          { section: "asc" },
-          { roll: "asc" },
-          { student: { name: "asc" } },
-        ],
-      }),
-      prisma.marks.findMany({
-        where: {
-          enrollment: { class: classNum, year: yearInt },
-          exam: { exam_name: examName },
-        },
-        include: {
-          enrollment: { select: { id: true, group: true } },
-          subject: {
-            select: {
-              id: true,
-              name: true,
-              priority: true,
-              assessment_type: true,
-              full_mark: true,
-              pass_mark: true,
-              cq_mark: true,
-              mcq_mark: true,
-              practical_mark: true,
-              cq_pass_mark: true,
-              mcq_pass_mark: true,
-              practical_pass_mark: true,
-              marking_scheme: true,
-              subject_type: true,
-              parent_id: true,
-              parent: { select: { name: true } },
-            },
-          },
-          exam: { select: { exam_name: true, result_date: true, return_date: true } },
-        },
-        orderBy: {
-          subject: {
-            priority: "asc"
-          }
-        }
-      }),
-      this.getHeadMsgForMarks(),
-      this.getSchoolMarksheetMeta(),
-      this.loadMarksheetSubjects(classNum, yearInt),
-    ]);
-    const website = schoolMeta.website;
-    const schoolPhone = schoolMeta.phone;
-
-    if (enrollments.length === 0) throw new Error("No students found");
-
-    // Not read from the exam_class_stats cache on purpose: this bulk path must
-    // load every student's marks to render them (marksByEnrollment) anyway, so
-    // highest-per-subject / class-highest-total are a free byproduct of the
-    // scan it already does. Caching would add a query without saving one.
-    const isGrouped = this.isGroupedClass(classNum);
-    const highestMarksMap: Record<number, number> = {};
-    const highestMarksByGroup: Record<string, Record<number, number>> = {};
-    const totalByEnrollment: Record<number, number> = {};
-    const totalByGroupAndEnrollment: Record<string, Record<number, number>> =
-      {};
-    const marksByEnrollment: Record<number, any[]> = {};
-    const grandTotalByEnrollment: Record<number, number> = {};
-    const grandTotalByGroupAndEnrollment: Record<
-      string,
-      Record<number, number>
-    > = {};
-
-    allExamMarks.forEach((m) => {
-      const marksVal = Number(m.marks || 0);
-      const groupKey = this.normalizeStudentGroup(m.enrollment.group);
-
-      if (isGrouped && groupKey) {
-        if (!highestMarksByGroup[groupKey]) highestMarksByGroup[groupKey] = {};
-        if (
-          !highestMarksByGroup[groupKey][m.subject_id] ||
-          marksVal > highestMarksByGroup[groupKey][m.subject_id]
-        ) {
-          highestMarksByGroup[groupKey][m.subject_id] = marksVal;
-        }
-        if (m.subject.assessment_type === "exam") {
-          if (!totalByGroupAndEnrollment[groupKey]) {
-            totalByGroupAndEnrollment[groupKey] = {};
-          }
-          totalByGroupAndEnrollment[groupKey][m.enrollment_id] =
-            (totalByGroupAndEnrollment[groupKey][m.enrollment_id] || 0) +
-            marksVal;
-        }
-        if (!grandTotalByGroupAndEnrollment[groupKey]) {
-          grandTotalByGroupAndEnrollment[groupKey] = {};
-        }
-        grandTotalByGroupAndEnrollment[groupKey][m.enrollment_id] =
-          (grandTotalByGroupAndEnrollment[groupKey][m.enrollment_id] || 0) +
-          marksVal;
-      } else {
-        if (
-          !highestMarksMap[m.subject_id] ||
-          marksVal > highestMarksMap[m.subject_id]
-        ) {
-          highestMarksMap[m.subject_id] = marksVal;
-        }
-        if (m.subject.assessment_type === "exam") {
-          totalByEnrollment[m.enrollment_id] =
-            (totalByEnrollment[m.enrollment_id] || 0) + marksVal;
-        }
-        grandTotalByEnrollment[m.enrollment_id] =
-          (grandTotalByEnrollment[m.enrollment_id] || 0) + marksVal;
-      }
-
-      if (!marksByEnrollment[m.enrollment_id]) {
-        marksByEnrollment[m.enrollment_id] = [];
-      }
-      marksByEnrollment[m.enrollment_id].push(m);
-    });
-
-    const classHighestTotalByGroup: Record<string, number> = {};
-    const classHighestGrandTotalByGroup: Record<string, number> = {};
-    for (const [groupKey, totals] of Object.entries(totalByGroupAndEnrollment)) {
-      const vals = Object.values(totals);
-      classHighestTotalByGroup[groupKey] =
-        vals.length > 0 ? Math.max(...vals) : 0;
-    }
-    for (const [groupKey, totals] of Object.entries(
-      grandTotalByGroupAndEnrollment,
-    )) {
-      const vals = Object.values(totals);
-      classHighestGrandTotalByGroup[groupKey] =
-        vals.length > 0 ? Math.max(...vals) : 0;
-    }
-
-    const classHighestTotal = Object.values(totalByEnrollment).length > 0
-      ? Math.max(...Object.values(totalByEnrollment))
-      : 0;
-    const classHighestGrandTotal =
-      Object.values(grandTotalByEnrollment).length > 0
-        ? Math.max(...Object.values(grandTotalByEnrollment))
-        : 0;
-    const resultDate = allExamMarks[0]?.exam?.result_date ?? null;
-    const returnDate = allExamMarks[0]?.exam?.return_date ?? null;
-
-    // Head signatory: snapshotted id (frozen) resolves that person's current
-    // name/signature; otherwise the current head assignment.
-    let headRec:
-      | { id: number | null; name: string | null; signature: string | null; role: string }
-      | null;
-    if (frozenSignatories) {
-      // Frozen exam: keep the snapshotted head; a null id means no head signed
-      // the finalized bundle — do not fall back to the current head.
-      if (frozenSignatories.headId != null) {
-        const t = await prisma.teachers.findUnique({
-          where: { id: frozenSignatories.headId },
-          select: { name: true, signature: true },
-        });
-        headRec = {
-          id: frozenSignatories.headId,
-          name: t?.name ?? null,
-          signature: t?.signature ?? null,
-          role: frozenSignatories.headRole ?? "Headmaster",
-        };
-      } else {
-        headRec = null;
-      }
-    } else {
-      headRec = headMsg
-        ? {
-            id: headMsg.head_id ?? null,
-            name: headMsg.teacher?.name ?? null,
-            signature: headMsg.teacher?.signature ?? null,
-            role: headMsg.head_role ?? "Headmaster",
-          }
-        : null;
-    }
-    const headSignature = headRec?.signature ? await getFileBuffer(headRec.signature) : null;
-    const headName = headRec?.name ?? null;
-    const headRole = headRec?.role ?? "Headmaster";
-    const usedHeadId = headRec?.id ?? null;
-    const usedHeadRole = headRec?.role ?? null;
-    const teacherSigs: Record<
-      string,
-      { signature: Buffer | null; name: string | null; phone: string | null }
-    > = {};
-
-    const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
-    this.registerMarksheetFonts(doc);
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-
-    const studentsWithMarks = enrollments.filter(e => {
-      const marks = marksByEnrollment[e.id] || [];
-      return marks.some(m => m.marks !== null);
-    });
-    if (studentsWithMarks.length === 0) throw new Error("No non-null marks found for any student in this class.");
-
-    const buffer = await new Promise<Buffer>(async (resolve) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-
-      for (let i = 0; i < studentsWithMarks.length; i++) {
-        const enrollment = studentsWithMarks[i];
-        if (i > 0) doc.addPage();
-
-        const studentMarks = this.fillMissingSubjectMarks(
-          marksByEnrollment[enrollment.id] || [],
-          classSubjects,
-          enrollment.group,
-          {
-            enrollment_id: enrollment.id,
-            exam_id: allExamMarks[0]?.exam_id,
-            enrollment,
-            exam: allExamMarks[0]?.exam,
-          },
-        );
-        const studentGroup = this.normalizeStudentGroup(enrollment.group);
-        const studentHighestMap =
-          isGrouped && studentGroup
-            ? highestMarksByGroup[studentGroup] ?? {}
-            : highestMarksMap;
-        const studentClassHighestTotal =
-          isGrouped && studentGroup
-            ? classHighestTotalByGroup[studentGroup] ?? 0
-            : classHighestTotal;
-        const studentClassHighestGrandTotal =
-          isGrouped && studentGroup
-            ? classHighestGrandTotalByGroup[studentGroup] ?? 0
-            : classHighestGrandTotal;
-
-        const studentDetails = {
-          name: enrollment.student.name,
-          class: enrollment.class,
-          section: enrollment.section,
-          roll: enrollment.roll,
-          year: yearInt,
-          exam: examName,
-          classHighestTotal: studentClassHighestTotal,
-          classHighestGrandTotal: studentClassHighestGrandTotal,
-          fourth_subject_id: enrollment.fourth_subject_id,
-          result_date: resultDate,
-          return_date: returnDate,
-        };
-
-        const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
-          ...m,
-          highest_mark: studentHighestMap[m.subject_id] || 0
-        })));
-
-        const sigKey = `${enrollment.class}_${enrollment.section}_${yearInt}`;
-        if (!(sigKey in teacherSigs)) {
-          const overrideTeacherId =
-            frozenSignatories?.teachersBySection?.[enrollment.section];
-          let lvTeacher:
-            | { id: number | null; name: string | null; signature: string | null; phone: string | null }
-            | null = null;
-          if (frozenSignatories) {
-            // Frozen bundle: only the snapshotted per-section teacher may sign.
-            // A section absent from the snapshot had no teacher when finalized —
-            // render it blank rather than pulling in a post-freeze assignment.
-            if (overrideTeacherId != null) {
-              const t = await prisma.teachers.findUnique({
-                where: { id: overrideTeacherId },
-                select: { name: true, signature: true, phone: true },
-              });
-              lvTeacher = {
-                id: overrideTeacherId,
-                name: t?.name ?? null,
-                signature: t?.signature ?? null,
-                phone: t?.phone ?? null,
-              };
-            } else {
-              lvTeacher = null;
-            }
-          } else {
-            const lv = await prisma.levels.findFirst({
-              where: {
-                class_name: enrollment.class,
-                section: enrollment.section,
-                year: yearInt,
-              },
-              include: { teacher: true },
-            });
-            lvTeacher = lv
-              ? {
-                  id: lv.teacher_id ?? null,
-                  name: lv.teacher?.name ?? null,
-                  signature: lv.teacher?.signature ?? null,
-                  phone: lv.teacher?.phone ?? null,
-                }
-              : null;
-          }
-          teacherSigs[sigKey] = {
-            signature: lvTeacher?.signature
-              ? await getFileBuffer(lvTeacher.signature)
-              : null,
-            name: lvTeacher?.name ?? null,
-            phone: lvTeacher?.phone ?? null,
-          };
-          if (lvTeacher?.id != null) {
-            usedTeachersBySection[enrollment.section] = lvTeacher.id;
-          }
-        }
-
-        await this.renderStudentMarksheetPage(
-          doc,
-          studentDetails,
-          finalTableData,
-          {
-            teacher: teacherSigs[sigKey].signature,
-            teacherName: teacherSigs[sigKey].name,
-            teacherPhone: teacherSigs[sigKey].phone,
-            head: headSignature,
-            headName,
-            headRole,
-            schoolPhone,
-          },
-          website,
-        );
-      }
-      doc.end();
-    });
-    return {
-      buffer: await this.finalizeMarksheetBuffer(buffer),
-      usedHeadId,
-      usedHeadRole,
-      usedTeachersBySection,
+      usedHeadName: headName,
+      usedHeadSignature: headRec?.signature ?? null,
+      usedTeacherName: teacherName,
+      usedTeacherSignature: teacherRec?.signature ?? null,
+      usedTeacherPhone: teacherPhone,
     };
   }
 
@@ -2262,8 +1915,10 @@ export class MarksService {
         this.getHeadMsgForMarks(),
         this.getSchoolMarksheetMeta(),
       ]);
-      const website = schoolMeta.website;
       const schoolPhone = schoolMeta.phone;
+      const logoBuffer = schoolMeta.logoKey
+        ? await getFileBuffer(schoolMeta.logoKey)
+        : null;
       const headSignature = headMsg?.teacher?.signature
         ? await getFileBuffer(headMsg.teacher.signature)
         : null;
@@ -2372,12 +2027,12 @@ export class MarksService {
 
         const drawPageHeader = async (examDisplayName: string) => {
           this.drawProperBackground(doc);
-          await this.drawWatermark(doc);
+          await this.drawWatermark(doc, logoBuffer);
           this.drawGradingSystemTable(doc, 425, 75);
           await this.drawProperHeader(
             doc,
             { ...info, exam: examDisplayName },
-            website,
+            schoolMeta,
             consolidatedQrText,
           );
           this.drawProperStudentInfo(doc, info);
@@ -2483,15 +2138,23 @@ export class MarksService {
       headRole?: string | null;
       schoolPhone?: string | null;
     },
-    website?: string | null,
+    schoolMeta?: {
+      name?: string | null;
+      location?: string | null;
+      eiin?: string | null;
+      centerCode?: string | null;
+      website?: string | null;
+      phone?: string | null;
+    } | null,
+    logoBuffer?: Buffer | null,
   ) {
     this.drawProperBackground(doc);
-    await this.drawWatermark(doc);
+    await this.drawWatermark(doc, logoBuffer);
     this.drawGradingSystemTable(doc, 425, 75);
     await this.drawProperHeader(
       doc,
       student,
-      website,
+      schoolMeta,
       this.buildMarksQrText(student, [{ exam: student.exam, rows: tableData }]),
     );
     this.drawProperStudentInfo(doc, student);
@@ -2556,7 +2219,15 @@ export class MarksService {
       headRole?: string | null;
       schoolPhone?: string | null;
     },
-    website?: string | null,
+    schoolMeta?: {
+      name?: string | null;
+      location?: string | null;
+      eiin?: string | null;
+      centerCode?: string | null;
+      website?: string | null;
+      phone?: string | null;
+    } | null,
+    logoBuffer?: Buffer | null,
   ): Promise<Buffer> {
     const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
     this.registerMarksheetFonts(doc);
@@ -2570,7 +2241,8 @@ export class MarksService {
         student,
         tableData,
         signatures,
-        website,
+        schoolMeta,
+        logoBuffer,
       );
       doc.end();
     });
@@ -3099,22 +2771,63 @@ export class MarksService {
     }
   }
 
+  /** Header/watermark fields drawn on every marksheet page. */
   private static async getSchoolMarksheetMeta(): Promise<{
+    name: string | null;
+    location: string | null;
+    eiin: string | null;
+    centerCode: string | null;
     website: string | null;
     phone: string | null;
+    logoKey: string | null;
+    logoEtag: string | null;
   }> {
+    const empty = {
+      name: null,
+      location: null,
+      eiin: null,
+      centerCode: null,
+      website: null,
+      phone: null,
+      logoKey: null,
+      logoEtag: null,
+    };
     const schoolId = getRlsContext()?.schoolId;
-    if (!schoolId) return { website: null, phone: null };
+    if (!schoolId) return empty;
     const school = await prisma.school.findUnique({
       where: { id: schoolId },
-      select: { customDomain: true, website: true, phone: true },
+      select: {
+        name: true,
+        upazila: true,
+        district: true,
+        address: true,
+        eiin: true,
+        centerCode: true,
+        customDomain: true,
+        website: true,
+        phone: true,
+        logo: true,
+        headerLogo: true,
+      },
     });
+    if (!school) return empty;
+    const place = [school.upazila, school.district]
+      .map((s) => s?.trim())
+      .filter(Boolean)
+      .join(", ");
+    const logoKey = school.headerLogo || school.logo || null;
     return {
+      name: school.name?.trim() || null,
+      location: place || school.address?.trim() || null,
+      eiin: school.eiin?.trim() || null,
+      centerCode: school.centerCode?.trim() || null,
       website: this.normalizeSchoolWebsite(
-        school?.customDomain,
-        school?.website,
+        school.customDomain,
+        school.website,
       ),
-      phone: school?.phone?.trim() || null,
+      phone: school.phone?.trim() || null,
+      logoKey,
+      logoEtag: logoKey ? await headObjectEtag(logoKey) : null,
     };
   }
 
@@ -3156,7 +2869,14 @@ export class MarksService {
   private static async drawProperHeader(
     doc: any,
     exam?: any,
-    website?: string | null,
+    school?: {
+      name?: string | null;
+      location?: string | null;
+      eiin?: string | null;
+      centerCode?: string | null;
+      website?: string | null;
+      phone?: string | null;
+    } | null,
     qrText?: string | null,
   ) {
     // Mirror grading chart (x=425, y=75, w=120): QR on left, same top
@@ -3178,7 +2898,7 @@ export class MarksService {
         width: pageHeaderWidth,
       });
 
-    const schoolName = "PANCHBIBI LAL BIHARI PILOT GOVT. HIGH SCHOOL";
+    const schoolName = school?.name?.trim() || "School Name";
     const maxWidth = pageHeaderWidth - 4;
     let fontSize = 15;
     doc.font("Times-Bold");
@@ -3205,16 +2925,19 @@ export class MarksService {
       }
     }
 
-    doc
-      .font("Times-Bold")
-      .fontSize(11)
-      .text("Panchbibi, Joypurhat.", pageHeaderX, 75, {
-        align: "center",
-        width: pageHeaderWidth,
-      });
+    const location = school?.location?.trim() || "";
+    if (location) {
+      doc
+        .font("Times-Bold")
+        .fontSize(11)
+        .text(location, pageHeaderX, 75, {
+          align: "center",
+          width: pageHeaderWidth,
+        });
+    }
+
     doc.font("Times-Bold").fontSize(10);
-    const infoText = "EIIN: 121983, School Code: 5100";
-    const websiteStr = typeof website === "string" ? website.trim() : "";
+    const websiteStr = school?.website?.trim() || "";
     const headerOffset = websiteStr ? 14 : 0;
 
     if (websiteStr) {
@@ -3228,10 +2951,17 @@ export class MarksService {
       });
     }
 
-    doc.text(infoText, pageHeaderX, 90 + headerOffset, {
-      align: "center",
-      width: pageHeaderWidth,
-    });
+    const infoBits: string[] = [];
+    if (school?.eiin) infoBits.push(`EIIN: ${school.eiin}`);
+    if (school?.centerCode) infoBits.push(`School Code: ${school.centerCode}`);
+    if (school?.phone) infoBits.push(`Phone: ${school.phone}`);
+    const infoText = infoBits.join(", ");
+    if (infoText) {
+      doc.text(infoText, pageHeaderX, 90 + headerOffset, {
+        align: "center",
+        width: pageHeaderWidth,
+      });
+    }
 
     if (exam && (exam.exam || exam.year)) {
       const examName = exam.exam || "";
@@ -3265,21 +2995,27 @@ export class MarksService {
       });
   }
 
-  private static async drawWatermark(doc: any) {
-    const logoPath = path.join("public", "icon.jpg");
-    if (fs.existsSync(logoPath)) {
-      try {
-        const grayscaleBuffer = await sharp(logoPath).grayscale().toBuffer();
-        doc.save();
-        doc.opacity(0.1);
-        doc.image(grayscaleBuffer, 150, 236, { width: 300 });
-        doc.restore();
-      } catch (e) {
-        doc.save();
-        doc.opacity(0.1);
-        doc.image(logoPath, 150, 236, { width: 300 });
-        doc.restore();
-      }
+  private static async drawWatermark(
+    doc: any,
+    logoBuffer?: Buffer | null,
+  ) {
+    let image: Buffer | string | null = logoBuffer ?? null;
+    if (!image) {
+      const logoPath = path.join("public", "icon.jpg");
+      if (fs.existsSync(logoPath)) image = logoPath;
+    }
+    if (!image) return;
+    try {
+      const grayscaleBuffer = await sharp(image).grayscale().toBuffer();
+      doc.save();
+      doc.opacity(0.1);
+      doc.image(grayscaleBuffer, 150, 236, { width: 300 });
+      doc.restore();
+    } catch (e) {
+      doc.save();
+      doc.opacity(0.1);
+      doc.image(image, 150, 236, { width: 300 });
+      doc.restore();
     }
   }
 

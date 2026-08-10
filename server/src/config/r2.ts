@@ -141,6 +141,29 @@ export const headObject = async (key: string): Promise<boolean> => {
   }
 };
 
+/**
+ * Object ETag (content identity). Detects in-place overwrites at the same key
+ * that a path-only fingerprint would miss.
+ */
+export const headObjectEtag = async (key: string): Promise<string | null> => {
+  if (!key) return null;
+  try {
+    const res = await r2Client.send(
+      new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
+    );
+    return res.ETag ?? null;
+  } catch (error: any) {
+    if (
+      error.name === "NotFound" ||
+      error.name === "NoSuchKey" ||
+      error.$metadata?.httpStatusCode === 404
+    ) {
+      return null;
+    }
+    throw error;
+  }
+};
+
 /** List object keys under a prefix (paginated). For reconciliation sweeps. */
 export const listKeys = async (prefix: string): Promise<string[]> => {
   const keys: string[] = [];

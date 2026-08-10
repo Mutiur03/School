@@ -296,7 +296,12 @@ export class TeacherService {
     if (!existingTeacher) {
       throw new ApiError(404, "Teacher not found");
     }
-    if (existingTeacher.signature) {
+    // Only delete the previous object when the key actually changes — same-key
+    // re-upload already overwrote R2; deleting would remove the new file.
+    if (
+      existingTeacher.signature &&
+      existingTeacher.signature !== (key || null)
+    ) {
       await deleteFromR2(existingTeacher.signature);
     }
     const result = await prisma.teachers.update({

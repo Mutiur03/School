@@ -144,6 +144,40 @@ export async function ensureJobQueued(
   return true;
 }
 
+/**
+ * Re-queue after the current handler finishes. Same jobId cannot be added while
+ * the job is still `active`; retries briefly so a completed/failed orphan or a
+ * race with Bull's completion bookkeeping does not leave the DB row pending.
+ * Returns true when a successor job is waiting/delayed or was newly added.
+ */
+export async function ensureJobQueuedAfterDefer(
+  data: MarksheetJob,
+  id: string,
+  priority: number = PRIORITY_BACKFILL,
+  attempts = 5,
+  delayMs = 100,
+): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, delayMs * i));
+    }
+    try {
+      const existing = await marksheetQueue.getJob(id);
+      if (existing) {
+        const state = await existing.getState();
+        // Still the finishing handler — wait; do not treat as successfully queued.
+        if (state === "active") continue;
+        if (state === "waiting" || state === "delayed") return true;
+      }
+      const added = await ensureJobQueued(data, id, priority);
+      if (added) return true;
+    } catch {
+      // Retry — Redis/Bull races during job completion are transient.
+    }
+  }
+  return false;
+}
+
 export const jobId = (examId: number, studentId: number) =>
   `ms:${examId}:${studentId}`;
 

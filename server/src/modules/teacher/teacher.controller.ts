@@ -5,6 +5,7 @@ import { TeacherService } from "@/modules/teacher/teacher.service.js";
 import { ApiResponse } from "@/utils/ApiResponse.js";
 import { ApiError } from "@/utils/ApiError.js";
 import { Request, Response } from "express";
+import crypto from "crypto";
 
 export class TeacherController {
   static getTeachersController = asyncHandler(
@@ -160,7 +161,13 @@ export class TeacherController {
 
       await TeacherService.getTeacherById(teacherId);
 
-      const r2Key = `signatures/${key}`;
+      // Always mint a unique object key so path fingerprints (and R2 deletes)
+      // see a real change even if the client reuses a filename.
+      const ext =
+        typeof key === "string" && key.includes(".")
+          ? key.split(".").pop()
+          : contentType?.split("/")[1] || "png";
+      const r2Key = `signatures/${teacherId}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
       const uploadUrl = await getUploadUrl(r2Key, contentType);
       res.json(
         new ApiResponse(

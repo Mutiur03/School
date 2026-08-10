@@ -4,9 +4,9 @@ This document describes **all marksheet PDF types**, **when** they are generated
 
 **Rules (current):**
 
-- All PDFs are rendered **only in the background worker** (PDFKit). HTTP handlers **never** render inline.
+- Per-student and session PDFs are rendered **only in the background worker** (PDFKit). HTTP handlers **never** render inline.
 - **Per-student exam PDFs** are pre-generated automatically on publish, mark changes, teacher/head invalidation, and when the **progress UI polls** `generation-status` (gap-fill for empty cache).
-- **Class bundles** (admin + teacher) generate **on download** (hash check), except they are **auto-queued** when a class-teacher or head assignment changes.
+- **Class bundles** are **merged** from cached per-student PDFs (`pdf-lib`) — never re-rendered as a multi-page PDFKit job. They generate **on download** (hash check), except they are **auto-queued** when a class-teacher or head assignment changes. Mark edits **cancel** in-flight (`generating`) bundles and pin ready bundles stale, but do **not** auto-queue a new bundle job.
 - **Session PDFs** are generated **on download only**, with hash-verified R2 cache.
 - Postgres `marks` is the source of truth. R2 + cache tables are disposable cache.
 - **Result-date freeze (personnel + design):** once an exam's `result_date` has passed, its marksheets are **frozen** — a later **head / class-teacher reassignment** or **design-version bump** no longer regenerates or re-stamps them. Marks and class-highest stay live and still regenerate. **`visible` (published) does not gate regeneration** — unpublished open exams still invalidate/regen.
@@ -21,8 +21,8 @@ Signatories (head + class teacher) appear on every marksheet, but staff change r
 
 - **What is captured:** at generation the worker stores the signatory **ids** on the cache row — `marksheet_files.snapshot_{head_id,head_role,teacher_id}` and `marksheet_bundles.snapshot_{head_id,head_role,teachers}` (`teachers` = `{ "<section>": <teacher_id> }`). Every render (open or frozen) rewrites these, so the last open render becomes the frozen snapshot.
 - **Eager seed while open:** to cover a sheet that freezes *before* it was ever rendered (a backdated `result_date`, or a reassignment right after publish), `invalidate` seeds the snapshot on open-exam rows with the **current** head + section teacher (`seedOpenSnapshot`, only fills rows whose `snapshot_head_id` is null). So the frozen sheet pins the staff assigned during the open window rather than whoever is current at first render.
-- **Staleness (`computeInputHash` / `computeBundleHash`):** a frozen exam fingerprints the **snapshotted person's current** name/signature (resolved by id), not the current assignment. So a reassignment does **not** flag the sheet stale, but the **same person uploading a signature later does** — it regenerates lazily on next download and shows the new signature.
-- **Rendering (`generateMarksheetPDF` / `generateBulkExamMarksheetsPDF`):** the worker passes the snapshotted ids as an override; the render resolves those people (by id, live name/signature) instead of the current assignment. So even a marks correction after `result_date` re-renders with the original signatories. A snapshot with a **null** teacher/head id (the section had no one assigned when finalized) renders **blank** — it never falls back to a person assigned after the freeze.
+- **Staleness (`computeInputHash` / `computeBundleHash`):** a frozen exam fingerprints the **snapshotted** signatory **name/signature** from `snapshot_signatory_detail` (frozen R2 copies), not live teacher rows. Reassignment and later signature uploads do **not** change history. Legacy rows without detail are hydrated once on the next job, then pinned.
+- **Rendering (`generateMarksheetPDF`):** the worker passes snapshotted ids + detail; render uses frozen name/signature/phone. Marks corrections after `result_date` still re-render with the original sealed signatories.
 - **Invalidation:** `invalidateForSchoolSignatureChange` (head change), `invalidateForClassSection` (class-teacher change), and `invalidateForDesignChange` (layout bump) **skip frozen exams**, so a routine staff or design change no longer mass-regenerates the school's history. Marks-driven invalidation is unaffected.
 - **Design version:** live fingerprint includes `MARKSHEET_DESIGN_VERSION` for **open** exams. On generate, the worker stores `snapshot_design_version`. Once frozen, the hash pins that snapshot (same idea as snapshotted signatories), so bumping the constant does not regen finalized PDFs. Legacy frozen rows with a null snapshot omit `d` so pre-version hashes stay fresh.
 
@@ -41,12 +41,12 @@ Signatories (head + class teacher) appear on every marksheet, but staff change r
 | 3 | **Session student** | Student, teacher, admin | *(none)* | `{school}/marksheets/{year}/session/student-{studentId}.pdf` |
 | 4 | **Session year** | Admin only | *(none)* | `{school}/marksheets/{year}/session/all.pdf` |
 
-**Renderer functions** (worker only):
+**Renderer / assembler functions** (worker only):
 
 | PDF | Code |
 |-----|------|
 | Per-student exam | `MarksService.generateMarksheetPDF()` → `renderStudentReportPDF()` |
-| Class bundle | `MarksService.generateBulkExamMarksheetsPDF()` (one doc, page per student) |
+| Class bundle | `mergeMarksheetPdfs()` — concatenates fresh member PDFs from R2 (`pdf-lib`) |
 | Session (both) | `MarksService.generateAllMarksheetsPDF()` |
 
 ---
@@ -74,7 +74,7 @@ Legend: **✅ Auto** = background worker queued without a download. **❌ No** =
 | **Server restart** | ✅ Re-queues `pending` only | ✅ Re-queues `pending` bundles | ❌ No | ❌ No |
 | **Anyone downloads** | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale | ✅ If missing / stale |
 
-\*Not auto-queued, but the dashboard shows them as **outdated** (`bundles.staleItems`); download regenerates from current marks.
+\*Not auto-queued as a new Bull job, but mark invalidate **cancels** `generating` bundles and pins ready ones stale (`input_hash` null → `bundles.staleItems`); download regenerates by merging fresh member PDFs.
 
 ### Quick mental model
 
@@ -193,7 +193,6 @@ These run **only when someone hits a download endpoint** and the stored hash say
 |-------|-----|
 | Hiding / unpublishing an exam | No invalidation or regeneration |
 | Editing exam name or routine PDF upload | Not marksheet render input |
-| Signature image replaced at same R2 path without DB change | Hash uses DB paths only |
 | Bundle after **mark-only** edit | Stale until download (UI shows outdated list) |
 | Session PDF after publish or mark save | On download only |
 | Save marks on **unpublished** exam | No invalidation; PDF on download only |
@@ -227,7 +226,7 @@ Admin whole-class (`section: "ALL"`) and teacher section bundles (`A`, `A+B`, �
 | Trigger | Background queue? | Notes |
 |---------|-------------------|-------|
 | **Publish exam** | **No** | Bundles are not pre-warmed |
-| **Mark edits** (any) | **No** | Staleness detected at download via hash |
+| **Mark edits** (any) | **No** (cancel only) | Cancels `generating` bundles + clears `input_hash` on ready; next download regenerates |
 | **Class-teacher / head / level change** | **Yes** | `invalidateBundlesForClassSection` — `section`, `ALL`, matching `A+B` |
 | **Download** | Yes | `serveBundle()` → `waitForFreshBundlePdf()` |
 
@@ -407,9 +406,16 @@ sequenceDiagram
   else
     Svc->>Q: add job msb:examId:class:section
     Q->>W: processBundleJob
-    W->>W: generateBulkExamMarksheetsPDF
-    W->>R2: upload PDF
-    W->>DB: status ready + input_hash
+    alt member student PDFs missing or stale
+      W->>Q: enqueueUserPriority per member
+      W->>DB: pending + deferBundleRequeue
+      Note over W: return so concurrency-1 worker can render students
+      Q->>W: processStudentJob then processBundleJob again
+    end
+    W->>R2: getFileBuffer each member PDF
+    W->>W: mergeMarksheetPdfs (pdf-lib)
+    W->>R2: upload merged PDF
+    W->>DB: status ready + input_hash + snapshots from members
     Svc->>R2: signed URL
     Svc->>API: { url }
   end
@@ -417,7 +423,7 @@ sequenceDiagram
   UI->>R2: open URL in new tab
 ```
 
-**Important:** Bundles are **not** queued on publish or mark save. Mark edits make the hash stale; the next download regenerates. **Exception:** class-teacher, head, or level assignment changes auto-queue bundles for the affected section keys.
+**Important:** Bundles are **not** queued on publish or mark save. Mark edits **cancel** in-flight merges (`generating` → `pending`) and pin ready bundles stale (`input_hash = null`); the next download regenerates via merge. **Exception:** class-teacher, head, or level assignment changes auto-queue bundles for the affected section keys.
 
 ### CDN cache-busting on the bundle URL
 
@@ -492,22 +498,24 @@ Stored in R2 only. Staleness via companion file `{pdfKey}.hash`.
 | `n` | Mark row count for student |
 | `m` | Latest `marks.updated_at` |
 | `s` | `exam_class_stats.updated_at` (class-highest) |
-| `h` | Head message: `head_id`, `updated_at`, `head_role`, head teacher name + signature path |
-| `t` | Class teacher (`levels` for student's class+section+year): `teacher_id`, name, signature path |
+| `h` | Head message: `head_id`, `updated_at`, `head_role`, head teacher name + signature path + **signature R2 ETag** |
+| `t` | Class teacher (`levels` for student's class+section+year): `teacher_id`, name, signature path + **signature R2 ETag** |
 | `f` | `fourth_subject_id` |
 | `r` | Roll |
 | `sec` | Section |
+| `nm` | Student name |
+| `sch` | School header branding (`name`, location, eiin, center code, website/phone, logo path + ETag) — **only while unpublished and not frozen**; `null` after publish / `result_date` freeze so branding/logo edits do not churn sheets |
 | `d` | Design version: live `MARKSHEET_DESIGN_VERSION` while open; snapshotted `snapshot_design_version` when frozen (omitted if legacy null) |
 
 ### Bundle — `computeBundleHash`
 
-Includes `sec` (bundle section key), class-scoped mark aggregate (`n`, `m`), class stats (`s`), head (`h`), and **all class-teacher rows** in bundle scope (`t` — one section, multiple sections, or whole class for `ALL`), plus design `d` (same freeze rules as per-student).
+Includes `sec` (bundle section key), class-scoped mark aggregate (`n`, `m`), class stats (`s`), head (`h`), and **all class-teacher rows** in bundle scope (`t` — one section, multiple sections, or whole class for `ALL`), plus `sn` (digest of member student names), `sch` (school header meta — unpublished/open only), and design `d` (same freeze rules as per-student).
 
 ### Session — `computeSessionStudentHash` / `computeSessionYearHash`
 
-Same head (`h`) and class-teacher data (`t` for student's section, or all `levels` for the year on admin session PDF). Always includes live `d` (session PDFs have no freeze / signatory snapshot).
+Same head (`h`) and class-teacher data (`t` for student's section, or all `levels` for the year on admin session PDF), plus student name(s) (`nm` / `sn`) and `sch`. Always includes live `d` (session PDFs have no freeze / signatory snapshot).
 
-**Still not detected:** signature **image file** replaced in R2 at the **same path** without changing `teachers.signature` or `head_msg`.
+**Signature content:** fingerprints include the signature object's **R2 ETag** (`sigv`), so replacing the image at the **same path** still invalidates the cache. Upload URLs also always mint a unique key.
 
 ### After a design / layout code change
 
@@ -540,17 +548,17 @@ Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
 ```
 1. Only upsert marks that actually changed (markRowChanged)
 2. Recompute exam_class_stats per affected class
-3. IF exam.visible = false → skip marksheet invalidation (PDFs on download only)
-4. IF published AND class-highest VALUES changed → invalidateClasses (whole class students)
-   Else IF published AND students changed → invalidate(changedStudentIds) only
-5. Bundles are NOT invalidated here — hash check on next download
+3. IF class-highest VALUES changed → invalidateClasses (whole class students)
+   Else IF students changed → invalidate(changedStudentIds)
+   (visible does not gate; freeze is result_date only)
+4. invalidate → cancelBundlesForStudents: generating→pending, ready input_hash=null
+   (no bundle Bull job enqueued on mark save)
 ```
 
 | Edit scenario | Per-student auto queue? | Bundle |
 |---------------|-------------------------|--------|
-| One student, class-highest unchanged (**published**) | That student only | On next download |
-| Class-highest changed (**published**) | Whole class | On next download |
-| Any mark edit (**unpublished**) | Nobody | On next download |
+| One student, class-highest unchanged | That student only | Cancel generating + pin stale; regen on next download |
+| Class-highest changed | Whole class | Cancel generating + pin stale; regen on next download |
 | Class-teacher / head / signature change | Section students (or whole school) | **Auto-queue** section + `ALL` + matching `A+B` |
 | No value changes | Nobody | — |
 
@@ -573,24 +581,43 @@ Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
 
 ## Worker: regenerate, skip, or defer
 
+**Per-student / session:**
+
 ```
 1. Claim row: pending/failed → generating
 2. hashAtStart = compute hash
 3. IF hash matches stored hash AND R2 exists
      → check concurrent staleness → SKIP or DEFER
    ELSE
-     → render PDF, upload R2
+     → render PDF (PDFKit), upload R2
 4. IF hash changed mid-render OR row no longer generating
      → DEFER: pending + re-queue after job completes
    ELSE
      → ready + save hash
 ```
 
+**Class bundle (merge):**
+
+```
+1. Claim row: pending/failed → generating
+2. hashAtStart = computeBundleHash
+3. IF hash matches stored hash AND R2 exists → SKIP or DEFER (concurrent)
+4. ELSE list members (section/roll/name order, non-null marks)
+5. IF any member PDF missing/stale
+     → enqueueUserPriority those students
+     → DEFER bundle (pending + re-queue) and return immediately
+        (avoids concurrency-1 deadlock: never wait inside the bundle job)
+6. ELSE mergeMarksheetPdfs(member buffers) → upload R2
+7. IF hash changed mid-merge OR status !== generating (e.g. mark invalidate cancel)
+     → DEFER
+   ELSE ready + hash + snapshots copied from member rows
+```
+
 **No marks for student:** worker **deletes** the `marksheet_files` row (does not leave `skipped`). Only students with real marks are ever queued (`invalidate` filters by marks table).
 
 **Orphan `skipped` rows:** `statusCounts()` deletes any `skipped` student rows on each poll so progress totals stay accurate.
 
-Prevents a finished worker from promoting a stale PDF when a second edit happens mid-render.
+Prevents a finished worker from promoting a stale PDF when a second edit happens mid-render/merge.
 
 ---
 

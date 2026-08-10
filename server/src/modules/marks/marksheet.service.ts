@@ -5,22 +5,26 @@ import {
   getDownloadUrl,
   uploadToR2,
   headObject,
+  headObjectEtag,
   deleteFromR2,
   listKeys,
 } from "@/config/r2.js";
-import { runWithRlsContext } from "@/config/rlsContextStore.js";
+import { getRlsContext, runWithRlsContext } from "@/config/rlsContextStore.js";
 import logger from "@/utils/logger.js";
 import { MarksService } from "./marks.service.js";
+import { mergeMarksheetPdfs } from "./marksheet-bundle-merge.js";
 import {
   marksheetQueue,
   defaultJobOpts,
   enqueueUserPriority,
   ensureJobQueued,
+  ensureJobQueuedAfterDefer,
   jobId,
   bundleJobId,
   sessionStudentJobId,
   sessionYearJobId,
   PRIORITY_BACKFILL,
+  PRIORITY_USER,
   type MarksheetJob,
   type StudentJob,
   type BundleJob,
@@ -64,10 +68,10 @@ export function isExamFrozen(resultDate: string | null | undefined): boolean {
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = "13";
+export const MARKSHEET_DESIGN_VERSION = "14";
 
 /**
- * Bulk render aborts for a class with nothing to draw — no enrollments, or
+ * Bundle assemble aborts for a class with nothing to merge — no enrollments, or
  * enrollments but not a single non-null mark. Neither is a failure: there is
  * simply no bundle to produce, so the row is terminal (`skipped`) rather than
  * retried forever.
@@ -238,6 +242,7 @@ export class MarksheetService {
     role: string | null;
     name: string | null;
     sig: string | null;
+    sigv: string | null;
   }> {
     const head = await prisma.head_msg.findFirst({
       orderBy: [{ updated_at: "desc" }, { id: "desc" }],
@@ -248,12 +253,14 @@ export class MarksheetService {
         teacher: { select: { name: true, signature: true } },
       },
     });
+    const sig = head?.teacher?.signature ?? null;
     return {
       u: isoStamp(head?.updated_at),
       id: head?.head_id ?? null,
       role: head?.head_role ?? null,
       name: head?.teacher?.name ?? null,
-      sig: head?.teacher?.signature ?? null,
+      sig,
+      sigv: await this.signatureEtag(sig),
     };
   }
 
@@ -262,7 +269,15 @@ export class MarksheetService {
     cls: number,
     year: number,
     sections?: string[],
-  ): Promise<Array<{ sec: string; id: number; name: string | null; sig: string | null }>> {
+  ): Promise<
+    Array<{
+      sec: string;
+      id: number;
+      name: string | null;
+      sig: string | null;
+      sigv: string | null;
+    }>
+  > {
     const where: {
       class_name: number;
       year: number;
@@ -280,12 +295,18 @@ export class MarksheetService {
       },
       orderBy: [{ section: "asc" }, { teacher_id: "asc" }],
     });
-    return rows.map((r) => ({
-      sec: r.section,
-      id: r.teacher_id,
-      name: r.teacher?.name ?? null,
-      sig: r.teacher?.signature ?? null,
-    }));
+    return Promise.all(
+      rows.map(async (r) => {
+        const sig = r.teacher?.signature ?? null;
+        return {
+          sec: r.section,
+          id: r.teacher_id,
+          name: r.teacher?.name ?? null,
+          sig,
+          sigv: await this.signatureEtag(sig),
+        };
+      }),
+    );
   }
 
   private static async yearClassTeacherFingerprint(
@@ -297,6 +318,7 @@ export class MarksheetService {
       id: number;
       name: string | null;
       sig: string | null;
+      sigv: string | null;
     }>
   > {
     const rows = await prisma.levels.findMany({
@@ -309,13 +331,19 @@ export class MarksheetService {
       },
       orderBy: [{ class_name: "asc" }, { section: "asc" }, { teacher_id: "asc" }],
     });
-    return rows.map((r) => ({
-      cls: r.class_name,
-      sec: r.section,
-      id: r.teacher_id,
-      name: r.teacher?.name ?? null,
-      sig: r.teacher?.signature ?? null,
-    }));
+    return Promise.all(
+      rows.map(async (r) => {
+        const sig = r.teacher?.signature ?? null;
+        return {
+          cls: r.class_name,
+          sec: r.section,
+          id: r.teacher_id,
+          name: r.teacher?.name ?? null,
+          sig,
+          sigv: await this.signatureEtag(sig),
+        };
+      }),
+    );
   }
 
   /**
@@ -326,38 +354,347 @@ export class MarksheetService {
   private static async headFingerprintById(
     headId: number | null,
     headRole: string | null,
-  ): Promise<{ id: number | null; role: string | null; name: string | null; sig: string | null }> {
+  ): Promise<{
+    id: number | null;
+    role: string | null;
+    name: string | null;
+    sig: string | null;
+    sigv: string | null;
+  }> {
     if (headId == null) {
-      return { id: null, role: headRole ?? null, name: null, sig: null };
+      return {
+        id: null,
+        role: headRole ?? null,
+        name: null,
+        sig: null,
+        sigv: null,
+      };
     }
     const t = await prisma.teachers.findUnique({
       where: { id: headId },
       select: { name: true, signature: true },
     });
+    const sig = t?.signature ?? null;
     return {
       id: headId,
       role: headRole ?? "Headmaster",
       name: t?.name ?? null,
-      sig: t?.signature ?? null,
+      sig,
+      sigv: await this.signatureEtag(sig),
     };
   }
 
   /** Class-teacher fingerprint(s) resolved by snapshotted teacher id(s). */
   private static async teacherFingerprintByIds(
     sectionToTeacherId: Record<string, number>,
-  ): Promise<Array<{ sec: string; id: number; name: string | null; sig: string | null }>> {
+  ): Promise<
+    Array<{
+      sec: string;
+      id: number;
+      name: string | null;
+      sig: string | null;
+      sigv: string | null;
+    }>
+  > {
     const entries = Object.entries(sectionToTeacherId).sort(([a], [b]) =>
       a.localeCompare(b),
     );
-    const out: Array<{ sec: string; id: number; name: string | null; sig: string | null }> = [];
-    for (const [sec, id] of entries) {
-      const t = await prisma.teachers.findUnique({
-        where: { id },
-        select: { name: true, signature: true },
-      });
-      out.push({ sec, id, name: t?.name ?? null, sig: t?.signature ?? null });
+    return Promise.all(
+      entries.map(async ([sec, id]) => {
+        const t = await prisma.teachers.findUnique({
+          where: { id },
+          select: { name: true, signature: true },
+        });
+        const sig = t?.signature ?? null;
+        return {
+          sec,
+          id,
+          name: t?.name ?? null,
+          sig,
+          sigv: await this.signatureEtag(sig),
+        };
+      }),
+    );
+  }
+
+  /** R2 ETag of a signature object — catches in-place overwrites at the same path. */
+  private static async signatureEtag(
+    path: string | null | undefined,
+  ): Promise<string | null> {
+    if (!path) return null;
+    return headObjectEtag(path);
+  }
+
+  /**
+   * Copy a live signature into an exam-scoped R2 key so frozen sheets keep the
+   * bytes that were current at generate time.
+   */
+  private static async freezeSignatoryAsset(
+    schoolId: number,
+    examId: number,
+    personKey: string,
+    sourcePath: string | null | undefined,
+  ): Promise<string | null> {
+    if (!sourcePath) return null;
+    const prefix = `${schoolId}/marksheets/${examId}/signatories/`;
+    if (sourcePath.startsWith(prefix)) return sourcePath;
+    const buf = await getFileBuffer(sourcePath);
+    if (!buf) return sourcePath;
+    const dot = sourcePath.lastIndexOf(".");
+    const ext =
+      dot >= 0 && dot > sourcePath.lastIndexOf("/")
+        ? sourcePath.slice(dot)
+        : ".png";
+    const dest = `${prefix}${personKey}${ext}`;
+    const contentType =
+      ext.toLowerCase() === ".jpg" || ext.toLowerCase() === ".jpeg"
+        ? "image/jpeg"
+        : ext.toLowerCase() === ".webp"
+          ? "image/webp"
+          : "image/png";
+    await uploadToR2(dest, buf, contentType);
+    return dest;
+  }
+
+  private static parseSignatoryDetail(raw: unknown): {
+    head?: { name: string | null; signature: string | null } | null;
+    teacher?: {
+      name: string | null;
+      signature: string | null;
+      phone: string | null;
+    } | null;
+    teachers?: Record<
+      string,
+      { name: string | null; signature: string | null; phone: string | null }
+    >;
+  } | null {
+    if (!raw || typeof raw !== "object") return null;
+    return raw as {
+      head?: { name: string | null; signature: string | null } | null;
+      teacher?: {
+        name: string | null;
+        signature: string | null;
+        phone: string | null;
+      } | null;
+      teachers?: Record<
+        string,
+        { name: string | null; signature: string | null; phone: string | null }
+      >;
+    };
+  }
+
+  /** Build frozen name/signature/phone detail from live teacher rows. */
+  private static async captureStudentSignatoryDetail(
+    schoolId: number,
+    examId: number,
+    head: {
+      id: number | null;
+      role: string | null;
+      name: string | null;
+      signature: string | null;
+    } | null,
+    teacher: {
+      id: number | null;
+      name: string | null;
+      signature: string | null;
+      phone: string | null;
+    } | null,
+  ): Promise<{
+    head: { name: string | null; signature: string | null } | null;
+    teacher: {
+      name: string | null;
+      signature: string | null;
+      phone: string | null;
+    } | null;
+  }> {
+    return {
+      head:
+        head && head.id != null
+          ? {
+              name: head.name,
+              signature: await this.freezeSignatoryAsset(
+                schoolId,
+                examId,
+                `head-${head.id}`,
+                head.signature,
+              ),
+            }
+          : null,
+      teacher:
+        teacher && teacher.id != null
+          ? {
+              name: teacher.name,
+              signature: await this.freezeSignatoryAsset(
+                schoolId,
+                examId,
+                `teacher-${teacher.id}`,
+                teacher.signature,
+              ),
+              phone: teacher.phone,
+            }
+          : null,
+    };
+  }
+
+  private static frozenHeadFingerprint(
+    headId: number | null,
+    headRole: string | null,
+    detail: {
+      head?: { name: string | null; signature: string | null } | null;
+    } | null,
+  ): {
+    id: number | null;
+    role: string | null;
+    name: string | null;
+    sig: string | null;
+    sigv: string | null;
+  } {
+    return {
+      id: headId,
+      role: headRole ?? "Headmaster",
+      name: detail?.head?.name ?? null,
+      sig: detail?.head?.signature ?? null,
+      // Path is exam-scoped frozen copy — no live ETag.
+      sigv: null,
+    };
+  }
+
+  private static frozenTeacherFingerprint(
+    section: string,
+    teacherId: number | null,
+    detail: {
+      teacher?: {
+        name: string | null;
+        signature: string | null;
+        phone: string | null;
+      } | null;
+      teachers?: Record<
+        string,
+        { name: string | null; signature: string | null; phone: string | null }
+      >;
+    } | null,
+  ): Array<{
+    sec: string;
+    id: number;
+    name: string | null;
+    sig: string | null;
+    sigv: string | null;
+  }> {
+    if (teacherId == null) return [];
+    const t = detail?.teachers?.[section] ?? detail?.teacher ?? null;
+    return [
+      {
+        sec: section,
+        id: teacherId,
+        name: t?.name ?? null,
+        sig: t?.signature ?? null,
+        sigv: null,
+      },
+    ];
+  }
+
+  /** Website/phone/name/logo printed on marksheet headers (unpublished exams only). */
+  private static async schoolMarksheetFingerprint(
+    schoolId: number | null | undefined,
+  ): Promise<{
+    n: string | null;
+    loc: string | null;
+    eiin: string | null;
+    cc: string | null;
+    w: string | null;
+    p: string | null;
+    logo: string | null;
+    logov: string | null;
+  }> {
+    const empty = {
+      n: null,
+      loc: null,
+      eiin: null,
+      cc: null,
+      w: null,
+      p: null,
+      logo: null,
+      logov: null,
+    };
+    if (!schoolId) return empty;
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        name: true,
+        upazila: true,
+        district: true,
+        address: true,
+        eiin: true,
+        centerCode: true,
+        customDomain: true,
+        website: true,
+        phone: true,
+        logo: true,
+        headerLogo: true,
+      },
+    });
+    if (!school) return empty;
+    const place = [school.upazila, school.district]
+      .map((s) => s?.trim())
+      .filter(Boolean)
+      .join(", ");
+    const raw = (school.customDomain?.trim() || school.website?.trim() || "");
+    let w: string | null = null;
+    if (raw) {
+      try {
+        w = /^https?:\/\//i.test(raw)
+          ? new URL(raw).hostname || null
+          : raw.replace(/\/+$/, "").replace(/:\d+$/, "").toLowerCase();
+      } catch {
+        w =
+          raw
+            .replace(/^https?:\/\//i, "")
+            .split("/")[0]
+            ?.replace(/:\d+$/, "")
+            .toLowerCase() || null;
+      }
     }
-    return out;
+    const logo = school.headerLogo || school.logo || null;
+    return {
+      n: school.name?.trim() || null,
+      loc: place || school.address?.trim() || null,
+      eiin: school.eiin?.trim() || null,
+      cc: school.centerCode?.trim() || null,
+      w,
+      p: school.phone?.trim() || null,
+      logo,
+      logov: logo ? await this.signatureEtag(logo) : null,
+    };
+  }
+
+  /**
+   * Live school header branding in the hash only while the exam is unpublished.
+   * After publish (or result_date freeze), branding is pinned — name/logo/website
+   * edits must not churn finalized sheets (same idea as design / signatories).
+   */
+  private static async schoolFingerprintForExam(
+    schoolId: number | null | undefined,
+    exam: { visible?: boolean | null; result_date?: string | null } | null,
+  ): Promise<{
+    n: string | null;
+    loc: string | null;
+    eiin: string | null;
+    cc: string | null;
+    w: string | null;
+    p: string | null;
+    logo: string | null;
+    logov: string | null;
+  } | null> {
+    if (exam?.visible || isExamFrozen(exam?.result_date)) return null;
+    return this.schoolMarksheetFingerprint(schoolId);
+  }
+
+  /** Stable digest of student names in scope (bundle / session-year pages). */
+  private static namesDigest(names: string[]): string {
+    return crypto
+      .createHash("sha256")
+      .update(names.join("\0"))
+      .digest("hex");
   }
 
   /**
@@ -466,9 +803,25 @@ export class MarksheetService {
       r2_key: string | null;
     } | null,
   ): Promise<boolean> {
-    if (!row || row.status !== "ready" || !row.r2_key || !row.input_hash) {
-      return false;
-    }
+    if (!row || row.status !== "ready") return false;
+    return this.isStudentContentFresh(studentId, examId, year, row);
+  }
+
+  /**
+   * Hash + R2 match for the cached PDF bytes, ignoring row status.
+   * Used by bundle merge to tell "content already good, job in flight" from
+   * "content actually stale / missing".
+   */
+  private static async isStudentContentFresh(
+    studentId: number,
+    examId: number,
+    year: number,
+    row: {
+      input_hash: string | null;
+      r2_key: string | null;
+    } | null,
+  ): Promise<boolean> {
+    if (!row?.r2_key || !row.input_hash) return false;
     const hash = await this.computeInputHash(studentId, examId, year);
     if (row.input_hash !== hash) return false;
     return !!(await headObject(row.r2_key));
@@ -507,11 +860,24 @@ export class MarksheetService {
     const [enrollment, exam, snapRow] = await Promise.all([
       prisma.student_enrollments.findFirst({
         where: { student_id: studentId, year },
-        select: { class: true, section: true, roll: true, fourth_subject_id: true },
+        select: {
+          class: true,
+          section: true,
+          roll: true,
+          fourth_subject_id: true,
+          school_id: true,
+          student: { select: { name: true } },
+        },
       }),
       prisma.exams.findUnique({
         where: { id: examId },
-        select: { exam_name: true, result_date: true, return_date: true },
+        select: {
+          exam_name: true,
+          result_date: true,
+          return_date: true,
+          school_id: true,
+          visible: true,
+        },
       }),
       prisma.marksheet_files.findUnique({
         where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
@@ -519,21 +885,25 @@ export class MarksheetService {
           snapshot_head_id: true,
           snapshot_head_role: true,
           snapshot_teacher_id: true,
+          snapshot_signatory_detail: true,
           snapshot_design_version: true,
         },
       }),
     ]);
 
-    // Frozen exams pin their signatories by the snapshotted ids (resolving the
-    // snapshotted person's current name/signature). Falls back to the current
-    // assignment until a first render has stored a snapshot.
+    // Frozen exams pin who signed + name/signature/phone (snapshot_signatory_detail).
+    // Legacy rows without detail still resolve live-by-id until the next generate.
     const frozen = isExamFrozen(exam?.result_date);
+    const signatoryDetail = this.parseSignatoryDetail(
+      snapRow?.snapshot_signatory_detail,
+    );
     const useSnapshot =
       frozen &&
       !!snapRow &&
       (snapRow.snapshot_head_id != null || snapRow.snapshot_teacher_id != null);
+    const useFrozenDetail = useSnapshot && !!signatoryDetail;
 
-    const [markAgg, stats, head, classTeacher] = await Promise.all([
+    const [markAgg, stats, head, classTeacher, school] = await Promise.all([
       prisma.marks.aggregate({
         where: { exam_id: examId, enrollment: { student_id: studentId, year } },
         _max: { updated_at: true },
@@ -545,23 +915,43 @@ export class MarksheetService {
             select: { updated_at: true },
           })
         : Promise.resolve(null),
-      useSnapshot
-        ? this.headFingerprintById(
-            snapRow!.snapshot_head_id,
-            snapRow!.snapshot_head_role,
+      useFrozenDetail
+        ? Promise.resolve(
+            this.frozenHeadFingerprint(
+              snapRow!.snapshot_head_id,
+              snapRow!.snapshot_head_role,
+              signatoryDetail,
+            ),
           )
-        : this.headMsgFingerprint(),
-      enrollment
-        ? useSnapshot
-          ? this.teacherFingerprintByIds(
-              snapRow!.snapshot_teacher_id != null
-                ? { [enrollment.section]: snapRow!.snapshot_teacher_id }
-                : {},
+        : useSnapshot
+          ? this.headFingerprintById(
+              snapRow!.snapshot_head_id,
+              snapRow!.snapshot_head_role,
             )
-          : this.classTeacherFingerprint(enrollment.class, year, [
-              enrollment.section,
-            ])
+          : this.headMsgFingerprint(),
+      enrollment
+        ? useFrozenDetail
+          ? Promise.resolve(
+              this.frozenTeacherFingerprint(
+                enrollment.section,
+                snapRow!.snapshot_teacher_id,
+                signatoryDetail,
+              ),
+            )
+          : useSnapshot
+            ? this.teacherFingerprintByIds(
+                snapRow!.snapshot_teacher_id != null
+                  ? { [enrollment.section]: snapRow!.snapshot_teacher_id }
+                  : {},
+              )
+            : this.classTeacherFingerprint(enrollment.class, year, [
+                enrollment.section,
+              ])
         : Promise.resolve([]),
+      this.schoolFingerprintForExam(
+        enrollment?.school_id ?? exam?.school_id ?? null,
+        exam,
+      ),
     ]);
 
     const fingerprint = JSON.stringify({
@@ -573,6 +963,8 @@ export class MarksheetService {
       f: enrollment?.fourth_subject_id ?? null,
       r: enrollment?.roll ?? null,
       sec: enrollment?.section ?? null,
+      nm: enrollment?.student?.name ?? null,
+      sch: school,
       en: exam?.exam_name ?? null,
       rd: exam?.result_date ?? null,
       retd: exam?.return_date ?? null,
@@ -902,13 +1294,57 @@ export class MarksheetService {
    * (stall, restart, jobId orphan). Called when the progress UI polls
    * generation-status so an empty DB still starts the worker without requiring
    * a re-publish.
+   *
+   * Heavy gap-fill (invalidate missing rows) is throttled. Lightweight orphan
+   * re-attach for DB `pending`/`failed` rows runs on every poll so a lost Bull
+   * job cannot sit pending for the full cooldown with generating=0.
    */
   static async ensureQueuedForExamIfDue(examId: number): Promise<number> {
     const now = Date.now();
     const last = ensureQueuedLastRun.get(examId) ?? 0;
-    if (now - last < ENSURE_QUEUED_COOLDOWN_MS) return 0;
+    if (now - last < ENSURE_QUEUED_COOLDOWN_MS) {
+      return this.requeueOrphanedPendingForExam(examId);
+    }
     ensureQueuedLastRun.set(examId, now);
     return this.ensureQueuedForExam(examId);
+  }
+
+  /** Re-attach Bull jobs for DB pending/failed rows only (no gap-fill invalidate). */
+  private static async requeueOrphanedPendingForExam(
+    examId: number,
+  ): Promise<number> {
+    const pendingStudents = await prisma.marksheet_files.findMany({
+      where: { exam_id: examId, status: { in: ["pending", "failed"] } },
+      select: {
+        student_id: true,
+        exam_id: true,
+        exam_name: true,
+        year: true,
+        school_id: true,
+      },
+    });
+    let queued = 0;
+    for (const r of pendingStudents) {
+      const didAdd = await ensureJobQueued(
+        {
+          studentId: r.student_id,
+          examId: r.exam_id,
+          examName: r.exam_name,
+          year: r.year,
+          schoolId: r.school_id,
+        },
+        jobId(r.exam_id, r.student_id),
+      );
+      if (didAdd) queued++;
+    }
+    queued += await this.ensureBundlesQueuedForExam(examId);
+    if (queued > 0) {
+      logger.info("[marksheet] ensureQueued: orphan pending re-attached", {
+        examId,
+        count: queued,
+      });
+    }
+    return queued;
   }
 
   static async ensureQueuedForExam(examId: number): Promise<number> {
@@ -1099,8 +1535,178 @@ export class MarksheetService {
 
 
   /**
+   * Re-queue class bundles when marks change for the given students.
+   * Upserts ALL + each affected section (+ existing composite keys) to pending
+   * and enqueues Bull jobs — same shape as teacher/head bundle invalidation.
+   */
+  private static async enqueueBundlesForStudents(
+    examId: number,
+    examName: string,
+    year: number,
+    schoolId: number,
+    studentIds: number[],
+    priority = PRIORITY_BACKFILL,
+  ): Promise<void> {
+    if (studentIds.length === 0) return;
+    const enrollments = await prisma.student_enrollments.findMany({
+      where: { student_id: { in: studentIds }, year },
+      select: { class: true, section: true },
+    });
+    const sectionsByClass = new Map<number, Set<string>>();
+    for (const e of enrollments) {
+      if (e.class == null) continue;
+      const set = sectionsByClass.get(e.class) ?? new Set<string>();
+      set.add(e.section);
+      sectionsByClass.set(e.class, set);
+    }
+    if (sectionsByClass.size === 0) return;
+
+    const jobs = [];
+
+    for (const [className, sections] of sectionsByClass) {
+      const existing = await prisma.marksheet_bundles.findMany({
+        where: { exam_id: examId, class: className },
+        select: { section: true },
+      });
+      const existingSections = existing.map((r) => r.section);
+      const keys = new Set<string>(["ALL", ...existingSections]);
+      for (const section of sections) {
+        for (const k of this.bundleSectionsForTeacherChange(
+          section,
+          existingSections,
+        )) {
+          keys.add(k);
+        }
+      }
+
+      for (const bundleSection of keys) {
+        await prisma.marksheet_bundles.upsert({
+          where: {
+            exam_id_class_section: {
+              exam_id: examId,
+              class: className,
+              section: bundleSection,
+            },
+          },
+          create: {
+            exam_id: examId,
+            exam_name: examName,
+            year,
+            class: className,
+            section: bundleSection,
+            school_id: schoolId,
+            status: "pending",
+          },
+          update: {
+            status: "pending",
+            error: null,
+            exam_name: examName,
+            input_hash: null,
+          },
+        });
+        jobs.push({
+          data: {
+            kind: "bundle" as const,
+            examId,
+            examName,
+            year,
+            class: className,
+            schoolId,
+            bundleSection,
+          },
+          opts: {
+            jobId: bundleJobId(examId, className, bundleSection),
+            ...defaultJobOpts(priority),
+          },
+        });
+      }
+    }
+
+    if (jobs.length > 0) {
+      await marksheetQueue.addBulk(jobs);
+      logger.info("[marksheet] enqueue(bundles): mark edit", {
+        examId,
+        classes: [...sectionsByClass.keys()],
+        jobs: jobs.length,
+      });
+    }
+  }
+
+  /**
+   * Re-queue session PDFs (per affected student + school-year "all") after
+   * marks change. Creates cache rows if missing.
+   */
+  private static async enqueueSessionsForStudents(
+    studentIds: number[],
+    year: number,
+    schoolId: number,
+    priority = PRIORITY_BACKFILL,
+  ): Promise<void> {
+    if (studentIds.length === 0) return;
+
+    const uniqueIds = [...new Set(studentIds)];
+    const sessionStudentIds = [
+      this.SESSION_YEAR_STUDENT_ID,
+      ...uniqueIds,
+    ];
+
+    for (const studentId of sessionStudentIds) {
+      await prisma.marksheet_sessions.upsert({
+        where: {
+          marksheet_session_scope: {
+            school_id: schoolId,
+            year,
+            student_id: studentId,
+          },
+        },
+        create: {
+          school_id: schoolId,
+          year,
+          student_id: studentId,
+          status: "pending",
+        },
+        update: { status: "pending", error: null, input_hash: null },
+      });
+    }
+
+    await marksheetQueue.addBulk([
+      {
+        data: {
+          kind: "session-year" as const,
+          year,
+          schoolId,
+        },
+        opts: {
+          jobId: sessionYearJobId(year),
+          ...defaultJobOpts(priority),
+        },
+      },
+      ...uniqueIds.map((studentId) => ({
+        data: {
+          kind: "session-student" as const,
+          studentId,
+          year,
+          schoolId,
+        },
+        opts: {
+          jobId: sessionStudentJobId(year, studentId),
+          ...defaultJobOpts(priority),
+        },
+      })),
+    ]);
+
+    logger.info("[marksheet] enqueue(sessions): mark edit", {
+      year,
+      schoolId,
+      students: uniqueIds.length,
+      sessionYear: true,
+    });
+  }
+
+  /**
    * Mark the given students' sheets stale and re-enqueue. Only students with
    * real marks for this exam are queued — never creates duplicate/skipped rows.
+   * Also auto-queues affected class bundles and session PDFs.
    */
   static async invalidate(
     studentIds: number[],
@@ -1138,6 +1744,20 @@ export class MarksheetService {
       examId,
       count: eligible.length,
     });
+    await this.enqueueBundlesForStudents(
+      examId,
+      exam.exam_name,
+      exam.exam_year,
+      exam.school_id,
+      eligible,
+      priority,
+    );
+    await this.enqueueSessionsForStudents(
+      eligible,
+      exam.exam_year,
+      exam.school_id,
+      priority,
+    );
     await prisma.marksheet_files.updateMany({
       where: { exam_id: examId, student_id: { in: eligible } },
       data: { status: "pending", error: null },
@@ -1836,46 +2456,44 @@ export class MarksheetService {
   }
 
   /**
-   * Re-enqueue after the current Bull job finishes. Same jobId cannot be added
-   * while a handler is still active; setImmediate runs after this job completes.
+   * Re-enqueue after the current Bull job finishes. Uses ensureJobQueuedAfterDefer
+   * so a same-jobId race or completed/failed orphan cannot leave the DB row
+   * pending with nothing in Redis.
    */
   private static deferStudentRequeue(job: StudentJob): void {
+    const id = jobId(job.examId, job.studentId);
     setImmediate(() => {
-      marksheetQueue
-        .add(job, {
-          jobId: jobId(job.examId, job.studentId),
-          ...defaultJobOpts(PRIORITY_BACKFILL),
-        })
-        .catch((e) =>
-          logger.warn("[marksheet] requeue(student) failed", {
+      ensureJobQueuedAfterDefer(job, id, PRIORITY_BACKFILL).then((ok) => {
+        if (!ok) {
+          logger.warn("[marksheet] requeue(student) still not queued after retries", {
             studentId: job.studentId,
             examId: job.examId,
-            error: e instanceof Error ? e.message : String(e),
-          }),
-        );
+          });
+        }
+      });
     });
   }
 
-  private static deferBundleRequeue(job: BundleJob): void {
+  private static deferBundleRequeue(job: BundleJob, delayMs = 0): void {
     const bundleSection = this.bundleSectionKey(job.bundleSection);
-    setImmediate(() => {
-      marksheetQueue
-        .add(
-          { ...job, kind: "bundle", bundleSection },
-          {
-            jobId: bundleJobId(job.examId, job.class, bundleSection),
-            ...defaultJobOpts(PRIORITY_BACKFILL),
-          },
-        )
-        .catch((e) =>
-          logger.warn("[marksheet] requeue(bundle) failed", {
+    const id = bundleJobId(job.examId, job.class, bundleSection);
+    const run = () => {
+      ensureJobQueuedAfterDefer(
+        { ...job, kind: "bundle", bundleSection },
+        id,
+        PRIORITY_BACKFILL,
+      ).then((ok) => {
+        if (!ok) {
+          logger.warn("[marksheet] requeue(bundle) still not queued after retries", {
             examId: job.examId,
             class: job.class,
             section: bundleSection,
-            error: e instanceof Error ? e.message : String(e),
-          }),
-        );
-    });
+          });
+        }
+      });
+    };
+    if (delayMs > 0) setTimeout(run, delayMs);
+    else setImmediate(run);
   }
 
   /**
@@ -1969,7 +2587,6 @@ export class MarksheetService {
           student_id_exam_id: { student_id: studentId, exam_id: examId },
         };
         try {
-          const hashAtStart = await this.computeInputHash(studentId, examId, year);
           const [row, exam] = await Promise.all([
             prisma.marksheet_files.findUnique({
               where: whereStudent,
@@ -1979,6 +2596,7 @@ export class MarksheetService {
                 snapshot_head_id: true,
                 snapshot_head_role: true,
                 snapshot_teacher_id: true,
+                snapshot_signatory_detail: true,
               },
             }),
             prisma.exams.findUnique({
@@ -1986,17 +2604,75 @@ export class MarksheetService {
               select: { result_date: true },
             }),
           ]);
-          // A frozen exam re-renders with its snapshotted signatories so a later
-          // staff reassignment cannot re-stamp it. Until a first render has
-          // stored a snapshot, fall through to the current assignment.
+          const frozen = isExamFrozen(exam?.result_date);
+          let signatoryDetail = this.parseSignatoryDetail(
+            row?.snapshot_signatory_detail,
+          );
+
+          // Legacy frozen rows: capture name/sig/phone once before hashing so
+          // history pins without a live↔detail hash flap.
+          if (
+            frozen &&
+            row &&
+            (row.snapshot_head_id != null || row.snapshot_teacher_id != null) &&
+            !signatoryDetail
+          ) {
+            const [headLive, teacherLive] = await Promise.all([
+              this.headFingerprintById(
+                row.snapshot_head_id,
+                row.snapshot_head_role,
+              ),
+              row.snapshot_teacher_id != null
+                ? prisma.teachers.findUnique({
+                    where: { id: row.snapshot_teacher_id },
+                    select: {
+                      id: true,
+                      name: true,
+                      signature: true,
+                      phone: true,
+                    },
+                  })
+                : Promise.resolve(null),
+            ]);
+            signatoryDetail = await this.captureStudentSignatoryDetail(
+              schoolId,
+              examId,
+              {
+                id: headLive.id,
+                role: headLive.role,
+                name: headLive.name,
+                signature: headLive.sig,
+              },
+              teacherLive
+                ? {
+                    id: teacherLive.id,
+                    name: teacherLive.name,
+                    signature: teacherLive.signature,
+                    phone: teacherLive.phone,
+                  }
+                : null,
+            );
+            await prisma.marksheet_files.update({
+              where: whereStudent,
+              data: { snapshot_signatory_detail: signatoryDetail },
+            });
+          }
+
+          const hashAtStart = await this.computeInputHash(
+            studentId,
+            examId,
+            year,
+          );
+
           const frozenSignatories =
-            isExamFrozen(exam?.result_date) &&
+            frozen &&
             row &&
             (row.snapshot_head_id != null || row.snapshot_teacher_id != null)
               ? {
                   headId: row.snapshot_head_id,
                   headRole: row.snapshot_head_role,
                   teacherId: row.snapshot_teacher_id,
+                  detail: signatoryDetail,
                 }
               : undefined;
           // Nothing changed and the object is still there — no render needed.
@@ -2039,16 +2715,54 @@ export class MarksheetService {
                 ? "inputs-changed"
                 : "r2-missing",
           });
-          const { buffer, studentName, usedHeadId, usedHeadRole, usedTeacherId } =
-            await MarksService.generateMarksheetPDF(
-              String(studentId),
-              String(year),
-              examName,
-              WORKER_USER,
-              frozenSignatories,
-            );
+          const {
+            buffer,
+            studentName,
+            usedHeadId,
+            usedHeadRole,
+            usedTeacherId,
+            usedHeadName,
+            usedHeadSignature,
+            usedTeacherName,
+            usedTeacherSignature,
+            usedTeacherPhone,
+          } = await MarksService.generateMarksheetPDF(
+            String(studentId),
+            String(year),
+            examName,
+            WORKER_USER,
+            frozenSignatories,
+          );
           const key = this.r2Key(schoolId, year, examId, studentId);
           await uploadToR2(key, buffer);
+
+          const detailToStore = await this.captureStudentSignatoryDetail(
+            schoolId,
+            examId,
+            {
+              id: usedHeadId,
+              role: usedHeadRole,
+              name: usedHeadName,
+              signature: usedHeadSignature,
+            },
+            {
+              id: usedTeacherId,
+              name: usedTeacherName,
+              signature: usedTeacherSignature,
+              phone: usedTeacherPhone,
+            },
+          );
+          // Persist detail before end-hash so frozen fingerprints stay stable.
+          await prisma.marksheet_files.update({
+            where: whereStudent,
+            data: {
+              snapshot_head_id: usedHeadId,
+              snapshot_head_role: usedHeadRole,
+              snapshot_teacher_id: usedTeacherId,
+              snapshot_signatory_detail: detailToStore,
+              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
+            },
+          });
 
           const hashAtEnd = await this.computeInputHash(studentId, examId, year);
           const afterRender = await prisma.marksheet_files.findUnique({
@@ -2084,6 +2798,7 @@ export class MarksheetService {
               snapshot_head_id: usedHeadId,
               snapshot_head_role: usedHeadRole,
               snapshot_teacher_id: usedTeacherId,
+              snapshot_signatory_detail: detailToStore,
               snapshot_design_version: MARKSHEET_DESIGN_VERSION,
               generated_at: new Date(),
               error: null,
@@ -2170,7 +2885,13 @@ export class MarksheetService {
     const [exam, snapRow] = await Promise.all([
       prisma.exams.findUnique({
         where: { id: examId },
-        select: { exam_name: true, result_date: true, return_date: true },
+        select: {
+          exam_name: true,
+          result_date: true,
+          return_date: true,
+          school_id: true,
+          visible: true,
+        },
       }),
       prisma.marksheet_bundles.findUnique({
         where: {
@@ -2184,7 +2905,9 @@ export class MarksheetService {
           snapshot_head_id: true,
           snapshot_head_role: true,
           snapshot_teachers: true,
+          snapshot_signatory_detail: true,
           snapshot_design_version: true,
+          school_id: true,
         },
       }),
     ]);
@@ -2193,32 +2916,71 @@ export class MarksheetService {
       number
     > | null;
     const frozen = isExamFrozen(exam?.result_date);
+    const signatoryDetail = this.parseSignatoryDetail(
+      snapRow?.snapshot_signatory_detail,
+    );
     const useSnapshot =
       frozen &&
       !!snapRow &&
       (snapRow.snapshot_head_id != null ||
         (snapTeachers != null && Object.keys(snapTeachers).length > 0));
+    const useFrozenDetail = useSnapshot && !!signatoryDetail;
 
-    const [markAgg, stats, head, classTeachers] = await Promise.all([
-      prisma.marks.aggregate({
-        where: { exam_id: examId, enrollment: enrollmentWhere },
-        _max: { updated_at: true },
-        _count: { _all: true },
-      }),
-      prisma.exam_class_stats.findFirst({
-        where: { exam_id: examId, class: cls, year },
-        select: { updated_at: true },
-      }),
-      useSnapshot
-        ? this.headFingerprintById(
-            snapRow!.snapshot_head_id,
-            snapRow!.snapshot_head_role,
-          )
-        : this.headMsgFingerprint(),
-      useSnapshot
-        ? this.teacherFingerprintByIds(snapTeachers ?? {})
-        : this.classTeacherFingerprint(cls, year, bundleSections),
-    ]);
+    const frozenTeachersFp =
+      useFrozenDetail && snapTeachers
+        ? Object.entries(snapTeachers)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .flatMap(([sec, id]) =>
+              this.frozenTeacherFingerprint(sec, id, {
+                teachers: signatoryDetail?.teachers,
+              }),
+            )
+        : null;
+
+    const [markAgg, stats, head, classTeachers, school, memberNames] =
+      await Promise.all([
+        prisma.marks.aggregate({
+          where: { exam_id: examId, enrollment: enrollmentWhere },
+          _max: { updated_at: true },
+          _count: { _all: true },
+        }),
+        prisma.exam_class_stats.findFirst({
+          where: { exam_id: examId, class: cls, year },
+          select: { updated_at: true },
+        }),
+        useFrozenDetail
+          ? Promise.resolve(
+              this.frozenHeadFingerprint(
+                snapRow!.snapshot_head_id,
+                snapRow!.snapshot_head_role,
+                signatoryDetail,
+              ),
+            )
+          : useSnapshot
+            ? this.headFingerprintById(
+                snapRow!.snapshot_head_id,
+                snapRow!.snapshot_head_role,
+              )
+            : this.headMsgFingerprint(),
+        frozenTeachersFp
+          ? Promise.resolve(frozenTeachersFp)
+          : useSnapshot
+            ? this.teacherFingerprintByIds(snapTeachers ?? {})
+            : this.classTeacherFingerprint(cls, year, bundleSections),
+        this.schoolFingerprintForExam(
+          snapRow?.school_id ?? exam?.school_id ?? null,
+          exam,
+        ),
+        prisma.student_enrollments.findMany({
+          where: enrollmentWhere,
+          select: { student: { select: { name: true } } },
+          orderBy: [
+            { section: "asc" },
+            { roll: "asc" },
+            { student: { name: "asc" } },
+          ],
+        }),
+      ]);
     const fingerprint = JSON.stringify({
       sec: bundleSection,
       n: markAgg._count?._all ?? 0,
@@ -2226,6 +2988,10 @@ export class MarksheetService {
       s: isoStamp(stats?.updated_at),
       h: head,
       t: classTeachers,
+      sn: this.namesDigest(
+        memberNames.map((e) => e.student?.name ?? ""),
+      ),
+      sch: school,
       en: exam?.exam_name ?? null,
       rd: exam?.result_date ?? null,
       retd: exam?.return_date ?? null,
@@ -2257,9 +3023,11 @@ export class MarksheetService {
         fourth_subject_id: true,
         class: true,
         section: true,
+        school_id: true,
+        student: { select: { name: true } },
       },
     });
-    const [markAgg, head, classTeacher] = await Promise.all([
+    const [markAgg, head, classTeacher, school] = await Promise.all([
       prisma.marks.aggregate({
         where: { enrollment: { student_id: studentId, year } },
         _max: { updated_at: true },
@@ -2271,6 +3039,9 @@ export class MarksheetService {
             enrollment.section,
           ])
         : Promise.resolve([]),
+      this.schoolMarksheetFingerprint(
+        enrollment?.school_id ?? getRlsContext()?.schoolId ?? null,
+      ),
     ]);
     const fingerprint = JSON.stringify({
       n: markAgg._count?._all ?? 0,
@@ -2279,26 +3050,38 @@ export class MarksheetService {
       t: classTeacher,
       r: enrollment?.roll ?? null,
       f: enrollment?.fourth_subject_id ?? null,
+      nm: enrollment?.student?.name ?? null,
+      sch: school,
       d: MARKSHEET_DESIGN_VERSION,
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
   }
 
   static async computeSessionYearHash(year: number): Promise<string> {
-    const [markAgg, head, classTeachers] = await Promise.all([
-      prisma.marks.aggregate({
-        where: { enrollment: { year } },
-        _max: { updated_at: true },
-        _count: { _all: true },
-      }),
-      this.headMsgFingerprint(),
-      this.yearClassTeacherFingerprint(year),
-    ]);
+    const schoolId = getRlsContext()?.schoolId ?? null;
+    const [markAgg, head, classTeachers, school, enrollments] =
+      await Promise.all([
+        prisma.marks.aggregate({
+          where: { enrollment: { year } },
+          _max: { updated_at: true },
+          _count: { _all: true },
+        }),
+        this.headMsgFingerprint(),
+        this.yearClassTeacherFingerprint(year),
+        this.schoolMarksheetFingerprint(schoolId),
+        prisma.student_enrollments.findMany({
+          where: { year },
+          select: { student: { select: { name: true } } },
+          orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
+        }),
+      ]);
     const fingerprint = JSON.stringify({
       n: markAgg._count?._all ?? 0,
       m: isoStamp(markAgg._max?.updated_at),
       h: head,
       t: classTeachers,
+      sn: this.namesDigest(enrollments.map((e) => e.student?.name ?? "")),
+      sch: school,
       d: MARKSHEET_DESIGN_VERSION,
     });
     return crypto.createHash("sha256").update(fingerprint).digest("hex");
@@ -2713,6 +3496,102 @@ export class MarksheetService {
     );
   }
 
+  /**
+   * Students in bundle scope with at least one non-null mark, in PDF page order
+   * (section, roll, name).
+   */
+  private static async listBundleMembers(
+    examId: number,
+    cls: number,
+    year: number,
+    bundleSection: string,
+  ): Promise<{ studentId: number; section: string }[]> {
+    const enrollmentWhere = this.enrollmentWhereForBundleSection(
+      cls,
+      year,
+      bundleSection,
+    );
+    const enrollments = await prisma.student_enrollments.findMany({
+      where: enrollmentWhere,
+      select: {
+        id: true,
+        student_id: true,
+        section: true,
+      },
+      orderBy: [
+        { section: "asc" },
+        { roll: "asc" },
+        { student: { name: "asc" } },
+      ],
+    });
+    if (enrollments.length === 0) return [];
+
+    const withMarks = await prisma.marks.findMany({
+      where: {
+        exam_id: examId,
+        marks: { not: null },
+        enrollment_id: { in: enrollments.map((e) => e.id) },
+      },
+      distinct: ["enrollment_id"],
+      select: { enrollment_id: true },
+    });
+    const ok = new Set(withMarks.map((m) => m.enrollment_id));
+    return enrollments
+      .filter((e) => ok.has(e.id))
+      .map((e) => ({ studentId: e.student_id, section: e.section }));
+  }
+
+  /** Queue user-priority student jobs for members that are missing or stale. */
+  private static async enqueueStaleBundleMembers(
+    staleStudentIds: number[],
+    examId: number,
+    examName: string,
+    year: number,
+    schoolId: number,
+  ): Promise<void> {
+    if (staleStudentIds.length === 0) return;
+
+    const existing = await prisma.marksheet_files.findMany({
+      where: { exam_id: examId, student_id: { in: staleStudentIds } },
+      select: { student_id: true },
+    });
+    const have = new Set(existing.map((r) => r.student_id));
+    const missing = staleStudentIds.filter((id) => !have.has(id));
+    if (missing.length > 0) {
+      await prisma.marksheet_files
+        .createMany({
+          data: missing.map((id) => ({
+            student_id: id,
+            exam_id: examId,
+            exam_name: examName,
+            year,
+            school_id: schoolId,
+            status: "pending",
+          })),
+          skipDuplicates: true,
+        })
+        .catch(() => {});
+    }
+
+    await prisma.marksheet_files.updateMany({
+      where: {
+        exam_id: examId,
+        student_id: { in: staleStudentIds },
+        status: { not: "generating" },
+      },
+      data: { status: "pending", error: null },
+    });
+
+    await Promise.all(
+      staleStudentIds.map((studentId) =>
+        enqueueUserPriority(
+          { studentId, examId, examName, year, schoolId },
+          jobId(examId, studentId),
+        ).catch(() => {}),
+      ),
+    );
+  }
+
   static async processBundleJob(job: BundleJob): Promise<void> {
     const { examId, examName, year, class: cls, schoolId } = job;
     const bundleSection = this.bundleSectionKey(job.bundleSection);
@@ -2751,43 +3630,92 @@ export class MarksheetService {
           },
         };
         try {
+          const examRow = await prisma.exams.findUnique({
+            where: { id: examId },
+            select: { result_date: true },
+          });
+          const snapRow = await prisma.marksheet_bundles.findUnique({
+            where: whereKey,
+            select: {
+              input_hash: true,
+              r2_key: true,
+              snapshot_head_id: true,
+              snapshot_head_role: true,
+              snapshot_teachers: true,
+              snapshot_signatory_detail: true,
+            },
+          });
+          const frozen = isExamFrozen(examRow?.result_date);
+          const snapTeachers = (snapRow?.snapshot_teachers ??
+            null) as Record<string, number> | null;
+          if (
+            frozen &&
+            snapRow &&
+            (snapRow.snapshot_head_id != null ||
+              (snapTeachers && Object.keys(snapTeachers).length > 0)) &&
+            !this.parseSignatoryDetail(snapRow.snapshot_signatory_detail)
+          ) {
+            const [headLive, teachersLive] = await Promise.all([
+              this.headFingerprintById(
+                snapRow.snapshot_head_id,
+                snapRow.snapshot_head_role,
+              ),
+              this.teacherFingerprintByIds(snapTeachers ?? {}),
+            ]);
+            const teachersDetail: Record<
+              string,
+              {
+                name: string | null;
+                signature: string | null;
+                phone: string | null;
+              }
+            > = {};
+            for (const t of teachersLive) {
+              teachersDetail[t.sec] = {
+                name: t.name,
+                signature: await this.freezeSignatoryAsset(
+                  schoolId,
+                  examId,
+                  `teacher-${t.id}-sec-${t.sec}`,
+                  t.sig,
+                ),
+                phone: null,
+              };
+            }
+            const detail = {
+              head:
+                headLive.id != null
+                  ? {
+                      name: headLive.name,
+                      signature: await this.freezeSignatoryAsset(
+                        schoolId,
+                        examId,
+                        `head-${headLive.id}`,
+                        headLive.sig,
+                      ),
+                    }
+                  : null,
+              teachers: teachersDetail,
+            };
+            await prisma.marksheet_bundles.update({
+              where: whereKey,
+              data: { snapshot_signatory_detail: detail },
+            });
+          }
+
           const hashAtStart = await this.computeBundleHash(
             examId,
             cls,
             year,
             bundleSection,
           );
-          const [row, exam] = await Promise.all([
-            prisma.marksheet_bundles.findUnique({
-              where: whereKey,
-              select: {
-                input_hash: true,
-                r2_key: true,
-                snapshot_head_id: true,
-                snapshot_head_role: true,
-                snapshot_teachers: true,
-              },
-            }),
-            prisma.exams.findUnique({
-              where: { id: examId },
-              select: { result_date: true },
-            }),
-          ]);
-          const snapTeachers = (row?.snapshot_teachers ?? null) as unknown as Record<
-            string,
-            number
-          > | null;
-          const frozenSignatories =
-            isExamFrozen(exam?.result_date) &&
-            row &&
-            (row.snapshot_head_id != null ||
-              (snapTeachers != null && Object.keys(snapTeachers).length > 0))
-              ? {
-                  headId: row.snapshot_head_id,
-                  headRole: row.snapshot_head_role,
-                  teachersBySection: snapTeachers ?? {},
-                }
-              : undefined;
+          const row = await prisma.marksheet_bundles.findUnique({
+            where: whereKey,
+            select: {
+              input_hash: true,
+              r2_key: true,
+            },
+          });
           if (
             row?.input_hash === hashAtStart &&
             row.r2_key &&
@@ -2807,47 +3735,242 @@ export class MarksheetService {
                 data: { status: "pending", error: null },
               });
               this.deferBundleRequeue({ ...job, bundleSection });
-              logger.info("[marksheet] job(bundle): DEFER after skip (concurrent edit)", {
-                examId,
-                class: cls,
-                section: bundleSection,
-                ms: Date.now() - t0,
-              });
+              logger.info(
+                "[marksheet] job(bundle): DEFER after skip (concurrent edit)",
+                {
+                  examId,
+                  class: cls,
+                  section: bundleSection,
+                  ms: Date.now() - t0,
+                },
+              );
               return;
             }
             await prisma.marksheet_bundles.update({
               where: whereKey,
               data: { status: "ready", error: null },
             });
-            logger.info("[marksheet] job(bundle): SKIP render (inputs unchanged)", {
-              examId,
-              class: cls,
-              section: bundleSection,
-              ms: Date.now() - t0,
-            });
+            logger.info(
+              "[marksheet] job(bundle): SKIP merge (inputs unchanged)",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                ms: Date.now() - t0,
+              },
+            );
             return;
           }
 
-          logger.info("[marksheet] job(bundle): rendering", {
+          const members = await this.listBundleMembers(
+            examId,
+            cls,
+            year,
+            bundleSection,
+          );
+          if (members.length === 0) {
+            throw new Error(
+              "No non-null marks found for any student in this class.",
+            );
+          }
+
+          const memberRows = await prisma.marksheet_files.findMany({
+            where: {
+              exam_id: examId,
+              student_id: { in: members.map((m) => m.studentId) },
+            },
+            select: {
+              student_id: true,
+              status: true,
+              input_hash: true,
+              r2_key: true,
+              snapshot_head_id: true,
+              snapshot_head_role: true,
+              snapshot_teacher_id: true,
+              snapshot_signatory_detail: true,
+              snapshot_design_version: true,
+            },
+          });
+          const rowByStudent = new Map(
+            memberRows.map((r) => [r.student_id, r]),
+          );
+
+          const staleStudentIds: number[] = [];
+          const inFlightStudentIds: number[] = [];
+          for (const m of members) {
+            const fileRow = rowByStudent.get(m.studentId) ?? null;
+            if (
+              await this.isStudentCacheFresh(
+                m.studentId,
+                examId,
+                year,
+                fileRow,
+              )
+            ) {
+              continue;
+            }
+
+            const st = fileRow?.status;
+            // Content already matches live hash + R2, but the row is still
+            // pending/generating (e.g. a skip-bound job). Wait — do not treat
+            // as needing regen, or we livelock: enqueue → SKIP → reclaim → …
+            if (
+              (st === "generating" || st === "pending") &&
+              (await this.isStudentContentFresh(
+                m.studentId,
+                examId,
+                year,
+                fileRow,
+              ))
+            ) {
+              inFlightStudentIds.push(m.studentId);
+              continue;
+            }
+
+            staleStudentIds.push(m.studentId);
+          }
+
+          if (staleStudentIds.length > 0) {
+            await this.enqueueStaleBundleMembers(
+              staleStudentIds,
+              examId,
+              examName,
+              year,
+              schoolId,
+            );
+            await prisma.marksheet_bundles.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            // Back off so student jobs can finish before we reclaim.
+            this.deferBundleRequeue({ ...job, bundleSection }, 1500);
+            logger.info(
+              "[marksheet] job(bundle): DEFER waiting for member PDFs",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                stale: staleStudentIds.length,
+                inFlight: inFlightStudentIds.length,
+                members: members.length,
+                ms: Date.now() - t0,
+              },
+            );
+            return;
+          }
+
+          if (inFlightStudentIds.length > 0) {
+            // Orphan pending with good content: ensure a job exists so SKIP can
+            // promote to ready. Never re-invalidate generating rows.
+            await Promise.all(
+              inFlightStudentIds.map(async (studentId) => {
+                const row = rowByStudent.get(studentId);
+                if (row?.status !== "pending") return;
+                await ensureJobQueued(
+                  {
+                    studentId,
+                    examId,
+                    examName,
+                    year,
+                    schoolId,
+                  },
+                  jobId(examId, studentId),
+                  PRIORITY_USER,
+                ).catch(() => {});
+              }),
+            );
+            await prisma.marksheet_bundles.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            this.deferBundleRequeue({ ...job, bundleSection }, 1500);
+            logger.info(
+              "[marksheet] job(bundle): DEFER waiting for in-flight members",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                inFlight: inFlightStudentIds.length,
+                members: members.length,
+                ms: Date.now() - t0,
+              },
+            );
+            return;
+          }
+
+          // All members ready + hash-verified — safe to merge.
+
+          logger.info(
+            "[marksheet] job(bundle): parallel download member PDFs",
+            {
+              examId,
+              class: cls,
+              section: bundleSection,
+              members: members.length,
+            },
+          );
+          const tDownload = Date.now();
+          const fetched = await Promise.all(
+            members.map(async (m) => {
+              const fileRow = rowByStudent.get(m.studentId)!;
+              const buf = await getFileBuffer(fileRow.r2_key!);
+              return { studentId: m.studentId, buf };
+            }),
+          );
+          const downloadMs = Date.now() - tDownload;
+          const missingIds = fetched
+            .filter((f) => !f.buf)
+            .map((f) => f.studentId);
+          if (missingIds.length > 0) {
+            await this.enqueueStaleBundleMembers(
+              missingIds,
+              examId,
+              examName,
+              year,
+              schoolId,
+            );
+            await prisma.marksheet_bundles.update({
+              where: whereKey,
+              data: { status: "pending", error: null },
+            });
+            this.deferBundleRequeue({ ...job, bundleSection });
+            logger.info(
+              "[marksheet] job(bundle): DEFER missing R2 member buffer",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                studentIds: missingIds,
+                downloadMs,
+                ms: Date.now() - t0,
+              },
+            );
+            return;
+          }
+
+          const buffers = fetched.map((f) => f.buf!);
+          const downloadBytes = buffers.reduce((n, b) => n + b.length, 0);
+          logger.info(
+            "[marksheet] job(bundle): parallel download done",
+            {
+              examId,
+              class: cls,
+              section: bundleSection,
+              members: members.length,
+              bytes: downloadBytes,
+              downloadMs,
+            },
+          );
+
+          logger.info("[marksheet] job(bundle): merging member PDFs", {
             examId,
             class: cls,
             section: bundleSection,
+            members: members.length,
           });
-          const sections = this.parseBundleSections(bundleSection);
-          const {
-            buffer,
-            usedHeadId,
-            usedHeadRole,
-            usedTeachersBySection,
-          } = await MarksService.generateBulkExamMarksheetsPDF(
-            String(year),
-            String(cls),
-            examName,
-            sections?.length === 1 ? sections[0] : undefined,
-            WORKER_USER,
-            sections,
-            frozenSignatories,
-          );
+          const tMerge = Date.now();
+          const buffer = await mergeMarksheetPdfs(buffers);
+          const mergeMs = Date.now() - tMerge;
           const key = this.r2BundleKey(
             schoolId,
             year,
@@ -2857,33 +3980,90 @@ export class MarksheetService {
           );
           await uploadToR2(key, buffer);
 
+          const usedTeachersBySection: Record<string, number> = {};
+          let usedHeadId: number | null = null;
+          let usedHeadRole: string | null = null;
+          let usedDesignVersion: string | null = MARKSHEET_DESIGN_VERSION;
+          let bundleHeadDetail: {
+            name: string | null;
+            signature: string | null;
+          } | null = null;
+          const bundleTeachersDetail: Record<
+            string,
+            { name: string | null; signature: string | null; phone: string | null }
+          > = {};
+          for (const m of members) {
+            const fileRow = rowByStudent.get(m.studentId)!;
+            const memberDetail = this.parseSignatoryDetail(
+              fileRow.snapshot_signatory_detail,
+            );
+            if (usedHeadId == null && fileRow.snapshot_head_id != null) {
+              usedHeadId = fileRow.snapshot_head_id;
+              usedHeadRole = fileRow.snapshot_head_role;
+              bundleHeadDetail = memberDetail?.head ?? null;
+            }
+            if (
+              fileRow.snapshot_teacher_id != null &&
+              usedTeachersBySection[m.section] == null
+            ) {
+              usedTeachersBySection[m.section] = fileRow.snapshot_teacher_id;
+              bundleTeachersDetail[m.section] = memberDetail?.teacher ?? {
+                name: null,
+                signature: null,
+                phone: null,
+              };
+            }
+            if (fileRow.snapshot_design_version) {
+              usedDesignVersion = fileRow.snapshot_design_version;
+            }
+          }
+          const bundleSignatoryDetail = {
+            head: bundleHeadDetail,
+            teachers: bundleTeachersDetail,
+          };
+          await prisma.marksheet_bundles.update({
+            where: whereKey,
+            data: {
+              snapshot_head_id: usedHeadId,
+              snapshot_head_role: usedHeadRole,
+              snapshot_teachers: usedTeachersBySection,
+              snapshot_signatory_detail: bundleSignatoryDetail,
+              snapshot_design_version: usedDesignVersion,
+            },
+          });
+
           const hashAtEnd = await this.computeBundleHash(
             examId,
             cls,
             year,
             bundleSection,
           );
-          const afterRender = await prisma.marksheet_bundles.findUnique({
+          const afterMerge = await prisma.marksheet_bundles.findUnique({
             where: whereKey,
             select: { status: true },
           });
           if (
             hashAtEnd !== hashAtStart ||
-            afterRender?.status !== "generating"
+            afterMerge?.status !== "generating"
           ) {
             await prisma.marksheet_bundles.update({
               where: whereKey,
               data: { status: "pending", error: null },
             });
             this.deferBundleRequeue({ ...job, bundleSection });
-            logger.info("[marksheet] job(bundle): DEFER after render (concurrent edit)", {
-              examId,
-              class: cls,
-              section: bundleSection,
-              key,
-              bytes: buffer.length,
-              ms: Date.now() - t0,
-            });
+            logger.info(
+              "[marksheet] job(bundle): DEFER after merge (concurrent edit)",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                key,
+                bytes: buffer.length,
+                downloadMs,
+                mergeMs,
+                ms: Date.now() - t0,
+              },
+            );
             return;
           }
 
@@ -2896,7 +4076,8 @@ export class MarksheetService {
               snapshot_head_id: usedHeadId,
               snapshot_head_role: usedHeadRole,
               snapshot_teachers: usedTeachersBySection,
-              snapshot_design_version: MARKSHEET_DESIGN_VERSION,
+              snapshot_signatory_detail: bundleSignatoryDetail,
+              snapshot_design_version: usedDesignVersion,
               generated_at: new Date(),
               error: null,
               attempts: 0,
@@ -2908,6 +4089,9 @@ export class MarksheetService {
             section: bundleSection,
             key,
             bytes: buffer.length,
+            members: members.length,
+            downloadMs,
+            mergeMs,
             ms: Date.now() - t0,
           });
         } catch (err) {
@@ -2923,12 +4107,15 @@ export class MarksheetService {
             })
             .catch(() => {});
           if (isEmpty) {
-            logger.info("[marksheet] job(bundle): SKIPPED (nothing to render)", {
-              examId,
-              class: cls,
-              section: bundleSection,
-              reason: message,
-            });
+            logger.info(
+              "[marksheet] job(bundle): SKIPPED (nothing to merge)",
+              {
+                examId,
+                class: cls,
+                section: bundleSection,
+                reason: message,
+              },
+            );
             return;
           }
           logger.error("[marksheet] job(bundle): FAILED", {
@@ -2945,7 +4132,8 @@ export class MarksheetService {
 
   /**
    * Startup recovery: reset sheets stuck in `generating` or left `failed`,
-   * and re-enqueue them. Empty-bundle failures stay terminal (`skipped`).
+   * promote ready bundles pinned stale (`input_hash` null) to pending, and
+   * re-enqueue them. Empty-bundle failures stay terminal (`skipped`).
    * Safe to run on every boot.
    */
   static async recover(): Promise<void> {
@@ -2958,6 +4146,13 @@ export class MarksheetService {
         OR: EMPTY_BUNDLE_MESSAGES.map((m) => ({ error: { contains: m } })),
       },
       data: { status: "skipped", error: null, attempts: 0 },
+    });
+
+    // Mark-edit pins: ready + cleared hash. Cheap pre-warm on boot so they
+    // do not wait for the next download.
+    const pinnedStaleBundles = await prisma.marksheet_bundles.updateMany({
+      where: { status: "ready", input_hash: null },
+      data: { status: "pending", error: null },
     });
 
     await Promise.all([
@@ -3034,6 +4229,7 @@ export class MarksheetService {
     logger.info("[marksheet] recover: re-enqueued pending/failed on startup", {
       students: pending.length,
       bundles: pendingBundles.length,
+      pinnedStaleBundles: pinnedStaleBundles.count,
       queuedStudents,
       queuedBundles,
     });
