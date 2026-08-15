@@ -7,13 +7,17 @@ const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const monorepoRoot = path.join(appRoot, "..");
 
 // Compiler selection, per deploy target:
-//  - Vercel: Turbopack now emits `.next/next-server.js.nft.json` (fixed
-//    upstream in Next 16, vercel/next.js#71156) and produces a correct
-//    standalone build — measured ~31% faster than Webpack (1m10s vs 1m41s).
-//  - OpenNext/Cloudflare: Turbopack's flat tracing root breaks OpenNext's
-//    esbuild bundling — `zod`/workspace-package ESM interop fails with
-//    "EcmascriptModuleLocalsModule must only be used on modules with
-//    EsmExports". Stays on Webpack until that's fixed upstream.
+//  - Vercel: Turbopack, now that `output: "standalone"` is no longer forced
+//    for this target (see next.config.ts) — that was what made Vercel's
+//    onBuildComplete step depend on `.next/next-server.js.nft.json`, which
+//    Turbopack doesn't emit in that shape (confirmed broken in production,
+//    2026-08-15). Without standalone mode, Vercel's native tracing doesn't
+//    hit that path, so Turbopack is safe here. ~31% faster than Webpack
+//    (1m10s vs 1m41s measured locally).
+//  - OpenNext/Cloudflare: stays on Webpack — Turbopack's flat tracing root
+//    breaks OpenNext's esbuild bundling (`zod`/workspace-package ESM
+//    interop fails with "EcmascriptModuleLocalsModule must only be used on
+//    modules with EsmExports").
 // Override either way with `NEXT_BUILD_COMPILER=webpack|turbopack`.
 const isOpenNext = process.env.OPEN_NEXT === "1";
 const compiler = process.env.NEXT_BUILD_COMPILER ?? (isOpenNext ? "webpack" : "turbopack");

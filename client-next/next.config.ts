@@ -30,9 +30,16 @@ const vercelTracingIncludes = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // `output: "standalone"` is only needed by OpenNext/Cloudflare (it bundles the
+  // standalone server itself). Vercel does its own tracing/packaging natively —
+  // forcing standalone mode there makes Vercel's onBuildComplete step depend on
+  // `.next/next-server.js.nft.json`, which Turbopack doesn't produce in that
+  // shape (confirmed broken in production, 2026-08-15). Leaving it unset on
+  // Vercel lets its native builder handle the monorepo trace, which also makes
+  // Turbopack safe to use there.
   ...(isOpenNextBuild
     ? {
+        output: "standalone",
         // Flat standalone layout for OpenNext; next-build.mjs copies full next into it.
         outputFileTracingIncludes: {
           "/*": [
