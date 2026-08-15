@@ -30,7 +30,7 @@ jobs:
                   cache-dependency-path: workers/auth-bff/package.json
 
             - name: Install worker dependencies
-              run: npm install --prefix workers/auth-bff --include=optional --ignore-scripts=false --no-audit --no-fund
+              run: npm install --prefer-offline --prefix workers/auth-bff --include=optional --ignore-scripts=false --no-audit --no-fund
 
             - name: Dry run
               working-directory: workers/auth-bff

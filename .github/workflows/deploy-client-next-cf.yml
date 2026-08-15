@@ -37,7 +37,19 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install workspace dependencies
-        run: npm ci --include=optional --ignore-scripts=false --no-audit --no-fund
+        run: npm ci --prefer-offline --include=optional --ignore-scripts=false --no-audit --no-fund
+
+      # Reuse Next.js's incremental (webpack) compiler cache across deploys so
+      # unchanged modules aren't recompiled. Keyed on the lockfile + client-next
+      # sources; falls back to the newest partial cache via restore-keys.
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: client-next/.next/cache
+          key: nextjs-cf-${{ hashFiles('package-lock.json') }}-${{ hashFiles('client-next/app/**', 'client-next/components/**', 'client-next/hooks/**', 'client-next/lib/**', 'client-next/queries/**', 'client-next/types/**', 'client-next/next.config.ts') }}
+          restore-keys: |
+            nextjs-cf-${{ hashFiles('package-lock.json') }}-
+            nextjs-cf-
 
       - name: Write client-next build env
         working-directory: client-next
