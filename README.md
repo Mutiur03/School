@@ -19,8 +19,7 @@ School/
 │   └── tenant-router/      # Cloudflare Worker — subdomain → tenant routing
 ├── packages/
 │   ├── shared-schemas/     # Zod schemas (frontend + backend)
-│   ├── common-ui/          # Shared UI primitives
-│   └── client-ui/          # Public-site layout components
+│   └── common-ui/          # Shared UI primitives
 ├── docker-proxy/           # Local dev reverse proxy
 └── server/docs/            # Deep-dive technical docs (e.g. marksheets)
 ```

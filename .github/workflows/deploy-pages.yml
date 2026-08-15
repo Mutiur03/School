@@ -43,7 +43,6 @@ jobs:
         run: |
           npm run build -w @school/shared-schemas
           npm run build -w @school/common-ui
-          npm run build -w @school/client-ui
 
       - name: Upload shared package builds
         uses: actions/upload-artifact@v4
@@ -52,7 +51,6 @@ jobs:
           path: |
             packages/shared-schemas/dist
             packages/common-ui/dist
-            packages/client-ui/dist
           retention-days: 1
 
   deploy-pages:

@@ -32,7 +32,6 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.9",
     "@react-pdf/renderer": "^4.3.0",
-    "@school/client-ui": "*",
     "@school/common-ui": "*",
     "@school/shared-schemas": "*",
     "@sentry/react": "^10.58.0",

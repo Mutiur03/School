@@ -4,7 +4,6 @@
 declare -A SERVERS=(
   ["server"]="cd server && npm run dev"
   ["client-next"]="npm run dev -w client-next"
-  ["client-ui"]="npm run dev:client:ui"
   ["common-ui"]="npm run dev:common:ui"
   ["shared-schemas"]="npm run dev:shared-schemas"
   ["auth-bff"]="cd workers/auth-bff && npx wrangler dev --port 8787"
