@@ -6,19 +6,17 @@ import { fileURLToPath } from "node:url";
 const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const monorepoRoot = path.join(appRoot, "..");
 
-// Compiler selection. Webpack is the default on EVERY path because it is the
-// only one that produces the standalone output both deploy targets need:
-//  - Vercel: `output: "standalone"` makes Vercel's onBuildComplete step read
-//    `.next/next-server.js.nft.json`, which Turbopack does NOT emit — the build
-//    fails after compiling. (Turbopack builds fine standalone locally but the
-//    Vercel platform glue still needs the .nft trace.)
-//  - OpenNext/Cloudflare: needs Webpack's flat standalone layout for esbuild
-//    bundling of next-server.js.
-// Turbopack stays available as an explicit opt-in for local experiments only
-// (`NEXT_BUILD_COMPILER=turbopack`); it is NOT deploy-safe on either target.
+// Compiler selection, per deploy target:
+//  - Vercel: Turbopack now emits `.next/next-server.js.nft.json` (fixed
+//    upstream in Next 16, vercel/next.js#71156) and produces a correct
+//    standalone build — measured ~31% faster than Webpack (1m10s vs 1m41s).
+//  - OpenNext/Cloudflare: Turbopack's flat tracing root breaks OpenNext's
+//    esbuild bundling — `zod`/workspace-package ESM interop fails with
+//    "EcmascriptModuleLocalsModule must only be used on modules with
+//    EsmExports". Stays on Webpack until that's fixed upstream.
+// Override either way with `NEXT_BUILD_COMPILER=webpack|turbopack`.
 const isOpenNext = process.env.OPEN_NEXT === "1";
-const forceTurbopack = process.env.NEXT_BUILD_COMPILER === "turbopack";
-const compiler = forceTurbopack ? "turbopack" : "webpack";
+const compiler = process.env.NEXT_BUILD_COMPILER ?? (isOpenNext ? "webpack" : "turbopack");
 console.log(
   `[next-build] compiler: ${compiler} (${isOpenNext ? "open-next/cloudflare" : "vercel"})`,
 );

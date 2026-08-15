@@ -16,7 +16,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-shared:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            dashboard/package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci --prefer-offline --include=optional --ignore-scripts=false --no-audit --no-fund
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build shared packages
+        run: |
+          npm run build -w @school/shared-schemas
+          npm run build -w @school/common-ui
+          npm run build -w @school/client-ui
+
+      - name: Upload shared package builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-packages-dist
+          path: |
+            packages/shared-schemas/dist
+            packages/common-ui/dist
+            packages/client-ui/dist
+          retention-days: 1
+
   deploy-pages:
+    needs: build-shared
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -78,11 +118,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build shared packages
-        run: |
-          npm run build -w @school/shared-schemas
-          npm run build -w @school/common-ui
-          npm run build -w @school/client-ui
+      - name: Download shared package builds
+        uses: actions/download-artifact@v4
+        with:
+          name: shared-packages-dist
+          path: packages
 
       - name: Validate Sentry DSN secret
         run: |

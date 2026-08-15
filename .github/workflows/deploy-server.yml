@@ -9,6 +9,9 @@ on:
       - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
+concurrency:
+  group: deploy-server-${{ github.ref }}
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -80,8 +83,10 @@ jobs:
             # Disk space and Docker cleanup (once for both deployments)
             echo "Checking disk space..."
             df -h
-            echo "Aggressive cleanup..."
-            docker system prune -a -f
+            # Prune stopped containers/dangling images/unused networks only —
+            # keep tagged images so unchanged layers are reused on next pull.
+            echo "Cleanup..."
+            docker system prune -f
 
             # Login to GHCR (once for both deployments)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -171,31 +176,6 @@ jobs:
       PROJECT_PATH: "School"
       ENV_FILE: ".env.lbp"
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Ensure target directory exists
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          script: |
-            set -e
-            mkdir -p ~/${{ env.PROJECT_PATH }}/server
-
-      - name: Copy deployment files via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          source: "server/backend-run.yml,server/restart.sh,server/setup-network.sh"
-          target: "~/${{ env.PROJECT_PATH }}/server"
-          strip_components: 1
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -206,6 +186,7 @@ jobs:
           script: |
             set -e
             # Set target directory relative to home
+            mkdir -p ~/${{ env.PROJECT_PATH }}/server
             cd ~/${{ env.PROJECT_PATH }}/server
             git reset --hard HEAD
             CURRENT_BRANCH=$(git branch --show-current)
