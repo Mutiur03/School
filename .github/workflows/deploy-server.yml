@@ -7,33 +7,59 @@ on:
       - "server/**"
       - "packages/shared-schemas/**"
       - ".github/workflows/deploy-server.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - "packages/shared-schemas/**"
+      - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
 concurrency:
   group: deploy-server-${{ github.ref }}
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      image_name: ${{ steps.meta.outputs.tags }}
+    env:
+      PROJECT_PATH: "School"
+      ENV_FILE: ".env.lbp"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci --prefer-offline --include=optional --ignore-scripts=false --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint -w server
+
+      - name: Type-check / build
+        run: npm run build -w server
+
+      # PRs stop here — no image push, no deploy.
       - name: Set up Docker Buildx
+        if: github.event_name != 'pull_request'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub (To prevent rate limits)
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to the Container registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -41,10 +67,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase Repository Name
+        if: github.event_name != 'pull_request'
         id: repo
         run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
+        if: github.event_name != 'pull_request'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -55,6 +83,7 @@ jobs:
             latest
 
       - name: Build and push Docker image
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -66,11 +95,8 @@ jobs:
           cache-from: type=gha,scope=school-server
           cache-to: type=gha,mode=max,scope=school-server
 
-  prepare-server:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
       - name: Prepare server and pull image
+        if: github.event_name != 'pull_request'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -103,14 +129,9 @@ jobs:
 
             # Cleanup old images
             docker image prune -f
-  deploy-lbp:
-    needs: prepare-server
-    runs-on: ubuntu-latest
-    env:
-      PROJECT_PATH: "School"
-      ENV_FILE: ".env.lbp"
-    steps:
+
       - name: Deploy via SSH
+        if: github.event_name != 'pull_request'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
