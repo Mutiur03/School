@@ -7,6 +7,7 @@
     "dev:webpack": "next dev --webpack --disable-source-maps",
     "build": "node scripts/next-build.mjs",
     "build:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build",
+    "preview:cf:only": "node scripts/run-with-open-next.mjs opennextjs-cloudflare preview",
     "preview:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build && node scripts/run-with-open-next.mjs opennextjs-cloudflare preview",
     "deploy:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build && node scripts/run-with-open-next.mjs opennextjs-cloudflare deploy",
     "upload:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build && node scripts/run-with-open-next.mjs opennextjs-cloudflare upload",

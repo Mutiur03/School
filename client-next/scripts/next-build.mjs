@@ -1,7 +1,11 @@
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+const nextBin = require.resolve("next/dist/bin/next");
 
 const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const monorepoRoot = path.join(appRoot, "..");
@@ -25,10 +29,9 @@ console.log(
   `[next-build] compiler: ${compiler} (${isOpenNext ? "open-next/cloudflare" : "vercel"})`,
 );
 
-const build = spawnSync("npx", ["next", "build", `--${compiler}`], {
+const build = spawnSync(process.execPath, [nextBin, "build", `--${compiler}`], {
   cwd: appRoot,
   stdio: "inherit",
-  shell: true,
   env: process.env,
 });
 

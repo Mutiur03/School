@@ -17,7 +17,7 @@
     "dev:auth-bff": "pnpm --filter school-auth-bff dev",
     "build:client:core": "turbo run build --filter=client-next",
     "build:client:cf": "turbo run build:cf --filter=client-next",
-    "preview:client:cf": "turbo run build:cf --filter=client-next && pnpm --filter client-next preview:cf",
+    "preview:client:cf": "turbo run build:cf --filter=client-next && pnpm --filter client-next preview:cf:only",
     "deploy:client:cf": "turbo run build:cf --filter=client-next && pnpm --filter client-next deploy:cf",
     "build:client": "pnpm install && pnpm run build:client:core",
     "dev:client": "pnpm --filter client-next dev",
