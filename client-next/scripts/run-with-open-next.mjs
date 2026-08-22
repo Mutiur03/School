@@ -8,6 +8,12 @@ process.env.OPEN_NEXT = "1";
 process.env.WRANGLER_BUILD_PLATFORM ??= "node";
 process.env.WRANGLER_BUILD_CONDITIONS ??= "";
 
+const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const monorepoRoot = path.join(appRoot, "..");
+// OpenNext setStandaloneBuildMode sets these too; set early so nested standalone is consistent.
+process.env.NEXT_PRIVATE_STANDALONE = "true";
+process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = monorepoRoot;
+
 /**
  * OpenNext's patchVercelOgLibrary (monorepo / incomplete NFT):
  * 1) copyFileSync to `@vercel/og/index.edge.js` without mkdir

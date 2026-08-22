@@ -42,7 +42,7 @@ COPY packages/shared-schemas/package.json packages/shared-schemas/
 COPY server/package.json server/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter server...
+    pnpm install --frozen-lockfile --ignore-scripts --filter server...
 
 COPY packages/shared-schemas packages/shared-schemas
 COPY server server
@@ -66,7 +66,7 @@ COPY packages/shared-schemas/package.json packages/shared-schemas/
 COPY server/package.json server/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter server...
+    pnpm install --frozen-lockfile --prod --ignore-scripts --filter server...
 
 COPY --from=builder /app/packages/shared-schemas/dist /app/packages/shared-schemas/dist
 COPY --from=builder /app/server/dist /app/server/dist

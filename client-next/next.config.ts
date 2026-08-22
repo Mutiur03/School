@@ -13,8 +13,8 @@ const isOpenNextBuild = process.env.OPEN_NEXT === "1";
 
 /**
  * Vercel (monorepo): trace from repo root so hoisted next/@swc/helpers land in /var/task.
- * OpenNext: do NOT set monorepo tracing root — OpenNext's packagePath is "" and expects flat `.next/standalone/.next/...`. Nesting under
- * `client-next/` (via monorepo tracing root) breaks the CF build with missing pages-manifest.
+ * OpenNext (pnpm monorepo): set outputFileTracingRoot so standalone output is nested at
+ * `.next/standalone/client-next/.next/...`, which OpenNext resolves via getPackagePath().
  */
 const vercelTracingIncludes = [
   "../node_modules/next/dist/**/*",
@@ -39,7 +39,8 @@ const nextConfig: NextConfig = {
   ...(isOpenNextBuild
     ? {
         output: "standalone",
-        // Flat standalone layout for OpenNext; next-build.mjs copies full next into it.
+        outputFileTracingRoot: monorepoRoot,
+        // Monorepo NFT includes for OpenNext esbuild bundle (next-build.mjs also copies full packages).
         outputFileTracingIncludes: {
           "/*": [
             "../node_modules/next/dist/**/*",

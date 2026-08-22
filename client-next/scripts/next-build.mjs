@@ -65,6 +65,29 @@ if (!fs.existsSync(standaloneRoot)) {
   process.exit(1);
 }
 
+// OpenNext resolves `.next/standalone/<appDir>/.next/server/pages-manifest.json` in monorepos.
+const packageDir = path.basename(appRoot);
+const nestedAppRoot = path.join(standaloneRoot, packageDir);
+const nestedManifest = path.join(nestedAppRoot, ".next/server/pages-manifest.json");
+const flatManifest = path.join(standaloneRoot, ".next/server/pages-manifest.json");
+
+if (!fs.existsSync(nestedManifest) && fs.existsSync(flatManifest)) {
+  fs.mkdirSync(nestedAppRoot, { recursive: true });
+  for (const name of fs.readdirSync(standaloneRoot)) {
+    if (name === packageDir) continue;
+    fs.renameSync(path.join(standaloneRoot, name), path.join(nestedAppRoot, name));
+  }
+  console.log(
+    `[open-next patch] Restructured standalone layout → standalone/${packageDir}/`,
+  );
+}
+
+const standaloneAppRoot = fs.existsSync(nestedManifest)
+  ? nestedAppRoot
+  : fs.existsSync(flatManifest)
+    ? standaloneRoot
+    : nestedAppRoot;
+
 /** @type {string[]} */
 const destinations = [];
 
@@ -83,7 +106,7 @@ function walk(dir) {
         continue;
       }
       // Don't descend into nested node_modules except the top-level ones we care about.
-      if (entry.name === "node_modules" && dir !== standaloneRoot) {
+      if (entry.name === "node_modules" && dir !== standaloneAppRoot) {
         // Still check this node_modules for next
         const nestedNext = path.join(full, "next");
         if (fs.existsSync(nestedNext)) destinations.push(nestedNext);
@@ -94,10 +117,10 @@ function walk(dir) {
   }
 }
 
-walk(standaloneRoot);
+walk(standaloneAppRoot);
 
 // Always ensure classic layout exists for OpenNext.
-destinations.push(path.join(standaloneRoot, "node_modules", "next"));
+destinations.push(path.join(standaloneAppRoot, "node_modules", "next"));
 
 const uniqueDests = [...new Set(destinations)];
 for (const dest of uniqueDests) {
@@ -125,7 +148,7 @@ if (helpersSrc) {
       path.join(path.dirname(nextDest), "@swc", "helpers"),
     ),
   );
-  helpersDests.add(path.join(standaloneRoot, "node_modules", "@swc", "helpers"));
+  helpersDests.add(path.join(standaloneAppRoot, "node_modules", "@swc", "helpers"));
   for (const dest of helpersDests) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.cpSync(helpersSrc, dest, { recursive: true, force: true });
@@ -158,7 +181,7 @@ if (styledJsxSrc) {
       path.join(path.dirname(nextDest), "styled-jsx"),
     ),
   );
-  styledJsxDests.add(path.join(standaloneRoot, "node_modules", "styled-jsx"));
+  styledJsxDests.add(path.join(standaloneAppRoot, "node_modules", "styled-jsx"));
   for (const dest of styledJsxDests) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.cpSync(styledJsxSrc, dest, { recursive: true, force: true });
