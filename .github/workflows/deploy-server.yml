@@ -9,6 +9,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "turbo.json"
       - ".github/workflows/deploy-server.yml"
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "turbo.json"
       - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
@@ -49,14 +51,19 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared-schemas
-        run: pnpm --filter @school/shared-schemas build
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-server-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-server-
 
       - name: Lint
         run: pnpm --filter server lint
 
       - name: Type-check / build
-        run: pnpm --filter server build
+        run: pnpm exec turbo run build --filter=server
 
       # PRs stop here — no image push, no deploy.
       - name: Set up Docker Buildx

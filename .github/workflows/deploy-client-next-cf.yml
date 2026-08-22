@@ -10,6 +10,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "turbo.json"
       - "vercel.json"
       - ".github/workflows/deploy-client-next-cf.yml"
   workflow_dispatch:
@@ -42,6 +43,14 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-client-cf-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-client-cf-
 
       # Reuse Next.js's incremental (webpack) compiler cache across deploys so
       # unchanged modules aren't recompiled. Keyed on the lockfile + client-next

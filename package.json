@@ -5,31 +5,32 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "concurrently --kill-others -n \"server,teacher,student,super_admin,admin,shared-schemas,client-next,common-ui,auth-bff\" -c \"blue,green,magenta,yellow,cyan,white,gray,black,red\" \"pnpm --filter server dev\" \"pnpm --filter dashboard dev:teacher\" \"pnpm --filter dashboard dev:student\" \"pnpm --filter dashboard dev:super_admin\" \"pnpm --filter dashboard dev:admin\" \"pnpm run dev:shared-schemas\" \"pnpm run dev:client-next\" \"pnpm run dev:common:ui\" \"pnpm run dev:auth-bff\"",
-    "build": "pnpm run build:packages && pnpm run build:apps",
-    "build:packages": "concurrently --kill-others-on-fail -n schemas,common-ui -c cyan,magenta \"pnpm --filter @school/shared-schemas build\" \"pnpm --filter @school/common-ui build\"",
-    "build:apps": "concurrently --kill-others-on-fail -n client,dashboard,server -c blue,green,yellow \"pnpm --filter client-next build\" \"pnpm --filter dashboard build\" \"pnpm --filter server build\"",
+    "build": "turbo run build",
+    "build:packages": "turbo run build --filter=@school/shared-schemas --filter=@school/common-ui",
+    "build:apps": "turbo run build --filter=client-next --filter=dashboard --filter=server",
     "clean:ports": "pnpm exec kill-port 3002 3000 5174 5175 5176 5177 8787",
     "dev:server": "pnpm --filter server dev",
     "dev:dashboard": "pnpm --filter dashboard dev",
     "dev:super_admin": "pnpm --filter dashboard dev:super_admin",
     "dev:auth-bff": "pnpm --filter school-auth-bff dev",
-    "build:client:core": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next build",
-    "build:client:cf": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next build:cf",
-    "preview:client:cf": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next preview:cf",
-    "deploy:client:cf": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next deploy:cf",
+    "build:client:core": "turbo run build --filter=client-next",
+    "build:client:cf": "turbo run build:cf --filter=client-next",
+    "preview:client:cf": "turbo run build:cf --filter=client-next && pnpm --filter client-next preview:cf",
+    "deploy:client:cf": "turbo run build:cf --filter=client-next && pnpm --filter client-next deploy:cf",
     "build:client": "pnpm install && pnpm run build:client:core",
     "dev:client": "pnpm --filter client-next dev",
     "dev:client-next": "pnpm --filter client-next dev",
-    "build:dashboard:core": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter dashboard build",
+    "build:dashboard:core": "turbo run build --filter=dashboard",
     "build:dashboard": "pnpm install && pnpm run build:dashboard:core",
-    "build:common:ui": "pnpm --filter @school/common-ui build",
+    "build:common:ui": "turbo run build --filter=@school/common-ui",
     "dev:common:ui": "pnpm --filter @school/common-ui dev",
     "dev:shared-schemas": "pnpm --filter @school/shared-schemas dev",
-    "build:server": "pnpm --filter server build"
+    "build:server": "turbo run build --filter=server"
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
     "concurrently": "^9.2.1",
-    "esbuild": "0.27.4"
+    "esbuild": "0.27.4",
+    "turbo": "^2.10.11"
   }
 }

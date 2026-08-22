@@ -9,6 +9,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "turbo.json"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -41,10 +42,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-pages-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-pages-
+
       - name: Build shared packages
-        run: |
-          pnpm --filter @school/shared-schemas build
-          pnpm --filter @school/common-ui build
+        run: pnpm exec turbo run build --filter=@school/shared-schemas --filter=@school/common-ui
 
       - name: Upload shared package builds
         uses: actions/upload-artifact@v4
@@ -119,6 +126,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-pages-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-pages-
+
       - name: Download shared package builds
         uses: actions/download-artifact@v4
         with:
@@ -144,7 +159,7 @@ jobs:
           } > ./${{ matrix.app.directory }}/${{ matrix.app.env_file }}
 
       - name: Build ${{ matrix.app.name }}
-        run: pnpm --filter dashboard run ${{ matrix.app.build_script }}
+        run: pnpm exec turbo run ${{ matrix.app.build_script }} --filter=dashboard
 
       - name: Deploy ${{ matrix.app.name }}
         run: pnpm exec wrangler pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}

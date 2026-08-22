@@ -50,6 +50,9 @@ jspm_packages/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
+# Turborepo local cache
+.turbo
+
 # TypeScript cache
 *.tsbuildinfo
 
