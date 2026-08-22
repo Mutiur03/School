@@ -61,7 +61,7 @@ export class NoticeService {
     });
     if (!existing) throw new ApiError(404, 'Notice not found');
 
-    let updateData: any = { ...data };
+    const updateData: any = { ...data };
     delete updateData.key;
 
     if (data.key) {

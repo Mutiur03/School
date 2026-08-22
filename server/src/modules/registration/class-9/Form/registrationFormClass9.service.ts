@@ -404,7 +404,7 @@ export class RegistrationFormClass9Service {
 
     const handleList = (text: string) => {
       if (!text) return '';
-      let normalizedText = text.normalize('NFC');
+      const normalizedText = text.normalize('NFC');
       return normalizedText.replace(
         /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (_, bn, nonBn) => {

@@ -8,12 +8,28 @@ on:
       - 'packages/shared-schemas/**'
       - 'turbo.json'
       - '.github/workflows/deploy-server.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   pull_request:
     paths:
       - 'server/**'
       - 'packages/shared-schemas/**'
       - 'turbo.json'
       - '.github/workflows/deploy-server.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -55,10 +71,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - name: Lint
-        run: pnpm --filter server lint
+      - name: Lint, format, and typecheck
+        run: pnpm run check:server
 
-      - name: Type-check / build
+      - name: Build
         run: pnpm exec turbo run build --filter=server
 
       # PRs stop here — no image push, no deploy.

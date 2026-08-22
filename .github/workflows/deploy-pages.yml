@@ -8,6 +8,28 @@ on:
       - 'packages/**'
       - 'turbo.json'
       - '.github/workflows/deploy-pages.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'dashboard/**'
+      - 'packages/**'
+      - 'turbo.json'
+      - '.github/workflows/deploy-pages.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -50,10 +72,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
+      - name: Lint, format, and typecheck
+        run: pnpm run check:dashboard
+
       - name: Build shared packages
+        if: github.event_name != 'pull_request'
         run: pnpm exec turbo run build --filter=@school/shared-schemas --filter=@school/common-ui
 
       - name: Upload shared package builds
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: shared-packages-dist
@@ -64,6 +91,7 @@ jobs:
 
   deploy-pages:
     needs: build-shared
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read

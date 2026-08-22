@@ -50,7 +50,7 @@ COPY server server
 RUN pnpm --filter @school/shared-schemas build
 
 WORKDIR /app/server
-RUN pnpm exec prisma generate && pnpm run build
+RUN pnpm run build
 
 # ---------------- RUNTIME STAGE ----------------
 FROM runtime-base AS runtime

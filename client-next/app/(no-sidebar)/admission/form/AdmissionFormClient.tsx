@@ -19,9 +19,8 @@ import {
   getUpazilasByDistrict,
 } from '@school/shared-schemas';
 import axios from 'axios';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
-import { SchoolConfig } from '@/types';
 import { AdmissionFormRecord } from '@/queries/admission-form.queries';
 import Image from 'next/image';
 

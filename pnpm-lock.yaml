@@ -8,15 +8,51 @@ importers:
 
   .:
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.5
+        version: 9.39.5
       '@types/archiver':
         specifier: ^7.0.0
         version: 7.0.0
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
       concurrently:
         specifier: ^9.2.1
         version: 9.2.4
       esbuild:
         specifier: 0.27.4
         version: 0.27.4
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      eslint-config-next:
+        specifier: ^16.2.6
+        version: 16.3.2(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
+      eslint-config-prettier:
+        specifier: ^10.1.8
+        version: 10.1.8(eslint@9.39.5(jiti@2.7.0))
+      eslint-import-resolver-node:
+        specifier: ^0.3.9
+        version: 0.3.10
+      eslint-import-resolver-typescript:
+        specifier: ^4.4.4
+        version: 4.4.5(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import:
+        specifier: ^2.32.0
+        version: 2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-react-hooks:
+        specifier: ^5.2.0
+        version: 5.2.0(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-react-refresh:
+        specifier: ^0.4.19
+        version: 0.4.26(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-unused-imports:
+        specifier: ^4.3.0
+        version: 4.4.1(@typescript-eslint/eslint-plugin@8.67.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))
+      globals:
+        specifier: ^17.3.0
+        version: 17.11.0
       prettier:
         specifier: ^3.6.2
         version: 3.9.6
@@ -26,6 +62,9 @@ importers:
       turbo:
         specifier: ^2.10.11
         version: 2.10.11
+      typescript-eslint:
+        specifier: ^8.67.0
+        version: 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
 
   client-next:
     dependencies:
@@ -34,7 +73,7 @@ importers:
         version: 5.9.1(@standard-schema/spec@1.1.0)(effect@3.21.0)(react-hook-form@7.86.0(react@19.2.4))(zod@4.4.3)
       '@opennextjs/cloudflare':
         specifier: ^1.20.2
-        version: 1.20.2(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(wrangler@4.125.0)
+        version: 1.20.2(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(wrangler@4.125.0(@cloudflare/workers-types@5.20260822.1))
       '@school/common-ui':
         specifier: workspace:*
         version: link:../packages/common-ui
@@ -93,12 +132,6 @@ importers:
       esbuild:
         specifier: ^0.27.4
         version: 0.27.4
-      eslint:
-        specifier: ^9
-        version: 9.39.5(jiti@2.7.0)
-      eslint-config-next:
-        specifier: ^16.2.6
-        version: 16.3.2(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
       tailwindcss:
         specifier: ^4
         version: 4.3.3
@@ -107,7 +140,7 @@ importers:
         version: 7.0.2
       wrangler:
         specifier: ^4.119.0
-        version: 4.125.0
+        version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
 
   dashboard:
     dependencies:
@@ -265,9 +298,6 @@ importers:
         specifier: ^5.0.4
         version: 5.0.15(@types/react@19.2.18)(react@19.2.4)
     devDependencies:
-      '@eslint/js':
-        specifier: ^9.21.0
-        version: 9.39.5
       '@types/node':
         specifier: ^22.14.1
         version: 22.20.1
@@ -283,27 +313,12 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.4
-      eslint:
-        specifier: ^9.21.0
-        version: 9.39.5(jiti@2.7.0)
-      eslint-plugin-react-hooks:
-        specifier: ^5.1.0
-        version: 5.2.0(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-react-refresh:
-        specifier: ^0.4.19
-        version: 0.4.26(eslint@9.39.5(jiti@2.7.0))
-      globals:
-        specifier: ^15.15.0
-        version: 15.15.0
       rollup-plugin-visualizer:
         specifier: ^6.0.5
         version: 6.0.11(rollup@4.62.5)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      typescript-eslint:
-        specifier: ^8.44.0
-        version: 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
       vite:
         specifier: ^7.1.7
         version: 7.3.6(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
@@ -472,9 +487,6 @@ importers:
         specifier: ^4.3.6
         version: 4.4.3
     devDependencies:
-      '@eslint/js':
-        specifier: ^9.39.1
-        version: 9.39.5
       '@types/archiver':
         specifier: ^7.0.0
         version: 7.0.0
@@ -502,21 +514,6 @@ importers:
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
-      eslint:
-        specifier: ^9.39.1
-        version: 9.39.5(jiti@2.7.0)
-      eslint-import-resolver-node:
-        specifier: ^0.3.9
-        version: 0.3.10
-      eslint-import-resolver-typescript:
-        specifier: ^4.4.4
-        version: 4.4.5(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-import:
-        specifier: ^2.32.0
-        version: 2.32.0(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
-      globals:
-        specifier: ^17.3.0
-        version: 17.11.0
       tsc-alias:
         specifier: ^1.8.16
         version: 1.9.2
@@ -526,18 +523,27 @@ importers:
 
   workers/auth-bff:
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260820.1
+        version: 5.20260822.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
       wrangler:
         specifier: ^4.119.0
-        version: 4.125.0
+        version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
 
   workers/tenant-router:
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260820.1
+        version: 5.20260822.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
       wrangler:
         specifier: ^4.40.2
-        version: 4.125.0
+        version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
 
 packages:
 
@@ -936,6 +942,9 @@ packages:
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
+
+  '@cloudflare/workers-types@5.20260822.1':
+    resolution: {integrity: sha512-z922wN0pEWwYaAcYdncSf11fTPfj2j1Q2n2LCLbtBBhpkIu/aC8fotol5q4ek4isWgTKfWzUx389Dsa+lhF6yw==}
 
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
@@ -3893,6 +3902,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
+
   '@ungap/structured-clone@1.3.3':
     resolution: {integrity: sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg==}
 
@@ -5203,6 +5216,12 @@ packages:
       typescript:
         optional: true
 
+  eslint-config-prettier@10.1.8:
+    resolution: {integrity: sha512-82GZUjRS0p/jganf6q1rEO25VSoHH0hKPCTrgillPjdI/3bgBhAE1QzHrHTizjpRvy6pGAvKjDJtk2pF9NDq8w==}
+    hasBin: true
+    peerDependencies:
+      eslint: '>=7.0.0'
+
   eslint-import-context@0.1.9:
     resolution: {integrity: sha512-K9Hb+yRaGAGUbwjhFNHvSmmkZs9+zbuoe3kFQ4V1wYjrepUFYM2dZAfNtjbbj3qsPfUfsA68Bx/ICWQMi+C8Eg==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
@@ -5300,6 +5319,15 @@ packages:
     engines: {node: '>=4'}
     peerDependencies:
       eslint: ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7
+
+  eslint-plugin-unused-imports@4.4.1:
+    resolution: {integrity: sha512-oZGYUz1X3sRMGUB+0cZyK2VcvRX5lm/vB56PgNNcU+7ficUCKm66oZWKUubXWnOuPjQ8PvmXtCViXBMONPe7tQ==}
+    peerDependencies:
+      '@typescript-eslint/eslint-plugin': ^8.0.0-0 || ^7.0.0 || ^6.0.0 || ^5.0.0
+      eslint: ^10.0.0 || ^9.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      '@typescript-eslint/eslint-plugin':
+        optional: true
 
   eslint-scope@7.2.2:
     resolution: {integrity: sha512-dOt21O7lTMhDM+X9mB4GX+DZrZtCUJPL/wlcTqxyrx5IvO0IYtILdtrQGQp+8n5S0gwSVmOf9NQrjMOgfQZlIg==}
@@ -5734,10 +5762,6 @@ packages:
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
-    engines: {node: '>=18'}
-
-  globals@15.15.0:
-    resolution: {integrity: sha512-7ACyT3wmyp3I61S4fG682L0VA2RGD9otkqGJIwNUMF1SWUombIIk+af1unuDYgMm082aHYwD+mzJvv9Iu8dsgg==}
     engines: {node: '>=18'}
 
   globals@16.4.0:
@@ -8143,6 +8167,11 @@ packages:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -9342,6 +9371,8 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260820.1':
     optional: true
 
+  '@cloudflare/workers-types@5.20260822.1': {}
+
   '@colors/colors@1.6.0': {}
 
   '@cspotcode/source-map-support@0.8.1':
@@ -10366,7 +10397,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opennextjs/cloudflare@1.20.2(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(wrangler@4.125.0)':
+  '@opennextjs/cloudflare@1.20.2(next@16.3.2(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(wrangler@4.125.0(@cloudflare/workers-types@5.20260822.1))':
     dependencies:
       '@ast-grep/napi': 0.40.5
       '@dotenvx/dotenvx': 1.31.0
@@ -10378,7 +10409,7 @@ snapshots:
       glob: 12.0.0
       next: 16.3.2(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ts-tqdm: 0.8.6
-      wrangler: 4.125.0
+      wrangler: 4.125.0(@cloudflare/workers-types@5.20260822.1)
       yargs: 18.1.0
     transitivePeerDependencies:
       - encoding
@@ -11898,6 +11929,10 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
+
   '@ungap/structured-clone@1.3.3': {}
 
   '@unrs/resolver-binding-android-arm-eabi@1.12.2':
@@ -13328,13 +13363,13 @@ snapshots:
     optionalDependencies:
       source-map: 0.6.1
 
-  eslint-config-next@16.3.2(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2):
+  eslint-config-next@16.3.2(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2):
     dependencies:
       '@next/eslint-plugin-next': 16.3.2(eslint@9.39.5(jiti@2.7.0))
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.5(jiti@2.7.0))
@@ -13347,6 +13382,10 @@ snapshots:
       - eslint-import-resolver-webpack
       - eslint-plugin-import-x
       - supports-color
+
+  eslint-config-prettier@10.1.8(eslint@9.39.5(jiti@2.7.0)):
+    dependencies:
+      eslint: 9.39.5(jiti@2.7.0)
 
   eslint-import-context@0.1.9(unrs-resolver@1.12.2):
     dependencies:
@@ -13374,7 +13413,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -13389,31 +13428,33 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
+      '@typescript-eslint/parser': 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
+      '@typescript-eslint/parser': 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -13424,7 +13465,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
       hasown: 2.0.4
       is-core-module: 2.16.2
       is-glob: 4.0.3
@@ -13435,12 +13476,14 @@ snapshots:
       semver: 6.3.1
       string.prototype.trimend: 1.0.10
       tsconfig-paths: 3.15.0
+    optionalDependencies:
+      '@typescript-eslint/parser': 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -13451,7 +13494,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
+      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@4.4.5)(eslint@9.39.5(jiti@2.7.0))
       hasown: 2.0.4
       is-core-module: 2.16.2
       is-glob: 4.0.3
@@ -13462,6 +13505,8 @@ snapshots:
       semver: 6.3.1
       string.prototype.trimend: 1.0.10
       tsconfig-paths: 3.15.0
+    optionalDependencies:
+      '@typescript-eslint/parser': 8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
@@ -13526,6 +13571,12 @@ snapshots:
       semver: 6.3.1
       string.prototype.matchall: 4.0.12
       string.prototype.repeat: 1.0.0
+
+  eslint-plugin-unused-imports@4.4.1(@typescript-eslint/eslint-plugin@8.67.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0)):
+    dependencies:
+      eslint: 9.39.5(jiti@2.7.0)
+    optionalDependencies:
+      '@typescript-eslint/eslint-plugin': 8.67.0(@typescript-eslint/parser@8.67.0(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.5(jiti@2.7.0))(typescript@7.0.2)
 
   eslint-scope@7.2.2:
     dependencies:
@@ -14170,8 +14221,6 @@ snapshots:
       type-fest: 0.20.2
 
   globals@14.0.0: {}
-
-  globals@15.15.0: {}
 
   globals@16.4.0: {}
 
@@ -16802,6 +16851,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  typescript@6.0.3: {}
+
   typescript@7.0.2:
     optionalDependencies:
       '@typescript/typescript-aix-ppc64': 7.0.2
@@ -17108,7 +17159,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20260820.1
       '@cloudflare/workerd-windows-64': 1.20260820.1
 
-  wrangler@4.125.0:
+  wrangler@4.125.0(@cloudflare/workers-types@5.20260822.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260820.1)
@@ -17119,6 +17170,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260820.1
     optionalDependencies:
+      '@cloudflare/workers-types': 5.20260822.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

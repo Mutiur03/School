@@ -65,7 +65,7 @@ export class SubjectService {
     const existingKeys = new Set(matches.map((m) => subjectKey(m.name, m.class, m.group, m.year)));
 
     const existingSubjects = [];
-    for (let subject of subjects) {
+    for (const subject of subjects) {
       const key = subjectKey(
         subject.name,
         subject.class,
@@ -89,7 +89,7 @@ export class SubjectService {
     // Wrap in transaction for industry standard atomicity
     await prisma.$transaction(async (tx) => {
       // Handle Auto-Grouping Logic
-      for (let subject of subjects) {
+      for (const subject of subjects) {
         if (subject.subject_group && !subject.parent_id) {
           // Find or create the main subject
           let mainSubject = await tx.subjects.findFirst({

@@ -19,7 +19,7 @@ export class RegistrationSettingsClass8Service {
       classmates_source,
     } = data;
 
-    let updateData: any = {
+    const updateData: any = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
       class8_year: class8_year ? parseInt(class8_year, 10) : null,

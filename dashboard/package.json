@@ -7,7 +7,6 @@
     "dev": "concurrently --kill-others-on-fail -n admin,student,teacher,super -c blue,green,magenta,yellow \"vite --mode admin --port 5174 --clearScreen false\" \"vite --mode student --port 5175 --clearScreen false\" \"vite --mode teacher --port 5176 --clearScreen false\" \"vite --mode super_admin --port 5177 --clearScreen false\"",
     "dev:single": "vite --mode admin --port 5174 --clearScreen false",
     "build": "tsc --noEmit && vite build",
-    "lint": "eslint .",
     "preview": "vite preview",
     "dev:admin": "vite --mode admin --port 5174 --clearScreen false",
     "dev:student": "vite --mode student --port 5175 --clearScreen false",
@@ -73,19 +72,13 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "@eslint/js": "^9.21.0",
     "@types/node": "^22.14.1",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9.21.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^15.15.0",
     "rollup-plugin-visualizer": "^6.0.5",
     "tw-animate-css": "^1.4.0",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.44.0",
     "vite": "^7.1.7"
   }
 }

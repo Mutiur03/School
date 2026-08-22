@@ -12,8 +12,7 @@
     "deploy:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build && node scripts/run-with-open-next.mjs opennextjs-cloudflare deploy",
     "upload:cf": "node scripts/run-with-open-next.mjs opennextjs-cloudflare build && node scripts/run-with-open-next.mjs opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
@@ -39,8 +38,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.27.4",
-    "eslint": "^9",
-    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
     "typescript": "^7.0.2",
     "wrangler": "^4.119.0"

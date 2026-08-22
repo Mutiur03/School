@@ -29,14 +29,34 @@
     "dev:shared-schemas": "pnpm --filter @school/shared-schemas dev",
     "build:server": "turbo run build --filter=server",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "node scripts/run-eslint.mjs",
+    "lint:fix": "node scripts/run-eslint.mjs --fix",
+    "check:server": "node scripts/ci-check.mjs server",
+    "check:client-next": "node scripts/ci-check.mjs client-next",
+    "check:dashboard": "node scripts/ci-check.mjs dashboard",
+    "check:auth-bff": "node scripts/ci-check.mjs auth-bff",
+    "check:tenant-router": "node scripts/ci-check.mjs tenant-router"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/archiver": "^7.0.0",
+    "@typescript/typescript6": "6.0.2",
     "concurrently": "^9.2.1",
     "esbuild": "0.27.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.6",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-node": "^0.3.9",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "globals": "^17.3.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
-    "turbo": "^2.10.11"
+    "turbo": "^2.10.11",
+    "typescript-eslint": "^8.67.0"
   }
 }

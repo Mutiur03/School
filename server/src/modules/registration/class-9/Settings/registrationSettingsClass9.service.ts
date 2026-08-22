@@ -20,7 +20,7 @@ export class RegistrationSettingsClass9Service {
       classmates_source,
     } = data;
 
-    let updateData: any = {
+    const updateData: any = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
       ssc_year: ssc_year

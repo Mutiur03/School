@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next build"
+  "buildCommand": "pnpm run check:client-next && pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next build"
 }

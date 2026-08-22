@@ -10,6 +10,30 @@ on:
       - 'turbo.json'
       - 'vercel.json'
       - '.github/workflows/deploy-client-next-cf.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'client-next/**'
+      - 'packages/common-ui/**'
+      - 'packages/shared-schemas/**'
+      - 'turbo.json'
+      - 'vercel.json'
+      - '.github/workflows/deploy-client-next-cf.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -64,7 +88,11 @@ jobs:
             nextjs-cf-${{ hashFiles('pnpm-lock.yaml') }}-
             nextjs-cf-
 
+      - name: Lint, format, and typecheck
+        run: pnpm run check:client-next
+
       - name: Write client-next build env
+        if: github.event_name != 'pull_request'
         working-directory: client-next
         env:
           BACKEND_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
@@ -93,6 +121,7 @@ jobs:
           echo "Wrote client-next/.env.production (values redacted)."
 
       - name: Build OpenNext bundle
+        if: github.event_name != 'pull_request'
         run: pnpm run build:client:cf
         env:
           OPEN_NEXT: '1'
@@ -104,6 +133,7 @@ jobs:
           NEXT_PUBLIC_DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
 
       - name: Deploy Worker school-client
+        if: github.event_name != 'pull_request'
         working-directory: client-next
         run: pnpm exec opennextjs-cloudflare deploy
         env:

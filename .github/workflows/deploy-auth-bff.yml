@@ -6,6 +6,26 @@ on:
     paths:
       - 'workers/auth-bff/**'
       - '.github/workflows/deploy-auth-bff.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'workers/auth-bff/**'
+      - '.github/workflows/deploy-auth-bff.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -35,7 +55,11 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint, format, and typecheck
+        run: pnpm run check:auth-bff
+
       - name: Deploy worker
+        if: github.event_name != 'pull_request'
         working-directory: workers/auth-bff
         run: pnpm exec wrangler deploy
         env:
