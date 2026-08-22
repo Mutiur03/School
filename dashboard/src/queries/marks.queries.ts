@@ -80,7 +80,12 @@ export const useClassMarks = (level: string, year: number, examName: string) => 
   });
 };
 
-export const useStudentMarks = (studentId: number | undefined, year: number, examName: string) => {
+export const useStudentMarks = (
+  studentId: number | undefined,
+  year: number,
+  examName: string,
+  enabled = true,
+) => {
   return useQuery({
     queryKey: ["student-marks", studentId, year, examName],
     queryFn: async () => {
@@ -90,7 +95,7 @@ export const useStudentMarks = (studentId: number | undefined, year: number, exa
       );
       return response.data?.data || [];
     },
-    enabled: !!studentId && !!year && !!examName,
+    enabled: enabled && !!studentId && !!year && !!examName,
   });
 };
 

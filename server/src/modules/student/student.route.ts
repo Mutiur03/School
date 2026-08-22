@@ -17,6 +17,24 @@ router.get(
 );
 
 router.get(
+  "/me",
+  AuthMiddleware.authenticate(["student"]),
+  StudentController.getMyProfileController,
+);
+
+router.get(
+  "/me/attendance",
+  AuthMiddleware.authenticate(["student"]),
+  StudentController.getMyAttendanceController,
+);
+
+router.get(
+  "/:id/attendance",
+  AuthMiddleware.authenticate(["admin", "teacher"]),
+  StudentController.getStudentAttendanceController,
+);
+
+router.get(
   "/alumni",
   AuthMiddleware.authenticate(["admin"]),
   StudentController.getAlumniController,

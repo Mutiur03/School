@@ -1,6 +1,18 @@
 import type { Student } from "@/types/students";
+import type { StudentAttendanceResponse } from "@/types/attendance";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import axios from "axios";
+
+export type StudentProfile = Student & {
+  enrollments?: Array<{
+    id: number;
+    class: number;
+    section: string;
+    roll: number;
+    year: number;
+    group?: string | null;
+  }>;
+};
 
 export type StudentsListMeta = {
   total: number;
@@ -55,6 +67,42 @@ export const useStudents = (params: {
 
       return { data: list, meta } satisfies StudentsListResponse;
     },
+    placeholderData: keepPreviousData,
+  });
+};
+
+export const useStudentProfile = (year?: number) => {
+  return useQuery<StudentProfile>({
+    queryKey: ["student-profile", year],
+    queryFn: async () => {
+      const response = await axios.get("/api/students/me", {
+        params: year ? { year } : undefined,
+      });
+      return response.data?.data as StudentProfile;
+    },
+  });
+};
+
+export const useStudentAttendance = (params: {
+  studentId?: number;
+  month?: number;
+  year: number;
+  enabled?: boolean;
+}) => {
+  const { studentId, month, year, enabled = true } = params;
+
+  return useQuery<StudentAttendanceResponse>({
+    queryKey: ["student-attendance", studentId ?? "me", month, year],
+    queryFn: async () => {
+      const url = studentId
+        ? `/api/students/${studentId}/attendance`
+        : "/api/students/me/attendance";
+      const response = await axios.get(url, {
+        params: { month, year },
+      });
+      return response.data?.data as StudentAttendanceResponse;
+    },
+    enabled: enabled && !!year,
     placeholderData: keepPreviousData,
   });
 };

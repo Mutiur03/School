@@ -24,6 +24,7 @@ import { registerRoutePrefetchers } from "./lib/routePrefetch.ts";
 const TeacherDashboard = lazy(() => import("./pages/Teachers/TeacherDashboard"));
 const TeacherSettings = lazy(() => import("./pages/Teachers/TeacherSettings"));
 const StudentDashboard = lazy(() => import("./pages/Students/StudentDashboard"));
+const StudentProfile = lazy(() => import("./pages/Students/StudentProfile"));
 const Result = lazy(() => import("./pages/Students/Result"));
 const Dashboard = lazy(() => import("./pages/Admin/Dashboard"));
 const ViewMarks = lazy(() => import("./pages/Admin/ViewMarks"));
@@ -101,6 +102,7 @@ registerRoutePrefetchers({
   "/teacher/attendance": Attendence,
   "/teacher/attendance-double": StayCheck,
   "/student/dashboard": StudentDashboard,
+  "/student/profile": StudentProfile,
   "/student/result": Result,
   "/super_admin/dashboard": SuperAdminDashboard,
   "/super_admin/settings/school": SchoolManagement,
@@ -231,6 +233,7 @@ function App() {
                     <div className={contentShellClass}>
                       <Routes>
                         <Route path="/dashboard" element={<StudentDashboard />} />
+                        <Route path="/profile" element={<StudentProfile />} />
                         <Route path="/result" element={<Result />} />
                         <Route path="*" element={<Navigate to="/student/dashboard" />} />
                       </Routes>

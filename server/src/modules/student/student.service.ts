@@ -258,6 +258,105 @@ export class StudentService {
     }));
   }
 
+  static async getStudentProfile(studentId: number, year?: number) {
+    const targetYear = year ?? new Date().getFullYear();
+
+    const result = await prisma.students.findUnique({
+      where: { id: studentId },
+      include: {
+        enrollments: {
+          orderBy: { year: "desc" },
+        },
+      },
+    });
+
+    if (!result) {
+      throw new ApiError(404, "Student not found");
+    }
+
+    const currentEnrollment =
+      result.enrollments.find((enrollment) => enrollment.year === targetYear) ??
+      result.enrollments[0];
+
+    if (!currentEnrollment) {
+      throw new ApiError(404, "No enrollment found");
+    }
+
+    const studentWithoutPassword = sanitizeStudent(result);
+
+    return {
+      ...currentEnrollment,
+      ...studentWithoutPassword,
+      id: studentWithoutPassword.id,
+      enrollment_id: currentEnrollment.id,
+      enrollments: result.enrollments.map((enrollment) => ({
+        id: enrollment.id,
+        class: enrollment.class,
+        section: enrollment.section,
+        roll: enrollment.roll,
+        year: enrollment.year,
+        group: enrollment.group,
+      })),
+    };
+  }
+
+  static async getStudentAttendance(
+    studentId: number,
+    params: { month?: number; year: number },
+  ) {
+    const { month, year } = params;
+    const where: Prisma.attendenceWhereInput = { student_id: studentId };
+
+    if (month !== undefined && !Number.isNaN(month)) {
+      const startDayString = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDayString = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      where.date = {
+        gte: startDayString,
+        lte: endDayString,
+      };
+    } else {
+      where.date = { startsWith: `${year}-` };
+    }
+
+    const rows = await prisma.attendence.findMany({
+      where,
+      select: {
+        id: true,
+        date: true,
+        status: true,
+      },
+      orderBy: { date: "asc" },
+    });
+
+    const records = rows.map((row) => ({
+      ...row,
+      status: typeof row.status === "string" ? row.status.trim() : row.status,
+    }));
+
+    const present = records.filter((row) => row.status === "present").length;
+    const absent = records.filter((row) => row.status === "absent").length;
+    const runAwayed = records.filter(
+      (row) => row.status === "run-awayed",
+    ).length;
+    const total = records.length;
+    const attendanceRate =
+      total > 0 ? Math.round((present / total) * 100) : null;
+
+    return {
+      records,
+      stats: {
+        present,
+        absent,
+        runAwayed,
+        total,
+        attendanceRate,
+      },
+      month,
+      year,
+    };
+  }
+
   static async getStudentById(studentId: number) {
     const result = await prisma.students.findUnique({
       where: { id: studentId },

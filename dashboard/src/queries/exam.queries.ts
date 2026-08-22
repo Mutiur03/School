@@ -7,6 +7,8 @@ export interface Exam {
   exam_year: number;
   levels: number[];
   visible: boolean;
+  start_date?: string | null;
+  result_date?: string | null;
 }
 
 export const useExams = () => {

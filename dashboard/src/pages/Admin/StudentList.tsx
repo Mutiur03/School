@@ -1,12 +1,11 @@
 import axios from "axios";
 import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Search, UserMinus, RotateCw } from "lucide-react";
+import { Search, UserMinus, RotateCw, User, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
-import { format } from "date-fns";
 import Loading from "@/components/Loading";
-import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup } from "@/components";
+import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup, TabNav } from "@/components";
 import DeleteConfirmation from "@/components/DeleteConfimation";
 import ActionButton from "@/components/ActionButton";
 import { useForm } from "react-hook-form";
@@ -33,6 +32,8 @@ import {
   useUpdateFourthSubjectMutation,
   useBulkUpdateFourthSubjectMutation,
 } from "@/queries/marks.queries";
+import { StudentProfileView } from "@/components/students/StudentProfileView";
+import { StudentAttendanceView } from "@/components/students/StudentAttendanceView";
 
 
 
@@ -266,6 +267,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     type: "",
     student: null,
   });
+  const [viewTab, setViewTab] = useState<"profile" | "attendance">("profile");
   const [showForm, setShowForm] = useState(false);
   const [isExcelUpload, setIsExcelUpload] = useState(false);
   const [jsonData, setJsonData] = useState<Record<string, unknown>[] | null>(null);
@@ -527,8 +529,10 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
 
   const handleDelete = (student: Student) => deleteMutation.mutate(student);
 
-  const closePopup = () =>
+  const closePopup = () => {
+    setViewTab("profile");
     setPopup({ visible: false, type: "", student: null });
+  };
 
   const handleReactivate = useCallback((student: Student) => {
     reactivateMutation.mutate(student.id);
@@ -1870,12 +1874,16 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
         </div>
       </SectionCard>
       {popup.visible && popup.student && (
-        <Popup open onOpenChange={(o) => !o && closePopup()} size="md" aria-label="Student Details">
+        <Popup
+          open
+          onOpenChange={(o) => !o && closePopup()}
+          size={viewTab === "attendance" ? "full" : "lg"}
+          aria-label="Student Details"
+        >
           {popup.type === "view" && (
             <>
-              {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <h2 className="text-base font-semibold">Student Details</h2>
+                <h2 className="text-base font-semibold">Student details</h2>
                 <button
                   onClick={closePopup}
                   className="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
@@ -1885,102 +1893,39 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 </button>
               </div>
 
-              {/* Profile */}
-              <div className="flex flex-col items-center gap-2 py-5 border-b border-border bg-muted/20">
-                {popup.student.image ? (
-                  <img
-                    src={getFileUrl(popup.student.image)}
-                    alt="Student"
-                    className="w-20  sm:w-24 aspect-7/9 object-cover rounded-sm border border-border shadow"
-                  />
+              <div className="px-5 pt-4">
+                <TabNav
+                  tabs={[
+                    {
+                      id: "profile",
+                      label: "Profile",
+                      icon: <User className="h-4 w-4" />,
+                    },
+                    {
+                      id: "attendance",
+                      label: "Attendance",
+                      icon: <CalendarDays className="h-4 w-4" />,
+                    },
+                  ]}
+                  activeTab={viewTab}
+                  onTabChange={(tabId) =>
+                    setViewTab(tabId === "attendance" ? "attendance" : "profile")
+                  }
+                />
+              </div>
+
+              <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
+                {viewTab === "profile" ? (
+                  <StudentProfileView student={popup.student} compact />
                 ) : (
-                  <div className="w-20 aspect-7/9 rounded-sm border border-border bg-muted flex items-center justify-center text-2xl text-muted-foreground font-bold">
-                    {popup.student.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="text-center">
-                  <p className="font-semibold text-base">{popup.student.name}</p>
-                  <p className="text-xs text-muted-foreground">Login ID: {popup.student.login_id}</p>
-                </div>
-                <div className="flex gap-2 mt-1 flex-wrap justify-center">
-                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Class {popup.student.class}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Section {popup.student.section}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-medium">Roll {popup.student.roll}</span>
-                  {popup.student.group && (
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-accent text-accent-foreground font-medium">{popup.student.group}</span>
-                  )}
-                  {popup.student.has_stipend && (
-                    <span className="text-xs px-2 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Stipend</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Info sections */}
-              <div className="px-5 py-4 space-y-4">
-                {/* Personal */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: "Date of Birth", value: format(new Date(popup.student.dob), "dd MMM yyyy") },
-                      { label: "Religion", value: popup.student.religion || "N/A" },
-                      { label: "Father's Name", value: popup.student.father_name },
-                      { label: "Mother's Name", value: popup.student.mother_name },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex text-sm">
-                        <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                        <span className="font-medium">{value}</span>
-                      </div>
-                    ))}
-                    <div className="flex text-sm items-center">
-                      <span className="w-36 text-muted-foreground shrink-0">Stipend</span>
-                      {popup.student.has_stipend ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Yes</span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground dark:bg-gray-700 dark:text-gray-400">No</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contact</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: "Father's Phone", value: popup.student.father_phone || "N/A" },
-                      { label: "Mother's Phone", value: popup.student.mother_phone || "N/A" },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex text-sm">
-                        <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                        <span className="font-medium">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Address */}
-                {(popup.student.village || popup.student.post_office || popup.student.upazila || popup.student.district) && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Address</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: "Village", value: popup.student.village },
-                        { label: "Post Office", value: popup.student.post_office },
-                        { label: "Upazila", value: popup.student.upazila },
-                        { label: "District", value: popup.student.district },
-                      ].filter(({ value }) => value).map(({ label, value }) => (
-                        <div key={label} className="flex text-sm">
-                          <span className="w-36 text-muted-foreground shrink-0">{label}</span>
-                          <span className="font-medium">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <StudentAttendanceView
+                    studentId={popup.student.id}
+                    initialYear={year}
+                    embedded
+                  />
                 )}
               </div>
 
-              {/* Footer */}
               <div className="px-5 py-3 border-t border-border flex flex-wrap gap-2 justify-between items-center">
                 {!readOnly ? (
                   <div className="flex flex-wrap gap-2">
@@ -2002,7 +1947,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                         "Generate Certificate"
                       )}
                     </Button>
-                    
+
                     {popup.student.available && (
                       <Button
                         type="button"
@@ -2032,7 +1977,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 ) : (
                   <div />
                 )}
-                
+
                 <Button onClick={closePopup} variant="outline" type="button">
                   Close
                 </Button>

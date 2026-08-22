@@ -189,6 +189,20 @@ export class MarksService {
     ) {
       throw new Error("You are not authorized to download this marksheet");
     }
+    if (examName && user?.role === "student") {
+      await this.assertStudentPublishedExam(examName, yearInt);
+    }
+  }
+
+  /** Students may only view marks for published (visible) exams. */
+  static async assertStudentPublishedExam(examName: string, year: number) {
+    const exam = await prisma.exams.findFirst({
+      where: { exam_name: examName, exam_year: year, visible: true },
+      select: { id: true },
+    });
+    if (!exam) {
+      throw new Error("This result has not been published yet");
+    }
   }
 
   /**
@@ -1052,16 +1066,22 @@ export class MarksService {
     id: string,
     year: string,
     exam: string,
-    // user: any,
+    user?: { role?: string; id?: number },
   ) {
+    const yearInt = parseInt(year);
+    if (user?.role === "student") {
+      await this.assertStudentPublishedExam(exam, yearInt);
+    }
+
     const marks = await prisma.marks.findMany({
       where: {
         enrollment: {
           student_id: parseInt(id),
-          year: parseInt(year),
+          year: yearInt,
         },
         exam: {
           exam_name: exam,
+          ...(user?.role === "student" ? { visible: true } : {}),
         },
       },
       include: {

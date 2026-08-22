@@ -4,7 +4,9 @@
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "dev": "concurrently --kill-others -n \"server,teacher,student,super_admin,admin,shared-schemas,client-next,common-ui,auth-bff\" -c \"blue,green,magenta,yellow,cyan,white,gray,black,red\" \"pnpm --filter server dev\" \"pnpm --filter dashboard dev:teacher\" \"pnpm --filter dashboard dev:student\" \"pnpm --filter dashboard dev:super_admin\" \"pnpm --filter dashboard dev:admin\" \"pnpm run dev:shared-schemas\" \"pnpm run dev:client-next\" \"pnpm run dev:common:ui\" \"pnpm run dev:auth-bff\"",
+    "dev": "turbo run dev --filter=server --filter=school-auth-bff --filter=@school/shared-schemas --filter=@school/common-ui --filter=dashboard",
+    "dev:full": "turbo run dev --filter=server --filter=school-auth-bff --filter=@school/shared-schemas --filter=@school/common-ui --filter=dashboard --filter=client-next",
+    "dev:minimal": "turbo run dev:single --filter=server --filter=school-auth-bff --filter=@school/shared-schemas --filter=@school/common-ui --filter=dashboard",
     "build": "turbo run build",
     "build:packages": "turbo run build --filter=@school/shared-schemas --filter=@school/common-ui",
     "build:apps": "turbo run build --filter=client-next --filter=dashboard --filter=server",

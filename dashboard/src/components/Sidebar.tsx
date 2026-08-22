@@ -367,6 +367,14 @@ const getRoutesByRole = (role: "admin" | "teacher" | "student" | "super_admin") 
       roles: ["student"],
     },
     {
+      label: "Profile",
+      icon: FaUser,
+      dropdown: false,
+      link: "/student/profile",
+      id: "profile",
+      roles: ["student"],
+    },
+    {
       label: "Result",
       icon: FaClipboardList,
       dropdown: false,

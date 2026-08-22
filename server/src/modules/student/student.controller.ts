@@ -139,6 +139,98 @@ export class StudentController {
     },
   );
 
+  static getMyProfileController = asyncHandler(
+    async (req: Request, res: Response) => {
+      if (!req.user) {
+        throw new ApiError(401, "Unauthorized");
+      }
+
+      const yearValue = req.query.year;
+      const year =
+        typeof yearValue === "string" ? parseInt(yearValue, 10) : undefined;
+
+      const data = await StudentService.getStudentProfile(
+        req.user.id,
+        year,
+      );
+
+      res
+        .status(200)
+        .json(new ApiResponse(200, data, "Profile fetched successfully"));
+    },
+  );
+
+  static getMyAttendanceController = asyncHandler(
+    async (req: Request, res: Response) => {
+      if (!req.user) {
+        throw new ApiError(401, "Unauthorized");
+      }
+
+      const yearValue = req.query.year;
+      const monthValue = req.query.month;
+      const year =
+        typeof yearValue === "string" ? parseInt(yearValue, 10) : NaN;
+      const month =
+        typeof monthValue === "string" ? parseInt(monthValue, 10) : undefined;
+
+      if (!year || Number.isNaN(year)) {
+        throw new ApiError(
+          400,
+          "Invalid year query. Year must be a valid number.",
+        );
+      }
+
+      const data = await StudentService.getStudentAttendance(req.user.id, {
+        month,
+        year,
+      });
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(200, data, "Attendance records fetched successfully"),
+        );
+    },
+  );
+
+  static getStudentAttendanceController = asyncHandler(
+    async (req: Request, res: Response) => {
+      const rawId = req.params.id;
+      if (typeof rawId !== "string") {
+        throw new ApiError(400, "Invalid student ID");
+      }
+      const studentId = parseInt(rawId, 10);
+      if (Number.isNaN(studentId)) {
+        throw new ApiError(400, "Invalid student ID");
+      }
+
+      const yearValue = req.query.year;
+      const monthValue = req.query.month;
+      const year =
+        typeof yearValue === "string" ? parseInt(yearValue, 10) : NaN;
+      const month =
+        typeof monthValue === "string" ? parseInt(monthValue, 10) : undefined;
+
+      if (!year || Number.isNaN(year)) {
+        throw new ApiError(
+          400,
+          "Invalid year query. Year must be a valid number.",
+        );
+      }
+
+      const data = await StudentService.getStudentAttendance(studentId, {
+        month,
+        year,
+      });
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(200, data, "Attendance records fetched successfully"),
+        );
+    },
+  );
+
   static addStudentController = asyncHandler(
     async (req: Request, res: Response) => {
       const parsedRequest = addStudentsRequestSchema.safeParse(req.body);
