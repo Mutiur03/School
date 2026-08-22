@@ -94,6 +94,17 @@ for (const pkg of BUILD_BEFORE_TYPECHECK[scope] ?? []) {
   run(`Build (${pkg})`, pnpmCommand, ['--filter', pkg, 'build']);
 }
 
+/** Next apps gitignore next-env.d.ts; generate it before tsc so image/module types exist on CI. */
+if (scope === 'client-next') {
+  run('Next typegen (client-next)', pnpmCommand, [
+    '--filter',
+    'client-next',
+    'exec',
+    'next',
+    'typegen',
+  ]);
+}
+
 for (const { cwd, project } of TYPECHECK_PROJECTS[scope] ?? []) {
   run(`Typecheck (${cwd})`, process.execPath, [tscBin, '--noEmit', '-p', project], {
     cwd: path.join(root, cwd),
