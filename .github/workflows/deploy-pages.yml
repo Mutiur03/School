@@ -6,9 +6,6 @@ on:
     paths:
       - "dashboard/**"
       - "packages/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
       - "turbo.json"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
