@@ -136,24 +136,6 @@ const jsonResponse = (data, status, headers) => {
   });
 };
 
-const copyCorsHeaders = (source, destination) => {
-  for (const [key, value] of source) {
-    if (key.toLowerCase().startsWith('access-control-')) {
-      destination.set(key, value);
-    }
-  }
-};
-
-const withAdditionalHeaders = (response, headers) => {
-  const responseHeaders = new Headers(response.headers);
-  copyCorsHeaders(headers, responseHeaders);
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: responseHeaders,
-  });
-};
-
 /** Keep HTML shells out of Cloudflare edge cache so deploys show up immediately. */
 const withHtmlNoStore = (response) => {
   const contentType = response.headers.get('content-type') || '';

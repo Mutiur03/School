@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+﻿// @ts-nocheck legacy puppeteer PDF template
 import path from 'path';
 import fs from 'fs';
 import puppeteer from 'puppeteer';

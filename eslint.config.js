@@ -40,8 +40,9 @@ const sharedLintRules = {
 const lintedSourceFiles = [
   'client-next/**/*.{js,jsx,ts,tsx,mjs}',
   'dashboard/**/*.{ts,tsx}',
-  'server/**/*.{ts,tsx}',
-  'packages/common-ui/**/*.{ts,tsx}',
+  'server/src/**/*.{ts,tsx}',
+  'packages/common-ui/src/**/*.{ts,tsx}',
+  'packages/common-ui/tsup.config.ts',
   'packages/shared-schemas/**/*.ts',
   'workers/auth-bff/**/*.ts',
   'workers/tenant-router/**/*.{js,mjs}',
@@ -65,6 +66,12 @@ export default defineConfig([
   {
     files: ['client-next/**/*.{js,jsx,ts,tsx,mjs}'],
     extends: [...nextVitals, ...nextTs],
+    rules: {
+      // Legacy form clients sync state from effects; refactor separately from lint rollout.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+    },
   },
 
   {
@@ -80,10 +87,23 @@ export default defineConfig([
       globals: globals.browser,
       ...tsProject('dashboard'),
     },
+    rules: {
+      'react-refresh/only-export-components': 'warn',
+    },
   },
 
   {
-    files: ['server/**/*.{ts,tsx}'],
+    files: ['server/prisma/**/*.ts', 'packages/common-ui/tsup.config.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: globals.node,
+    },
+  },
+
+  {
+    files: ['server/src/**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     plugins: { import: importPlugin },
     languageOptions: {
@@ -107,11 +127,21 @@ export default defineConfig([
       'import/namespace': 'warn',
       'import/no-unresolved': ['error', { commonjs: false, amd: false }],
       'import/export': 'error',
+      'no-async-promise-executor': 'off',
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-expect-error': 'allow-with-description',
+          'ts-ignore': false,
+          'ts-nocheck': 'allow-with-description',
+          minimumDescriptionLength: 3,
+        },
+      ],
     },
   },
 
   {
-    files: ['packages/common-ui/**/*.{ts,tsx}'],
+    files: ['packages/common-ui/src/**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,

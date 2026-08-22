@@ -1010,7 +1010,9 @@ async function generatePDF(data: {
         });
       }
       doc.restore();
-    } catch (e) {}
+    } catch {
+      // Optional watermark; skip when logo asset is unavailable.
+    }
 
     y += 25;
 

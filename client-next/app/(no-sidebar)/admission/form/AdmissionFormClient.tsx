@@ -2836,7 +2836,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 </div>
 
                 <Instruction>
-                  JPG only. Max file size 2MB. Click the box or "Choose Photo" to upload.
+                  JPG only. Max file size 2MB. Click the box or &quot;Choose Photo&quot; to upload.
                 </Instruction>
               </div>
             </div>

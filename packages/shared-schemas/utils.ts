@@ -6,7 +6,7 @@ export const parseDateOfBirth = (value: string) => {
   const raw = value.trim();
   if (!raw) return null;
 
-  const datePartOnly = raw.match(/\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4}/)?.[0] || raw.split(/[T\s]/)[0];
+  const datePartOnly = raw.match(/\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}/)?.[0] || raw.split(/[T\s]/)[0];
   const normalized = datePartOnly
     .replace(/[^0-9/.-]/g, '')
     .replace(/\/{2,}/g, '/')
@@ -149,7 +149,7 @@ export const calculateSMSCount = (
 ): { count: number; encoding: 'GSM-7' | 'Unicode'; length: number } => {
   const raw = text ?? '';
   const gsm7Regex =
-    /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\[\]~|€]*$/;
+    /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}[\]~|€]*$/;
   const isGsm7 = gsm7Regex.test(raw);
   const encoding: 'GSM-7' | 'Unicode' = isGsm7 ? 'GSM-7' : 'Unicode';
 
