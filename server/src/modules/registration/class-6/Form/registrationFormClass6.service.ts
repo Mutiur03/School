@@ -776,8 +776,6 @@ export class RegistrationFormClass6Service {
     });
 
     await page.evaluate((quickPreview) => {
-      /* global document, NodeFilter */
-      // @ts-expect-error -- page.evaluate runs in browser context
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
       let node;
       while ((node = walker.nextNode())) {
@@ -786,9 +784,7 @@ export class RegistrationFormClass6Service {
       return new Promise((resolve) => {
         const fallbackDelay = quickPreview ? 80 : 1000;
         const fontDelay = quickPreview ? 120 : 500;
-        // @ts-expect-error -- page.evaluate runs in browser context
         if (document.fonts && document.fonts.ready) {
-          // @ts-expect-error -- page.evaluate runs in browser context
           document.fonts.ready.then(() => setTimeout(resolve, fontDelay));
         } else {
           setTimeout(resolve, fallbackDelay);

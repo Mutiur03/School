@@ -83,6 +83,17 @@ if (scope === 'server') {
   ]);
 }
 
+/** Packages whose consumers resolve types from dist/ — build before typecheck. */
+const BUILD_BEFORE_TYPECHECK = {
+  server: ['@school/shared-schemas'],
+  'client-next': ['@school/shared-schemas', '@school/common-ui'],
+  dashboard: ['@school/shared-schemas', '@school/common-ui'],
+};
+
+for (const pkg of BUILD_BEFORE_TYPECHECK[scope] ?? []) {
+  run(`Build (${pkg})`, pnpmCommand, ['--filter', pkg, 'build']);
+}
+
 for (const { cwd, project } of TYPECHECK_PROJECTS[scope] ?? []) {
   run(`Typecheck (${cwd})`, process.execPath, [tscBin, '--noEmit', '-p', project], {
     cwd: path.join(root, cwd),

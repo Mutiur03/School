@@ -10,7 +10,15 @@ const fix = args.includes('--fix');
 const lintPaths = args.filter((arg) => !arg.startsWith('-'));
 const targets = lintPaths.length > 0 ? lintPaths : ['.'];
 
-const eslintArgs = ['--require', preload, eslintCli, ...targets];
+const eslintArgs = [
+  '--require',
+  preload,
+  eslintCli,
+  '--cache',
+  '--cache-location',
+  path.join(root, '.eslintcache'),
+  ...targets,
+];
 if (fix) {
   eslintArgs.push('--fix');
 }

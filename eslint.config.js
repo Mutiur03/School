@@ -1,10 +1,7 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
-import importPlugin from 'eslint-plugin-import';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import unusedImports from 'eslint-plugin-unused-imports';
@@ -12,16 +9,10 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
-const rootDir = path.dirname(fileURLToPath(import.meta.url));
+// Fast lint: no parserOptions.project (type-aware) and no eslint-plugin-import.
+// Types are enforced by `tsc --noEmit` in check:* scripts.
 
-const tsProject = (relativeDir) => ({
-  parserOptions: {
-    project: [path.join(relativeDir, 'tsconfig.json')],
-    tsconfigRootDir: rootDir,
-  },
-});
-
-const sharedLintRules = {
+const sharedRules = {
   '@typescript-eslint/no-explicit-any': 'off',
   'no-unused-vars': 'off',
   '@typescript-eslint/no-unused-vars': 'off',
@@ -37,10 +28,11 @@ const sharedLintRules = {
   ],
 };
 
-const lintedSourceFiles = [
+const sourceFiles = [
   'client-next/**/*.{js,jsx,ts,tsx,mjs}',
   'dashboard/**/*.{ts,tsx}',
   'server/src/**/*.{ts,tsx}',
+  'server/prisma/**/*.ts',
   'packages/common-ui/src/**/*.{ts,tsx}',
   'packages/common-ui/tsup.config.ts',
   'packages/shared-schemas/**/*.ts',
@@ -85,7 +77,6 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
-      ...tsProject('dashboard'),
     },
     rules: {
       'react-refresh/only-export-components': 'warn',
@@ -93,40 +84,14 @@ export default defineConfig([
   },
 
   {
-    files: ['server/prisma/**/*.ts', 'packages/common-ui/tsup.config.ts'],
+    files: ['server/src/**/*.{ts,tsx}', 'server/prisma/**/*.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.node,
-    },
-  },
-
-  {
-    files: ['server/src/**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, tseslint.configs.recommended],
-    plugins: { import: importPlugin },
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: globals.node,
-      ...tsProject('server'),
-    },
-    settings: {
-      'import/resolver': {
-        node: { extensions: ['.js', '.mjs', '.ts'] },
-        typescript: {
-          alwaysTryTypes: true,
-          project: path.join(rootDir, 'server/tsconfig.json'),
-        },
-      },
     },
     rules: {
-      'import/named': 'error',
-      'import/default': 'error',
-      'import/namespace': 'warn',
-      'import/no-unresolved': ['error', { commonjs: false, amd: false }],
-      'import/export': 'error',
       'no-async-promise-executor': 'off',
       '@typescript-eslint/ban-ts-comment': [
         'error',
@@ -141,7 +106,7 @@ export default defineConfig([
   },
 
   {
-    files: ['packages/common-ui/src/**/*.{ts,tsx}'],
+    files: ['packages/common-ui/src/**/*.{ts,tsx}', 'packages/common-ui/tsup.config.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -150,7 +115,6 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
-      ...tsProject('packages/common-ui'),
     },
   },
 
@@ -159,7 +123,6 @@ export default defineConfig([
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,
-      ...tsProject('packages/shared-schemas'),
     },
   },
 
@@ -169,7 +132,6 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.worker,
-      ...tsProject('workers/auth-bff'),
     },
   },
 
@@ -184,9 +146,9 @@ export default defineConfig([
   },
 
   {
-    files: lintedSourceFiles,
+    files: sourceFiles,
     plugins: { 'unused-imports': unusedImports },
-    rules: sharedLintRules,
+    rules: sharedRules,
   },
 
   eslintConfigPrettier,
