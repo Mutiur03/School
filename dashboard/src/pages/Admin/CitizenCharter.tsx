@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import axios from "axios";
-import { uploadToR2 } from "@/lib/uploadToR2";
-import { getFileUrl } from "@/lib/backend";
+import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { uploadToR2 } from '@/lib/uploadToR2';
+import { getFileUrl } from '@/lib/backend';
 
 interface PDFData {
   file: string;
@@ -10,7 +10,7 @@ interface PDFData {
 }
 
 interface UploadStatus {
-  type: "success" | "error" | "";
+  type: 'success' | 'error' | '';
   message: string;
 }
 
@@ -18,7 +18,7 @@ function CitizenCharter() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ type: "", message: "" });
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ type: '', message: '' });
   const [currentPDF, setCurrentPDF] = useState<PDFData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +29,7 @@ function CitizenCharter() {
 
   const fetchCurrentPDF = async (): Promise<void> => {
     try {
-      const response = await axios.get<PDFData>("/api/citizen-charter");
+      const response = await axios.get<PDFData>('/api/citizen-charter');
       setCurrentPDF(response.data);
     } catch {
       setCurrentPDF(null);
@@ -41,13 +41,13 @@ function CitizenCharter() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
 
-    if (file && file.type === "application/pdf") {
+    if (file && file.type === 'application/pdf') {
       setSelectedFile(file);
-      setUploadStatus({ type: "", message: "" });
+      setUploadStatus({ type: '', message: '' });
     } else {
       setUploadStatus({
-        type: "error",
-        message: "Please select a valid PDF file",
+        type: 'error',
+        message: 'Please select a valid PDF file',
       });
       setSelectedFile(null);
     }
@@ -55,38 +55,38 @@ function CitizenCharter() {
 
   const handleUpload = async (): Promise<void> => {
     if (!selectedFile) {
-      setUploadStatus({ type: "error", message: "Please select a file first" });
+      setUploadStatus({ type: 'error', message: 'Please select a file first' });
       return;
     }
 
     setIsUploading(true);
     setUploadProgress(0);
-    setUploadStatus({ type: "", message: "" });
+    setUploadStatus({ type: '', message: '' });
 
     try {
       const key = await uploadToR2(
-        "/api/citizen-charter/presigned-url",
+        '/api/citizen-charter/presigned-url',
         selectedFile,
         setUploadProgress,
       );
 
-      const response = await axios.post("/api/citizen-charter", { key });
+      const response = await axios.post('/api/citizen-charter', { key });
 
       setUploadStatus({
-        type: "success",
-        message: "PDF uploaded successfully!",
+        type: 'success',
+        message: 'PDF uploaded successfully!',
       });
       setSelectedFile(null);
       setCurrentPDF(response.data.data);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       const axiosError = error as { response?: { data?: { message?: string; error?: string } } };
       setUploadStatus({
-        type: "error",
+        type: 'error',
         message:
           axiosError.response?.data?.message ||
           axiosError.response?.data?.error ||
-          "Failed to upload PDF. Please try again.",
+          'Failed to upload PDF. Please try again.',
       });
     } finally {
       setIsUploading(false);
@@ -94,25 +94,20 @@ function CitizenCharter() {
     }
   };
 
-  const previewUrl = currentPDF ? getFileUrl(currentPDF.file) : "";
-  const downloadUrl = currentPDF ? getFileUrl(currentPDF.download_url) : "";
+  const previewUrl = currentPDF ? getFileUrl(currentPDF.file) : '';
+  const downloadUrl = currentPDF ? getFileUrl(currentPDF.download_url) : '';
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Citizen Charter Management</h1>
+    <div className="mx-auto max-w-6xl p-6">
+      <h1 className="mb-6 text-2xl font-bold">Citizen Charter Management</h1>
 
-      <div className="grid grid-rows gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            Upload Citizen Charter PDF
-          </h2>
+      <div className="grid-rows grid gap-6">
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold">Upload Citizen Charter PDF</h2>
 
           <div className="space-y-4">
             <div>
-              <label
-                htmlFor="pdfUpload"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="pdfUpload" className="mb-2 block text-sm font-medium text-gray-700">
                 Select PDF File
               </label>
               <input
@@ -121,29 +116,27 @@ function CitizenCharter() {
                 type="file"
                 accept=".pdf"
                 onChange={handleFileSelect}
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                className="text-muted-foreground block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
 
             {selectedFile && (
-              <div className="text-sm text-muted-foreground">
-                Selected: {selectedFile.name} (
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              <div className="text-muted-foreground text-sm">
+                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
               </div>
             )}
 
             {isUploading && uploadProgress > 0 && (
-              <div className="text-sm text-muted-foreground">
-                Uploading: {uploadProgress}%
-              </div>
+              <div className="text-muted-foreground text-sm">Uploading: {uploadProgress}%</div>
             )}
 
             {uploadStatus.message && (
               <div
-                className={`p-3 rounded-md ${uploadStatus.type === "success"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-                  }`}
+                className={`rounded-md p-3 ${
+                  uploadStatus.type === 'success'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
               >
                 {uploadStatus.message}
               </div>
@@ -152,12 +145,12 @@ function CitizenCharter() {
             <button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+              className="bg-primary hover:bg-primary/90 flex w-full items-center justify-center rounded-md px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               {isUploading ? (
                 <>
                   <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    className="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -179,39 +172,36 @@ function CitizenCharter() {
                   Uploading...
                 </>
               ) : (
-                "Upload PDF"
+                'Upload PDF'
               )}
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            Current Citizen Charter
-          </h2>
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold">Current Citizen Charter</h2>
 
           {isLoading ? (
-            <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
+            <div className="bg-muted flex h-96 items-center justify-center rounded-lg">
               <div className="text-muted-foreground">Loading...</div>
             </div>
           ) : currentPDF ? (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">
-                  Last updated:{" "}
-                  {new Date(currentPDF.updated_at).toLocaleDateString()}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Last updated: {new Date(currentPDF.updated_at).toLocaleDateString()}
                 </span>
                 <a
                   href={downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                  className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
                 >
                   Download PDF
                 </a>
               </div>
 
-              <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-hidden rounded-lg border">
                 <iframe
                   src={previewUrl}
                   width="100%"
@@ -220,12 +210,8 @@ function CitizenCharter() {
                   className="border-0"
                 >
                   <p>
-                    Your browser doesn't support PDFs.{" "}
-                    <a
-                      href={previewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    Your browser doesn't support PDFs.{' '}
+                    <a href={previewUrl} target="_blank" rel="noopener noreferrer">
                       Download the PDF
                     </a>
                   </p>
@@ -233,10 +219,10 @@ function CitizenCharter() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
-              <div className="text-center text-muted-foreground">
+            <div className="bg-muted flex h-96 items-center justify-center rounded-lg">
+              <div className="text-muted-foreground text-center">
                 <svg
-                  className="w-12 h-12 mx-auto mb-4"
+                  className="mx-auto mb-4 h-12 w-12"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

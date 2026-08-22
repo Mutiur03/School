@@ -1,19 +1,13 @@
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/config/prisma.js";
-import { deleteFromR2, getUploadUrl } from "@/config/r2.js";
-import { ApiError } from "@/utils/ApiError.js";
-import type { StaffFormData } from "@school/shared-schemas";
+import type { Prisma } from '@prisma/client';
+import { prisma } from '@/config/prisma.js';
+import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
+import type { StaffFormData } from '@school/shared-schemas';
 
 export class StaffService {
-  static async getStaffsPaginated(params: {
-    page: number;
-    limit: number;
-    search?: string;
-  }) {
+  static async getStaffsPaginated(params: { page: number; limit: number; search?: string }) {
     const normalizedPage =
-      Number.isFinite(params.page) && params.page > 0
-        ? Math.floor(params.page)
-        : 1;
+      Number.isFinite(params.page) && params.page > 0 ? Math.floor(params.page) : 1;
     const normalizedLimit =
       Number.isFinite(params.limit) && params.limit > 0
         ? Math.min(Math.floor(params.limit), 200)
@@ -25,11 +19,11 @@ export class StaffService {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search, mode: "insensitive" } },
-        { designation: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { designation: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -37,7 +31,7 @@ export class StaffService {
       prisma.staffs.count({ where }),
       prisma.staffs.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: { id: 'asc' },
         skip,
         take: normalizedLimit,
       }),
@@ -57,7 +51,7 @@ export class StaffService {
   }
 
   static getStaffs() {
-    return prisma.staffs.findMany({ orderBy: { id: "asc" } });
+    return prisma.staffs.findMany({ orderBy: { id: 'asc' } });
   }
 
   static async addStaff(staff: StaffFormData[]) {
@@ -72,7 +66,7 @@ export class StaffService {
       if (existing.length) {
         throw new ApiError(
           409,
-          "One or more emails already exist",
+          'One or more emails already exist',
           existing.map((row) => row.email),
         );
       }
@@ -95,7 +89,7 @@ export class StaffService {
   static async requireStaff(id: number) {
     const staff = await prisma.staffs.findUnique({ where: { id } });
     if (!staff) {
-      throw new ApiError(404, "Staff not found");
+      throw new ApiError(404, 'Staff not found');
     }
     return staff;
   }
@@ -108,7 +102,7 @@ export class StaffService {
       });
 
       if (conflict) {
-        throw new ApiError(409, "Email already in use by another staff");
+        throw new ApiError(409, 'Email already in use by another staff');
       }
     }
 
@@ -128,11 +122,7 @@ export class StaffService {
     return prisma.staffs.delete({ where: { id } });
   }
 
-  static async getPresignedUploadUrl(
-    id: number,
-    filename: string,
-    contentType: string,
-  ) {
+  static async getPresignedUploadUrl(id: number, filename: string, contentType: string) {
     await StaffService.requireStaff(id);
     const key = `staff/${id}-${Date.now()}-${filename}`;
     const uploadUrl = await getUploadUrl(key, contentType);

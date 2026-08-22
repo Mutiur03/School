@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { toast } from "react-hot-toast";
+import { useState, useMemo, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'react-hot-toast';
 import {
   useAttendance,
   useAttendanceOverview,
@@ -8,12 +8,12 @@ import {
   useSmsSettings,
   useSaveAndSendAttendance,
   downloadAttendanceSheet,
-} from "@/queries/attendence.queries.js";
-import useNavigationStore from "@/store/navigation.Store";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import PageHeader from "@/components/PageHeader.js";
-import SectionCard from "@/components/SectionCard.js";
-import StatsCard from "@/components/StatsCard.js";
+} from '@/queries/attendence.queries.js';
+import useNavigationStore from '@/store/navigation.Store';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import PageHeader from '@/components/PageHeader.js';
+import SectionCard from '@/components/SectionCard.js';
+import StatsCard from '@/components/StatsCard.js';
 import {
   Calendar as CalendarIcon,
   Save,
@@ -27,10 +27,10 @@ import {
   Clock,
   AlertTriangle,
   FileDown,
-} from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { calculateSMSCount } from "@school/shared-schemas";
-import { openBlobInNewTab } from "@school/common-ui/blob";
+} from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { calculateSMSCount } from '@school/shared-schemas';
+import { openBlobInNewTab } from '@school/common-ui/blob';
 
 interface StudentOverview {
   id: number;
@@ -44,21 +44,21 @@ interface StudentOverview {
   available: boolean;
 }
 
-type AttendanceStatus = "present" | "absent" | "run-awayed";
+type AttendanceStatus = 'present' | 'absent' | 'run-awayed';
 
 const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function Attendance() {
@@ -66,37 +66,33 @@ function Attendance() {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-  const [selectedClass, setSelectedClass] = useState<number | "">("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
-  const [visibleDays, setVisibleDays] = useState<number[]>([
-    currentDate.getDate(),
-  ]);
-  const [localAttendance, setLocalAttendance] = useState<
-    Record<string, AttendanceStatus>
-  >({});
+  const [selectedClass, setSelectedClass] = useState<number | ''>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
+  const [localAttendance, setLocalAttendance] = useState<Record<string, AttendanceStatus>>({});
   const { setDirty, resetDirty } = useNavigationStore();
   const { data: smsSettings } = useSmsSettings(selectedSection);
 
   const { data: attendanceRecords } = useAttendance({
     month: selectedMonth,
     year: selectedYear,
-    level: selectedClass === "" ? undefined : selectedClass,
+    level: selectedClass === '' ? undefined : selectedClass,
     section: selectedSection || undefined,
   });
-  const { data: studentsData, isLoading: studentsLoading } =
-    useAttendanceOverview({
-      year: selectedYear,
-      level: selectedClass === "" ? undefined : selectedClass,
-      section: selectedSection || undefined,
-    });
+  const { data: studentsData, isLoading: studentsLoading } = useAttendanceOverview({
+    year: selectedYear,
+    level: selectedClass === '' ? undefined : selectedClass,
+    section: selectedSection || undefined,
+  });
 
-  const todayIso = `${currentDate.getFullYear()}-${String(
-    currentDate.getMonth() + 1,
-  ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+  const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
   const { data: persistentStats } = useAttendanceStats({
     date: todayIso,
-    level: selectedClass === "" ? 0 : selectedClass,
+    level: selectedClass === '' ? 0 : selectedClass,
     section: selectedSection,
     year: selectedYear,
   });
@@ -106,7 +102,7 @@ function Attendance() {
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const classes = [6, 7, 8, 9, 10];
-  const sections = ["A", "B"];
+  const sections = ['A', 'B'];
 
   const daysInMonth = useMemo(() => {
     return new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -119,12 +115,8 @@ function Attendance() {
     if (!attendanceRecords?.data) return { attendanceMap: aMap, sentMap: sMap };
 
     attendanceRecords.data.forEach((record: any) => {
-      if (
-        record.date.startsWith(
-          `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`,
-        )
-      ) {
-        const day = parseInt(record.date.split("-")[2]);
+      if (record.date.startsWith(`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`)) {
+        const day = parseInt(record.date.split('-')[2]);
         const key = `${record.student_id}-${day}`;
         aMap[key] = record.status as AttendanceStatus;
         sMap[key] = !!record.send_msg;
@@ -135,16 +127,12 @@ function Attendance() {
 
   const students = (studentsData?.data || []) as StudentOverview[];
 
-  const handleAttendanceChange = (
-    studentId: number,
-    day: number,
-    isPresent: boolean,
-  ) => {
+  const handleAttendanceChange = (studentId: number, day: number, isPresent: boolean) => {
     const key = `${studentId}-${day}`;
     // From this page, you can only toggle between present and absent.
     // Run Awayed is set from the Stay Check page.
-    const nextStatus: AttendanceStatus = isPresent ? "present" : "absent";
-    const currentStatus = attendanceMap[key] || "absent";
+    const nextStatus: AttendanceStatus = isPresent ? 'present' : 'absent';
+    const currentStatus = attendanceMap[key] || 'absent';
 
     setLocalAttendance((prev) => {
       if (nextStatus === currentStatus) {
@@ -158,24 +146,20 @@ function Attendance() {
     });
   };
 
-  const getRecordedStatus = (
-    studentId: number,
-    day: number,
-  ): AttendanceStatus | null => {
+  const getRecordedStatus = (studentId: number, day: number): AttendanceStatus | null => {
     const key = `${studentId}-${day}`;
     return localAttendance[key] || attendanceMap[key] || null;
   };
 
   /** Today edit default = absent when unmarked. */
   const getStatus = (studentId: number, day: number): AttendanceStatus => {
-    return getRecordedStatus(studentId, day) || "absent";
+    return getRecordedStatus(studentId, day) || 'absent';
   };
 
   const realtimeStats = useMemo(() => {
     const todayDay = currentDate.getDate();
     const isToday =
-      selectedMonth === currentDate.getMonth() &&
-      selectedYear === currentDate.getFullYear();
+      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
 
     if (!students.length || !isToday) {
       const activePersistentPresent = persistentStats?.data?.present || 0;
@@ -186,18 +170,13 @@ function Attendance() {
         present: activePersistentPresent,
         absent: activePersistentAbsent,
         runAwayed: activePersistentRunAwayed,
-        total:
-          activePersistentPresent +
-          activePersistentAbsent +
-          activePersistentRunAwayed,
+        total: activePersistentPresent + activePersistentAbsent + activePersistentRunAwayed,
       };
     }
 
     const activeStudents = students.filter((s) => s.available);
     const todayKeys = activeStudents.map((s) => `${s.id}-${todayDay}`);
-    const hasAnyData = todayKeys.some(
-      (key) => !!attendanceMap[key] || !!localAttendance[key],
-    );
+    const hasAnyData = todayKeys.some((key) => !!attendanceMap[key] || !!localAttendance[key]);
 
     if (!hasAnyData) {
       return {
@@ -214,8 +193,8 @@ function Attendance() {
 
     activeStudents.forEach((student) => {
       const status = getStatus(student.id, todayDay);
-      if (status === "present") presentCount++;
-      else if (status === "run-awayed") runAwayedCount++;
+      if (status === 'present') presentCount++;
+      else if (status === 'run-awayed') runAwayedCount++;
       else absentCount++;
     });
 
@@ -240,11 +219,11 @@ function Attendance() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (Object.keys(localAttendance).length > 0) {
         e.preventDefault();
-        e.returnValue = "";
+        e.returnValue = '';
       }
     };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [localAttendance]);
 
   // Sync with global navigation store
@@ -262,11 +241,10 @@ function Attendance() {
 
     const todayDay = currentDate.getDate();
     const isToday =
-      selectedMonth === currentDate.getMonth() &&
-      selectedYear === currentDate.getFullYear();
+      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
     if (!isToday) return { count: 0, cost: 0 };
 
-    const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+    const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
     let totalSegments = 0;
     let messagesToSend = 0;
@@ -278,30 +256,29 @@ function Attendance() {
       const status = getStatus(student.id, todayDay);
       // Run Awayed SMS are handled by the Stay Check page, but we include them here if we want to preview total cost
       const shouldSend =
-        (status === "present" && smsSettings.send_to_present) ||
-        (status === "absent" && smsSettings.send_to_absent) ||
-        (status === "run-awayed" && smsSettings.send_to_run_awayed);
+        (status === 'present' && smsSettings.send_to_present) ||
+        (status === 'absent' && smsSettings.send_to_absent) ||
+        (status === 'run-awayed' && smsSettings.send_to_run_awayed);
 
       const alreadySent = sentMap[`${student.id}-${todayDay}`];
       if (alreadySent || !student.available) return;
 
       if (shouldSend) {
-        let template = "";
-        if (status === "present") template = smsSettings.present_template;
-        else if (status === "absent") template = smsSettings.absent_template;
-        else if (status === "run-awayed")
-          template = smsSettings.run_awayed_template;
+        let template = '';
+        if (status === 'present') template = smsSettings.present_template;
+        else if (status === 'absent') template = smsSettings.absent_template;
+        else if (status === 'run-awayed') template = smsSettings.run_awayed_template;
 
         if (!template) return;
 
-        const formattedDisplayDate = todayIso.split("-").reverse().join("/");
+        const formattedDisplayDate = todayIso.split('-').reverse().join('/');
 
         // Approximation of interpolated message length
         const message = template
           .replace(/{student_name}/g, student.name)
-          .replace(/{login_id}/g, student.login_id?.toString() || "")
+          .replace(/{login_id}/g, student.login_id?.toString() || '')
           .replace(/{date}/g, formattedDisplayDate) // Date length is fixed
-          .replace(/{school_name}/g, "Panchbibi Lal Bihari Govt High School");
+          .replace(/{school_name}/g, 'Panchbibi Lal Bihari Govt High School');
 
         totalSegments += calculateSegments(message);
         messagesToSend++;
@@ -323,29 +300,25 @@ function Attendance() {
 
   const saveAndSendAttendance = async () => {
     if (!selectedClass || !selectedSection) {
-      toast.error("Please select both class and section");
+      toast.error('Please select both class and section');
       return;
     }
 
     const todayDay = currentDate.getDate();
     const isTodaySelectable =
-      selectedMonth === currentDate.getMonth() &&
-      selectedYear === currentDate.getFullYear();
+      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
 
     if (!isTodaySelectable) {
-      toast.error("Attendance can only be managed for the current date");
+      toast.error('Attendance can only be managed for the current date');
       return;
     }
 
-    const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
+    const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
 
     // Never overwrite Stay-Check "run-awayed" with morning present/absent.
     const recordsToSave = students.map((student) => {
       const recorded = getRecordedStatus(student.id, todayDay);
-      const status =
-        recorded === "run-awayed"
-          ? "run-awayed"
-          : getStatus(student.id, todayDay);
+      const status = recorded === 'run-awayed' ? 'run-awayed' : getStatus(student.id, todayDay);
       return {
         studentId: student.id,
         date,
@@ -370,26 +343,26 @@ function Attendance() {
     );
   };
 
-  const handleClassChange = async (newClass: number | "") => {
+  const handleClassChange = async (newClass: number | '') => {
     if (Object.keys(localAttendance).length > 0) {
       const proceed = await confirm({
-        title: "Discard unsaved changes?",
-        msg: "You have unsaved changes. Changing the class will discard them.",
-        confirmLabel: "Discard & Continue",
+        title: 'Discard unsaved changes?',
+        msg: 'You have unsaved changes. Changing the class will discard them.',
+        confirmLabel: 'Discard & Continue',
       });
       if (!proceed) return;
     }
     setLocalAttendance({});
     setSelectedClass(newClass);
-    setSelectedSection("");
+    setSelectedSection('');
   };
 
   const handleSectionChange = async (newSection: string) => {
     if (Object.keys(localAttendance).length > 0) {
       const proceed = await confirm({
-        title: "Discard unsaved changes?",
-        msg: "You have unsaved changes. Changing the section will discard them.",
-        confirmLabel: "Discard & Continue",
+        title: 'Discard unsaved changes?',
+        msg: 'You have unsaved changes. Changing the section will discard them.',
+        confirmLabel: 'Discard & Continue',
       });
       if (!proceed) return;
     }
@@ -400,9 +373,9 @@ function Attendance() {
   const handleMonthChange = async (newMonth: number) => {
     if (Object.keys(localAttendance).length > 0) {
       const proceed = await confirm({
-        title: "Discard unsaved changes?",
-        msg: "You have unsaved changes. Changing the month will discard them.",
-        confirmLabel: "Discard & Continue",
+        title: 'Discard unsaved changes?',
+        msg: 'You have unsaved changes. Changing the month will discard them.',
+        confirmLabel: 'Discard & Continue',
       });
       if (!proceed) return;
     }
@@ -413,9 +386,9 @@ function Attendance() {
   const handleYearChange = async (newYear: number) => {
     if (Object.keys(localAttendance).length > 0) {
       const proceed = await confirm({
-        title: "Discard unsaved changes?",
-        msg: "You have unsaved changes. Changing the year will discard them.",
-        confirmLabel: "Discard & Continue",
+        title: 'Discard unsaved changes?',
+        msg: 'You have unsaved changes. Changing the year will discard them.',
+        confirmLabel: 'Discard & Continue',
       });
       if (!proceed) return;
     }
@@ -441,24 +414,24 @@ function Attendance() {
 
   const exportAttendancePdf = async () => {
     if (!selectedClass || !selectedSection) {
-      toast.error("Select class and section first");
+      toast.error('Select class and section first');
       return;
     }
     if (Object.keys(localAttendance).length > 0) {
       const proceed = await confirm({
-        title: "Unsaved Changes",
-        msg: "You have unsaved attendance changes. Export uses saved data only. Continue?",
-        confirmLabel: "Export Anyway",
+        title: 'Unsaved Changes',
+        msg: 'You have unsaved attendance changes. Export uses saved data only. Continue?',
+        confirmLabel: 'Export Anyway',
       });
       if (!proceed) return;
     }
 
-    const loadingToast = toast.loading("Generating attendance sheet…");
+    const loadingToast = toast.loading('Generating attendance sheet…');
     setExportingPdf(true);
-    const preview = window.open("", "_blank");
+    const preview = window.open('', '_blank');
     if (preview) {
       preview.document.write(
-        "Preparing attendance sheet… If this takes too long, check for errors.",
+        'Preparing attendance sheet… If this takes too long, check for errors.',
       );
     }
 
@@ -470,13 +443,11 @@ function Attendance() {
         section: selectedSection,
       });
       openBlobInNewTab(blob, preview ?? undefined);
-      toast.success("Attendance sheet ready", { id: loadingToast });
+      toast.success('Attendance sheet ready', { id: loadingToast });
     } catch (error: any) {
       if (preview) preview.close();
       toast.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Failed to export attendance sheet",
+        error?.response?.data?.message || error?.message || 'Failed to export attendance sheet',
         { id: loadingToast },
       );
     } finally {
@@ -485,25 +456,24 @@ function Attendance() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-5">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6 lg:p-8">
       {dialog}
       <PageHeader
         title="Attendance Management"
         description="Monitor and record student attendance across different classes and sections."
         className="mb-0"
       >
-        <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
           {smsEstimate.cost > 0 && (
             <div
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full self-end ${
+              className={`self-end rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                 smsSettings?.sms_balance < smsEstimate.cost
-                  ? "bg-red-100 text-red-700 animate-pulse"
-                  : "bg-primary/10 text-primary"
+                  ? 'animate-pulse bg-red-100 text-red-700'
+                  : 'bg-primary/10 text-primary'
               }`}
             >
               Est. SMS Cost: {smsEstimate.cost} credits
-              {smsSettings?.sms_balance < smsEstimate.cost &&
-                " (Insufficient Balance!)"}
+              {smsSettings?.sms_balance < smsEstimate.cost && ' (Insufficient Balance!)'}
             </div>
           )}
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -511,31 +481,23 @@ function Attendance() {
               type="button"
               variant="secondary"
               onClick={exportAttendancePdf}
-              disabled={
-                exportingPdf ||
-                !selectedClass ||
-                !selectedSection ||
-                !students.length
-              }
+              disabled={exportingPdf || !selectedClass || !selectedSection || !students.length}
               title={
                 !selectedClass || !selectedSection
-                  ? "Select class and section to export"
+                  ? 'Select class and section to export'
                   : !students.length
-                    ? "No students to export"
-                    : "Export monthly attendance sheet as PDF"
+                    ? 'No students to export'
+                    : 'Export monthly attendance sheet as PDF'
               }
               aria-label="Export attendance sheet as PDF"
-              className="min-w-[9.5rem] shadow-sm border border-border bg-card text-foreground hover:bg-muted transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              className="border-border bg-card text-foreground hover:bg-muted min-w-[9.5rem] border shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
             >
               {exportingPdf ? (
-                <RefreshCcw
-                  className="w-4 h-4 mr-2 animate-spin"
-                  aria-hidden="true"
-                />
+                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <FileDown className="w-4 h-4 mr-2" aria-hidden="true" />
+                <FileDown className="mr-2 h-4 w-4" aria-hidden="true" />
               )}
-              {exportingPdf ? "Exporting…" : "Export PDF"}
+              {exportingPdf ? 'Exporting…' : 'Export PDF'}
             </Button>
             <Button
               type="button"
@@ -553,16 +515,11 @@ function Attendance() {
               className="min-w-[9.5rem] shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
             >
               {saveAndSendMutation.isPending ? (
-                <RefreshCcw
-                  className="w-4 h-4 mr-2 animate-spin"
-                  aria-hidden="true"
-                />
+                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <Save className="w-4 h-4 mr-2" aria-hidden="true" />
+                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
               )}
-              {saveAndSendMutation.isPending
-                ? "Saving & Sending…"
-                : "Save & Send SMS"}
+              {saveAndSendMutation.isPending ? 'Saving & Sending…' : 'Save & Send SMS'}
             </Button>
           </div>
         </div>
@@ -570,69 +527,66 @@ function Attendance() {
 
       <div className="relative space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-            <RefreshCcw className="w-4 h-4" aria-hidden="true" />
+          <h3 className="text-foreground/70 flex items-center gap-2 text-sm font-semibold">
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
             Today&apos;s Attendance Overview
           </h3>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           <StatsCard
             label="Total Students"
             value={realtimeStats.total}
             color="indigo"
-            icon={<Users className="w-5 h-5" aria-hidden="true" />}
+            icon={<Users className="h-5 w-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="Present"
             value={realtimeStats.present}
             color="emerald"
-            icon={<CheckCircle2 className="w-5 h-5" aria-hidden="true" />}
+            icon={<CheckCircle2 className="h-5 w-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="Absent"
             value={realtimeStats.absent}
             color="red"
-            icon={<XCircle className="w-5 h-5" aria-hidden="true" />}
+            icon={<XCircle className="h-5 w-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="Run Away"
             value={realtimeStats.runAwayed}
             color="amber"
-            icon={<AlertTriangle className="w-5 h-5" aria-hidden="true" />}
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
             loading={studentsLoading}
           />
           <StatsCard
             label="SMS Success"
             value={statsToDisplay?.sms?.successful || 0}
             color="blue"
-            icon={<RefreshCcw className="w-5 h-5" aria-hidden="true" />}
+            icon={<RefreshCcw className="h-5 w-5" aria-hidden="true" />}
             loading={false}
           />
           <StatsCard
             label="SMS Failed"
             value={statsToDisplay?.sms?.failed || 0}
             color="amber"
-            icon={<Filter className="w-5 h-5" aria-hidden="true" />}
+            icon={<Filter className="h-5 w-5" aria-hidden="true" />}
             loading={false}
           />
           <StatsCard
             label="Pending SMS"
             value={statsToDisplay?.sms?.pending || 0}
             color="violet"
-            icon={<Clock className="w-5 h-5" aria-hidden="true" />}
+            icon={<Clock className="h-5 w-5" aria-hidden="true" />}
             loading={false}
           />
         </div>
       </div>
 
-      <SectionCard
-        title="Search & Filters"
-        icon={<Filter className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <SectionCard title="Search & Filters" icon={<Filter className="h-5 w-5" />}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <label htmlFor="attendance-month" className="text-sm font-medium">
               Month
@@ -641,7 +595,7 @@ function Attendance() {
               id="attendance-month"
               name="month"
               autoComplete="off"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
               value={selectedMonth}
               onChange={(e) => handleMonthChange(parseInt(e.target.value))}
             >
@@ -661,7 +615,7 @@ function Attendance() {
               id="attendance-year"
               name="year"
               autoComplete="off"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
               value={selectedYear}
               onChange={(e) => handleYearChange(parseInt(e.target.value))}
             >
@@ -685,12 +639,10 @@ function Attendance() {
               id="attendance-class"
               name="class"
               autoComplete="off"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
               value={selectedClass}
               onChange={(e) => {
-                handleClassChange(
-                  e.target.value ? parseInt(e.target.value) : "",
-                );
+                handleClassChange(e.target.value ? parseInt(e.target.value) : '');
               }}
             >
               <option value="">Select Class</option>
@@ -710,7 +662,7 @@ function Attendance() {
               id="attendance-section"
               name="section"
               autoComplete="off"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
               value={selectedSection}
               onChange={(e) => handleSectionChange(e.target.value)}
               disabled={!selectedClass}
@@ -726,52 +678,50 @@ function Attendance() {
         </div>
 
         <div className="mt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <label className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
-              <CalendarIcon className="w-4 h-4 text-primary" />
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <label className="text-foreground/80 flex items-center gap-2 text-sm font-semibold">
+              <CalendarIcon className="text-primary h-4 w-4" />
               Toggle Visible Days
             </label>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={selectAllDays}
-                className="flex-1 sm:flex-none text-xs h-8"
+                className="h-8 flex-1 text-xs sm:flex-none"
               >
-                <Eye className="w-3 h-3 mr-1.5" />
+                <Eye className="mr-1.5 h-3 w-3" />
                 Select All
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={resetVisibleDays}
-                className="flex-1 sm:flex-none text-xs h-8"
+                className="h-8 flex-1 text-xs sm:flex-none"
               >
-                <EyeOff className="w-3 h-3 mr-1.5" />
+                <EyeOff className="mr-1.5 h-3 w-3" />
                 Reset
               </Button>
             </div>
           </div>
           <div className="max-w-full overflow-hidden">
-            <div className="flex flex-nowrap overflow-x-auto gap-1.5 p-3 bg-muted/30 rounded-lg border border-border/50 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
-                (day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleVisibleDay(day)}
-                    aria-label={`Toggle day ${day}`}
-                    aria-pressed={visibleDays.includes(day)}
-                    className={`shrink-0 w-8 h-8 flex items-center justify-center text-xs font-medium rounded-md border tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                      visibleDays.includes(day)
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                        : "bg-background text-muted-foreground border-input hover:border-primary/50"
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ),
-              )}
+            <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 flex scrollbar-thin scrollbar-track-transparent flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleVisibleDay(day)}
+                  aria-label={`Toggle day ${day}`}
+                  aria-pressed={visibleDays.includes(day)}
+                  className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:ring-2 focus-visible:outline-none ${
+                    visibleDays.includes(day)
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background text-muted-foreground border-input hover:border-primary/50'
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -779,83 +729,81 @@ function Attendance() {
 
       <SectionCard
         title={
-          selectedClass
-            ? `Attendance: Class ${selectedClass} ${selectedSection}`
-            : "Student List"
+          selectedClass ? `Attendance: Class ${selectedClass} ${selectedSection}` : 'Student List'
         }
-        icon={<Users className="w-5 h-5 text-primary" />}
+        icon={<Users className="text-primary h-5 w-5" />}
         noPadding
       >
-        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-border bg-muted/20 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground/70">Legend</span>
+        <div className="border-border bg-muted/20 text-muted-foreground flex flex-wrap items-center gap-3 border-b px-4 py-2.5 text-xs">
+          <span className="text-foreground/70 font-semibold">Legend</span>
           <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
             Present
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <XCircle className="w-3.5 h-3.5 text-red-400" aria-hidden="true" />
+            <XCircle className="h-3.5 w-3.5 text-red-400" aria-hidden="true" />
             Absent
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
             <span className="font-bold text-amber-600">R</span> Run Away
           </span>
-          <span className="inline-flex items-center gap-1.5 text-muted-foreground/80">
+          <span className="text-muted-foreground/80 inline-flex items-center gap-1.5">
             <span className="w-3.5 text-center">—</span> Not marked
           </span>
         </div>
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="min-h-[400px] overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-background z-20 min-w-[64px] max-w-[64px] border-r border-border/50">
+              <tr className="bg-muted/50 border-border border-b">
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Sec
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-background z-20 min-w-[64px] max-w-[64px] border-r border-border/50"
-                  style={{ left: "64px" }}
+                  className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase"
+                  style={{ left: '64px' }}
                 >
                   Roll
                 </th>
                 {visibleDays.map((day) => (
                   <th
                     key={day}
-                    className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[60px] tabular-nums"
+                    className="text-muted-foreground min-w-[60px] px-2 py-3 text-center text-xs font-semibold tracking-wider uppercase tabular-nums"
                   >
                     {day}
                   </th>
                 ))}
                 <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-background z-20 min-w-[150px] sm:min-w-[200px] border-l border-border/50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]"
-                  style={{ left: "128px" }}
+                  className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]"
+                  style={{ left: '128px' }}
                 >
                   Student Name
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {studentsLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td className="px-4 py-3 min-w-[64px] max-w-[64px] sticky left-0 bg-background z-10">
+                    <td className="bg-background sticky left-0 z-10 max-w-[64px] min-w-[64px] px-4 py-3">
                       <Skeleton className="h-4 w-8" />
                     </td>
                     <td
-                      className="px-4 py-3 min-w-[64px] max-w-[64px] sticky left-0 bg-background z-10"
-                      style={{ left: "64px" }}
+                      className="bg-background sticky left-0 z-10 max-w-[64px] min-w-[64px] px-4 py-3"
+                      style={{ left: '64px' }}
                     >
                       <Skeleton className="h-4 w-8" />
                     </td>
                     {visibleDays.map((d) => (
                       <td key={d} className="px-2 py-3">
-                        <Skeleton className="h-4 w-4 mx-auto" />
+                        <Skeleton className="mx-auto h-4 w-4" />
                       </td>
                     ))}
                     <td
-                      className="px-4 py-3 min-w-[150px] sm:min-w-[200px] sticky left-0 bg-background z-10"
-                      style={{ left: "128px" }}
+                      className="bg-background sticky left-0 z-10 min-w-[150px] px-4 py-3 sm:min-w-[200px]"
+                      style={{ left: '128px' }}
                     >
-                      <Skeleton className="h-4 w-40 ml-auto" />
+                      <Skeleton className="ml-auto h-4 w-40" />
                     </td>
                   </tr>
                 ))
@@ -863,7 +811,7 @@ function Attendance() {
                 <tr>
                   <td
                     colSpan={visibleDays.length + 3}
-                    className="px-4 py-12 text-center text-muted-foreground"
+                    className="text-muted-foreground px-4 py-12 text-center"
                   >
                     No students found. Please select a class and section.
                   </td>
@@ -872,14 +820,14 @@ function Attendance() {
                 students.map((student) => (
                   <tr
                     key={student.id}
-                    className={`hover:bg-muted/30 transition-colors ${!student.available ? "opacity-60 bg-muted/20" : ""}`}
+                    className={`hover:bg-muted/30 transition-colors ${!student.available ? 'bg-muted/20 opacity-60' : ''}`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50">
+                    <td className="bg-background border-border/50 sticky left-0 z-10 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-sm font-medium">
                       {student.section}
                     </td>
                     <td
-                      className="px-4 py-3 text-sm text-muted-foreground sticky left-0 bg-background z-10 min-w-[64px] max-w-[64px] border-r border-border/50"
-                      style={{ left: "64px" }}
+                      className="text-muted-foreground bg-background border-border/50 sticky left-0 z-10 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-sm"
+                      style={{ left: '64px' }}
                     >
                       {student.roll}
                     </td>
@@ -889,60 +837,44 @@ function Attendance() {
                         selectedMonth === currentDate.getMonth() &&
                         selectedYear === currentDate.getFullYear();
                       const recorded = getRecordedStatus(student.id, day);
-                      const status = recorded || "absent";
+                      const status = recorded || 'absent';
                       return (
                         <td key={day} className="px-2 py-3 text-center">
-                          {isToday && recorded !== "run-awayed" ? (
+                          {isToday && recorded !== 'run-awayed' ? (
                             <input
                               type="checkbox"
-                              checked={status === "present"}
+                              checked={status === 'present'}
                               disabled={!student.available}
                               aria-label={`Mark ${student.name} present on day ${day}`}
                               onChange={(e) =>
-                                handleAttendanceChange(
-                                  student.id,
-                                  day,
-                                  e.target.checked,
-                                )
+                                handleAttendanceChange(student.id, day, e.target.checked)
                               }
-                              className="rounded border-gray-300 text-primary focus:ring-primary h-5 w-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="text-primary focus:ring-primary h-5 w-5 cursor-pointer rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
                             />
-                          ) : recorded === "present" ? (
-                            <div
-                              className="flex items-center justify-center"
-                              title="Present"
-                            >
+                          ) : recorded === 'present' ? (
+                            <div className="flex items-center justify-center" title="Present">
                               <CheckCircle2
-                                className="w-4 h-4 text-emerald-500"
+                                className="h-4 w-4 text-emerald-500"
                                 aria-hidden="true"
                               />
                             </div>
-                          ) : recorded === "run-awayed" ? (
+                          ) : recorded === 'run-awayed' ? (
                             <div
                               className="flex items-center justify-center"
                               title="Run Away"
                               aria-label={`${student.name} run away on day ${day}`}
                             >
                               <AlertTriangle
-                                className="w-4 h-4 text-amber-500 stroke-[2.75] drop-shadow-[0_0_3px_rgba(245,158,11,0.55)]"
+                                className="h-4 w-4 stroke-[2.75] text-amber-500 drop-shadow-[0_0_3px_rgba(245,158,11,0.55)]"
                                 aria-hidden="true"
                               />
                             </div>
-                          ) : recorded === "absent" ? (
-                            <div
-                              className="flex items-center justify-center"
-                              title="Absent"
-                            >
-                              <XCircle
-                                className="w-4 h-4 text-red-400"
-                                aria-hidden="true"
-                              />
+                          ) : recorded === 'absent' ? (
+                            <div className="flex items-center justify-center" title="Absent">
+                              <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
                             </div>
                           ) : (
-                            <span
-                              className="text-muted-foreground/50 text-xs"
-                              title="Not marked"
-                            >
+                            <span className="text-muted-foreground/50 text-xs" title="Not marked">
                               —
                             </span>
                           )}
@@ -950,13 +882,13 @@ function Attendance() {
                       );
                     })}
                     <td
-                      className="px-4 py-3 text-sm font-semibold sticky left-0 bg-background z-10 border-l border-border/50 text-left shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] min-w-[150px] sm:min-w-[200px]"
-                      style={{ left: "128px" }}
+                      className="bg-background border-border/50 sticky left-0 z-10 min-w-[150px] border-l px-4 py-3 text-left text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]"
+                      style={{ left: '128px' }}
                     >
                       <div className="flex flex-col items-start gap-0.5">
                         <span>{student.name}</span>
                         {!student.available && (
-                          <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight bg-red-50 px-1 rounded border border-red-100">
+                          <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase">
                             Inactive
                           </span>
                         )}

@@ -1,4 +1,4 @@
-import { api } from "@/lib/backend";
+import { api } from '@/lib/backend';
 
 export type AdmissionFormRecord = Record<string, unknown> & {
   id?: string | number;
@@ -87,6 +87,6 @@ export const getAdmissionFormRecord = async (
   const response = await api.get<{
     success: boolean;
     data: ConfirmationAdmission_Props;
-  }>(`/api/admission/form/${id}`, { cache: "no-store" });
+  }>(`/api/admission/form/${id}`, { cache: 'no-store' });
   return response.data?.data ?? null;
 };

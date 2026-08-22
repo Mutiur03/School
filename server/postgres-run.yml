@@ -1,9 +1,9 @@
 services:
   postgres_school:
     image: postgres:17-alpine
-    restart: unless-stopped     
+    restart: unless-stopped
     ports:
-      - "${POSTGRES_PORT}:5432"  
+      - '${POSTGRES_PORT}:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -15,8 +15,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       APP_DB_ROLE: ${APP_DB_ROLE:-school_app}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-postgres}
-
-
 
 volumes:
   db_data:

@@ -1,6 +1,6 @@
-import Bull from "bull";
+import Bull from 'bull';
 
-const host = process.env.REDIS_HOST || "127.0.0.1";
+const host = process.env.REDIS_HOST || '127.0.0.1';
 
 export type AttendanceSheetJob = {
   schoolId: number;
@@ -10,17 +10,14 @@ export type AttendanceSheetJob = {
   section: string;
 };
 
-export const attendanceSheetQueue = new Bull<AttendanceSheetJob>(
-  "attendanceSheetQueue",
-  {
-    redis: { host, port: 6379 },
-    settings: {
-      lockDuration: 5 * 60 * 1000,
-      stalledInterval: 60 * 1000,
-      maxStalledCount: 2,
-    },
+export const attendanceSheetQueue = new Bull<AttendanceSheetJob>('attendanceSheetQueue', {
+  redis: { host, port: 6379 },
+  settings: {
+    lockDuration: 5 * 60 * 1000,
+    stalledInterval: 60 * 1000,
+    maxStalledCount: 2,
   },
-);
+});
 
 export const PRIORITY_USER = 1;
 export const PRIORITY_BACKFILL = 2;
@@ -28,7 +25,7 @@ export const PRIORITY_BACKFILL = 2;
 export const defaultJobOpts = (priority: number): Bull.JobOptions => ({
   priority,
   attempts: 3,
-  backoff: { type: "fixed", delay: 5000 },
+  backoff: { type: 'fixed', delay: 5000 },
   removeOnComplete: true,
   removeOnFail: 200,
 });
@@ -45,10 +42,7 @@ export const attendanceSheetJobId = (
  * Enqueue (or promote) a job at user priority. If the same jobId is already
  * waiting as backfill, remove + re-add so it jumps ahead of the bulk queue.
  */
-export async function enqueueUserPriority(
-  data: AttendanceSheetJob,
-  id: string,
-): Promise<void> {
+export async function enqueueUserPriority(data: AttendanceSheetJob, id: string): Promise<void> {
   const opts = { jobId: id, ...defaultJobOpts(PRIORITY_USER) };
   const existing = await attendanceSheetQueue.getJob(id);
 
@@ -60,16 +54,12 @@ export async function enqueueUserPriority(
   const state = await existing.getState();
   // Active = almost done; leave it. Completed orphans must be re-added or
   // download polls forever with a stale cache and no new job.
-  if (state === "active") {
+  if (state === 'active') {
     return;
   }
 
   const currentPriority = existing.opts?.priority ?? PRIORITY_BACKFILL;
-  if (
-    state === "failed" ||
-    state === "completed" ||
-    currentPriority > PRIORITY_USER
-  ) {
+  if (state === 'failed' || state === 'completed' || currentPriority > PRIORITY_USER) {
     try {
       await existing.remove();
     } catch {
@@ -97,7 +87,7 @@ export async function ensureJobQueued(
   }
 
   const state = await existing.getState();
-  if (state === "active" || state === "waiting" || state === "delayed") {
+  if (state === 'active' || state === 'waiting' || state === 'delayed') {
     return false;
   }
 

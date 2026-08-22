@@ -1,14 +1,14 @@
-import { prisma } from "@/config/prisma.js";
-import { Prisma } from "@prisma/client";
-import { getRlsContext, patchRlsContext } from "@/config/rlsContextStore.js";
-import { getFileBuffer, headObjectEtag } from "@/config/r2.js";
-import logger from "@/utils/logger.js";
-import PDFDocument from "pdfkit";
-import { pdf } from "pdf-to-img";
-import QRCode from "qrcode";
-import path from "path";
-import fs from "fs";
-import sharp from "sharp";
+import { prisma } from '@/config/prisma.js';
+import { Prisma } from '@prisma/client';
+import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
+import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
+import logger from '@/utils/logger.js';
+import PDFDocument from 'pdfkit';
+import { pdf } from 'pdf-to-img';
+import QRCode from 'qrcode';
+import path from 'path';
+import fs from 'fs';
+import sharp from 'sharp';
 
 const PDF_STYLES = {
   startX: 50,
@@ -16,9 +16,9 @@ const PDF_STYLES = {
   rowHeight: 20,
   headerFontSize: 10,
   rowFontSize: 9,
-  fontBold: "Times-Bold",
-  fontRegular: "Times-Roman",
-  fontItalic: "Times-Italic",
+  fontBold: 'Times-Bold',
+  fontRegular: 'Times-Roman',
+  fontItalic: 'Times-Italic',
 };
 
 const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
@@ -29,15 +29,15 @@ const RASTERIZE_MARKSHEET = false;
 const MARKSHEET_FONT_PATHS = {
   regular: [
     process.env.MARKSHEET_FONT_REGULAR,
-    "C:\\Windows\\Fonts\\times.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
+    'C:\\Windows\\Fonts\\times.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
   ].filter(Boolean) as string[],
   bold: [
     process.env.MARKSHEET_FONT_BOLD,
-    "C:\\Windows\\Fonts\\timesbd.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
+    'C:\\Windows\\Fonts\\timesbd.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
   ].filter(Boolean) as string[],
 };
 
@@ -47,7 +47,7 @@ const SIGNATURE_BLOCK_HEIGHT = 88;
 const SIGNATURE_IMAGE_WIDTH = 60;
 
 const GROUPED_CLASSES = new Set([9, 10]);
-const STUDENT_GROUPS = ["Science", "Commerce", "Humanities"] as const;
+const STUDENT_GROUPS = ['Science', 'Commerce', 'Humanities'] as const;
 
 type ClassStatsSnapshot = {
   highestBySubject: Record<number, number>;
@@ -62,28 +62,28 @@ const SIGNATURE_IMAGE_MAX_HEIGHT = SIGNATURE_GAP_AFTER_TABLE - 10;
 const PAGE_CONTENT_BOTTOM = 812;
 
 const MONTH_SHORT = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function formatMarksheetDate(dateStr?: string | null): string | null {
   if (!dateStr) return null;
-  const raw = String(dateStr).split("T")[0].trim();
-  const parts = raw.split("-").map(Number);
+  const raw = String(dateStr).split('T')[0].trim();
+  const parts = raw.split('-').map(Number);
   if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
     const [year, month, day] = parts;
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return `${String(day).padStart(2, "0")} ${MONTH_SHORT[month - 1]}, ${year}`;
+      return `${String(day).padStart(2, '0')} ${MONTH_SHORT[month - 1]}, ${year}`;
     }
   }
   return raw || null;
@@ -92,15 +92,15 @@ function formatMarksheetDate(dateStr?: string | null): string | null {
 export class MarksService {
   private static validateMarksData(data: any) {
     if (!Array.isArray(data.students)) {
-      throw new Error("Students data must be an array");
+      throw new Error('Students data must be an array');
     }
     data.students.forEach((student: any) => {
       if (!student.studentId || !Array.isArray(student.subjectMarks)) {
-        throw new Error("Invalid student data structure");
+        throw new Error('Invalid student data structure');
       }
       student.subjectMarks.forEach((mark: any) => {
         if (!mark.subjectId) {
-          throw new Error("Invalid marks data structure - missing subjectId");
+          throw new Error('Invalid marks data structure - missing subjectId');
         }
         mark.cq_marks =
           mark.cq_marks === null || mark.cq_marks === undefined
@@ -129,16 +129,14 @@ export class MarksService {
     section: string,
     year: number,
   ) {
-    if (user.role === "admin") return true;
-    if (user.role === "teacher") {
+    if (user.role === 'admin') return true;
+    if (user.role === 'teacher') {
       return user.levels?.some(
         (level: any) =>
-          level.class_name === className &&
-          level.section === section &&
-          level.year === year,
+          level.class_name === className && level.section === section && level.year === year,
       );
     }
-    if (user.role === "student") {
+    if (user.role === 'student') {
       return user.id === studentId;
     }
     return false;
@@ -151,13 +149,13 @@ export class MarksService {
     examName: string,
     user: any,
   ): Promise<void> {
-    const yearInt = typeof year === "string" ? parseInt(year) : year;
+    const yearInt = typeof year === 'string' ? parseInt(year) : year;
     const enrollment = await prisma.student_enrollments.findFirst({
       where: { student_id: studentId, year: yearInt },
       select: { class: true, section: true },
     });
     if (!enrollment) {
-      throw new Error("Student not enrolled for this year");
+      throw new Error('Student not enrolled for this year');
     }
     const hasMarks = examName
       ? await prisma.marks.findFirst({
@@ -176,20 +174,12 @@ export class MarksService {
           select: { id: true },
         });
     if (!hasMarks) {
-      throw new Error("No marks found for this student");
+      throw new Error('No marks found for this student');
     }
-    if (
-      !this.checkAccess(
-        user,
-        studentId,
-        enrollment.class,
-        enrollment.section,
-        yearInt,
-      )
-    ) {
-      throw new Error("You are not authorized to download this marksheet");
+    if (!this.checkAccess(user, studentId, enrollment.class, enrollment.section, yearInt)) {
+      throw new Error('You are not authorized to download this marksheet');
     }
-    if (examName && user?.role === "student") {
+    if (examName && user?.role === 'student') {
       await this.assertStudentPublishedExam(examName, yearInt);
     }
   }
@@ -201,7 +191,7 @@ export class MarksService {
       select: { id: true },
     });
     if (!exam) {
-      throw new Error("This result has not been published yet");
+      throw new Error('This result has not been published yet');
     }
   }
 
@@ -220,10 +210,8 @@ export class MarksService {
     return GROUPED_CLASSES.has(klass);
   }
 
-  static normalizeStudentGroup(
-    group: string | null | undefined,
-  ): string | null {
-    const g = typeof group === "string" ? group.trim() : "";
+  static normalizeStudentGroup(group: string | null | undefined): string | null {
+    const g = typeof group === 'string' ? group.trim() : '';
     return g || null;
   }
 
@@ -251,8 +239,7 @@ export class MarksService {
       };
     }
     return {
-      highestBySubject:
-        (statsRow.highest_by_subject as Record<number, number>) ?? {},
+      highestBySubject: (statsRow.highest_by_subject as Record<number, number>) ?? {},
       classHighestTotal: statsRow.class_highest_total ?? 0,
       classHighestGrandTotal: statsRow.class_highest_grand_total ?? 0,
     };
@@ -273,21 +260,21 @@ export class MarksService {
 
     const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
       client.marks.groupBy({
-        by: ["subject_id"],
+        by: ['subject_id'],
         where: { exam_id: examId, enrollment: enrollmentWhere },
         _max: { marks: true },
       }),
       client.marks.groupBy({
-        by: ["enrollment_id"],
+        by: ['enrollment_id'],
         where: {
           exam_id: examId,
           enrollment: enrollmentWhere,
-          subject: { assessment_type: "exam" },
+          subject: { assessment_type: 'exam' },
         },
         _sum: { marks: true },
       }),
       client.marks.groupBy({
-        by: ["enrollment_id"],
+        by: ['enrollment_id'],
         where: { exam_id: examId, enrollment: enrollmentWhere },
         _sum: { marks: true },
       }),
@@ -298,11 +285,9 @@ export class MarksService {
       highestBySubject[g.subject_id] = Number(g._max.marks ?? 0);
     }
     const examTotals = byEnrollmentExam.map((g) => Number(g._sum.marks ?? 0));
-    const classHighestTotal =
-      examTotals.length > 0 ? Math.max(...examTotals) : 0;
+    const classHighestTotal = examTotals.length > 0 ? Math.max(...examTotals) : 0;
     const grandTotals = byEnrollmentAll.map((g) => Number(g._sum.marks ?? 0));
-    const classHighestGrandTotal =
-      grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
+    const classHighestGrandTotal = grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
 
     return { highestBySubject, classHighestTotal, classHighestGrandTotal };
   }
@@ -405,9 +390,7 @@ export class MarksService {
   ) {
     if (!row) return null;
     const hasBreakdown =
-      row.cq_marks != null ||
-      row.mcq_marks != null ||
-      row.practical_marks != null;
+      row.cq_marks != null || row.mcq_marks != null || row.practical_marks != null;
     if (hasBreakdown) {
       return {
         total: row.marks,
@@ -452,16 +435,8 @@ export class MarksService {
     subjectById: Map<number, { id: number; name: string }>;
     errors?: string[];
   }) {
-    const {
-      user,
-      exam,
-      year,
-      changedRows,
-      existingByKey,
-      enrollments,
-      subjectById,
-      errors,
-    } = payload;
+    const { user, exam, year, changedRows, existingByKey, enrollments, subjectById, errors } =
+      payload;
 
     if (changedRows.length === 0) return;
 
@@ -494,7 +469,7 @@ export class MarksService {
         subjects: {
           subjectId: number;
           subjectName: string;
-          action: "created" | "updated";
+          action: 'created' | 'updated';
           before: ReturnType<typeof MarksService.markSnapshot>;
           after: ReturnType<typeof MarksService.markSnapshot>;
         }[];
@@ -520,7 +495,7 @@ export class MarksService {
       if (!entry) {
         entry = {
           studentId: enrollment.student_id,
-          name: studentNameById.get(enrollment.student_id) ?? "Unknown",
+          name: studentNameById.get(enrollment.student_id) ?? 'Unknown',
           class: enrollment.class,
           section: enrollment.section,
           roll: enrollment.roll,
@@ -532,7 +507,7 @@ export class MarksService {
       entry.subjects.push({
         subjectId: row.subject_id,
         subjectName,
-        action: existingByKey.has(key) ? "updated" : "created",
+        action: existingByKey.has(key) ? 'updated' : 'created',
         before,
         after,
       });
@@ -542,7 +517,7 @@ export class MarksService {
     const studentChanges = [...byStudent.values()];
     const truncated = studentChanges.length > MAX_STUDENT_CHANGES;
 
-    logger.info("[marks] saved", {
+    logger.info('[marks] saved', {
       user: {
         id: user?.id ?? null,
         name: user?.name ?? null,
@@ -557,9 +532,7 @@ export class MarksService {
       subjects: [...subjectNames].sort(),
       studentsAffected: studentChanges.length,
       rowsChanged: changedRows.length,
-      changes: truncated
-        ? studentChanges.slice(0, MAX_STUDENT_CHANGES)
-        : studentChanges,
+      changes: truncated ? studentChanges.slice(0, MAX_STUDENT_CHANGES) : studentChanges,
       ...(truncated ? { changesTruncated: true } : {}),
       ...(errors?.length ? { errors } : {}),
     });
@@ -592,18 +565,16 @@ export class MarksService {
     let classHighestGrandTotal: number;
     let statsByGroup: StatsByGroup | null = null;
     if (this.isGroupedClass(klass)) {
-      const grouped = await this.computeGroupedClassStatsAll(
+      const grouped = await this.computeGroupedClassStatsAll(tx, examId, klass, year);
+      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } = grouped.classWide);
+      statsByGroup = grouped.byGroup;
+    } else {
+      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } = await this.computeStats(
         tx,
         examId,
         klass,
         year,
-      );
-      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } =
-        grouped.classWide);
-      statsByGroup = grouped.byGroup;
-    } else {
-      ({ highestBySubject, classHighestTotal, classHighestGrandTotal } =
-        await this.computeStats(tx, examId, klass, year));
+      ));
     }
     const nextStats = {
       highestBySubject,
@@ -665,11 +636,7 @@ export class MarksService {
     // Batch-fetch everything up front instead of querying per student/subject.
     const studentIds: number[] = students.map((s: any) => s.studentId);
     const subjectIds: number[] = Array.from(
-      new Set(
-        students.flatMap((s: any) =>
-          s.subjectMarks.map((m: any) => m.subjectId),
-        ),
-      ),
+      new Set(students.flatMap((s: any) => s.subjectMarks.map((m: any) => m.subjectId))),
     );
 
     const [enrollments, subjects] = await Promise.all([
@@ -679,12 +646,8 @@ export class MarksService {
       prisma.subjects.findMany({ where: { id: { in: subjectIds } } }),
     ]);
 
-    const enrollmentByStudent = new Map(
-      enrollments.map((e) => [e.student_id, e]),
-    );
-    const enrollmentClassById = new Map(
-      enrollments.map((e) => [e.id, e.class]),
-    );
+    const enrollmentByStudent = new Map(enrollments.map((e) => [e.student_id, e]));
+    const enrollmentClassById = new Map(enrollments.map((e) => [e.id, e.class]));
     const subjectById = new Map(subjects.map((s) => [s.id, s]));
 
     // Deduped by (enrollment, subject) so the single upsert never touches
@@ -710,13 +673,7 @@ export class MarksService {
       }
 
       if (
-        !this.checkAccess(
-          user,
-          student.studentId,
-          enrollment.class,
-          enrollment.section,
-          yearInt,
-        )
+        !this.checkAccess(user, student.studentId, enrollment.class, enrollment.section, yearInt)
       ) {
         errors.push(
           `Teacher ${user.id} not authorized for Class ${enrollment.class} Section ${enrollment.section}`,
@@ -739,14 +696,12 @@ export class MarksService {
         }
 
         let totalMarks: number | null =
-          (subject as any).marking_scheme === "BREAKDOWN"
-            ? (Number(cq_marks) || 0) +
-              (Number(mcq_marks) || 0) +
-              (Number(practical_marks) || 0)
+          (subject as any).marking_scheme === 'BREAKDOWN'
+            ? (Number(cq_marks) || 0) + (Number(mcq_marks) || 0) + (Number(practical_marks) || 0)
             : providedTotal;
 
         if (
-          (subject as any).marking_scheme === "BREAKDOWN" &&
+          (subject as any).marking_scheme === 'BREAKDOWN' &&
           cq_marks === null &&
           mcq_marks === null &&
           practical_marks === null
@@ -766,9 +721,7 @@ export class MarksService {
     }
 
     const rows = Array.from(rowsByKey.values());
-    const studentIdByEnrollmentId = new Map(
-      enrollments.map((e) => [e.id, e.student_id]),
-    );
+    const studentIdByEnrollmentId = new Map(enrollments.map((e) => [e.id, e.student_id]));
 
     // Only touch rows whose values actually changed so updated_at (and
     // marksheet input_hash) are not bumped for the whole class on one edit.
@@ -804,10 +757,7 @@ export class MarksService {
         existingByKey.set(`${m.enrollment_id}_${m.subject_id}`, m);
       }
       changedRows = rows.filter((r) =>
-        this.markRowChanged(
-          existingByKey.get(`${r.enrollment_id}_${r.subject_id}`),
-          r,
-        ),
+        this.markRowChanged(existingByKey.get(`${r.enrollment_id}_${r.subject_id}`), r),
       );
     }
 
@@ -833,10 +783,10 @@ export class MarksService {
       await prisma.$transaction(async (tx) => {
         if (rlsContext) {
           await tx.$executeRaw`
-            SELECT set_config('app.is_super_admin', ${rlsContext.isSuperAdmin ? "1" : "0"}, true)
+            SELECT set_config('app.is_super_admin', ${rlsContext.isSuperAdmin ? '1' : '0'}, true)
           `;
           await tx.$executeRaw`
-            SELECT set_config('app.school_id', ${rlsContext.schoolId ? String(rlsContext.schoolId) : ""}, true)
+            SELECT set_config('app.school_id', ${rlsContext.schoolId ? String(rlsContext.schoolId) : ''}, true)
           `;
         }
 
@@ -860,12 +810,7 @@ export class MarksService {
         patchRlsContext({ inRlsTransaction: true });
         try {
           for (const cls of affectedClasses) {
-            const statsChanged = await this.recomputeExamClassStats(
-              tx,
-              exam.id,
-              cls,
-              yearInt,
-            );
+            const statsChanged = await this.recomputeExamClassStats(tx, exam.id, cls, yearInt);
             if (statsChanged) classesWithStatsChange.push(cls);
           }
         } finally {
@@ -874,21 +819,17 @@ export class MarksService {
       });
 
       try {
-        const { MarksheetService } = await import("./marksheet.service.js");
+        const { MarksheetService } = await import('./marksheet.service.js');
         // Visible or not: keep open-exam caches fresh. Freeze is result_date only
         // (same as head/teacher/design). Unpublished sheets still regen on mark edits.
         if (classesWithStatsChange.length > 0) {
-          await MarksheetService.invalidateClasses(
-            exam.id,
-            classesWithStatsChange,
-            yearInt,
-          );
+          await MarksheetService.invalidateClasses(exam.id, classesWithStatsChange, yearInt);
         } else if (changedStudentIds.length > 0) {
           await MarksheetService.invalidate(changedStudentIds, exam.id);
         }
       } catch (invErr) {
         console.warn(
-          "Marksheet invalidation failed after addMarks:",
+          'Marksheet invalidation failed after addMarks:',
           invErr instanceof Error ? invErr.message : invErr,
         );
       }
@@ -905,7 +846,7 @@ export class MarksService {
           errors: errors.length > 0 ? errors : undefined,
         });
       } catch (logErr) {
-        logger.warn("[marks] audit log failed", {
+        logger.warn('[marks] audit log failed', {
           error: logErr instanceof Error ? logErr.message : String(logErr),
         });
       }
@@ -929,21 +870,18 @@ export class MarksService {
       year: parseInt(year),
     };
 
-    if (user.role === "teacher") {
+    if (user.role === 'teacher') {
       const assignedSections = user.levels
-        ?.filter(
-          (l: any) =>
-            l.class_name === Number(className) && l.year === parseInt(year),
-        )
+        ?.filter((l: any) => l.class_name === Number(className) && l.year === parseInt(year))
         .map((l: any) => l.section);
 
       if (!assignedSections || assignedSections.length === 0) {
-        throw new Error("You are not assigned to this class.");
+        throw new Error('You are not assigned to this class.');
       }
 
       if (section) {
         if (!assignedSections.includes(section)) {
-          throw new Error("You are not assigned to this section.");
+          throw new Error('You are not assigned to this section.');
         }
         where.section = section;
       } else {
@@ -958,11 +896,7 @@ export class MarksService {
       include: {
         student: { select: { id: true, name: true } },
       },
-      orderBy: [
-        { section: "asc" },
-        { roll: "asc" },
-        { student: { name: "asc" } },
-      ],
+      orderBy: [{ section: 'asc' }, { roll: 'asc' }, { student: { name: 'asc' } }],
     });
 
     return students.map((enrollment: any) => ({
@@ -976,27 +910,19 @@ export class MarksService {
     }));
   }
 
-  static async getClassMarks(
-    className: string,
-    year: string,
-    exam: string,
-    user: any,
-  ) {
+  static async getClassMarks(className: string, year: string, exam: string, user: any) {
     const where: any = {
       class: Number(className),
       year: parseInt(year),
     };
 
-    if (user.role === "teacher") {
+    if (user.role === 'teacher') {
       const assignedSections = user.levels
-        ?.filter(
-          (l: any) =>
-            l.class_name === Number(className) && l.year === parseInt(year),
-        )
+        ?.filter((l: any) => l.class_name === Number(className) && l.year === parseInt(year))
         .map((l: any) => l.section);
 
       if (!assignedSections || assignedSections.length === 0) {
-        throw new Error("You are not assigned to this class.");
+        throw new Error('You are not assigned to this class.');
       }
       where.section = { in: assignedSections };
     }
@@ -1024,11 +950,7 @@ export class MarksService {
           },
         },
       },
-      orderBy: [
-        { section: "asc" },
-        { roll: "asc" },
-        { student: { name: "asc" } },
-      ],
+      orderBy: [{ section: 'asc' }, { roll: 'asc' }, { student: { name: 'asc' } }],
     });
 
     if (result.length === 0) {
@@ -1044,21 +966,21 @@ export class MarksService {
       section: enrollment.section,
       fourth_subject_id: enrollment.fourth_subject_id,
       marks: (enrollment.marks || []).map((mark: any) => ({
-          subject_id: mark.subject.id,
-          subject: mark.subject.name,
-          priority: mark.subject.priority ?? 0,
-          cq_marks: mark.cq_marks,
-          mcq_marks: mark.mcq_marks,
-          practical_marks: mark.practical_marks,
-          marks: mark.marks,
-          subject_info: {
-            full_mark: mark.subject.full_mark,
-            cq_mark: mark.subject.cq_mark,
-            mcq_mark: mark.subject.mcq_mark,
-            practical_mark: mark.subject.practical_mark,
-            marking_scheme: (mark.subject as any).marking_scheme,
-          },
-        })),
+        subject_id: mark.subject.id,
+        subject: mark.subject.name,
+        priority: mark.subject.priority ?? 0,
+        cq_marks: mark.cq_marks,
+        mcq_marks: mark.mcq_marks,
+        practical_marks: mark.practical_marks,
+        marks: mark.marks,
+        subject_info: {
+          full_mark: mark.subject.full_mark,
+          cq_mark: mark.subject.cq_mark,
+          mcq_mark: mark.subject.mcq_mark,
+          practical_mark: mark.subject.practical_mark,
+          marking_scheme: (mark.subject as any).marking_scheme,
+        },
+      })),
     }));
   }
 
@@ -1069,7 +991,7 @@ export class MarksService {
     user?: { role?: string; id?: number },
   ) {
     const yearInt = parseInt(year);
-    if (user?.role === "student") {
+    if (user?.role === 'student') {
       await this.assertStudentPublishedExam(exam, yearInt);
     }
 
@@ -1081,7 +1003,7 @@ export class MarksService {
         },
         exam: {
           exam_name: exam,
-          ...(user?.role === "student" ? { visible: true } : {}),
+          ...(user?.role === 'student' ? { visible: true } : {}),
         },
       },
       include: {
@@ -1103,11 +1025,7 @@ export class MarksService {
     }));
   }
 
-  static async getIndividualSessionMarksPreview(
-    studentId: string,
-    year: string,
-    user: any,
-  ) {
+  static async getIndividualSessionMarksPreview(studentId: string, year: string, user: any) {
     const sId = parseInt(studentId);
     const yearInt = parseInt(year);
 
@@ -1116,18 +1034,10 @@ export class MarksService {
     });
 
     if (!enrollment) {
-      throw new Error("Student enrollment not found for specified year");
+      throw new Error('Student enrollment not found for specified year');
     }
 
-    if (
-      !this.checkAccess(
-        user,
-        sId,
-        enrollment.class,
-        enrollment.section,
-        yearInt,
-      )
-    ) {
+    if (!this.checkAccess(user, sId, enrollment.class, enrollment.section, yearInt)) {
       throw new Error("You are not authorized to view this student's marks");
     }
 
@@ -1212,10 +1122,10 @@ export class MarksService {
       where: {
         class: classNum,
         year,
-        subject_type: { not: "main" },
+        subject_type: { not: 'main' },
       },
       select: this.MARKSHEET_SUBJECT_SELECT,
-      orderBy: [{ priority: "asc" }, { id: "asc" }],
+      orderBy: [{ priority: 'asc' }, { id: 'asc' }],
     });
   }
 
@@ -1224,7 +1134,7 @@ export class MarksService {
     studentGroup?: string | null,
   ) {
     if (!studentGroup) return true;
-    return !subject.group || subject.group === "" || subject.group === studentGroup;
+    return !subject.group || subject.group === '' || subject.group === studentGroup;
   }
 
   /**
@@ -1276,16 +1186,8 @@ export class MarksService {
     }
 
     filled.sort((a, b) => {
-      if (
-        a.subject.assessment_type === "exam" &&
-        b.subject.assessment_type !== "exam"
-      )
-        return -1;
-      if (
-        a.subject.assessment_type !== "exam" &&
-        b.subject.assessment_type === "exam"
-      )
-        return 1;
+      if (a.subject.assessment_type === 'exam' && b.subject.assessment_type !== 'exam') return -1;
+      if (a.subject.assessment_type !== 'exam' && b.subject.assessment_type === 'exam') return 1;
       return (a.subject.priority || 0) - (b.subject.priority || 0);
     });
 
@@ -1298,11 +1200,11 @@ export class MarksService {
 
     marksList.forEach((mark) => {
       const sub = mark.subject;
-      if (sub.subject_type === "paper" && sub.parent_id) {
+      if (sub.subject_type === 'paper' && sub.parent_id) {
         const pid = sub.parent_id;
         if (!aggregatedData[pid]) {
           aggregatedData[pid] = {
-            subject: sub.parent?.name || "Main Subject",
+            subject: sub.parent?.name || 'Main Subject',
             marks: null as number | null,
             cq_marks: null as number | null,
             mcq_marks: null as number | null,
@@ -1317,7 +1219,7 @@ export class MarksService {
             pass_mark: 0,
             priority: sub.priority,
             assessment_type: sub.assessment_type,
-            marking_scheme: "TOTAL",
+            marking_scheme: 'TOTAL',
             papers: [],
             isGroup: true,
             subject_id: pid,
@@ -1339,10 +1241,10 @@ export class MarksService {
         g.practical_pass_mark += sub.practical_pass_mark || 0;
         g.pass_mark += sub.pass_mark || 0;
         g.priority = Math.min(g.priority, sub.priority);
-        if ((sub as any).marking_scheme === "BREAKDOWN") {
-          g.marking_scheme = "BREAKDOWN";
+        if ((sub as any).marking_scheme === 'BREAKDOWN') {
+          g.marking_scheme = 'BREAKDOWN';
         }
-        
+
         // Push simplified mark data for the paper
         g.papers.push({
           subject: sub.name,
@@ -1387,10 +1289,8 @@ export class MarksService {
     });
 
     return finalData.sort((a, b) => {
-      if (a.assessment_type === "exam" && b.assessment_type !== "exam")
-        return -1;
-      if (a.assessment_type !== "exam" && b.assessment_type === "exam")
-        return 1;
+      if (a.assessment_type === 'exam' && b.assessment_type !== 'exam') return -1;
+      if (a.assessment_type !== 'exam' && b.assessment_type === 'exam') return 1;
       return (a.priority || 0) - (b.priority || 0);
     });
   }
@@ -1446,23 +1346,17 @@ export class MarksService {
         exam: { select: { exam_name: true, result_date: true, return_date: true } },
       },
     });
-    if (result.length === 0 || !result.some(m => m.marks !== null)) {
-      throw new Error("No marks found for this student");
+    if (result.length === 0 || !result.some((m) => m.marks !== null)) {
+      throw new Error('No marks found for this student');
     }
 
     const enrollment = result[0].enrollment;
     const resultDate = result[0].exam?.result_date ?? null;
     const returnDate = result[0].exam?.return_date ?? null;
     if (
-      !this.checkAccess(
-        user,
-        parseInt(id),
-        enrollment.class,
-        enrollment.section,
-        parseInt(year),
-      )
+      !this.checkAccess(user, parseInt(id), enrollment.class, enrollment.section, parseInt(year))
     ) {
-      throw new Error("You are not authorized to download this marksheet");
+      throw new Error('You are not authorized to download this marksheet');
     }
 
     const studentName = result[0].enrollment.student.name;
@@ -1482,28 +1376,24 @@ export class MarksService {
       this.loadMarksheetSubjects(studentClass, yearInt),
     ]);
     const schoolPhone = schoolMeta.phone;
-    const logoBuffer = schoolMeta.logoKey
-      ? await getFileBuffer(schoolMeta.logoKey)
-      : null;
+    const logoBuffer = schoolMeta.logoKey ? await getFileBuffer(schoolMeta.logoKey) : null;
 
-    const filledResult = this.fillMissingSubjectMarks(
-      result,
-      classSubjects,
-      enrollment.group,
-      {
-        enrollment_id: enrollment.id,
-        exam_id: examId,
-        enrollment,
-        exam: result[0].exam,
-      },
-    );
+    const filledResult = this.fillMissingSubjectMarks(result, classSubjects, enrollment.group, {
+      enrollment_id: enrollment.id,
+      exam_id: examId,
+      enrollment,
+      exam: result[0].exam,
+    });
 
     // Resolve the signatories. For a frozen exam the worker passes the
     // snapshotted ids (+ optional name/signature/phone detail). Detail pins
     // history; without it (legacy rows) we still resolve live-by-id once.
-    let teacherRec:
-      | { id: number | null; name: string | null; signature: string | null; phone: string | null }
-      | null = null;
+    let teacherRec: {
+      id: number | null;
+      name: string | null;
+      signature: string | null;
+      phone: string | null;
+    } | null = null;
     if (frozenSignatories) {
       if (frozenSignatories.detail?.teacher) {
         teacherRec =
@@ -1548,14 +1438,12 @@ export class MarksService {
         : null;
     }
 
-    let headRec:
-      | {
-          id: number | null;
-          name: string | null;
-          signature: string | null;
-          role: string;
-        }
-      | null = null;
+    let headRec: {
+      id: number | null;
+      name: string | null;
+      signature: string | null;
+      role: string;
+    } | null = null;
     if (frozenSignatories) {
       if (frozenSignatories.detail?.head) {
         headRec =
@@ -1564,7 +1452,7 @@ export class MarksService {
                 id: frozenSignatories.headId,
                 name: frozenSignatories.detail.head.name,
                 signature: frozenSignatories.detail.head.signature,
-                role: frozenSignatories.headRole ?? "Headmaster",
+                role: frozenSignatories.headRole ?? 'Headmaster',
               }
             : null;
       } else if (frozenSignatories.headId != null) {
@@ -1576,7 +1464,7 @@ export class MarksService {
           id: frozenSignatories.headId,
           name: t?.name ?? null,
           signature: t?.signature ?? null,
-          role: frozenSignatories.headRole ?? "Headmaster",
+          role: frozenSignatories.headRole ?? 'Headmaster',
         };
       } else {
         headRec = null;
@@ -1588,7 +1476,7 @@ export class MarksService {
             id: headMsg.head_id ?? null,
             name: headMsg.teacher?.name ?? null,
             signature: headMsg.teacher?.signature ?? null,
-            role: headMsg.head_role ?? "Headmaster",
+            role: headMsg.head_role ?? 'Headmaster',
           }
         : null;
     }
@@ -1600,7 +1488,7 @@ export class MarksService {
     const teacherName = teacherRec?.name ?? null;
     const teacherPhone = teacherRec?.phone ?? null;
     const headName = headRec?.name ?? null;
-    const headRole = headRec?.role ?? "Headmaster";
+    const headRole = headRec?.role ?? 'Headmaster';
     const usedTeacherId = teacherRec?.id ?? null;
     const usedHeadId = headRec?.id ?? null;
     const usedHeadRole = headRec?.role ?? null;
@@ -1613,10 +1501,7 @@ export class MarksService {
       yearInt,
       enrollment.group,
     );
-    const highestMarksMap = resolvedStats.highestBySubject as Record<
-      string,
-      number
-    >;
+    const highestMarksMap = resolvedStats.highestBySubject as Record<string, number>;
     const classHighestTotal = resolvedStats.classHighestTotal;
     const classHighestGrandTotal = resolvedStats.classHighestGrandTotal;
 
@@ -1634,10 +1519,12 @@ export class MarksService {
       return_date: returnDate,
     };
 
-    const finalTableData = this.aggregatePaperMarks(filledResult.map(m => ({
-      ...m,
-      highest_mark: highestMarksMap[m.subject_id] || 0
-    })));
+    const finalTableData = this.aggregatePaperMarks(
+      filledResult.map((m) => ({
+        ...m,
+        highest_mark: highestMarksMap[m.subject_id] || 0,
+      })),
+    );
 
     const buffer = await this.renderStudentReportPDF(
       studentDetails,
@@ -1719,12 +1606,12 @@ export class MarksService {
       },
       orderBy: {
         subject: {
-          priority: "asc"
-        }
-      }
+          priority: 'asc',
+        },
+      },
     });
 
-    if (marks.length === 0) throw new Error("No marks found");
+    if (marks.length === 0) throw new Error('No marks found');
 
     const classesAffected = Array.from(new Set(marks.map((m) => m.enrollment.class)));
     const examIds = Array.from(new Set(marks.map((m) => m.exam_id)));
@@ -1733,20 +1620,11 @@ export class MarksService {
     // exam_class_stats cache (per exam+class). Class 9/10 use group-scoped
     // stats (Science / Commerce / Humanities); other classes stay class-wide.
     const highestMarksMap: Record<string, Record<number, number>> = {};
-    const highestMarksMapByGroup: Record<
-      string,
-      Record<string, Record<number, number>>
-    > = {};
+    const highestMarksMapByGroup: Record<string, Record<string, Record<number, number>>> = {};
     const classHighestTotalByExam: Record<string, number> = {};
     const classHighestGrandTotalByExam: Record<string, number> = {};
-    const classHighestTotalByExamAndGroup: Record<
-      string,
-      Record<string, number>
-    > = {};
-    const classHighestGrandTotalByExamAndGroup: Record<
-      string,
-      Record<string, number>
-    > = {};
+    const classHighestTotalByExamAndGroup: Record<string, Record<string, number>> = {};
+    const classHighestGrandTotalByExamAndGroup: Record<string, Record<string, number>> = {};
 
     const mergeStats = (
       examLabel: string,
@@ -1758,10 +1636,7 @@ export class MarksService {
       for (const [sid, val] of Object.entries(highestBySubject)) {
         const subjId = Number(sid);
         const v = Number(val || 0);
-        if (
-          !highestMarksMap[examLabel][subjId] ||
-          v > highestMarksMap[examLabel][subjId]
-        ) {
+        if (!highestMarksMap[examLabel][subjId] || v > highestMarksMap[examLabel][subjId]) {
           highestMarksMap[examLabel][subjId] = v;
         }
       }
@@ -1779,11 +1654,7 @@ export class MarksService {
       }
     };
 
-    const mergeGroupStats = (
-      examLabel: string,
-      groupName: string,
-      stats: ClassStatsSnapshot,
-    ) => {
+    const mergeGroupStats = (examLabel: string, groupName: string, stats: ClassStatsSnapshot) => {
       if (!highestMarksMapByGroup[examLabel]) {
         highestMarksMapByGroup[examLabel] = {};
       }
@@ -1801,13 +1672,11 @@ export class MarksService {
       if (!classHighestTotalByExamAndGroup[examLabel]) {
         classHighestTotalByExamAndGroup[examLabel] = {};
       }
-      classHighestTotalByExamAndGroup[examLabel][groupName] =
-        stats.classHighestTotal;
+      classHighestTotalByExamAndGroup[examLabel][groupName] = stats.classHighestTotal;
       if (!classHighestGrandTotalByExamAndGroup[examLabel]) {
         classHighestGrandTotalByExamAndGroup[examLabel] = {};
       }
-      classHighestGrandTotalByExamAndGroup[examLabel][groupName] =
-        stats.classHighestGrandTotal;
+      classHighestGrandTotalByExamAndGroup[examLabel][groupName] = stats.classHighestGrandTotal;
     };
 
     const statsRows = await prisma.exam_class_stats.findMany({
@@ -1848,10 +1717,7 @@ export class MarksService {
 
     // Lazy fallback: fill any (exam, class) combo present in the data but
     // missing from the cache (marks predate this feature).
-    const combos = new Map<
-      string,
-      { examId: number; klass: number; examName: string }
-    >();
+    const combos = new Map<string, { examId: number; klass: number; examName: string }>();
     for (const m of marks) {
       const key = `${m.exam_id}_${m.enrollment.class}`;
       if (!combos.has(key)) {
@@ -1866,12 +1732,7 @@ export class MarksService {
     for (const c of combos.values()) {
       if (present.has(`${c.examId}_${c.klass}`)) continue;
       if (this.isGroupedClass(c.klass)) {
-        const grouped = await this.computeGroupedClassStatsAll(
-          prisma,
-          c.examId,
-          c.klass,
-          yearInt,
-        );
+        const grouped = await this.computeGroupedClassStatsAll(prisma, c.examId, c.klass, yearInt);
         for (const [groupName, gStats] of Object.entries(grouped.byGroup)) {
           mergeGroupStats(c.examName, groupName, gStats);
         }
@@ -1916,34 +1777,35 @@ export class MarksService {
       }
     });
 
-    const subjectsByClass = new Map<number, Awaited<ReturnType<typeof MarksService.loadMarksheetSubjects>>>();
+    const subjectsByClass = new Map<
+      number,
+      Awaited<ReturnType<typeof MarksService.loadMarksheetSubjects>>
+    >();
     await Promise.all(
       classesAffected.map(async (cls) => {
         subjectsByClass.set(cls, await this.loadMarksheetSubjects(cls, yearInt));
       }),
     );
 
-    const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
     this.registerMarksheetFonts(doc);
     const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     const buffer = await new Promise<Buffer>(async (resolve) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
 
       const [headMsg, schoolMeta] = await Promise.all([
         this.getHeadMsgForMarks(),
         this.getSchoolMarksheetMeta(),
       ]);
       const schoolPhone = schoolMeta.phone;
-      const logoBuffer = schoolMeta.logoKey
-        ? await getFileBuffer(schoolMeta.logoKey)
-        : null;
+      const logoBuffer = schoolMeta.logoKey ? await getFileBuffer(schoolMeta.logoKey) : null;
       const headSignature = headMsg?.teacher?.signature
         ? await getFileBuffer(headMsg.teacher.signature)
         : null;
       const headName = headMsg?.teacher?.name ?? null;
-      const headRole = headMsg?.head_role ?? "Headmaster";
+      const headRole = headMsg?.head_role ?? 'Headmaster';
       const teacherSigs: Record<
         string,
         { signature: Buffer | null; name: string | null; phone: string | null }
@@ -1954,9 +1816,7 @@ export class MarksService {
         .sort((a, b) => {
           const sa = studentInfoMap[a];
           const sb = studentInfoMap[b];
-          const sectionCmp = String(sa.section ?? "").localeCompare(
-            String(sb.section ?? ""),
-          );
+          const sectionCmp = String(sa.section ?? '').localeCompare(String(sb.section ?? ''));
           if (sectionCmp !== 0) return sectionCmp;
           if (sa.roll !== sb.roll) return sa.roll - sb.roll;
           return sa.name.localeCompare(sb.name);
@@ -1972,26 +1832,19 @@ export class MarksService {
         const isGroupedStudent = this.isGroupedClass(info.class);
         const highestMarkForSubject = (examLabel: string, subjectId: number) => {
           if (isGroupedStudent && studentGroup) {
-            return (
-              highestMarksMapByGroup[examLabel]?.[studentGroup]?.[subjectId] || 0
-            );
+            return highestMarksMapByGroup[examLabel]?.[studentGroup]?.[subjectId] || 0;
           }
           return highestMarksMap[examLabel]?.[subjectId] || 0;
         };
         const classHighestTotalForExam = (examLabel: string) => {
           if (isGroupedStudent && studentGroup) {
-            return (
-              classHighestTotalByExamAndGroup[examLabel]?.[studentGroup] || 0
-            );
+            return classHighestTotalByExamAndGroup[examLabel]?.[studentGroup] || 0;
           }
           return classHighestTotalByExam[examLabel] || 0;
         };
         const classHighestGrandTotalForExam = (examLabel: string) => {
           if (isGroupedStudent && studentGroup) {
-            return (
-              classHighestGrandTotalByExamAndGroup[examLabel]?.[studentGroup] ||
-              0
-            );
+            return classHighestGrandTotalByExamAndGroup[examLabel]?.[studentGroup] || 0;
           }
           return classHighestGrandTotalByExam[examLabel] || 0;
         };
@@ -2007,9 +1860,7 @@ export class MarksService {
             include: { teacher: true },
           });
           teacherSigs[sigKey] = {
-            signature: lv?.teacher?.signature
-              ? await getFileBuffer(lv.teacher.signature)
-              : null,
+            signature: lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null,
             name: lv?.teacher?.name ?? null,
             phone: lv?.teacher?.phone ?? null,
           };
@@ -2022,17 +1873,12 @@ export class MarksService {
         const classSubjects = subjectsByClass.get(info.class) || [];
         const allExamsTableData = exams.map((en) => {
           const raw = studentGrouped[sid][en] || [];
-          const filled = this.fillMissingSubjectMarks(
-            raw,
-            classSubjects,
-            info.group,
-            {
-              enrollment_id: raw[0]?.enrollment_id,
-              exam_id: raw[0]?.exam_id,
-              enrollment: raw[0]?.enrollment,
-              exam: raw[0]?.exam,
-            },
-          );
+          const filled = this.fillMissingSubjectMarks(raw, classSubjects, info.group, {
+            enrollment_id: raw[0]?.enrollment_id,
+            exam_id: raw[0]?.exam_id,
+            enrollment: raw[0]?.enrollment,
+            exam: raw[0]?.exam,
+          });
           return {
             exam: en,
             rows: this.aggregatePaperMarks(
@@ -2058,34 +1904,31 @@ export class MarksService {
           this.drawProperStudentInfo(doc, info);
         };
 
-        await drawPageHeader("Consolidated Report");
+        await drawPageHeader('Consolidated Report');
         doc.y = 230;
 
         for (let j = 0; j < exams.length; j++) {
           const examName = exams[j];
           const rawMarks = studentGrouped[sid][examName] || [];
-          const studentMarks = this.fillMissingSubjectMarks(
-            rawMarks,
-            classSubjects,
-            info.group,
-            {
-              enrollment_id: rawMarks[0]?.enrollment_id,
-              exam_id: rawMarks[0]?.exam_id,
-              enrollment: rawMarks[0]?.enrollment,
-              exam: rawMarks[0]?.exam,
-            },
-          );
+          const studentMarks = this.fillMissingSubjectMarks(rawMarks, classSubjects, info.group, {
+            enrollment_id: rawMarks[0]?.enrollment_id,
+            exam_id: rawMarks[0]?.exam_id,
+            enrollment: rawMarks[0]?.enrollment,
+            exam: rawMarks[0]?.exam,
+          });
 
-          const finalTableData = this.aggregatePaperMarks(studentMarks.map(m => ({
-            ...m,
-            highest_mark: highestMarkForSubject(examName, m.subject_id),
-          })));
+          const finalTableData = this.aggregatePaperMarks(
+            studentMarks.map((m) => ({
+              ...m,
+              highest_mark: highestMarkForSubject(examName, m.subject_id),
+            })),
+          );
 
           // Check for space before rendering this exam's table
           const estimatedHeight = 50 + finalTableData.length * 20 + 40; // title + table + summary
           if (doc.y + estimatedHeight > 750) {
             doc.addPage();
-            await drawPageHeader("Consolidated Report (Contd.)");
+            await drawPageHeader('Consolidated Report (Contd.)');
             doc.y = 230;
           }
 
@@ -2093,12 +1936,36 @@ export class MarksService {
           const cW = PDF_STYLES.contentWidth;
           doc.x = sX;
           doc.moveDown(0.5);
-          doc.fillColor("#000000").font("Times-Bold").fontSize(12).text(`EXAM: ${examName.toUpperCase()}`, { align: "center", width: cW, underline: true });
+          doc
+            .fillColor('#000000')
+            .font('Times-Bold')
+            .fontSize(12)
+            .text(`EXAM: ${examName.toUpperCase()}`, {
+              align: 'center',
+              width: cW,
+              underline: true,
+            });
           doc.moveDown(0.3);
 
           const headers = this.useBreakdownLayout(info.class, finalTableData)
-            ? ["Name of Subjects", "CQ", "MCQ", "PRAC", "Total", "Letter Grade", "Grade Point", "Highest Marks"]
-            : ["Name of Subjects", "Obtained Marks", "Total", "Letter Grade", "Grade Point", "Highest Marks"];
+            ? [
+                'Name of Subjects',
+                'CQ',
+                'MCQ',
+                'PRAC',
+                'Total',
+                'Letter Grade',
+                'Grade Point',
+                'Highest Marks',
+              ]
+            : [
+                'Name of Subjects',
+                'Obtained Marks',
+                'Total',
+                'Letter Grade',
+                'Grade Point',
+                'Highest Marks',
+              ];
 
           const { y: tableY, colWidths } = this.drawProperTable(
             doc,
@@ -2143,8 +2010,6 @@ export class MarksService {
     return this.finalizeMarksheetBuffer(buffer);
   }
 
-
-
   private static async renderStudentMarksheetPage(
     doc: any,
     student: any,
@@ -2180,26 +2045,25 @@ export class MarksService {
     this.drawProperStudentInfo(doc, student);
 
     const y = doc.y + 5;
-    const headers =
-      this.useBreakdownLayout(student.class, tableData)
-        ? [
-            "Name of Subjects",
-            "CQ",
-            "MCQ",
-            "PRAC",
-            "Total",
-            "Letter Grade",
-            "Grade Point",
-            "Highest Marks",
-          ]
-        : [
-            "Name of Subjects",
-            "Obtained Marks",
-            "Total",
-            "Letter Grade",
-            "Grade Point",
-            "Highest Marks",
-          ];
+    const headers = this.useBreakdownLayout(student.class, tableData)
+      ? [
+          'Name of Subjects',
+          'CQ',
+          'MCQ',
+          'PRAC',
+          'Total',
+          'Letter Grade',
+          'Grade Point',
+          'Highest Marks',
+        ]
+      : [
+          'Name of Subjects',
+          'Obtained Marks',
+          'Total',
+          'Letter Grade',
+          'Grade Point',
+          'Highest Marks',
+        ];
 
     const { y: finalY, colWidths } = this.drawProperTable(
       doc,
@@ -2249,13 +2113,13 @@ export class MarksService {
     } | null,
     logoBuffer?: Buffer | null,
   ): Promise<Buffer> {
-    const doc = new (PDFDocument as any)({ size: "A4", margin: 40 });
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
     this.registerMarksheetFonts(doc);
     const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     return new Promise<Buffer>(async (resolve) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
       await this.renderStudentMarksheetPage(
         doc,
         student,
@@ -2269,12 +2133,8 @@ export class MarksService {
   }
 
   private static registerMarksheetFonts(doc: any) {
-    const regularFont = MARKSHEET_FONT_PATHS.regular.find((fontPath) =>
-      fs.existsSync(fontPath),
-    );
-    const boldFont = MARKSHEET_FONT_PATHS.bold.find((fontPath) =>
-      fs.existsSync(fontPath),
-    );
+    const regularFont = MARKSHEET_FONT_PATHS.regular.find((fontPath) => fs.existsSync(fontPath));
+    const boldFont = MARKSHEET_FONT_PATHS.bold.find((fontPath) => fs.existsSync(fontPath));
 
     if (regularFont) {
       doc.registerFont(PDF_STYLES.fontRegular, regularFont);
@@ -2289,7 +2149,7 @@ export class MarksService {
   }
 
   private static async convertPdfToImagePdf(pdfBuffer: Buffer): Promise<Buffer> {
-    const sourcePdfDataUrl = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+    const sourcePdfDataUrl = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
     const sourceDocument = await pdf(sourcePdfDataUrl, {
       scale: MARKSHEET_IMAGE_SCALE,
     });
@@ -2298,11 +2158,11 @@ export class MarksService {
       margin: 0,
     });
     const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     return new Promise<Buffer>(async (resolve, reject) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", reject);
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       try {
         for await (const pageImage of sourceDocument) {
@@ -2324,18 +2184,12 @@ export class MarksService {
   // Class 9/10 marksheets only show CQ/MCQ/PRAC columns when at least one
   // subject actually uses the BREAKDOWN scheme; pure TOTAL data uses the
   // simpler "Obtained Marks" layout like junior classes.
-  private static useBreakdownLayout(
-    className: number | undefined,
-    data: any[],
-  ): boolean {
+  private static useBreakdownLayout(className: number | undefined, data: any[]): boolean {
     if (className !== 9 && className !== 10) return false;
-    return data.some((row: any) => row.marking_scheme === "BREAKDOWN");
+    return data.some((row: any) => row.marking_scheme === 'BREAKDOWN');
   }
 
-  static async shouldApplyFourthSubjectBonus(
-    className: number,
-    year: number,
-  ): Promise<boolean> {
+  static async shouldApplyFourthSubjectBonus(className: number, year: number): Promise<boolean> {
     const enrollments = await prisma.student_enrollments.findMany({
       where: {
         class: className,
@@ -2361,7 +2215,7 @@ export class MarksService {
     const hasFourthSubject = fourthSubjectId !== null;
 
     marksData.forEach((row) => {
-      if (row.assessment_type === "exam") {
+      if (row.assessment_type === 'exam') {
         const obtained = Number(row.marks);
         const fullMark = Number(row.full_mark || 100);
 
@@ -2396,7 +2250,7 @@ export class MarksService {
           // 4th subject doesn't increase subjectCount and doesn't cause failure
         } else {
           totalGP += grade.gp;
-          if (grade.lg === "F") isFailed = true;
+          if (grade.lg === 'F') isFailed = true;
           subjectCount++;
         }
       }
@@ -2446,16 +2300,9 @@ export class MarksService {
     const { startX, contentWidth, rowHeight } = PDF_STYLES;
 
     const applyBonus =
-      className && year
-        ? await this.shouldApplyFourthSubjectBonus(className, year)
-        : false;
+      className && year ? await this.shouldApplyFourthSubjectBonus(className, year) : false;
 
-    const { gpa } = this.calculateGPA(
-      tableData,
-      fourth_subject_id ?? null,
-      applyBonus,
-      className,
-    );
+    const { gpa } = this.calculateGPA(tableData, fourth_subject_id ?? null, applyBonus, className);
     const grandTotalMarks = tableData.reduce((sum: number, row: any) => {
       const marks = Number(row.marks || 0);
       return Number.isFinite(marks) ? sum + marks : sum;
@@ -2478,9 +2325,25 @@ export class MarksService {
     if (!actualColWidths) {
       const { fontBold, headerFontSize } = PDF_STYLES;
       doc.font(fontBold).fontSize(headerFontSize);
-      const headers = isBreakdown 
-        ? ["Name of Subjects", "CQ", "MCQ", "PRAC", "Total", "Letter Grade", "Grade Point", "Highest Marks"]
-        : ["Name of Subjects", "Obtained Marks", "Total", "Letter Grade", "Grade Point", "Highest Marks"];
+      const headers = isBreakdown
+        ? [
+            'Name of Subjects',
+            'CQ',
+            'MCQ',
+            'PRAC',
+            'Total',
+            'Letter Grade',
+            'Grade Point',
+            'Highest Marks',
+          ]
+        : [
+            'Name of Subjects',
+            'Obtained Marks',
+            'Total',
+            'Letter Grade',
+            'Grade Point',
+            'Highest Marks',
+          ];
       const otherColWidths = headers.slice(1).map((h) => Math.max(40, doc.widthOfString(h) + 15));
       const usedWidth = otherColWidths.reduce((a, b) => a + b, 0);
       actualColWidths = [contentWidth - usedWidth, ...otherColWidths];
@@ -2490,63 +2353,119 @@ export class MarksService {
 
     // --- Render Column-Aligned Single Summary Row ---
     const rowY = y; // Remove the gap
-    doc.lineWidth(0.5).rect(startX, rowY, totalTableWidth, rowHeight).stroke("#000000");
+    doc.lineWidth(0.5).rect(startX, rowY, totalTableWidth, rowHeight).stroke('#000000');
 
     if (isBreakdown) {
       // Breakdown (8 cols): Subj(0), CQ(1), MCQ(2), PRAC(3), Total(4), LG(5), GP(6), High(7)
       // Merge 0-3 for Grand Total Label, Val in 4
       const w03 = actualColWidths[0] + actualColWidths[1] + actualColWidths[2] + actualColWidths[3];
-      this.drawDynamicText(doc, "Grand Total Marks", startX + 5, rowY, w03 - 10, rowHeight, { align: "right", bold: true });
-      doc.moveTo(startX + w03, rowY).lineTo(startX + w03, rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, 'Grand Total Marks', startX + 5, rowY, w03 - 10, rowHeight, {
+        align: 'right',
+        bold: true,
+      });
+      doc
+        .moveTo(startX + w03, rowY)
+        .lineTo(startX + w03, rowY + rowHeight)
+        .stroke();
 
       const x4 = startX + w03;
-      this.drawDynamicText(doc, String(grandTotalMarks), x4, rowY, actualColWidths[4], rowHeight, { align: "center", bold: true });
-      doc.moveTo(x4 + actualColWidths[4], rowY).lineTo(x4 + actualColWidths[4], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, String(grandTotalMarks), x4, rowY, actualColWidths[4], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x4 + actualColWidths[4], rowY)
+        .lineTo(x4 + actualColWidths[4], rowY + rowHeight)
+        .stroke();
 
       const x5 = x4 + actualColWidths[4];
-      this.drawDynamicText(doc, "GPA", x5 + 5, rowY, actualColWidths[5] - 10, rowHeight, { align: "center", bold: true });
-      doc.moveTo(x5 + actualColWidths[5], rowY).lineTo(x5 + actualColWidths[5], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, 'GPA', x5 + 5, rowY, actualColWidths[5] - 10, rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x5 + actualColWidths[5], rowY)
+        .lineTo(x5 + actualColWidths[5], rowY + rowHeight)
+        .stroke();
 
       const x6 = x5 + actualColWidths[5];
-      this.drawDynamicText(doc, gpa.toFixed(2), x6, rowY, actualColWidths[6], rowHeight, { align: "center", bold: true });
-      doc.moveTo(x6 + actualColWidths[6], rowY).lineTo(x6 + actualColWidths[6], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, gpa.toFixed(2), x6, rowY, actualColWidths[6], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x6 + actualColWidths[6], rowY)
+        .lineTo(x6 + actualColWidths[6], rowY + rowHeight)
+        .stroke();
 
       const x7 = x6 + actualColWidths[6];
-      this.drawDynamicText(doc, `${grandHighest || "-"}`, x7 + 2, rowY, actualColWidths[7] - 4, rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(
+        doc,
+        `${grandHighest || '-'}`,
+        x7 + 2,
+        rowY,
+        actualColWidths[7] - 4,
+        rowHeight,
+        { align: 'center', bold: true },
+      );
     } else {
       // Standard (6 cols): Subj(0), Obt(1), Total(2), LG(3), GP(4), High(5)
       // Merge 0-1 for Grand Total Label, Val in 2
       const w01 = actualColWidths[0] + actualColWidths[1];
-      this.drawDynamicText(doc, "Grand Total Marks", startX + 5, rowY, w01 - 10, rowHeight, { align: "right", bold: true });
-      doc.moveTo(startX + w01, rowY).lineTo(startX + w01, rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, 'Grand Total Marks', startX + 5, rowY, w01 - 10, rowHeight, {
+        align: 'right',
+        bold: true,
+      });
+      doc
+        .moveTo(startX + w01, rowY)
+        .lineTo(startX + w01, rowY + rowHeight)
+        .stroke();
 
       const x2 = startX + w01;
-      this.drawDynamicText(doc, String(grandTotalMarks), x2, rowY, actualColWidths[2], rowHeight, { align: "center", bold: true });
-      doc.moveTo(x2 + actualColWidths[2], rowY).lineTo(x2 + actualColWidths[2], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, String(grandTotalMarks), x2, rowY, actualColWidths[2], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x2 + actualColWidths[2], rowY)
+        .lineTo(x2 + actualColWidths[2], rowY + rowHeight)
+        .stroke();
 
       const x3 = x2 + actualColWidths[2]; // Column 3 (LG)
-      this.drawDynamicText(doc, "GPA", x3, rowY, actualColWidths[3], rowHeight, { align: "center", bold: true });
-      doc.moveTo(x3 + actualColWidths[3], rowY).lineTo(x3 + actualColWidths[3], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, 'GPA', x3, rowY, actualColWidths[3], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x3 + actualColWidths[3], rowY)
+        .lineTo(x3 + actualColWidths[3], rowY + rowHeight)
+        .stroke();
 
       const x4 = x3 + actualColWidths[3]; // Column 4 (GP)
-      this.drawDynamicText(doc, gpa.toFixed(2), x4, rowY, actualColWidths[4], rowHeight, { align: "center", bold: true });
-      doc.moveTo(x4 + actualColWidths[4], rowY).lineTo(x4 + actualColWidths[4], rowY + rowHeight).stroke();
+      this.drawDynamicText(doc, gpa.toFixed(2), x4, rowY, actualColWidths[4], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
+      doc
+        .moveTo(x4 + actualColWidths[4], rowY)
+        .lineTo(x4 + actualColWidths[4], rowY + rowHeight)
+        .stroke();
 
       const x5 = x4 + actualColWidths[4]; // Column 5 (Highest)
-      this.drawDynamicText(doc, `${grandHighest || "-"}`, x5, rowY, actualColWidths[5], rowHeight, { align: "center", bold: true });
+      this.drawDynamicText(doc, `${grandHighest || '-'}`, x5, rowY, actualColWidths[5], rowHeight, {
+        align: 'center',
+        bold: true,
+      });
     }
 
     let endY = rowY + rowHeight;
     const formattedResultDate = formatMarksheetDate(resultDate);
     if (formattedResultDate) {
       const dateY = endY + 8;
-      doc
-        .font(PDF_STYLES.fontRegular)
-        .fontSize(PDF_STYLES.rowFontSize)
-        .fillColor("#000000");
+      doc.font(PDF_STYLES.fontRegular).fontSize(PDF_STYLES.rowFontSize).fillColor('#000000');
       doc.text(`Date of result published: ${formattedResultDate}.`, startX, dateY, {
         width: contentWidth,
-        align: "left",
+        align: 'left',
       });
       endY = dateY + (returnDate ? 13 : PDF_STYLES.rowHeight);
     }
@@ -2554,23 +2473,18 @@ export class MarksService {
     const formattedReturnDate = formatMarksheetDate(returnDate);
     if (formattedReturnDate) {
       const returnY = endY + 2;
-      doc
-        .font(PDF_STYLES.fontRegular)
-        .fontSize(PDF_STYLES.rowFontSize)
-        .fillColor("#000000");
+      doc.font(PDF_STYLES.fontRegular).fontSize(PDF_STYLES.rowFontSize).fillColor('#000000');
       doc.text(
         `This academic transcript (mark sheet) must be returned by ${formattedReturnDate}.`,
         startX,
         returnY,
-        { width: contentWidth, align: "left" },
+        { width: contentWidth, align: 'left' },
       );
       const correctionsY = returnY + 13;
-      doc.text(
-        "Please contact the class teacher for any corrections.",
-        startX,
-        correctionsY,
-        { width: contentWidth, align: "left" },
-      );
+      doc.text('Please contact the class teacher for any corrections.', startX, correctionsY, {
+        width: contentWidth,
+        align: 'left',
+      });
       endY = correctionsY + PDF_STYLES.rowHeight;
     }
 
@@ -2587,15 +2501,12 @@ export class MarksService {
   ) {
     const maxFontSize = options.fontSize ?? 10;
     const minFontSize = options.minFontSize ?? 7;
-    const font = options.font ?? "Times-Roman";
+    const font = options.font ?? 'Times-Roman';
 
     let fontSize = maxFontSize;
-    doc.font(font).fillColor("#000000");
+    doc.font(font).fillColor('#000000');
 
-    while (
-      fontSize > minFontSize &&
-      doc.fontSize(fontSize).widthOfString(text) > maxWidth
-    ) {
+    while (fontSize > minFontSize && doc.fontSize(fontSize).widthOfString(text) > maxWidth) {
       fontSize--;
     }
 
@@ -2628,7 +2539,7 @@ export class MarksService {
     },
     tableEndY?: number,
   ) {
-    doc.fontSize(10).font("Times-Bold").fillColor("#000000");
+    doc.fontSize(10).font('Times-Bold').fillColor('#000000');
 
     let lineY =
       tableEndY !== undefined
@@ -2661,12 +2572,12 @@ export class MarksService {
           lineY - SIGNATURE_IMAGE_MAX_HEIGHT,
           {
             fit: [SIGNATURE_IMAGE_WIDTH, SIGNATURE_IMAGE_MAX_HEIGHT],
-            align: "center",
-            valign: "bottom",
+            align: 'center',
+            valign: 'bottom',
           },
         );
       } catch (err) {
-        console.error("Teacher signature image error:", err);
+        console.error('Teacher signature image error:', err);
       }
     }
 
@@ -2679,12 +2590,12 @@ export class MarksService {
           lineY - SIGNATURE_IMAGE_MAX_HEIGHT,
           {
             fit: [SIGNATURE_IMAGE_WIDTH, SIGNATURE_IMAGE_MAX_HEIGHT],
-            align: "center",
-            valign: "bottom",
+            align: 'center',
+            valign: 'bottom',
           },
         );
       } catch (err) {
-        console.error("Head signature image error:", err);
+        console.error('Head signature image error:', err);
       }
     }
 
@@ -2695,23 +2606,23 @@ export class MarksService {
       width: number,
       phone?: string | null,
     ) => {
-      doc.fillColor("#000000").fontSize(10);
+      doc.fillColor('#000000').fontSize(10);
 
       if (name) {
         this.drawFittedCenteredText(doc, name, x, textY, width, {
           fontSize: 10,
-          font: "Times-Roman",
+          font: 'Times-Roman',
         });
         this.drawFittedCenteredText(doc, role, x, textY + 12, width, {
           fontSize: 10,
           minFontSize: 8,
-          font: "Times-Roman",
+          font: 'Times-Roman',
         });
         if (phone) {
           this.drawFittedCenteredText(doc, phone, x, textY + 24, width, {
             fontSize: 9,
             minFontSize: 7,
-            font: "Times-Roman",
+            font: 'Times-Roman',
           });
         }
         return;
@@ -2719,13 +2630,13 @@ export class MarksService {
 
       this.drawFittedCenteredText(doc, role, x, textY, width, {
         fontSize: 10,
-        font: "Times-Roman",
+        font: 'Times-Roman',
       });
       if (phone) {
         this.drawFittedCenteredText(doc, phone, x, textY + 12, width, {
           fontSize: 9,
           minFontSize: 7,
-          font: "Times-Roman",
+          font: 'Times-Roman',
         });
       }
     };
@@ -2734,10 +2645,17 @@ export class MarksService {
       .moveTo(guardianStartX, lineY)
       .lineTo(guardianStartX + guardianLineWidth, lineY)
       .stroke();
-    this.drawFittedCenteredText(doc, "Guardian's Signature", guardianStartX, textY, guardianLineWidth, {
-      fontSize: 10,
-      font: "Times-Bold",
-    });
+    this.drawFittedCenteredText(
+      doc,
+      "Guardian's Signature",
+      guardianStartX,
+      textY,
+      guardianLineWidth,
+      {
+        fontSize: 10,
+        font: 'Times-Bold',
+      },
+    );
 
     doc
       .moveTo(teacherStartX, lineY)
@@ -2746,7 +2664,7 @@ export class MarksService {
     drawNameAndRole(
       teacherStartX,
       signatures?.teacherName,
-      "Class Teacher",
+      'Class Teacher',
       teacherLineWidth,
       signatures?.teacherPhone,
     );
@@ -2758,7 +2676,7 @@ export class MarksService {
     drawNameAndRole(
       headStartX,
       signatures?.headName,
-      signatures?.headRole ?? "Headmaster",
+      signatures?.headRole ?? 'Headmaster',
       headLineWidth,
     );
 
@@ -2766,27 +2684,27 @@ export class MarksService {
   }
 
   private static drawProperBackground(doc: any) {
-    doc.rect(20, 20, 555, 802).lineWidth(2).stroke("#000000");
-    doc.rect(25, 25, 545, 792).lineWidth(0.5).stroke("#666666");
+    doc.rect(20, 20, 555, 802).lineWidth(2).stroke('#000000');
+    doc.rect(25, 25, 545, 792).lineWidth(0.5).stroke('#666666');
   }
 
   private static normalizeSchoolWebsite(
     customDomain?: string | null,
     website?: string | null,
   ): string | null {
-    const raw = (customDomain?.trim() || website?.trim() || "");
+    const raw = customDomain?.trim() || website?.trim() || '';
     if (!raw) return null;
 
     try {
       if (/^https?:\/\//i.test(raw)) {
         return new URL(raw).hostname || null;
       }
-      return raw.replace(/\/+$/, "").replace(/:\d+$/, "").toLowerCase();
+      return raw.replace(/\/+$/, '').replace(/:\d+$/, '').toLowerCase();
     } catch {
       const cleaned = raw
-        .replace(/^https?:\/\//i, "")
-        .split("/")[0]
-        ?.replace(/:\d+$/, "");
+        .replace(/^https?:\/\//i, '')
+        .split('/')[0]
+        ?.replace(/:\d+$/, '');
       return cleaned || null;
     }
   }
@@ -2834,17 +2752,14 @@ export class MarksService {
     const place = [school.upazila, school.district]
       .map((s) => s?.trim())
       .filter(Boolean)
-      .join(", ");
+      .join(', ');
     const logoKey = school.headerLogo || school.logo || null;
     return {
       name: school.name?.trim() || null,
       location: place || school.address?.trim() || null,
       eiin: school.eiin?.trim() || null,
       centerCode: school.centerCode?.trim() || null,
-      website: this.normalizeSchoolWebsite(
-        school.customDomain,
-        school.website,
-      ),
+      website: this.normalizeSchoolWebsite(school.customDomain, school.website),
       phone: school.phone?.trim() || null,
       logoKey,
       logoEtag: logoKey ? await headObjectEtag(logoKey) : null,
@@ -2855,7 +2770,7 @@ export class MarksService {
     const schoolId = getRlsContext()?.schoolId;
     return prisma.head_msg.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { updated_at: "desc" },
+      orderBy: { updated_at: 'desc' },
       include: { teacher: true },
     });
   }
@@ -2865,11 +2780,11 @@ export class MarksService {
     exams: { exam?: string | null; rows: any[] }[],
   ): string {
     const lines = [
-      `Name: ${student.name ?? ""}`,
-      `Class: ${student.class ?? ""}`,
-      `Section: ${student.section ?? ""}`,
-      `Roll: ${student.roll ?? ""}`,
-      `Year: ${student.year ?? ""}`,
+      `Name: ${student.name ?? ''}`,
+      `Class: ${student.class ?? ''}`,
+      `Section: ${student.section ?? ''}`,
+      `Roll: ${student.roll ?? ''}`,
+      `Year: ${student.year ?? ''}`,
     ];
 
     for (const examBlock of exams) {
@@ -2877,13 +2792,13 @@ export class MarksService {
         lines.push(`Exam: ${examBlock.exam}`);
       }
       for (const row of examBlock.rows || []) {
-        const subject = row.subject ?? "Subject";
-        const marks = row.marks ?? "-";
+        const subject = row.subject ?? 'Subject';
+        const marks = row.marks ?? '-';
         lines.push(`${subject}: ${marks}`);
       }
     }
 
-    return lines.join("\n");
+    return lines.join('\n');
   }
 
   private static async drawProperHeader(
@@ -2911,62 +2826,56 @@ export class MarksService {
 
     // Top line spans full page — above side widgets
     doc
-      .font("Times-Bold")
+      .font('Times-Bold')
       .fontSize(10)
       .text("Government of the People's Republic of Bangladesh", pageHeaderX, 40, {
-        align: "center",
+        align: 'center',
         width: pageHeaderWidth,
       });
 
-    const schoolName = school?.name?.trim() || "School Name";
+    const schoolName = school?.name?.trim() || 'School Name';
     const maxWidth = pageHeaderWidth - 4;
     let fontSize = 15;
-    doc.font("Times-Bold");
-    while (
-      doc.fontSize(fontSize).widthOfString(schoolName) > maxWidth &&
-      fontSize > 8
-    ) {
+    doc.font('Times-Bold');
+    while (doc.fontSize(fontSize).widthOfString(schoolName) > maxWidth && fontSize > 8) {
       fontSize--;
     }
     doc
       .fontSize(fontSize)
-      .text(schoolName, pageHeaderX, 55, { align: "center", width: pageHeaderWidth });
+      .text(schoolName, pageHeaderX, 55, { align: 'center', width: pageHeaderWidth });
 
     if (qrText) {
       try {
         const qrDataUrl = await QRCode.toDataURL(qrText, {
           margin: 1,
           width: 260,
-          errorCorrectionLevel: "M",
+          errorCorrectionLevel: 'M',
         });
         doc.image(qrDataUrl, qrX, qrY, { width: qrSize });
       } catch (err) {
-        console.error("Marksheet QR code error:", err);
+        console.error('Marksheet QR code error:', err);
       }
     }
 
-    const location = school?.location?.trim() || "";
+    const location = school?.location?.trim() || '';
     if (location) {
-      doc
-        .font("Times-Bold")
-        .fontSize(11)
-        .text(location, pageHeaderX, 75, {
-          align: "center",
-          width: pageHeaderWidth,
-        });
+      doc.font('Times-Bold').fontSize(11).text(location, pageHeaderX, 75, {
+        align: 'center',
+        width: pageHeaderWidth,
+      });
     }
 
-    doc.font("Times-Bold").fontSize(10);
-    const websiteStr = school?.website?.trim() || "";
+    doc.font('Times-Bold').fontSize(10);
+    const websiteStr = school?.website?.trim() || '';
     const headerOffset = websiteStr ? 14 : 0;
 
     if (websiteStr) {
-      const host = websiteStr.replace(/^https?:\/\//, "");
+      const host = websiteStr.replace(/^https?:\/\//, '');
       const websiteUrl = /^https?:\/\//i.test(websiteStr)
-        ? websiteStr.replace(/\/+$/, "")
+        ? websiteStr.replace(/\/+$/, '')
         : `https://${host}`;
       doc.text(websiteUrl, pageHeaderX, 90, {
-        align: "center",
+        align: 'center',
         width: pageHeaderWidth,
       });
     }
@@ -2975,26 +2884,25 @@ export class MarksService {
     if (school?.eiin) infoBits.push(`EIIN: ${school.eiin}`);
     if (school?.centerCode) infoBits.push(`School Code: ${school.centerCode}`);
     if (school?.phone) infoBits.push(`Phone: ${school.phone}`);
-    const infoText = infoBits.join(", ");
+    const infoText = infoBits.join(', ');
     if (infoText) {
       doc.text(infoText, pageHeaderX, 90 + headerOffset, {
-        align: "center",
+        align: 'center',
         width: pageHeaderWidth,
       });
     }
 
     if (exam && (exam.exam || exam.year)) {
-      const examName = exam.exam || "";
-      const session = exam.year ? String(exam.year) : "";
-      const headerText =
-        examName && session ? `${examName} ${session}` : examName || session;
+      const examName = exam.exam || '';
+      const session = exam.year ? String(exam.year) : '';
+      const headerText = examName && session ? `${examName} ${session}` : examName || session;
 
       doc
-        .fillColor("#000000")
-        .font("Times-Bold")
+        .fillColor('#000000')
+        .font('Times-Bold')
         .fontSize(14)
         .text(headerText, pageHeaderX, 105 + headerOffset, {
-          align: "center",
+          align: 'center',
           width: pageHeaderWidth,
         });
     }
@@ -3003,25 +2911,22 @@ export class MarksService {
     const titleX = pageHeaderX + (pageHeaderWidth - titleW) / 2;
     doc
       .rect(titleX, 128 + headerOffset, titleW, 25)
-      .fill("#f3f4f6")
-      .stroke("#000000");
+      .fill('#f3f4f6')
+      .stroke('#000000');
     doc
-      .fillColor("#000000")
-      .font("Times-Bold")
+      .fillColor('#000000')
+      .font('Times-Bold')
       .fontSize(14)
-      .text("ACADEMIC TRANSCRIPT", titleX, 135 + headerOffset, {
-        align: "center",
+      .text('ACADEMIC TRANSCRIPT', titleX, 135 + headerOffset, {
+        align: 'center',
         width: titleW,
       });
   }
 
-  private static async drawWatermark(
-    doc: any,
-    logoBuffer?: Buffer | null,
-  ) {
+  private static async drawWatermark(doc: any, logoBuffer?: Buffer | null) {
     let image: Buffer | string | null = logoBuffer ?? null;
     if (!image) {
-      const logoPath = path.join("public", "icon.jpg");
+      const logoPath = path.join('public', 'icon.jpg');
       if (fs.existsSync(logoPath)) image = logoPath;
     }
     if (!image) return;
@@ -3041,11 +2946,11 @@ export class MarksService {
 
   private static getClassText(classNum: number | string): string {
     const classMap: Record<string, string> = {
-      "6": "Six",
-      "7": "Seven",
-      "8": "Eight",
-      "9": "Nine",
-      "10": "Ten",
+      '6': 'Six',
+      '7': 'Seven',
+      '8': 'Eight',
+      '9': 'Nine',
+      '10': 'Ten',
     };
     return classMap[String(classNum)] || String(classNum);
   }
@@ -3053,26 +2958,41 @@ export class MarksService {
   private static drawProperStudentInfo(doc: any, student: any) {
     const startY = 185;
     const lineHeight = 18;
-    doc.fillColor("#000000");
+    doc.fillColor('#000000');
 
     // Row 1: Student's Name
-    this.drawDynamicText(doc, "Student's Name:", 50, startY, 100, lineHeight, { fontSize: 11, bold: true });
-    this.drawDynamicText(doc, student.name, 150, startY, 350, lineHeight, { fontSize: 11, font: "Times-Roman" });
+    this.drawDynamicText(doc, "Student's Name:", 50, startY, 100, lineHeight, {
+      fontSize: 11,
+      bold: true,
+    });
+    this.drawDynamicText(doc, student.name, 150, startY, 350, lineHeight, {
+      fontSize: 11,
+      font: 'Times-Roman',
+    });
 
     // Row 2: Class, Section, Roll No
     const row2Y = startY + lineHeight;
-    
+
     // Class
-    this.drawDynamicText(doc, "Class:", 50, row2Y, 50, lineHeight, { fontSize: 11, bold: true });
-    this.drawDynamicText(doc, this.getClassText(student.class), 100, row2Y, 90, lineHeight, { fontSize: 11, font: "Times-Roman" });
+    this.drawDynamicText(doc, 'Class:', 50, row2Y, 50, lineHeight, { fontSize: 11, bold: true });
+    this.drawDynamicText(doc, this.getClassText(student.class), 100, row2Y, 90, lineHeight, {
+      fontSize: 11,
+      font: 'Times-Roman',
+    });
 
     // Section
-    this.drawDynamicText(doc, "Section:", 230, row2Y, 60, lineHeight, { fontSize: 11, bold: true });
-    this.drawDynamicText(doc, student.section || "-", 290, row2Y, 50, lineHeight, { fontSize: 11, font: "Times-Roman" });
+    this.drawDynamicText(doc, 'Section:', 230, row2Y, 60, lineHeight, { fontSize: 11, bold: true });
+    this.drawDynamicText(doc, student.section || '-', 290, row2Y, 50, lineHeight, {
+      fontSize: 11,
+      font: 'Times-Roman',
+    });
 
     // Roll No
-    this.drawDynamicText(doc, "Roll No:", 350, row2Y, 60, lineHeight, { fontSize: 11, bold: true });
-    this.drawDynamicText(doc, String(student.roll || "-"), 410, row2Y, 50, lineHeight, { fontSize: 11, font: "Times-Roman" });
+    this.drawDynamicText(doc, 'Roll No:', 350, row2Y, 60, lineHeight, { fontSize: 11, bold: true });
+    this.drawDynamicText(doc, String(student.roll || '-'), 410, row2Y, 50, lineHeight, {
+      fontSize: 11,
+      font: 'Times-Roman',
+    });
   }
 
   static getGradeByPercentage(
@@ -3099,15 +3019,12 @@ export class MarksService {
       // Component-wise pass checks only apply to BREAKDOWN subjects;
       // TOTAL subjects store null CQ/MCQ/PRAC marks which would wrongly read as 0.
       if (
-        breakdown.marking_scheme === "BREAKDOWN" &&
-        ((breakdown.cq_pass &&
-          (breakdown.cq || 0) < (breakdown.cq_pass || 0)) ||
-          (breakdown.mcq_pass &&
-            (breakdown.mcq || 0) < (breakdown.mcq_pass || 0)) ||
-          (breakdown.pr_pass &&
-            (breakdown.pr || 0) < (breakdown.pr_pass || 0)))
+        breakdown.marking_scheme === 'BREAKDOWN' &&
+        ((breakdown.cq_pass && (breakdown.cq || 0) < (breakdown.cq_pass || 0)) ||
+          (breakdown.mcq_pass && (breakdown.mcq || 0) < (breakdown.mcq_pass || 0)) ||
+          (breakdown.pr_pass && (breakdown.pr || 0) < (breakdown.pr_pass || 0)))
       ) {
-        return { lg: "F", gp: 0.0 };
+        return { lg: 'F', gp: 0.0 };
       }
     }
 
@@ -3120,26 +3037,23 @@ export class MarksService {
       breakdown?.total_pass !== null &&
       Number(breakdown.total) < Number(breakdown.total_pass)
     ) {
-      return { lg: "F", gp: 0.0 };
+      return { lg: 'F', gp: 0.0 };
     }
 
     if (percentage < 33) {
-      return { lg: "F", gp: 0.0 };
+      return { lg: 'F', gp: 0.0 };
     }
 
-    if (percentage >= 80) return { lg: "A+", gp: 5.0 };
-    if (percentage >= 70) return { lg: "A", gp: 4.0 };
-    if (percentage >= 60) return { lg: "A-", gp: 3.5 };
-    if (percentage >= 50) return { lg: "B", gp: 3.0 };
-    if (percentage >= 40) return { lg: "C", gp: 2.0 };
-    if (percentage >= 33) return { lg: "D", gp: 1.0 };
-    return { lg: "F", gp: 0.0 };
+    if (percentage >= 80) return { lg: 'A+', gp: 5.0 };
+    if (percentage >= 70) return { lg: 'A', gp: 4.0 };
+    if (percentage >= 60) return { lg: 'A-', gp: 3.5 };
+    if (percentage >= 50) return { lg: 'B', gp: 3.0 };
+    if (percentage >= 40) return { lg: 'C', gp: 2.0 };
+    if (percentage >= 33) return { lg: 'D', gp: 1.0 };
+    return { lg: 'F', gp: 0.0 };
   }
 
-  private static formatSubjectWithFullMark(
-    subject: string,
-    fullMark?: number | null,
-  ): string {
+  private static formatSubjectWithFullMark(subject: string, fullMark?: number | null): string {
     if (fullMark !== undefined && fullMark !== null && fullMark > 0) {
       return `${subject} (${fullMark})`;
     }
@@ -3154,15 +3068,8 @@ export class MarksService {
     className?: number,
     classHighestTotal?: number,
   ) {
-    const {
-      startX,
-      contentWidth,
-      rowHeight,
-      headerFontSize,
-      rowFontSize,
-      fontBold,
-      fontRegular,
-    } = PDF_STYLES;
+    const { startX, contentWidth, rowHeight, headerFontSize, rowFontSize, fontBold, fontRegular } =
+      PDF_STYLES;
     const isBreakdown = this.useBreakdownLayout(className, data);
 
     doc.font(fontBold).fontSize(headerFontSize);
@@ -3172,18 +3079,17 @@ export class MarksService {
     const colWidths = [subjectWidth, ...otherColWidths];
 
     doc
-      .fillAndStroke("#f3f4f6", "#000000")
+      .fillAndStroke('#f3f4f6', '#000000')
       .lineWidth(0.5)
       .rect(startX, y, contentWidth, rowHeight)
       .fillAndStroke();
-    doc.fillColor("#000000").font(fontBold).fontSize(headerFontSize);
-
+    doc.fillColor('#000000').font(fontBold).fontSize(headerFontSize);
 
     let currentX = startX;
     headers.forEach((h, i) => {
       this.drawDynamicText(doc, h, currentX + 5, y, colWidths[i] - 10, rowHeight, {
         fontSize: headerFontSize,
-        align: i === 0 ? "left" : "center",
+        align: i === 0 ? 'left' : 'center',
         bold: true,
       });
       if (i < headers.length - 1) {
@@ -3199,7 +3105,7 @@ export class MarksService {
     doc.font(fontRegular).fontSize(rowFontSize);
 
     const drawExamSubjectsTotalRow = () => {
-      const examRows = data.filter((row: any) => row.assessment_type === "exam");
+      const examRows = data.filter((row: any) => row.assessment_type === 'exam');
       if (examRows.length === 0) return;
 
       const examTotalMarks = examRows.reduce(
@@ -3213,85 +3119,105 @@ export class MarksService {
         y = 50;
       }
 
-      doc.lineWidth(0.5).rect(startX, y, contentWidth, rowHeight).stroke("#000000");
+      doc.lineWidth(0.5).rect(startX, y, contentWidth, rowHeight).stroke('#000000');
 
       if (isBreakdown) {
         const w03 = colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
-        this.drawDynamicText(doc, "Total Marks", startX + 5, y, w03 - 10, rowHeight, {
-          align: "right",
+        this.drawDynamicText(doc, 'Total Marks', startX + 5, y, w03 - 10, rowHeight, {
+          align: 'right',
           bold: true,
           fontSize: rowFontSize,
         });
-        doc.moveTo(startX + w03, y).lineTo(startX + w03, y + rowHeight).stroke();
+        doc
+          .moveTo(startX + w03, y)
+          .lineTo(startX + w03, y + rowHeight)
+          .stroke();
 
         const x4 = startX + w03;
         this.drawDynamicText(doc, String(examTotalMarks), x4, y, colWidths[4], rowHeight, {
-          align: "center",
+          align: 'center',
           bold: true,
           fontSize: rowFontSize,
         });
-        doc.moveTo(x4 + colWidths[4], y).lineTo(x4 + colWidths[4], y + rowHeight).stroke();
+        doc
+          .moveTo(x4 + colWidths[4], y)
+          .lineTo(x4 + colWidths[4], y + rowHeight)
+          .stroke();
 
         const x5 = x4 + colWidths[4];
-        doc.moveTo(x5 + colWidths[5], y).lineTo(x5 + colWidths[5], y + rowHeight).stroke();
+        doc
+          .moveTo(x5 + colWidths[5], y)
+          .lineTo(x5 + colWidths[5], y + rowHeight)
+          .stroke();
 
         const x6 = x5 + colWidths[5];
-        doc.moveTo(x6 + colWidths[6], y).lineTo(x6 + colWidths[6], y + rowHeight).stroke();
+        doc
+          .moveTo(x6 + colWidths[6], y)
+          .lineTo(x6 + colWidths[6], y + rowHeight)
+          .stroke();
 
         const x7 = x6 + colWidths[6];
         this.drawDynamicText(
           doc,
-          `${classHighestTotal ?? "-"}`,
+          `${classHighestTotal ?? '-'}`,
           x7 + 2,
           y,
           colWidths[7] - 4,
           rowHeight,
-          { align: "center", bold: true, fontSize: rowFontSize },
+          { align: 'center', bold: true, fontSize: rowFontSize },
         );
       } else {
         const w01 = colWidths[0] + colWidths[1];
-        this.drawDynamicText(doc, "Total Marks", startX + 5, y, w01 - 10, rowHeight, {
-          align: "right",
+        this.drawDynamicText(doc, 'Total Marks', startX + 5, y, w01 - 10, rowHeight, {
+          align: 'right',
           bold: true,
           fontSize: rowFontSize,
         });
-        doc.moveTo(startX + w01, y).lineTo(startX + w01, y + rowHeight).stroke();
+        doc
+          .moveTo(startX + w01, y)
+          .lineTo(startX + w01, y + rowHeight)
+          .stroke();
 
         const x2 = startX + w01;
         this.drawDynamicText(doc, String(examTotalMarks), x2, y, colWidths[2], rowHeight, {
-          align: "center",
+          align: 'center',
           bold: true,
           fontSize: rowFontSize,
         });
-        doc.moveTo(x2 + colWidths[2], y).lineTo(x2 + colWidths[2], y + rowHeight).stroke();
+        doc
+          .moveTo(x2 + colWidths[2], y)
+          .lineTo(x2 + colWidths[2], y + rowHeight)
+          .stroke();
 
         const x3 = x2 + colWidths[2];
-        doc.moveTo(x3 + colWidths[3], y).lineTo(x3 + colWidths[3], y + rowHeight).stroke();
+        doc
+          .moveTo(x3 + colWidths[3], y)
+          .lineTo(x3 + colWidths[3], y + rowHeight)
+          .stroke();
 
         const x4 = x3 + colWidths[3];
-        doc.moveTo(x4 + colWidths[4], y).lineTo(x4 + colWidths[4], y + rowHeight).stroke();
+        doc
+          .moveTo(x4 + colWidths[4], y)
+          .lineTo(x4 + colWidths[4], y + rowHeight)
+          .stroke();
 
         const x5 = x4 + colWidths[4];
-        this.drawDynamicText(
-          doc,
-          `${classHighestTotal ?? "-"}`,
-          x5,
-          y,
-          colWidths[5],
-          rowHeight,
-          { align: "center", bold: true, fontSize: rowFontSize },
-        );
+        this.drawDynamicText(doc, `${classHighestTotal ?? '-'}`, x5, y, colWidths[5], rowHeight, {
+          align: 'center',
+          bold: true,
+          fontSize: rowFontSize,
+        });
       }
 
       y += rowHeight;
       doc.font(fontRegular).fontSize(rowFontSize);
     };
 
-    let lastType = "exam";
+    let lastType = 'exam';
     let examTotalDrawn = false;
     data.forEach((row: any) => {
       if (row.assessment_type !== lastType) {
-        if (lastType === "exam" && row.assessment_type === "continuous" && !examTotalDrawn) {
+        if (lastType === 'exam' && row.assessment_type === 'continuous' && !examTotalDrawn) {
           drawExamSubjectsTotalRow();
           examTotalDrawn = true;
         }
@@ -3300,24 +3226,21 @@ export class MarksService {
         // Nudge label down so it sits closer to the continuous assessment table.
         const caLabelNudge = 6;
         const caLabelFontSize = headerFontSize + 1;
-        doc
-          .font(fontBold)
-          .fontSize(caLabelFontSize)
-          .fillColor("#000000");
+        doc.font(fontBold).fontSize(caLabelFontSize).fillColor('#000000');
         this.drawDynamicText(
           doc,
-          "Continuous assessment",
+          'Continuous assessment',
           startX,
           y + caLabelNudge,
           contentWidth,
           rowHeight - caLabelNudge,
           {
-            align: "center",
+            align: 'center',
             bold: true,
             fontSize: caLabelFontSize,
           },
         );
-        doc.fillColor("#000000").font(fontRegular).fontSize(rowFontSize);
+        doc.fillColor('#000000').font(fontRegular).fontSize(rowFontSize);
         y += rowHeight;
       }
 
@@ -3337,11 +3260,7 @@ export class MarksService {
           const py = y + pIdx * rowHeight;
           if (pIdx > 0) {
             const hLineEnd = isBreakdown
-              ? startX +
-                colWidths[0] +
-                colWidths[1] +
-                colWidths[2] +
-                colWidths[3]
+              ? startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]
               : startX + colWidths[0] + colWidths[1];
             doc.moveTo(startX, py).lineTo(hLineEnd, py).stroke();
 
@@ -3355,12 +3274,7 @@ export class MarksService {
                 colWidths[4] +
                 colWidths[5] +
                 colWidths[6]
-              : startX +
-                colWidths[0] +
-                colWidths[1] +
-                colWidths[2] +
-                colWidths[3] +
-                colWidths[4];
+              : startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4];
 
             doc
               .moveTo(highestStart, py)
@@ -3378,37 +3292,93 @@ export class MarksService {
             { fontSize: rowFontSize },
           );
           if (isBreakdown) {
-            this.drawDynamicText(doc, paper.cq_marks ?? "-", startX + colWidths[0] + 5, py, colWidths[1] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
-            this.drawDynamicText(doc, paper.mcq_marks ?? "-", startX + colWidths[0] + colWidths[1] + 5, py, colWidths[2] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
-            this.drawDynamicText(doc, paper.practical_marks ?? "-", startX + colWidths[0] + colWidths[1] + colWidths[2] + 5, py, colWidths[3] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
+            this.drawDynamicText(
+              doc,
+              paper.cq_marks ?? '-',
+              startX + colWidths[0] + 5,
+              py,
+              colWidths[1] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
+            this.drawDynamicText(
+              doc,
+              paper.mcq_marks ?? '-',
+              startX + colWidths[0] + colWidths[1] + 5,
+              py,
+              colWidths[2] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
+            this.drawDynamicText(
+              doc,
+              paper.practical_marks ?? '-',
+              startX + colWidths[0] + colWidths[1] + colWidths[2] + 5,
+              py,
+              colWidths[3] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
             // Render Highest Mark for paper in breakdown
-            this.drawDynamicText(doc, paper.highest_mark ? String(paper.highest_mark) : "-", startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + colWidths[5] + colWidths[6] + 5, py, colWidths[7] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
+            this.drawDynamicText(
+              doc,
+              paper.highest_mark ? String(paper.highest_mark) : '-',
+              startX +
+                colWidths[0] +
+                colWidths[1] +
+                colWidths[2] +
+                colWidths[3] +
+                colWidths[4] +
+                colWidths[5] +
+                colWidths[6] +
+                5,
+              py,
+              colWidths[7] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
           } else {
-            this.drawDynamicText(doc, paper.marks ?? "-", startX + colWidths[0] + 5, py, colWidths[1] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
+            this.drawDynamicText(
+              doc,
+              paper.marks ?? '-',
+              startX + colWidths[0] + 5,
+              py,
+              colWidths[1] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
 
             // DO NOT draw full_mark in Column 2 for junior groups to avoid overlap with spanned obtained total
             // (Full marks are already included in parenthesized subject name)
 
             // Render Highest Mark for paper in standard (Column 5)
-            this.drawDynamicText(doc, paper.highest_mark ? String(paper.highest_mark) : "-", startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + 5, py, colWidths[5] - 10, rowHeight, {
-              fontSize: rowFontSize,
-              align: "center",
-            });
+            this.drawDynamicText(
+              doc,
+              paper.highest_mark ? String(paper.highest_mark) : '-',
+              startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + 5,
+              py,
+              colWidths[5] - 10,
+              rowHeight,
+              {
+                fontSize: rowFontSize,
+                align: 'center',
+              },
+            );
           }
         });
 
@@ -3433,8 +3403,7 @@ export class MarksService {
           }
         }
 
-        const mx =
-          startX + colWidths.slice(0, middleStart).reduce((a, b) => a + b, 0);
+        const mx = startX + colWidths.slice(0, middleStart).reduce((a, b) => a + b, 0);
         const fullMark = Number(row.full_mark);
         const hasMarks = row.marks !== null && row.marks !== undefined;
         const grade = hasMarks
@@ -3449,27 +3418,44 @@ export class MarksService {
               pr_pass: row.practical_pass_mark,
               marking_scheme: row.marking_scheme,
             })
-          : { lg: "-", gp: NaN };
+          : { lg: '-', gp: NaN };
 
-        this.drawDynamicText(doc, row.marks ?? "-", mx + 5, y, colWidths[middleStart] - 10, totalHeight, {
-          fontSize: rowFontSize,
-          align: "center",
-        });
-        this.drawDynamicText(doc, grade.lg, mx + colWidths[middleStart] + 5, y, colWidths[middleStart + 1] - 10, totalHeight, {
-          fontSize: rowFontSize,
-          align: "center",
-        });
         this.drawDynamicText(
           doc,
-          Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
+          row.marks ?? '-',
+          mx + 5,
+          y,
+          colWidths[middleStart] - 10,
+          totalHeight,
+          {
+            fontSize: rowFontSize,
+            align: 'center',
+          },
+        );
+        this.drawDynamicText(
+          doc,
+          grade.lg,
+          mx + colWidths[middleStart] + 5,
+          y,
+          colWidths[middleStart + 1] - 10,
+          totalHeight,
+          {
+            fontSize: rowFontSize,
+            align: 'center',
+          },
+        );
+        this.drawDynamicText(
+          doc,
+          Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : '-',
           mx + colWidths[middleStart] + colWidths[middleStart + 1] + 5,
           y,
           colWidths[middleStart + 2] - 10,
           totalHeight,
           {
-          fontSize: rowFontSize,
-          align: "center",
-        });
+            fontSize: rowFontSize,
+            align: 'center',
+          },
+        );
 
         y += totalHeight;
       } else {
@@ -3497,28 +3483,28 @@ export class MarksService {
               className: className,
               marking_scheme: row.marking_scheme,
             })
-          : { lg: "-", gp: NaN };
+          : { lg: '-', gp: NaN };
 
         let cols: string[] = [];
         if (isBreakdown) {
           cols = [
             this.formatSubjectWithFullMark(row.subject, row.full_mark),
-            String(row.cq_marks ?? "-"),
-            String(row.mcq_marks ?? "-"),
-            String(row.practical_marks ?? "-"),
-            String(row.marks ?? "-"),
+            String(row.cq_marks ?? '-'),
+            String(row.mcq_marks ?? '-'),
+            String(row.practical_marks ?? '-'),
+            String(row.marks ?? '-'),
             grade.lg,
-            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
-            row.highest_mark ? String(row.highest_mark) : "-",
+            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : '-',
+            row.highest_mark ? String(row.highest_mark) : '-',
           ];
         } else {
           cols = [
             this.formatSubjectWithFullMark(row.subject, row.full_mark),
-            String(row.marks ?? "-"),
-            String(row.marks ?? "-"),
+            String(row.marks ?? '-'),
+            String(row.marks ?? '-'),
             grade.lg,
-            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : "-",
-            row.highest_mark ? String(row.highest_mark) : "-",
+            Number.isFinite(grade.gp) ? grade.gp.toFixed(2) : '-',
+            row.highest_mark ? String(row.highest_mark) : '-',
           ];
         }
 
@@ -3526,7 +3512,7 @@ export class MarksService {
         cols.forEach((c, i) => {
           this.drawDynamicText(doc, c, currentX + 5, y, colWidths[i] - 10, rowHeight, {
             fontSize: rowFontSize,
-            align: i === 0 ? "left" : "center",
+            align: i === 0 ? 'left' : 'center',
           });
           currentX += colWidths[i];
         });
@@ -3546,11 +3532,11 @@ export class MarksService {
     options: { fontSize?: number; align?: string; font?: string; bold?: boolean } = {},
   ) {
     const fontSize = options.fontSize || 10;
-    const align = options.align || "left";
-    const font = options.bold ? "Times-Bold" : (options.font || "Times-Roman");
+    const align = options.align || 'left';
+    const font = options.bold ? 'Times-Bold' : options.font || 'Times-Roman';
     doc.font(font).fontSize(fontSize);
 
-    const stringText = String(text ?? "-");
+    const stringText = String(text ?? '-');
     const actualWidth = doc.widthOfString(stringText);
     const textHeight = doc.currentLineHeight();
     const verticalOffset = Math.max(0, (maxHeight - textHeight) / 2);
@@ -3581,50 +3567,42 @@ export class MarksService {
     return fontSize;
   }
 
-
   private static drawGradingSystemTable(doc: any, x: number, y: number) {
-
     const grades = [
-      { range: "80% - 100%", lg: "A+", gp: "5.00" },
-      { range: "70% - 79%", lg: "A", gp: "4.00" },
-      { range: "60% - 69%", lg: "A-", gp: "3.50" },
-      { range: "50% - 59%", lg: "B", gp: "3.00" },
-      { range: "40% - 49%", lg: "C", gp: "2.00" },
-      { range: "33% - 39%", lg: "D", gp: "1.00" },
-      { range: "0% - 32%", lg: "F", gp: "0.00" },
+      { range: '80% - 100%', lg: 'A+', gp: '5.00' },
+      { range: '70% - 79%', lg: 'A', gp: '4.00' },
+      { range: '60% - 69%', lg: 'A-', gp: '3.50' },
+      { range: '50% - 59%', lg: 'B', gp: '3.00' },
+      { range: '40% - 49%', lg: 'C', gp: '2.00' },
+      { range: '33% - 39%', lg: 'D', gp: '1.00' },
+      { range: '0% - 32%', lg: 'F', gp: '0.00' },
     ];
 
     const rowWidth = 120;
     const rowHeight = 11;
     const colWidths = [50, 35, 35];
 
+    doc.lineWidth(0.5).rect(x, y, rowWidth, rowHeight).fillAndStroke('#d1d1d1', '#000000');
     doc
-      .lineWidth(0.5)
-      .rect(x, y, rowWidth, rowHeight)
-      .fillAndStroke("#d1d1d1", "#000000");
-    doc
-      .fillColor("#000000")
-      .font("Times-Bold")
+      .fillColor('#000000')
+      .font('Times-Bold')
       .fontSize(7)
-      .text("GRADING SYSTEM CHART", x, y + 2, {
-        align: "center",
+      .text('GRADING SYSTEM CHART', x, y + 2, {
+        align: 'center',
         width: rowWidth,
       });
 
     y += rowHeight;
 
-    doc
-      .lineWidth(0.5)
-      .rect(x, y, rowWidth, rowHeight)
-      .fillAndStroke("#e5e5e5", "#000000");
-    doc.fillColor("#000000").font("Times-Bold").fontSize(7);
+    doc.lineWidth(0.5).rect(x, y, rowWidth, rowHeight).fillAndStroke('#e5e5e5', '#000000');
+    doc.fillColor('#000000').font('Times-Bold').fontSize(7);
 
     let curX = x;
-    const headers = ["Marks Range", "LG", "GP"];
+    const headers = ['Marks Range', 'LG', 'GP'];
     headers.forEach((h, i) => {
       doc.text(h, curX + 2, y + 2, {
         width: colWidths[i] - 4,
-        align: "center",
+        align: 'center',
       });
       if (i < headers.length - 1) {
         doc
@@ -3636,7 +3614,7 @@ export class MarksService {
     });
 
     y += rowHeight;
-    doc.font("Times-Roman").fontSize(7);
+    doc.font('Times-Roman').fontSize(7);
 
     grades.forEach((g) => {
       doc.lineWidth(0.5).rect(x, y, rowWidth, rowHeight).stroke();
@@ -3645,7 +3623,7 @@ export class MarksService {
       values.forEach((v, i) => {
         doc.text(String(v), curX + 2, y + 2, {
           width: colWidths[i] - 4,
-          align: "center",
+          align: 'center',
         });
         if (i < values.length - 1) {
           doc
@@ -3689,7 +3667,7 @@ export class MarksService {
   //   doc
   //     .rect(startX, y, contentWidth, rowHeight)
   //     .fillAndStroke("#f3f4f6", "#000000");
-    
+
   //   this.drawDynamicText(doc, headers[0], startX + 5, y, subjectWidth - 10, rowHeight, {
   //     fontSize: headerFontSize,
   //     bold: true,
@@ -3734,7 +3712,7 @@ export class MarksService {
   //       .moveTo(startX + subjectWidth, y)
   //       .lineTo(startX + subjectWidth, y + rowHeight)
   //       .stroke();
-      
+
   //     exams.forEach((exam, i) => {
   //       const curX = startX + subjectWidth + i * colWidth;
   //       if (i < exams.length - 1) {
@@ -3766,7 +3744,7 @@ export class MarksService {
   //     .moveTo(startX + subjectWidth, y)
   //     .lineTo(startX + subjectWidth, y + rowHeight)
   //     .stroke();
-    
+
   //   exams.forEach((exam, i) => {
   //     const curX = startX + subjectWidth + i * colWidth;
   //     if (i < exams.length - 1) {
@@ -3799,7 +3777,7 @@ export class MarksService {
   //     .moveTo(startX + subjectWidth, y)
   //     .lineTo(startX + subjectWidth, y + rowHeight)
   //     .stroke();
-    
+
   //   exams.forEach((exam, i) => {
   //     const curX = startX + subjectWidth + i * colWidth;
   //     if (i < exams.length - 1) {
@@ -3817,7 +3795,6 @@ export class MarksService {
   // }
 
   static async updateFourthSubject(
-
     studentId: string,
     year: string,
     subjectId: number | null,
@@ -3831,15 +3808,11 @@ export class MarksService {
     });
 
     if (!enrollment) {
-      throw new Error("Student enrollment not found for specified year");
+      throw new Error('Student enrollment not found for specified year');
     }
 
-    if (
-      !this.checkAccess(user, sId, enrollment.class, enrollment.section, yInt)
-    ) {
-      throw new Error(
-        "You are not authorized to update this student's 4th subject",
-      );
+    if (!this.checkAccess(user, sId, enrollment.class, enrollment.section, yInt)) {
+      throw new Error("You are not authorized to update this student's 4th subject");
     }
 
     const updated = await prisma.student_enrollments.update({
@@ -3855,18 +3828,18 @@ export class MarksService {
           enrollment_id: enrollment.id,
           exam: { exam_year: yInt },
         },
-        distinct: ["exam_id"],
+        distinct: ['exam_id'],
         select: { exam_id: true },
       });
       if (affectedExams.length > 0) {
-        const { MarksheetService } = await import("./marksheet.service.js");
+        const { MarksheetService } = await import('./marksheet.service.js');
         for (const { exam_id } of affectedExams) {
           await MarksheetService.invalidate([sId], exam_id);
         }
       }
     } catch (invErr) {
       console.warn(
-        "Marksheet invalidation failed after updateFourthSubject:",
+        'Marksheet invalidation failed after updateFourthSubject:',
         invErr instanceof Error ? invErr.message : invErr,
       );
     }
@@ -3886,23 +3859,21 @@ export class MarksService {
     user: any,
     group?: string | null,
   ) {
-    if (user?.role !== "admin") {
-      throw new Error("Only admin can bulk-update 4th subjects");
+    if (user?.role !== 'admin') {
+      throw new Error('Only admin can bulk-update 4th subjects');
     }
     if (classNum !== 9 && classNum !== 10) {
-      throw new Error("Bulk 4th subject update is only for class 9 or 10");
+      throw new Error('Bulk 4th subject update is only for class 9 or 10');
     }
     if (!Number.isFinite(year) || year < 2000) {
-      throw new Error("Valid year is required");
+      throw new Error('Valid year is required');
     }
-    const groupName = typeof group === "string" ? group.trim() : "";
+    const groupName = typeof group === 'string' ? group.trim() : '';
     if (!groupName) {
-      throw new Error("Group is required (Science, Commerce, or Humanities)");
+      throw new Error('Group is required (Science, Commerce, or Humanities)');
     }
-    if (!["Science", "Commerce", "Humanities"].includes(groupName)) {
-      throw new Error(
-        `Invalid group: ${groupName}. Allowed: Science, Commerce, Humanities`,
-      );
+    if (!['Science', 'Commerce', 'Humanities'].includes(groupName)) {
+      throw new Error(`Invalid group: ${groupName}. Allowed: Science, Commerce, Humanities`);
     }
 
     if (subjectId != null) {
@@ -3916,13 +3887,13 @@ export class MarksService {
         },
       });
       if (!subject) {
-        throw new Error("Subject not found");
+        throw new Error('Subject not found');
       }
       if (subject.class !== classNum) {
         throw new Error(`Subject belongs to class ${subject.class}, not ${classNum}`);
       }
-      if (subject.subject_type === "main") {
-        throw new Error("Cannot set a main (group) subject as 4th subject");
+      if (subject.subject_type === 'main') {
+        throw new Error('Cannot set a main (group) subject as 4th subject');
       }
       if (subject.group && subject.group !== groupName) {
         throw new Error(
@@ -3960,18 +3931,18 @@ export class MarksService {
           enrollment_id: { in: enrollmentIds },
           exam: { exam_year: year },
         },
-        distinct: ["exam_id"],
+        distinct: ['exam_id'],
         select: { exam_id: true },
       });
       if (affectedExams.length > 0) {
-        const { MarksheetService } = await import("./marksheet.service.js");
+        const { MarksheetService } = await import('./marksheet.service.js');
         for (const { exam_id } of affectedExams) {
           await MarksheetService.invalidate(studentIds, exam_id);
         }
       }
     } catch (invErr) {
       console.warn(
-        "Marksheet invalidation failed after bulkUpdateFourthSubject:",
+        'Marksheet invalidation failed after bulkUpdateFourthSubject:',
         invErr instanceof Error ? invErr.message : invErr,
       );
     }

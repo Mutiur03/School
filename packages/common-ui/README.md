@@ -20,13 +20,13 @@ Use shared components without extra setup:
 ## Usage
 
 ```tsx
-import { Badge, Button, Card, Input } from "@school/common-ui";
+import { Badge, Button, Card, Input } from '@school/common-ui';
 
 export function Demo() {
   return (
     <Card title="Quick Form" subtitle="No custom setup needed">
       <Input label="Student name" placeholder="Type name" helperText="Required" />
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <Button>Save</Button>
         <Button variant="secondary">Cancel</Button>
         <Badge tone="success">Active</Badge>

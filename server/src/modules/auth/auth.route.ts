@@ -1,6 +1,6 @@
-import express from "express";
-import { AuthController } from "@/modules/auth/auth.controller.js";
-import { validate } from "@/middlewares/validate.middleware.js";
+import express from 'express';
+import { AuthController } from '@/modules/auth/auth.controller.js';
+import { validate } from '@/middlewares/validate.middleware.js';
 import {
   adminLoginSchema,
   addAdminSchema,
@@ -14,18 +14,18 @@ import {
   studentPasswordUpdateSchema,
   setupSuperAdminSchema,
   superAdminLoginSchema,
-} from "@school/shared-schemas";
-import rateLimit from "express-rate-limit";
-import { MemoryStore } from "express-rate-limit";
-import { requireSchoolContextOrSuperAdminHostMiddleware } from "@/middlewares/access.middleware.js";
-import AuthMiddleware from "@/middlewares/auth.middleware.js";
+} from '@school/shared-schemas';
+import rateLimit from 'express-rate-limit';
+import { MemoryStore } from 'express-rate-limit';
+import { requireSchoolContextOrSuperAdminHostMiddleware } from '@/middlewares/access.middleware.js';
+import AuthMiddleware from '@/middlewares/auth.middleware.js';
 
 const authStore = new MemoryStore();
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 500 : 100,
+  max: process.env.NODE_ENV === 'development' ? 500 : 100,
   message: {
-    message: "Too many attempts, please try again after 15 minutes",
+    message: 'Too many attempts, please try again after 15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -37,9 +37,9 @@ const authLimiter = rateLimit({
 const sessionStore = new MemoryStore();
 const sessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 2000 : 600,
+  max: process.env.NODE_ENV === 'development' ? 2000 : 600,
   message: {
-    message: "Too many session requests, please try again after 15 minutes",
+    message: 'Too many session requests, please try again after 15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -51,8 +51,7 @@ const passwordResetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
   message: {
-    message:
-      "Too many password reset attempts, please try again after 15 minutes",
+    message: 'Too many password reset attempts, please try again after 15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -60,100 +59,76 @@ const passwordResetLimiter = rateLimit({
 });
 
 const superAdminRouter = express.Router();
+superAdminRouter.post('/setup', validate(setupSuperAdminSchema), AuthController.setupSuperAdmin);
+superAdminRouter.post('/sessions', validate(superAdminLoginSchema), AuthController.superAdminLogin);
 superAdminRouter.post(
-  "/setup",
-  validate(setupSuperAdminSchema),
-  AuthController.setupSuperAdmin,
-);
-superAdminRouter.post(
-  "/sessions",
-  validate(superAdminLoginSchema),
-  AuthController.superAdminLogin,
-);
-superAdminRouter.post(
-  "/schools/:schoolId/admins",
-  AuthMiddleware.authenticate(["super_admin"]),
+  '/schools/:schoolId/admins',
+  AuthMiddleware.authenticate(['super_admin']),
   validate(addAdminSchema),
   AuthController.addAdminForSchool,
 );
 superAdminRouter.get(
-  "/schools/:schoolId/admins",
-  AuthMiddleware.authenticate(["super_admin"]),
+  '/schools/:schoolId/admins',
+  AuthMiddleware.authenticate(['super_admin']),
   AuthController.listAdminsForSchool,
 );
 superAdminRouter.delete(
-  "/schools/:schoolId/admins/:adminId",
-  AuthMiddleware.authenticate(["super_admin"]),
+  '/schools/:schoolId/admins/:adminId',
+  AuthMiddleware.authenticate(['super_admin']),
   AuthController.deleteAdminForSchool,
 );
 
 const sessionRouter = express.Router();
 sessionRouter.use(requireSchoolContextOrSuperAdminHostMiddleware);
-sessionRouter.post("/refresh", sessionLimiter, AuthController.refresh_token);
-sessionRouter.delete("/", sessionLimiter, AuthController.logout);
+sessionRouter.post('/refresh', sessionLimiter, AuthController.refresh_token);
+sessionRouter.delete('/', sessionLimiter, AuthController.logout);
 
 const tenantRouter = express.Router();
+tenantRouter.post('/admin/sessions', validate(adminLoginSchema), AuthController.login);
+tenantRouter.post('/student/sessions', validate(studentLoginSchema), AuthController.student_login);
+tenantRouter.post('/teacher/sessions', validate(teacherLoginSchema), AuthController.teacher_login);
 tenantRouter.post(
-  "/admin/sessions",
-  validate(adminLoginSchema),
-  AuthController.login,
-);
-tenantRouter.post(
-  "/student/sessions",
-  validate(studentLoginSchema),
-  AuthController.student_login,
-);
-tenantRouter.post(
-  "/teacher/sessions",
-  validate(teacherLoginSchema),
-  AuthController.teacher_login,
-);
-tenantRouter.post(
-  "/teacher/password-reset/request",
+  '/teacher/password-reset/request',
   passwordResetLimiter,
   validate(teacherPasswordResetRequestSchema),
   AuthController.requestTeacherPasswordReset,
 );
 tenantRouter.post(
-  "/teacher/password-reset/check-code",
+  '/teacher/password-reset/check-code',
   passwordResetLimiter,
   validate(teacherPasswordResetCodeVerifySchema),
   AuthController.checkTeacherPasswordResetCode,
 );
 tenantRouter.post(
-  "/teacher/password-reset/verify",
+  '/teacher/password-reset/verify',
   passwordResetLimiter,
   validate(teacherPasswordUpdateSchema),
   AuthController.verifyTeacherPasswordReset,
 );
 tenantRouter.post(
-  "/student/password-reset/request",
+  '/student/password-reset/request',
   passwordResetLimiter,
   validate(studentPasswordResetRequestSchema),
   AuthController.requestStudentPasswordReset,
 );
 tenantRouter.post(
-  "/student/password-reset/check-code",
+  '/student/password-reset/check-code',
   passwordResetLimiter,
   validate(studentPasswordResetCodeVerifySchema),
   AuthController.checkStudentPasswordResetCode,
 );
 tenantRouter.post(
-  "/student/password-reset/verify",
+  '/student/password-reset/verify',
   passwordResetLimiter,
   validate(studentPasswordUpdateSchema),
   AuthController.verifyStudentPasswordReset,
 );
 
 export const superAdminAuthRouter = express.Router();
-superAdminAuthRouter.use(
-  "/api/auth/super_admin",
-  authLimiter,
-  superAdminRouter,
-);
+superAdminAuthRouter.use('/api/auth/super_admin', authLimiter, superAdminRouter);
 
 export const sharedAuthSessionRouter = express.Router();
-sharedAuthSessionRouter.use("/api/auth/sessions", sessionRouter);
+sharedAuthSessionRouter.use('/api/auth/sessions', sessionRouter);
 
 export const tenantAuthRouter = express.Router();
-tenantAuthRouter.use("/api/auth", authLimiter, tenantRouter);
+tenantAuthRouter.use('/api/auth', authLimiter, tenantRouter);

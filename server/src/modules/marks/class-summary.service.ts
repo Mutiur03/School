@@ -1,19 +1,19 @@
-import PDFDocument from "pdfkit";
-import fs from "fs";
-import { prisma } from "@/config/prisma.js";
-import { getRlsContext } from "@/config/rlsContextStore.js";
-import { ApiError } from "@/utils/ApiError.js";
-import { MarksService } from "./marks.service.js";
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import { prisma } from '@/config/prisma.js';
+import { getRlsContext } from '@/config/rlsContextStore.js';
+import { ApiError } from '@/utils/ApiError.js';
+import { MarksService } from './marks.service.js';
 
 type SubjectCol =
   | {
-      kind: "paper";
+      kind: 'paper';
       subjectId: number;
       name: string;
       priority: number;
     }
   | {
-      kind: "single";
+      kind: 'single';
       subjectId: number;
       name: string;
       priority: number;
@@ -26,7 +26,7 @@ type StudentSummaryRow = {
   cells: Record<
     number,
     | {
-        kind: "paper";
+        kind: 'paper';
         first: number;
         second: number;
         total: number;
@@ -34,7 +34,7 @@ type StudentSummaryRow = {
         gp: number;
       }
     | {
-        kind: "single";
+        kind: 'single';
         mark: number;
         lg: string;
         gp: number;
@@ -51,15 +51,15 @@ type ColSpan = {
 };
 
 const CLASS_NAMES: Record<string, string> = {
-  "6": "Six",
-  "7": "Seven",
-  "8": "Eight",
-  "9": "Nine",
-  "10": "Ten",
+  '6': 'Six',
+  '7': 'Seven',
+  '8': 'Eight',
+  '9': 'Nine',
+  '10': 'Ten',
 };
 
 /** US Legal portrait in PDF points; landscape is applied via layout. */
-const LEGAL_SIZE = "LEGAL";
+const LEGAL_SIZE = 'LEGAL';
 const PAGE_MARGIN = 14;
 /** Match Excel column character widths, with a wider Names column. */
 const COL_UNITS = { roll: 8, name: 28, cell: 6 } as const;
@@ -69,29 +69,29 @@ const CLASSLINE_H = 13;
 const HEADER_ROW_H = 14;
 const DATA_ROW_H = 13;
 const FOOTER_RESERVE = 10;
-const HEADER_FILL = "#F3F4F6";
-const BORDER = "#000000";
-const TEXT = "#000000";
+const HEADER_FILL = '#F3F4F6';
+const BORDER = '#000000';
+const TEXT = '#000000';
 /** Below this cell width (pt), shrink fonts/rows so content still fits. */
 const COMFORTABLE_CELL_W = 18;
 const MIN_FONT = 4.5;
 const MIN_DATA_ROW_H = 9;
 const MIN_HEADER_ROW_H = 9;
 
-const FONT_REGULAR = "Times-Roman";
-const FONT_BOLD = "Times-Bold";
+const FONT_REGULAR = 'Times-Roman';
+const FONT_BOLD = 'Times-Bold';
 const TIMES_FONT_PATHS = {
   regular: [
     process.env.MARKSHEET_FONT_REGULAR,
-    "C:\\Windows\\Fonts\\times.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    'C:\\Windows\\Fonts\\times.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
   ].filter(Boolean) as string[],
   bold: [
     process.env.MARKSHEET_FONT_BOLD,
-    "C:\\Windows\\Fonts\\timesbd.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    'C:\\Windows\\Fonts\\timesbd.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
   ].filter(Boolean) as string[],
 };
 
@@ -107,11 +107,7 @@ function classText(classNum: number | string): string {
   return CLASS_NAMES[String(classNum)] || String(classNum);
 }
 
-function gradeForRow(
-  row: any,
-  classNum: number,
-  fourthSubjectId: number | null,
-) {
+function gradeForRow(row: any, classNum: number, fourthSubjectId: number | null) {
   const obtained = Number(row.marks);
   const fullMark = Number(row.full_mark || 100);
   const safeObtained = Number.isFinite(obtained) ? obtained : 0;
@@ -142,7 +138,7 @@ function countFailed(
 ): number {
   let failed = 0;
   for (const row of rows) {
-    if (row.assessment_type !== "exam") continue;
+    if (row.assessment_type !== 'exam') continue;
     const obtained = Number(row.marks);
     if (!Number.isFinite(obtained)) {
       const isOptional = row.subject_id === fourthSubjectId;
@@ -152,13 +148,13 @@ function countFailed(
     const isOptional = row.subject_id === fourthSubjectId;
     const grade = gradeForRow(row, classNum, fourthSubjectId);
     if (isOptional && applyBonus) continue;
-    if (grade.lg === "F") failed++;
+    if (grade.lg === 'F') failed++;
   }
   return failed;
 }
 
 function sectionSortKey(section: string | null): string {
-  return (section || "").trim().toUpperCase() || "~";
+  return (section || '').trim().toUpperCase() || '~';
 }
 
 function groupRowsBySection(
@@ -166,7 +162,7 @@ function groupRowsBySection(
 ): { section: string; rows: StudentSummaryRow[] }[] {
   const map = new Map<string, StudentSummaryRow[]>();
   for (const row of rows) {
-    const key = (row.section || "").trim() || "—";
+    const key = (row.section || '').trim() || '—';
     const list = map.get(key);
     if (list) list.push(row);
     else map.set(key, [row]);
@@ -178,8 +174,7 @@ function groupRowsBySection(
       section,
       rows: sectionRows.sort(
         (x, y) =>
-          (x.roll ?? Number.MAX_SAFE_INTEGER) -
-            (y.roll ?? Number.MAX_SAFE_INTEGER) ||
+          (x.roll ?? Number.MAX_SAFE_INTEGER) - (y.roll ?? Number.MAX_SAFE_INTEGER) ||
           x.name.localeCompare(y.name),
       ),
     }));
@@ -192,18 +187,18 @@ export class ClassSummaryService {
     year: number,
     sectionQuery?: string,
   ): string | null {
-    if (user?.role === "teacher") {
+    if (user?.role === 'teacher') {
       const assignedSections = (user.levels ?? [])
         .filter((l: any) => l.class_name === cls && l.year === year)
         .map((l: any) => l.section)
         .filter(Boolean) as string[];
 
       if (assignedSections.length === 0) {
-        throw new ApiError(403, "You are not assigned to this class.");
+        throw new ApiError(403, 'You are not assigned to this class.');
       }
       if (sectionQuery) {
         if (!assignedSections.includes(sectionQuery)) {
-          throw new ApiError(403, "You are not assigned to this section.");
+          throw new ApiError(403, 'You are not assigned to this section.');
         }
         return sectionQuery;
       }
@@ -223,15 +218,10 @@ export class ClassSummaryService {
     const cls = Number(className);
     const yearInt = parseInt(year, 10);
     if (!Number.isFinite(cls) || !Number.isFinite(yearInt)) {
-      throw new ApiError(400, "Invalid class or year");
+      throw new ApiError(400, 'Invalid class or year');
     }
 
-    const sectionFilter = this.resolveSectionScope(
-      user,
-      cls,
-      yearInt,
-      sectionQuery,
-    );
+    const sectionFilter = this.resolveSectionScope(user, cls, yearInt, sectionQuery);
 
     const where: any = {
       class: cls,
@@ -240,7 +230,7 @@ export class ClassSummaryService {
 
     if (sectionFilter) {
       where.section = sectionFilter;
-    } else if (user?.role === "teacher") {
+    } else if (user?.role === 'teacher') {
       const assignedSections = (user.levels ?? [])
         .filter((l: any) => l.class_name === cls && l.year === yearInt)
         .map((l: any) => l.section)
@@ -288,11 +278,7 @@ export class ClassSummaryService {
             },
           },
         },
-        orderBy: [
-          { section: "asc" },
-          { roll: "asc" },
-          { student: { name: "asc" } },
-        ],
+        orderBy: [{ section: 'asc' }, { roll: 'asc' }, { student: { name: 'asc' } }],
       }),
       MarksService.loadMarksheetSubjects(cls, yearInt),
       MarksService.shouldApplyFourthSubjectBonus(cls, yearInt),
@@ -303,11 +289,10 @@ export class ClassSummaryService {
     );
 
     if (withMarks.length === 0) {
-      throw new ApiError(404, "No marks found for this class and exam");
+      throw new ApiError(404, 'No marks found for this class and exam');
     }
 
-    const examId =
-      withMarks[0].marks[0]?.exam_id ?? withMarks[0].marks[0]?.exam?.id;
+    const examId = withMarks[0].marks[0]?.exam_id ?? withMarks[0].marks[0]?.exam?.id;
 
     const studentRows: StudentSummaryRow[] = [];
     const colMap = new Map<number, SubjectCol>();
@@ -346,32 +331,25 @@ export class ClassSummaryService {
         }
       }
 
-      const examRows = aggregated.filter(
-        (r: any) => r.assessment_type === "exam",
-      );
+      const examRows = aggregated.filter((r: any) => r.assessment_type === 'exam');
       const fourthId = enrollment.fourth_subject_id ?? null;
-      const { gpa, totalMarks } = MarksService.calculateGPA(
-        examRows,
-        fourthId,
-        applyBonus,
-        cls,
-      );
+      const { gpa, totalMarks } = MarksService.calculateGPA(examRows, fourthId, applyBonus, cls);
       const failed = countFailed(examRows, cls, fourthId, applyBonus);
 
-      const cells: StudentSummaryRow["cells"] = {};
+      const cells: StudentSummaryRow['cells'] = {};
       for (const row of examRows) {
         const subjectId = row.subject_id as number;
         if (!colMap.has(subjectId)) {
           if (row.isGroup) {
             colMap.set(subjectId, {
-              kind: "paper",
+              kind: 'paper',
               subjectId,
               name: row.subject,
               priority: row.priority ?? 0,
             });
           } else {
             colMap.set(subjectId, {
-              kind: "single",
+              kind: 'single',
               subjectId,
               name: row.subject,
               priority: row.priority ?? 0,
@@ -388,7 +366,7 @@ export class ClassSummaryService {
           const second = Number(papers[1]?.marks);
           const total = Number(row.marks);
           cells[subjectId] = {
-            kind: "paper",
+            kind: 'paper',
             first: Number.isFinite(first) ? first : 0,
             second: Number.isFinite(second) ? second : 0,
             total: Number.isFinite(total) ? total : 0,
@@ -398,7 +376,7 @@ export class ClassSummaryService {
         } else {
           const mark = Number(row.marks);
           cells[subjectId] = {
-            kind: "single",
+            kind: 'single',
             mark: Number.isFinite(mark) ? mark : 0,
             lg: grade.lg,
             gp: grade.gp,
@@ -422,7 +400,7 @@ export class ClassSummaryService {
     );
 
     const buffer = await this.buildPdf({
-      schoolName: school?.name ?? "School",
+      schoolName: school?.name ?? 'School',
       exam,
       year: yearInt,
       classNum: cls,
@@ -430,8 +408,11 @@ export class ClassSummaryService {
       rows: studentRows,
     });
 
-    const sectionPart = sectionFilter ? String(sectionFilter) : "All";
-    const safeExam = exam.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_");
+    const sectionPart = sectionFilter ? String(sectionFilter) : 'All';
+    const safeExam = exam
+      .replace(/[^\w\- ]+/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
     const filename = `${cls}${sectionPart}_Summary_${safeExam}_${yearInt}.pdf`;
 
     return { buffer, filename };
@@ -453,12 +434,8 @@ export class ClassSummaryService {
     const contentX = PAGE_MARGIN;
 
     // Same column proportions as the Excel sheet (8 / 22 / 6…).
-    const subjectUnits = columns.reduce(
-      (s, c) => s + (c.kind === "paper" ? 5 : 3),
-      0,
-    );
-    const totalCharUnits =
-      COL_UNITS.roll + COL_UNITS.name + COL_UNITS.cell * (subjectUnits + 3);
+    const subjectUnits = columns.reduce((s, c) => s + (c.kind === 'paper' ? 5 : 3), 0);
+    const totalCharUnits = COL_UNITS.roll + COL_UNITS.name + COL_UNITS.cell * (subjectUnits + 3);
     const u = contentW / totalCharUnits;
     const rollW = COL_UNITS.roll * u;
     const nameW = COL_UNITS.name * u;
@@ -474,23 +451,20 @@ export class ClassSummaryService {
 
     const spans: ColSpan[] = [];
     for (const col of columns) {
-      const n = col.kind === "paper" ? 5 : 3;
+      const n = col.kind === 'paper' ? 5 : 3;
       spans.push({ col, widths: Array.from({ length: n }, () => cellW) });
     }
     const totalMarksW = cellW;
     const gpaW = cellW;
     const failedW = cellW;
 
-    const subjectsW = spans.reduce(
-      (s, sp) => s + sp.widths.reduce((a, b) => a + b, 0),
-      0,
-    );
+    const subjectsW = spans.reduce((s, sp) => s + sp.widths.reduce((a, b) => a + b, 0), 0);
     const totalsX = contentX + rollW + nameW + subjectsW;
 
     const sections = groupRowsBySection(rows);
     const doc = new (PDFDocument as any)({
       size: LEGAL_SIZE,
-      layout: "landscape",
+      layout: 'landscape',
       margin: PAGE_MARGIN,
       autoFirstPage: false,
       info: {
@@ -500,7 +474,7 @@ export class ClassSummaryService {
     });
 
     const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     registerSummaryFonts(doc);
 
     const fillRect = (x: number, y: number, w: number, h: number, color: string) => {
@@ -513,12 +487,7 @@ export class ClassSummaryService {
       doc.lineWidth(0.5).strokeColor(BORDER).rect(x, y, w, h).stroke();
     };
 
-    const fitFontSize = (
-      text: string,
-      maxW: number,
-      preferred: number,
-      bold: boolean,
-    ): number => {
+    const fitFontSize = (text: string, maxW: number, preferred: number, bold: boolean): number => {
       doc.font(bold ? FONT_BOLD : FONT_REGULAR);
       let size = preferred;
       while (size > MIN_FONT) {
@@ -531,7 +500,7 @@ export class ClassSummaryService {
 
     const truncateToWidth = (text: string, maxW: number): string => {
       if (doc.widthOfString(text) <= maxW) return text;
-      const ellipsis = "…";
+      const ellipsis = '…';
       let lo = 0;
       let hi = text.length;
       while (lo < hi) {
@@ -552,14 +521,14 @@ export class ClassSummaryService {
       opts: {
         bold?: boolean;
         size?: number;
-        align?: "left" | "center";
+        align?: 'left' | 'center';
         wrap?: boolean;
         /** Shrink font to fit; truncate only if still too wide at min size. */
         compact?: boolean;
       } = {},
     ) => {
       const preferred = opts.size ?? dataFont;
-      const align = opts.align ?? "center";
+      const align = opts.align ?? 'center';
       const bold = !!opts.bold;
       const prevX = doc.x;
       const prevY = doc.y;
@@ -614,7 +583,7 @@ export class ClassSummaryService {
           width: innerW,
           align,
           lineBreak: false,
-          baseline: "middle",
+          baseline: 'middle',
         });
       }
 
@@ -623,15 +592,11 @@ export class ClassSummaryService {
       doc.y = prevY;
     };
 
-    const drawCentered = (
-      text: string,
-      y: number,
-      fontSize: number,
-    ) => {
+    const drawCentered = (text: string, y: number, fontSize: number) => {
       doc.font(FONT_BOLD).fontSize(fontSize).fillColor(TEXT);
       doc.text(text, contentX, y, {
         width: contentW,
-        align: "center",
+        align: 'center',
         lineBreak: false,
       });
     };
@@ -655,12 +620,12 @@ export class ClassSummaryService {
       fillRect(contentX, y, contentW, headerH, HEADER_FILL);
 
       strokeRect(contentX, y, rollW, headerH);
-      writeInBox("Roll No", contentX, y, rollW, headerH, {
+      writeInBox('Roll No', contentX, y, rollW, headerH, {
         bold: true,
         size: headerLabelFont,
       });
       strokeRect(contentX + rollW, y, nameW, headerH);
-      writeInBox("Names", contentX + rollW, y, nameW, headerH, {
+      writeInBox('Names', contentX + rollW, y, nameW, headerH, {
         bold: true,
         size: headerLabelFont,
       });
@@ -669,7 +634,7 @@ export class ClassSummaryService {
         const x0 = spanX(span);
         const blockW = span.widths.reduce((a, b) => a + b, 0);
 
-        if (span.col.kind === "paper") {
+        if (span.col.kind === 'paper') {
           strokeRect(x0, y, blockW, h1);
           writeInBox(span.col.name, x0, y, blockW, h1, {
             bold: true,
@@ -677,33 +642,23 @@ export class ClassSummaryService {
           });
 
           strokeRect(x0, y + h1, span.widths[0], h2);
-          writeInBox("1st", x0, y + h1, span.widths[0], h2, {
+          writeInBox('1st', x0, y + h1, span.widths[0], h2, {
             bold: true,
             size: headerFont,
           });
           strokeRect(x0 + span.widths[0], y + h1, span.widths[1], h2);
-          writeInBox("2nd", x0 + span.widths[0], y + h1, span.widths[1], h2, {
+          writeInBox('2nd', x0 + span.widths[0], y + h1, span.widths[1], h2, {
             bold: true,
             size: headerFont,
           });
-          const totalBlockW =
-            span.widths[2] + span.widths[3] + span.widths[4];
-          strokeRect(
-            x0 + span.widths[0] + span.widths[1],
-            y + h1,
-            totalBlockW,
-            h2,
-          );
-          writeInBox(
-            "Total",
-            x0 + span.widths[0] + span.widths[1],
-            y + h1,
-            totalBlockW,
-            h2,
-            { bold: true, size: headerFont },
-          );
+          const totalBlockW = span.widths[2] + span.widths[3] + span.widths[4];
+          strokeRect(x0 + span.widths[0] + span.widths[1], y + h1, totalBlockW, h2);
+          writeInBox('Total', x0 + span.widths[0] + span.widths[1], y + h1, totalBlockW, h2, {
+            bold: true,
+            size: headerFont,
+          });
 
-          const sub = ["Mark", "Mark", "Mark", "LG", "GP"];
+          const sub = ['Mark', 'Mark', 'Mark', 'LG', 'GP'];
           let sx = x0;
           for (let i = 0; i < 5; i++) {
             strokeRect(sx, y + h1 + h2, span.widths[i], h3);
@@ -719,7 +674,7 @@ export class ClassSummaryService {
             bold: true,
             size: headerFont,
           });
-          const sub = ["Mark", "LG", "GP"];
+          const sub = ['Mark', 'LG', 'GP'];
           let sx = x0;
           for (let i = 0; i < 3; i++) {
             strokeRect(sx, y + h1 + h2, span.widths[i], h3);
@@ -733,25 +688,22 @@ export class ClassSummaryService {
       }
 
       strokeRect(totalsX, y, totalMarksW, headerH);
-      writeInBox("Total Marks", totalsX, y, totalMarksW, headerH, {
+      writeInBox('Total Marks', totalsX, y, totalMarksW, headerH, {
         bold: true,
         size: headerFont,
         wrap: true,
       });
       strokeRect(totalsX + totalMarksW, y, gpaW, headerH);
-      writeInBox("GPA", totalsX + totalMarksW, y, gpaW, headerH, {
+      writeInBox('GPA', totalsX + totalMarksW, y, gpaW, headerH, {
         bold: true,
         size: headerLabelFont,
       });
       strokeRect(totalsX + totalMarksW + gpaW, y, failedW, headerH);
-      writeInBox(
-        "Total\nFailed",
-        totalsX + totalMarksW + gpaW,
-        y,
-        failedW,
-        headerH,
-        { bold: true, size: headerFont, wrap: true },
-      );
+      writeInBox('Total\nFailed', totalsX + totalMarksW + gpaW, y, failedW, headerH, {
+        bold: true,
+        size: headerFont,
+        wrap: true,
+      });
 
       return headerH;
     };
@@ -761,7 +713,7 @@ export class ClassSummaryService {
         x: number,
         w: number,
         value: string | number,
-        align: "left" | "center" = "center",
+        align: 'left' | 'center' = 'center',
       ) => {
         strokeRect(x, y, w, dataRowH);
         writeInBox(String(value), x, y, w, dataRowH, {
@@ -771,23 +723,23 @@ export class ClassSummaryService {
         });
       };
 
-      writeCell(contentX, rollW, row.roll ?? "");
-      writeCell(contentX + rollW, nameW, row.name, "left");
+      writeCell(contentX, rollW, row.roll ?? '');
+      writeCell(contentX + rollW, nameW, row.name, 'left');
 
       for (const span of spans) {
         const cell = row.cells[span.col.subjectId];
         const values: (string | number)[] =
-          span.col.kind === "paper"
-            ? cell && cell.kind === "paper"
+          span.col.kind === 'paper'
+            ? cell && cell.kind === 'paper'
               ? [cell.first, cell.second, cell.total, cell.lg, cell.gp]
-              : [0, 0, 0, "F", 0]
-            : cell && cell.kind === "single"
+              : [0, 0, 0, 'F', 0]
+            : cell && cell.kind === 'single'
               ? [cell.mark, cell.lg, cell.gp]
-              : [0, "F", 0];
+              : [0, 'F', 0];
 
         let x = spanX(span);
         for (let i = 0; i < span.widths.length; i++) {
-          writeCell(x, span.widths[i], values[i] ?? "");
+          writeCell(x, span.widths[i], values[i] ?? '');
           x += span.widths[i];
         }
       }
@@ -797,13 +749,10 @@ export class ClassSummaryService {
       writeCell(totalsX + totalMarksW + gpaW, failedW, row.failed);
     };
 
-    const startSectionPage = (
-      sectionLabel: string,
-      pageIndexInSection: number,
-    ) => {
+    const startSectionPage = (sectionLabel: string, pageIndexInSection: number) => {
       doc.addPage({
         size: LEGAL_SIZE,
-        layout: "landscape",
+        layout: 'landscape',
         margin: PAGE_MARGIN,
       });
       let y = PAGE_MARGIN;
@@ -824,8 +773,8 @@ export class ClassSummaryService {
     };
 
     return new Promise<Buffer>((resolve, reject) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", reject);
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       try {
         for (const { section, rows: sectionRows } of sections) {
@@ -846,7 +795,7 @@ export class ClassSummaryService {
         if (sections.length === 0) {
           doc.addPage({
             size: LEGAL_SIZE,
-            layout: "landscape",
+            layout: 'landscape',
             margin: PAGE_MARGIN,
           });
         }

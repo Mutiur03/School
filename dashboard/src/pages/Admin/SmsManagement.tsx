@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import axios from "axios";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import axios from 'axios';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,18 +24,42 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "react-hot-toast";
-import { Send, Trash2, Filter, Calendar, Settings, MessageSquare, CreditCard, Save, RefreshCw, Inbox } from "lucide-react";
-import Loading from "@/components/Loading";
-import { Textarea } from "@/components/ui/textarea";
-import { formatDobForDateInput as toDateInputValue, calculateSMSCount, PHONE_NUMBER } from "@school/shared-schemas";
-import { PageHeader, TabNav, SectionCard, StatsCard } from "@/components";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import type { TabItem } from "@/components";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useLocation, useSearchParams } from "react-router-dom";
+} from '@/components/ui/alert-dialog';
+import { toast } from 'react-hot-toast';
+import {
+  Send,
+  Trash2,
+  Filter,
+  Calendar,
+  Settings,
+  MessageSquare,
+  CreditCard,
+  Save,
+  RefreshCw,
+  Inbox,
+} from 'lucide-react';
+import Loading from '@/components/Loading';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  formatDobForDateInput as toDateInputValue,
+  calculateSMSCount,
+  PHONE_NUMBER,
+} from '@school/shared-schemas';
+import { PageHeader, TabNav, SectionCard, StatsCard } from '@/components';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import type { TabItem } from '@/components';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 interface Enrollment {
   class: string;
@@ -54,7 +78,7 @@ interface SmsLog {
   student: Student;
   phone_number: string;
   attendance_date: string;
-  status: "sent" | "failed" | "pending";
+  status: 'sent' | 'failed' | 'pending';
   sms_count: number | null;
   retry_count: number;
   message: string;
@@ -96,33 +120,35 @@ interface SmsSettings {
 }
 
 const EMPTY_SETTINGS: SmsSettings = {
-  present_template: "",
-  absent_template: "",
-  run_awayed_template: "",
+  present_template: '',
+  absent_template: '',
+  run_awayed_template: '',
   send_to_present: false,
   send_to_absent: false,
   send_to_run_awayed: false,
   is_active: false,
 };
 
-const CORE_TOKENS = ["{student_name}"] as const;
+const CORE_TOKENS = ['{student_name}'] as const;
 const ELECTIVE_TOKENS = [
-  { id: "{login_id}", label: "Login ID" },
-  { id: "{date}", label: "Date" },
-  { id: "{school_name}", label: "School Name" },
-  { id: "{class}", label: "Class" },
-  { id: "{section}", label: "Section" },
-  { id: "{roll}", label: "Roll" },
+  { id: '{login_id}', label: 'Login ID' },
+  { id: '{date}', label: 'Date' },
+  { id: '{school_name}', label: 'School Name' },
+  { id: '{class}', label: 'Class' },
+  { id: '{section}', label: 'Section' },
+  { id: '{roll}', label: 'Roll' },
 ] as const;
 
-const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, "");
+const normalizePhoneNumber = (value: string) => value.replace(/\s+/g, '');
 
 const validateTemplate = (template: string, requiredPlaceholders: string[]) => {
   const allRequired = [...CORE_TOKENS, ...requiredPlaceholders];
   const missing = allRequired.filter((token) => !template.includes(token));
 
-  const allPossibleElectives = ELECTIVE_TOKENS.map(t => t.id);
-  const forbidden = allPossibleElectives.filter(token => !requiredPlaceholders.includes(token) && template.includes(token));
+  const allPossibleElectives = ELECTIVE_TOKENS.map((t) => t.id);
+  const forbidden = allPossibleElectives.filter(
+    (token) => !requiredPlaceholders.includes(token) && template.includes(token),
+  );
 
   return {
     missing,
@@ -134,47 +160,51 @@ const validateTemplate = (template: string, requiredPlaceholders: string[]) => {
 function SmsManagement() {
   const formatIsoToDisplayDate = (dateString: string): string => {
     const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"logs" | "settings" | "bulk">(
-    tabParam === "settings" ? "settings" : (tabParam === "bulk" ? "bulk" : "logs"),
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'logs' | 'settings' | 'bulk'>(
+    tabParam === 'settings' ? 'settings' : tabParam === 'bulk' ? 'bulk' : 'logs',
   );
   const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [filters, setFilters] = useState<Filters>({
-    status: "all",
+    status: 'all',
     date: formatIsoToDisplayDate(new Date().toISOString()),
     limit: 50,
   });
 
   const handleTabChange = (id: string) => {
-    const next = id as "logs" | "settings" | "bulk";
+    const next = id as 'logs' | 'settings' | 'bulk';
     setActiveTab(next);
     setSearchParams({ tab: next }, { replace: true });
   };
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "settings" || tab === "bulk" || tab === "logs") {
+    const tab = searchParams.get('tab');
+    if (tab === 'settings' || tab === 'bulk' || tab === 'logs') {
       setActiveTab(tab);
     } else {
-      setActiveTab("logs");
-      setSearchParams({ tab: "logs" }, { replace: true });
+      setActiveTab('logs');
+      setSearchParams({ tab: 'logs' }, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
   // Settings State
-  const [testForm, setTestForm] = useState({ phoneNumber: "", message: "" });
+  const [testForm, setTestForm] = useState({ phoneNumber: '', message: '' });
   const [testErrors, setTestErrors] = useState<{ phoneNumber?: string; message?: string }>({});
-  const [settingsErrors, setSettingsErrors] = useState<{ present_template?: string; absent_template?: string; run_awayed_template?: string }>({});
-  const [addBalanceAmount, setAddBalanceAmount] = useState<string>("");
+  const [settingsErrors, setSettingsErrors] = useState<{
+    present_template?: string;
+    absent_template?: string;
+    run_awayed_template?: string;
+  }>({});
+  const [addBalanceAmount, setAddBalanceAmount] = useState<string>('');
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -182,13 +212,13 @@ function SmsManagement() {
 
   // Bulk SMS State
   const [selectedClasses, setSelectedClasses] = useState<number[]>([]);
-  const [bulkMessage, setBulkMessage] = useState<string>("");
+  const [bulkMessage, setBulkMessage] = useState<string>('');
   const availableClasses = [6, 7, 8, 9, 10];
 
   const { data: studentCount, isLoading: studentCountLoading } = useQuery({
-    queryKey: ["studentCount", selectedClasses],
+    queryKey: ['studentCount', selectedClasses],
     queryFn: async () => {
-      const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(",")}`);
+      const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(',')}`);
       return res.data as {
         totalStudents: number;
         withPhone: number;
@@ -200,31 +230,36 @@ function SmsManagement() {
   });
 
   const statusColors: Record<string, string> = {
-    sent: "bg-green-500",
-    failed: "bg-red-500",
-    pending: "bg-yellow-500",
+    sent: 'bg-green-500',
+    failed: 'bg-red-500',
+    pending: 'bg-yellow-500',
   };
 
   const statusLabels: Record<string, string> = {
-    sent: "Sent",
-    failed: "Failed",
-    pending: "Pending",
+    sent: 'Sent',
+    failed: 'Failed',
+    pending: 'Pending',
   };
 
-  const [estimates, setEstimates] = useState<{ [key: string]: { count: number; encoding: string; length: number } }>({});
+  const [estimates, setEstimates] = useState<{
+    [key: string]: { count: number; encoding: string; length: number };
+  }>({});
 
   const calculateEstimate = useCallback((key: string, text: string) => {
-    const raw = text ?? "";
+    const raw = text ?? '';
     if (!raw.length) {
-      setEstimates(prev => ({ ...prev, [key]: { count: 0, encoding: "None", length: 0 } }));
+      setEstimates((prev) => ({ ...prev, [key]: { count: 0, encoding: 'None', length: 0 } }));
       return;
     }
     const result = calculateSMSCount(raw);
-    setEstimates(prev => ({ ...prev, [key]: { count: result.count, encoding: result.encoding, length: result.length } }));
+    setEstimates((prev) => ({
+      ...prev,
+      [key]: { count: result.count, encoding: result.encoding, length: result.length },
+    }));
   }, []);
 
   const smsLogsQuery = useQuery<SmsLogsResponse>({
-    queryKey: ["smsLogs", currentPage, filters.limit, filters.date],
+    queryKey: ['smsLogs', currentPage, filters.limit, filters.date],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -234,7 +269,7 @@ function SmsManagement() {
       const response = await axios.get(`/api/sms/sms-logs?${params}`);
       return response.data;
     },
-    enabled: activeTab === "logs",
+    enabled: activeTab === 'logs',
     placeholderData: (prev) => prev,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
@@ -242,30 +277,30 @@ function SmsManagement() {
   });
 
   const smsUsageQuery = useQuery({
-    queryKey: ["smsUsage"],
+    queryKey: ['smsUsage'],
     queryFn: async () => {
-      const response = await axios.get("/api/sms/usage-stats?days=30");
+      const response = await axios.get('/api/sms/usage-stats?days=30');
       return response.data;
     },
-    enabled: activeTab === "logs",
+    enabled: activeTab === 'logs',
   });
 
   const smsSettingsQuery = useQuery<SmsSettings>({
-    queryKey: ["smsSettings"],
+    queryKey: ['smsSettings'],
     queryFn: async () => {
-      const response = await axios.get("/api/sms-settings");
+      const response = await axios.get('/api/sms-settings');
       return response.data.data;
     },
-    enabled: activeTab === "settings",
+    enabled: activeTab === 'settings',
   });
 
   const smsBalanceQuery = useQuery<SmsBalance>({
-    queryKey: ["smsBalance"],
+    queryKey: ['smsBalance'],
     queryFn: async () => {
-      const response = await axios.get("/api/sms-settings/balance");
+      const response = await axios.get('/api/sms-settings/balance');
       return response.data.data;
     },
-    enabled: activeTab === "settings",
+    enabled: activeTab === 'settings',
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 60000,
@@ -273,115 +308,115 @@ function SmsManagement() {
 
   const settingsMutation = useMutation({
     mutationFn: async (payload: { settings: SmsSettings; requiredPlaceholders: string[] }) => {
-      await axios.patch("/api/sms-settings", {
+      await axios.patch('/api/sms-settings', {
         ...payload.settings,
         requiredPlaceholders: payload.requiredPlaceholders,
       });
     },
     onSuccess: () => {
-      toast.success("SMS settings updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["smsSettings"] });
+      toast.success('SMS settings updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['smsSettings'] });
       setSettingsDirty(false);
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || "Failed to update SMS settings";
+      const errorMessage = error.response?.data?.message || 'Failed to update SMS settings';
       toast.error(errorMessage);
     },
   });
 
   const addBalanceMutation = useMutation({
     mutationFn: async (amount: number) => {
-      await axios.post("/api/sms-settings/add-balance", { amount });
+      await axios.post('/api/sms-settings/add-balance', { amount });
     },
     onSuccess: (_, amount) => {
       toast.success(`${amount} credits added successfully`);
-      setAddBalanceAmount("");
-      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
+      setAddBalanceAmount('');
+      queryClient.invalidateQueries({ queryKey: ['smsBalance'] });
     },
     onError: () => {
-      toast.error("Failed to add SMS balance");
+      toast.error('Failed to add SMS balance');
     },
   });
 
   const testSmsMutation = useMutation({
     mutationFn: async (payload: { phoneNumber: string; message: string }) => {
-      await axios.post("/api/sms-settings/test", payload);
+      await axios.post('/api/sms-settings/test', payload);
     },
     onSuccess: () => {
-      toast.success("Test SMS sent successfully");
-      setTestForm((prev) => ({ ...prev, message: "" }));
+      toast.success('Test SMS sent successfully');
+      setTestForm((prev) => ({ ...prev, message: '' }));
       setTestErrors({});
-      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
-      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+      queryClient.invalidateQueries({ queryKey: ['smsBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['smsUsage'] });
     },
     onError: () => {
-      toast.error("Failed to send test SMS");
+      toast.error('Failed to send test SMS');
     },
   });
 
   const retryMutation = useMutation({
     mutationFn: async (smsLogIds: number[]) => {
-      const response = await axios.post("/api/sms/retry-sms", { smsLogIds });
+      const response = await axios.post('/api/sms/retry-sms', { smsLogIds });
       return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message);
       setSelectedLogs([]);
-      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
-      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
-      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+      queryClient.invalidateQueries({ queryKey: ['smsLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['smsBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['smsUsage'] });
     },
     onError: () => {
-      toast.error("Failed to retry SMS messages");
+      toast.error('Failed to retry SMS messages');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (smsLogIds: number[]) => {
-      const response = await axios.delete("/api/sms/sms-logs", { data: { smsLogIds } });
+      const response = await axios.delete('/api/sms/sms-logs', { data: { smsLogIds } });
       return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message);
       setSelectedLogs([]);
-      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
+      queryClient.invalidateQueries({ queryKey: ['smsLogs'] });
     },
     onError: () => {
-      toast.error("Failed to delete SMS logs");
+      toast.error('Failed to delete SMS logs');
     },
   });
 
   const bulkSmsMutation = useMutation({
     mutationFn: async (payload: { classNames: number[]; message: string }) => {
-      const response = await axios.post("/api/sms/bulk-sms", payload);
+      const response = await axios.post('/api/sms/bulk-sms', payload);
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || "Bulk SMS sent successfully");
+      toast.success(data.message || 'Bulk SMS sent successfully');
       setSelectedClasses([]);
-      setBulkMessage("");
-      setActiveTab("logs");
-      setSearchParams({ tab: "logs" }, { replace: true });
-      queryClient.invalidateQueries({ queryKey: ["smsLogs"] });
-      queryClient.invalidateQueries({ queryKey: ["smsBalance"] });
-      queryClient.invalidateQueries({ queryKey: ["smsUsage"] });
+      setBulkMessage('');
+      setActiveTab('logs');
+      setSearchParams({ tab: 'logs' }, { replace: true });
+      queryClient.invalidateQueries({ queryKey: ['smsLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['smsBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['smsUsage'] });
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || "Failed to send bulk SMS";
+      const errorMessage = error.response?.data?.message || 'Failed to send bulk SMS';
       toast.error(errorMessage);
     },
   });
 
   useEffect(() => {
-    if (smsLogsQuery.isError) toast.error("Failed to fetch SMS logs");
+    if (smsLogsQuery.isError) toast.error('Failed to fetch SMS logs');
   }, [smsLogsQuery.isError]);
 
   useEffect(() => {
-    if (smsSettingsQuery.isError) toast.error("Failed to fetch SMS settings");
+    if (smsSettingsQuery.isError) toast.error('Failed to fetch SMS settings');
   }, [smsSettingsQuery.isError]);
 
   useEffect(() => {
-    if (smsBalanceQuery.isError) toast.error("Failed to fetch SMS balance");
+    if (smsBalanceQuery.isError) toast.error('Failed to fetch SMS balance');
   }, [smsBalanceQuery.isError]);
 
   useEffect(() => {
@@ -389,36 +424,35 @@ function SmsManagement() {
       setSettingsDraft(smsSettingsQuery.data);
 
       // Sync elective placeholders from existing templates
-      const templates = (smsSettingsQuery.data.present_template || "") +
-        (smsSettingsQuery.data.absent_template || "") +
-        (smsSettingsQuery.data.run_awayed_template || "");
-      const initial = ELECTIVE_TOKENS
-        .map(t => t.id)
-        .filter(token => templates.includes(token));
+      const templates =
+        (smsSettingsQuery.data.present_template || '') +
+        (smsSettingsQuery.data.absent_template || '') +
+        (smsSettingsQuery.data.run_awayed_template || '');
+      const initial = ELECTIVE_TOKENS.map((t) => t.id).filter((token) => templates.includes(token));
       setRequiredPlaceholders(initial);
     }
   }, [smsSettingsQuery.data, settingsDirty]);
 
   useEffect(() => {
-    if (activeTab === "settings" && smsSettingsQuery.data) {
-      calculateEstimate("present", smsSettingsQuery.data.present_template || "");
-      calculateEstimate("absent", smsSettingsQuery.data.absent_template || "");
-      calculateEstimate("run_awayed", smsSettingsQuery.data.run_awayed_template || "");
+    if (activeTab === 'settings' && smsSettingsQuery.data) {
+      calculateEstimate('present', smsSettingsQuery.data.present_template || '');
+      calculateEstimate('absent', smsSettingsQuery.data.absent_template || '');
+      calculateEstimate('run_awayed', smsSettingsQuery.data.run_awayed_template || '');
     }
   }, [activeTab, smsSettingsQuery.data, calculateEstimate]);
 
   useEffect(() => {
-    calculateEstimate("test", testForm.message || "");
+    calculateEstimate('test', testForm.message || '');
   }, [testForm.message, calculateEstimate]);
 
   useEffect(() => {
-    calculateEstimate("bulk", bulkMessage || "");
+    calculateEstimate('bulk', bulkMessage || '');
   }, [bulkMessage, calculateEstimate]);
 
   const handleAddBalance = async () => {
     const amount = parseInt(addBalanceAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error('Please enter a valid amount');
       return;
     }
     addBalanceMutation.mutate(amount);
@@ -428,30 +462,49 @@ function SmsManagement() {
     e.preventDefault();
     if (!settingsDraft) return;
 
-    const presentValidation = validateTemplate(settingsDraft.present_template || "", requiredPlaceholders);
-    const absentValidation = validateTemplate(settingsDraft.absent_template || "", requiredPlaceholders);
-    const runAwayValidation = validateTemplate(settingsDraft.run_awayed_template || "", requiredPlaceholders);
-    const nextErrors: { present_template?: string; absent_template?: string; run_awayed_template?: string } = {};
+    const presentValidation = validateTemplate(
+      settingsDraft.present_template || '',
+      requiredPlaceholders,
+    );
+    const absentValidation = validateTemplate(
+      settingsDraft.absent_template || '',
+      requiredPlaceholders,
+    );
+    const runAwayValidation = validateTemplate(
+      settingsDraft.run_awayed_template || '',
+      requiredPlaceholders,
+    );
+    const nextErrors: {
+      present_template?: string;
+      absent_template?: string;
+      run_awayed_template?: string;
+    } = {};
 
     if (settingsDraft.is_active && settingsDraft.send_to_present && !presentValidation.isValid) {
       const parts = [];
-      if (presentValidation.missing.length > 0) parts.push(`missing mandatory ${presentValidation.missing.join(", ")}`);
-      if (presentValidation.forbidden.length > 0) parts.push(`contains forbidden ${presentValidation.forbidden.join(", ")}`);
-      nextErrors.present_template = `Present template ${parts.join(" and ")}.`;
+      if (presentValidation.missing.length > 0)
+        parts.push(`missing mandatory ${presentValidation.missing.join(', ')}`);
+      if (presentValidation.forbidden.length > 0)
+        parts.push(`contains forbidden ${presentValidation.forbidden.join(', ')}`);
+      nextErrors.present_template = `Present template ${parts.join(' and ')}.`;
     }
 
     if (settingsDraft.is_active && settingsDraft.send_to_absent && !absentValidation.isValid) {
       const parts = [];
-      if (absentValidation.missing.length > 0) parts.push(`missing mandatory ${absentValidation.missing.join(", ")}`);
-      if (absentValidation.forbidden.length > 0) parts.push(`contains forbidden ${absentValidation.forbidden.join(", ")}`);
-      nextErrors.absent_template = `Absent template ${parts.join(" and ")}.`;
+      if (absentValidation.missing.length > 0)
+        parts.push(`missing mandatory ${absentValidation.missing.join(', ')}`);
+      if (absentValidation.forbidden.length > 0)
+        parts.push(`contains forbidden ${absentValidation.forbidden.join(', ')}`);
+      nextErrors.absent_template = `Absent template ${parts.join(' and ')}.`;
     }
 
     if (settingsDraft.is_active && settingsDraft.send_to_run_awayed && !runAwayValidation.isValid) {
       const parts = [];
-      if (runAwayValidation.missing.length > 0) parts.push(`missing mandatory ${runAwayValidation.missing.join(", ")}`);
-      if (runAwayValidation.forbidden.length > 0) parts.push(`contains forbidden ${runAwayValidation.forbidden.join(", ")}`);
-      nextErrors.run_awayed_template = `Running Away template ${parts.join(" and ")}.`;
+      if (runAwayValidation.missing.length > 0)
+        parts.push(`missing mandatory ${runAwayValidation.missing.join(', ')}`);
+      if (runAwayValidation.forbidden.length > 0)
+        parts.push(`contains forbidden ${runAwayValidation.forbidden.join(', ')}`);
+      nextErrors.run_awayed_template = `Running Away template ${parts.join(' and ')}.`;
     }
 
     setSettingsErrors(nextErrors);
@@ -463,7 +516,7 @@ function SmsManagement() {
 
     settingsMutation.mutate({
       settings: settingsDraft,
-      requiredPlaceholders
+      requiredPlaceholders,
     });
   };
 
@@ -474,19 +527,19 @@ function SmsManagement() {
     const nextErrors: { phoneNumber?: string; message?: string } = {};
 
     if (!phone) {
-      nextErrors.phoneNumber = "Phone number is required.";
+      nextErrors.phoneNumber = 'Phone number is required.';
     } else if (!PHONE_NUMBER.test(phone)) {
-      nextErrors.phoneNumber = "Phone must be 11 digits and start with 01.";
+      nextErrors.phoneNumber = 'Phone must be 11 digits and start with 01.';
     }
 
     if (!message) {
-      nextErrors.message = "Message is required.";
+      nextErrors.message = 'Message is required.';
     }
 
     setTestErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please fix the test SMS form errors.");
+      toast.error('Please fix the test SMS form errors.');
       return;
     }
 
@@ -506,7 +559,7 @@ function SmsManagement() {
   const balanceError = smsBalanceQuery.isError;
 
   const displayedLogs = useMemo(() => {
-    if (filters.status === "all") return smsLogs;
+    if (filters.status === 'all') return smsLogs;
     return smsLogs.filter((log: SmsLog) => log.status === filters.status);
   }, [smsLogs, filters.status]);
 
@@ -514,16 +567,17 @@ function SmsManagement() {
 
   const handleRetrySelected = async (): Promise<void> => {
     if (selectedLogs.length === 0) {
-      toast.error("Please select SMS logs to retry");
+      toast.error('Please select SMS logs to retry');
       return;
     }
 
     const failedLogs: SmsLog[] = smsLogs.filter(
-      (log) => selectedLogs.includes(log.id) && (log.status === "failed" || log.status === "pending")
+      (log) =>
+        selectedLogs.includes(log.id) && (log.status === 'failed' || log.status === 'pending'),
     );
 
     if (failedLogs.length === 0) {
-      toast.error("Please select only failed SMS logs for retry");
+      toast.error('Please select only failed SMS logs for retry');
       return;
     }
 
@@ -532,7 +586,7 @@ function SmsManagement() {
 
   const handleDeleteSelected = async (): Promise<void> => {
     if (selectedLogs.length === 0) {
-      toast.error("Please select SMS logs to delete");
+      toast.error('Please select SMS logs to delete');
       return;
     }
     deleteMutation.mutate(selectedLogs);
@@ -551,10 +605,9 @@ function SmsManagement() {
     setCurrentPage(1);
   };
 
-
   const getStudentInfo = (student: Student | null | undefined): string => {
     if (!student || !student.enrollments || student.enrollments.length === 0) {
-      return "N/A";
+      return 'N/A';
     }
     const enrollment = student.enrollments[0];
     return `Class ${enrollment.class}, Section ${enrollment.section}, Roll ${enrollment.roll}`;
@@ -562,20 +615,20 @@ function SmsManagement() {
 
   const tabs: TabItem[] = [
     {
-      id: "logs",
-      label: "Delivery Logs",
+      id: 'logs',
+      label: 'Delivery Logs',
       icon: <Inbox size={16} />,
       href: `${location.pathname}?tab=logs`,
     },
     {
-      id: "bulk",
-      label: "Bulk SMS",
+      id: 'bulk',
+      label: 'Bulk SMS',
       icon: <Send size={16} />,
       href: `${location.pathname}?tab=bulk`,
     },
     {
-      id: "settings",
-      label: "SMS Settings",
+      id: 'settings',
+      label: 'SMS Settings',
       icon: <Settings size={16} />,
       href: `${location.pathname}?tab=settings`,
     },
@@ -586,56 +639,51 @@ function SmsManagement() {
   // }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="SMS Management"
         description="Track delivery logs, test SMS delivery, and configure attendance notifications."
       />
 
-      <TabNav
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        className="mb-6"
-      />
+      <TabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} className="mb-6" />
 
-      {activeTab === "settings" ? (
+      {activeTab === 'settings' ? (
         <div className="space-y-6">
           {(settingsError || balanceError) && (
-            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               Unable to load SMS settings or balance. Please refresh.
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <SectionCard
               title="Account Balance"
-              icon={<CreditCard className="w-5 h-5 text-primary" />}
+              icon={<CreditCard className="text-primary h-5 w-5" />}
               className="lg:col-span-1"
             >
               <div className="space-y-4">
-                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-border">
-                  <div className="text-sm text-muted-foreground mb-1">Available Credits</div>
-                  <div className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="border-border rounded-xl border bg-slate-50 p-4 dark:bg-slate-900">
+                  <div className="text-muted-foreground mb-1 text-sm">Available Credits</div>
+                  <div className="flex items-center gap-2 text-3xl font-bold text-slate-900 dark:text-white">
                     {balanceLoading ? (
                       <Skeleton className="h-8 w-24" />
                     ) : (
-                      balance?.credits ?? balance?.balance ?? "..."
+                      (balance?.credits ?? balance?.balance ?? '...')
                     )}
                     <button
-                      onClick={() => queryClient.invalidateQueries({ queryKey: ["smsBalance"] })}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['smsBalance'] })}
+                      className="rounded-full p-1 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
                       disabled={balanceLoading}
                     >
-                      <RefreshCw className="w-4 h-4 text-slate-400" />
+                      <RefreshCw className="h-4 w-4 text-slate-400" />
                     </button>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                   Internal Database Balance
                 </div>
 
-                <div className="pt-4 border-t border-border space-y-3">
+                <div className="border-border space-y-3 border-t pt-4">
                   <Label htmlFor="add_credits">Add Credits</Label>
                   <div className="flex gap-2">
                     <Input
@@ -652,7 +700,7 @@ function SmsManagement() {
                       variant="outline"
                       size="lg"
                     >
-                      {addBalanceMutation.isPending ? "..." : "Add"}
+                      {addBalanceMutation.isPending ? '...' : 'Add'}
                     </Button>
                   </div>
                 </div>
@@ -661,11 +709,11 @@ function SmsManagement() {
 
             <SectionCard
               title="Test SMS Delivery"
-              icon={<Send className="w-5 h-5 text-primary" />}
+              icon={<Send className="text-primary h-5 w-5" />}
               className="lg:col-span-2"
             >
               <form onSubmit={handleSendTestSms} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="testPhone">Phone Number</Label>
                     <Input
@@ -702,14 +750,20 @@ function SmsManagement() {
                       <p className="text-xs text-red-500">{testErrors.message}</p>
                     )}
                     {estimates.test && (
-                      <div className="text-[10px] font-medium text-primary mt-1">
-                        Est: <span className="font-bold">{estimates.test.count}</span> credit{estimates.test.count !== 1 ? "s" : ""} ({estimates.test.encoding}) {estimates.test.length} chars
+                      <div className="text-primary mt-1 text-[10px] font-medium">
+                        Est: <span className="font-bold">{estimates.test.count}</span> credit
+                        {estimates.test.count !== 1 ? 's' : ''} ({estimates.test.encoding}){' '}
+                        {estimates.test.length} chars
                       </div>
                     )}
                   </div>
                 </div>
-                <Button type="submit" disabled={testSmsMutation.isPending || settingsLoading} className="w-full sm:w-auto">
-                  {testSmsMutation.isPending ? "Sending..." : "Send Test SMS"}
+                <Button
+                  type="submit"
+                  disabled={testSmsMutation.isPending || settingsLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {testSmsMutation.isPending ? 'Sending...' : 'Send Test SMS'}
                 </Button>
               </form>
             </SectionCard>
@@ -717,11 +771,11 @@ function SmsManagement() {
 
           <SectionCard
             title="Notification Templates & Rules"
-            icon={<Settings className="w-5 h-5 text-primary" />}
+            icon={<Settings className="text-primary h-5 w-5" />}
           >
             {settingsLoading ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                   <div className="space-y-3">
                     <Skeleton className="h-5 w-40" />
                     <Skeleton className="h-24 w-full" />
@@ -737,12 +791,12 @@ function SmsManagement() {
               </div>
             ) : settings ? (
               <form onSubmit={handleUpdateSettings} className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                  <div className="border-border space-y-4 rounded-xl border bg-slate-50/50 p-4 dark:bg-slate-900/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold">
-                        <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600">
-                          <MessageSquare className="w-4 h-4" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900">
+                          <MessageSquare className="h-4 w-4" />
                         </div>
                         Present Student SMS
                       </div>
@@ -757,7 +811,10 @@ function SmsManagement() {
                               send_to_present: !!checked,
                             }));
                             if (!checked && settingsErrors.present_template) {
-                              setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                present_template: undefined,
+                              }));
                             }
                           }}
                         />
@@ -777,11 +834,14 @@ function SmsManagement() {
                             ...(prev || EMPTY_SETTINGS),
                             present_template: nextValue,
                           }));
-                          calculateEstimate("present", nextValue);
+                          calculateEstimate('present', nextValue);
                           if (settingsErrors.present_template) {
                             const validation = validateTemplate(nextValue, requiredPlaceholders);
                             if (validation.isValid) {
-                              setSettingsErrors((prev) => ({ ...prev, present_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                present_template: undefined,
+                              }));
                             }
                           }
                         }}
@@ -790,33 +850,48 @@ function SmsManagement() {
                         <p className="text-xs text-red-500">{settingsErrors.present_template}</p>
                       )}
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
                           <span className="font-semibold text-red-500">Mandatory:</span>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
-                          {requiredPlaceholders.map(p => (
-                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          <code className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                            {'{student_name}'}
+                          </code>
+                          {requiredPlaceholders.map((p) => (
+                            <code key={p} className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                              {p}
+                            </code>
                           ))}
                         </div>
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
-                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
-                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
-                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
-                          ))}
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">
+                            Forbidden:
+                          </span>
+                          {ELECTIVE_TOKENS.filter((t) => !requiredPlaceholders.includes(t.id)).map(
+                            (t) => (
+                              <code
+                                key={t.id}
+                                className="rounded bg-slate-100 px-1 italic line-through opacity-60 dark:bg-slate-900"
+                              >
+                                {t.id}
+                              </code>
+                            ),
+                          )}
                         </div>
                         {estimates.present && (
-                          <div className="text-[10px] font-medium text-primary">
-                            Est: <span className="font-bold">{estimates.present.count}</span> credit{estimates.present.count !== 1 ? 's' : ''} ({estimates.present.encoding})
+                          <div className="text-primary text-[10px] font-medium">
+                            Est: <span className="font-bold">{estimates.present.count}</span> credit
+                            {estimates.present.count !== 1 ? 's' : ''} ({estimates.present.encoding}
+                            )
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="border-border space-y-4 rounded-xl border bg-slate-50/50 p-4 dark:bg-slate-900/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold">
-                        <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center text-red-600">
-                          <MessageSquare className="w-4 h-4" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900">
+                          <MessageSquare className="h-4 w-4" />
                         </div>
                         Absent Student SMS
                       </div>
@@ -831,7 +906,10 @@ function SmsManagement() {
                               send_to_absent: !!checked,
                             }));
                             if (!checked && settingsErrors.absent_template) {
-                              setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                absent_template: undefined,
+                              }));
                             }
                           }}
                         />
@@ -851,11 +929,14 @@ function SmsManagement() {
                             ...(prev || EMPTY_SETTINGS),
                             absent_template: nextValue,
                           }));
-                          calculateEstimate("absent", nextValue);
+                          calculateEstimate('absent', nextValue);
                           if (settingsErrors.absent_template) {
                             const validation = validateTemplate(nextValue, requiredPlaceholders);
                             if (validation.isValid) {
-                              setSettingsErrors((prev) => ({ ...prev, absent_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                absent_template: undefined,
+                              }));
                             }
                           }
                         }}
@@ -864,33 +945,47 @@ function SmsManagement() {
                         <p className="text-xs text-red-500">{settingsErrors.absent_template}</p>
                       )}
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
                           <span className="font-semibold text-red-500">Mandatory:</span>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
-                          {requiredPlaceholders.map(p => (
-                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          <code className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                            {'{student_name}'}
+                          </code>
+                          {requiredPlaceholders.map((p) => (
+                            <code key={p} className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                              {p}
+                            </code>
                           ))}
                         </div>
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
-                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
-                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
-                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
-                          ))}
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">
+                            Forbidden:
+                          </span>
+                          {ELECTIVE_TOKENS.filter((t) => !requiredPlaceholders.includes(t.id)).map(
+                            (t) => (
+                              <code
+                                key={t.id}
+                                className="rounded bg-slate-100 px-1 italic line-through opacity-60 dark:bg-slate-900"
+                              >
+                                {t.id}
+                              </code>
+                            ),
+                          )}
                         </div>
                         {estimates.absent && (
-                          <div className="text-[10px] font-medium text-primary">
-                            Est: <span className="font-bold">{estimates.absent.count}</span> credit{estimates.absent.count !== 1 ? 's' : ''} ({estimates.absent.encoding})
+                          <div className="text-primary text-[10px] font-medium">
+                            Est: <span className="font-bold">{estimates.absent.count}</span> credit
+                            {estimates.absent.count !== 1 ? 's' : ''} ({estimates.absent.encoding})
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="border-border space-y-4 rounded-xl border bg-slate-50/50 p-4 dark:bg-slate-900/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold">
-                        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-600">
-                          <MessageSquare className="w-4 h-4" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900">
+                          <MessageSquare className="h-4 w-4" />
                         </div>
                         Running Away Student SMS
                       </div>
@@ -905,7 +1000,10 @@ function SmsManagement() {
                               send_to_run_awayed: !!checked,
                             }));
                             if (!checked && settingsErrors.run_awayed_template) {
-                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                run_awayed_template: undefined,
+                              }));
                             }
                           }}
                         />
@@ -925,11 +1023,14 @@ function SmsManagement() {
                             ...(prev || EMPTY_SETTINGS),
                             run_awayed_template: nextValue,
                           }));
-                          calculateEstimate("run_awayed", nextValue);
+                          calculateEstimate('run_awayed', nextValue);
                           if (settingsErrors.run_awayed_template) {
                             const validation = validateTemplate(nextValue, requiredPlaceholders);
                             if (validation.isValid) {
-                              setSettingsErrors((prev) => ({ ...prev, run_awayed_template: undefined }));
+                              setSettingsErrors((prev) => ({
+                                ...prev,
+                                run_awayed_template: undefined,
+                              }));
                             }
                           }
                         }}
@@ -938,22 +1039,37 @@ function SmsManagement() {
                         <p className="text-xs text-red-500">{settingsErrors.run_awayed_template}</p>
                       )}
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
                           <span className="font-semibold text-red-500">Mandatory:</span>
-                          <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{"{student_name}"}</code>
-                          {requiredPlaceholders.map(p => (
-                            <code key={p} className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{p}</code>
+                          <code className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                            {'{student_name}'}
+                          </code>
+                          {requiredPlaceholders.map((p) => (
+                            <code key={p} className="rounded bg-slate-200 px-1 dark:bg-slate-800">
+                              {p}
+                            </code>
                           ))}
                         </div>
-                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2">
-                          <span className="font-semibold text-slate-500 dark:text-slate-400">Forbidden:</span>
-                          {ELECTIVE_TOKENS.filter(t => !requiredPlaceholders.includes(t.id)).map(t => (
-                            <code key={t.id} className="bg-slate-100 dark:bg-slate-900 px-1 rounded opacity-60 italic line-through">{t.id}</code>
-                          ))}
+                        <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">
+                            Forbidden:
+                          </span>
+                          {ELECTIVE_TOKENS.filter((t) => !requiredPlaceholders.includes(t.id)).map(
+                            (t) => (
+                              <code
+                                key={t.id}
+                                className="rounded bg-slate-100 px-1 italic line-through opacity-60 dark:bg-slate-900"
+                              >
+                                {t.id}
+                              </code>
+                            ),
+                          )}
                         </div>
                         {estimates.run_awayed && (
-                          <div className="text-[10px] font-medium text-primary">
-                            Est: <span className="font-bold">{estimates.run_awayed.count}</span> credit{estimates.run_awayed.count !== 1 ? 's' : ''} ({estimates.run_awayed.encoding})
+                          <div className="text-primary text-[10px] font-medium">
+                            Est: <span className="font-bold">{estimates.run_awayed.count}</span>{' '}
+                            credit{estimates.run_awayed.count !== 1 ? 's' : ''} (
+                            {estimates.run_awayed.encoding})
                           </div>
                         )}
                       </div>
@@ -961,11 +1077,11 @@ function SmsManagement() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="border-border flex items-center justify-between border-t pt-4">
                   <div className="space-y-4">
                     <Label className="text-sm font-semibold">Required Placeholders</Label>
-                    <div className="flex flex-wrap gap-x-6 gap-y-3 p-4 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-border">
-                      <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                    <div className="border-border flex flex-wrap gap-x-6 gap-y-3 rounded-lg border bg-slate-100 p-4 dark:bg-slate-800/50">
+                      <div className="flex cursor-not-allowed items-center gap-2 opacity-50">
                         <Checkbox checked disabled />
                         <span className="text-sm">Student Name</span>
                       </div>
@@ -978,11 +1094,13 @@ function SmsManagement() {
                               if (!settingsDirty) setSettingsDirty(true);
                               const next = checked
                                 ? [...requiredPlaceholders, token.id]
-                                : requiredPlaceholders.filter(p => p !== token.id);
+                                : requiredPlaceholders.filter((p) => p !== token.id);
                               setRequiredPlaceholders(next);
                             }}
                           />
-                          <Label htmlFor={`req_${token.id}`} className="text-sm cursor-pointer">{token.label}</Label>
+                          <Label htmlFor={`req_${token.id}`} className="cursor-pointer text-sm">
+                            {token.label}
+                          </Label>
                         </div>
                       ))}
                     </div>
@@ -1011,8 +1129,8 @@ function SmsManagement() {
                     size="lg"
                     className="px-8 shadow-md"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    {settingsMutation.isPending ? "Saving..." : "Save Configuration"}
+                    <Save className="mr-2 h-4 w-4" />
+                    {settingsMutation.isPending ? 'Saving...' : 'Save Configuration'}
                   </Button>
                 </div>
               </form>
@@ -1023,16 +1141,16 @@ function SmsManagement() {
             )}
           </SectionCard>
         </div>
-      ) : activeTab === "bulk" ? (
+      ) : activeTab === 'bulk' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <SectionCard
               title="Select Classes"
-              icon={<Filter className="w-5 h-5 text-primary" />}
+              icon={<Filter className="text-primary h-5 w-5" />}
               className="lg:col-span-1"
             >
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   Select the classes you want to send this SMS to.
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -1054,18 +1172,25 @@ function SmsManagement() {
                   ))}
                 </div>
                 {selectedClasses.length > 0 && (
-                  <div className="pt-3 space-y-2">
-                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border text-sm space-y-1">
+                  <div className="space-y-2 pt-3">
+                    <div className="border-border space-y-1 rounded-lg border bg-slate-50 p-3 text-sm dark:bg-slate-900">
                       {studentCountLoading && !studentCount ? (
                         <div className="flex items-center justify-center py-4">
-                          <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                          <RefreshCw className="text-primary h-5 w-5 animate-spin" />
                         </div>
                       ) : studentCount ? (
                         <>
-                          <div className="space-y-2 pb-2 border-b border-border">
-                            {Object.entries(studentCount.classBreakdown as Record<number, { total: number; withPhone: number }>).map(([cls, info]) => (
-                              <div key={cls} className="flex justify-between items-center text-xs">
-                                <span className="text-muted-foreground font-medium">Class {cls}:</span>
+                          <div className="border-border space-y-2 border-b pb-2">
+                            {Object.entries(
+                              studentCount.classBreakdown as Record<
+                                number,
+                                { total: number; withPhone: number }
+                              >,
+                            ).map(([cls, info]) => (
+                              <div key={cls} className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground font-medium">
+                                  Class {cls}:
+                                </span>
                                 <span className="text-foreground">
                                   {info.total} students ({info.withPhone} w/ phone)
                                 </span>
@@ -1077,13 +1202,21 @@ function SmsManagement() {
                             <span className="font-semibold">{studentCount.totalStudents}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground italic">Target SMS (Unique):</span>
-                            <span className="font-semibold text-primary">{studentCount.withPhone}</span>
+                            <span className="text-muted-foreground italic">
+                              Target SMS (Unique):
+                            </span>
+                            <span className="text-primary font-semibold">
+                              {studentCount.withPhone}
+                            </span>
                           </div>
                           {estimates.bulk && (
-                            <div className="flex justify-between pt-1 border-t border-border mt-1">
-                              <span className="text-muted-foreground font-medium underline decoration-dotted">Total Credits:</span>
-                              <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                            <div className="border-border mt-1 flex justify-between border-t pt-1">
+                              <span className="text-muted-foreground font-medium underline decoration-dotted">
+                                Total Credits:
+                              </span>
+                              <span className="text-primary font-bold">
+                                {studentCount.withPhone * estimates.bulk.count}
+                              </span>
                             </div>
                           )}
                         </>
@@ -1093,9 +1226,9 @@ function SmsManagement() {
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedClasses([])}
-                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                      className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive text-xs transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                     >
-                      <Trash2 className="w-3 h-3 mr-1" />
+                      <Trash2 className="mr-1 h-3 w-3" />
                       Clear Selection
                     </Button>
                   </div>
@@ -1105,7 +1238,7 @@ function SmsManagement() {
 
             <SectionCard
               title="Compose Message"
-              icon={<MessageSquare className="w-5 h-5 text-primary" />}
+              icon={<MessageSquare className="text-primary h-5 w-5" />}
               className="lg:col-span-2"
             >
               <div className="space-y-4">
@@ -1119,28 +1252,34 @@ function SmsManagement() {
                     onChange={(e) => setBulkMessage(e.target.value)}
                   />
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-muted-foreground italic">
+                    <p className="text-muted-foreground text-[10px] italic">
                       Note: This message will be sent to all students in the selected classes.
                     </p>
                     {estimates.bulk && (
-                      <div className="text-[10px] font-medium text-primary">
-                        Est: <span className="font-bold">{estimates.bulk.count}</span> credit{estimates.bulk.count !== 1 ? 's' : ''} ({estimates.bulk.encoding}) {estimates.bulk.length} chars
+                      <div className="text-primary text-[10px] font-medium">
+                        Est: <span className="font-bold">{estimates.bulk.count}</span> credit
+                        {estimates.bulk.count !== 1 ? 's' : ''} ({estimates.bulk.encoding}){' '}
+                        {estimates.bulk.length} chars
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end">
+                <div className="flex justify-end pt-4">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        disabled={selectedClasses.length === 0 || !bulkMessage.trim() || bulkSmsMutation.isPending}
+                        disabled={
+                          selectedClasses.length === 0 ||
+                          !bulkMessage.trim() ||
+                          bulkSmsMutation.isPending
+                        }
                         className="bg-primary hover:bg-primary/90"
                       >
                         {bulkSmsMutation.isPending ? (
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                          <Send className="w-4 h-4 mr-2" />
+                          <Send className="mr-2 h-4 w-4" />
                         )}
                         Send Bulk SMS
                       </Button>
@@ -1149,21 +1288,33 @@ function SmsManagement() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription asChild>
-                          <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>This will send the SMS to all students in <strong className="text-foreground">Class {selectedClasses.sort((a, b) => a - b).join(", ")}</strong>.</p>
+                          <div className="text-muted-foreground space-y-2 text-sm">
+                            <p>
+                              This will send the SMS to all students in{' '}
+                              <strong className="text-foreground">
+                                Class {selectedClasses.sort((a, b) => a - b).join(', ')}
+                              </strong>
+                              .
+                            </p>
                             {studentCount && estimates.bulk && (
-                              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border space-y-1">
+                              <div className="border-border space-y-1 rounded-lg border bg-slate-50 p-3 dark:bg-slate-900">
                                 <div className="flex justify-between">
                                   <span>Students with phone:</span>
-                                  <span className="font-semibold text-foreground">{studentCount.withPhone}</span>
+                                  <span className="text-foreground font-semibold">
+                                    {studentCount.withPhone}
+                                  </span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Credits per student:</span>
-                                  <span className="font-semibold text-foreground">{estimates.bulk.count}</span>
+                                  <span className="text-foreground font-semibold">
+                                    {estimates.bulk.count}
+                                  </span>
                                 </div>
-                                <div className="flex justify-between pt-1 border-t border-border mt-1">
+                                <div className="border-border mt-1 flex justify-between border-t pt-1">
                                   <span className="font-medium">Total credits needed:</span>
-                                  <span className="font-bold text-primary">{studentCount.withPhone * estimates.bulk.count}</span>
+                                  <span className="text-primary font-bold">
+                                    {studentCount.withPhone * estimates.bulk.count}
+                                  </span>
                                 </div>
                               </div>
                             )}
@@ -1173,7 +1324,12 @@ function SmsManagement() {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => bulkSmsMutation.mutate({ classNames: selectedClasses, message: bulkMessage })}
+                          onClick={() =>
+                            bulkSmsMutation.mutate({
+                              classNames: selectedClasses,
+                              message: bulkMessage,
+                            })
+                          }
                           className="bg-primary hover:bg-primary/90"
                         >
                           Continue
@@ -1189,29 +1345,37 @@ function SmsManagement() {
       ) : (
         <>
           {logsError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               Unable to load SMS logs. Please refresh.
             </div>
           )}
 
           <SectionCard
             title="Daily Credit Usage (Last 30 Days)"
-            icon={<RefreshCw className="w-5 h-5 text-primary" />}
+            icon={<RefreshCw className="text-primary h-5 w-5" />}
           >
             <div className="h-[250px] w-full pt-4">
               {smsUsageQuery.isLoading ? (
-                <div className="h-full w-full flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+                <div className="flex h-full w-full items-center justify-center">
+                  <RefreshCw className="text-muted-foreground h-6 w-6 animate-spin" />
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={smsUsageQuery.data?.stats || []}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="rgba(0,0,0,0.05)"
+                    />
                     <XAxis
                       dataKey="date"
                       tickFormatter={(val) => {
                         const d = new Date(val);
-                        return d.getDate().toString().padStart(2, "0") + "/" + (d.getMonth() + 1).toString().padStart(2, "0");
+                        return (
+                          d.getDate().toString().padStart(2, '0') +
+                          '/' +
+                          (d.getMonth() + 1).toString().padStart(2, '0')
+                        );
                       }}
                       fontSize={10}
                       tickLine={false}
@@ -1221,12 +1385,14 @@ function SmsManagement() {
                     <Tooltip
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
-                          const date = new Date(payload[0].payload.date).toLocaleDateString("en-GB");
+                          const date = new Date(payload[0].payload.date).toLocaleDateString(
+                            'en-GB',
+                          );
                           return (
-                            <div className="bg-white dark:bg-slate-900 border border-border p-2 rounded-lg shadow-xl text-xs">
-                              <div className="font-bold border-b pb-1 mb-1">{date}</div>
+                            <div className="border-border rounded-lg border bg-white p-2 text-xs shadow-xl dark:bg-slate-900">
+                              <div className="mb-1 border-b pb-1 font-bold">{date}</div>
                               <div className="text-primary flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-primary" />
+                                <span className="bg-primary h-2 w-2 rounded-full" />
                                 Usage: {payload[0].value} Credits
                               </div>
                             </div>
@@ -1235,16 +1401,11 @@ function SmsManagement() {
                         return null;
                       }}
                     />
-                    <Bar
-                      dataKey="count"
-                      fill="var(--primary)"
-                      radius={[4, 4, 0, 0]}
-                      barSize={20}
-                    >
+                    <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={20}>
                       {smsUsageQuery.data?.stats?.map((entry: any, index: number) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={entry.count > 0 ? "hsl(var(--primary))" : "hsl(var(--muted))"}
+                          fill={entry.count > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
                           fillOpacity={entry.count > 0 ? 1 : 0.2}
                         />
                       ))}
@@ -1254,40 +1415,40 @@ function SmsManagement() {
               )}
             </div>
           </SectionCard>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatsCard
               label="Total SMS"
               value={totalSms}
               color="default"
-              icon={<MessageSquare className="w-5 h-5" />}
+              icon={<MessageSquare className="h-5 w-5" />}
               loading={false}
             />
             <StatsCard
               label="Sent"
               value={stats.sent || 0}
               color="emerald"
-              icon={<Send className="w-5 h-5" />}
+              icon={<Send className="h-5 w-5" />}
               loading={false}
             />
             <StatsCard
               label="Failed"
               value={stats.failed || 0}
               color="red"
-              icon={<Trash2 className="w-5 h-5" />}
+              icon={<Trash2 className="h-5 w-5" />}
               loading={false}
             />
             <StatsCard
               label="Pending"
               value={stats.pending || 0}
               color="amber"
-              icon={<RefreshCw className="w-5 h-5" />}
+              icon={<RefreshCw className="h-5 w-5" />}
               loading={false}
             />
           </div>
 
-          <SectionCard title="Filters & Actions" icon={<Filter className="w-5 h-5" />}>
+          <SectionCard title="Filters & Actions" icon={<Filter className="h-5 w-5" />}>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <Label
                     htmlFor="status-filter"
@@ -1297,7 +1458,7 @@ function SmsManagement() {
                   </Label>
                   <Select
                     value={filters.status}
-                    onValueChange={(value) => handleFilterChange("status", value)}
+                    onValueChange={(value) => handleFilterChange('status', value)}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -1319,18 +1480,15 @@ function SmsManagement() {
                     Date
                   </Label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <Calendar className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
                       id="date-filter"
                       type="date"
                       value={toDateInputValue(filters.date)}
                       onChange={(e) => {
-                        handleFilterChange(
-                          "date",
-                          formatIsoToDisplayDate(e.target.value)
-                        );
+                        handleFilterChange('date', formatIsoToDisplayDate(e.target.value));
                       }}
-                      className="w-full pl-10 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden"
+                      className="w-full cursor-pointer pl-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
                     />
                   </div>
                 </div>
@@ -1344,9 +1502,7 @@ function SmsManagement() {
                   </Label>
                   <Select
                     value={filters.limit.toString()}
-                    onValueChange={(value) =>
-                      handleFilterChange("limit", parseInt(value))
-                    }
+                    onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -1360,13 +1516,13 @@ function SmsManagement() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   onClick={handleRetrySelected}
                   disabled={retryMutation.isPending || selectedLogs.length === 0}
                   className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-1 sm:flex-initial"
                 >
-                  <Send className="w-4 h-4 mr-2" />
+                  <Send className="mr-2 h-4 w-4" />
                   <span className="hidden sm:inline">Retry Selected</span>
                   <span className="sm:hidden">Retry ({selectedLogs.length})</span>
                 </Button>
@@ -1378,26 +1534,22 @@ function SmsManagement() {
                       disabled={selectedLogs.length === 0}
                       className="flex-1 sm:flex-initial"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">Delete Selected</span>
-                      <span className="sm:hidden">
-                        Delete ({selectedLogs.length})
-                      </span>
+                      <span className="sm:hidden">Delete ({selectedLogs.length})</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete SMS Logs</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to delete {selectedLogs.length}{" "}
-                        selected SMS log(s)? This action cannot be undone.
+                        Are you sure you want to delete {selectedLogs.length} selected SMS log(s)?
+                        This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteSelected}>
-                        Delete
-                      </AlertDialogAction>
+                      <AlertDialogAction onClick={handleDeleteSelected}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -1407,17 +1559,14 @@ function SmsManagement() {
 
           <SectionCard
             title="SMS Logs"
-            icon={<Inbox className="w-5 h-5" />}
+            icon={<Inbox className="h-5 w-5" />}
             headerAction={
               <div className="flex items-center gap-2">
                 <Checkbox
-                  checked={
-                    selectedLogs.length === displayedLogs.length &&
-                    displayedLogs.length > 0
-                  }
+                  checked={selectedLogs.length === displayedLogs.length && displayedLogs.length > 0}
                   onCheckedChange={handleSelectAll}
                 />
-                <span className="text-sm text-muted-foreground dark:text-slate-400 hidden sm:inline">
+                <span className="text-muted-foreground hidden text-sm sm:inline dark:text-slate-400">
                   Select All
                 </span>
               </div>
@@ -1425,11 +1574,11 @@ function SmsManagement() {
             noPadding
           >
             <div className="p-6">
-              <div className="hidden lg:block overflow-x-auto">
+              <div className="hidden overflow-x-auto lg:block">
                 {loadingLogs ? (
                   <div className="space-y-3">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="grid grid-cols-11 gap-3 items-center">
+                      <div key={i} className="grid grid-cols-11 items-center gap-3">
                         {Array.from({ length: 11 }).map((__, j) => (
                           <Skeleton key={j} className="h-4 w-full" />
                         ))}
@@ -1439,8 +1588,8 @@ function SmsManagement() {
                 ) : (
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr className="border-b border-border dark:border-slate-700">
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                      <tr className="border-border border-b dark:border-slate-700">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           <Checkbox
                             checked={
                               selectedLogs.length === displayedLogs.length &&
@@ -1449,34 +1598,34 @@ function SmsManagement() {
                             onCheckedChange={handleSelectAll}
                           />
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Student
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Class Info
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Phone
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Date
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Status
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           SMS count
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Retry Count
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Message
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Error
                         </th>
-                        <th className="text-left p-3 text-muted-foreground dark:text-slate-400 font-medium">
+                        <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Created
                         </th>
                       </tr>
@@ -1485,7 +1634,7 @@ function SmsManagement() {
                       {displayedLogs.map((log: SmsLog) => (
                         <tr
                           key={log.id}
-                          className="border-b border-border dark:border-slate-700 hover:bg-muted/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors group"
+                          className="border-border hover:bg-muted/50 group border-b transition-colors hover:text-slate-900 dark:border-slate-700 dark:hover:bg-slate-800/50 dark:hover:text-white"
                         >
                           <td className="p-3">
                             <Checkbox
@@ -1494,72 +1643,68 @@ function SmsManagement() {
                                 if (checked) {
                                   setSelectedLogs((prev) => [...prev, log.id]);
                                 } else {
-                                  setSelectedLogs((prev) =>
-                                    prev.filter((id) => id !== log.id)
-                                  );
+                                  setSelectedLogs((prev) => prev.filter((id) => id !== log.id));
                                 }
                               }}
                             />
                           </td>
                           <td className="p-3">
                             <div>
-                              <div className="font-medium text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
-                                {log.student?.name || "N/A"}
+                              <div className="font-medium text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
+                                {log.student?.name || 'N/A'}
                               </div>
-                              <div className="text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
-                                ID: {log.student?.login_id || "N/A"}
+                              <div className="text-muted-foreground group-hover:text-muted-foreground text-sm dark:text-slate-400 dark:group-hover:text-slate-400">
+                                ID: {log.student?.login_id || 'N/A'}
                               </div>
                             </div>
                           </td>
-                          <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                          <td className="text-muted-foreground group-hover:text-muted-foreground p-3 text-sm dark:text-slate-400 dark:group-hover:text-slate-400">
                             {getStudentInfo(log.student)}
                           </td>
-                          <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                          <td className="p-3 text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
                             {log.phone_number}
                           </td>
-                          <td className="p-3 text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                          <td className="p-3 text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
                             {formatIsoToDisplayDate(log.attendance_date)}
                           </td>
                           <td className="p-3">
-                            <Badge
-                              className={`text-white ${statusColors[log.status]}`}
-                            >
+                            <Badge className={`text-white ${statusColors[log.status]}`}>
                               {statusLabels[log.status]}
                             </Badge>
                           </td>
                           <td className="p-3">
                             {log.sms_count ? (
-                              <div className="font-semibold text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-200 dark:border-green-800">
+                              <div className="rounded border border-green-200 bg-green-50 px-2 py-1 text-sm font-semibold text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
                                 {log.sms_count}
                               </div>
                             ) : (
-                              <span className="text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                              <span className="text-muted-foreground group-hover:text-muted-foreground dark:text-slate-400 dark:group-hover:text-slate-400">
                                 N/A
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-center text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white">
+                          <td className="p-3 text-center text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
                             {log.retry_count}
                           </td>
-                          <td className="p-3 max-w-xs">
+                          <td className="max-w-xs p-3">
                             <div
-                              className="truncate text-slate-900 dark:text-white group-hover:text-slate-900 dark:group-hover:text-white"
+                              className="truncate text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white"
                               title={log.message}
                             >
                               {log.message}
                             </div>
                           </td>
-                          <td className="p-3 max-w-xs">
+                          <td className="max-w-xs p-3">
                             {log.error_reason && (
                               <div
-                                className="text-red-600 dark:text-red-400 group-hover:text-red-600 dark:group-hover:text-red-400 text-sm truncate"
+                                className="truncate text-sm text-red-600 group-hover:text-red-600 dark:text-red-400 dark:group-hover:text-red-400"
                                 title={log.error_reason}
                               >
                                 {log.error_reason}
                               </div>
                             )}
                           </td>
-                          <td className="p-3 text-sm text-muted-foreground dark:text-slate-400 group-hover:text-muted-foreground dark:group-hover:text-slate-400">
+                          <td className="text-muted-foreground group-hover:text-muted-foreground p-3 text-sm dark:text-slate-400 dark:group-hover:text-slate-400">
                             {formatIsoToDisplayDate(log.created_at)}
                           </td>
                         </tr>
@@ -1569,143 +1714,136 @@ function SmsManagement() {
                 )}
               </div>
 
-              <div className="lg:hidden space-y-4">
-                {loadingLogs ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <Card key={i} className="border border-border dark:border-slate-700">
-                      <CardContent className="p-4 space-y-3">
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-24" />
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  displayedLogs.map((log: SmsLog) => (
-                    <Card
-                      key={log.id}
-                      className="border border-border dark:border-slate-700"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={selectedLogs.includes(log.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedLogs((prev) => [...prev, log.id]);
-                                } else {
-                                  setSelectedLogs((prev) =>
-                                    prev.filter((id) => id !== log.id)
-                                  );
-                                }
-                              }}
-                            />
-                            <div>
-                              <div className="font-medium text-slate-900 dark:text-white">
-                                {log.student?.name || "N/A"}
-                              </div>
-                              <div className="text-sm text-muted-foreground dark:text-slate-400">
-                                ID: {log.student?.login_id || "N/A"}
+              <div className="space-y-4 lg:hidden">
+                {loadingLogs
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <Card key={i} className="border-border border dark:border-slate-700">
+                        <CardContent className="space-y-3 p-4">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-24" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  : displayedLogs.map((log: SmsLog) => (
+                      <Card key={log.id} className="border-border border dark:border-slate-700">
+                        <CardContent className="p-4">
+                          <div className="mb-3 flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={selectedLogs.includes(log.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedLogs((prev) => [...prev, log.id]);
+                                  } else {
+                                    setSelectedLogs((prev) => prev.filter((id) => id !== log.id));
+                                  }
+                                }}
+                              />
+                              <div>
+                                <div className="font-medium text-slate-900 dark:text-white">
+                                  {log.student?.name || 'N/A'}
+                                </div>
+                                <div className="text-muted-foreground text-sm dark:text-slate-400">
+                                  ID: {log.student?.login_id || 'N/A'}
+                                </div>
                               </div>
                             </div>
+                            <Badge className={`text-white ${statusColors[log.status]}`}>
+                              {statusLabels[log.status]}
+                            </Badge>
                           </div>
-                          <Badge className={`text-white ${statusColors[log.status]}`}>
-                            {statusLabels[log.status]}
-                          </Badge>
-                        </div>
 
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              Class Info:
-                            </span>
-                            <span className="text-slate-900 dark:text-white">
-                              {getStudentInfo(log.student)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              Phone:
-                            </span>
-                            <span className="text-slate-900 dark:text-white">
-                              {log.phone_number}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              Date:
-                            </span>
-                            <span className="text-slate-900 dark:text-white">
-                              {formatIsoToDisplayDate(log.attendance_date)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              SMS Count:
-                            </span>
-                            {log.sms_count ? (
-                              <span className="font-semibold text-green-600 dark:text-green-400">
-                                {log.sms_count}
-                              </span>
-                            ) : (
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
                               <span className="text-muted-foreground dark:text-slate-400">
-                                N/A
+                                Class Info:
                               </span>
+                              <span className="text-slate-900 dark:text-white">
+                                {getStudentInfo(log.student)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground dark:text-slate-400">
+                                Phone:
+                              </span>
+                              <span className="text-slate-900 dark:text-white">
+                                {log.phone_number}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground dark:text-slate-400">
+                                Date:
+                              </span>
+                              <span className="text-slate-900 dark:text-white">
+                                {formatIsoToDisplayDate(log.attendance_date)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground dark:text-slate-400">
+                                SMS Count:
+                              </span>
+                              {log.sms_count ? (
+                                <span className="font-semibold text-green-600 dark:text-green-400">
+                                  {log.sms_count}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground dark:text-slate-400">
+                                  N/A
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground dark:text-slate-400">
+                                Retry Count:
+                              </span>
+                              <span className="text-slate-900 dark:text-white">
+                                {log.retry_count}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground dark:text-slate-400">
+                                Created:
+                              </span>
+                              <span className="text-slate-900 dark:text-white">
+                                {formatIsoToDisplayDate(log.created_at)}
+                              </span>
+                            </div>
+                            {log.message && (
+                              <div className="pt-2">
+                                <div className="text-muted-foreground mb-1 dark:text-slate-400">
+                                  Message:
+                                </div>
+                                <div className="bg-muted rounded p-2 text-xs text-slate-900 dark:bg-slate-800 dark:text-white">
+                                  {log.message}
+                                </div>
+                              </div>
+                            )}
+                            {log.error_reason && (
+                              <div className="pt-2">
+                                <div className="text-muted-foreground mb-1 dark:text-slate-400">
+                                  Error:
+                                </div>
+                                <div className="rounded bg-red-50 p-2 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
+                                  {log.error_reason}
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              Retry Count:
-                            </span>
-                            <span className="text-slate-900 dark:text-white">
-                              {log.retry_count}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground dark:text-slate-400">
-                              Created:
-                            </span>
-                            <span className="text-slate-900 dark:text-white">
-                              {formatIsoToDisplayDate(log.created_at)}
-                            </span>
-                          </div>
-                          {log.message && (
-                            <div className="pt-2">
-                              <div className="text-muted-foreground dark:text-slate-400 mb-1">
-                                Message:
-                              </div>
-                              <div className="text-slate-900 dark:text-white text-xs bg-muted dark:bg-slate-800 p-2 rounded">
-                                {log.message}
-                              </div>
-                            </div>
-                          )}
-                          {log.error_reason && (
-                            <div className="pt-2">
-                              <div className="text-muted-foreground dark:text-slate-400 mb-1">
-                                Error:
-                              </div>
-                              <div className="text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/20 p-2 rounded">
-                                {log.error_reason}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
+                        </CardContent>
+                      </Card>
+                    ))}
               </div>
 
               {displayedLogs.length === 0 && !loadingLogs && (
-                <div className="text-center py-8 text-muted-foreground dark:text-slate-400">
+                <div className="text-muted-foreground py-8 text-center dark:text-slate-400">
                   No SMS logs found matching the current filters.
                 </div>
               )}
 
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-center items-center mt-6 gap-2">
+                <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
                   <Button
                     variant="outline"
                     disabled={currentPage === 1}
@@ -1715,16 +1853,14 @@ function SmsManagement() {
                     Previous
                   </Button>
 
-                  <span className="flex items-center px-3 py-2 text-muted-foreground dark:text-slate-400">
+                  <span className="text-muted-foreground flex items-center px-3 py-2 dark:text-slate-400">
                     Page {currentPage} of {totalPages}
                   </span>
 
                   <Button
                     variant="outline"
                     disabled={currentPage === totalPages}
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     className="w-full sm:w-auto"
                   >
                     Next

@@ -1,6 +1,6 @@
-import React from "react";
-import type { SubjectMark } from "@/queries/marks.queries";
-import type { Subject } from "@/types/subjects";
+import React from 'react';
+import type { SubjectMark } from '@/queries/marks.queries';
+import type { Subject } from '@/types/subjects';
 
 interface Student {
   student_id: number;
@@ -24,22 +24,26 @@ const MarkInput: React.FC<{
   disabled?: boolean;
   onChange: (value: string) => void;
 }> = ({ value, maxMark, label, disabled, onChange }) => {
-  const displayValue = value === null || value === undefined ? "" : String(value);
+  const displayValue = value === null || value === undefined ? '' : String(value);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    if (raw === "") {
-      onChange("");
+    if (raw === '') {
+      onChange('');
       return;
     }
-    const digitsOnly = raw.replace(/\D/g, "");
-    if (digitsOnly === "") return;
+    const digitsOnly = raw.replace(/\D/g, '');
+    if (digitsOnly === '') return;
     onChange(digitsOnly);
   };
 
   return (
     <div className="flex flex-col items-center gap-0.5">
-      {label && <span className="text-[9px] text-muted-foreground font-medium uppercase sm:hidden">{label}</span>}
+      {label && (
+        <span className="text-muted-foreground text-[9px] font-medium uppercase sm:hidden">
+          {label}
+        </span>
+      )}
       <input
         type="text"
         inputMode="numeric"
@@ -47,9 +51,9 @@ const MarkInput: React.FC<{
         value={displayValue}
         onChange={handleChange}
         disabled={disabled}
-        placeholder={disabled ? "—" : `/${maxMark}`}
-        className={`w-14 sm:w-16 p-1.5 sm:p-2 border border-border rounded text-center text-xs sm:text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
-          disabled ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card"
+        placeholder={disabled ? '—' : `/${maxMark}`}
+        className={`border-border focus:ring-primary/20 w-14 rounded border p-1.5 text-center text-xs transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none sm:w-16 sm:p-2 sm:text-sm ${
+          disabled ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-card'
         }`}
       />
     </div>
@@ -63,16 +67,24 @@ const TableRow: React.FC<StudentMarkRowProps> = ({
   studentSubject,
   onMarkChange,
 }) => {
-  const isGroupMismatch = selectedSubject.group && selectedSubject.group !== "" && selectedSubject.group !== student.group;
+  const isGroupMismatch =
+    selectedSubject.group &&
+    selectedSubject.group !== '' &&
+    selectedSubject.group !== student.group;
 
   if (isGroupMismatch) {
     return (
       <tr className="bg-muted/30">
-        <td className="px-2 sm:px-4 py-2 sm:py-3">
-          <div className="text-xs sm:text-sm font-medium">{student.name}</div>
-          <div className="text-[10px] text-muted-foreground">R:{student.roll} | S:{student.section || "–"}</div>
+        <td className="px-2 py-2 sm:px-4 sm:py-3">
+          <div className="text-xs font-medium sm:text-sm">{student.name}</div>
+          <div className="text-muted-foreground text-[10px]">
+            R:{student.roll} | S:{student.section || '–'}
+          </div>
         </td>
-        <td colSpan={3} className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[10px] sm:text-xs text-muted-foreground italic">
+        <td
+          colSpan={3}
+          className="text-muted-foreground px-2 py-2 text-center text-[10px] italic sm:px-4 sm:py-3 sm:text-xs"
+        >
           Not available for student group
         </td>
       </tr>
@@ -81,48 +93,54 @@ const TableRow: React.FC<StudentMarkRowProps> = ({
 
   return (
     <tr className="hover:bg-muted/30 transition-colors">
-      <td className="px-2 sm:px-4 py-2 sm:py-3">
+      <td className="px-2 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md tabular-nums">{student.roll}</span>
-            <span className="text-[10px] font-semibold bg-muted px-1.5 py-1 rounded-md text-muted-foreground">{student.section || "–"}</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="bg-primary/10 text-primary rounded-md px-2 py-1 text-xs font-bold tabular-nums">
+              {student.roll}
+            </span>
+            <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-1 text-[10px] font-semibold">
+              {student.section || '–'}
+            </span>
           </div>
-          <span className="text-sm text-foreground/80 truncate">{student.name}</span>
+          <span className="text-foreground/80 truncate text-sm">{student.name}</span>
         </div>
       </td>
-      {selectedSubject.marking_scheme === "BREAKDOWN" ? (
+      {selectedSubject.marking_scheme === 'BREAKDOWN' ? (
         <>
-          <td className="px-1 sm:px-4 py-2 sm:py-3 text-center">
+          <td className="px-1 py-2 text-center sm:px-4 sm:py-3">
             <MarkInput
               value={studentSubject?.cq_marks}
               maxMark={selectedSubject.cq_mark || 100}
               disabled={!selectedSubject.cq_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "cq_marks", v)}
+              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'cq_marks', v)}
             />
           </td>
-          <td className="px-1 sm:px-4 py-2 sm:py-3 text-center">
+          <td className="px-1 py-2 text-center sm:px-4 sm:py-3">
             <MarkInput
               value={studentSubject?.mcq_marks}
               maxMark={selectedSubject.mcq_mark || 100}
               disabled={!selectedSubject.mcq_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "mcq_marks", v)}
+              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'mcq_marks', v)}
             />
           </td>
-          <td className="px-1 sm:px-4 py-2 sm:py-3 text-center">
+          <td className="px-1 py-2 text-center sm:px-4 sm:py-3">
             <MarkInput
               value={studentSubject?.practical_marks}
               maxMark={selectedSubject.practical_mark || 100}
               disabled={!selectedSubject.practical_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "practical_marks", v)}
+              onChange={(v) =>
+                onMarkChange(student.student_id, selectedSubject.id, 'practical_marks', v)
+              }
             />
           </td>
         </>
       ) : (
-        <td className="px-1 sm:px-4 py-2 sm:py-3 text-center">
+        <td className="px-1 py-2 text-center sm:px-4 sm:py-3">
           <MarkInput
             value={studentSubject?.marks}
             maxMark={selectedSubject.full_mark || 100}
-            onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "marks", v)}
+            onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'marks', v)}
           />
         </td>
       )}
@@ -137,59 +155,70 @@ const CardRow: React.FC<StudentMarkRowProps> = ({
   studentSubject,
   onMarkChange,
 }) => {
-  const isGroupMismatch = selectedSubject.group && selectedSubject.group !== "" && selectedSubject.group !== student.group;
+  const isGroupMismatch =
+    selectedSubject.group &&
+    selectedSubject.group !== '' &&
+    selectedSubject.group !== student.group;
 
   if (isGroupMismatch) {
     return (
-      <div className="flex items-center justify-between px-3 py-2.5 bg-muted/30 border-b border-border">
+      <div className="bg-muted/30 border-border flex items-center justify-between border-b px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-muted-foreground w-7 shrink-0">{student.roll}</span>
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{student.section || "–"}</span>
+          <span className="text-muted-foreground w-7 shrink-0 text-xs font-bold">
+            {student.roll}
+          </span>
+          <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 text-[10px]">
+            {student.section || '–'}
+          </span>
         </div>
-        <span className="text-[10px] text-muted-foreground italic">N/A for group</span>
+        <span className="text-muted-foreground text-[10px] italic">N/A for group</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border hover:bg-muted/20 transition-colors">
+    <div className="border-border hover:bg-muted/20 flex items-center gap-2 border-b px-3 py-2.5 transition-colors">
       {/* Roll + Section identifier */}
-      <div className="flex items-center gap-1.5 shrink-0 min-w-[52px]">
-        <span className="text-xs font-bold tabular-nums w-6 text-right">{student.roll}</span>
-        <span className="text-[10px] text-muted-foreground bg-muted px-1 py-0.5 rounded font-medium">{student.section || "–"}</span>
+      <div className="flex min-w-[52px] shrink-0 items-center gap-1.5">
+        <span className="w-6 text-right text-xs font-bold tabular-nums">{student.roll}</span>
+        <span className="text-muted-foreground bg-muted rounded px-1 py-0.5 text-[10px] font-medium">
+          {student.section || '–'}
+        </span>
       </div>
 
       {/* Mark inputs */}
-      <div className="flex items-center gap-1.5 ml-auto">
-        {selectedSubject.marking_scheme === "BREAKDOWN" ? (
+      <div className="ml-auto flex items-center gap-1.5">
+        {selectedSubject.marking_scheme === 'BREAKDOWN' ? (
           <>
             <MarkInput
               value={studentSubject?.cq_marks}
               maxMark={selectedSubject.cq_mark || 100}
               label="CQ"
               disabled={!selectedSubject.cq_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "cq_marks", v)}
+              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'cq_marks', v)}
             />
             <MarkInput
               value={studentSubject?.mcq_marks}
               maxMark={selectedSubject.mcq_mark || 100}
               label="MCQ"
               disabled={!selectedSubject.mcq_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "mcq_marks", v)}
+              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'mcq_marks', v)}
             />
             <MarkInput
               value={studentSubject?.practical_marks}
               maxMark={selectedSubject.practical_mark || 100}
               label="Prac"
               disabled={!selectedSubject.practical_mark}
-              onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "practical_marks", v)}
+              onChange={(v) =>
+                onMarkChange(student.student_id, selectedSubject.id, 'practical_marks', v)
+              }
             />
           </>
         ) : (
           <MarkInput
             value={studentSubject?.marks}
             maxMark={selectedSubject.full_mark || 100}
-            onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, "marks", v)}
+            onChange={(v) => onMarkChange(student.student_id, selectedSubject.id, 'marks', v)}
           />
         )}
       </div>
@@ -197,8 +226,11 @@ const CardRow: React.FC<StudentMarkRowProps> = ({
   );
 };
 
-const StudentMarkRow: React.FC<StudentMarkRowProps & { variant?: "table" | "card" }> = ({ variant = "table", ...props }) => {
-  return variant === "card" ? <CardRow {...props} /> : <TableRow {...props} />;
+const StudentMarkRow: React.FC<StudentMarkRowProps & { variant?: 'table' | 'card' }> = ({
+  variant = 'table',
+  ...props
+}) => {
+  return variant === 'card' ? <CardRow {...props} /> : <TableRow {...props} />;
 };
 
 export default React.memo(StudentMarkRow);

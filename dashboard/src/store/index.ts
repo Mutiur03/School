@@ -1,1 +1,1 @@
-export { default as useHolidayStore } from "./holiday.Store";
+export { default as useHolidayStore } from './holiday.Store';

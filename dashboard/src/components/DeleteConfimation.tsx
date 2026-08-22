@@ -8,8 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import ActionButton from "@/components/ActionButton";
+} from '@/components/ui/alert-dialog';
+import ActionButton from '@/components/ActionButton';
 
 const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: string }) => {
   return (
@@ -21,15 +21,13 @@ const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: str
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            {msg || "This action cannot be undone. This will permanently delete the item from your database."}
+            {msg ||
+              'This action cannot be undone. This will permanently delete the item from your database.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onDelete}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
+          <AlertDialogAction onClick={onDelete} className="bg-red-600 text-white hover:bg-red-700">
             Confirm Delete
           </AlertDialogAction>
         </AlertDialogFooter>

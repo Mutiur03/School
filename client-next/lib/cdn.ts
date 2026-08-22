@@ -11,8 +11,8 @@ export const cdn = process.env.NEXT_PUBLIC_CDN_URL;
  * - Bare R2 keys are prefixed with NEXT_PUBLIC_CDN_URL.
  */
 export const getFileUrl = (key: string | null | undefined): string => {
-  if (!key) return "";
-  if (key.startsWith("http") || key.startsWith("blob:")) return key;
-  if (key.startsWith("/")) return `${cdn}${key}`;
+  if (!key) return '';
+  if (key.startsWith('http') || key.startsWith('blob:')) return key;
+  if (key.startsWith('/')) return `${cdn}${key}`;
   return `${cdn}/${key}`;
 };

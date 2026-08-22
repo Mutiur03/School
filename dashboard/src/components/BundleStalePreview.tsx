@@ -1,17 +1,17 @@
 // import { AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 import {
   filterStaleBundlesForContext,
   formatBundleScope,
   type StaleBundleItem,
-} from "@/queries/marks.queries";
+} from '@/queries/marks.queries';
 
 interface BundleStalePreviewProps {
   items: StaleBundleItem[] | undefined;
   classNum?: string | number;
   sectionFilter?: string;
   /** inline = single line for table cells; default = block with list */
-  variant?: "inline" | "block";
+  variant?: 'inline' | 'block';
   className?: string;
 }
 
@@ -19,17 +19,17 @@ export function BundleStalePreview({
   items,
   classNum,
   sectionFilter,
-  variant = "block",
+  variant = 'block',
   className,
 }: BundleStalePreviewProps) {
   const filtered = filterStaleBundlesForContext(items, classNum, sectionFilter);
   if (filtered.length === 0) return null;
 
-  if (variant === "inline") {
+  if (variant === 'inline') {
     return (
       <ul
         className={cn(
-          "text-[10px] text-amber-600 dark:text-amber-500 list-disc pl-3 space-y-0.5 leading-tight",
+          'list-disc space-y-0.5 pl-3 text-[10px] leading-tight text-amber-600 dark:text-amber-500',
           className,
         )}
       >

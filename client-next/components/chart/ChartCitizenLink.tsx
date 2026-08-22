@@ -1,16 +1,15 @@
-"use client";
+'use client';
 
-import { useCitizenCharter } from "@/hooks/useSchoolData";
-import { getFileUrl } from "@/lib/cdn";
+import { useCitizenCharter } from '@/hooks/useSchoolData';
+import { getFileUrl } from '@/lib/cdn';
 
 export function ChartCitizenLink() {
   const citizenCharterQuery = useCitizenCharter();
 
   const handleCitizenCharterClick = async () => {
-    const key =
-      citizenCharterQuery.data ?? (await citizenCharterQuery.refetch()).data;
+    const key = citizenCharterQuery.data ?? (await citizenCharterQuery.refetch()).data;
     if (key) {
-      window.open(getFileUrl(key), "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(key), '_blank', 'noopener,noreferrer');
     }
   };
 

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from 'axios';
 
 /** PUT to presigned R2/S3 URL — no cookies, no auth header. */
 export async function putFileToPresignedUrl(
@@ -8,11 +8,11 @@ export async function putFileToPresignedUrl(
   onProgress?: (pct: number) => void,
 ): Promise<void> {
   await axios.put(uploadUrl, file, {
-    headers: { "Content-Type": contentType },
+    headers: { 'Content-Type': contentType },
     withCredentials: false,
     transformRequest: [
       (data, headers) => {
-        delete headers?.["Authorization"];
+        delete headers?.['Authorization'];
         return data;
       },
     ],
@@ -46,7 +46,7 @@ export async function uploadToR2(
   const { uploadUrl, key } = body?.data ?? body;
 
   if (!uploadUrl || !key) {
-    throw new Error("Invalid presigned URL response from server");
+    throw new Error('Invalid presigned URL response from server');
   }
 
   await putFileToPresignedUrl(uploadUrl, file, file.type, onProgress);

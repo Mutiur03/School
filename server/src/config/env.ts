@@ -1,14 +1,12 @@
-import { z } from "zod";
-import logger from "../utils/logger.js";
+import { z } from 'zod';
+import logger from '../utils/logger.js';
 
 const envSchema = z.object({
-  PORT: z.string().default("5000"),
+  PORT: z.string().default('5000'),
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(1),
   //   REFRESH_TOKEN_SECRET: z.string().min(1),
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   ALLOWED_ORIGINS: z.string().optional(),
   DOMAIN: z.string().optional(),
   REDIS_HOST: z.string().optional(),
@@ -36,7 +34,7 @@ const envSchema = z.object({
 
   SENTRY_DSN: z.string().url().optional(),
 
-  PRISMA_LOG_QUERIES: z.enum(["true", "false"]).optional(),
+  PRISMA_LOG_QUERIES: z.enum(['true', 'false']).optional(),
   PRISMA_SLOW_QUERY_MS: z.string().optional(),
 
   /** Express trust proxy hops (e.g. "1" behind nginx). "true"/"false" also accepted. */
@@ -47,12 +45,12 @@ export const validateEnv = () => {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error("❌ Invalid environment variables:");
+    console.error('❌ Invalid environment variables:');
     result.error.issues.forEach((issue) => {
-      console.error(`   - ${issue.path.join(".")}: ${issue.message}`);
+      console.error(`   - ${issue.path.join('.')}: ${issue.message}`);
     });
 
-    logger.error("Environment validation failed", {
+    logger.error('Environment validation failed', {
       errors: result.error.format(),
     });
 

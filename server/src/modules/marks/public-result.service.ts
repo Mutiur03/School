@@ -1,11 +1,11 @@
-import jwt from "jsonwebtoken";
-import type { PublicResultVerifyData } from "@school/shared-schemas";
-import { prisma } from "@/config/prisma.js";
-import { env } from "@/config/env.js";
-import { ApiError } from "@/utils/ApiError.js";
+import jwt from 'jsonwebtoken';
+import type { PublicResultVerifyData } from '@school/shared-schemas';
+import { prisma } from '@/config/prisma.js';
+import { env } from '@/config/env.js';
+import { ApiError } from '@/utils/ApiError.js';
 
-const PUBLIC_RESULT_ROLE = "public_result";
-const TOKEN_TTL = "15m";
+const PUBLIC_RESULT_ROLE = 'public_result';
+const TOKEN_TTL = '15m';
 
 export interface PublicResultTokenPayload {
   id: number;
@@ -13,11 +13,9 @@ export interface PublicResultTokenPayload {
 }
 
 function signPublicResultToken(studentId: number): string {
-  return jwt.sign(
-    { id: studentId, role: PUBLIC_RESULT_ROLE },
-    env.JWT_SECRET,
-    { expiresIn: TOKEN_TTL },
-  );
+  return jwt.sign({ id: studentId, role: PUBLIC_RESULT_ROLE }, env.JWT_SECRET, {
+    expiresIn: TOKEN_TTL,
+  });
 }
 
 /** Days between a "YYYY-MM-DD" date and today; Infinity when unparseable. */
@@ -29,22 +27,20 @@ function daysFromToday(isoDate: string | null): number {
 }
 
 /** Verify a public-result token. Throws ApiError(401) on any problem. */
-export function verifyPublicResultToken(
-  token: string | undefined,
-): PublicResultTokenPayload {
-  if (!token) throw new ApiError(401, "Unauthorized");
+export function verifyPublicResultToken(token: string | undefined): PublicResultTokenPayload {
+  if (!token) throw new ApiError(401, 'Unauthorized');
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as PublicResultTokenPayload;
     if (!decoded || decoded.role !== PUBLIC_RESULT_ROLE || !decoded.id) {
-      throw new ApiError(401, "Invalid token");
+      throw new ApiError(401, 'Invalid token');
     }
     return decoded;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof jwt.TokenExpiredError) {
-      throw new ApiError(401, "Session expired. Please verify again.");
+      throw new ApiError(401, 'Session expired. Please verify again.');
     }
-    throw new ApiError(401, "Invalid token");
+    throw new ApiError(401, 'Invalid token');
   }
 }
 
@@ -66,7 +62,7 @@ export class PublicResultService {
         result_date: true,
         visible: true,
       },
-      orderBy: [{ result_date: "desc" }, { exam_name: "asc" }],
+      orderBy: [{ result_date: 'desc' }, { exam_name: 'asc' }],
     });
 
     // Distinct by name (levels uniqueness can yield same name across level arrays).
@@ -114,10 +110,7 @@ export class PublicResultService {
     });
 
     if (!enrollment) {
-      throw new ApiError(
-        401,
-        "Invalid session, class, section, roll, or phone number",
-      );
+      throw new ApiError(401, 'Invalid session, class, section, roll, or phone number');
     }
 
     const student = enrollment.student;
@@ -137,16 +130,12 @@ export class PublicResultService {
       select: { id: true },
     });
     if (!examRow) {
-      throw new ApiError(403, "The results have not been published yet.");
+      throw new ApiError(403, 'The results have not been published yet.');
     }
   }
 
   /** On-screen marks table for a single published exam. */
-  static async getExamResult(
-    studentId: number,
-    year: number,
-    exam: string,
-  ) {
+  static async getExamResult(studentId: number, year: number, exam: string) {
     await this.assertPublished(exam);
 
     const marks = await prisma.marks.findMany({
@@ -172,14 +161,12 @@ export class PublicResultService {
     });
 
     if (marks.length === 0 || !marks.some((m) => m.marks !== null)) {
-      throw new ApiError(404, "No result found for this student");
+      throw new ApiError(404, 'No result found for this student');
     }
 
     const first = marks[0];
-    const subjectTotals: Record<
-      string,
-      { marks: number; full_mark: number; priority: number }
-    > = {};
+    const subjectTotals: Record<string, { marks: number; full_mark: number; priority: number }> =
+      {};
 
     for (const m of marks) {
       const subjectName = m.subject.parent?.name || m.subject.name;
@@ -223,7 +210,7 @@ export class PublicResultService {
 
   /** Synthetic student user so generateMarksheetPDF's checkAccess passes. */
   static synthUser(studentId: number) {
-    return { id: studentId, role: "student" };
+    return { id: studentId, role: 'student' };
   }
 
   static async assertExamPublished(exam: string) {

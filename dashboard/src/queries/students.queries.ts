@@ -1,7 +1,7 @@
-import type { Student } from "@/types/students";
-import type { StudentAttendanceResponse } from "@/types/attendance";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import type { Student } from '@/types/students';
+import type { StudentAttendanceResponse } from '@/types/attendance';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 export type StudentProfile = Student & {
   enrollments?: Array<{
@@ -43,7 +43,7 @@ export const useStudents = (params: {
   const { year, page, limit, level, section, religion, roll, search } = params;
 
   return useQuery<StudentsListResponse>({
-    queryKey: ["students", year, { page, limit, level, section, religion, roll, search }],
+    queryKey: ['students', year, { page, limit, level, section, religion, roll, search }],
     queryFn: async () => {
       const response = await axios.get(`/api/students`, {
         params: { year, page, limit, level, section, religion, roll, search },
@@ -73,9 +73,9 @@ export const useStudents = (params: {
 
 export const useStudentProfile = (year?: number) => {
   return useQuery<StudentProfile>({
-    queryKey: ["student-profile", year],
+    queryKey: ['student-profile', year],
     queryFn: async () => {
-      const response = await axios.get("/api/students/me", {
+      const response = await axios.get('/api/students/me', {
         params: year ? { year } : undefined,
       });
       return response.data?.data as StudentProfile;
@@ -92,11 +92,11 @@ export const useStudentAttendance = (params: {
   const { studentId, month, year, enabled = true } = params;
 
   return useQuery<StudentAttendanceResponse>({
-    queryKey: ["student-attendance", studentId ?? "me", month, year],
+    queryKey: ['student-attendance', studentId ?? 'me', month, year],
     queryFn: async () => {
       const url = studentId
         ? `/api/students/${studentId}/attendance`
-        : "/api/students/me/attendance";
+        : '/api/students/me/attendance';
       const response = await axios.get(url, {
         params: { month, year },
       });

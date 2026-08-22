@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
-import toast from "react-hot-toast";
-import { Download, Eye, LogOut, Loader2, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { Download, Eye, LogOut, Loader2, AlertTriangle } from 'lucide-react';
 import {
   downloadBlob,
   openBlobInNewTab,
   getFilenameFromContentDisposition,
-} from "@school/common-ui/blob";
+} from '@school/common-ui/blob';
 import {
   filterNumericInput,
   publicResultVerifySchema,
   type PublicResultVerifyData,
   type PublicResultVerifyInput,
-} from "@school/shared-schemas";
-import type { PublicExamOption } from "@/queries/public-result.queries";
+} from '@school/shared-schemas';
+import type { PublicExamOption } from '@/queries/public-result.queries';
 
 type ExamOption = PublicExamOption;
 interface SessionOption {
@@ -50,16 +50,16 @@ interface ExamResult {
 }
 
 const SECTION_OPTIONS = [
-  { label: "A", value: "A" },
-  { label: "B", value: "B" },
+  { label: 'A', value: 'A' },
+  { label: 'B', value: 'B' },
 ];
 const CLASS_OPTIONS = Array.from({ length: 5 }, (_, i) => i + 6);
 const CLASS_WORD: Record<number, string> = {
-  6: "Six",
-  7: "Seven",
-  8: "Eight",
-  9: "Nine",
-  10: "Ten",
+  6: 'Six',
+  7: 'Seven',
+  8: 'Eight',
+  9: 'Nine',
+  10: 'Ten',
 };
 function classLabel(classNum: number | string): string {
   const n = Number(classNum);
@@ -75,14 +75,12 @@ const DEFAULT_VALUES: PublicResultVerifyInput = {
   class: String(DEFAULT_CLASS),
   section: SECTION_OPTIONS[0].value,
   roll: String(ROLL_OPTIONS[0]),
-  phone: "",
+  phone: '',
 };
 
 function errMsg(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
-    return (
-      (error.response?.data as { message?: string })?.message ?? fallback
-    );
+    return (error.response?.data as { message?: string })?.message ?? fallback;
   }
   return fallback;
 }
@@ -111,21 +109,21 @@ export default function ResultClient({
       year: String(initialYear),
       class: String(initialClass),
     },
-    mode: "onSubmit",
+    mode: 'onSubmit',
   });
 
-  const watchedYear = useWatch({ control, name: "year" });
-  const watchedClass = useWatch({ control, name: "class" });
+  const watchedYear = useWatch({ control, name: 'year' });
+  const watchedClass = useWatch({ control, name: 'class' });
 
   const [formExams, setFormExams] = useState<ExamOption[]>(initialExams);
-  const [formExam, setFormExam] = useState(initialExams[0]?.exam_name ?? "");
+  const [formExam, setFormExam] = useState(initialExams[0]?.exam_name ?? '');
   const [loadingExams, setLoadingExams] = useState(false);
   const skipInitialExamFetch = useRef(true);
 
   const [verified, setVerified] = useState<PublicResultVerifyData | null>(null);
   const [session, setSession] = useState<VerifyResponse | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedExam, setSelectedExam] = useState<string>("");
+  const [selectedExam, setSelectedExam] = useState<string>('');
 
   const [result, setResult] = useState<ExamResult | null>(null);
   const [loadingResult, setLoadingResult] = useState(false);
@@ -143,25 +141,19 @@ export default function ResultClient({
     [examsForYear, selectedExam],
   );
 
-  const authHeader = session
-    ? { Authorization: `Bearer ${session.token}` }
-    : undefined;
+  const authHeader = session ? { Authorization: `Bearer ${session.token}` } : undefined;
 
   useEffect(() => {
     const yearNum = Number(watchedYear);
     const classNum = Number(watchedClass);
     if (!yearNum || !classNum) {
       setFormExams([]);
-      setFormExam("");
+      setFormExam('');
       return;
     }
 
     // First paint already has the server-fetched list for the default year/class.
-    if (
-      skipInitialExamFetch.current &&
-      yearNum === initialYear &&
-      classNum === initialClass
-    ) {
+    if (skipInitialExamFetch.current && yearNum === initialYear && classNum === initialClass) {
       skipInitialExamFetch.current = false;
       return;
     }
@@ -170,19 +162,19 @@ export default function ResultClient({
     let cancelled = false;
     setLoadingExams(true);
     axios
-      .get("/api/marks/public/exams", {
+      .get('/api/marks/public/exams', {
         params: { year: yearNum, class: classNum },
       })
       .then(({ data }) => {
         if (cancelled) return;
         const exams = (data.data as ExamOption[]) ?? [];
         setFormExams(exams);
-        setFormExam(exams[0]?.exam_name ?? "");
+        setFormExam(exams[0]?.exam_name ?? '');
       })
       .catch(() => {
         if (cancelled) return;
         setFormExams([]);
-        setFormExam("");
+        setFormExam('');
       })
       .finally(() => {
         if (!cancelled) setLoadingExams(false);
@@ -195,17 +187,16 @@ export default function ResultClient({
 
   async function onVerify(body: PublicResultVerifyData) {
     if (!formExam) {
-      toast.error("Select an exam");
+      toast.error('Select an exam');
       return;
     }
     try {
-      const { data } = await axios.post("/api/marks/public/verify", body);
+      const { data } = await axios.post('/api/marks/public/verify', body);
       const payload = data.data as VerifyResponse;
       setVerified(body);
       setSession(payload);
       const yearNum = body.year;
-      const exams =
-        payload.sessions.find((s) => s.year === yearNum)?.exams ?? [];
+      const exams = payload.sessions.find((s) => s.year === yearNum)?.exams ?? [];
       const preferredMeta =
         exams.find((e) => e.exam_name === formExam) ??
         formExams.find((e) => e.exam_name === formExam) ??
@@ -224,7 +215,7 @@ export default function ResultClient({
       setUnpublished(false);
       await fetchResult(payload.token, yearNum, preferred);
     } catch (error) {
-      toast.error(errMsg(error, "Could not verify student details"));
+      toast.error(errMsg(error, 'Could not verify student details'));
     }
   }
 
@@ -232,7 +223,7 @@ export default function ResultClient({
     setLoadingResult(true);
     setUnpublished(false);
     try {
-      const { data } = await axios.get("/api/marks/public/result", {
+      const { data } = await axios.get('/api/marks/public/result', {
         params: { year: yearNum, exam },
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -243,7 +234,7 @@ export default function ResultClient({
         setUnpublished(true);
         return;
       }
-      toast.error(errMsg(error, "Could not load result"));
+      toast.error(errMsg(error, 'Could not load result'));
     } finally {
       setLoadingResult(false);
     }
@@ -255,9 +246,8 @@ export default function ResultClient({
     if (!session) return;
 
     const meta =
-      session.sessions
-        .find((s) => s.year === yearNum)
-        ?.exams.find((e) => e.exam_name === exam) ?? null;
+      session.sessions.find((s) => s.year === yearNum)?.exams.find((e) => e.exam_name === exam) ??
+      null;
     if (meta && meta.visible === false) {
       setResult(null);
       setUnpublished(true);
@@ -268,13 +258,13 @@ export default function ResultClient({
 
   async function getPdf(): Promise<{ blob: Blob; filename: string } | null> {
     if (!session || selectedYear == null || !selectedExam) return null;
-    const res = await axios.get("/api/marks/public/download", {
+    const res = await axios.get('/api/marks/public/download', {
       params: { year: selectedYear, exam: selectedExam },
       headers: authHeader,
-      responseType: "blob",
+      responseType: 'blob',
     });
     const filename =
-      getFilenameFromContentDisposition(res.headers["content-disposition"]) ??
+      getFilenameFromContentDisposition(res.headers['content-disposition']) ??
       `marksheet_${selectedExam}_${selectedYear}.pdf`;
     return { blob: res.data as Blob, filename };
   }
@@ -285,7 +275,7 @@ export default function ResultClient({
       const pdf = await getPdf();
       if (pdf) openBlobInNewTab(pdf.blob);
     } catch (error) {
-      toast.error(errMsg(error, "Could not open marksheet"));
+      toast.error(errMsg(error, 'Could not open marksheet'));
     } finally {
       setViewing(false);
     }
@@ -297,7 +287,7 @@ export default function ResultClient({
       const pdf = await getPdf();
       if (pdf) downloadBlob(pdf.blob, pdf.filename);
     } catch (error) {
-      toast.error(errMsg(error, "Could not download marksheet"));
+      toast.error(errMsg(error, 'Could not download marksheet'));
     } finally {
       setDownloading(false);
     }
@@ -307,7 +297,7 @@ export default function ResultClient({
     setSession(null);
     setVerified(null);
     setSelectedYear(null);
-    setSelectedExam("");
+    setSelectedExam('');
     setResult(null);
     setUnpublished(false);
     reset(DEFAULT_VALUES);
@@ -316,27 +306,24 @@ export default function ResultClient({
   // ---- Lookup screen ----
   if (!session) {
     return (
-      <div className="max-w-md mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">Check Result</h1>
-        <p className="text-gray-600 mb-8">
-          Enter session, class, section, roll, and a registered mobile number to
-          view your result and download your academic transcript (marksheet).
+      <div className="mx-auto max-w-md px-4 py-12">
+        <h1 className="mb-2 text-3xl font-bold text-gray-800">Check Result</h1>
+        <p className="mb-8 text-gray-600">
+          Enter session, class, section, roll, and a registered mobile number to view your result
+          and download your academic transcript (marksheet).
         </p>
         <form
           onSubmit={handleSubmit(onVerify)}
-          className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-5"
+          className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
           noValidate
         >
           <div>
-            <label
-              htmlFor="year"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="year" className="mb-1 block text-sm font-medium text-gray-700">
               Session
             </label>
             <select
               id="year"
-              {...register("year")}
+              {...register('year')}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               {YEAR_OPTIONS.map((y) => (
@@ -345,21 +332,16 @@ export default function ResultClient({
                 </option>
               ))}
             </select>
-            {errors.year && (
-              <p className="mt-1 text-xs text-red-600">{errors.year.message}</p>
-            )}
+            {errors.year && <p className="mt-1 text-xs text-red-600">{errors.year.message}</p>}
           </div>
           <div className="space-y-4">
             <div className="min-w-0">
-              <label
-                htmlFor="klass"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="klass" className="mb-1 block text-sm font-medium text-gray-700">
                 Class
               </label>
               <select
                 id="klass"
-                {...register("class")}
+                {...register('class')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {CLASS_OPTIONS.map((c) => (
@@ -368,22 +350,15 @@ export default function ResultClient({
                   </option>
                 ))}
               </select>
-              {errors.class && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.class.message}
-                </p>
-              )}
+              {errors.class && <p className="mt-1 text-xs text-red-600">{errors.class.message}</p>}
             </div>
             <div className="min-w-0">
-              <label
-                htmlFor="section"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="section" className="mb-1 block text-sm font-medium text-gray-700">
                 Section
               </label>
               <select
                 id="section"
-                {...register("section")}
+                {...register('section')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {SECTION_OPTIONS.map((s) => (
@@ -393,21 +368,16 @@ export default function ResultClient({
                 ))}
               </select>
               {errors.section && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.section.message}
-                </p>
+                <p className="mt-1 text-xs text-red-600">{errors.section.message}</p>
               )}
             </div>
             <div className="min-w-0">
-              <label
-                htmlFor="roll"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="roll" className="mb-1 block text-sm font-medium text-gray-700">
                 Roll
               </label>
               <select
                 id="roll"
-                {...register("roll")}
+                {...register('roll')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {ROLL_OPTIONS.map((r) => (
@@ -416,18 +386,11 @@ export default function ResultClient({
                   </option>
                 ))}
               </select>
-              {errors.roll && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.roll.message}
-                </p>
-              )}
+              {errors.roll && <p className="mt-1 text-xs text-red-600">{errors.roll.message}</p>}
             </div>
           </div>
           <div>
-            <label
-              htmlFor="exam"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="exam" className="mb-1 block text-sm font-medium text-gray-700">
               Examination
             </label>
             <select
@@ -451,10 +414,7 @@ export default function ResultClient({
             </select>
           </div>
           <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-700">
               Mobile Number
             </label>
             <input
@@ -463,17 +423,14 @@ export default function ResultClient({
               inputMode="numeric"
               maxLength={11}
               spellCheck={false}
-              {...register("phone", {
-                setValueAs: (v) =>
-                  filterNumericInput(String(v ?? "")).slice(0, 11),
+              {...register('phone', {
+                setValueAs: (v) => filterNumericInput(String(v ?? '')).slice(0, 11),
               })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
               placeholder="e.g. 01712345678…"
               autoComplete="tel"
             />
-            {errors.phone && (
-              <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>
-            )}
+            {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
             <p className="mt-1 text-xs text-gray-500">
               Use the father&apos;s or mother&apos;s phone number on record.
             </p>
@@ -481,10 +438,10 @@ export default function ResultClient({
           <button
             type="submit"
             disabled={isSubmitting || !formExam || loadingExams}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? "Verifying…" : "View Result"}
+            {isSubmitting ? 'Verifying…' : 'View Result'}
           </button>
         </form>
       </div>
@@ -493,17 +450,14 @@ export default function ResultClient({
 
   // ---- Result screen ----
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {session.student.name}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800">{session.student.name}</h1>
           {verified && (
-            <p className="text-gray-500 text-sm">
+            <p className="text-sm text-gray-500">
               Class {classLabel(verified.class)}
-              {verified.section} · Roll {verified.roll} · Session{" "}
-              {verified.year}
+              {verified.section} · Roll {verified.roll} · Session {verified.year}
             </p>
           )}
         </div>
@@ -516,23 +470,19 @@ export default function ResultClient({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {session.sessions.length > 1 && (
           <div>
-            <label
-              htmlFor="result-year"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="result-year" className="mb-1 block text-sm font-medium text-gray-700">
               Year
             </label>
             <select
               id="result-year"
-              value={selectedYear ?? ""}
+              value={selectedYear ?? ''}
               onChange={(e) => {
                 const yearNum = Number(e.target.value);
                 const firstExam =
-                  session.sessions.find((s) => s.year === yearNum)?.exams[0]
-                    ?.exam_name ?? "";
+                  session.sessions.find((s) => s.year === yearNum)?.exams[0]?.exam_name ?? '';
                 handleSelect(yearNum, firstExam);
               }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
@@ -545,19 +495,14 @@ export default function ResultClient({
             </select>
           </div>
         )}
-        <div className={session.sessions.length > 1 ? "" : "sm:col-span-2"}>
-          <label
-            htmlFor="result-exam"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
+        <div className={session.sessions.length > 1 ? '' : 'sm:col-span-2'}>
+          <label htmlFor="result-exam" className="mb-1 block text-sm font-medium text-gray-700">
             Examination
           </label>
           <select
             id="result-exam"
             value={selectedExam}
-            onChange={(e) =>
-              selectedYear != null && handleSelect(selectedYear, e.target.value)
-            }
+            onChange={(e) => selectedYear != null && handleSelect(selectedYear, e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
           >
             {examsForYear.map((ex) => (
@@ -569,7 +514,7 @@ export default function ResultClient({
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         {loadingResult ? (
           <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading result…
@@ -589,10 +534,10 @@ export default function ResultClient({
                 />
               </div>
 
-              <h2 className="text-balance text-2xl font-bold tracking-tight text-[#1b3a5c] sm:text-[1.65rem]">
+              <h2 className="text-2xl font-bold tracking-tight text-balance text-[#1b3a5c] sm:text-[1.65rem]">
                 Not Published Yet
               </h2>
-              <p className="mt-3 text-pretty text-lg leading-relaxed text-slate-600">
+              <p className="mt-3 text-lg leading-relaxed text-pretty text-slate-600">
                 Check back after the school releases the results.
               </p>
             </div>
@@ -601,19 +546,16 @@ export default function ResultClient({
           <>
             <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-gray-100 px-5 py-4 text-sm text-gray-600">
               <span>
-                <span className="text-gray-400">Class:</span>{" "}
-                {classLabel(result.student.class)}
+                <span className="text-gray-400">Class:</span> {classLabel(result.student.class)}
               </span>
               <span>
                 <span className="text-gray-400">Roll:</span> {result.student.roll}
               </span>
               <span>
-                <span className="text-gray-400">Section:</span>{" "}
-                {result.student.section}
+                <span className="text-gray-400">Section:</span> {result.student.section}
               </span>
               <span>
-                <span className="text-gray-400">Examination:</span>{" "}
-                {result.exam_name}
+                <span className="text-gray-400">Examination:</span> {result.exam_name}
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -621,32 +563,24 @@ export default function ResultClient({
                 <thead>
                   <tr className="bg-gray-50 text-left text-gray-600">
                     <th className="px-5 py-2.5 font-medium">Subject</th>
-                    <th className="px-5 py-2.5 font-medium text-right">Marks</th>
-                    <th className="px-5 py-2.5 font-medium text-right">Full Marks</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Marks</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Full Marks</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.rows.map((r) => (
                     <tr key={r.subject} className="border-t border-gray-100">
                       <td className="px-5 py-2.5 text-gray-800">{r.subject}</td>
-                      <td className="px-5 py-2.5 text-right text-gray-800">
-                        {r.marks}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-gray-500">
-                        {r.full_mark ?? "-"}
-                      </td>
+                      <td className="px-5 py-2.5 text-right text-gray-800">{r.marks}</td>
+                      <td className="px-5 py-2.5 text-right text-gray-500">{r.full_mark ?? '-'}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-gray-200 bg-gray-50 font-semibold">
                     <td className="px-5 py-2.5 text-gray-800">Total</td>
-                    <td className="px-5 py-2.5 text-right text-gray-800">
-                      {result.total}
-                    </td>
-                    <td className="px-5 py-2.5 text-right text-gray-600">
-                      {result.total_full}
-                    </td>
+                    <td className="px-5 py-2.5 text-right text-gray-800">{result.total}</td>
+                    <td className="px-5 py-2.5 text-right text-gray-600">{result.total_full}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -679,9 +613,7 @@ export default function ResultClient({
             </div>
           </>
         ) : (
-          <div className="py-16 text-center text-gray-500">
-            No result to display.
-          </div>
+          <div className="py-16 text-center text-gray-500">No result to display.</div>
         )}
       </div>
     </div>

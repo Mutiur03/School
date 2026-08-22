@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import axios from "axios";
-import Loading from "@/components/Loading";
-import { openBlobInNewTab } from "@school/common-ui/blob";
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import Loading from '@/components/Loading';
+import { openBlobInNewTab } from '@school/common-ui/blob';
 
 interface ExamMarks {
   [examName: string]: number;
@@ -30,19 +30,16 @@ function ShowMarkSheet() {
   useEffect(() => {
     const fetchMarkSheet = async () => {
       if (!studentId || !year) {
-        setError("Invalid student ID or year.");
+        setError('Invalid student ID or year.');
         setLoading(false);
         return;
       }
       try {
-        const response = await axios.get(
-          `/api/marks/${studentId}/${year}/preview`
-        );
-        if (response.status !== 200)
-          throw new Error("Failed to fetch marksheet.");
+        const response = await axios.get(`/api/marks/${studentId}/${year}/preview`);
+        if (response.status !== 200) throw new Error('Failed to fetch marksheet.');
         setMarksheet(response.data);
       } catch {
-        setError("Marks sheet not found. Please try again later.");
+        setError('Marks sheet not found. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -54,74 +51,63 @@ function ShowMarkSheet() {
   const handleDownloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const response = await axios.get(
-        `/api/marks/${studentId}/${year}/download`,
-        { responseType: "blob" }
-      );
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const response = await axios.get(`/api/marks/${studentId}/${year}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       openBlobInNewTab(blob);
     } catch {
-      alert("Failed to download PDF. Please try again.");
+      alert('Failed to download PDF. Please try again.');
     } finally {
       setPdfLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 font-outfit">
+    <div className="font-outfit mx-auto max-w-4xl p-4">
       {loading ? (
-        <div className="flex flex-col items-center justify-center h-64">
+        <div className="flex h-64 flex-col items-center justify-center">
           <Loading />
         </div>
       ) : error ? (
-        <div className="bg-destructive/10 p-4 rounded-lg border border-destructive/20">
+        <div className="bg-destructive/10 border-destructive/20 rounded-lg border p-4">
           <p className="text-destructive text-center">{error}</p>
         </div>
       ) : marksheet && marksheet.length > 0 ? (
-        <div className="p-6 rounded-lg bg-card text-card-foreground shadow-lg border border-border">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-primary">
+        <div className="bg-card text-card-foreground border-border rounded-lg border p-6 shadow-lg">
+          <div className="mb-6 text-center">
+            <h1 className="text-primary text-2xl font-bold">
               Panchbibi Lal Bihari Pilot Govt. High School
             </h1>
             <h3 className="text-muted-foreground">Panchbibi, Joypurhat</h3>
-            <div className="my-4 border-t border-border"></div>
+            <div className="border-border my-4 border-t"></div>
             <h2 className="text-xl font-semibold">Academic Marksheet</h2>
           </div>
 
           {/* Student Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 rounded-lg">
+          <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg p-4 md:grid-cols-2">
             <div>
               <p className="font-medium">
-                <span className="text-muted-foreground">Name:</span>{" "}
-                <span className="text-foreground">
-                  {marksheet[0]?.student_name || "N/A"}
-                </span>
+                <span className="text-muted-foreground">Name:</span>{' '}
+                <span className="text-foreground">{marksheet[0]?.student_name || 'N/A'}</span>
               </p>
               <p className="font-medium">
-                <span className="text-muted-foreground">Roll:</span>{" "}
-                <span className="text-foreground">
-                  {marksheet[0]?.roll || "N/A"}
-                </span>
+                <span className="text-muted-foreground">Roll:</span>{' '}
+                <span className="text-foreground">{marksheet[0]?.roll || 'N/A'}</span>
               </p>
             </div>
             <div>
               <p className="font-medium">
-                <span className="text-muted-foreground">Class:</span>{" "}
-                <span className="text-foreground">
-                  {marksheet[0]?.class || "N/A"}
-                </span>
+                <span className="text-muted-foreground">Class:</span>{' '}
+                <span className="text-foreground">{marksheet[0]?.class || 'N/A'}</span>
               </p>
               <p className="font-medium">
-                <span className="text-muted-foreground">Section:</span>{" "}
-                <span className="text-foreground">
-                  {marksheet[0]?.section || "N/A"}
-                </span>
+                <span className="text-muted-foreground">Section:</span>{' '}
+                <span className="text-foreground">{marksheet[0]?.section || 'N/A'}</span>
               </p>
               <p className="font-medium">
-                <span className="text-muted-foreground">Year:</span>{" "}
-                <span className="text-foreground">
-                  {marksheet[0]?.year || "N/A"}
-                </span>
+                <span className="text-muted-foreground">Year:</span>{' '}
+                <span className="text-foreground">{marksheet[0]?.year || 'N/A'}</span>
               </p>
             </div>
           </div>
@@ -129,7 +115,7 @@ function ShowMarkSheet() {
           {/* Merit Display */}
           {marksheet[0]?.final_merit && (
             <div className="mb-6 text-center">
-              <span className="inline-block px-4 py-2 bg-primary/10 text-primary font-semibold rounded-full">
+              <span className="bg-primary/10 text-primary inline-block rounded-full px-4 py-2 font-semibold">
                 Merit Position: {marksheet[0].final_merit}
               </span>
             </div>
@@ -137,18 +123,13 @@ function ShowMarkSheet() {
 
           {/* Marks Table */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse rounded-lg border border-input overflow-hidden">
+            <table className="border-input w-full border-collapse overflow-hidden rounded-lg border">
               <thead className="bg-popover border-b border-gray-400">
                 <tr className="bg-popover">
-                  <th className="px-4 py-3 text-center font-semibold ">
-                    Subject
-                  </th>
+                  <th className="px-4 py-3 text-center font-semibold">Subject</th>
                   {marksheet[0]?.exam_marks &&
                     Object.keys(marksheet[0].exam_marks).map((exam) => (
-                      <th
-                        key={exam}
-                        className="px-4 py-3 text-center font-semibold "
-                      >
+                      <th key={exam} className="px-4 py-3 text-center font-semibold">
                         {exam}
                       </th>
                     ))}
@@ -157,45 +138,42 @@ function ShowMarkSheet() {
               <tbody className="divide-y divide-gray-400">
                 {marksheet.map((entry, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-3  font-medium">
-                      {entry.subject}
-                    </td>
+                    <td className="px-4 py-3 font-medium">{entry.subject}</td>
                     {Object.keys(entry.exam_marks || {}).map((exam, idx) => (
-                      <td key={idx} className="px-4 py-3 text-center ">
+                      <td key={idx} className="px-4 py-3 text-center">
                         {entry.exam_marks[exam]}
                       </td>
                     ))}
                   </tr>
                 ))}
-                <tr className="bg-muted/50 dark:bg-slate-800 text-center font-semibold">
+                <tr className="bg-muted/50 text-center font-semibold dark:bg-slate-800">
                   <td className="px-4 py-3">Total</td>
                   {marksheet[0]?.total_marks_per_exam &&
-                    Object.keys(marksheet[0].total_marks_per_exam).map(
-                      (exam) => (
-                        <td key={exam} className="px-4 py-3 text-center ">
-                          {marksheet[0].total_marks_per_exam?.[exam]}
-                        </td>
-                      )
-                    )}
+                    Object.keys(marksheet[0].total_marks_per_exam).map((exam) => (
+                      <td key={exam} className="px-4 py-3 text-center">
+                        {marksheet[0].total_marks_per_exam?.[exam]}
+                      </td>
+                    ))}
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* Footer */}
-          <div className="mt-8 pt-4 border-t border-border flex justify-end">
+          <div className="border-border mt-8 flex justify-end border-t pt-4">
             <button
               onClick={handleDownloadPDF}
               disabled={pdfLoading}
-              className={`px-6 py-2 rounded-md font-medium transition-colors ${pdfLoading
-                  ? "bg-primary/80 cursor-not-allowed"
-                  : "bg-primary hover:bg-ring text-primary-foreground"
-                } flex items-center gap-2`}
+              className={`rounded-md px-6 py-2 font-medium transition-colors ${
+                pdfLoading
+                  ? 'bg-primary/80 cursor-not-allowed'
+                  : 'bg-primary hover:bg-ring text-primary-foreground'
+              } flex items-center gap-2`}
             >
               {pdfLoading ? (
                 <>
                   <svg
-                    className="animate-spin h-5 w-5"
+                    className="h-5 w-5 animate-spin"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -240,7 +218,7 @@ function ShowMarkSheet() {
           </div>
         </div>
       ) : (
-        <div className="bg-card p-6 rounded-lg border border-border shadow text-center">
+        <div className="bg-card border-border rounded-lg border p-6 text-center shadow">
           <p className="text-muted-foreground">No marksheet data available.</p>
         </div>
       )}

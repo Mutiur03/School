@@ -8,8 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Power } from "lucide-react";
+} from '@/components/ui/alert-dialog';
+import { Power } from 'lucide-react';
 
 const LogoutConfirmation = ({ onClick }: { onClick: () => void }) => {
   return (
@@ -21,16 +21,13 @@ const LogoutConfirmation = ({ onClick }: { onClick: () => void }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            You will be logged out of your account. This action cannot be
-            undone. To log out, click the "Logout" button.
+            You will be logged out of your account. This action cannot be undone. To log out, click
+            the "Logout" button.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onClick}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
+          <AlertDialogAction onClick={onClick} className="bg-red-600 text-white hover:bg-red-700">
             Logout
           </AlertDialogAction>
         </AlertDialogFooter>

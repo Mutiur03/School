@@ -1,23 +1,21 @@
-import { prisma } from "@/config/prisma.js";
-import { ApiError } from "@/utils/ApiError.js";
+import { prisma } from '@/config/prisma.js';
+import { ApiError } from '@/utils/ApiError.js';
 
 export class SubjectService {
   static async addSubjects(subjects: any[]) {
     const current_year = new Date().getFullYear();
 
     if (!Array.isArray(subjects) || subjects.length === 0) {
-      throw new ApiError(400, "Subjects data must be an array and cannot be empty");
+      throw new ApiError(400, 'Subjects data must be an array and cannot be empty');
     }
 
     for (const subject of subjects) {
-      if (subject.group === "General" || subject.group === "general") {
+      if (subject.group === 'General' || subject.group === 'general') {
         subject.group = null;
       }
 
       const fullMarkSum =
-        (subject.cq_mark || 0) +
-        (subject.mcq_mark || 0) +
-        (subject.practical_mark || 0);
+        (subject.cq_mark || 0) + (subject.mcq_mark || 0) + (subject.practical_mark || 0);
       if (fullMarkSum > 0) {
         subject.full_mark = fullMarkSum;
       }
@@ -36,17 +34,18 @@ export class SubjectService {
     const internalDuplicates = [];
 
     for (const subject of subjects) {
-      const key = `${subject.name}-${subject.class}-${subject.group || "General"}-${subject.year}`;
+      const key = `${subject.name}-${subject.class}-${subject.group || 'General'}-${subject.year}`;
       if (subjectMap.has(key)) {
-        internalDuplicates.push(
-          `${subject.name} (Class ${subject.class}, ${subject.year})`,
-        );
+        internalDuplicates.push(`${subject.name} (Class ${subject.class}, ${subject.year})`);
       }
       subjectMap.add(key);
     }
 
     if (internalDuplicates.length > 0) {
-      throw new ApiError(400, `Duplicate entries found in your file: ${internalDuplicates.join(", ")}`);
+      throw new ApiError(
+        400,
+        `Duplicate entries found in your file: ${internalDuplicates.join(', ')}`,
+      );
     }
 
     const subjectKey = (name: any, cls: any, group: any, year: any) =>
@@ -63,9 +62,7 @@ export class SubjectService {
       },
       select: { name: true, class: true, group: true, year: true },
     });
-    const existingKeys = new Set(
-      matches.map((m) => subjectKey(m.name, m.class, m.group, m.year)),
-    );
+    const existingKeys = new Set(matches.map((m) => subjectKey(m.name, m.class, m.group, m.year)));
 
     const existingSubjects = [];
     for (let subject of subjects) {
@@ -83,7 +80,10 @@ export class SubjectService {
     }
 
     if (existingSubjects.length > 0) {
-      throw new ApiError(400, `The following subjects already exist: ${existingSubjects.join(", ")}`);
+      throw new ApiError(
+        400,
+        `The following subjects already exist: ${existingSubjects.join(', ')}`,
+      );
     }
 
     // Wrap in transaction for industry standard atomicity
@@ -107,26 +107,31 @@ export class SubjectService {
                 name: subject.subject_group,
                 class: subject.class,
                 year: subject.year || current_year,
-                subject_type: "main",
-                assessment_type: subject.assessment_type || "exam",
+                subject_type: 'main',
+                assessment_type: subject.assessment_type || 'exam',
                 group: subject.group || null,
                 priority: subject.priority ?? 0,
               },
             });
             // Mark it if it was also in the batch
-            subjects.forEach(s => {
-              if (s.name === mainSubject!.name && s.class === mainSubject!.class && s.year === mainSubject!.year && s.subject_type === "main") {
+            subjects.forEach((s) => {
+              if (
+                s.name === mainSubject!.name &&
+                s.class === mainSubject!.class &&
+                s.year === mainSubject!.year &&
+                s.subject_type === 'main'
+              ) {
                 s._alreadyCreated = true;
               }
             });
-          } else if (mainSubject.subject_type !== "main") {
+          } else if (mainSubject.subject_type !== 'main') {
             // Convert to main if it exists as something else
             mainSubject = await tx.subjects.update({
               where: { id: mainSubject.id },
-              data: { subject_type: "main" }
+              data: { subject_type: 'main' },
             });
             // Mark it if it was also in the batch
-            subjects.forEach(s => {
+            subjects.forEach((s) => {
               if (s.id === mainSubject!.id) {
                 s._alreadyCreated = true;
               }
@@ -134,12 +139,12 @@ export class SubjectService {
           }
 
           subject.parent_id = mainSubject.id;
-          subject.subject_type = "paper";
+          subject.subject_type = 'paper';
         }
       }
 
       const subjectData = subjects
-        .filter((s) => s.subject_type !== "main" || !s._alreadyCreated)
+        .filter((s) => s.subject_type !== 'main' || !s._alreadyCreated)
         .map((subject) => ({
           name: subject.name || null,
           class: subject.class, // required field
@@ -155,8 +160,8 @@ export class SubjectService {
           group: subject.group || null,
           subject_type: subject.subject_type,
           parent_id: subject.parent_id || null,
-          assessment_type: subject.assessment_type || "exam",
-          marking_scheme: subject.marking_scheme || "TOTAL",
+          assessment_type: subject.assessment_type || 'exam',
+          marking_scheme: subject.marking_scheme || 'TOTAL',
           priority: subject.priority ?? 0,
         }));
 
@@ -167,7 +172,9 @@ export class SubjectService {
       }
 
       // Sync parent marks for all parents involved
-      const parentIds = [...new Set(subjectData.filter((s) => s.parent_id).map((s) => s.parent_id))];
+      const parentIds = [
+        ...new Set(subjectData.filter((s) => s.parent_id).map((s) => s.parent_id)),
+      ];
       for (const parentId of parentIds) {
         if (parentId) await SubjectService.syncParentMarks(parentId, tx);
       }
@@ -176,7 +183,7 @@ export class SubjectService {
 
   static async getSubjects() {
     return await prisma.subjects.findMany({
-      orderBy: [{ priority: "asc" }, { id: "asc" }],
+      orderBy: [{ priority: 'asc' }, { id: 'asc' }],
     });
   }
 
@@ -186,7 +193,7 @@ export class SubjectService {
     });
 
     if (!subject) {
-      throw new ApiError(404, "Subject not found");
+      throw new ApiError(404, 'Subject not found');
     }
 
     await prisma.$transaction(async (tx) => {
@@ -209,18 +216,13 @@ export class SubjectService {
       where: { parent_id: parentId },
     });
 
-    const totalFullMark = children.reduce(
-      (sum: number, c: any) => sum + (c.full_mark || 0),
-      0,
-    );
-    const totalPassMark = children.reduce(
-      (sum: number, c: any) => sum + (c.pass_mark || 0),
-      0,
-    );
+    const totalFullMark = children.reduce((sum: number, c: any) => sum + (c.full_mark || 0), 0);
+    const totalPassMark = children.reduce((sum: number, c: any) => sum + (c.pass_mark || 0), 0);
 
     // For main subject priority, use the highest (min numerical value) priority from children
-    const minPriority = children.length > 0 ? Math.min(...children.map((c: any) => c.priority || 0)) : 0;
-    
+    const minPriority =
+      children.length > 0 ? Math.min(...children.map((c: any) => c.priority || 0)) : 0;
+
     // Sync assessment_type to match children (usually siblings share same type)
     const firstChild = children[0];
 
@@ -230,7 +232,7 @@ export class SubjectService {
         full_mark: totalFullMark,
         pass_mark: totalPassMark,
         priority: minPriority,
-        assessment_type: firstChild?.assessment_type || "exam",
+        assessment_type: firstChild?.assessment_type || 'exam',
       },
     });
   }
@@ -242,7 +244,8 @@ export class SubjectService {
     if (fullMarkSum > 0) {
       full_mark = fullMarkSum;
     }
-    const passMarkSum = (data.cq_pass_mark || 0) + (data.mcq_pass_mark || 0) + (data.practical_pass_mark || 0);
+    const passMarkSum =
+      (data.cq_pass_mark || 0) + (data.mcq_pass_mark || 0) + (data.practical_pass_mark || 0);
     if (passMarkSum > 0) {
       pass_mark = passMarkSum;
     }
@@ -264,10 +267,10 @@ export class SubjectService {
             practical_pass_mark: (data.practical_pass_mark ?? 0) as number,
             year: data.year || new Date().getFullYear(),
             group: data.group || null,
-            subject_type: data.subject_type || "single",
+            subject_type: data.subject_type || 'single',
             parent_id: data.parent_id || null,
-            assessment_type: data.assessment_type || "exam",
-            marking_scheme: data.marking_scheme || "TOTAL",
+            assessment_type: data.assessment_type || 'exam',
+            marking_scheme: data.marking_scheme || 'TOTAL',
             priority: (data.priority ?? 0) as number,
           },
         });
@@ -277,15 +280,12 @@ export class SubjectService {
           await SubjectService.syncParentMarks(updated.parent_id, tx);
         }
         // Also sync old parent if it changed
-        if (
-          old_parent_id &&
-          parseInt(old_parent_id as any) !== updated.parent_id
-        ) {
+        if (old_parent_id && parseInt(old_parent_id as any) !== updated.parent_id) {
           await SubjectService.syncParentMarks(parseInt(old_parent_id as any), tx);
         }
 
         // Sync marks for the subject itself if it's a main subject
-        if (updated.subject_type === "main") {
+        if (updated.subject_type === 'main') {
           await SubjectService.syncParentMarks(updated.id, tx);
         }
 
@@ -294,8 +294,8 @@ export class SubjectService {
 
       return result;
     } catch (error: any) {
-      if (error.code === "P2025") {
-        throw new ApiError(404, "Subject not found");
+      if (error.code === 'P2025') {
+        throw new ApiError(404, 'Subject not found');
       }
       throw error;
     }
@@ -307,7 +307,7 @@ export class SubjectService {
     });
 
     if (subjects.length === 0) {
-      return { success: false, message: "No subjects found to clone" };
+      return { success: false, message: 'No subjects found to clone' };
     }
 
     const currentYearSubjects = await prisma.subjects.findMany({
@@ -315,14 +315,14 @@ export class SubjectService {
     });
 
     if (currentYearSubjects.length > 0) {
-      return { success: false, message: "Subjects already exist for the target year" };
+      return { success: false, message: 'Subjects already exist for the target year' };
     }
 
     const oldToNewIdMap: Record<number, number> = {};
 
     await prisma.$transaction(async (tx) => {
       // 1. Clone Main Subjects first
-      const mainSubjects = subjects.filter((s) => s.subject_type === "main");
+      const mainSubjects = subjects.filter((s) => s.subject_type === 'main');
       for (const main of mainSubjects) {
         const { id: oldId, created_at: _, ...data } = main as any;
         const clonedMain = await tx.subjects.create({
@@ -332,7 +332,7 @@ export class SubjectService {
       }
 
       // 2. Clone Single Subjects
-      const singleSubjects = subjects.filter((s) => s.subject_type === "single");
+      const singleSubjects = subjects.filter((s) => s.subject_type === 'single');
       for (const single of singleSubjects) {
         const { id: oldId, created_at: _, ...data } = single as any;
         const clonedSingle = await tx.subjects.create({
@@ -342,7 +342,7 @@ export class SubjectService {
       }
 
       // 3. Clone Paper Subjects with new parent_ids
-      const paperSubjects = subjects.filter((s) => s.subject_type === "paper");
+      const paperSubjects = subjects.filter((s) => s.subject_type === 'paper');
       for (const paper of paperSubjects) {
         const { id: oldId, created_at: _, ...data } = paper as any;
         const clonedPaper = await tx.subjects.create({

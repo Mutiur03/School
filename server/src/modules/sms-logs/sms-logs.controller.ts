@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import asyncHandler from "@/utils/asyncHandler.js";
-import { SmsLogsService } from "./sms-logs.service.js";
+import { Request, Response } from 'express';
+import asyncHandler from '@/utils/asyncHandler.js';
+import { SmsLogsService } from './sms-logs.service.js';
 
 type AuthedRequest = Request & { user?: any };
 
@@ -45,7 +45,10 @@ export class SmsLogsController {
   });
 
   static getStudentCountByClasses = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    const classNames = (req.query.classes as string || "").split(",").map(Number).filter(n => !isNaN(n));
+    const classNames = ((req.query.classes as string) || '')
+      .split(',')
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const result = await SmsLogsService.getStudentCountByClasses(classNames);
     res.status(200).json(result);
   });

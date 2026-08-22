@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { useMemo, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import {
   CalendarDays,
   ChevronLeft,
@@ -8,73 +8,70 @@ import {
   XCircle,
   AlertTriangle,
   TrendingUp,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StatsCard } from "@/components";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useStudentAttendance } from "@/queries/students.queries";
-import type { AttendanceRecord, AttendanceStatus } from "@/types/attendance";
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { StatsCard } from '@/components';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useStudentAttendance } from '@/queries/students.queries';
+import type { AttendanceRecord, AttendanceStatus } from '@/types/attendance';
 
 const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function normalizeStatus(status: string): AttendanceStatus | "unknown" {
+function normalizeStatus(status: string): AttendanceStatus | 'unknown' {
   const value = status.trim().toLowerCase();
-  if (value === "present") return "present";
-  if (value === "absent") return "absent";
-  if (value === "run-awayed") return "run-awayed";
-  return "unknown";
+  if (value === 'present') return 'present';
+  if (value === 'absent') return 'absent';
+  if (value === 'run-awayed') return 'run-awayed';
+  return 'unknown';
 }
 
-function statusMeta(status: AttendanceStatus | "unknown") {
+function statusMeta(status: AttendanceStatus | 'unknown') {
   switch (status) {
-    case "present":
+    case 'present':
       return {
-        label: "Present",
-        short: "P",
-        cellClass:
-          "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200/50",
-        dotClass: "bg-emerald-500",
+        label: 'Present',
+        short: 'P',
+        cellClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200/50',
+        dotClass: 'bg-emerald-500',
         icon: <CheckCircle2 className="h-3.5 w-3.5" />,
       };
-    case "absent":
+    case 'absent':
       return {
-        label: "Absent",
-        short: "A",
-        cellClass:
-          "bg-red-500/15 text-red-700 dark:text-red-400 border-red-200/50",
-        dotClass: "bg-red-500",
+        label: 'Absent',
+        short: 'A',
+        cellClass: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-200/50',
+        dotClass: 'bg-red-500',
         icon: <XCircle className="h-3.5 w-3.5" />,
       };
-    case "run-awayed":
+    case 'run-awayed':
       return {
-        label: "Run awayed",
-        short: "R",
-        cellClass:
-          "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200/50",
-        dotClass: "bg-amber-500",
+        label: 'Run awayed',
+        short: 'R',
+        cellClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200/50',
+        dotClass: 'bg-amber-500',
         icon: <AlertTriangle className="h-3.5 w-3.5" />,
       };
     default:
       return {
-        label: "Unknown",
-        short: "?",
-        cellClass: "bg-muted text-muted-foreground border-border",
-        dotClass: "bg-muted-foreground",
+        label: 'Unknown',
+        short: '?',
+        cellClass: 'bg-muted text-muted-foreground border-border',
+        dotClass: 'bg-muted-foreground',
         icon: null,
       };
   }
@@ -94,12 +91,8 @@ export function StudentAttendanceView({
   embedded = false,
 }: StudentAttendanceViewProps) {
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(
-    initialMonth ?? now.getMonth(),
-  );
-  const [selectedYear, setSelectedYear] = useState(
-    initialYear ?? now.getFullYear(),
-  );
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth ?? now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(initialYear ?? now.getFullYear());
 
   const { data, isLoading, isFetching } = useStudentAttendance({
     studentId,
@@ -126,7 +119,7 @@ export function StudentAttendanceView({
     }
 
     for (let day = 1; day <= daysInMonth; day += 1) {
-      const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       cells.push({ day, dateKey });
     }
 
@@ -158,16 +151,14 @@ export function StudentAttendanceView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-primary" />
+          <CalendarDays className="text-primary h-5 w-5" />
           <div>
             <p className="text-sm font-medium">Attendance record</p>
-            <p className="text-xs text-muted-foreground">
-              Monthly view of marked days
-            </p>
+            <p className="text-muted-foreground text-xs">Monthly view of marked days</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-border p-1">
+        <div className="border-border flex items-center gap-1 rounded-lg border p-1">
           <Button
             type="button"
             variant="ghost"
@@ -178,7 +169,7 @@ export function StudentAttendanceView({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-[9rem] text-center text-sm font-medium px-2">
+          <span className="min-w-[9rem] px-2 text-center text-sm font-medium">
             {MONTHS[selectedMonth]} {selectedYear}
           </span>
           <Button
@@ -194,7 +185,7 @@ export function StudentAttendanceView({
         </div>
       </div>
 
-      <div className={`grid gap-3 ${embedded ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4"}`}>
+      <div className={`grid gap-3 ${embedded ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
         <StatsCard
           label="Present"
           value={stats?.present ?? 0}
@@ -218,19 +209,19 @@ export function StudentAttendanceView({
         />
         <StatsCard
           label="Attendance rate"
-          value={stats?.attendanceRate != null ? `${stats.attendanceRate}%` : "—"}
+          value={stats?.attendanceRate != null ? `${stats.attendanceRate}%` : '—'}
           color="blue"
           icon={<TrendingUp className="h-4 w-4" />}
           loading={isLoading}
         />
       </div>
 
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-border bg-muted/40">
+      <div className="border-border overflow-hidden rounded-xl border">
+        <div className="border-border bg-muted/40 grid grid-cols-7 border-b">
           {WEEKDAYS.map((day) => (
             <div
               key={day}
-              className="py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+              className="text-muted-foreground py-2 text-center text-[11px] font-semibold tracking-wide uppercase"
             >
               {day}
             </div>
@@ -251,32 +242,28 @@ export function StudentAttendanceView({
               }
 
               const record = cell.dateKey ? recordMap.get(cell.dateKey) : undefined;
-              const status = record
-                ? normalizeStatus(record.status)
-                : undefined;
+              const status = record ? normalizeStatus(record.status) : undefined;
               const meta = status ? statusMeta(status) : null;
 
               return (
                 <div
                   key={cell.dateKey}
-                  className={`h-14 rounded-md border flex flex-col items-center justify-center gap-1 transition-colors ${
-                    meta
-                      ? meta.cellClass
-                      : "border-border/60 bg-background text-muted-foreground"
-                  } ${isFetching ? "opacity-70" : ""}`}
+                  className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border transition-colors ${
+                    meta ? meta.cellClass : 'border-border/60 bg-background text-muted-foreground'
+                  } ${isFetching ? 'opacity-70' : ''}`}
                   title={
                     record
-                      ? `${format(parseISO(cell.dateKey!), "dd MMM yyyy")} — ${meta?.label}`
-                      : format(parseISO(cell.dateKey!), "dd MMM yyyy")
+                      ? `${format(parseISO(cell.dateKey!), 'dd MMM yyyy')} — ${meta?.label}`
+                      : format(parseISO(cell.dateKey!), 'dd MMM yyyy')
                   }
                 >
                   <span className="text-xs font-semibold">{cell.day}</span>
                   {meta ? (
-                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                    <span className="text-[10px] font-bold tracking-wide uppercase">
                       {meta.short}
                     </span>
                   ) : (
-                    <span className="h-1.5 w-1.5 rounded-full bg-border" />
+                    <span className="bg-border h-1.5 w-1.5 rounded-full" />
                   )}
                 </div>
               );
@@ -285,26 +272,24 @@ export function StudentAttendanceView({
         )}
       </div>
 
-      <div className="rounded-lg border border-border">
-        <div className="px-4 py-3 border-b border-border bg-muted/30">
+      <div className="border-border rounded-lg border">
+        <div className="border-border bg-muted/30 border-b px-4 py-3">
           <h3 className="text-sm font-semibold">Recent entries</h3>
-          <p className="text-xs text-muted-foreground">
-            Latest marked days this month
-          </p>
+          <p className="text-muted-foreground text-xs">Latest marked days this month</p>
         </div>
 
         {isLoading ? (
-          <div className="p-4 space-y-2">
+          <div className="space-y-2 p-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-10 rounded-md" />
             ))}
           </div>
         ) : recentRecords.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground p-6 text-center text-sm">
             No attendance marked for this month yet.
           </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-border divide-y">
             {recentRecords.map((record) => {
               const status = normalizeStatus(record.status);
               const meta = statusMeta(status);
@@ -315,12 +300,12 @@ export function StudentAttendanceView({
                 >
                   <div>
                     <p className="font-medium">
-                      {format(parseISO(record.date), "EEEE, dd MMM yyyy")}
+                      {format(parseISO(record.date), 'EEEE, dd MMM yyyy')}
                     </p>
-                    <p className="text-xs text-muted-foreground">{record.date}</p>
+                    <p className="text-muted-foreground text-xs">{record.date}</p>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border ${meta.cellClass}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.cellClass}`}
                   >
                     {meta.icon}
                     {meta.label}

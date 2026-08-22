@@ -1,26 +1,26 @@
-import Script from "next/script";
+import Script from 'next/script';
 
 export type AnalyticsProps = {
-    measurementId?: string;
+  measurementId?: string;
 };
 
 export function Analytics({ measurementId }: AnalyticsProps) {
-    if (!measurementId) return null;
+  if (!measurementId) return null;
 
-    return (
-        <>
-            <Script
-                src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-                strategy="lazyOnload"
-            />
-            <Script id="ga-init" strategy="lazyOnload">
-                {`
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+        strategy="lazyOnload"
+      />
+      <Script id="ga-init" strategy="lazyOnload">
+        {`
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
                   gtag('config', '${measurementId}');
                 `}
-            </Script>
-        </>
-    );
+      </Script>
+    </>
+  );
 }

@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 export interface Exam {
   id: number;
@@ -13,9 +13,9 @@ export interface Exam {
 
 export const useExams = () => {
   return useQuery<Exam[]>({
-    queryKey: ["exams"],
+    queryKey: ['exams'],
     queryFn: async () => {
-      const response = await axios.get("/api/exams/getExams");
+      const response = await axios.get('/api/exams/getExams');
       return response.data?.data || [];
     },
   });

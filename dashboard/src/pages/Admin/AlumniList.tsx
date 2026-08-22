@@ -1,5 +1,5 @@
-import axios from "axios";
-import { useEffect, useState } from "react";
+import axios from 'axios';
+import { useEffect, useState } from 'react';
 
 interface Student {
   id: string;
@@ -14,17 +14,17 @@ interface Student {
 
 function AlumniList() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [batchFilter, setBatchFilter] = useState("");
-  const [sectionFilter, setSectionFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [batchFilter, setBatchFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
 
   useEffect(() => {
     const getStudentList = async () => {
       try {
-        const response = await axios.get("/api/students/alumni");
+        const response = await axios.get('/api/students/alumni');
         setStudents(response.data.data || []);
       } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error('Error fetching students:', error);
       }
     };
     getStudentList();
@@ -37,26 +37,26 @@ function AlumniList() {
     .filter(
       (student) =>
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.phone.toString().includes(searchQuery)
+        student.phone.toString().includes(searchQuery),
     )
     .filter((student) => (batchFilter ? student.batch === Number(batchFilter) : true))
     .sort((a, b) => a.batch - b.batch);
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Student List</h1>
+      <h1 className="mb-4 text-2xl font-bold">Student List</h1>
 
       <input
         type="text"
         placeholder="Search students..."
-        className="border rounded-lg px-3 py-2 mb-4 w-full"
+        className="mb-4 w-full rounded-lg border px-3 py-2"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div className="flex gap-4 mb-4">
+      <div className="mb-4 flex gap-4">
         <select
-          className="border rounded-lg px-3 py-2"
+          className="rounded-lg border px-3 py-2"
           value={batchFilter}
           onChange={(e) => setBatchFilter(e.target.value)}
         >
@@ -71,7 +71,7 @@ function AlumniList() {
         </select>
 
         <select
-          className="border rounded-lg px-3 py-2"
+          className="rounded-lg border px-3 py-2"
           value={sectionFilter}
           onChange={(e) => setSectionFilter(e.target.value)}
         >
@@ -86,28 +86,28 @@ function AlumniList() {
 
       {filteredStudents.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-border">
+          <table className="border-border min-w-full border">
             <thead className="bg-gray-200">
               <tr>
-                <th className="border border-border px-4 py-2 text-left">Name</th>
-                <th className="border border-border px-4 py-2 text-left">Phone</th>
-                <th className="border border-border px-4 py-2 text-left">Roll</th>
-                <th className="border border-border px-4 py-2 text-left">Batch</th>
-                <th className="border border-border px-4 py-2 text-left">Section</th>
-                <th className="border border-border px-4 py-2 text-left">Address</th>
-                <th className="border border-border px-4 py-2 text-left">DOB</th>
+                <th className="border-border border px-4 py-2 text-left">Name</th>
+                <th className="border-border border px-4 py-2 text-left">Phone</th>
+                <th className="border-border border px-4 py-2 text-left">Roll</th>
+                <th className="border-border border px-4 py-2 text-left">Batch</th>
+                <th className="border-border border px-4 py-2 text-left">Section</th>
+                <th className="border-border border px-4 py-2 text-left">Address</th>
+                <th className="border-border border px-4 py-2 text-left">DOB</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.map((student) => (
                 <tr key={student.id} className="even:bg-muted">
-                  <td className="border border-border px-4 py-2">{student.name}</td>
-                  <td className="border border-border px-4 py-2">{`0${student.phone}`}</td>
-                  <td className="border border-border px-4 py-2">{student.roll}</td>
-                  <td className="border border-border px-4 py-2">{student.batch}</td>
-                  <td className="border border-border px-4 py-2">{student.section}</td>
-                  <td className="border border-border px-4 py-2">{student.address}</td>
-                  <td className="border border-border px-4 py-2">{student.dob?.slice(0, 10)}</td>
+                  <td className="border-border border px-4 py-2">{student.name}</td>
+                  <td className="border-border border px-4 py-2">{`0${student.phone}`}</td>
+                  <td className="border-border border px-4 py-2">{student.roll}</td>
+                  <td className="border-border border px-4 py-2">{student.batch}</td>
+                  <td className="border-border border px-4 py-2">{student.section}</td>
+                  <td className="border-border border px-4 py-2">{student.address}</td>
+                  <td className="border-border border px-4 py-2">{student.dob?.slice(0, 10)}</td>
                 </tr>
               ))}
             </tbody>

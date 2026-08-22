@@ -1,17 +1,17 @@
 const resolveBackendUrl = (): string => {
-  const fromEnv = String(import.meta.env?.VITE_BACKEND_URL ?? "").trim();
+  const fromEnv = String(import.meta.env?.VITE_BACKEND_URL ?? '').trim();
 
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return fromEnv;
   }
 
   const currentHost = window.location.hostname.toLowerCase();
 
-  if (currentHost === "localhost" || currentHost.endsWith(".localhost")) {
-    return "";
+  if (currentHost === 'localhost' || currentHost.endsWith('.localhost')) {
+    return '';
   }
 
-  return "";
+  return '';
 
   return fromEnv;
 };
@@ -20,8 +20,8 @@ const backend = resolveBackendUrl();
 export default backend;
 export const cdn = import.meta.env?.VITE_CDN_URL;
 export const getFileUrl = (key: string | null): string => {
-  if (!key) return "";
-  if (key.startsWith("http") || key.startsWith("blob:")) return key;
-  if (key.startsWith("/")) return `${cdn}${key}`;
+  if (!key) return '';
+  if (key.startsWith('http') || key.startsWith('blob:')) return key;
+  if (key.startsWith('/')) return `${cdn}${key}`;
   return `${cdn}/${key}`;
 };

@@ -9,10 +9,10 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import { env } from "@/config/env.js";
+import { env } from '@/config/env.js';
 
 const R2_ACCOUNT_ID = env.R2_ACCOUNT_ID;
 const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID;
@@ -20,7 +20,7 @@ const R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 
 const r2Client = new S3Client({
-  region: "auto",
+  region: 'auto',
   endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   forcePathStyle: true,
   credentials: {
@@ -28,7 +28,6 @@ const r2Client = new S3Client({
     secretAccessKey: R2_SECRET_ACCESS_KEY!,
   },
 });
-
 
 export const getUploadUrl = async (key: string, contentType: string) => {
   const command = new PutObjectCommand({
@@ -101,16 +100,12 @@ export const deleteFromR2 = async (key: string) => {
       }),
     );
   } catch (error) {
-    console.error("Error deleting from R2:", error);
+    console.error('Error deleting from R2:', error);
   }
 };
 
 /** Upload a buffer directly (server-side put; no presign round-trip). */
-export const uploadToR2 = async (
-  key: string,
-  body: Buffer,
-  contentType = "application/pdf",
-) => {
+export const uploadToR2 = async (key: string, body: Buffer, contentType = 'application/pdf') => {
   await r2Client.send(
     new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -125,14 +120,12 @@ export const uploadToR2 = async (
 export const headObject = async (key: string): Promise<boolean> => {
   if (!key) return false;
   try {
-    await r2Client.send(
-      new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
-    );
+    await r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }));
     return true;
   } catch (error: any) {
     if (
-      error.name === "NotFound" ||
-      error.name === "NoSuchKey" ||
+      error.name === 'NotFound' ||
+      error.name === 'NoSuchKey' ||
       error.$metadata?.httpStatusCode === 404
     ) {
       return false;
@@ -148,14 +141,12 @@ export const headObject = async (key: string): Promise<boolean> => {
 export const headObjectEtag = async (key: string): Promise<string | null> => {
   if (!key) return null;
   try {
-    const res = await r2Client.send(
-      new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }),
-    );
+    const res = await r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }));
     return res.ETag ?? null;
   } catch (error: any) {
     if (
-      error.name === "NotFound" ||
-      error.name === "NoSuchKey" ||
+      error.name === 'NotFound' ||
+      error.name === 'NoSuchKey' ||
       error.$metadata?.httpStatusCode === 404
     ) {
       return null;
@@ -196,7 +187,7 @@ export const getFileBuffer = async (key: string) => {
     const bodyContents = await response.Body.transformToByteArray();
     return Buffer.from(bodyContents);
   } catch (error: any) {
-    if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+    if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
       console.warn(`File not found in R2: ${key}`);
     } else {
       console.error(`Error fetching file from R2 (${key}):`, error);

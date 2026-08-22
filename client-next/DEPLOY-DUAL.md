@@ -4,11 +4,11 @@ Same `client-next` codebase. Platform-specific files do not block each other.
 
 ## Account status (via Cloudflare MCP)
 
-| Resource | Status |
-|---|---|
+| Resource         | Status                                                           |
+| ---------------- | ---------------------------------------------------------------- |
 | Existing Workers | `school-auth-bff`, `school-tenant-router`, `r2-upload-worker`, … |
-| New Worker name | `school-client` (not deployed yet) |
-| R2 cache bucket | **`school-client-next-cache`** (created) |
+| New Worker name  | `school-client` (not deployed yet)                               |
+| R2 cache bucket  | **`school-client-next-cache`** (created)                         |
 
 ## Vercel (unchanged)
 

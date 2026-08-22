@@ -1,92 +1,92 @@
-import express from "express";
-import { MarksController } from "./marks.controller.js";
-import { PublicResultController } from "./public-result.controller.js";
-import AuthMiddleware from "@/middlewares/auth.middleware.js";
+import express from 'express';
+import { MarksController } from './marks.controller.js';
+import { PublicResultController } from './public-result.controller.js';
+import AuthMiddleware from '@/middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 // Public result checking (no auth; school scoped via subdomain RLS context).
 // Registered before the "/:id/..." routes so they are not shadowed.
-router.get("/public/exams", PublicResultController.examsController);
-router.post("/public/verify", PublicResultController.verifyController);
-router.get("/public/result", PublicResultController.resultController);
-router.get("/public/download", PublicResultController.downloadController);
+router.get('/public/exams', PublicResultController.examsController);
+router.post('/public/verify', PublicResultController.verifyController);
+router.get('/public/result', PublicResultController.resultController);
+router.get('/public/download', PublicResultController.downloadController);
 
 router.post(
-  "/addMarks",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/addMarks',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.addMarksController,
 );
 router.get(
-  "/students",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/students',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.getStudentsForMarksController,
 );
 router.get(
-  "/getMarks/:id/:year/:exam",
-  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  '/getMarks/:id/:year/:exam',
+  AuthMiddleware.authenticate(['admin', 'teacher', 'student']),
   MarksController.getIndividualMarksController,
 );
 router.get(
-  "/getClassMarks/:className/:year/:exam",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/getClassMarks/:className/:year/:exam',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.getClassMarksController,
 );
 
 router.get(
-  "/class-exam/:className/:year/:exam/download",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/class-exam/:className/:year/:exam/download',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.downloadClassExamMarksheetPDFController,
 );
 
 router.get(
-  "/class-exam/:className/:year/:exam/summary.pdf",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/class-exam/:className/:year/:exam/summary.pdf',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.downloadClassExamSummaryPDFController,
 );
 
 router.get(
-  "/generation-status/:examId",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/generation-status/:examId',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.generationStatusController,
 );
 
 router.get(
-  "/all/:year",
-  AuthMiddleware.authenticate(["admin"]),
+  '/all/:year',
+  AuthMiddleware.authenticate(['admin']),
   MarksController.downloadAllMarksheetPDFController,
 );
 
 router.get(
-  "/:id/:year/preview",
-  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  '/:id/:year/preview',
+  AuthMiddleware.authenticate(['admin', 'teacher', 'student']),
   MarksController.getIndividualSessionMarksPreviewController,
 );
 router.get(
-  "/:id/:year/download",
-  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  '/:id/:year/download',
+  AuthMiddleware.authenticate(['admin', 'teacher', 'student']),
   MarksController.downloadIndividualSessionMarksheetController,
 );
 
 router.get(
-  "/:id/:year/:exam/download",
-  AuthMiddleware.authenticate(["admin", "teacher", "student"]),
+  '/:id/:year/:exam/download',
+  AuthMiddleware.authenticate(['admin', 'teacher', 'student']),
   MarksController.generateMarksheetController,
 );
 
 router.post(
-  "/update-fourth-subject",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/update-fourth-subject',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   MarksController.updateFourthSubjectController,
 );
 
 router.post(
-  "/bulk-update-fourth-subject",
-  AuthMiddleware.authenticate(["admin"]),
+  '/bulk-update-fourth-subject',
+  AuthMiddleware.authenticate(['admin']),
   MarksController.bulkUpdateFourthSubjectController,
 );
 
 const marksRouter = express.Router();
-marksRouter.use("/api/marks", router);
+marksRouter.use('/api/marks', router);
 
 export default marksRouter;

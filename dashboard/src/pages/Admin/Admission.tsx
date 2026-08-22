@@ -1,8 +1,8 @@
-import { getFileUrl } from "@/lib/backend";
-import { downloadBlob } from "@school/common-ui/blob";
-import axios from "axios";
-import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+import { getFileUrl } from '@/lib/backend';
+import { downloadBlob } from '@school/common-ui/blob';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 interface AdmissionData {
   id: string | number;
   status: string;
@@ -88,12 +88,12 @@ function Admission() {
   const [limit] = useState<number>(20);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [year, setYear] = useState<string>("");
+  const [year, setYear] = useState<string>('');
   const [filters, setFilters] = useState<Filters>({
-    status: "all",
-    class: "",
-    admission_year: "",
-    search: "",
+    status: 'all',
+    class: '',
+    admission_year: '',
+    search: '',
   });
   const [showModal, setShowModal] = useState<boolean>(false);
   const [selectedAdmission, setSelectedAdmission] = useState<AdmissionData | null>(null);
@@ -111,14 +111,14 @@ function Admission() {
       try {
         const res = await axios.get(`/api/admission/`);
         setFilters((prev) => ({ ...(prev || {}), ...(res.data || {}) }));
-        setYear((res.data && res.data.admission_year) || "");
+        setYear((res.data && res.data.admission_year) || '');
         const resp = await axios.get(`/api/admission/form/`);
         const json = resp.data;
         const data = json.data || [];
         setItems(data);
       } catch (err: unknown) {
-        if ((err as { name?: string }).name !== "AbortError")
-          setError((err as Error).message || "Failed");
+        if ((err as { name?: string }).name !== 'AbortError')
+          setError((err as Error).message || 'Failed');
       } finally {
         setLoading(false);
       }
@@ -128,20 +128,20 @@ function Admission() {
   }, [limit]);
 
   function formatDate(d: string | undefined, includeTime = true): string {
-    if (!d) return "-";
+    if (!d) return '-';
     try {
       const dt = new Date(d);
       if (isNaN(dt.getTime())) return d;
-      const dd = String(dt.getDate()).padStart(2, "0");
-      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
       const yyyy = dt.getFullYear();
       if (!includeTime) return `${dd}/${mm}/${yyyy}`;
       let hours = dt.getHours();
-      const minutes = String(dt.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
+      const minutes = String(dt.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
       hours = hours % 12;
       if (hours === 0) hours = 12;
-      const hh = String(hours).padStart(2, "0");
+      const hh = String(hours).padStart(2, '0');
       return `${dd}/${mm}/${yyyy} ${hh}:${minutes} ${ampm}`;
     } catch {
       return d;
@@ -150,18 +150,14 @@ function Admission() {
 
   const filteredAdmissions = items.filter((r) => {
     if (!r) return false;
-    if (
-      filters.status &&
-      filters.status !== "all" &&
-      r.status !== filters.status
-    )
-      return false;
+    if (filters.status && filters.status !== 'all' && r.status !== filters.status) return false;
     if (filters.class) {
       const cls = r.admission_class || r.section || r.class;
       if (cls !== filters.class) return false;
     }
     if (filters.admission_year) {
-      let ay: number | string | null = r.admission_year || r.prev_school_passing_year || r.year || null;
+      let ay: number | string | null =
+        r.admission_year || r.prev_school_passing_year || r.year || null;
       if (!ay) {
         const dateStr = r.submission_date || r.created_at || null;
         if (dateStr) {
@@ -182,7 +178,7 @@ function Admission() {
         r.birth_reg_no,
       ]
         .filter(Boolean)
-        .join(" ")
+        .join(' ')
         .toLowerCase();
       if (!hay.includes(s)) return false;
     }
@@ -193,7 +189,8 @@ function Admission() {
     const year = filters.admission_year && String(filters.admission_year).trim();
     const arr = items.filter((r) => {
       if (!year) return true;
-      let ay: number | string | null = r.admission_year || r.prev_school_passing_year || r.year || null;
+      let ay: number | string | null =
+        r.admission_year || r.prev_school_passing_year || r.year || null;
       if (!ay) {
         const dateStr = r.submission_date || r.created_at || null;
         if (dateStr) {
@@ -210,8 +207,8 @@ function Admission() {
 
     return {
       total: arr.length,
-      pending: arr.filter((d) => d && d.status === "pending").length,
-      approved: arr.filter((d) => d && d.status === "approved").length,
+      pending: arr.filter((d) => d && d.status === 'pending').length,
+      approved: arr.filter((d) => d && d.status === 'approved').length,
     };
   })();
 
@@ -219,44 +216,41 @@ function Admission() {
     if (!q) return null;
     const key = String(q).trim();
     const map: Record<string, string> = {
-      "(GEN)": "সাধারণ (GEN)",
-      "(DIS)": "বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)",
-      "(FF)": "মুক্তিযোদ্ধার সন্তান (FF)",
-      "(GOV)": "সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)",
-      "(ME)": "শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)",
-      "(SIB)": "সহোদর ভাই (SIB)",
-      "(TWN)": "যমজ (TWN)",
-      "(Mutual Transfer)": "পারস্পরিক বদলি (Mutual Transfer)",
-      "(Govt. Transfer)": "সরকারি বদলি (Govt. Transfer)",
+      '(GEN)': 'সাধারণ (GEN)',
+      '(DIS)': 'বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)',
+      '(FF)': 'মুক্তিযোদ্ধার সন্তান (FF)',
+      '(GOV)': 'সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)',
+      '(ME)': 'শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)',
+      '(SIB)': 'সহোদর ভাই (SIB)',
+      '(TWN)': 'যমজ (TWN)',
+      '(Mutual Transfer)': 'পারস্পরিক বদলি (Mutual Transfer)',
+      '(Govt. Transfer)': 'সরকারি বদলি (Govt. Transfer)',
     };
 
     if (key in map) return map[key];
 
-    const normalized = key.replace(/\s+/g, " ").trim();
+    const normalized = key.replace(/\s+/g, ' ').trim();
     if (normalized in map) return map[normalized];
 
-    const noParens = normalized.replace(/[()]/g, "").trim();
+    const noParens = normalized.replace(/[()]/g, '').trim();
     const withParens = `(${noParens})`;
     if (withParens in map) return map[withParens];
 
     return normalized;
   };
 
-
   const formatParentIncome = (p: string | undefined): string | null => {
     if (!p) return null;
     const key = String(p).trim();
     const map: Record<string, string> = {
-      below_50000: "0 - 50,000",
-      "50000_100000": "50,000 - 100,000",
-      "100001_200000": "100,001 - 200,000",
-      "200001_500000": "200,001 - 500,000",
-      above_500000: "Above 500,000",
+      below_50000: '0 - 50,000',
+      '50000_100000': '50,000 - 100,000',
+      '100001_200000': '100,001 - 200,000',
+      '200001_500000': '200,001 - 500,000',
+      above_500000: 'Above 500,000',
     };
     if (map[key]) return map[key];
-    const fallback = key
-      .replace(/_/g, " ")
-      .replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+    const fallback = key.replace(/_/g, ' ').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
     return fallback;
   };
 
@@ -264,17 +258,17 @@ function Admission() {
     return (
       <span
         className={
-          `inline-block px-2 py-1 rounded-full text-xs font-semibold ` +
-          (st === "approved"
-            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40"
-            : st === "pending"
-              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30"
-              : st === "rejected"
-                ? "bg-red-100 text-red-800 dark:bg-red-900/30"
-                : "bg-gray-200 text-gray-800 dark:bg-slate-700/30")
+          `inline-block rounded-full px-2 py-1 text-xs font-semibold ` +
+          (st === 'approved'
+            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40'
+            : st === 'pending'
+              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30'
+              : st === 'rejected'
+                ? 'bg-red-100 text-red-800 dark:bg-red-900/30'
+                : 'bg-gray-200 text-gray-800 dark:bg-slate-700/30')
         }
       >
-        {st || "unknown"}
+        {st || 'unknown'}
       </span>
     );
   }
@@ -289,19 +283,16 @@ function Admission() {
           class: filters.class,
         };
         const response = await axios.get(`/api/admission/form/excel`, {
-          responseType: "blob",
+          responseType: 'blob',
           params,
         });
         const blob = new Blob([response.data], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
-        downloadBlob(
-          blob,
-          `admissions_export_${new Date().toISOString().slice(0, 10)}.xlsx`,
-        );
+        downloadBlob(blob, `admissions_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
       } catch (err) {
         console.error(err);
-        setError("Failed to export Excel");
+        setError('Failed to export Excel');
       }
     })();
   }
@@ -316,15 +307,15 @@ function Admission() {
           class: filters.class,
         };
         const response = await axios.get(`/api/admission/form/images-export`, {
-          responseType: "blob",
+          responseType: 'blob',
           params,
         });
-        const blob = new Blob([response.data], { type: "application/zip" });
-        const yearPart = params.admission_year ? params.admission_year : "all";
+        const blob = new Blob([response.data], { type: 'application/zip' });
+        const yearPart = params.admission_year ? params.admission_year : 'all';
         downloadBlob(blob, `admission_images_${yearPart}.zip`);
       } catch (err) {
         console.error(err);
-        setError("Failed to export images");
+        setError('Failed to export images');
       }
     })();
   }
@@ -340,16 +331,13 @@ function Admission() {
     setEditFormData(
       admission
         ? {
-          id: admission.id,
-          status: admission.status,
-          student_name_en: admission.student_name_en,
-          class: admission.admission_class || admission.section,
-          admission_user_id:
-            admission.admission_user_id ||
-            admission.roll ||
-            admission.serial_no,
-        }
-        : {}
+            id: admission.id,
+            status: admission.status,
+            student_name_en: admission.student_name_en,
+            class: admission.admission_class || admission.section,
+            admission_user_id: admission.admission_user_id || admission.roll || admission.serial_no,
+          }
+        : {},
     );
     setShowEditModal(true);
   }
@@ -358,19 +346,17 @@ function Admission() {
     if (!editFormData || !editFormData.id) return;
     try {
       setLoading(true);
-      if (editFormData.status === "pending")
+      if (editFormData.status === 'pending')
         await axios.put(`/api/admission/form/${editFormData.id}/pending`);
       else await axios.put(`/api/admission/form/${editFormData.id}/approve`);
       setItems((prev) =>
         prev.map((it) =>
-          it.id === editFormData.id
-            ? { ...it, status: editFormData.status || it.status }
-            : it
-        )
+          it.id === editFormData.id ? { ...it, status: editFormData.status || it.status } : it,
+        ),
       );
     } catch (err: unknown) {
       console.error(err);
-      setError("Failed to update status");
+      setError('Failed to update status');
     } finally {
       setLoading(false);
       setShowEditModal(false);
@@ -388,11 +374,11 @@ function Admission() {
       await axios.delete(`/api/admission/form/${id}`);
       setItems((prev) => prev.filter((it) => it.id !== id));
       setDeleteTargetAdmission(null);
-      toast.success("Admission deleted successfully");
+      toast.success('Admission deleted successfully');
     } catch (err: unknown) {
       console.error(err);
       if (axios.isAxiosError(err))
-        setError(err.response?.data?.message || "Failed to delete admission");
+        setError(err.response?.data?.message || 'Failed to delete admission');
     } finally {
       setLoading(false);
       setShowDeleteModal(false);
@@ -401,13 +387,13 @@ function Admission() {
 
   return (
     <div className="min-h-screen p-4">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <header className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-semibold">Admissions</h1>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-sm mb-1">Total</div>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="mb-1 text-sm">Total</div>
           <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {(() => {
               const f = filteredAdmissions.length;
@@ -418,39 +404,35 @@ function Admission() {
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-sm mb-1">Pending</div>
+        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="mb-1 text-sm">Pending</div>
           <div className="text-2xl font-semibold text-amber-600">
             {(() => {
-              const f = filteredAdmissions.filter(
-                (a) => a.status === "pending"
-              ).length;
+              const f = filteredAdmissions.filter((a) => a.status === 'pending').length;
               const t = yearStats.pending || 0;
               if (filteredAdmissions.length == yearStats.total) return t;
               return `${f} / ${t}`;
-            })()}{" "}
+            })()}{' '}
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-border shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-sm mb-1">Approved</div>
+        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="mb-1 text-sm">Approved</div>
           <div className="text-2xl font-semibold text-emerald-600">
             {(() => {
-              const f = filteredAdmissions.filter(
-                (a) => a.status === "approved"
-              ).length;
+              const f = filteredAdmissions.filter((a) => a.status === 'approved').length;
               const t = yearStats.approved || 0;
               if (filteredAdmissions.length == yearStats.total) return t;
               return `${f} / ${t}`;
-            })()}{" "}
+            })()}{' '}
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-border p-6 mb-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="border-border mb-6 rounded-xl border bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="mb-4 flex items-center gap-2">
           <svg
-            className="w-5 h-5 text-muted-foreground dark:text-gray-300"
+            className="text-muted-foreground h-5 w-5 dark:text-gray-300"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -462,21 +444,19 @@ function Admission() {
               strokeLinejoin="round"
             />
           </svg>
-          <h3 className="font-medium text-gray-900 dark:text-gray-100">
-            Filters
-          </h3>
+          <h3 className="font-medium text-gray-900 dark:text-gray-100">Filters</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
+            <label className="mb-1 block text-sm font-medium">Status</label>
             <select
               value={filters.status}
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((prev) => ({ ...prev, status: v }));
               }}
-              className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
+              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -485,21 +465,19 @@ function Admission() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Class</label>
+            <label className="mb-1 block text-sm font-medium">Class</label>
             <select
               value={filters.class}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, class: e.target.value }))
-              }
-              className="w-full px-3 py-2 border dark:bg-accent border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
+              onChange={(e) => setFilters((prev) => ({ ...prev, class: e.target.value }))}
+              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
             >
               {(() => {
-                const raw = filters.class_list || "";
+                const raw = filters.class_list || '';
                 let formList: string[] = [];
 
                 if (Array.isArray(raw)) {
                   formList = raw;
-                } else if (typeof raw === "string" && raw.trim()) {
+                } else if (typeof raw === 'string' && raw.trim()) {
                   const rows = raw
                     .split(/\r?\n/)
                     .map((r) => r.trim())
@@ -525,11 +503,7 @@ function Admission() {
                 formList = Array.from(new Set(formList));
 
                 const allList = Array.from(
-                  new Set(
-                    (items || [])
-                      .map((a) => a.admission_class || "")
-                      .filter(Boolean)
-                  )
+                  new Set((items || []).map((a) => a.admission_class || '').filter(Boolean)),
                 ).sort();
 
                 return (
@@ -541,21 +515,21 @@ function Admission() {
                       </option>
                     ))}
 
-                    {allList.filter((c) => !formList.includes(c)).length >
-                      0 && (
-                        <optgroup
-                          label={`Other classes (${allList.filter((c) => !formList.includes(c)).length
-                            })`}
-                        >
-                          {allList
-                            .filter((c) => !formList.includes(c))
-                            .map((cls) => (
-                              <option key={`all-${cls}`} value={cls}>
-                                {cls}
-                              </option>
-                            ))}
-                        </optgroup>
-                      )}
+                    {allList.filter((c) => !formList.includes(c)).length > 0 && (
+                      <optgroup
+                        label={`Other classes (${
+                          allList.filter((c) => !formList.includes(c)).length
+                        })`}
+                      >
+                        {allList
+                          .filter((c) => !formList.includes(c))
+                          .map((cls) => (
+                            <option key={`all-${cls}`} value={cls}>
+                              {cls}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
                   </>
                 );
               })()}
@@ -563,9 +537,7 @@ function Admission() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Admission Year
-            </label>
+            <label className="mb-1 block text-sm font-medium">Admission Year</label>
             <select
               value={filters.admission_year}
               onChange={(e) =>
@@ -574,7 +546,7 @@ function Admission() {
                   admission_year: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border dark:bg-accent  border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
+              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
             >
               <option value="">All Years</option>
               {(() => {
@@ -597,10 +569,10 @@ function Admission() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium mb-1">Search</label>
+            <label className="mb-1 block text-sm font-medium">Search</label>
             <div className="relative">
               <svg
-                className="absolute left-3 top-2.5 text-gray-400 w-4 h-4"
+                className="absolute top-2.5 left-3 h-4 w-4 text-gray-400"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -620,7 +592,7 @@ function Admission() {
                   const v = e.target.value;
                   setFilters((prev) => ({ ...prev, search: v }));
                 }}
-                className="w-full pl-10 dark:bg-accent pr-3 py-2 border text-input border-border rounded-lg focus:ring-2  focus:ring-primary/20 focus:border-blue-500"
+                className="dark:bg-accent text-input border-border focus:ring-primary/20 w-full rounded-lg border py-2 pr-3 pl-10 focus:border-blue-500 focus:ring-2"
               />
             </div>
           </div>
@@ -628,19 +600,17 @@ function Admission() {
       </div>
 
       {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
           {error}
         </div>
       )}
 
-      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-border bg-card dark:border-gray-700">
-          <div className="flex justify-between items-center">
+      <div className="bg-card text-card-foreground border-border overflow-hidden rounded-xl border shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="border-border bg-card border-b px-6 py-4 dark:border-gray-700">
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                Admissions
-              </h3>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Admissions</h3>
+              <p className="text-muted-foreground mt-1 text-sm dark:text-gray-400">
                 Showing {filteredAdmissions.length} of {items.length} students
               </p>
             </div>
@@ -648,10 +618,10 @@ function Admission() {
               <button
                 onClick={handleExport}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:border-blue-700"
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-700 dark:bg-blue-900/10 dark:text-blue-200"
               >
                 <svg
-                  className="w-4 h-4 text-blue-700 dark:text-blue-200"
+                  className="h-4 w-4 text-blue-700 dark:text-blue-200"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -668,12 +638,7 @@ function Admission() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <path
-                    d="M12 5v12"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M12 5v12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Excel
               </button>
@@ -681,14 +646,9 @@ function Admission() {
                 onClick={handleExportImages}
                 disabled={loading}
                 title="Export student images as ZIP"
-                className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg bg-muted/50 text-gray-700 border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800/10 dark:text-gray-200 dark:border-gray-700"
+                className="bg-muted/50 border-border hover:bg-muted inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800/10 dark:text-gray-200"
               >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path
                     d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
                     strokeWidth="2"
@@ -710,24 +670,24 @@ function Admission() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
+            <thead className="bg-muted/50 border-border border-b dark:border-gray-600 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Student
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Class
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Admission User ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
                   Actions
                 </th>
               </tr>
@@ -737,7 +697,7 @@ function Admission() {
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-blue-300"></div>
+                      <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 dark:border-blue-300"></div>
                     </div>
                   </td>
                 </tr>
@@ -745,22 +705,19 @@ function Admission() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-12 text-center text-muted-foreground dark:text-gray-400"
+                    className="text-muted-foreground px-6 py-12 text-center dark:text-gray-400"
                   >
                     No admissions found
                   </td>
                 </tr>
               ) : (
                 filteredAdmissions.map((admission) => (
-                  <tr
-                    key={admission.id}
-                    className="hover:bg-muted/50 dark:hover:bg-gray-700"
-                  >
+                  <tr key={admission.id} className="hover:bg-muted/50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {admission.photo_path && (
                           <img
-                            className="h-10 w-10 rounded-full object-cover border border-border dark:border-gray-600"
+                            className="border-border h-10 w-10 rounded-full border object-cover dark:border-gray-600"
                             src={`${getFileUrl(admission.photo_path)}`}
                             alt=""
                           />
@@ -769,51 +726,46 @@ function Admission() {
                           <div className="font-medium text-gray-900 dark:text-gray-100">
                             {admission.student_name_en}
                           </div>
-                          <div className="text-sm text-muted-foreground dark:text-gray-400">
+                          <div className="text-muted-foreground text-sm dark:text-gray-400">
                             {admission.student_name_bn}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                        Class{" "}
-                        {admission.admission_class || admission.section || "-"}
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                        Class {admission.admission_class || admission.section || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                      <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100">
                         {admission.admission_user_id ||
                           admission.roll ||
                           admission.serial_no ||
-                          "-"}
+                          '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(admission.status)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground dark:text-gray-400">
-                      {formatDate(
-                        admission.created_at || admission.submission_date
-                      )}
+                    <td className="px-6 py-4">{getStatusBadge(admission.status)}</td>
+                    <td className="text-muted-foreground px-6 py-4 text-sm dark:text-gray-400">
+                      {formatDate(admission.created_at || admission.submission_date)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleViewDetails(admission.id)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
+                          className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
                         >
                           View
                         </button>
                         <button
                           onClick={() => handleEdit(admission.id)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-700 bg-emerald-100 rounded hover:bg-emerald-200 transition-colors dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
+                          className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => confirmDelete(admission)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
+                          className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
                         >
                           Delete
                         </button>
@@ -829,114 +781,92 @@ function Admission() {
 
       {showModal && selectedAdmission && (
         <div
-          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
           onClick={(e) => {
-
             if (e.target === e.currentTarget) setShowModal(false);
           }}
         >
-          <div className="bg-white text-black rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-border bg-linear-to-r from-blue-500 to-blue-400 text-white rounded-t-xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white text-black shadow-xl">
+            <div className="border-border flex items-center justify-between rounded-t-xl border-b bg-linear-to-r from-blue-500 to-blue-400 p-6 text-white">
               <div>
                 <h3 className="text-lg font-semibold">Admission Details</h3>
-                <p className="text-sm opacity-90 mt-1">
-                  Complete student information
-                </p>
+                <p className="mt-1 text-sm opacity-90">Complete student information</p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-white hover:text-gray-200 transition-colors"
+                className="text-white transition-colors hover:text-gray-200"
               >
                 ×
               </button>
             </div>
             <div className="p-6">
               {selectedAdmission.photo_path && (
-                <div className="bg-muted/50 p-4 rounded-lg border border-border flex flex-col items-center mb-6">
-                  <h4 className="text-sm font-semibold mb-2">
-                    Student's Photo
-                  </h4>
+                <div className="bg-muted/50 border-border mb-6 flex flex-col items-center rounded-lg border p-4">
+                  <h4 className="mb-2 text-sm font-semibold">Student's Photo</h4>
                   <img
                     src={`${getFileUrl(selectedAdmission.photo_path)}`}
                     alt="Student Photo"
-                    className="w-28 h-28 object-cover border-2 border-border rounded-lg shadow"
+                    className="border-border h-28 w-28 rounded-lg border-2 object-cover shadow"
                     onError={(e) => {
-                      e.currentTarget.style.display = "none";
+                      e.currentTarget.style.display = 'none';
                     }}
                   />
                 </div>
               )}
-              <div className="text-sm font-medium text-gray-800 border border-border rounded px-3 py-2 bg-muted/50 flex flex-wrap gap-x-4 gap-y-1 shadow-sm mb-6">
-                <span>Class: {selectedAdmission.admission_class || "-"}</span>
-                <span>
-                  Admission User ID:{" "}
-                  {selectedAdmission.admission_user_id || "-"}
-                </span>
-                <span>Serial No: {selectedAdmission.serial_no || "-"}</span>
-                <span>
-                  Qouta Year: {formatQuota(selectedAdmission.qouta) || "-"}
-                </span>
-                <span className="ml-auto">
-                  Status: {getStatusBadge(selectedAdmission.status)}
-                </span>
+              <div className="border-border bg-muted/50 mb-6 flex flex-wrap gap-x-4 gap-y-1 rounded border px-3 py-2 text-sm font-medium text-gray-800 shadow-sm">
+                <span>Class: {selectedAdmission.admission_class || '-'}</span>
+                <span>Admission User ID: {selectedAdmission.admission_user_id || '-'}</span>
+                <span>Serial No: {selectedAdmission.serial_no || '-'}</span>
+                <span>Qouta Year: {formatQuota(selectedAdmission.qouta) || '-'}</span>
+                <span className="ml-auto">Status: {getStatusBadge(selectedAdmission.status)}</span>
               </div>
-              <div className="border border-border bg-white rounded-lg overflow-hidden">
+              <div className="border-border overflow-hidden rounded-lg border bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <tbody>
                       <tr>
                         <td
                           colSpan={2}
-                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
                         >
                           ভর্তি তথ্য (Admission Information)
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Admission Class:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Admission Class:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.admission_class || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          List Type:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">List Type:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.list_type || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Admission User ID:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Admission User ID:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.admission_user_id || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Serial No:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Serial No:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.serial_no || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Qouta:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Qouta:</td>
+                        <td className="px-4 py-2">
                           {formatQuota(selectedAdmission.qouta) || (
                             <span className="text-gray-400">Not provided</span>
                           )}
@@ -946,91 +876,79 @@ function Admission() {
                       <tr>
                         <td
                           colSpan={2}
-                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
                         >
                           ব্যক্তিগত তথ্য (Personal Information)
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          ছাত্রের নাম :
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">ছাত্রের নাম :</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.student_name_bn || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">
                           Student's Name (In Capital Letter):
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {selectedAdmission.student_name_en || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">
                           Student Nickname (BN):
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {selectedAdmission.student_nick_name_bn || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Birth Registration No.:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Birth Registration No.:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.birth_reg_no || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Registration Number:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Registration Number:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.registration_no || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Date of Birth :
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Date of Birth :</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.birth_date ? (
                             (() => {
                               const formatDateLong = (dateStr: string) => {
-                                if (!dateStr) return "";
+                                if (!dateStr) return '';
                                 let d, m, y;
                                 if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-                                  [d, m, y] = dateStr.split("/");
-                                } else if (
-                                  /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
-                                ) {
-                                  [y, m, d] = dateStr.split("-");
+                                  [d, m, y] = dateStr.split('/');
+                                } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                                  [y, m, d] = dateStr.split('-');
                                 } else {
                                   return dateStr;
                                 }
                                 const dateObj = new Date(`${y}-${m}-${d}`);
                                 if (isNaN(dateObj.getTime())) return dateStr;
-                                return dateObj.toLocaleDateString("en-GB", {
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
+                                return dateObj.toLocaleDateString('en-GB', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
                                 });
                               };
-                              return formatDateLong(
-                                selectedAdmission.birth_date
-                              );
+                              return formatDateLong(selectedAdmission.birth_date);
                             })()
                           ) : (
                             <span className="text-gray-400">Not provided</span>
@@ -1038,31 +956,25 @@ function Admission() {
                         </td>
                       </tr>
 
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Blood Group:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Blood Group:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.blood_group || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Email Address:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Email Address:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.email || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Religion:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Religion:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.religion || (
                             <span className="text-gray-400">Not provided</span>
                           )}
@@ -1072,16 +984,14 @@ function Admission() {
                       <tr>
                         <td
                           colSpan={2}
-                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
                         >
                           অবস্থান (Address)
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Present Address:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Present Address:</td>
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [
                               selectedAdmission.present_village_road,
@@ -1089,7 +999,7 @@ function Admission() {
                                 ? selectedAdmission.present_post_code
                                   ? `${selectedAdmission.present_post_office} (${selectedAdmission.present_post_code})`
                                   : selectedAdmission.present_post_office
-                                : "",
+                                : '',
                               selectedAdmission.present_upazila,
                               selectedAdmission.present_district,
                             ]
@@ -1097,20 +1007,16 @@ function Admission() {
                               .map((s) => String(s).trim())
                               .filter(Boolean);
                             return parts.length > 0 ? (
-                              parts.join(", ")
+                              parts.join(', ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Permanent Address:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Permanent Address:</td>
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [
                               selectedAdmission.permanent_village_road,
@@ -1118,7 +1024,7 @@ function Admission() {
                                 ? selectedAdmission.permanent_post_code
                                   ? `${selectedAdmission.permanent_post_office} (${selectedAdmission.permanent_post_code})`
                                   : selectedAdmission.permanent_post_office
-                                : "",
+                                : '',
                               selectedAdmission.permanent_upazila,
                               selectedAdmission.permanent_district,
                             ]
@@ -1126,11 +1032,9 @@ function Admission() {
                               .map((s) => String(s).trim())
                               .filter(Boolean);
                             return parts.length > 0 ? (
-                              parts.join(", ")
+                              parts.join(', ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
@@ -1139,46 +1043,40 @@ function Admission() {
                       <tr>
                         <td
                           colSpan={2}
-                          className="bg-blue-100 font-bold text-lg px-4 py-3 text-blue-800 border-b"
+                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
                         >
                           অভিভাবক / পূর্বের স্কুল (Guardian / Previous School)
                         </td>
                       </tr>
                       <tr className="border-b">
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Guardian Info:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Guardian Info:</td>
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [
                               selectedAdmission.guardian_name
                                 ? `Name: ${selectedAdmission.guardian_name}`
-                                : "",
+                                : '',
                               selectedAdmission.guardian_relation
                                 ? `Relation: ${selectedAdmission.guardian_relation}`
-                                : "",
+                                : '',
                               selectedAdmission.guardian_phone
                                 ? `Phone: ${selectedAdmission.guardian_phone}`
-                                : "",
+                                : '',
                               selectedAdmission.guardian_nid
                                 ? `NID: ${selectedAdmission.guardian_nid}`
-                                : "",
+                                : '',
                             ].filter(Boolean);
                             return parts.length > 0 ? (
-                              parts.join(", ")
+                              parts.join(', ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Guardian Address:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Guardian Address:</td>
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [
                               selectedAdmission.guardian_village_road,
@@ -1186,7 +1084,7 @@ function Admission() {
                                 ? selectedAdmission.guardian_post_code
                                   ? `${selectedAdmission.guardian_post_office} (${selectedAdmission.guardian_post_code})`
                                   : selectedAdmission.guardian_post_office
-                                : "",
+                                : '',
                               selectedAdmission.guardian_upazila,
                               selectedAdmission.guardian_district,
                             ]
@@ -1194,20 +1092,18 @@ function Admission() {
                               .map((s) => String(s).trim())
                               .filter(Boolean);
                             return parts.length > 0 ? (
-                              parts.join(", ")
+                              parts.join(', ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">
                           Previous School Name & Address:
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [
                               selectedAdmission.prev_school_name,
@@ -1217,80 +1113,64 @@ function Admission() {
                               .filter(Boolean)
                               .map((s) => String(s).trim());
                             return parts.length > 0 ? (
-                              parts.join(", ")
+                              parts.join(', ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">
                           Previous School Academic Info:
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {(() => {
                             const parts = [];
                             if (selectedAdmission.section_in_prev_school)
-                              parts.push(
-                                `Section: ${selectedAdmission.section_in_prev_school}`
-                              );
+                              parts.push(`Section: ${selectedAdmission.section_in_prev_school}`);
                             if (selectedAdmission.roll_in_prev_school)
-                              parts.push(
-                                `Roll: ${selectedAdmission.roll_in_prev_school}`
-                              );
+                              parts.push(`Roll: ${selectedAdmission.roll_in_prev_school}`);
                             if (selectedAdmission.prev_school_passing_year)
-                              parts.push(
-                                `Year: ${selectedAdmission.prev_school_passing_year}`
-                              );
+                              parts.push(`Year: ${selectedAdmission.prev_school_passing_year}`);
                             return parts.length > 0 ? (
-                              parts.join(" / ")
+                              parts.join(' / ')
                             ) : (
-                              <span className="text-gray-400">
-                                Not provided
-                              </span>
+                              <span className="text-gray-400">Not provided</span>
                             );
                           })()}
                         </td>
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Father's Name (BN):
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Father's Name (BN):</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.father_name_bn || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Father's Name (EN):
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Father's Name (EN):</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.father_name_en || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">
                           Father's National ID Number:
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {selectedAdmission.father_nid || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Father's Mobile Number:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Father's Mobile Number:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.father_phone || (
                             <span className="text-gray-400">Not provided</span>
                           )}
@@ -1298,40 +1178,34 @@ function Admission() {
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Mother's Name (BN):
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Mother's Name (BN):</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.mother_name_bn || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Mother's Name (EN):
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Mother's Name (EN):</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.mother_name_en || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">
                           Mother's National ID Number:
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-4 py-2">
                           {selectedAdmission.mother_nid || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Mother's Mobile Number:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Mother's Mobile Number:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.mother_phone || (
                             <span className="text-gray-400">Not provided</span>
                           )}
@@ -1339,52 +1213,42 @@ function Admission() {
                       </tr>
 
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Father's Profession:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Father's Profession:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.father_profession || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="border-b bg-muted/50">
-                        <td className="py-2 px-4 font-medium  bg-muted">
-                          Mother's Profession:
-                        </td>
-                        <td className="py-2 px-4">
+                      <tr className="bg-muted/50 border-b">
+                        <td className="bg-muted px-4 py-2 font-medium">Mother's Profession:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.mother_profession || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">
                           Parent's Annual Income:
                         </td>
-                        <td className="py-2 px-4">
-                          {formatParentIncome(
-                            selectedAdmission.parent_income
-                          ) || (
-                              <span className="text-gray-400">Not provided</span>
-                            )}
+                        <td className="px-4 py-2">
+                          {formatParentIncome(selectedAdmission.parent_income) || (
+                            <span className="text-gray-400">Not provided</span>
+                          )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Whatsapp Number:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Whatsapp Number:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.whatsapp_number || (
                             <span className="text-gray-400">Not provided</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 font-medium  bg-muted/50">
-                          Submission Date:
-                        </td>
-                        <td className="py-2 px-4">
+                        <td className="bg-muted/50 px-4 py-2 font-medium">Submission Date:</td>
+                        <td className="px-4 py-2">
                           {selectedAdmission.submission_date ? (
                             formatDate(selectedAdmission.submission_date)
                           ) : (
@@ -1397,8 +1261,8 @@ function Admission() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-between items-center p-6 border-t border-border bg-muted/50">
-              <div className="text-sm text-muted-foreground">
+            <div className="border-border bg-muted/50 flex items-center justify-between border-t p-6">
+              <div className="text-muted-foreground text-sm">
                 Admission ID: {selectedAdmission.id}
               </div>
               <div className="flex gap-3">
@@ -1409,31 +1273,31 @@ function Admission() {
                     try {
                       const response = await axios.get(
                         `/api/admission/form/${selectedAdmission.id}/pdf`,
-                        { responseType: "blob" }
+                        { responseType: 'blob' },
                       );
                       const blob = new Blob([response.data], {
-                        type: "application/pdf",
+                        type: 'application/pdf',
                       });
                       downloadBlob(blob, `${selectedAdmission.student_name_en}.pdf`);
                     } catch (err) {
                       console.error(err);
-                      setError("Failed to download PDF");
+                      setError('Failed to download PDF');
                     } finally {
                       setPdfDownloading(false);
                     }
                   }}
                   disabled={pdfDownloading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {pdfDownloading ? (
-                    <span className="animate-spin inline-block w-4 h-4 border-b-2 border-white"></span>
+                    <span className="inline-block h-4 w-4 animate-spin border-b-2 border-white"></span>
                   ) : (
                     <>Download PDF</>
                   )}
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-muted  rounded-lg hover:bg-gray-200 transition-colors"
+                  className="bg-muted rounded-lg px-4 py-2 transition-colors hover:bg-gray-200"
                 >
                   Close
                 </button>
@@ -1445,46 +1309,38 @@ function Admission() {
 
       {showEditModal && (
         <div
-          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowEditModal(false);
           }}
         >
-          <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                Update Admission Status
-              </h3>
+          <div className="relative mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Update Admission Status</h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-muted-foreground"
+                className="hover:text-muted-foreground text-gray-400"
               >
                 ×
               </button>
             </div>
             <div className="mb-4">
-              <div className="text-sm text-muted-foreground mb-3">
-                <strong>Student:</strong>{" "}
-                {editFormData.student_name_en || "N/A"}
+              <div className="text-muted-foreground mb-3 text-sm">
+                <strong>Student:</strong> {editFormData.student_name_en || 'N/A'}
                 <br />
-                <strong>Class:</strong> {editFormData.class || "N/A"} |{" "}
-                <strong>Admission User ID:</strong>{" "}
-                {editFormData.admission_user_id || "N/A"}
+                <strong>Class:</strong> {editFormData.class || 'N/A'} |{' '}
+                <strong>Admission User ID:</strong> {editFormData.admission_user_id || 'N/A'}
               </div>
-              <label className="block text-sm font-medium  mb-2">
-                Admission Status
-              </label>
+              <label className="mb-2 block text-sm font-medium">Admission Status</label>
               <select
-                value={editFormData.status || "pending"}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, status: e.target.value })
-                }
-                className="w-full border dark:bg-white text-black border-border rounded px-3 py-2 focus:ring-2 focus:ring-primary/20 focus:border-blue-500"
+                value={editFormData.status || 'pending'}
+                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                className="border-border focus:ring-primary/20 w-full rounded border px-3 py-2 text-black focus:border-blue-500 focus:ring-2 dark:bg-white"
               >
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
               </select>
-              <p className="text-xs text-red-500 mt-1">
+              <p className="mt-1 text-xs text-red-500">
                 Only status can be modified for existing admissions
               </p>
             </div>
@@ -1492,13 +1348,13 @@ function Admission() {
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 border border-border bg-red-500 rounded hover:bg-red-700"
+                className="border-border rounded border bg-red-500 px-4 py-2 hover:bg-red-700"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSubmit}
-                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90 rounded px-4 py-2 text-white"
               >
                 Update Status
               </button>
@@ -1509,14 +1365,14 @@ function Admission() {
 
       {showDeleteModal && deleteTargetAdmission && (
         <div
-          className="fixed inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowDeleteModal(false);
           }}
         >
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
             <div className="mt-3 text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <svg
                   className="h-6 w-6 text-red-600"
                   fill="none"
@@ -1531,27 +1387,25 @@ function Admission() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mt-2">
-                Delete Admission
-              </h3>
+              <h3 className="mt-2 text-lg leading-6 font-medium text-gray-900">Delete Admission</h3>
               <div className="mt-2 px-7 py-3">
-                <p className="text-sm text-muted-foreground">
-                  Are you sure you want to delete the admission for{" "}
-                  <strong>{deleteTargetAdmission.student_name_en}</strong>? This
-                  action cannot be undone.
+                <p className="text-muted-foreground text-sm">
+                  Are you sure you want to delete the admission for{' '}
+                  <strong>{deleteTargetAdmission.student_name_en}</strong>? This action cannot be
+                  undone.
                 </p>
               </div>
               <div className="px-4 py-3">
                 <div className="flex justify-between">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="px-4 py-2 bg-gray-300 text-base font-medium rounded-md shadow-sm hover:bg-gray-400"
+                    className="rounded-md bg-gray-300 px-4 py-2 text-base font-medium shadow-sm hover:bg-gray-400"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => handleDelete(deleteTargetAdmission.id)}
-                    className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700"
+                    className="rounded-md bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700"
                   >
                     Delete
                   </button>

@@ -4,7 +4,7 @@
  */
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
+  const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
   document.body.appendChild(anchor);
@@ -17,16 +17,13 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * Open a Blob in a new tab (PDF preview). Do not revoke the URL — the viewer
  * tab needs it for Chrome's download / save actions on blob: URLs.
  */
-export function openBlobInNewTab(
-  blob: Blob,
-  targetWindow?: Window | null,
-): Window | null {
+export function openBlobInNewTab(blob: Blob, targetWindow?: Window | null): Window | null {
   const url = URL.createObjectURL(blob);
   if (targetWindow) {
     targetWindow.location.href = url;
     return targetWindow;
   }
-  return window.open(url, "_blank");
+  return window.open(url, '_blank');
 }
 
 export function getFilenameFromContentDisposition(
@@ -34,5 +31,5 @@ export function getFilenameFromContentDisposition(
 ): string | null {
   if (!header) return null;
   const match = /filename\*?=(?:UTF-8''|")?([^";\n]+)/i.exec(header);
-  return match?.[1]?.replace(/"/g, "").trim() ?? null;
+  return match?.[1]?.replace(/"/g, '').trim() ?? null;
 }

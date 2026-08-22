@@ -1,10 +1,10 @@
-import { prisma } from "@/config/prisma.js";
+import { prisma } from '@/config/prisma.js';
 
 export class DashboardService {
   private static formatDateKey(date: Date) {
     const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
 
@@ -23,11 +23,11 @@ export class DashboardService {
 
       const startDate = timelineDates[0];
       const attendanceGrouped = await prisma.attendence.groupBy({
-        by: ["date", "status"],
+        by: ['date', 'status'],
         where: {
           date: { gte: startDate },
           status: {
-            in: ["present", "absent", "run-awayed"],
+            in: ['present', 'absent', 'run-awayed'],
           },
         },
         _count: {
@@ -49,10 +49,9 @@ export class DashboardService {
           run_awayed: 0,
         };
 
-        if (row.status === "present") current.present = row._count._all;
-        else if (row.status === "absent") current.absent = row._count._all;
-        else if (row.status === "run-awayed")
-          current.run_awayed = row._count._all;
+        if (row.status === 'present') current.present = row._count._all;
+        else if (row.status === 'absent') current.absent = row._count._all;
+        else if (row.status === 'run-awayed') current.run_awayed = row._count._all;
 
         countsByDate.set(row.date, current);
       }
@@ -64,13 +63,13 @@ export class DashboardService {
           run_awayed: 0,
         };
 
-        const [yearPart, monthPart, dayPart] = date.split("-").map(Number);
+        const [yearPart, monthPart, dayPart] = date.split('-').map(Number);
         const displayDate = new Date(yearPart, monthPart - 1, dayPart)
-          .toLocaleDateString("en-US", {
-            day: "2-digit",
-            month: "short",
+          .toLocaleDateString('en-US', {
+            day: '2-digit',
+            month: 'short',
           })
-          .replace(",", "");
+          .replace(',', '');
 
         return {
           name: displayDate,
@@ -81,7 +80,7 @@ export class DashboardService {
         };
       });
     } catch (error: any) {
-      console.warn("Error fetching attendance data:", error.message);
+      console.warn('Error fetching attendance data:', error.message);
       return [];
     }
   }
@@ -92,7 +91,7 @@ export class DashboardService {
 
     // Helper function to convert MM-DD-YYYY to Date object
     const parseEventDate = (dateStr: string) => {
-      const [month, day, year] = dateStr.split("-");
+      const [month, day, year] = dateStr.split('-');
       return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     };
 
@@ -104,69 +103,62 @@ export class DashboardService {
     let examSchedule = [] as any[];
 
     // Independent queries — run in parallel while keeping per-query fallbacks.
-    const [studentRes, teacherRes, announcementRes, eventRes, examRes] =
-      await Promise.allSettled([
-        prisma.student_enrollments.count({
-          where: { year: year },
-        }),
-        prisma.teachers.count({
-          where: { available: true },
-        }),
-        prisma.notices.findMany({
-          select: {
-            id: true,
-            title: true,
-            created_at: true,
-            file: true,
-          },
-          orderBy: { created_at: "desc" },
-          take: 5,
-        }),
-        prisma.events.findMany({
-          select: {
-            id: true,
-            title: true,
-            date: true,
-            location: true,
-            details: true,
-          },
-          orderBy: { date: "asc" },
-        }),
-        prisma.exams.findMany({
-          where: {
-            exam_year: year,
-          },
-          select: {
-            exam_name: true,
-            start_date: true,
-            end_date: true,
-            exam_year: true,
-          },
-          orderBy: { start_date: "asc" },
-          take: 5,
-        }),
-      ]);
+    const [studentRes, teacherRes, announcementRes, eventRes, examRes] = await Promise.allSettled([
+      prisma.student_enrollments.count({
+        where: { year: year },
+      }),
+      prisma.teachers.count({
+        where: { available: true },
+      }),
+      prisma.notices.findMany({
+        select: {
+          id: true,
+          title: true,
+          created_at: true,
+          file: true,
+        },
+        orderBy: { created_at: 'desc' },
+        take: 5,
+      }),
+      prisma.events.findMany({
+        select: {
+          id: true,
+          title: true,
+          date: true,
+          location: true,
+          details: true,
+        },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.exams.findMany({
+        where: {
+          exam_year: year,
+        },
+        select: {
+          exam_name: true,
+          start_date: true,
+          end_date: true,
+          exam_year: true,
+        },
+        orderBy: { start_date: 'asc' },
+        take: 5,
+      }),
+    ]);
 
-    if (studentRes.status === "fulfilled") studentCount = studentRes.value;
-    else console.warn("Error fetching student count:", studentRes.reason?.message);
+    if (studentRes.status === 'fulfilled') studentCount = studentRes.value;
+    else console.warn('Error fetching student count:', studentRes.reason?.message);
 
-    if (teacherRes.status === "fulfilled") teacherCount = teacherRes.value;
-    else console.warn("Error fetching teacher count:", teacherRes.reason?.message);
+    if (teacherRes.status === 'fulfilled') teacherCount = teacherRes.value;
+    else console.warn('Error fetching teacher count:', teacherRes.reason?.message);
 
-    if (announcementRes.status === "fulfilled")
-      announcements = announcementRes.value;
-    else
-      console.warn(
-        "Error fetching announcements:",
-        announcementRes.reason?.message,
-      );
+    if (announcementRes.status === 'fulfilled') announcements = announcementRes.value;
+    else console.warn('Error fetching announcements:', announcementRes.reason?.message);
 
-    if (eventRes.status === "fulfilled") events = eventRes.value;
-    else console.warn("Error fetching events:", eventRes.reason?.message);
+    if (eventRes.status === 'fulfilled') events = eventRes.value;
+    else console.warn('Error fetching events:', eventRes.reason?.message);
 
-    if (examRes.status === "fulfilled") examSchedule = examRes.value;
-    else
-      console.warn("Error fetching exam schedule:", examRes.reason?.message);
+    if (examRes.status === 'fulfilled') examSchedule = examRes.value;
+    else console.warn('Error fetching exam schedule:', examRes.reason?.message);
 
     // Filter events that are upcoming (date >= current date)
     const upcomingEvents = (events || [])
@@ -176,7 +168,7 @@ export class DashboardService {
           const eventDate = parseEventDate(event.date);
           return eventDate >= currentDate;
         } catch {
-          console.error("Error parsing event date:", event.date);
+          console.error('Error parsing event date:', event.date);
           return false;
         }
       })
@@ -193,15 +185,13 @@ export class DashboardService {
       }
     }).length;
 
-    const formattedAnnouncements = (announcements || []).map(
-      (announcement) => ({
-        id: announcement.id,
-        title: announcement.title || "No title",
-        content: "No details available",
-        date: announcement.created_at,
-        url: announcement.file,
-      }),
-    );
+    const formattedAnnouncements = (announcements || []).map((announcement) => ({
+      id: announcement.id,
+      title: announcement.title || 'No title',
+      content: 'No details available',
+      date: announcement.created_at,
+      url: announcement.file,
+    }));
 
     return {
       quickStats: {
@@ -212,7 +202,7 @@ export class DashboardService {
       announcements: formattedAnnouncements,
       events: upcomingEvents || [],
       examSchedule: (examSchedule || []).map((exam) => ({
-        name: exam.exam_name || "Unnamed exam",
+        name: exam.exam_name || 'Unnamed exam',
         start_date: exam.start_date,
         end_date: exam.end_date,
       })),

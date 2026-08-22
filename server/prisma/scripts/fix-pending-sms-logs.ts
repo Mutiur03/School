@@ -10,29 +10,28 @@
  *   DRY_RUN=1 npx tsx prisma/scripts/fix-pending-sms-logs.ts
  */
 
-import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
 
 // Use migration/superuser URL when available — school_app RLS hides rows without tenant context
-const databaseUrl =
-  process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
+const databaseUrl = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
 
 const prisma = new PrismaClient({
   datasources: { db: { url: databaseUrl } },
 });
-const DRY_RUN = process.env.DRY_RUN === "1";
+const DRY_RUN = process.env.DRY_RUN === '1';
 
 async function setSuperAdminContext() {
   await prisma.$executeRaw`SELECT set_config('app.is_super_admin', '1', false)`;
 }
 
 async function main() {
-  console.log(DRY_RUN ? "[DRY RUN] No changes will be written." : "[LIVE] Writing changes...");
+  console.log(DRY_RUN ? '[DRY RUN] No changes will be written.' : '[LIVE] Writing changes...');
   await setSuperAdminContext();
 
   // Fetch all pending logs
   const pendingLogs = await prisma.sms_logs.findMany({
-    where: { status: "pending" },
+    where: { status: 'pending' },
     select: {
       id: true,
       student_id: true,
@@ -42,7 +41,7 @@ async function main() {
   });
 
   if (pendingLogs.length === 0) {
-    console.log("No pending SMS logs found. Nothing to do.");
+    console.log('No pending SMS logs found. Nothing to do.');
     return;
   }
 
@@ -60,9 +59,9 @@ async function main() {
   if (!DRY_RUN) {
     // 1. Mark all pending sms_logs as sent
     const updated = await prisma.sms_logs.updateMany({
-      where: { status: "pending" },
+      where: { status: 'pending' },
       data: {
-        status: "sent",
+        status: 'sent',
         updated_at: new Date(),
       },
     });
@@ -80,20 +79,24 @@ async function main() {
     console.log(`Updated ${attendanceUpdated} attendence row(s) → send_msg: true`);
   } else {
     console.log(`[DRY RUN] Would update ${pendingLogs.length} sms_logs → "sent"`);
-    console.log(`[DRY RUN] Would update ${attendancePairs.size} attendence row(s) → send_msg: true`);
+    console.log(
+      `[DRY RUN] Would update ${attendancePairs.size} attendence row(s) → send_msg: true`,
+    );
 
     // Print a sample
     const sample = pendingLogs.slice(0, 5);
-    console.log("\nSample pending logs:");
+    console.log('\nSample pending logs:');
     for (const log of sample) {
-      console.log(`  id=${log.id}  student=${log.student_id}  date=${log.attendance_date}  phone=${log.phone_number}`);
+      console.log(
+        `  id=${log.id}  student=${log.student_id}  date=${log.attendance_date}  phone=${log.phone_number}`,
+      );
     }
     if (pendingLogs.length > 5) {
       console.log(`  ... and ${pendingLogs.length - 5} more`);
     }
   }
 
-  console.log("Done.");
+  console.log('Done.');
 }
 
 main()

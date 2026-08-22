@@ -11,9 +11,9 @@
  * logical key exists for multiple schools — the preflight check aborts when that happens.
  */
 
-import "dotenv/config";
+import 'dotenv/config';
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -25,7 +25,7 @@ const prisma = new PrismaClient();
 
 function parseTargetId(): number {
   const fromEnv = process.env.TARGET_SCHOOL_ID;
-  const raw = fromEnv ?? process.argv[2] ?? "1";
+  const raw = fromEnv ?? process.argv[2] ?? '1';
   const n = Number.parseInt(String(raw), 10);
   if (!Number.isFinite(n) || n < 1) {
     throw new Error(`Invalid TARGET_SCHOOL_ID / argv: ${raw}`);
@@ -33,7 +33,7 @@ function parseTargetId(): number {
   return n;
 }
 
-const dryRun = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
+const dryRun = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 
 async function preflightMergeConflicts(targetId: number): Promise<void> {
   type Row = {
@@ -57,7 +57,7 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
   const subjectSchoolsByKey = new Map<string, Set<number>>();
   for (const row of subjectRows) {
     if (row.school_id == null) continue;
-    const key = `${row.name}::${row.class}::${row.group ?? ""}::${row.year}`;
+    const key = `${row.name}::${row.class}::${row.group ?? ''}::${row.year}`;
     const schools = subjectSchoolsByKey.get(key) ?? new Set<number>();
     schools.add(row.school_id);
     subjectSchoolsByKey.set(key, schools);
@@ -66,19 +66,19 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
   const subjectDups: Row[] = [];
   for (const [key, schools] of subjectSchoolsByKey.entries()) {
     if (schools.size <= 1) continue;
-    const [name, cls, grp, yr] = key.split("::");
+    const [name, cls, grp, yr] = key.split('::');
     subjectDups.push({
       name,
       class: Number(cls),
-      group: grp === "" ? null : grp,
+      group: grp === '' ? null : grp,
       year: Number(yr),
     });
   }
 
   if (subjectDups.length > 0) {
     console.error(
-      "Preflight failed: duplicate subject keys across different schools (would violate unique after merge).",
-      "First few:",
+      'Preflight failed: duplicate subject keys across different schools (would violate unique after merge).',
+      'First few:',
       subjectDups.slice(0, 5),
     );
     process.exit(1);
@@ -108,7 +108,7 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
   const routineDups: CrRow[] = [];
   for (const [key, schools] of routineSchoolsByKey.entries()) {
     if (schools.size <= 1) continue;
-    const [cls, slot, day] = key.split("::");
+    const [cls, slot, day] = key.split('::');
     routineDups.push({
       class: Number(cls),
       slot_id: Number(slot),
@@ -118,8 +118,8 @@ async function preflightMergeConflicts(targetId: number): Promise<void> {
 
   if (routineDups.length > 0) {
     console.error(
-      "Preflight failed: duplicate class_routine keys across different schools.",
-      "First few:",
+      'Preflight failed: duplicate class_routine keys across different schools.',
+      'First few:',
       routineDups.slice(0, 5),
     );
     process.exit(1);
@@ -140,7 +140,7 @@ function schoolIdWhere(targetId: number) {
 
 async function main() {
   const targetId = parseTargetId();
-  console.log(`Target school id: ${targetId}${dryRun ? " (DRY_RUN)" : ""}`);
+  console.log(`Target school id: ${targetId}${dryRun ? ' (DRY_RUN)' : ''}`);
 
   await preflightMergeConflicts(targetId);
 
@@ -149,57 +149,42 @@ async function main() {
     const c = async (label: string, n: number) =>
       console.log(`[DRY_RUN] ${label}: rows to update: ${n}`);
 
-    await c("admin", await prisma.admin.count({ where: w }));
-    await c("students", await prisma.students.count({ where: w }));
+    await c('admin', await prisma.admin.count({ where: w }));
+    await c('students', await prisma.students.count({ where: w }));
+    await c('student_enrollments', await prisma.student_enrollments.count({ where: w }));
+    await c('attendence', await prisma.attendence.count({ where: w }));
+    await c('exams', await prisma.exams.count({ where: w }));
+    await c('holidays', await prisma.holidays.count({ where: w }));
+    await c('teachers', await prisma.teachers.count({ where: w }));
+    await c('staffs', await prisma.staffs.count({ where: w }));
+    await c('levels', await prisma.levels.count({ where: w }));
+    await c('subjects', await prisma.subjects.count({ where: w }));
+    await c('marks', await prisma.marks.count({ where: w }));
+    await c('categories', await prisma.categories.count({ where: w }));
+    await c('events', await prisma.events.count({ where: w }));
+    await c('gallery', await prisma.gallery.count({ where: w }));
+    await c('notices', await prisma.notices.count({ where: w }));
+    await c('admission', await prisma.admission.count({ where: w }));
+    await c('syllabus', await prisma.syllabus.count({ where: w }));
+    await c('class_slot_time', await prisma.class_slot_time.count({ where: w }));
+    await c('class_routine', await prisma.class_routine.count({ where: w }));
+    await c('exam_routines', await prisma.exam_routines.count({ where: w }));
+    await c('class_routine_pdf', await prisma.class_routine_pdf.count({ where: w }));
+    await c('citizenCharter', await prisma.citizenCharter.count({ where: w }));
+    await c('head_msg', await prisma.head_msg.count({ where: w }));
+    await c('ssc_reg', await prisma.ssc_reg.count({ where: w }));
+    await c('student_registration_ssc', await prisma.student_registration_ssc.count({ where: w }));
+    await c('admission_form', await prisma.admission_form.count({ where: w }));
+    await c('admission_result', await prisma.admission_result.count({ where: w }));
+    await c('sms_logs', await prisma.sms_logs.count({ where: w }));
+    await c('class6_reg', await prisma.class6_reg.count({ where: w }));
     await c(
-      "student_enrollments",
-      await prisma.student_enrollments.count({ where: w }),
-    );
-    await c("attendence", await prisma.attendence.count({ where: w }));
-    await c("exams", await prisma.exams.count({ where: w }));
-    await c("holidays", await prisma.holidays.count({ where: w }));
-    await c("teachers", await prisma.teachers.count({ where: w }));
-    await c("staffs", await prisma.staffs.count({ where: w }));
-    await c("levels", await prisma.levels.count({ where: w }));
-    await c("subjects", await prisma.subjects.count({ where: w }));
-    await c("marks", await prisma.marks.count({ where: w }));
-    await c("categories", await prisma.categories.count({ where: w }));
-    await c("events", await prisma.events.count({ where: w }));
-    await c("gallery", await prisma.gallery.count({ where: w }));
-    await c("notices", await prisma.notices.count({ where: w }));
-    await c("admission", await prisma.admission.count({ where: w }));
-    await c("syllabus", await prisma.syllabus.count({ where: w }));
-    await c(
-      "class_slot_time",
-      await prisma.class_slot_time.count({ where: w }),
-    );
-    await c("class_routine", await prisma.class_routine.count({ where: w }));
-    await c("exam_routines", await prisma.exam_routines.count({ where: w }));
-    await c(
-      "class_routine_pdf",
-      await prisma.class_routine_pdf.count({ where: w }),
-    );
-    await c("citizenCharter", await prisma.citizenCharter.count({ where: w }));
-    await c("head_msg", await prisma.head_msg.count({ where: w }));
-    await c("ssc_reg", await prisma.ssc_reg.count({ where: w }));
-    await c(
-      "student_registration_ssc",
-      await prisma.student_registration_ssc.count({ where: w }),
-    );
-    await c("admission_form", await prisma.admission_form.count({ where: w }));
-    await c(
-      "admission_result",
-      await prisma.admission_result.count({ where: w }),
-    );
-    await c("sms_logs", await prisma.sms_logs.count({ where: w }));
-    await c("class6_reg", await prisma.class6_reg.count({ where: w }));
-    await c(
-      "student_registration_class6",
+      'student_registration_class6',
       await prisma.student_registration_class6.count({ where: w }),
     );
-    await c("class8_reg", await prisma.class8_reg.count({ where: w }));
+    await c('class8_reg', await prisma.class8_reg.count({ where: w }));
     await c(
-      "student_registration_class8",
+      'student_registration_class8',
       await prisma.student_registration_class8.count({ where: w }),
     );
     // schoolDomain model no longer exists; subdomain/domain now live on School.
@@ -214,7 +199,7 @@ async function main() {
     };
 
     bump(
-      "admin",
+      'admin',
       (
         await tx.admin.updateMany({
           where: schoolIdWhere(targetId),
@@ -223,7 +208,7 @@ async function main() {
       ).count,
     );
     bump(
-      "students",
+      'students',
       (
         await tx.students.updateMany({
           where: schoolIdWhere(targetId),
@@ -232,7 +217,7 @@ async function main() {
       ).count,
     );
     bump(
-      "student_enrollments",
+      'student_enrollments',
       (
         await tx.student_enrollments.updateMany({
           where: schoolIdWhere(targetId),
@@ -241,7 +226,7 @@ async function main() {
       ).count,
     );
     bump(
-      "attendence",
+      'attendence',
       (
         await tx.attendence.updateMany({
           where: schoolIdWhere(targetId),
@@ -250,7 +235,7 @@ async function main() {
       ).count,
     );
     bump(
-      "exams",
+      'exams',
       (
         await tx.exams.updateMany({
           where: schoolIdWhere(targetId),
@@ -259,7 +244,7 @@ async function main() {
       ).count,
     );
     bump(
-      "holidays",
+      'holidays',
       (
         await tx.holidays.updateMany({
           where: schoolIdWhere(targetId),
@@ -268,7 +253,7 @@ async function main() {
       ).count,
     );
     bump(
-      "teachers",
+      'teachers',
       (
         await tx.teachers.updateMany({
           where: schoolIdWhere(targetId),
@@ -277,7 +262,7 @@ async function main() {
       ).count,
     );
     bump(
-      "staffs",
+      'staffs',
       (
         await tx.staffs.updateMany({
           where: schoolIdWhere(targetId),
@@ -286,7 +271,7 @@ async function main() {
       ).count,
     );
     bump(
-      "levels",
+      'levels',
       (
         await tx.levels.updateMany({
           where: schoolIdWhere(targetId),
@@ -295,7 +280,7 @@ async function main() {
       ).count,
     );
     bump(
-      "subjects",
+      'subjects',
       (
         await tx.subjects.updateMany({
           where: schoolIdWhere(targetId),
@@ -304,7 +289,7 @@ async function main() {
       ).count,
     );
     bump(
-      "marks",
+      'marks',
       (
         await tx.marks.updateMany({
           where: schoolIdWhere(targetId),
@@ -313,7 +298,7 @@ async function main() {
       ).count,
     );
     bump(
-      "categories",
+      'categories',
       (
         await tx.categories.updateMany({
           where: schoolIdWhere(targetId),
@@ -322,7 +307,7 @@ async function main() {
       ).count,
     );
     bump(
-      "events",
+      'events',
       (
         await tx.events.updateMany({
           where: schoolIdWhere(targetId),
@@ -331,7 +316,7 @@ async function main() {
       ).count,
     );
     bump(
-      "gallery",
+      'gallery',
       (
         await tx.gallery.updateMany({
           where: schoolIdWhere(targetId),
@@ -340,7 +325,7 @@ async function main() {
       ).count,
     );
     bump(
-      "notices",
+      'notices',
       (
         await tx.notices.updateMany({
           where: schoolIdWhere(targetId),
@@ -349,7 +334,7 @@ async function main() {
       ).count,
     );
     bump(
-      "admission",
+      'admission',
       (
         await tx.admission.updateMany({
           where: schoolIdWhere(targetId),
@@ -358,7 +343,7 @@ async function main() {
       ).count,
     );
     bump(
-      "syllabus",
+      'syllabus',
       (
         await tx.syllabus.updateMany({
           where: schoolIdWhere(targetId),
@@ -367,7 +352,7 @@ async function main() {
       ).count,
     );
     bump(
-      "class_slot_time",
+      'class_slot_time',
       (
         await tx.class_slot_time.updateMany({
           where: schoolIdWhere(targetId),
@@ -376,7 +361,7 @@ async function main() {
       ).count,
     );
     bump(
-      "class_routine",
+      'class_routine',
       (
         await tx.class_routine.updateMany({
           where: schoolIdWhere(targetId),
@@ -385,7 +370,7 @@ async function main() {
       ).count,
     );
     bump(
-      "exam_routines",
+      'exam_routines',
       (
         await tx.exam_routines.updateMany({
           where: schoolIdWhere(targetId),
@@ -394,7 +379,7 @@ async function main() {
       ).count,
     );
     bump(
-      "class_routine_pdf",
+      'class_routine_pdf',
       (
         await tx.class_routine_pdf.updateMany({
           where: schoolIdWhere(targetId),
@@ -403,7 +388,7 @@ async function main() {
       ).count,
     );
     bump(
-      "citizenCharter",
+      'citizenCharter',
       (
         await tx.citizenCharter.updateMany({
           where: schoolIdWhere(targetId),
@@ -412,7 +397,7 @@ async function main() {
       ).count,
     );
     bump(
-      "head_msg",
+      'head_msg',
       (
         await tx.head_msg.updateMany({
           where: schoolIdWhere(targetId),
@@ -421,7 +406,7 @@ async function main() {
       ).count,
     );
     bump(
-      "ssc_reg",
+      'ssc_reg',
       (
         await tx.ssc_reg.updateMany({
           where: schoolIdWhere(targetId),
@@ -430,7 +415,7 @@ async function main() {
       ).count,
     );
     bump(
-      "student_registration_ssc",
+      'student_registration_ssc',
       (
         await tx.student_registration_ssc.updateMany({
           where: schoolIdWhere(targetId),
@@ -439,7 +424,7 @@ async function main() {
       ).count,
     );
     bump(
-      "admission_form",
+      'admission_form',
       (
         await tx.admission_form.updateMany({
           where: schoolIdWhere(targetId),
@@ -448,7 +433,7 @@ async function main() {
       ).count,
     );
     bump(
-      "admission_result",
+      'admission_result',
       (
         await tx.admission_result.updateMany({
           where: schoolIdWhere(targetId),
@@ -457,7 +442,7 @@ async function main() {
       ).count,
     );
     bump(
-      "sms_logs",
+      'sms_logs',
       (
         await tx.sms_logs.updateMany({
           where: schoolIdWhere(targetId),
@@ -466,7 +451,7 @@ async function main() {
       ).count,
     );
     bump(
-      "class6_reg",
+      'class6_reg',
       (
         await tx.class6_reg.updateMany({
           where: schoolIdWhere(targetId),
@@ -475,7 +460,7 @@ async function main() {
       ).count,
     );
     bump(
-      "student_registration_class6",
+      'student_registration_class6',
       (
         await tx.student_registration_class6.updateMany({
           where: schoolIdWhere(targetId),
@@ -484,7 +469,7 @@ async function main() {
       ).count,
     );
     bump(
-      "class8_reg",
+      'class8_reg',
       (
         await tx.class8_reg.updateMany({
           where: schoolIdWhere(targetId),
@@ -493,7 +478,7 @@ async function main() {
       ).count,
     );
     bump(
-      "student_registration_class8",
+      'student_registration_class8',
       (
         await tx.student_registration_class8.updateMany({
           where: schoolIdWhere(targetId),
@@ -505,13 +490,11 @@ async function main() {
     return counts;
   });
 
-  console.log("Updated row counts (0 = already aligned):");
-  for (const [k, v] of Object.entries(result).sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
+  console.log('Updated row counts (0 = already aligned):');
+  for (const [k, v] of Object.entries(result).sort(([a], [b]) => a.localeCompare(b))) {
     console.log(`  ${k}: ${v}`);
   }
-  console.log("Done.");
+  console.log('Done.');
 }
 
 main()

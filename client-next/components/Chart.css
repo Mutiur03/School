@@ -1,76 +1,76 @@
 /* Box items styling */
 .box-item {
-    background-color: #f5f5f5;
-    border: 1px solid #f2f2f2;
-    cursor: pointer;
-    height: 220px;
-    padding: 10px;
-    position: relative;
-    overflow: hidden;
-    color: #000;
-    -webkit-box-shadow: 1px 1px 1px 1px #ccc;
-    -moz-box-shadow: 1px 1px 1px 1px #ccc;
-    box-shadow: 1px 1px 1px 1px #ccc;
-    margin-bottom: 20px;
+  background-color: #f5f5f5;
+  border: 1px solid #f2f2f2;
+  cursor: pointer;
+  height: 220px;
+  padding: 10px;
+  position: relative;
+  overflow: hidden;
+  color: #000;
+  -webkit-box-shadow: 1px 1px 1px 1px #ccc;
+  -moz-box-shadow: 1px 1px 1px 1px #ccc;
+  box-shadow: 1px 1px 1px 1px #ccc;
+  margin-bottom: 20px;
 }
 
 .boxs-front-board {
-    margin-top: 10px;
+  margin-top: 10px;
 }
 
 .box-img {
-    width: 30%;
-    float: left;
-    margin-right: 2%;
-    margin-bottom: 10px;
+  width: 30%;
+  float: left;
+  margin-right: 2%;
+  margin-bottom: 10px;
 }
 
 .box-text {
-    width: 68%;
-    float: left;
+  width: 68%;
+  float: left;
 }
 
 .box-item .box-title h3 {
-    font-size: 21px;
-    line-height: 28px;
-    font-weight: 500;
+  font-size: 21px;
+  line-height: 28px;
+  font-weight: 500;
 }
 
 .box-item .box-text ul {
-    margin: 0px;
-    padding: 0px;
-    list-style: none;
-    font-size: 15px;
+  margin: 0px;
+  padding: 0px;
+  list-style: none;
+  font-size: 15px;
 }
 
 .box-item .box-text ul ul {
-    margin-left: 5px;
-    padding-left: 5px;
-    list-style: none;
-    font-size: 13px;
+  margin-left: 5px;
+  padding-left: 5px;
+  list-style: none;
+  font-size: 13px;
 }
 
 .box-item .box-text ul li a,
 .box-item .box-text ul li button {
-    color: #000;
-    margin-left: 15px;
-    display: inline-flex;
-    align-items: center;
-    min-height: 24px;
+  color: #000;
+  margin-left: 15px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
 }
 
 .box-item .box-text ul li a:hover,
 .box-item .box-text ul li button:hover {
-    opacity: .7;
-    text-decoration: underline;
+  opacity: 0.7;
+  text-decoration: underline;
 }
 
 .box-item .box-text ul li:before {
-    content: "▶";
-    display: inline-block;
-    position: absolute;
-    font-size: 14px;
-    color: #609513;
+  content: '▶';
+  display: inline-block;
+  position: absolute;
+  font-size: 14px;
+  color: #609513;
 }
 
 /* .box-item:hover {
@@ -91,49 +91,49 @@
 
 .box-item:hover a,
 .box-item:hover button {
-    color: #e32c28;
+  color: #e32c28;
 }
 
 /* Bootstrap row and column classes */
 .row {
-    display: flex;
-    flex-wrap: wrap;
-    margin-right: -15px;
-    margin-left: -15px;
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -15px;
+  margin-left: -15px;
 }
 
 .col-md-6 {
-    position: relative;
-    width: 100%;
-    padding-right: 15px;
-    padding-left: 15px;
-    flex: 0 0 50%;
-    max-width: 50%;
+  position: relative;
+  width: 100%;
+  padding-right: 15px;
+  padding-left: 15px;
+  flex: 0 0 50%;
+  max-width: 50%;
 }
 
 .text-left {
-    text-align: left;
+  text-align: left;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .col-md-6 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
+  .col-md-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 
-    .box-item {
-        height: auto;
-        min-height: 200px;
-    }
+  .box-item {
+    height: auto;
+    min-height: 200px;
+  }
 
-    .box-img {
-        width: 100%;
-        margin-bottom: 10px;
-        text-align: center;
-    }
+  .box-img {
+    width: 100%;
+    margin-bottom: 10px;
+    text-align: center;
+  }
 
-    .box-text {
-        width: 100%;
-    }
+  .box-text {
+    width: 100%;
+  }
 }

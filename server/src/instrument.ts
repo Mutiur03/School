@@ -1,4 +1,4 @@
-import "dotenv/config";
-import { initSentry } from "./config/sentry.js";
+import 'dotenv/config';
+import { initSentry } from './config/sentry.js';
 
 initSentry();

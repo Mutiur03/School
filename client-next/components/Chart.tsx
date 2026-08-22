@@ -1,26 +1,26 @@
-import "./Chart.css";
-import Image from "next/image";
-import type { StaticImageData } from "next/image";
-import Link from "@/components/Link";
+import './Chart.css';
+import Image from 'next/image';
+import type { StaticImageData } from 'next/image';
+import Link from '@/components/Link';
 
-import image01 from "../assets/images/01.png";
-import academicImage from "../assets/images/academic.png";
-import officeOrderImage from "../assets/images/office-order.png";
-import classRoutineSyllabusImage from "../assets/images/Class-Routine_Syllabus.jpg";
-import admissionImage from "../assets/images/admission.png";
-import dataSymbolImage from "../assets/images/datasymbol.png";
-import resultIconImage from "../assets/images/Result-Icon-2.png";
-import formFillupImage from "../assets/images/Form-Fillup.png";
-import citizenImage from "../assets/images/citizen.png";
-import apaCabImage from "../assets/images/apa_cab.png";
-import coEducationalActivitiesImage from "../assets/images/Co-educational-activities.jpg";
-import onlineClassImage from "../assets/images/Online-Class.jpg";
-import miscImage from "../assets/images/0-1.png";
-import emergencyCallServicesImage from "../assets/images/Emergency-call-Services.jpg";
-import { ChartRoutineLinks } from "./chart/ChartRoutineLinks";
-import { ChartSyllabusLinks } from "./chart/ChartSyllabusLinks";
-import { ChartCitizenLink } from "./chart/ChartCitizenLink";
-import { isExternalHref } from "@/lib/links";
+import image01 from '../assets/images/01.png';
+import academicImage from '../assets/images/academic.png';
+import officeOrderImage from '../assets/images/office-order.png';
+import classRoutineSyllabusImage from '../assets/images/Class-Routine_Syllabus.jpg';
+import admissionImage from '../assets/images/admission.png';
+import dataSymbolImage from '../assets/images/datasymbol.png';
+import resultIconImage from '../assets/images/Result-Icon-2.png';
+import formFillupImage from '../assets/images/Form-Fillup.png';
+import citizenImage from '../assets/images/citizen.png';
+import apaCabImage from '../assets/images/apa_cab.png';
+import coEducationalActivitiesImage from '../assets/images/Co-educational-activities.jpg';
+import onlineClassImage from '../assets/images/Online-Class.jpg';
+import miscImage from '../assets/images/0-1.png';
+import emergencyCallServicesImage from '../assets/images/Emergency-call-Services.jpg';
+import { ChartRoutineLinks } from './chart/ChartRoutineLinks';
+import { ChartSyllabusLinks } from './chart/ChartSyllabusLinks';
+import { ChartCitizenLink } from './chart/ChartCitizenLink';
+import { isExternalHref } from '@/lib/links';
 
 export type ChartProps = {
   school?: {
@@ -45,19 +45,19 @@ function BoxImage({ src, alt }: { src: StaticImageData; alt: string }) {
 }
 
 export function Chart({ school }: ChartProps) {
-  const resultsUrl = school?.links?.results ?? "/result";
+  const resultsUrl = school?.links?.results ?? '/result';
 
   return (
     <div className="front-boxs-area">
       <div className="boxs-front">
         <div className="boxs-front-board">
           <div className="row">
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>বিদ্যালয় প্রশাসন</h3>
                 </div>
-                <div className="flex ">
+                <div className="flex">
                   <div className="box-img">
                     <BoxImage src={image01} alt="" />
                   </div>
@@ -87,7 +87,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>একাডেমিক/রুটিন</h3>
@@ -103,7 +103,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>অফিস আদেশ/বিজ্ঞপ্তি</h3>
@@ -115,19 +115,29 @@ export function Chart({ school }: ChartProps) {
                   <div className="box-text">
                     <ul>
                       <li>
-                        <button type="button" className="as-link" title="সভার নোটিশ">সভার নোটিশ</button>
+                        <button type="button" className="as-link" title="সভার নোটিশ">
+                          সভার নোটিশ
+                        </button>
                       </li>
                       <li>
-                        <button type="button" className="as-link" title="অন্যান্য নোটিশ">অন্যান্য নোটিশ</button>
+                        <button type="button" className="as-link" title="অন্যান্য নোটিশ">
+                          অন্যান্য নোটিশ
+                        </button>
                       </li>
                       <li>
-                        <button type="button" className="as-link" title="অফিস আদেশ">অফিস আদেশ</button>
+                        <button type="button" className="as-link" title="অফিস আদেশ">
+                          অফিস আদেশ
+                        </button>
                       </li>
                       <li>
-                        <button type="button" className="as-link" title="সরকারি আদেশ">সরকারি আদেশ</button>
+                        <button type="button" className="as-link" title="সরকারি আদেশ">
+                          সরকারি আদেশ
+                        </button>
                       </li>
                       <li>
-                        <button type="button" className="as-link" title="অনাপত্তি পত্র (NOC) ">অনাপত্তি পত্র (NOC)</button>
+                        <button type="button" className="as-link" title="অনাপত্তি পত্র (NOC) ">
+                          অনাপত্তি পত্র (NOC)
+                        </button>
                       </li>
                     </ul>
                   </div>
@@ -135,7 +145,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>সিলেবাস</h3>
@@ -151,7 +161,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>ভর্তি সম্পর্কিত</h3>
@@ -180,7 +190,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>ডাটাবেজ</h3>
@@ -215,45 +225,41 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
-                <div className="box-item">
-                  <div className="box-title">
-                    <h3>ফলাফল</h3>
+            <div className="col-md-6 text-left">
+              <div className="box-item">
+                <div className="box-title">
+                  <h3>ফলাফল</h3>
+                </div>
+                <div className="flex">
+                  <div className="box-img">
+                    <BoxImage src={resultIconImage} alt="" />
                   </div>
-                  <div className="flex">
-                    <div className="box-img">
-                      <BoxImage src={resultIconImage} alt="" />
-                    </div>
-                    <div className="box-text">
-                      <ul>
-                        {[
-                          { cls: 6, label: "ষষ্ঠ শ্রেণি" },
-                          { cls: 7, label: "সপ্তম শ্রেণি" },
-                          { cls: 8, label: "অষ্টম শ্রেণি" },
-                          { cls: 9, label: "নবম শ্রেণি" },
-                          { cls: 10, label: "দশম শ্রেণি" },
-                        ].map(({ cls, label }) => (
-                          <li key={cls}>
-                            {isExternalHref(resultsUrl) ? (
-                              <a
-                                href={resultsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {label}
-                              </a>
-                            ) : (
-                              <Link href={resultsUrl}>{label}</Link>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  <div className="box-text">
+                    <ul>
+                      {[
+                        { cls: 6, label: 'ষষ্ঠ শ্রেণি' },
+                        { cls: 7, label: 'সপ্তম শ্রেণি' },
+                        { cls: 8, label: 'অষ্টম শ্রেণি' },
+                        { cls: 9, label: 'নবম শ্রেণি' },
+                        { cls: 10, label: 'দশম শ্রেণি' },
+                      ].map(({ cls, label }) => (
+                        <li key={cls}>
+                          {isExternalHref(resultsUrl) ? (
+                            <a href={resultsUrl} target="_blank" rel="noopener noreferrer">
+                              {label}
+                            </a>
+                          ) : (
+                            <Link href={resultsUrl}>{label}</Link>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
+            </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>রেজিস্ট্রেশন সম্পর্কিত</h3>
@@ -279,7 +285,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>সিটিজেন চার্টার</h3>
@@ -295,7 +301,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>বার্ষিক কর্মসম্পাদন চুক্তি</h3>
@@ -330,7 +336,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>সহশিক্ষা কার্যক্রম</h3>
@@ -359,7 +365,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>অনলাইন শিক্ষা</h3>
@@ -391,7 +397,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>বিবিধ</h3>
@@ -428,7 +434,7 @@ export function Chart({ school }: ChartProps) {
               </div>
             </div>
 
-            <div className="text-left col-md-6">
+            <div className="col-md-6 text-left">
               <div className="box-item">
                 <div className="box-title">
                   <h3>জরুরি কল ও সেবা</h3>

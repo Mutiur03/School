@@ -1,24 +1,24 @@
-import express from "express";
-import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
+import express from 'express';
+import { assertSuperAdminHostAllowed } from '@/utils/superAdminDomain.js';
 import {
   getCustomDomainLookupCandidates,
   getMainDomain,
   resolveTenantHostname,
-} from "@/utils/tenantHost.util.js";
-import { prisma } from "@/config/prisma.js";
-import { redis } from "@/config/redis.js";
+} from '@/utils/tenantHost.util.js';
+import { prisma } from '@/config/prisma.js';
+import { redis } from '@/config/redis.js';
 
-const TENANT_SUBDOMAIN_SUFFIXES = [".localhost", ".mutiurrahman.com"] as const;
+const TENANT_SUBDOMAIN_SUFFIXES = ['.localhost', '.mutiurrahman.com'] as const;
 
 const normalizeTenantSubdomain = (hostname: string) =>
   hostname
-    .replace(".localhost", "")
-    .replace(".mutiurrahman.com", "")
-    .replace(/-dashboard$/, "")
-    .replace(/-school$/, "");
+    .replace('.localhost', '')
+    .replace('.mutiurrahman.com', '')
+    .replace(/-dashboard$/, '')
+    .replace(/-school$/, '');
 
 const isBareLocalDevHost = (hostname: string) =>
-  hostname === "localhost" || hostname === "127.0.0.1";
+  hostname === 'localhost' || hostname === '127.0.0.1';
 
 const isPlatformSubdomainHost = (hostname: string) =>
   TENANT_SUBDOMAIN_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
@@ -65,8 +65,7 @@ export const schoolContextMiddleware = async (
 
   if (isBareLocalDevHost(tenantHostname)) {
     return res.status(404).json({
-      message:
-        "School not found. Use a school subdomain (e.g. yourschool.localhost).",
+      message: 'School not found. Use a school subdomain (e.g. yourschool.localhost).',
     });
   }
 
@@ -83,7 +82,7 @@ export const schoolContextMiddleware = async (
   const school = await lookupSchool(tenantHostname);
 
   if (!school) {
-    return res.status(404).json({ message: "School not found" });
+    return res.status(404).json({ message: 'School not found' });
   }
 
   await redis.set(cacheKey, JSON.stringify({ id: school.id }));

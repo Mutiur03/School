@@ -1,16 +1,16 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from "react";
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 
-const CHUNK_RELOAD_KEY = "chunk-load-reload";
+const CHUNK_RELOAD_KEY = 'chunk-load-reload';
 
 /** True when a dynamic import failed because of a stale deploy / missing chunk. */
 export function isStaleChunkError(reason: unknown): boolean {
   if (!reason) return false;
   const err = reason as { message?: string; name?: string; cause?: unknown };
-  const msg = String(err.message ?? reason ?? "");
+  const msg = String(err.message ?? reason ?? '');
   const causeMsg =
-    err.cause && typeof err.cause === "object" && "message" in err.cause
-      ? String((err.cause as { message?: string }).message ?? "")
-      : "";
+    err.cause && typeof err.cause === 'object' && 'message' in err.cause
+      ? String((err.cause as { message?: string }).message ?? '')
+      : '';
   const combined = `${msg}\n${causeMsg}`;
   return (
     /Failed to fetch dynamically imported module/i.test(combined) ||
@@ -18,8 +18,7 @@ export function isStaleChunkError(reason: unknown): boolean {
     /error loading dynamically imported module/i.test(combined) ||
     /Loading chunk [\d]+ failed/i.test(combined) ||
     /ChunkLoadError/i.test(combined) ||
-    (/TypeError/i.test(String(err.name ?? "")) &&
-      /reading ['"]default['"]/i.test(combined))
+    (/TypeError/i.test(String(err.name ?? '')) && /reading ['"]default['"]/i.test(combined))
   );
 }
 
@@ -27,14 +26,14 @@ export function isStaleChunkError(reason: unknown): boolean {
 export function reloadOnceForStaleChunk(): boolean {
   try {
     if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return false;
-    sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
   } catch {
     // sessionStorage unavailable — still attempt a single reload via URL flag
-    if (typeof window !== "undefined" && /[?&]chunk_reload=1(?:&|$)/.test(window.location.search)) {
+    if (typeof window !== 'undefined' && /[?&]chunk_reload=1(?:&|$)/.test(window.location.search)) {
       return false;
     }
     const url = new URL(window.location.href);
-    url.searchParams.set("chunk_reload", "1");
+    url.searchParams.set('chunk_reload', '1');
     window.location.replace(url.toString());
     return true;
   }
@@ -49,17 +48,16 @@ export function clearStaleChunkReloadGuard(): void {
   } catch {
     /* ignore */
   }
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  if (!url.searchParams.has("chunk_reload")) return;
-  url.searchParams.delete("chunk_reload");
-  window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  if (!url.searchParams.has('chunk_reload')) return;
+  url.searchParams.delete('chunk_reload');
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash);
 }
 
-export type PrefetchableLazyComponent<T extends ComponentType<any>> =
-  LazyExoticComponent<T> & {
-    prefetch: () => Promise<void>;
-  };
+export type PrefetchableLazyComponent<T extends ComponentType<any>> = LazyExoticComponent<T> & {
+  prefetch: () => Promise<void>;
+};
 
 /**
  * Like React.lazy, but on a missing/stale chunk reload once to fetch fresh HTML.
@@ -86,7 +84,7 @@ export function lazyWithReload<T extends ComponentType<any>>(
         // A stale/partial chunk can resolve to undefined (or lack a default)
         // instead of rejecting — the crash is then a plain "reading 'default'"
         // TypeError past any .catch. Treat it as a stale chunk too.
-        if (!mod || typeof mod.default === "undefined") {
+        if (!mod || typeof mod.default === 'undefined') {
           return recover(new TypeError("Cannot read properties of undefined (reading 'default')"));
         }
         return mod;

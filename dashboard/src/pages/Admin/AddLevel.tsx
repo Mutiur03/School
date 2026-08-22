@@ -1,18 +1,18 @@
-import { useState, useMemo, useCallback } from "react";
-import axios from "axios";
-import { toast } from "react-hot-toast";
-import { Loader2, Plus, Search } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { levelFormSchema, type LevelFormSchemaData } from "@school/shared-schemas";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PageHeader, SectionCard, StatsCard, ErrorMessage } from "@/components";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import ActionButton from "@/components/ActionButton";
-import DeleteConfirmation from "@/components/DeleteConfimation";
-import { useLevels } from "@/queries/level.queries";
-import { useTeacher } from "@/queries/teacher.queries";
+import { useState, useMemo, useCallback } from 'react';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { Loader2, Plus, Search } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { levelFormSchema, type LevelFormSchemaData } from '@school/shared-schemas';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { PageHeader, SectionCard, StatsCard, ErrorMessage } from '@/components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import ActionButton from '@/components/ActionButton';
+import DeleteConfirmation from '@/components/DeleteConfimation';
+import { useLevels } from '@/queries/level.queries';
+import { useTeacher } from '@/queries/teacher.queries';
 
 interface Level {
   id: string;
@@ -29,7 +29,7 @@ const AddLevel = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const {
     register,
@@ -40,13 +40,13 @@ const AddLevel = () => {
     resolver: zodResolver(levelFormSchema) as any,
     defaultValues: {
       class_name: undefined,
-      section: "",
+      section: '',
       year: new Date().getFullYear(),
       teacher_id: undefined,
     },
   });
 
-  const invalidateLevels = () => queryClient.invalidateQueries({ queryKey: ["levels"] });
+  const invalidateLevels = () => queryClient.invalidateQueries({ queryKey: ['levels'] });
 
   const { data: levelsResponse, isLoading: isLevelsLoading } = useLevels();
   const { data: teachersResponse, isLoading: isTeachersLoading } = useTeacher({ limit: 100 });
@@ -55,22 +55,23 @@ const AddLevel = () => {
   const teachers = useMemo(() => teachersResponse?.data || [], [teachersResponse]);
 
   const addMutation = useMutation({
-    mutationFn: (data: LevelFormSchemaData) => axios.post("/api/level/addLevel", data),
+    mutationFn: (data: LevelFormSchemaData) => axios.post('/api/level/addLevel', data),
     onSuccess: () => {
-      toast.success("Class teacher assigned successfully");
+      toast.success('Class teacher assigned successfully');
       invalidateLevels();
       reset();
       setShowForm(false);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || "Failed to assign teacher");
+      toast.error(err.response?.data?.error || 'Failed to assign teacher');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: LevelFormSchemaData) => axios.put(`/api/level/updateLevel/${editingId}`, data),
+    mutationFn: (data: LevelFormSchemaData) =>
+      axios.put(`/api/level/updateLevel/${editingId}`, data),
     onSuccess: () => {
-      toast.success("Assignment updated successfully");
+      toast.success('Assignment updated successfully');
       invalidateLevels();
       reset();
       setShowForm(false);
@@ -78,17 +79,17 @@ const AddLevel = () => {
       setEditingId(null);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || "Failed to update assignment");
+      toast.error(err.response?.data?.error || 'Failed to update assignment');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => axios.delete(`/api/level/deleteLevel/${id}`),
     onSuccess: () => {
-      toast.success("Assignment deleted successfully");
+      toast.success('Assignment deleted successfully');
       invalidateLevels();
     },
-    onError: () => toast.error("Failed to delete assignment"),
+    onError: () => toast.error('Failed to delete assignment'),
   });
 
   const onValidSubmit = (data: LevelFormSchemaData) => {
@@ -99,22 +100,25 @@ const AddLevel = () => {
     }
   };
 
-  const handleEdit = useCallback((level: Level) => {
-    setEditingId(level.id);
-    setIsEditing(true);
-    setShowForm(true);
-    reset({
-      class_name: Number(level.class_name),
-      section: level.section,
-      year: level.year,
-      teacher_id: Number(level.teacher_id),
-    });
-  }, [reset]);
+  const handleEdit = useCallback(
+    (level: Level) => {
+      setEditingId(level.id);
+      setIsEditing(true);
+      setShowForm(true);
+      reset({
+        class_name: Number(level.class_name),
+        section: level.section,
+        year: level.year,
+        teacher_id: Number(level.teacher_id),
+      });
+    },
+    [reset],
+  );
 
   const filteredLevels = useMemo(() => {
     return assignedLevels.filter((level: Level) => {
       const matchesYear = level.year === filterYear;
-      const matchesSearch = 
+      const matchesSearch =
         level.teacher_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         `Class ${level.class_name}`.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesYear && matchesSearch;
@@ -124,7 +128,7 @@ const AddLevel = () => {
   const isSubmitting = addMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Class Teacher Assignment"
         description="Assign teachers to specific classes and sections per year."
@@ -142,21 +146,26 @@ const AddLevel = () => {
         <SectionCard className="mb-8">
           <div className="mb-6">
             <h2 className="text-xl font-bold">
-              {isEditing ? "Update Class Teacher" : "Assign New Class Teacher"}
+              {isEditing ? 'Update Class Teacher' : 'Assign New Class Teacher'}
             </h2>
           </div>
 
-          <form onSubmit={handleSubmit((data) => onValidSubmit({ ...data, year: filterYear }))} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <form
+            onSubmit={handleSubmit((data) => onValidSubmit({ ...data, year: filterYear }))}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Class</label>
                 <select
-                  {...register("class_name")}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  {...register('class_name')}
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   <option value="">Select Class</option>
                   {[6, 7, 8, 9, 10].map((cls) => (
-                    <option key={cls} value={cls}>Class {cls}</option>
+                    <option key={cls} value={cls}>
+                      Class {cls}
+                    </option>
                   ))}
                 </select>
                 {errors.class_name && <ErrorMessage message={errors.class_name.message} />}
@@ -165,12 +174,14 @@ const AddLevel = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Section</label>
                 <select
-                  {...register("section")}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  {...register('section')}
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   <option value="">Select Section</option>
-                  {["A", "B"].map((sec) => (
-                    <option key={sec} value={sec}>Section {sec}</option>
+                  {['A', 'B'].map((sec) => (
+                    <option key={sec} value={sec}>
+                      Section {sec}
+                    </option>
                   ))}
                 </select>
                 {errors.section && <ErrorMessage message={errors.section.message} />}
@@ -179,19 +190,21 @@ const AddLevel = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Teacher</label>
                 <select
-                  {...register("teacher_id")}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  {...register('teacher_id')}
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   <option value="">Choose Teacher</option>
                   {teachers.map((teacher: any) => (
-                    <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
                   ))}
                 </select>
                 {errors.teacher_id && <ErrorMessage message={errors.teacher_id.message} />}
               </div>
             </div>
 
-            <div className="flex justify-between gap-3 pt-6 border-t border-border/50">
+            <div className="border-border/50 flex justify-between gap-3 border-t pt-6">
               <Button
                 type="button"
                 variant="outline"
@@ -207,10 +220,12 @@ const AddLevel = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isEditing ? "Updating..." : "Assigning..."}
+                    {isEditing ? 'Updating...' : 'Assigning...'}
                   </>
+                ) : isEditing ? (
+                  'Update Assignment'
                 ) : (
-                  isEditing ? "Update Assignment" : "Assign Teacher"
+                  'Assign Teacher'
                 )}
               </Button>
             </div>
@@ -218,37 +233,58 @@ const AddLevel = () => {
         </SectionCard>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <StatsCard label="Active Assignments" value={assignedLevels.length} loading={isLevelsLoading} />
-        <StatsCard label="Total Teachers" value={teachers.length} color="emerald" loading={isTeachersLoading} />
+      <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <StatsCard
+          label="Active Assignments"
+          value={assignedLevels.length}
+          loading={isLevelsLoading}
+        />
+        <StatsCard
+          label="Total Teachers"
+          value={teachers.length}
+          color="emerald"
+          loading={isTeachersLoading}
+        />
       </div>
 
       <SectionCard className="mb-6">
-        <div className="flex flex-col md:flex-row items-end gap-4">
-          <div className="flex-1 min-w-[300px]">
-            <label className="block text-sm font-medium mb-1.5 text-muted-foreground">Search Assignments</label>
+        <div className="flex flex-col items-end gap-4 md:flex-row">
+          <div className="min-w-[300px] flex-1">
+            <label className="text-muted-foreground mb-1.5 block text-sm font-medium">
+              Search Assignments
+            </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 placeholder="Search by teacher or class..."
-                className="pl-10 h-10 border-border bg-background/50 hover:bg-background transition-colors"
+                className="border-border bg-background/50 hover:bg-background h-10 pl-10 transition-colors"
                 value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchQuery(e.target.value)
+                }
               />
             </div>
           </div>
-          
+
           <div className="w-full md:w-48">
-            <label className="block text-sm font-medium mb-1.5 text-muted-foreground">Academic Year</label>
+            <label className="text-muted-foreground mb-1.5 block text-sm font-medium">
+              Academic Year
+            </label>
             <div className="relative">
               <select
                 value={filterYear}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterYear(Number(e.target.value))}
-                className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background transition-colors cursor-pointer font-medium"
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setFilterYear(Number(e.target.value))
+                }
+                className="border-border bg-background/50 ring-offset-background focus-visible:ring-ring hover:bg-background flex h-10 w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 {[0, 1, 2].map((offset) => {
                   const yr = new Date().getFullYear() - offset + 1;
-                  return <option key={yr} value={yr}>{yr}</option>;
+                  return (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  );
                 })}
               </select>
             </div>
@@ -258,21 +294,24 @@ const AddLevel = () => {
 
       <SectionCard noPadding>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-muted border-b border-border">
-                {["Class", "Section", "Assigned Teacher", "Actions"].map((head) => (
-                  <th key={head} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${head === "Actions" ? "text-right" : ""}`}>
+              <tr className="bg-muted border-border border-b">
+                {['Class', 'Section', 'Assigned Teacher', 'Actions'].map((head) => (
+                  <th
+                    key={head}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${head === 'Actions' ? 'text-right' : ''}`}
+                  >
                     {head}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-sm">
+            <tbody className="divide-border divide-y text-sm">
               {isLevelsLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                  <td colSpan={5} className="text-muted-foreground py-12 text-center">
+                    <Loader2 className="text-primary mx-auto mb-2 h-8 w-8 animate-spin" />
                     Loading assignments...
                   </td>
                 </tr>
@@ -281,9 +320,7 @@ const AddLevel = () => {
                   <tr key={level.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-4 py-4 font-medium">Class {level.class_name}</td>
                     <td className="px-4 py-4">{level.section}</td>
-                    <td className="px-4 py-4">
-                      {level.teacher_name || "Unknown"}
-                    </td>
+                    <td className="px-4 py-4">{level.teacher_name || 'Unknown'}</td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <ActionButton action="edit" onClick={() => handleEdit(level)} />
@@ -297,7 +334,7 @@ const AddLevel = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground font-medium">
+                  <td colSpan={5} className="text-muted-foreground py-12 text-center font-medium">
                     No teacher assignments found for the current filters.
                   </td>
                 </tr>

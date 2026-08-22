@@ -6,9 +6,7 @@ const byPath = new Map<string, Prefetcher>();
  * Register lazy route components so sidebar hover can warm their chunks.
  * Keys are full paths (e.g. `/admin/notice`). Edit the map in App.tsx.
  */
-export function registerRoutePrefetchers(
-  routes: Record<string, { prefetch: Prefetcher }>,
-): void {
+export function registerRoutePrefetchers(routes: Record<string, { prefetch: Prefetcher }>): void {
   for (const [path, comp] of Object.entries(routes)) {
     byPath.set(path, () => comp.prefetch());
   }

@@ -1,16 +1,12 @@
-import crypto from "crypto";
-import fs from "fs";
-import PDFDocument from "pdfkit";
-import { prisma } from "@/config/prisma.js";
-import {
-  getFileBuffer,
-  headObject,
-  uploadToR2,
-} from "@/config/r2.js";
-import { getRlsContext, runWithRlsContext } from "@/config/rlsContextStore.js";
-import { ApiError } from "@/utils/ApiError.js";
-import logger from "@/utils/logger.js";
-import { SchoolService } from "../school/school.service.js";
+import crypto from 'crypto';
+import fs from 'fs';
+import PDFDocument from 'pdfkit';
+import { prisma } from '@/config/prisma.js';
+import { getFileBuffer, headObject, uploadToR2 } from '@/config/r2.js';
+import { getRlsContext, runWithRlsContext } from '@/config/rlsContextStore.js';
+import { ApiError } from '@/utils/ApiError.js';
+import logger from '@/utils/logger.js';
+import { SchoolService } from '../school/school.service.js';
 import {
   attendanceSheetJobId,
   attendanceSheetQueue,
@@ -20,10 +16,10 @@ import {
   PRIORITY_BACKFILL,
   PRIORITY_USER,
   type AttendanceSheetJob,
-} from "./attendence-sheet.queue.js";
+} from './attendence-sheet.queue.js';
 
 /** Bump to force regen of all cached attendance sheets. */
-export const ATTENDANCE_SHEET_DESIGN_VERSION = "28";
+export const ATTENDANCE_SHEET_DESIGN_VERSION = '28';
 
 /**
  * A month is "ended" once Asia/Dhaka calendar has moved past it. Ended-month
@@ -31,9 +27,7 @@ export const ATTENDANCE_SHEET_DESIGN_VERSION = "28";
  * does not regenerate them — same idea as marksheets after result_date.
  */
 export function isAttendanceMonthEnded(year: number, month: number): boolean {
-  const nowBd = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
-  );
+  const nowBd = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }));
   const y = nowBd.getFullYear();
   const m = nowBd.getMonth() + 1;
   return year < y || (year === y && month < m);
@@ -51,52 +45,48 @@ function designFingerprint(
 }
 
 const STUDENTS_PER_PAGE = 40;
-const SERVE_TIMEOUT_MS = Number(
-  process.env.ATTENDANCE_SHEET_SERVE_TIMEOUT_MS || "120000",
-);
-const SERVE_POLL_MS = Number(
-  process.env.ATTENDANCE_SHEET_SERVE_POLL_MS || "500",
-);
+const SERVE_TIMEOUT_MS = Number(process.env.ATTENDANCE_SHEET_SERVE_TIMEOUT_MS || '120000');
+const SERVE_POLL_MS = Number(process.env.ATTENDANCE_SHEET_SERVE_POLL_MS || '500');
 /** true = render PDF in the request; false = Bull queue + poll (default). */
-export const ATTENDANCE_SHEET_INLINE = process.env.NODE_ENV !== "production" || true;
-const FONT_REGULAR = "Times-Roman";
-const FONT_BOLD = "Times-Bold";
+export const ATTENDANCE_SHEET_INLINE = process.env.NODE_ENV !== 'production' || true;
+const FONT_REGULAR = 'Times-Roman';
+const FONT_BOLD = 'Times-Bold';
 const TIMES_FONT_PATHS = {
   regular: [
     process.env.MARKSHEET_FONT_REGULAR,
-    "C:\\Windows\\Fonts\\times.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    'C:\\Windows\\Fonts\\times.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
   ].filter(Boolean) as string[],
   bold: [
     process.env.MARKSHEET_FONT_BOLD,
-    "C:\\Windows\\Fonts\\timesbd.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    'C:\\Windows\\Fonts\\timesbd.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
   ].filter(Boolean) as string[],
 };
 
 const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const CLASS_NAMES: Record<string, string> = {
-  "6": "Six",
-  "7": "Seven",
-  "8": "Eight",
-  "9": "Nine",
-  "10": "Ten",
+  '6': 'Six',
+  '7': 'Seven',
+  '8': 'Eight',
+  '9': 'Nine',
+  '10': 'Ten',
 };
 
 type StudentRow = {
@@ -116,8 +106,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function formatSchoolWebsiteUrl(raw?: string | null): string | null {
   const s = raw?.trim();
   if (!s) return null;
-  if (/^https?:\/\//i.test(s)) return s.replace(/\/+$/, "");
-  return `https://${s.replace(/\/+$/, "")}`;
+  if (/^https?:\/\//i.test(s)) return s.replace(/\/+$/, '');
+  return `https://${s.replace(/\/+$/, '')}`;
 }
 function registerFonts(doc: PDFKit.PDFDocument) {
   const regular = TIMES_FONT_PATHS.regular.find((p) => fs.existsSync(p));
@@ -127,13 +117,13 @@ function registerFonts(doc: PDFKit.PDFDocument) {
 }
 
 function statusMark(status: string | undefined): string {
-  if (!status) return "";
+  if (!status) return '';
   const s = status.trim().toLowerCase();
-  if (s === "present") return "P";
-  if (s === "absent") return "A";
+  if (s === 'present') return 'P';
+  if (s === 'absent') return 'A';
   // Sheet only shows P/A; run-away counts and displays as present.
-  if (s === "run-awayed" || s === "runaway" || s === "run-away") return "P";
-  return "";
+  if (s === 'run-awayed' || s === 'runaway' || s === 'run-away') return 'P';
+  return '';
 }
 
 function isoStamp(d: Date | null | undefined): string | null {
@@ -148,26 +138,21 @@ export class AttendanceSheetService {
     cls: number,
     section: string,
   ): string {
-    const mm = String(month).padStart(2, "0");
+    const mm = String(month).padStart(2, '0');
     return `${schoolId}/attendance/${year}/${mm}/class-${cls}-${section}.pdf`;
   }
 
-  private static assertTeacherAccess(
-    user: any,
-    cls: number,
-    year: number,
-    section: string,
-  ): void {
-    if (user?.role !== "teacher") return;
+  private static assertTeacherAccess(user: any, cls: number, year: number, section: string): void {
+    if (user?.role !== 'teacher') return;
     const assigned = (user.levels ?? [])
       .filter((l: any) => l.class_name === cls && l.year === year)
       .map((l: any) => l.section)
       .filter(Boolean) as string[];
     if (assigned.length === 0) {
-      throw new ApiError(403, "You are not assigned to this class.");
+      throw new ApiError(403, 'You are not assigned to this class.');
     }
     if (!assigned.includes(section)) {
-      throw new ApiError(403, "You are not assigned to this section.");
+      throw new ApiError(403, 'You are not assigned to this section.');
     }
   }
 
@@ -178,10 +163,10 @@ export class AttendanceSheetService {
     cls: number,
     section: string,
   ): Promise<string> {
-    const mm = String(month).padStart(2, "0");
+    const mm = String(month).padStart(2, '0');
     const start = `${year}-${mm}-01`;
     const lastDay = new Date(year, month, 0).getDate();
-    const end = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
+    const end = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
     const ended = isAttendanceMonthEnded(year, month);
 
     const [enrollments, attendance, school, level, sheet] = await Promise.all([
@@ -192,7 +177,7 @@ export class AttendanceSheetService {
           roll: true,
           student: { select: { name: true, available: true } },
         },
-        orderBy: [{ roll: "asc" }, { student_id: "asc" }],
+        orderBy: [{ roll: 'asc' }, { student_id: 'asc' }],
       }),
       prisma.attendence.findMany({
         where: {
@@ -202,7 +187,7 @@ export class AttendanceSheetService {
           },
         },
         select: { student_id: true, date: true, status: true },
-        orderBy: [{ student_id: "asc" }, { date: "asc" }],
+        orderBy: [{ student_id: 'asc' }, { date: 'asc' }],
       }),
       prisma.school.findFirst({
         select: {
@@ -238,9 +223,7 @@ export class AttendanceSheetService {
     // Ended months use the pinned teacher; open months stay live.
     // Legacy ended rows with no snapshot yet omit teacher so a reassignment
     // cannot force regen (snapshot is seeded on next generate / boot pin).
-    let teacher:
-      | { id: number | null; n: string | null }
-      | undefined;
+    let teacher: { id: number | null; n: string | null } | undefined;
     if (!ended) {
       teacher = {
         id: level?.teacher_id ?? null,
@@ -275,7 +258,7 @@ export class AttendanceSheetService {
       },
       ...(teacher ? { teacher } : {}),
     });
-    return crypto.createHash("sha256").update(fingerprint).digest("hex");
+    return crypto.createHash('sha256').update(fingerprint).digest('hex');
   }
 
   private static async isCacheFresh(
@@ -289,7 +272,7 @@ export class AttendanceSheetService {
       r2_key: string | null;
     } | null,
   ): Promise<boolean> {
-    if (!row || row.status !== "ready" || !row.r2_key || !row.input_hash) {
+    if (!row || row.status !== 'ready' || !row.r2_key || !row.input_hash) {
       return false;
     }
     const hash = await this.computeInputHash(year, month, cls, section);
@@ -310,7 +293,7 @@ export class AttendanceSheetService {
   ): Promise<void> {
     const ctxSchoolId = schoolId ?? getRlsContext()?.schoolId;
     if (!ctxSchoolId) {
-      logger.warn("[attendance-sheet] invalidate: no schoolId", {
+      logger.warn('[attendance-sheet] invalidate: no schoolId', {
         year,
         month,
         class: cls,
@@ -319,7 +302,7 @@ export class AttendanceSheetService {
       return;
     }
 
-    logger.info("[attendance-sheet] invalidate: flagging stale + re-queue", {
+    logger.info('[attendance-sheet] invalidate: flagging stale + re-queue', {
       year,
       month,
       class: cls,
@@ -342,9 +325,9 @@ export class AttendanceSheetService {
         month,
         class: cls,
         section,
-        status: "pending",
+        status: 'pending',
       },
-      update: { status: "pending", error: null },
+      update: { status: 'pending', error: null },
     });
 
     await ensureJobQueued(
@@ -378,12 +361,7 @@ export class AttendanceSheetService {
       { year: number; month: number; class: number; section: string }
     >();
 
-    if (
-      hint?.level != null &&
-      hint.section &&
-      hint.year != null &&
-      records.length > 0
-    ) {
+    if (hint?.level != null && hint.section && hint.year != null && records.length > 0) {
       for (const r of records) {
         const m = /^(\d{4})-(\d{2})-/.exec(r.date);
         if (!m) continue;
@@ -400,11 +378,7 @@ export class AttendanceSheetService {
     } else if (records.length > 0) {
       const studentIds = [...new Set(records.map((r) => r.studentId))];
       const years = [
-        ...new Set(
-          records
-            .map((r) => parseInt(r.date.slice(0, 4), 10))
-            .filter(Number.isFinite),
-        ),
+        ...new Set(records.map((r) => parseInt(r.date.slice(0, 4), 10)).filter(Number.isFinite)),
       ];
       const enrollments = await prisma.student_enrollments.findMany({
         where: {
@@ -418,9 +392,7 @@ export class AttendanceSheetService {
           section: true,
         },
       });
-      const byStudentYear = new Map(
-        enrollments.map((e) => [`${e.student_id}|${e.year}`, e]),
-      );
+      const byStudentYear = new Map(enrollments.map((e) => [`${e.student_id}|${e.year}`, e]));
       for (const r of records) {
         const year = parseInt(r.date.slice(0, 4), 10);
         const month = parseInt(r.date.slice(5, 7), 10);
@@ -438,13 +410,7 @@ export class AttendanceSheetService {
     }
 
     for (const scope of scopes.values()) {
-      await this.invalidate(
-        scope.year,
-        scope.month,
-        scope.class,
-        scope.section,
-        schoolId,
-      );
+      await this.invalidate(scope.year, scope.month, scope.class, scope.section, schoolId);
     }
   }
 
@@ -461,15 +427,15 @@ export class AttendanceSheetService {
           await prisma.attendance_sheets.updateMany({
             where: {
               school_id: schoolId,
-              status: { in: ["generating", "failed"] },
+              status: { in: ['generating', 'failed'] },
             },
-            data: { status: "pending", error: null },
+            data: { status: 'pending', error: null },
           });
 
           const rows = await prisma.attendance_sheets.findMany({
             where: {
               school_id: schoolId,
-              status: "pending",
+              status: 'pending',
             },
             select: {
               year: true,
@@ -489,13 +455,7 @@ export class AttendanceSheetService {
                 class: row.class,
                 section: row.section,
               },
-              attendanceSheetJobId(
-                schoolId,
-                row.year,
-                row.month,
-                row.class,
-                row.section,
-              ),
+              attendanceSheetJobId(schoolId, row.year, row.month, row.class, row.section),
             );
             if (ok) added++;
           }
@@ -507,7 +467,7 @@ export class AttendanceSheetService {
     }
 
     if (totalRows === 0) return;
-    logger.info("[attendance-sheet] recover: re-queued pending/failed", {
+    logger.info('[attendance-sheet] recover: re-queued pending/failed', {
       rows: totalRows,
       queued,
       schools: schools.length,
@@ -521,9 +481,7 @@ export class AttendanceSheetService {
    */
   static async applyDesignVersionBumpIfNeeded(): Promise<void> {
     // School timezone — month boundary for "month ended".
-    const nowBd = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
-    );
+    const nowBd = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }));
     const openYear = nowBd.getFullYear();
     const openMonth = nowBd.getMonth() + 1; // 1–12
 
@@ -543,7 +501,7 @@ export class AttendanceSheetService {
                 { design_version: null },
                 { design_version: { not: ATTENDANCE_SHEET_DESIGN_VERSION } },
               ],
-              status: { in: ["ready", "failed", "pending"] },
+              status: { in: ['ready', 'failed', 'pending'] },
             },
             select: {
               year: true,
@@ -553,9 +511,7 @@ export class AttendanceSheetService {
             },
           });
 
-          const openRows = rows.filter(
-            (r) => !isAttendanceMonthEnded(r.year, r.month),
-          );
+          const openRows = rows.filter((r) => !isAttendanceMonthEnded(r.year, r.month));
           const past = rows.length - openRows.length;
           if (openRows.length === 0) {
             return { outdated: 0, added: 0, past };
@@ -571,7 +527,7 @@ export class AttendanceSheetService {
                 class: row.class,
                 section: row.section,
               },
-              data: { status: "pending", error: null },
+              data: { status: 'pending', error: null },
             });
             const ok = await ensureJobQueued(
               {
@@ -581,13 +537,7 @@ export class AttendanceSheetService {
                 class: row.class,
                 section: row.section,
               },
-              attendanceSheetJobId(
-                schoolId,
-                row.year,
-                row.month,
-                row.class,
-                row.section,
-              ),
+              attendanceSheetJobId(schoolId, row.year, row.month, row.class, row.section),
               PRIORITY_BACKFILL,
             );
             if (ok) added++;
@@ -601,16 +551,16 @@ export class AttendanceSheetService {
     }
 
     if (outdated === 0 && skippedPast === 0) {
-      logger.info("[attendance-sheet] design bump: all open caches current", {
+      logger.info('[attendance-sheet] design bump: all open caches current', {
         version: ATTENDANCE_SHEET_DESIGN_VERSION,
-        openAsOf: `${openYear}-${String(openMonth).padStart(2, "0")}`,
+        openAsOf: `${openYear}-${String(openMonth).padStart(2, '0')}`,
       });
       return;
     }
 
-    logger.info("[attendance-sheet] design bump: enqueued open-month caches", {
+    logger.info('[attendance-sheet] design bump: enqueued open-month caches', {
       version: ATTENDANCE_SHEET_DESIGN_VERSION,
-      openAsOf: `${openYear}-${String(openMonth).padStart(2, "0")}`,
+      openAsOf: `${openYear}-${String(openMonth).padStart(2, '0')}`,
       outdated,
       queued,
       skippedPast,
@@ -672,10 +622,7 @@ export class AttendanceSheetService {
             },
           });
           const byKey = new Map(
-            existing.map((r) => [
-              `${r.year}|${r.month}|${r.class}|${r.section.trim()}`,
-              r.status,
-            ]),
+            existing.map((r) => [`${r.year}|${r.month}|${r.class}|${r.section.trim()}`, r.status]),
           );
 
           let made = 0;
@@ -684,7 +631,7 @@ export class AttendanceSheetService {
             const year = Number(raw.year);
             const month = Number(raw.month);
             const cls = Number(raw.class);
-            const section = String(raw.section ?? "").trim();
+            const section = String(raw.section ?? '').trim();
             if (
               !Number.isFinite(year) ||
               !Number.isFinite(month) ||
@@ -698,7 +645,7 @@ export class AttendanceSheetService {
 
             const key = `${year}|${month}|${cls}|${section}`;
             const status = byKey.get(key);
-            if (status === "ready" || status === "generating") continue;
+            if (status === 'ready' || status === 'generating') continue;
 
             await prisma.attendance_sheets.upsert({
               where: {
@@ -716,9 +663,9 @@ export class AttendanceSheetService {
                 month,
                 class: cls,
                 section,
-                status: "pending",
+                status: 'pending',
               },
-              update: { status: "pending", error: null },
+              update: { status: 'pending', error: null },
             });
             if (!status) made++;
 
@@ -749,7 +696,7 @@ export class AttendanceSheetService {
     }
 
     if (scopes === 0 && created === 0) return;
-    logger.info("[attendance-sheet] history backfill: enqueued missing sheets", {
+    logger.info('[attendance-sheet] history backfill: enqueued missing sheets', {
       scopes,
       created,
       queued,
@@ -774,7 +721,7 @@ export class AttendanceSheetService {
           const rows = await prisma.attendance_sheets.findMany({
             where: {
               school_id: schoolId,
-              status: "ready",
+              status: 'ready',
               snapshot_teacher_id: null,
             },
             select: {
@@ -787,13 +734,10 @@ export class AttendanceSheetService {
             },
           });
 
-          const ended = rows.filter((r) =>
-            isAttendanceMonthEnded(r.year, r.month),
-          );
+          const ended = rows.filter((r) => isAttendanceMonthEnded(r.year, r.month));
           let count = 0;
           for (const row of ended) {
-            const design =
-              row.design_version ?? ATTENDANCE_SHEET_DESIGN_VERSION;
+            const design = row.design_version ?? ATTENDANCE_SHEET_DESIGN_VERSION;
             if (!row.design_version) {
               await prisma.attendance_sheets.updateMany({
                 where: {
@@ -806,12 +750,7 @@ export class AttendanceSheetService {
                 data: { design_version: design },
               });
             }
-            const hash = await this.computeInputHash(
-              row.year,
-              row.month,
-              row.class,
-              row.section,
-            );
+            const hash = await this.computeInputHash(row.year, row.month, row.class, row.section);
             if (row.input_hash === hash) continue;
             await prisma.attendance_sheets.updateMany({
               where: {
@@ -832,10 +771,10 @@ export class AttendanceSheetService {
     }
 
     if (stabilized > 0) {
-      logger.info(
-        "[attendance-sheet] stabilized ended-month hashes (no PDF regen)",
-        { stabilized, schools: schools.length },
-      );
+      logger.info('[attendance-sheet] stabilized ended-month hashes (no PDF regen)', {
+        stabilized,
+        schools: schools.length,
+      });
     }
   }
 
@@ -847,17 +786,11 @@ export class AttendanceSheetService {
     setImmediate(() => {
       attendanceSheetQueue
         .add(job, {
-          jobId: attendanceSheetJobId(
-            job.schoolId,
-            job.year,
-            job.month,
-            job.class,
-            job.section,
-          ),
+          jobId: attendanceSheetJobId(job.schoolId, job.year, job.month, job.class, job.section),
           ...defaultJobOpts(PRIORITY_BACKFILL),
         })
         .catch((e) =>
-          logger.warn("[attendance-sheet] requeue failed", {
+          logger.warn('[attendance-sheet] requeue failed', {
             year: job.year,
             month: job.month,
             class: job.class,
@@ -890,15 +823,14 @@ export class AttendanceSheetService {
       !Number.isFinite(cls) ||
       !section
     ) {
-      throw new ApiError(400, "Invalid year, month, class, or section");
+      throw new ApiError(400, 'Invalid year, month, class, or section');
     }
 
     this.assertTeacherAccess(user, cls, year, section);
 
-    const schoolId =
-      getRlsContext()?.schoolId ?? user?.school_id ?? user?.schoolId;
+    const schoolId = getRlsContext()?.schoolId ?? user?.school_id ?? user?.schoolId;
     if (!schoolId) {
-      throw new ApiError(400, "School context is required");
+      throw new ApiError(400, 'School context is required');
     }
 
     const inline = opts?.inline ?? ATTENDANCE_SHEET_INLINE;
@@ -924,10 +856,7 @@ export class AttendanceSheetService {
         },
       });
       // Stale layout (design bump) must not be treated as fresh.
-      if (
-        row?.design_version &&
-        row.design_version !== ATTENDANCE_SHEET_DESIGN_VERSION
-      ) {
+      if (row?.design_version && row.design_version !== ATTENDANCE_SHEET_DESIGN_VERSION) {
         return null;
       }
       if (!(await this.isCacheFresh(year, month, cls, section, row))) {
@@ -935,7 +864,7 @@ export class AttendanceSheetService {
       }
       const buf = await getFileBuffer(row!.r2_key!);
       if (!buf) return null;
-      const mm = String(month).padStart(2, "0");
+      const mm = String(month).padStart(2, '0');
       return {
         buffer: buf,
         filename: `attendance_${year}-${mm}_class-${cls}-${section}.pdf`,
@@ -946,7 +875,7 @@ export class AttendanceSheetService {
     // Inline path: always re-render below (still writes same DB + R2).
     let fresh = inline ? null : await tryServeFresh();
     if (fresh) {
-      logger.info("[attendance-sheet] serve: cache fresh", {
+      logger.info('[attendance-sheet] serve: cache fresh', {
         year,
         month,
         class: cls,
@@ -966,10 +895,10 @@ export class AttendanceSheetService {
         month,
         class: cls,
         section,
-        status: "pending",
+        status: 'pending',
       },
       update: {
-        status: "pending",
+        status: 'pending',
         error: null,
         attempts: 0,
       },
@@ -991,7 +920,7 @@ export class AttendanceSheetService {
         if (attempt > 0) {
           await prisma.attendance_sheets.update({
             where: whereKey,
-            data: { status: "pending", error: null },
+            data: { status: 'pending', error: null },
           });
         }
         await this.processJob(job, { inline: true });
@@ -1000,16 +929,13 @@ export class AttendanceSheetService {
           where: whereKey,
           select: { status: true, error: true },
         });
-        if (row?.status === "failed") {
-          throw new ApiError(
-            500,
-            row.error ?? "Attendance sheet generation failed",
-          );
+        if (row?.status === 'failed') {
+          throw new ApiError(500, row.error ?? 'Attendance sheet generation failed');
         }
 
         fresh = await tryServeFresh();
         if (fresh) {
-          logger.info("[attendance-sheet] serve: inline ready", {
+          logger.info('[attendance-sheet] serve: inline ready', {
             year,
             month,
             class: cls,
@@ -1021,13 +947,12 @@ export class AttendanceSheetService {
           return fresh;
         }
       }
-      throw new ApiError(500, "Attendance sheet generation failed");
+      throw new ApiError(500, 'Attendance sheet generation failed');
     }
 
-    await enqueueUserPriority(
-      job,
-      attendanceSheetJobId(schoolId, year, month, cls, section),
-    ).catch(() => { });
+    await enqueueUserPriority(job, attendanceSheetJobId(schoolId, year, month, cls, section)).catch(
+      () => {},
+    );
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     let lastNudge = Date.now();
@@ -1036,16 +961,13 @@ export class AttendanceSheetService {
         where: whereKey,
         select: { status: true, error: true },
       });
-      if (row?.status === "failed") {
-        throw new ApiError(
-          500,
-          row.error ?? "Attendance sheet generation failed",
-        );
+      if (row?.status === 'failed') {
+        throw new ApiError(500, row.error ?? 'Attendance sheet generation failed');
       }
 
       fresh = await tryServeFresh();
       if (fresh) {
-        logger.info("[attendance-sheet] serve: worker ready", {
+        logger.info('[attendance-sheet] serve: worker ready', {
           year,
           month,
           class: cls,
@@ -1064,29 +986,23 @@ export class AttendanceSheetService {
           job,
           attendanceSheetJobId(schoolId, year, month, cls, section),
           PRIORITY_USER,
-        ).catch(() => { });
+        ).catch(() => {});
         await enqueueUserPriority(
           job,
           attendanceSheetJobId(schoolId, year, month, cls, section),
-        ).catch(() => { });
+        ).catch(() => {});
       }
       await sleep(SERVE_POLL_MS);
     }
 
-    throw new ApiError(
-      504,
-      "Attendance sheet generation timed out. Please try again.",
-    );
+    throw new ApiError(504, 'Attendance sheet generation timed out. Please try again.');
   }
 
   /**
    * Render PDF → upload R2 → mark attendance_sheets ready.
    * Used by both the Bull worker and inline serve (identical DB/R2 output).
    */
-  static async processJob(
-    job: AttendanceSheetJob,
-    opts?: { inline?: boolean },
-  ): Promise<void> {
+  static async processJob(job: AttendanceSheetJob, opts?: { inline?: boolean }): Promise<void> {
     const { schoolId, year, month, class: cls, section } = job;
     const inline = opts?.inline === true;
     const t0 = Date.now();
@@ -1111,9 +1027,9 @@ export class AttendanceSheetService {
             month,
             class: cls,
             section,
-            status: { in: ["pending", "failed"] },
+            status: { in: ['pending', 'failed'] },
           },
-          data: { status: "generating", attempts: { increment: 1 } },
+          data: { status: 'generating', attempts: { increment: 1 } },
         });
         if (claim.count === 0) {
           // Bull retry after a crash: row stuck in generating, job still valid.
@@ -1125,12 +1041,12 @@ export class AttendanceSheetService {
               month,
               class: cls,
               section,
-              status: "generating",
+              status: 'generating',
             },
             data: { attempts: { increment: 1 } },
           });
           if (reclaim.count === 0) {
-            logger.debug("[attendance-sheet] job: not claimable, skipping", {
+            logger.debug('[attendance-sheet] job: not claimable, skipping', {
               year,
               month,
               class: cls,
@@ -1139,7 +1055,7 @@ export class AttendanceSheetService {
             });
             return;
           }
-          logger.info("[attendance-sheet] job: reclaimed generating", {
+          logger.info('[attendance-sheet] job: reclaimed generating', {
             year,
             month,
             class: cls,
@@ -1181,12 +1097,7 @@ export class AttendanceSheetService {
             };
           }
 
-          const hashAtStart = await this.computeInputHash(
-            year,
-            month,
-            cls,
-            section,
-          );
+          const hashAtStart = await this.computeInputHash(year, month, cls, section);
 
           if (
             !inline &&
@@ -1198,16 +1109,20 @@ export class AttendanceSheetService {
               where: whereKey,
               select: { status: true },
             });
-            if (afterSkip?.status !== "generating") {
+            if (afterSkip?.status !== 'generating') {
               await prisma.attendance_sheets.update({
                 where: whereKey,
-                data: { status: "pending", error: null },
+                data: { status: 'pending', error: null },
               });
               deferOrRetry();
-              logger.info(
-                "[attendance-sheet] job: DEFER after skip (concurrent edit)",
-                { year, month, class: cls, section, inline, ms: Date.now() - t0 },
-              );
+              logger.info('[attendance-sheet] job: DEFER after skip (concurrent edit)', {
+                year,
+                month,
+                class: cls,
+                section,
+                inline,
+                ms: Date.now() - t0,
+              });
               return;
             }
 
@@ -1223,7 +1138,7 @@ export class AttendanceSheetService {
               await prisma.attendance_sheets.update({
                 where: whereKey,
                 data: {
-                  status: "ready",
+                  status: 'ready',
                   error: null,
                   design_version: ATTENDANCE_SHEET_DESIGN_VERSION,
                   snapshot_teacher_id: seed?.teacher_id ?? null,
@@ -1234,13 +1149,13 @@ export class AttendanceSheetService {
               await prisma.attendance_sheets.update({
                 where: whereKey,
                 data: {
-                  status: "ready",
+                  status: 'ready',
                   error: null,
                   design_version: ATTENDANCE_SHEET_DESIGN_VERSION,
                 },
               });
             }
-            logger.info("[attendance-sheet] job: hash fresh, skip render", {
+            logger.info('[attendance-sheet] job: hash fresh, skip render', {
               year,
               month,
               class: cls,
@@ -1257,12 +1172,7 @@ export class AttendanceSheetService {
             teacherName: usedTeacherName,
           } = await this.renderPdf(year, month, cls, section);
 
-          const hashAtEnd = await this.computeInputHash(
-            year,
-            month,
-            cls,
-            section,
-          );
+          const hashAtEnd = await this.computeInputHash(year, month, cls, section);
           const afterRender = await prisma.attendance_sheets.findUnique({
             where: whereKey,
             select: { status: true },
@@ -1270,27 +1180,21 @@ export class AttendanceSheetService {
 
           // Inputs changed or invalidate flipped status mid-render — do not
           // promote to ready or write the drifted hash (would skip-regen forever).
-          if (
-            hashAtEnd !== hashAtStart ||
-            afterRender?.status !== "generating"
-          ) {
+          if (hashAtEnd !== hashAtStart || afterRender?.status !== 'generating') {
             await prisma.attendance_sheets.update({
               where: whereKey,
-              data: { status: "pending", error: null },
+              data: { status: 'pending', error: null },
             });
             deferOrRetry();
-            logger.info(
-              "[attendance-sheet] job: DEFER after render (concurrent edit)",
-              {
-                year,
-                month,
-                class: cls,
-                section,
-                inline,
-                bytes: buffer.length,
-                ms: Date.now() - t0,
-              },
-            );
+            logger.info('[attendance-sheet] job: DEFER after render (concurrent edit)', {
+              year,
+              month,
+              class: cls,
+              section,
+              inline,
+              bytes: buffer.length,
+              ms: Date.now() - t0,
+            });
             return;
           }
 
@@ -1315,19 +1219,14 @@ export class AttendanceSheetService {
               design_version: snapDesign,
             },
           });
-          const hashFinal = await this.computeInputHash(
-            year,
-            month,
-            cls,
-            section,
-          );
+          const hashFinal = await this.computeInputHash(year, month, cls, section);
 
           const key = this.r2Key(schoolId, year, month, cls, section);
           await uploadToR2(key, buffer);
           await prisma.attendance_sheets.update({
             where: whereKey,
             data: {
-              status: "ready",
+              status: 'ready',
               r2_key: key,
               input_hash: hashFinal,
               generated_at: new Date(),
@@ -1338,7 +1237,7 @@ export class AttendanceSheetService {
             },
           });
 
-          logger.info("[attendance-sheet] job: READY", {
+          logger.info('[attendance-sheet] job: READY', {
             year,
             month,
             class: cls,
@@ -1349,7 +1248,7 @@ export class AttendanceSheetService {
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          logger.error("[attendance-sheet] job: FAILED", {
+          logger.error('[attendance-sheet] job: FAILED', {
             year,
             month,
             class: cls,
@@ -1360,9 +1259,9 @@ export class AttendanceSheetService {
           await prisma.attendance_sheets
             .update({
               where: whereKey,
-              data: { status: "failed", error: msg.slice(0, 500) },
+              data: { status: 'failed', error: msg.slice(0, 500) },
             })
-            .catch(() => { });
+            .catch(() => {});
           throw e; // Bull retries; inline serve surfaces as 500
         }
       },
@@ -1375,29 +1274,31 @@ export class AttendanceSheetService {
     cls: number,
     section: string,
   ): Promise<{
-    school: (Awaited<ReturnType<typeof SchoolService.getSchoolInfo>> & {
-      eiin?: string | null;
-      website?: string | null;
-    }) | null;
+    school:
+      | (Awaited<ReturnType<typeof SchoolService.getSchoolInfo>> & {
+          eiin?: string | null;
+          website?: string | null;
+        })
+      | null;
     teacherId: number | null;
     teacherName: string | null;
     students: StudentRow[];
     daysInMonth: number;
   }> {
     const schoolId = getRlsContext()?.schoolId;
-    const mm = String(month).padStart(2, "0");
+    const mm = String(month).padStart(2, '0');
     const start = `${year}-${mm}-01`;
     const daysInMonth = new Date(year, month, 0).getDate();
-    const end = `${year}-${mm}-${String(daysInMonth).padStart(2, "0")}`;
+    const end = `${year}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
     const ended = isAttendanceMonthEnded(year, month);
 
     const [schoolInfo, schoolHdr, level, enrollments, sheet] = await Promise.all([
       schoolId ? SchoolService.getSchoolInfo(schoolId) : Promise.resolve(null),
       schoolId
         ? prisma.school.findUnique({
-          where: { id: schoolId },
-          select: { customDomain: true, eiin: true, website: true },
-        })
+            where: { id: schoolId },
+            select: { customDomain: true, eiin: true, website: true },
+          })
         : Promise.resolve(null),
       prisma.levels.findFirst({
         where: { class_name: cls, section, year },
@@ -1413,7 +1314,7 @@ export class AttendanceSheetService {
           roll: true,
           student: { select: { name: true, available: true } },
         },
-        orderBy: [{ roll: "asc" }, { student_id: "asc" }],
+        orderBy: [{ roll: 'asc' }, { student_id: 'asc' }],
       }),
       prisma.attendance_sheets.findFirst({
         where: { year, month, class: cls, section },
@@ -1431,37 +1332,31 @@ export class AttendanceSheetService {
       null;
     const school = schoolInfo
       ? {
-        ...schoolInfo,
-        eiin: schoolHdr?.eiin ?? (schoolInfo as { eiin?: string | null }).eiin,
-        website: websiteRaw,
-      }
+          ...schoolInfo,
+          eiin: schoolHdr?.eiin ?? (schoolInfo as { eiin?: string | null }).eiin,
+          website: websiteRaw,
+        }
       : null;
-    const useSnapshot =
-      ended &&
-      sheet?.snapshot_teacher_id != null;
-    const teacherId = useSnapshot
-      ? sheet!.snapshot_teacher_id
-      : (level?.teacher_id ?? null);
+    const useSnapshot = ended && sheet?.snapshot_teacher_id != null;
+    const teacherId = useSnapshot ? sheet!.snapshot_teacher_id : (level?.teacher_id ?? null);
     const teacherName = useSnapshot
       ? (sheet!.snapshot_teacher_name ?? null)
       : (level?.teacher?.name ?? null);
 
     // Drop orphan enrollments (no student row) so we never draw a blank line.
-    const valid = enrollments.filter(
-      (e) => e.student && e.student.name?.trim(),
-    );
+    const valid = enrollments.filter((e) => e.student && e.student.name?.trim());
     const studentIds = valid.map((e) => e.student_id);
 
     const attendance =
       studentIds.length === 0
         ? []
         : await prisma.attendence.findMany({
-          where: {
-            student_id: { in: studentIds },
-            date: { gte: start, lte: end },
-          },
-          select: { student_id: true, date: true, status: true },
-        });
+            where: {
+              student_id: { in: studentIds },
+              date: { gte: start, lte: end },
+            },
+            select: { student_id: true, date: true, status: true },
+          });
 
     const byStudent = new Map<number, Record<number, string>>();
     for (const row of attendance) {
@@ -1500,32 +1395,33 @@ export class AttendanceSheetService {
     teacherId: number | null;
     teacherName: string | null;
   }> {
-    const { school, teacherId, teacherName, students, daysInMonth } =
-      await this.loadSheetData(year, month, cls, section);
+    const { school, teacherId, teacherName, students, daysInMonth } = await this.loadSheetData(
+      year,
+      month,
+      cls,
+      section,
+    );
 
     // Zero margins: we position everything absolutely. A non-zero bottom
     // margin makes PDFKit auto-add pages when text Y > page.maxY(), which
     // splits the last student row (roll / name / marks) across blank pages.
     const doc = new (PDFDocument as any)({
-      size: "A4",
-      layout: "portrait",
+      size: 'A4',
+      layout: 'portrait',
       margins: { top: 0, left: 0, right: 0, bottom: 0 },
       autoFirstPage: true,
     }) as PDFKit.PDFDocument;
     registerFonts(doc);
 
     const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     const buffer = await new Promise<Buffer>((resolve, reject) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", reject);
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       try {
-        const pages =
-          students.length === 0
-            ? 1
-            : Math.ceil(students.length / STUDENTS_PER_PAGE);
+        const pages = students.length === 0 ? 1 : Math.ceil(students.length / STUDENTS_PER_PAGE);
 
         for (let pageIdx = 0; pageIdx < pages; pageIdx++) {
           if (pageIdx > 0) doc.addPage();
@@ -1558,10 +1454,12 @@ export class AttendanceSheetService {
   private static drawPage(
     doc: PDFKit.PDFDocument,
     opts: {
-      school: (Awaited<ReturnType<typeof SchoolService.getSchoolInfo>> & {
-        eiin?: string | null;
-        website?: string | null;
-      }) | null;
+      school:
+        | (Awaited<ReturnType<typeof SchoolService.getSchoolInfo>> & {
+            eiin?: string | null;
+            website?: string | null;
+          })
+        | null;
       year: number;
       month: number;
       cls: number;
@@ -1573,17 +1471,7 @@ export class AttendanceSheetService {
       rowOffset: number;
     },
   ) {
-    const {
-      school,
-      year,
-      month,
-      cls,
-      section,
-      daysInMonth,
-      students,
-      pageIdx,
-      pageCount,
-    } = opts;
+    const { school, year, month, cls, section, daysInMonth, students, pageIdx, pageCount } = opts;
 
     const pageW = doc.page.width;
     const pageH = doc.page.height;
@@ -1606,46 +1494,38 @@ export class AttendanceSheetService {
     // —— Header ——
     let y = marginTop;
     doc
-      .fillColor("#1a1a1a")
+      .fillColor('#1a1a1a')
       .font(FONT_BOLD)
       .fontSize(FONT_GOVT)
       .text("Government of the People's Republic of Bangladesh", marginX, y, {
         width: contentW,
-        align: "center",
+        align: 'center',
         ...cellOpts,
       });
     y += FONT_GOVT + 3;
 
-    const schoolName = (school?.name || "School").toUpperCase();
+    const schoolName = (school?.name || 'School').toUpperCase();
     let nameSize = FONT_SCHOOL;
     doc.font(FONT_BOLD);
-    while (
-      doc.fontSize(nameSize).widthOfString(schoolName) > contentW - 6 &&
-      nameSize > 9
-    ) {
+    while (doc.fontSize(nameSize).widthOfString(schoolName) > contentW - 6 && nameSize > 9) {
       nameSize--;
     }
     doc.fontSize(nameSize).text(schoolName, marginX, y, {
       width: contentW,
-      align: "center",
+      align: 'center',
       ...cellOpts,
     });
     y += nameSize + 2;
 
-    const placeParts = [
-      school?.upazila,
-      school?.district,
-      school?.location,
-    ].filter(Boolean);
-    const placeLine =
-      placeParts.length > 0 ? placeParts.join(", ") : school?.address || "";
+    const placeParts = [school?.upazila, school?.district, school?.location].filter(Boolean);
+    const placeLine = placeParts.length > 0 ? placeParts.join(', ') : school?.address || '';
     if (placeLine) {
       doc
         .font(FONT_BOLD)
         .fontSize(FONT_PLACE)
         .text(placeLine, marginX, y, {
           width: contentW,
-          align: "center",
+          align: 'center',
           ...cellOpts,
         });
       y += FONT_PLACE + 2;
@@ -1659,7 +1539,7 @@ export class AttendanceSheetService {
         .fontSize(FONT_META)
         .text(websiteUrl, marginX, y, {
           width: contentW,
-          align: "center",
+          align: 'center',
           ...cellOpts,
         });
       y += FONT_META + 2;
@@ -1672,9 +1552,9 @@ export class AttendanceSheetService {
       doc
         .font(FONT_BOLD)
         .fontSize(FONT_META)
-        .text(metaBits.join("  ·  "), marginX, y, {
+        .text(metaBits.join('  ·  '), marginX, y, {
           width: contentW,
-          align: "center",
+          align: 'center',
           ...cellOpts,
         });
       y += FONT_META + 2;
@@ -1685,10 +1565,10 @@ export class AttendanceSheetService {
     doc
       .font(FONT_BOLD)
       .fontSize(FONT_TITLE)
-      .fillColor("#1e3a5f")
-      .text("MONTHLY ATTENDANCE SHEET", marginX, y, {
+      .fillColor('#1e3a5f')
+      .text('MONTHLY ATTENDANCE SHEET', marginX, y, {
         width: contentW,
-        align: "center",
+        align: 'center',
         ...cellOpts,
       });
     y += FONT_TITLE + 3;
@@ -1697,12 +1577,12 @@ export class AttendanceSheetService {
     const monthLabel = MONTH_NAMES[month - 1] || String(month);
     const infoLine = `Class: ${classLabel}    Section: ${section}    Month: ${monthLabel} ${year}`;
     doc
-      .fillColor("#1a1a1a")
+      .fillColor('#1a1a1a')
       .font(FONT_BOLD)
       .fontSize(FONT_INFO)
       .text(infoLine, marginX, y, {
         width: contentW,
-        align: "center",
+        align: 'center',
         ...cellOpts,
       });
     y += FONT_INFO + 5;
@@ -1738,54 +1618,54 @@ export class AttendanceSheetService {
     const vLines = [
       colX.name,
       colX.day0,
-      ...Array.from(
-        { length: daysInMonth - 1 },
-        (_, i) => colX.day0 + (i + 1) * dayW,
-      ),
+      ...Array.from({ length: daysInMonth - 1 }, (_, i) => colX.day0 + (i + 1) * dayW),
       colX.present,
       colX.absent,
     ];
 
     const drawVLines = (top: number, h: number) => {
       for (const x of vLines) {
-        doc.moveTo(x, top).lineTo(x, top + h).stroke();
+        doc
+          .moveTo(x, top)
+          .lineTo(x, top + h)
+          .stroke();
       }
     };
 
     // Header
-    doc.save().rect(marginX, tableTop, contentW, headerRowH).fill("#e8eef5");
+    doc.save().rect(marginX, tableTop, contentW, headerRowH).fill('#e8eef5');
     doc.restore();
-    doc.strokeColor("#1a1a1a").lineWidth(0.55);
+    doc.strokeColor('#1a1a1a').lineWidth(0.55);
     doc.rect(marginX, tableTop, contentW, headerRowH).stroke();
     drawVLines(tableTop, headerRowH);
 
     const headerY = tableTop + (headerRowH - FONT_COL_HEADER) / 2;
-    doc.fillColor("#1a1a1a").font(FONT_BOLD).fontSize(FONT_COL_HEADER);
-    doc.text("Roll", colX.roll, headerY, {
+    doc.fillColor('#1a1a1a').font(FONT_BOLD).fontSize(FONT_COL_HEADER);
+    doc.text('Roll', colX.roll, headerY, {
       width: rollW,
-      align: "center",
+      align: 'center',
       ...cellOpts,
     });
-    doc.text("Student Name", colX.name + 2, headerY, {
+    doc.text('Student Name', colX.name + 2, headerY, {
       width: nameW - 4,
-      align: "left",
+      align: 'left',
       ...cellOpts,
     });
     for (let d = 1; d <= daysInMonth; d++) {
       doc.text(String(d), colX.day0 + (d - 1) * dayW, headerY, {
         width: dayW,
-        align: "center",
+        align: 'center',
         ...cellOpts,
       });
     }
-    doc.text("P", colX.present, headerY, {
+    doc.text('P', colX.present, headerY, {
       width: presentW,
-      align: "center",
+      align: 'center',
       ...cellOpts,
     });
-    doc.text("A", colX.absent, headerY, {
+    doc.text('A', colX.absent, headerY, {
       width: absentW,
-      align: "center",
+      align: 'center',
       ...cellOpts,
     });
 
@@ -1796,11 +1676,11 @@ export class AttendanceSheetService {
       const isAlt = i % 2 === 1;
 
       if (isAlt) {
-        doc.save().rect(marginX, rowY, contentW, rowH).fill("#f7f9fc");
+        doc.save().rect(marginX, rowY, contentW, rowH).fill('#f7f9fc');
         doc.restore();
       }
 
-      doc.strokeColor("#1a1a1a").lineWidth(0.35);
+      doc.strokeColor('#1a1a1a').lineWidth(0.35);
       doc.rect(marginX, rowY, contentW, rowH).stroke();
       drawVLines(rowY, rowH);
 
@@ -1810,63 +1690,58 @@ export class AttendanceSheetService {
         let presentCount = 0;
         let absentCount = 0;
         for (let d = 1; d <= daysInMonth; d++) {
-          const st = (student.days[d] || "").trim().toLowerCase();
-          if (st === "present" || st === "run-awayed" || st === "runaway")
-            presentCount++;
-          else if (st === "absent") absentCount++;
+          const st = (student.days[d] || '').trim().toLowerCase();
+          if (st === 'present' || st === 'run-awayed' || st === 'runaway') presentCount++;
+          else if (st === 'absent') absentCount++;
         }
 
-        doc.fillColor("#1a1a1a").font(FONT_REGULAR).fontSize(FONT_BODY);
-        doc.text(
-          student.roll != null ? String(student.roll) : "—",
-          colX.roll,
-          textY,
-          { width: rollW, align: "center", ...cellOpts },
-        );
+        doc.fillColor('#1a1a1a').font(FONT_REGULAR).fontSize(FONT_BODY);
+        doc.text(student.roll != null ? String(student.roll) : '—', colX.roll, textY, {
+          width: rollW,
+          align: 'center',
+          ...cellOpts,
+        });
         // Shrink name font to fit — never truncate.
         const nameMaxW = nameW - 3;
         let nameSize = FONT_BODY;
         doc.font(FONT_REGULAR);
-        while (
-          nameSize > 4.5 &&
-          doc.fontSize(nameSize).widthOfString(student.name) > nameMaxW
-        ) {
+        while (nameSize > 4.5 && doc.fontSize(nameSize).widthOfString(student.name) > nameMaxW) {
           nameSize -= 0.5;
         }
         const nameY = rowY + (rowH - nameSize) / 2;
         doc.fontSize(nameSize).text(student.name, colX.name + 1.5, nameY, {
           width: nameMaxW,
-          align: "left",
+          align: 'left',
           ...cellOpts,
         });
 
         for (let d = 1; d <= daysInMonth; d++) {
           const mark = statusMark(student.days[d]);
           if (!mark) continue;
-          const color = mark === "P" ? "#166534" : "#b91c1c";
+          const color = mark === 'P' ? '#166534' : '#b91c1c';
           doc
             .fillColor(color)
             .font(FONT_BOLD)
             .fontSize(FONT_MARK)
             .text(mark, colX.day0 + (d - 1) * dayW, textY, {
               width: dayW,
-              align: "center",
+              align: 'center',
               ...cellOpts,
             });
         }
 
         doc
-          .fillColor("#1a1a1a")
+          .fillColor('#1a1a1a')
           .font(FONT_REGULAR)
           .fontSize(FONT_BODY)
           .text(String(presentCount), colX.present, textY, {
             width: presentW,
-            align: "center",
+            align: 'center',
             ...cellOpts,
           });
         doc.text(String(absentCount), colX.absent, textY, {
           width: absentW,
-          align: "center",
+          align: 'center',
           ...cellOpts,
         });
       }
@@ -1876,21 +1751,17 @@ export class AttendanceSheetService {
 
     // Outer border (header only if no students)
     const tableH = Math.max(headerRowH, rowY - tableTop);
-    doc
-      .strokeColor("#1e3a5f")
-      .lineWidth(1)
-      .rect(marginX, tableTop, contentW, tableH)
-      .stroke();
+    doc.strokeColor('#1e3a5f').lineWidth(1).rect(marginX, tableTop, contentW, tableH).stroke();
 
     // Page number only (no generated date)
     if (pageCount > 1) {
       doc
-        .fillColor("#666666")
+        .fillColor('#666666')
         .font(FONT_REGULAR)
         .fontSize(7)
         .text(`Page ${pageIdx + 1} of ${pageCount}`, marginX, pageH - 16, {
           width: contentW,
-          align: "center",
+          align: 'center',
           ...cellOpts,
         });
     }

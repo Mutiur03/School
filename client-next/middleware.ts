@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getDevTenantHost, isBareLocalHost } from "@/lib/resolveBackend";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getDevTenantHost, isBareLocalHost } from '@/lib/resolveBackend';
 
 /**
  * Edge middleware (not Next 16 `proxy.ts` / Node middleware).
@@ -8,41 +8,31 @@ import { getDevTenantHost, isBareLocalHost } from "@/lib/resolveBackend";
  * Logic is Edge-safe (headers only) and works on Vercel too.
  */
 export function middleware(request: NextRequest) {
-  const hostname = (request.headers.get("host") ?? "").split(":")[0];
+  const hostname = (request.headers.get('host') ?? '').split(':')[0];
   const { pathname } = request.nextUrl;
 
   let response: NextResponse;
 
-  if (isBareLocalHost(hostname) && pathname.startsWith("/api/")) {
+  if (isBareLocalHost(hostname) && pathname.startsWith('/api/')) {
     const tenantHost = getDevTenantHost();
     const headers = new Headers(request.headers);
-    headers.set("x-forwarded-host", tenantHost);
-    headers.set("x-tenant-host", tenantHost);
-    headers.set("origin", `http://${tenantHost}`);
+    headers.set('x-forwarded-host', tenantHost);
+    headers.set('x-tenant-host', tenantHost);
+    headers.set('origin', `http://${tenantHost}`);
     response = NextResponse.next({ request: { headers } });
   } else {
     response = NextResponse.next();
   }
 
   // CDN-friendly HTML caching (per-host on Vercel/CF). Skip immutable Next assets.
-  if (
-    !pathname.startsWith("/_next/") &&
-    !pathname.startsWith("/api/") &&
-    !pathname.includes(".")
-  ) {
-    response.headers.set(
-      "Cache-Control",
-      "public, s-maxage=60, stale-while-revalidate=300",
-    );
-    response.headers.set("Vary", "Host, Accept-Encoding");
+  if (!pathname.startsWith('/_next/') && !pathname.startsWith('/api/') && !pathname.includes('.')) {
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    response.headers.set('Vary', 'Host, Accept-Encoding');
   }
 
   return response;
 }
 
 export const config = {
-  matcher: [
-    "/api/:path*",
-    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
-  ],
+  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

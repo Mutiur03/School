@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 export type AttendanceRange = 7 | 15 | 30;
 
@@ -41,11 +41,11 @@ export interface DashboardOverview {
 
 export const useDashboardOverview = () =>
   useQuery({
-    queryKey: ["dashboard", "overview"],
+    queryKey: ['dashboard', 'overview'],
     queryFn: async () => {
-      const response = await axios.get("/api/dashboard");
+      const response = await axios.get('/api/dashboard');
       if (!response.data.success) {
-        throw new Error(response.data.message || "Failed to fetch dashboard data");
+        throw new Error(response.data.message || 'Failed to fetch dashboard data');
       }
       return response.data.data as DashboardOverview;
     },
@@ -53,13 +53,13 @@ export const useDashboardOverview = () =>
 
 export const useDashboardAttendance = (days: AttendanceRange) =>
   useQuery({
-    queryKey: ["dashboard", "attendance", days],
+    queryKey: ['dashboard', 'attendance', days],
     queryFn: async () => {
-      const response = await axios.get("/api/dashboard/attendance", {
+      const response = await axios.get('/api/dashboard/attendance', {
         params: { attendanceDays: days },
       });
       if (!response.data.success) {
-        throw new Error(response.data.message || "Failed to fetch attendance data");
+        throw new Error(response.data.message || 'Failed to fetch attendance data');
       }
       return response.data.data as AttendanceDataPoint[];
     },

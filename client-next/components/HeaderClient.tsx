@@ -1,9 +1,9 @@
-'use client'
-import * as React from "react";
+'use client';
+import * as React from 'react';
 
-import governmentLogoImage from "../assets/images/gov-logo.png";
-import Image from "next/image";
-import type { StaticImageData } from "next/image";
+import governmentLogoImage from '../assets/images/gov-logo.png';
+import Image from 'next/image';
+import type { StaticImageData } from 'next/image';
 
 export type HeaderProps = {
   bannerImages?: string[];
@@ -35,23 +35,23 @@ export function Header({
   titleBn: titleBnProp,
   titleEn: titleEnProp,
   slideIntervalMs = 4000,
-  school
+  school,
 }: HeaderProps) {
-
-  const bannerImages = bannerImagesProp ?? (school.assets?.banners ?? []);
-  const headerLogo = headerLogoProp ?? (school.assets?.headerLogo ?? "");
-  const leftLogo = leftLogoProp ?? (school.assets?.logo ?? "");
-  const rightLogo = rightLogoProp ??
-    ((school.assets as { governmentLogo?: string } | undefined)?.governmentLogo ??
-      governmentLogoImage);
-  const titleBn = titleBnProp ?? String(school.name?.bn ?? "");
-  const titleEn = titleEnProp ?? String(school.name?.en ?? "");
+  const bannerImages = bannerImagesProp ?? school.assets?.banners ?? [];
+  const headerLogo = headerLogoProp ?? school.assets?.headerLogo ?? '';
+  const leftLogo = leftLogoProp ?? school.assets?.logo ?? '';
+  const rightLogo =
+    rightLogoProp ??
+    (school.assets as { governmentLogo?: string } | undefined)?.governmentLogo ??
+    governmentLogoImage;
+  const titleBn = titleBnProp ?? String(school.name?.bn ?? '');
+  const titleEn = titleEnProp ?? String(school.name?.en ?? '');
 
   const [currentSlide, setCurrentSlide] = React.useState(0);
   // Only mount images for slides that have been reached (plus the next one),
   // so slides 2..n do not download during initial page load.
   const [loadedSlides, setLoadedSlides] = React.useState<Set<number>>(
-    () => new Set([0, bannerImages.length > 1 ? 1 : 0])
+    () => new Set([0, bannerImages.length > 1 ? 1 : 0]),
   );
 
   const markLoaded = React.useCallback(
@@ -65,13 +65,13 @@ export function Header({
         return updated;
       });
     },
-    [bannerImages.length]
+    [bannerImages.length],
   );
 
   React.useEffect(() => {
     if (!bannerImages.length) return;
 
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     let slideInterval: ReturnType<typeof setInterval> | undefined;
 
     const stop = () => {
@@ -98,13 +98,12 @@ export function Header({
     };
 
     sync();
-    mq.addEventListener("change", sync);
+    mq.addEventListener('change', sync);
     return () => {
       stop();
-      mq.removeEventListener("change", sync);
+      mq.removeEventListener('change', sync);
     };
   }, [bannerImages.length, slideIntervalMs, markLoaded]);
-
 
   return (
     <div className="relative shadow-lg">
@@ -127,7 +126,7 @@ export function Header({
                   quality={45}
                   sizes="(max-width: 1140px) 100vw, 1140px"
                   priority={index === 0}
-                  fetchPriority={index === 0 ? "high" : "auto"}
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
                   className="h-full w-full object-cover object-top"
                 />
               ) : null}
@@ -160,14 +159,10 @@ export function Header({
               ) : null}
               <div className="text-center text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.65)]">
                 {titleBn ? (
-                  <h2 className="m-0 text-2xl font-medium leading-tight md:text-4xl">
-                    {titleBn}
-                  </h2>
+                  <h2 className="m-0 text-2xl leading-tight font-medium md:text-4xl">{titleBn}</h2>
                 ) : null}
                 {titleEn ? (
-                  <h3 className="mt-2 text-3xl font-normal leading-tight md:text-5xl">
-                    {titleEn}
-                  </h3>
+                  <h3 className="mt-2 text-3xl leading-tight font-normal md:text-5xl">{titleEn}</h3>
                 ) : null}
               </div>
               {rightLogo ? (
@@ -194,11 +189,12 @@ export function Header({
               }}
               className="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
               aria-label={`Go to slide ${index + 1}`}
-              aria-current={currentSlide === index ? "true" : undefined}
+              aria-current={currentSlide === index ? 'true' : undefined}
             >
               <span
-                className={`block h-3 w-3 rounded-full ${currentSlide === index ? "bg-white" : "bg-white/50"
-                  }`}
+                className={`block h-3 w-3 rounded-full ${
+                  currentSlide === index ? 'bg-white' : 'bg-white/50'
+                }`}
               />
             </button>
           ))}

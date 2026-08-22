@@ -1,14 +1,14 @@
-import { prisma } from "@/config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
-import { ApiError } from "@/utils/ApiError.js";
+import { prisma } from '@/config/prisma.js';
+import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
 
 export class EventService {
   static async getPresignedUploadUrl(
     filename: string,
     contentType: string,
-    type: "image" | "file",
+    type: 'image' | 'file',
   ) {
-    const folder = type === "image" ? "events/images" : "events/files";
+    const folder = type === 'image' ? 'events/images' : 'events/files';
     const key = `${folder}/${Date.now()}-${filename}`;
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
@@ -17,7 +17,7 @@ export class EventService {
   static async getEvents(schoolId?: number) {
     return prisma.events.findMany({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { date: "desc" },
+      orderBy: { date: 'desc' },
     });
   }
 
@@ -64,7 +64,7 @@ export class EventService {
     const existing = await prisma.events.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Event not found");
+    if (!existing) throw new ApiError(404, 'Event not found');
 
     const updateData: Record<string, any> = {
       title: data.title,
@@ -95,7 +95,7 @@ export class EventService {
     const existing = await prisma.events.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Event not found");
+    if (!existing) throw new ApiError(404, 'Event not found');
 
     await prisma.events.delete({ where: { id } });
 

@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/node";
+import * as Sentry from '@sentry/node';
 
 const sentryDsn = process.env.SENTRY_DSN;
 
@@ -17,17 +17,17 @@ export function initSentry() {
 
   Sentry.init({
     dsn: sentryDsn,
-    environment: process.env.NODE_ENV ?? "development",
-    enabled: process.env.NODE_ENV === "production",
+    environment: process.env.NODE_ENV ?? 'development',
+    enabled: process.env.NODE_ENV === 'production',
     integrations: [
       Sentry.httpIntegration(),
       Sentry.expressIntegration(),
       Sentry.prismaIntegration(),
-      Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
     ],
-    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1,
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1,
     initialScope: {
-      tags: { app: "server" },
+      tags: { app: 'server' },
     },
     enableLogs: true,
   });
@@ -43,15 +43,11 @@ export function syncSentryUser(user: SentryAuthUser | null | undefined) {
     return;
   }
 
-  Sentry.setTag("role", user.role);
+  Sentry.setTag('role', user.role);
   Sentry.setUser({
     id: String(user.id),
     ...(user.email ? { email: user.email } : {}),
-    ...(user.username
-      ? { username: user.username }
-      : user.name
-        ? { username: user.name }
-        : {}),
+    ...(user.username ? { username: user.username } : user.name ? { username: user.name } : {}),
   });
 }
 
@@ -73,9 +69,9 @@ export function recordSlowQueryBreadcrumb(event: {
   }
 
   Sentry.addBreadcrumb({
-    category: "db.query",
+    category: 'db.query',
     message: event.query,
-    level: "warning",
+    level: 'warning',
     data: {
       duration_ms: event.duration,
       params: event.params,
@@ -90,17 +86,17 @@ export function recordDatabasePoolMetrics(stats: {
   maxConnections: number;
   prismaPool: number | null;
 }) {
-  if (!sentryDsn || process.env.NODE_ENV !== "production") {
+  if (!sentryDsn || process.env.NODE_ENV !== 'production') {
     return;
   }
 
-  Sentry.metrics.gauge("db.connections.total", stats.total);
-  Sentry.metrics.gauge("db.connections.active", stats.active);
-  Sentry.metrics.gauge("db.connections.idle", stats.idle);
-  Sentry.metrics.gauge("db.connections.postgres_max", stats.maxConnections);
+  Sentry.metrics.gauge('db.connections.total', stats.total);
+  Sentry.metrics.gauge('db.connections.active', stats.active);
+  Sentry.metrics.gauge('db.connections.idle', stats.idle);
+  Sentry.metrics.gauge('db.connections.postgres_max', stats.maxConnections);
 
   if (stats.prismaPool !== null) {
-    Sentry.metrics.gauge("db.connections.prisma_pool_limit", stats.prismaPool);
+    Sentry.metrics.gauge('db.connections.prisma_pool_limit', stats.prismaPool);
   }
 }
 

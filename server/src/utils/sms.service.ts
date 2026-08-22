@@ -1,9 +1,9 @@
-import { env } from "@/config/env.js";
-import { prisma } from "@/config/prisma.js";
-import { getRlsContext } from "@/config/rlsContextStore.js";
-import axios from "axios";
-import { calculateSMSCount } from "@school/shared-schemas";
-import { DEFAULT_SMS_TEMPLATES } from "@/constants/smsTemplates.js";
+import { env } from '@/config/env.js';
+import { prisma } from '@/config/prisma.js';
+import { getRlsContext } from '@/config/rlsContextStore.js';
+import axios from 'axios';
+import { calculateSMSCount } from '@school/shared-schemas';
+import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
 
 export interface SMSMessage {
   Number: string;
@@ -22,16 +22,13 @@ export interface SMSOptions {
 
 export class SMSService {
   private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
-  private static readonly FALLBACK_SENDER_IDS = (
-    env.BULK_SMS_SENDER_IDS?.split(",") ?? []
-  )
+  private static readonly FALLBACK_SENDER_IDS = (env.BULK_SMS_SENDER_IDS?.split(',') ?? [])
     .map((id) => id.trim())
     .filter(Boolean);
-  private static readonly DEFAULT_API_URL =
-    "https://sms.onecodesoft.com/api/send-bulk-sms";
+  private static readonly DEFAULT_API_URL = 'https://sms.onecodesoft.com/api/send-bulk-sms';
 
   private static resolveSenderIds(settingsSenderId?: string | null): string[] {
-    const fromSettings = (settingsSenderId?.split(",") ?? [])
+    const fromSettings = (settingsSenderId?.split(',') ?? [])
       .map((id) => id.trim())
       .filter(Boolean);
     if (fromSettings.length > 0) {
@@ -45,21 +42,21 @@ export class SMSService {
   }
 
   public static formatPhoneNumber(phoneNumber: string): string {
-    const cleanNumber = phoneNumber.replace(/\D/g, "");
-    if (cleanNumber.length === 11 && cleanNumber.startsWith("01")) {
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    if (cleanNumber.length === 11 && cleanNumber.startsWith('01')) {
       return `88${cleanNumber}`;
     }
-    if (cleanNumber.length === 13 && cleanNumber.startsWith("8801")) {
+    if (cleanNumber.length === 13 && cleanNumber.startsWith('8801')) {
       return cleanNumber;
     }
     // Fallback: if it's already 13 and looks like international, or if it's just 11
-    return cleanNumber.startsWith("88") ? cleanNumber : `88${cleanNumber}`;
+    return cleanNumber.startsWith('88') ? cleanNumber : `88${cleanNumber}`;
   }
 
   public static async getSettings() {
     const { schoolId } = getRlsContext() ?? {};
     if (!Number.isInteger(schoolId)) {
-      throw new Error("School context missing for SMS settings");
+      throw new Error('School context missing for SMS settings');
     }
 
     let settings = await prisma.sms_settings.findUnique({
@@ -91,7 +88,7 @@ export class SMSService {
     const apiUrl = settings.api_url || this.DEFAULT_API_URL;
 
     if (!apiKey || senderIds.length === 0) {
-      throw new Error("SMS configuration missing in database and environment.");
+      throw new Error('SMS configuration missing in database and environment.');
     }
 
     const calc = this.calculateSMSCount(message);
@@ -119,8 +116,8 @@ export class SMSService {
         },
         {
           headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
         },
       );
@@ -137,8 +134,7 @@ export class SMSService {
 
       // Fallback if results are empty but top level has something
       if (totalSmsUsed === 0) {
-        totalSmsUsed =
-          response.data?.total_sms || response.data?.sms_count || 1;
+        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || 1;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -155,16 +151,13 @@ export class SMSService {
       return {
         success: true,
         data: response.data,
-        message: "SMS sent successfully",
+        message: 'SMS sent successfully',
       };
     } catch (error: any) {
-      console.error("SMS sending error:", error);
+      console.error('SMS sending error:', error);
       return {
         success: false,
-        message:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to send SMS",
+        message: error.response?.data?.message || error.message || 'Failed to send SMS',
       };
     }
   }
@@ -172,10 +165,7 @@ export class SMSService {
   /**
    * Send bulk SMS messages
    */
-  static async sendBulkSMS(
-    messages: SMSMessage[],
-    options?: SMSOptions,
-  ): Promise<SMSResponse> {
+  static async sendBulkSMS(messages: SMSMessage[], options?: SMSOptions): Promise<SMSResponse> {
     const settings = await this.getSettings();
     const apiKey = settings.api_key || this.FALLBACK_API_KEY;
     const senderIds = this.resolveSenderIds(settings.sender_id);
@@ -183,7 +173,7 @@ export class SMSService {
     const apiUrl = settings.api_url || this.DEFAULT_API_URL;
 
     if (!apiKey || senderIds.length === 0) {
-      throw new Error("SMS configuration missing.");
+      throw new Error('SMS configuration missing.');
     }
 
     // Calculate aggregate segments needed for the ENTIRE batch
@@ -194,10 +184,7 @@ export class SMSService {
     }
 
     // Balance may already be reserved by the caller when skipBalanceUpdate is set
-    if (
-      !options?.skipBalanceUpdate &&
-      settings.sms_balance < totalSegmentsNeeded
-    ) {
+    if (!options?.skipBalanceUpdate && settings.sms_balance < totalSegmentsNeeded) {
       return {
         success: false,
         message: `Insufficient SMS balance. Needed: ${totalSegmentsNeeded} credits, Available: ${settings.sms_balance}`,
@@ -219,8 +206,8 @@ export class SMSService {
         },
         {
           headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
         },
       );
@@ -233,10 +220,7 @@ export class SMSService {
         );
       }
       if (totalSmsUsed === 0) {
-        totalSmsUsed =
-          response.data?.total_sms ||
-          response.data?.sms_count ||
-          totalSegmentsNeeded;
+        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || totalSegmentsNeeded;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -253,16 +237,13 @@ export class SMSService {
       return {
         success: true,
         data: response.data,
-        message: "Bulk SMS sent successfully",
+        message: 'Bulk SMS sent successfully',
       };
     } catch (error: any) {
-      console.error("Bulk SMS sending error:", error);
+      console.error('Bulk SMS sending error:', error);
       return {
         success: false,
-        message:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to send bulk SMS",
+        message: error.response?.data?.message || error.message || 'Failed to send bulk SMS',
       };
     }
   }
@@ -275,7 +256,7 @@ export class SMSService {
     return {
       success: true,
       data: { balance: settings.sms_balance },
-      message: "Balance retrieved from database",
+      message: 'Balance retrieved from database',
     };
   }
 
@@ -284,7 +265,7 @@ export class SMSService {
    */
   static calculateSMSCount(text: string): {
     count: number;
-    encoding: "GSM-7" | "Unicode";
+    encoding: 'GSM-7' | 'Unicode';
     length: number;
   } {
     return calculateSMSCount(text);
@@ -293,10 +274,7 @@ export class SMSService {
   /**
    * Send a test SMS message
    */
-  static async sendTestSMS(
-    phoneNumber: string,
-    message: string,
-  ): Promise<SMSResponse> {
+  static async sendTestSMS(phoneNumber: string, message: string): Promise<SMSResponse> {
     const testMessage = `[TEST] School Management System: ${message}`;
     return this.sendSMS(phoneNumber, testMessage);
   }
@@ -309,7 +287,7 @@ export class SMSService {
     resetCode: string,
     recipientName?: string,
   ): Promise<SMSResponse> {
-    const message = `School Management System: Your password reset code is: ${resetCode}. This code will expire in 15 minutes. If you didn't request this, please ignore this message.${recipientName ? ` - ${recipientName}` : ""}`;
+    const message = `School Management System: Your password reset code is: ${resetCode}. This code will expire in 15 minutes. If you didn't request this, please ignore this message.${recipientName ? ` - ${recipientName}` : ''}`;
 
     return this.sendSMS(phoneNumber, message);
   }

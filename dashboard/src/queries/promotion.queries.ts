@@ -1,6 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { toast } from "react-hot-toast";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
 export const useUpdatePromotionStatus = () => {
   const queryClient = useQueryClient();
@@ -10,11 +10,11 @@ export const useUpdatePromotionStatus = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      toast.success("Status Generated Successfully");
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Status Generated Successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to generate result");
+      toast.error(error.response?.data?.message || 'Failed to generate result');
     },
   });
 };
@@ -27,11 +27,11 @@ export const useGeneratePromotionRoll = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      toast.success(data.message || "Roll numbers generated successfully");
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success(data.message || 'Roll numbers generated successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to generate roll numbers");
+      toast.error(error.response?.data?.message || 'Failed to generate roll numbers');
     },
   });
 };

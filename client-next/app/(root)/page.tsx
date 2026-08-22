@@ -1,8 +1,8 @@
-import { Suspense } from "react";
-import { Chart } from "@/components/Chart";
-import { ExtraHome } from "@/components/ExtraHome";
-import { NoticeBoard } from "@/components/NoticeBoard";
-import { fetchSchoolConfig } from "@/queries/school.queries";
+import { Suspense } from 'react';
+import { Chart } from '@/components/Chart';
+import { ExtraHome } from '@/components/ExtraHome';
+import { NoticeBoard } from '@/components/NoticeBoard';
+import { fetchSchoolConfig } from '@/queries/school.queries';
 
 export const revalidate = 60;
 
@@ -11,7 +11,7 @@ export default async function Home() {
 
   return (
     <>
-        <NoticeBoard />
+      <NoticeBoard />
       <Chart school={school} />
       <Suspense fallback={null}>
         <ExtraHome />

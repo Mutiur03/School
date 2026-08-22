@@ -1,14 +1,12 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument } from 'pdf-lib';
 
 /**
  * Concatenate ordered per-student marksheet PDFs into one class bundle.
  * Each buffer may be one or more pages; page order within each file is kept.
  */
-export async function mergeMarksheetPdfs(
-  pdfBuffers: Buffer[],
-): Promise<Buffer> {
+export async function mergeMarksheetPdfs(pdfBuffers: Buffer[]): Promise<Buffer> {
   if (pdfBuffers.length === 0) {
-    throw new Error("No non-null marks found for any student in this class.");
+    throw new Error('No non-null marks found for any student in this class.');
   }
 
   const out = await PDFDocument.create();

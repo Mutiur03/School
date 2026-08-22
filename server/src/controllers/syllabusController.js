@@ -1,7 +1,7 @@
-import { prisma } from "../config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
-import { redis } from "../config/redis.js";
-import { LONG_TERM_CACHE_TTL } from "../utils/globalVars.js";
+import { prisma } from '../config/prisma.js';
+import { getUploadUrl, deleteFromR2 } from '../config/r2.js';
+import { redis } from '../config/redis.js';
+import { LONG_TERM_CACHE_TTL } from '../utils/globalVars.js';
 
 /**
  * GET /api/syllabus/presigned-url?filename=&contentType=
@@ -10,14 +10,14 @@ export const getSyllabusPresignedUrl = async (req, res) => {
   try {
     const { filename, contentType } = req.query;
     if (!filename || !contentType) {
-      return res.status(400).json({ error: "filename and contentType are required" });
+      return res.status(400).json({ error: 'filename and contentType are required' });
     }
     const key = `syllabus/${Date.now()}-${filename}`;
     const uploadUrl = await getUploadUrl(key, contentType);
     return res.status(200).json({ uploadUrl, key });
   } catch (error) {
-    console.error("Error generating presigned URL:", error);
-    return res.status(500).json({ error: "Error generating presigned URL" });
+    console.error('Error generating presigned URL:', error);
+    return res.status(500).json({ error: 'Error generating presigned URL' });
   }
 };
 
@@ -30,7 +30,7 @@ export const uploadSyllabus = async (req, res) => {
     const schoolId = req.schoolId;
     const { class: classNum, year, key } = req.body;
     if (!key) {
-      return res.status(400).json({ error: "key is required" });
+      return res.status(400).json({ error: 'key is required' });
     }
     const syllabus = await prisma.syllabus.create({
       data: {
@@ -42,7 +42,7 @@ export const uploadSyllabus = async (req, res) => {
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+    const cacheKey = `syllabus_${schoolId ?? 'global'}_all_all`;
     await redis.del(cacheKey);
     res.json(syllabus);
   } catch (err) {
@@ -53,7 +53,7 @@ export const uploadSyllabus = async (req, res) => {
 export const listSyllabus = async (req, res) => {
   const schoolId = req.schoolId;
   const { class: classNum, year } = req.query;
-  const key = `syllabus_${schoolId ?? "global"}_${classNum ?? "all"}_${year ?? "all"}`;
+  const key = `syllabus_${schoolId ?? 'global'}_${classNum ?? 'all'}_${year ?? 'all'}`;
   const cachedSyllabus = await redis
     .get(key)
     .then((data) => (data ? JSON.parse(data) : null))
@@ -66,7 +66,7 @@ export const listSyllabus = async (req, res) => {
   if (year) where.year = parseInt(year);
   if (schoolId) where.school_id = schoolId;
   const syllabuses = await prisma.syllabus.findMany({ where });
-  await redis.set(key, JSON.stringify(syllabuses), "EX", LONG_TERM_CACHE_TTL);
+  await redis.set(key, JSON.stringify(syllabuses), 'EX', LONG_TERM_CACHE_TTL);
   res.json(syllabuses);
 };
 
@@ -74,16 +74,14 @@ export const deleteSyllabus = async (req, res) => {
   const schoolId = req.schoolId;
   const { id } = req.params;
   const syllabus = await prisma.syllabus.findFirst({
-    where: schoolId
-      ? { id: parseInt(id), school_id: schoolId }
-      : { id: parseInt(id) },
+    where: schoolId ? { id: parseInt(id), school_id: schoolId } : { id: parseInt(id) },
   });
-  if (!syllabus) return res.status(404).json({ error: "Not found" });
+  if (!syllabus) return res.status(404).json({ error: 'Not found' });
 
   await deleteFromR2(syllabus.public_id);
 
   await prisma.syllabus.delete({ where: { id: parseInt(id) } });
-  const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+  const cacheKey = `syllabus_${schoolId ?? 'global'}_all_all`;
   await redis.del(cacheKey);
   res.json({ success: true });
 };
@@ -98,11 +96,9 @@ export const updateSyllabus = async (req, res) => {
     const { id } = req.params;
     const { class: classNum, year, key } = req.body;
     const syllabus = await prisma.syllabus.findFirst({
-      where: schoolId
-        ? { id: parseInt(id), school_id: schoolId }
-        : { id: parseInt(id) },
+      where: schoolId ? { id: parseInt(id), school_id: schoolId } : { id: parseInt(id) },
     });
-    if (!syllabus) return res.status(404).json({ error: "Not found" });
+    if (!syllabus) return res.status(404).json({ error: 'Not found' });
 
     let pdf_url = syllabus.pdf_url;
     let public_id = syllabus.public_id;
@@ -127,7 +123,7 @@ export const updateSyllabus = async (req, res) => {
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
-    const cacheKey = `syllabus_${schoolId ?? "global"}_all_all`;
+    const cacheKey = `syllabus_${schoolId ?? 'global'}_all_all`;
     await redis.del(cacheKey);
     res.json(updated);
   } catch (err) {

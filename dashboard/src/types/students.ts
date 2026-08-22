@@ -25,5 +25,3 @@ export interface Student {
   next_year_roll?: number;
   next_year_section?: string;
 }
-
-

@@ -4,4 +4,4 @@
 export const isVercel = Boolean(process.env.VERCEL);
 
 /** True when building/running the OpenNext Cloudflare Worker. */
-export const isOpenNext = process.env.OPEN_NEXT === "1";
+export const isOpenNext = process.env.OPEN_NEXT === '1';

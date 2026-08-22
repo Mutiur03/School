@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { CLASS_NUM, PHONE_NUMBER, ROLL_NUMBER, SECTION } from "./regex.js";
+import { z } from 'zod';
+import { CLASS_NUM, PHONE_NUMBER, ROLL_NUMBER, SECTION } from './regex.js';
 
 const yearLike = z.union([z.string(), z.number()]);
 const classLike = z.union([z.string(), z.number()]);
@@ -17,42 +17,42 @@ export const publicResultVerifySchema = z
     mobile: z.string().optional(),
   })
   .transform((data) => ({
-    year: String(data.year ?? data.session ?? "").trim(),
-    class: String(data.class ?? "").trim(),
-    section: String(data.section ?? "")
+    year: String(data.year ?? data.session ?? '').trim(),
+    class: String(data.class ?? '').trim(),
+    section: String(data.section ?? '')
       .trim()
       .toUpperCase(),
-    roll: String(data.roll ?? "").trim(),
-    phone: String(data.phone ?? data.mobile ?? "").trim(),
+    roll: String(data.roll ?? '').trim(),
+    phone: String(data.phone ?? data.mobile ?? '').trim(),
   }))
   .pipe(
     z.object({
       year: z
         .string()
-        .min(1, "Session is required")
-        .regex(/^\d{4}$/, "Session must be a 4-digit year")
+        .min(1, 'Session is required')
+        .regex(/^\d{4}$/, 'Session must be a 4-digit year')
         .transform((v) => Number(v))
         .refine((y) => y >= 2000 && y <= 2100, {
-          message: "Session year is invalid",
+          message: 'Session year is invalid',
         }),
       class: z
         .string()
-        .min(1, "Class is required")
-        .regex(CLASS_NUM, "Class must be between 1 and 10")
+        .min(1, 'Class is required')
+        .regex(CLASS_NUM, 'Class must be between 1 and 10')
         .transform((v) => Number(v)),
       section: z
         .string()
-        .min(1, "Section is required")
-        .regex(SECTION, "Section must be a single letter (A-Z)"),
+        .min(1, 'Section is required')
+        .regex(SECTION, 'Section must be a single letter (A-Z)'),
       roll: z
         .string()
-        .min(1, "Roll is required")
-        .regex(ROLL_NUMBER, "Roll must be a number between 1 and 999999")
+        .min(1, 'Roll is required')
+        .regex(ROLL_NUMBER, 'Roll must be a number between 1 and 999999')
         .transform((v) => Number(v)),
       phone: z
         .string()
-        .min(1, "Mobile number is required")
-        .regex(PHONE_NUMBER, "Mobile must be 11 digits and start with 01"),
+        .min(1, 'Mobile number is required')
+        .regex(PHONE_NUMBER, 'Mobile must be 11 digits and start with 01'),
     }),
   );
 
@@ -67,11 +67,11 @@ export const publicResultExamsQuerySchema = z.object({
     .pipe(
       z
         .string()
-        .min(1, "Session is required")
-        .regex(/^\d{4}$/, "Session must be a 4-digit year")
+        .min(1, 'Session is required')
+        .regex(/^\d{4}$/, 'Session must be a 4-digit year')
         .transform((v) => Number(v))
         .refine((y) => y >= 2000 && y <= 2100, {
-          message: "Session year is invalid",
+          message: 'Session year is invalid',
         }),
     ),
   class: z
@@ -80,15 +80,13 @@ export const publicResultExamsQuerySchema = z.object({
     .pipe(
       z
         .string()
-        .min(1, "Class is required")
-        .regex(CLASS_NUM, "Class must be between 1 and 10")
+        .min(1, 'Class is required')
+        .regex(CLASS_NUM, 'Class must be between 1 and 10')
         .transform((v) => Number(v)),
     ),
 });
 
-export type PublicResultExamsQueryData = z.infer<
-  typeof publicResultExamsQuerySchema
->;
+export type PublicResultExamsQueryData = z.infer<typeof publicResultExamsQuerySchema>;
 
 /** Query params for /public/result and /public/download. */
 export const publicResultQuerySchema = z.object({
@@ -98,17 +96,17 @@ export const publicResultQuerySchema = z.object({
     .pipe(
       z
         .string()
-        .min(1, "Year is required")
-        .regex(/^\d{4}$/, "Year must be a 4-digit number")
+        .min(1, 'Year is required')
+        .regex(/^\d{4}$/, 'Year must be a 4-digit number')
         .transform((v) => Number(v))
         .refine((y) => y >= 2000 && y <= 2100, {
-          message: "Year is invalid",
+          message: 'Year is invalid',
         }),
     ),
   exam: z
     .union([z.string(), z.number()])
     .transform((v) => String(v).trim())
-    .pipe(z.string().min(1, "Exam is required")),
+    .pipe(z.string().min(1, 'Exam is required')),
 });
 
 export type PublicResultQueryData = z.infer<typeof publicResultQuerySchema>;

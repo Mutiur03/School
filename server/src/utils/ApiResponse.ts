@@ -1,11 +1,10 @@
-
 class ApiResponse<T = any> {
   statusCode: number;
   data: T;
   message: string;
   success: boolean;
 
-  constructor(statusCode: number, data: T, message: string = "Success") {
+  constructor(statusCode: number, data: T, message: string = 'Success') {
     this.statusCode = statusCode;
     this.data = data;
     this.message = message;
@@ -13,4 +12,4 @@ class ApiResponse<T = any> {
   }
 }
 
-export { ApiResponse }
+export { ApiResponse };

@@ -1,12 +1,11 @@
-import { prisma } from "@/config/prisma.js";
-import { deleteFromR2, getUploadUrl } from "@/config/r2.js";
-import { ApiError } from "@/utils/ApiError.js";
-
+import { prisma } from '@/config/prisma.js';
+import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
 
 export class CitizenCharterService {
   async getPresignedUploadUrl(filename: string, contentType: string) {
-    if (contentType !== "application/pdf") {
-      throw new ApiError(400, "Only PDF files are allowed");
+    if (contentType !== 'application/pdf') {
+      throw new ApiError(400, 'Only PDF files are allowed');
     }
 
     const key = `citizen-charter/${Date.now()}-${filename}`;
@@ -17,10 +16,10 @@ export class CitizenCharterService {
   async upsertCharter(key: string, schoolId?: number) {
     const existing = await prisma.citizenCharter.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { updated_at: "desc" },
+      orderBy: { updated_at: 'desc' },
     });
 
-    if (existing?.public_id && existing.public_id!=key) {
+    if (existing?.public_id && existing.public_id != key) {
       await deleteFromR2(existing.public_id);
     }
 
@@ -45,11 +44,11 @@ export class CitizenCharterService {
   async getCharter(schoolId?: number) {
     const charter = await prisma.citizenCharter.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { updated_at: "desc" },
+      orderBy: { updated_at: 'desc' },
     });
 
     if (!charter) {
-      throw new ApiError(404, "Citizen charter not found");
+      throw new ApiError(404, 'Citizen charter not found');
     }
     return charter;
   }

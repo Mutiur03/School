@@ -14,10 +14,10 @@
  * Raw PrismaClient (no RLS extension): every query is explicitly school-scoped.
  */
 
-import "dotenv/config";
+import 'dotenv/config';
 
-import { PrismaClient } from "@prisma/client";
-import Bull from "bull";
+import { PrismaClient } from '@prisma/client';
+import Bull from 'bull';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -27,12 +27,10 @@ declare const process: {
 
 const prisma = new PrismaClient();
 const dryRun =
-  process.env.DRY_RUN === "1" ||
-  process.env.DRY_RUN === "true" ||
-  process.argv.includes("--dry");
+  process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true' || process.argv.includes('--dry');
 
-const host = process.env.REDIS_HOST || "127.0.0.1";
-const queue = new Bull("marksheetQueue", { redis: { host, port: 6379 } });
+const host = process.env.REDIS_HOST || '127.0.0.1';
+const queue = new Bull('marksheetQueue', { redis: { host, port: 6379 } });
 
 async function main() {
   const exams = await prisma.exams.findMany({
@@ -40,9 +38,7 @@ async function main() {
     select: { id: true, exam_name: true, exam_year: true, school_id: true },
   });
 
-  console.log(
-    `${exams.length} published exam(s) with school_id${dryRun ? " (DRY_RUN)" : ""}`,
-  );
+  console.log(`${exams.length} published exam(s) with school_id${dryRun ? ' (DRY_RUN)' : ''}`);
 
   let totalJobs = 0;
   for (const exam of exams) {
@@ -50,7 +46,7 @@ async function main() {
 
     const marks = await prisma.marks.findMany({
       where: { exam_id: exam.id, school_id: schoolId, marks: { not: null } },
-      distinct: ["enrollment_id"],
+      distinct: ['enrollment_id'],
       select: {
         enrollment: { select: { student_id: true, year: true, class: true } },
       },
@@ -77,22 +73,22 @@ async function main() {
     for (const [cls, yr] of classes) {
       await prisma.marksheet_bundles.upsert({
         where: {
-          exam_id_class_section: { exam_id: exam.id, class: cls, section: "ALL" },
+          exam_id_class_section: { exam_id: exam.id, class: cls, section: 'ALL' },
         },
         create: {
           exam_id: exam.id,
           exam_name: exam.exam_name,
           year: yr,
           class: cls,
-          section: "ALL",
+          section: 'ALL',
           school_id: schoolId,
-          status: "pending",
+          status: 'pending',
         },
-        update: { status: "pending", error: null, exam_name: exam.exam_name },
+        update: { status: 'pending', error: null, exam_name: exam.exam_name },
       });
       await queue.add(
         {
-          kind: "bundle",
+          kind: 'bundle',
           examId: exam.id,
           examName: exam.exam_name,
           year: yr,
@@ -103,7 +99,7 @@ async function main() {
           jobId: `msb:${exam.id}:${cls}`,
           priority: 2,
           attempts: 3,
-          backoff: { type: "fixed", delay: 5000 },
+          backoff: { type: 'fixed', delay: 5000 },
           removeOnComplete: true,
           removeOnFail: 200,
         },
@@ -120,9 +116,9 @@ async function main() {
           exam_name: exam.exam_name,
           year: yr,
           school_id: schoolId,
-          status: "pending",
+          status: 'pending',
         },
-        update: { status: "pending", error: null, exam_name: exam.exam_name },
+        update: { status: 'pending', error: null, exam_name: exam.exam_name },
       });
       await queue.add(
         {
@@ -136,7 +132,7 @@ async function main() {
           jobId: `ms:${exam.id}:${studentId}`,
           priority: 2,
           attempts: 3,
-          backoff: { type: "fixed", delay: 5000 },
+          backoff: { type: 'fixed', delay: 5000 },
           removeOnComplete: true,
           removeOnFail: 200,
         },

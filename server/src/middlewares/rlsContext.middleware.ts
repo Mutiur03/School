@@ -1,10 +1,7 @@
-import type { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import { env } from "@/config/env.js";
-import {
-  patchRlsContext,
-  runWithRlsContext,
-} from "@/config/rlsContextStore.js";
+import type { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { env } from '@/config/env.js';
+import { patchRlsContext, runWithRlsContext } from '@/config/rlsContextStore.js';
 
 type TokenPayload = {
   role?: string;
@@ -12,9 +9,7 @@ type TokenPayload = {
 
 const getTokenRole = (req: Request): string | undefined => {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : undefined;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined;
 
   if (!token) return undefined;
 
@@ -26,17 +21,13 @@ const getTokenRole = (req: Request): string | undefined => {
   }
 };
 
-export const initRlsContextMiddleware = (
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-) => {
+export const initRlsContextMiddleware = (req: Request, _res: Response, next: NextFunction) => {
   const role = getTokenRole(req);
 
   runWithRlsContext(
     {
       schoolId: req.schoolId,
-      isSuperAdmin: role === "super_admin",
+      isSuperAdmin: role === 'super_admin',
       inRlsTransaction: false,
     },
     () => next(),
@@ -50,7 +41,7 @@ export const syncRlsSchoolContextMiddleware = (
 ) => {
   patchRlsContext({
     schoolId: req.schoolId,
-    isSuperAdmin: req.user?.role === "super_admin" || undefined,
+    isSuperAdmin: req.user?.role === 'super_admin' || undefined,
   });
   next();
 };

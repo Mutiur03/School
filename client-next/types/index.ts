@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 export type Syllabus = {
   id: number;
@@ -164,31 +164,31 @@ export type SchoolProviderProps = {
 };
 
 export type Teacher = {
-  id: number
-  name: string
-  designation?: string
-  email?: string
-  phone?: string
-  address?: string
-  subject?: string
-  image?: string
-  available?: boolean
-}
+  id: number;
+  name: string;
+  designation?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  subject?: string;
+  image?: string;
+  available?: boolean;
+};
 
 export type Staff = {
-  id: number
-  name: string
-  designation?: string | null
-  email?: string | null
-  phone?: string
-  address?: string | null
-  image?: string | null
-}
+  id: number;
+  name: string;
+  designation?: string | null;
+  email?: string | null;
+  phone?: string;
+  address?: string | null;
+  image?: string | null;
+};
 export interface AdmissionData {
-  preview_url: string
-  download_url: string
-  admission_open: boolean
-  admission_year?: number
+  preview_url: string;
+  download_url: string;
+  admission_open: boolean;
+  admission_year?: number;
   class_list?: string | null;
   user_id_class6?: string | null;
   user_id_class7?: string | null;

@@ -1,6 +1,6 @@
-import { prisma } from "../config/prisma.js";
-import { SubjectService } from "../modules/result/subject/subject.service.js";
-import { MarksService } from "../modules/marks/marks.service.js";
+import { prisma } from '../config/prisma.js';
+import { SubjectService } from '../modules/result/subject/subject.service.js';
+import { MarksService } from '../modules/marks/marks.service.js';
 
 export const passStatusController = async (req, res) => {
   try {
@@ -10,7 +10,7 @@ export const passStatusController = async (req, res) => {
     if (!year || isNaN(parseInt(year))) {
       return res.status(400).json({
         success: false,
-        error: "Invalid year parameter",
+        error: 'Invalid year parameter',
       });
     }
 
@@ -21,9 +21,9 @@ export const passStatusController = async (req, res) => {
         marks: {
           include: {
             subject: {
-              include: { parent: true }
-            }
-          }
+              include: { parent: true },
+            },
+          },
         },
       },
     });
@@ -32,13 +32,13 @@ export const passStatusController = async (req, res) => {
     if (!students || students.length === 0) {
       return res.json({
         success: true,
-        message: "No students found for the specified year",
+        message: 'No students found for the specified year',
       });
     }
 
     // Pre-calculate bonus status for all classes in this year to avoid redundant DB calls
     const classBonusStatus = {};
-    const classes = [...new Set(students.map(s => s.class))];
+    const classes = [...new Set(students.map((s) => s.class))];
     for (const c of classes) {
       classBonusStatus[c] = await MarksService.shouldApplyFourthSubjectBonus(c, parseInt(year));
     }
@@ -53,30 +53,30 @@ export const passStatusController = async (req, res) => {
 
       // Ensure marks have subjects included (we already included them in findMany below)
       const processedMarks = MarksService.aggregatePaperMarks(student.marks);
-      const {  isFailed } = MarksService.calculateGPA(
+      const { isFailed } = MarksService.calculateGPA(
         processedMarks,
         student.fourth_subject_id || null,
         classBonusStatus[studentClass],
-        studentClass
+        studentClass,
       );
 
       await prisma.student_enrollments.update({
         where: { id: enrollmentId },
-        data: { 
-          status: isFailed ? "Failed" : "Passed",
+        data: {
+          status: isFailed ? 'Failed' : 'Passed',
           // Optionally update GPA/Total marks in the enrollment for easier merit list viewing
-          // gpa, 
-          // total_marks: totalMarks 
+          // gpa,
+          // total_marks: totalMarks
         },
       });
     }
 
-    res.json({ success: true, message: "Pass/Fail status updated!" });
+    res.json({ success: true, message: 'Pass/Fail status updated!' });
   } catch (error) {
-    console.error("Error in passStatusController:", error);
+    console.error('Error in passStatusController:', error);
     res.status(500).json({
       success: false,
-      error: "Internal server error",
+      error: 'Internal server error',
       message: error.message,
     });
   }
@@ -98,12 +98,12 @@ export const promoteStudentController = async (req, res) => {
         marks: {
           include: {
             subject: {
-              include: { parent: true }
+              include: { parent: true },
             },
           },
         },
       },
-      orderBy: [{ class: "asc" }, { group: "asc" }],
+      orderBy: [{ class: 'asc' }, { group: 'asc' }],
     });
 
     // Check if subjects exist for the new year, if not clone them
@@ -113,10 +113,7 @@ export const promoteStudentController = async (req, res) => {
 
     let subjectMapping = {};
     if (subjectsExistInNewYear === 0) {
-      const cloningResult = await SubjectService.cloneSubjects(
-        parseInt(year),
-        newYear,
-      );
+      const cloningResult = await SubjectService.cloneSubjects(parseInt(year), newYear);
       if (cloningResult.success) {
         subjectMapping = cloningResult.mapping;
       }
@@ -127,12 +124,13 @@ export const promoteStudentController = async (req, res) => {
       // Let's at least try to map by name/class/group if mapping is empty.
       const currentSubjects = await prisma.subjects.findMany({ where: { year: parseInt(year) } });
       const nextSubjects = await prisma.subjects.findMany({ where: { year: newYear } });
-      
-      currentSubjects.forEach(oldSub => {
-        const matchingNewSub = nextSubjects.find(newSub => 
-          newSub.name === oldSub.name && 
-          newSub.class === oldSub.class && 
-          newSub.group === oldSub.group
+
+      currentSubjects.forEach((oldSub) => {
+        const matchingNewSub = nextSubjects.find(
+          (newSub) =>
+            newSub.name === oldSub.name &&
+            newSub.class === oldSub.class &&
+            newSub.group === oldSub.group,
         );
         if (matchingNewSub) {
           subjectMapping[oldSub.id] = matchingNewSub.id;
@@ -144,14 +142,12 @@ export const promoteStudentController = async (req, res) => {
     const classBonusStatus = {};
 
     // First pass: identify which classes should have the bonus
-    const classYears = new Set(
-      students.map((s) => `${s.class}-${s.year}`)
-    );
+    const classYears = new Set(students.map((s) => `${s.class}-${s.year}`));
     for (const cy of classYears) {
-      const [c, y] = cy.split("-");
+      const [c, y] = cy.split('-');
       classBonusStatus[cy] = await MarksService.shouldApplyFourthSubjectBonus(
         parseInt(c),
-        parseInt(y)
+        parseInt(y),
       );
     }
 
@@ -166,7 +162,7 @@ export const promoteStudentController = async (req, res) => {
         processedMarks,
         student.fourth_subject_id || null,
         applyBonus,
-        student.class
+        student.class,
       );
 
       return {
@@ -192,8 +188,8 @@ export const promoteStudentController = async (req, res) => {
       const group = groupedStudents[key];
 
       // Separate passed and failed students
-      const passedStudents = group.filter((s) => s.status === "Passed");
-      const failedStudents = group.filter((s) => s.status === "Failed");
+      const passedStudents = group.filter((s) => s.status === 'Passed');
+      const failedStudents = group.filter((s) => s.status === 'Failed');
 
       // Sort passed students: by sort_value (desc), then by section (A first), then by roll (asc)
       passedStudents.sort((a, b) => {
@@ -205,7 +201,7 @@ export const promoteStudentController = async (req, res) => {
           return b.total_marks - a.total_marks;
         }
         if (a.section !== b.section) {
-          return a.section === "A" ? -1 : 1; // A section gets priority
+          return a.section === 'A' ? -1 : 1; // A section gets priority
         }
         return a.roll - b.roll;
       });
@@ -220,7 +216,7 @@ export const promoteStudentController = async (req, res) => {
           return b.total_marks - a.total_marks;
         }
         if (a.section !== b.section) {
-          return a.section === "A" ? -1 : 1; // A section gets priority
+          return a.section === 'A' ? -1 : 1; // A section gets priority
         }
         return a.roll - b.roll;
       });
@@ -239,7 +235,8 @@ export const promoteStudentController = async (req, res) => {
 
     // Update merit in database for non-class-8 students
     for (const student of studentsWithMerit) {
-      if (student.class !== 127) { // Always update merit since GPA is gone
+      if (student.class !== 127) {
+        // Always update merit since GPA is gone
         await prisma.student_enrollments.update({
           where: { id: student.id },
           data: { final_merit: student.final_merit },
@@ -256,13 +253,13 @@ export const promoteStudentController = async (req, res) => {
 
     // Process all classes and assign rolls based on merit
     Object.keys(groupedStudents).forEach((key) => {
-      const [currentClass, groupName] = key.split("-");
+      const [currentClass, groupName] = key.split('-');
       const classNum = parseInt(currentClass);
       const group = groupedStudents[key];
 
       // Determine new class for each student
       group.forEach((student) => {
-        if (student.status === "Passed") {
+        if (student.status === 'Passed') {
           student.new_class = classNum === 8 ? 9 : classNum + 1;
         } else {
           student.new_class = classNum; // Failed students repeat
@@ -296,7 +293,7 @@ export const promoteStudentController = async (req, res) => {
 
         newClassGroup.forEach((student) => {
           const isOddMerit = student.final_merit % 2 === 1;
-          const newSection = isOddMerit ? "A" : "B";
+          const newSection = isOddMerit ? 'A' : 'B';
           const rollNumber = rollCounters[newClassKey][newSection]++;
 
           student.new_section = newSection;
@@ -307,14 +304,7 @@ export const promoteStudentController = async (req, res) => {
 
     // Update database with new roll assignments and create new enrollments
     for (const student of studentsWithMerit) {
-      const {
-        id: enrollment_id,
-        student_id,
-        group,
-        new_class,
-        new_section,
-        new_roll,
-      } = student;
+      const { id: enrollment_id, student_id, group, new_class, new_section, new_roll } = student;
 
       // Ensure we have valid values before database operations
       if (!new_class || !new_section || !new_roll) {
@@ -335,7 +325,7 @@ export const promoteStudentController = async (req, res) => {
           },
         });
       } catch (error) {
-        console.error("Error assigning roll number:", error);
+        console.error('Error assigning roll number:', error);
       }
 
       const oldFourthSubjectId = student.fourth_subject_id;
@@ -348,7 +338,7 @@ export const promoteStudentController = async (req, res) => {
           roll: new_roll,
           section: new_section,
           year: newYear,
-          status: "Pending",
+          status: 'Pending',
           group,
           fourth_subject_id: newFourthSubjectId,
         },
@@ -356,11 +346,10 @@ export const promoteStudentController = async (req, res) => {
     }
 
     res.json({
-      message:
-        "Promotion, Merit Update & Roll Assignment Completed by Group!",
+      message: 'Promotion, Merit Update & Roll Assignment Completed by Group!',
     });
   } catch (error) {
-    console.error("Error promoting students:", error);
+    console.error('Error promoting students:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -375,11 +364,9 @@ export const updateStatus = async (req, res) => {
     });
 
     if (result) {
-      res.json({ success: true, message: "Status updated successfully!" });
+      res.json({ success: true, message: 'Status updated successfully!' });
     } else {
-      res
-        .status(404)
-        .json({ success: false, message: "Enrollment not found!" });
+      res.status(404).json({ success: false, message: 'Enrollment not found!' });
     }
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

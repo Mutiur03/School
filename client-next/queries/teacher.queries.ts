@@ -1,17 +1,17 @@
-import { cache } from "react";
-import { api } from "@/lib/backend";
-import { Head, Teacher } from "@/types";
+import { cache } from 'react';
+import { api } from '@/lib/backend';
+import { Head, Teacher } from '@/types';
 
 export const fetchHeadMasterMsg = cache(async (): Promise<Head | null> => {
   return api
-    .get<Head>("/api/teachers/head-message")
+    .get<Head>('/api/teachers/head-message')
     .then((res) => res.data || null)
     .catch(() => null);
 });
 
 export const fetchTeachers = cache(async (): Promise<Teacher[]> => {
   return api
-    .get<Teacher[]>("/api/teachers")
+    .get<Teacher[]>('/api/teachers')
     .then((res) => res?.data || [])
     .catch(() => []);
 });

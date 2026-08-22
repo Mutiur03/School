@@ -1,0 +1,15 @@
+node_modules
+dist
+.next
+.turbo
+.open-next
+.wrangler
+coverage
+uploads
+generated
+*.tsbuildinfo
+pnpm-lock.yaml
+*.min.js
+*.min.css
+graphify-out
+codex-ci

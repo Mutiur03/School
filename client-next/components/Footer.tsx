@@ -1,8 +1,7 @@
-import * as React from "react";
-import { ChevronUp } from "lucide-react";
-import "./Footer.css";
-import { fetchSchoolConfig } from "@/queries/school.queries";
-
+import * as React from 'react';
+import { ChevronUp } from 'lucide-react';
+import './Footer.css';
+import { fetchSchoolConfig } from '@/queries/school.queries';
 
 export type FooterProps = {
   year?: number;
@@ -12,7 +11,7 @@ export async function Footer({ year = new Date().getFullYear() }: FooterProps) {
   const school = await fetchSchoolConfig();
 
   return (
-    <footer id="colophon" className="site-footer footer ">
+    <footer id="colophon" className="site-footer footer">
       <div className="footer-site-info site-info text-center">
         <div className="">
           <div className="copy-right">
@@ -24,7 +23,7 @@ export async function Footer({ year = new Date().getFullYear() }: FooterProps) {
           </div>
         </div>
       </div>
-      <a href="#" id="scroll-top" style={{ display: "none" }} aria-label="Scroll to top">
+      <a href="#" id="scroll-top" style={{ display: 'none' }} aria-label="Scroll to top">
         <ChevronUp size={18} aria-hidden="true" />
       </a>
     </footer>

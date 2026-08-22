@@ -1,120 +1,120 @@
-import express from "express";
-import AuthMiddleware from "@/middlewares/auth.middleware.js";
-import { StudentController } from "@/modules/student/student.controller.js";
+import express from 'express';
+import AuthMiddleware from '@/middlewares/auth.middleware.js';
+import { StudentController } from '@/modules/student/student.controller.js';
 
 const router = express.Router();
 
 router.get(
-  "/",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   StudentController.getStudentsQueryController,
 );
 
 router.get(
-  "/attendance-overview",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/attendance-overview',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   StudentController.getAttendanceOverviewController,
 );
 
 router.get(
-  "/me",
-  AuthMiddleware.authenticate(["student"]),
+  '/me',
+  AuthMiddleware.authenticate(['student']),
   StudentController.getMyProfileController,
 );
 
 router.get(
-  "/me/attendance",
-  AuthMiddleware.authenticate(["student"]),
+  '/me/attendance',
+  AuthMiddleware.authenticate(['student']),
   StudentController.getMyAttendanceController,
 );
 
 router.get(
-  "/:id/attendance",
-  AuthMiddleware.authenticate(["admin", "teacher"]),
+  '/:id/attendance',
+  AuthMiddleware.authenticate(['admin', 'teacher']),
   StudentController.getStudentAttendanceController,
 );
 
 router.get(
-  "/alumni",
-  AuthMiddleware.authenticate(["admin"]),
+  '/alumni',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.getAlumniController,
 );
 
 router.post(
-  "/bulk",
-  AuthMiddleware.authenticate(["admin"]),
+  '/bulk',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.addStudentController,
 );
 
 router.post(
-  "/:id/image/upload-url",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id/image/upload-url',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.getStudentImageUploadUrlParamsController,
 );
 
 router.put(
-  "/:id/image",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id/image',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.saveStudentImageController,
 );
 
 router.put(
-  "/:id",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.updateStudentController,
 );
 
 router.delete(
-  "/:id",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.deleteStudentController,
 );
 
 router.delete(
-  "/",
-  AuthMiddleware.authenticate(["admin"]),
+  '/',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.deleteStudentsBulkController,
 );
 
 router.post(
-  "/password-rotations",
-  AuthMiddleware.authenticate(["admin"]),
+  '/password-rotations',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.rotatePasswordsBulkController,
 );
 
 router.post(
-  "/me/password",
-  AuthMiddleware.authenticate(["student"]),
+  '/me/password',
+  AuthMiddleware.authenticate(['student']),
   StudentController.changePasswordController,
 );
 
 router.post(
-  "/:id/testimonials",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id/testimonials',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.generateTestimonialsController,
 );
 
 router.post(
-  "/:id/tc",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id/tc',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.giveTransferCertificateController,
 );
 
 router.post(
-  "/:id/reactivate",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:id/reactivate',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.reactivateStudentController,
 );
 
 const studentRouter = express.Router();
-studentRouter.use("/api/students", router);
+studentRouter.use('/api/students', router);
 
 const enrollmentRouter = express.Router();
 enrollmentRouter.patch(
-  "/:enrollment_id",
-  AuthMiddleware.authenticate(["admin"]),
+  '/:enrollment_id',
+  AuthMiddleware.authenticate(['admin']),
   StudentController.updateAcademicInfoController,
 );
-studentRouter.use("/api/enrollments", enrollmentRouter);
+studentRouter.use('/api/enrollments', enrollmentRouter);
 
 export default studentRouter;

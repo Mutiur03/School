@@ -1,6 +1,6 @@
-import { prisma } from "../config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "../config/r2.js";
-import { MarksheetService } from "../modules/marks/marksheet.service.js";
+import { prisma } from '../config/prisma.js';
+import { getUploadUrl, deleteFromR2 } from '../config/r2.js';
+import { MarksheetService } from '../modules/marks/marksheet.service.js';
 
 export const addExamController = async (req, res) => {
   const { exams } = req.body;
@@ -9,7 +9,7 @@ export const addExamController = async (req, res) => {
     if (!Array.isArray(exams) || exams.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Exams must be an array with at least one element.",
+        error: 'Exams must be an array with at least one element.',
       });
     }
 
@@ -52,27 +52,19 @@ export const addExamController = async (req, res) => {
     return res.status(201).json({
       success: true,
       data: createdExams,
-      message: "Exam added successfully",
+      message: 'Exam added successfully',
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message || "Error adding exams",
+      error: error.message || 'Error adding exams',
     });
   }
 };
 
 export const updateExamController = async (req, res) => {
   const { examId } = req.params;
-  const {
-    exam_name,
-    exam_year,
-    levels,
-    start_date,
-    end_date,
-    result_date,
-    return_date,
-  } = req.body;
+  const { exam_name, exam_year, levels, start_date, end_date, result_date, return_date } = req.body;
   const parsedExamId = parseInt(examId);
 
   try {
@@ -92,7 +84,7 @@ export const updateExamController = async (req, res) => {
     if (updateResult.count === 0) {
       return res.status(404).json({
         success: false,
-        error: "Exam not found",
+        error: 'Exam not found',
       });
     }
 
@@ -105,14 +97,10 @@ export const updateExamController = async (req, res) => {
     // cache is stale.
     if (updated?.visible) {
       try {
-        await MarksheetService.enqueueForExam(
-          updated.id,
-          updated.school_id,
-          updated.exam_name,
-        );
+        await MarksheetService.enqueueForExam(updated.id, updated.school_id, updated.exam_name);
       } catch (queueErr) {
         console.error(
-          "Failed to queue marksheet regeneration after exam update:",
+          'Failed to queue marksheet regeneration after exam update:',
           queueErr instanceof Error ? queueErr.message : queueErr,
         );
       }
@@ -121,12 +109,12 @@ export const updateExamController = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: updated,
-      message: "Exam updated successfully",
+      message: 'Exam updated successfully',
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message || "Error updating exam",
+      error: error.message || 'Error updating exam',
     });
   }
 };
@@ -136,10 +124,10 @@ export const getExamsController = async (_req, res) => {
     const exams = await prisma.exams.findMany();
     return res.status(200).json({ success: true, data: exams });
   } catch (error) {
-    console.error("Error fetching exams:", error.message);
+    console.error('Error fetching exams:', error.message);
     return res.status(500).json({
       success: false,
-      error: "Error fetching exams",
+      error: 'Error fetching exams',
     });
   }
 };
@@ -158,7 +146,7 @@ export const updateExamVisibilityController = async (req, res) => {
     if (updateResult.count === 0) {
       return res.status(404).json({
         success: false,
-        error: "Exam not found",
+        error: 'Exam not found',
       });
     }
 
@@ -184,7 +172,7 @@ export const updateExamVisibilityController = async (req, res) => {
         );
       } catch (queueErr) {
         console.error(
-          "Failed to queue marksheet pregeneration:",
+          'Failed to queue marksheet pregeneration:',
           queueErr instanceof Error ? queueErr.message : queueErr,
         );
       }
@@ -197,10 +185,10 @@ export const updateExamVisibilityController = async (req, res) => {
       message: `Exam visibility updated to ${visible}`,
     });
   } catch (error) {
-    console.error("Error updating exam visibility:", error.message);
+    console.error('Error updating exam visibility:', error.message);
     return res.status(500).json({
       success: false,
-      error: "Error updating exam visibility",
+      error: 'Error updating exam visibility',
     });
   }
 };
@@ -217,7 +205,7 @@ export const deleteExamController = async (req, res) => {
     if (!existingExam) {
       return res.status(404).json({
         success: false,
-        error: "Exam not found",
+        error: 'Exam not found',
       });
     }
 
@@ -228,13 +216,13 @@ export const deleteExamController = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: existingExam,
-      message: "Exam deleted successfully",
+      message: 'Exam deleted successfully',
     });
   } catch (error) {
-    console.error("Error deleting exam:", error.message);
+    console.error('Error deleting exam:', error.message);
     return res.status(500).json({
       success: false,
-      error: "Error deleting exam",
+      error: 'Error deleting exam',
     });
   }
 };
@@ -251,7 +239,7 @@ export const addExamRoutineController = async (req, res) => {
     if (!exam) {
       return res.status(404).json({
         success: false,
-        error: "Exam not found",
+        error: 'Exam not found',
       });
     }
 
@@ -269,7 +257,7 @@ export const addExamRoutineController = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message || "Error adding exam routine",
+      error: error.message || 'Error adding exam routine',
     });
   }
 };
@@ -277,9 +265,7 @@ export const addExamRoutineController = async (req, res) => {
 export const getExamRoutinesController = async (req, res) => {
   const { exam_id, class: classNum } = req.query;
 
-  console.log(
-    `Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`,
-  );
+  console.log(`Fetching exam routines for exam_id: ${exam_id}, class: ${classNum}`);
 
   try {
     const where = {};
@@ -288,15 +274,15 @@ export const getExamRoutinesController = async (req, res) => {
 
     const routines = await prisma.exam_routines.findMany({
       where,
-      orderBy: [{ date: "asc" }],
+      orderBy: [{ date: 'asc' }],
     });
 
     return res.status(200).json({ success: true, data: routines });
   } catch (error) {
-    console.error("Error fetching exam routines:", error.message);
+    console.error('Error fetching exam routines:', error.message);
     return res.status(500).json({
       success: false,
-      error: "Error fetching exam routines",
+      error: 'Error fetching exam routines',
     });
   }
 };
@@ -315,7 +301,7 @@ export const updateExamRoutineController = async (req, res) => {
     if (updateResult.count === 0) {
       return res.status(404).json({
         success: false,
-        error: "Exam routine not found",
+        error: 'Exam routine not found',
       });
     }
 
@@ -325,10 +311,10 @@ export const updateExamRoutineController = async (req, res) => {
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    console.error("Error updating exam routine:", error.message);
+    console.error('Error updating exam routine:', error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Error updating exam routine",
+      error: error.message || 'Error updating exam routine',
     });
   }
 };
@@ -345,7 +331,7 @@ export const deleteExamRoutineController = async (req, res) => {
     if (!existingRoutine) {
       return res.status(404).json({
         success: false,
-        error: "Exam routine not found",
+        error: 'Exam routine not found',
       });
     }
 
@@ -355,13 +341,13 @@ export const deleteExamRoutineController = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Routine deleted",
+      message: 'Routine deleted',
     });
   } catch (error) {
-    console.error("Error deleting exam routine:", error.message);
+    console.error('Error deleting exam routine:', error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || "Error deleting exam routine",
+      error: error.message || 'Error deleting exam routine',
     });
   }
 };
@@ -373,14 +359,14 @@ export const getExamRoutinePresignedUrl = async (req, res) => {
   try {
     const { filename, contentType } = req.query;
     if (!filename || !contentType) {
-      return res.status(400).json({ error: "filename and contentType are required" });
+      return res.status(400).json({ error: 'filename and contentType are required' });
     }
     const key = `exam_routines/${Date.now()}-${filename}`;
     const uploadUrl = await getUploadUrl(key, contentType);
     return res.status(200).json({ uploadUrl, key });
   } catch (error) {
-    console.error("Error generating presigned URL:", error);
-    return res.status(500).json({ error: "Error generating presigned URL" });
+    console.error('Error generating presigned URL:', error);
+    return res.status(500).json({ error: 'Error generating presigned URL' });
   }
 };
 
@@ -395,7 +381,7 @@ export const uploadExamRoutinePDFController = async (req, res) => {
 
   try {
     if (!key) {
-      return res.status(400).json({ error: "key is required" });
+      return res.status(400).json({ error: 'key is required' });
     }
 
     const updateResult = await prisma.exams.updateMany({
@@ -408,7 +394,7 @@ export const uploadExamRoutinePDFController = async (req, res) => {
     });
 
     if (updateResult.count === 0) {
-      return res.status(404).json({ error: "Exam not found" });
+      return res.status(404).json({ error: 'Exam not found' });
     }
 
     const updatedExam = await prisma.exams.findFirst({
@@ -418,10 +404,10 @@ export const uploadExamRoutinePDFController = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: updatedExam,
-      message: "PDF routine saved successfully",
+      message: 'PDF routine saved successfully',
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message || "Failed to save PDF routine" });
+    return res.status(500).json({ error: error.message || 'Failed to save PDF routine' });
   }
 };
 
@@ -435,11 +421,11 @@ export const removeExamRoutinePDFController = async (req, res) => {
     });
 
     if (!exam) {
-      return res.status(404).json({ error: "Exam not found" });
+      return res.status(404).json({ error: 'Exam not found' });
     }
 
     if (!exam.routine) {
-      return res.status(400).json({ error: "No routine PDF to remove" });
+      return res.status(400).json({ error: 'No routine PDF to remove' });
     }
 
     await deleteFromR2(exam.public_id);
@@ -450,7 +436,7 @@ export const removeExamRoutinePDFController = async (req, res) => {
     });
 
     if (updateResult.count === 0) {
-      return res.status(404).json({ error: "Exam not found" });
+      return res.status(404).json({ error: 'Exam not found' });
     }
 
     const updatedExam = await prisma.exams.findFirst({
@@ -460,9 +446,9 @@ export const removeExamRoutinePDFController = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: updatedExam,
-      message: "PDF routine removed successfully",
+      message: 'PDF routine removed successfully',
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message || "Failed to remove PDF routine" });
+    return res.status(500).json({ error: error.message || 'Failed to remove PDF routine' });
   }
 };

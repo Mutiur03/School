@@ -1,4 +1,4 @@
-import { RightSidebar } from "@/components/RightSidebar";
+import { RightSidebar } from '@/components/RightSidebar';
 
 export default async function Layout({
   children,

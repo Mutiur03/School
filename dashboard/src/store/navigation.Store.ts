@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 interface NavigationState {
   isDirty: boolean;
@@ -12,7 +12,7 @@ const useNavigationStore = create<NavigationState>()(
     isDirty: false,
     setDirty: (isDirty) => set({ isDirty }),
     resetDirty: () => set({ isDirty: false }),
-  }))
+  })),
 );
 
 export default useNavigationStore;

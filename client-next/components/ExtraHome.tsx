@@ -1,42 +1,36 @@
-import "./ExtraHome.css";
-import Link from "@/components/Link";
+import './ExtraHome.css';
+import Link from '@/components/Link';
 
-import placeholderImage from "../assets/images/placeholder.svg";
-import Image from "next/image";
-import { fetchSchoolConfig } from "@/queries/school.queries";
+import placeholderImage from '../assets/images/placeholder.svg';
+import Image from 'next/image';
+import { fetchSchoolConfig } from '@/queries/school.queries';
 
 export type ExtraHomeProps = {
   galleryPath?: string;
 };
 
-export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
+export async function ExtraHome({ galleryPath = '/gallery' }: ExtraHomeProps) {
   const school = await fetchSchoolConfig();
   const embedUrl = school?.map?.embedUrl as string | undefined;
 
   return (
     <>
       <div className="front-gallerys-area">
-        <div
-          id="bwp_gallery-3"
-          className="front-page-gallery-widget widget bwp_gallery"
-        >
+        <div id="bwp_gallery-3" className="front-page-gallery-widget widget bwp_gallery">
           <div className="section-heading">
             <h2 className="text-3xl">Photo Gallery</h2>
           </div>
 
           <div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 ">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="overflow-hidden rounded-sm bg-gray-100 w-40 h-40"
-                >
+                <div key={i} className="h-40 w-40 overflow-hidden rounded-sm bg-gray-100">
                   <Image
                     src={placeholderImage}
                     alt=""
                     width={160}
                     height={160}
-                    className="w-full h-full object-cover block"
+                    className="block h-full w-full object-cover"
                   />
                 </div>
               ))}
@@ -47,7 +41,7 @@ export async function ExtraHome({ galleryPath = "/gallery" }: ExtraHomeProps) {
             <Link
               href={galleryPath}
               aria-label="View all photos"
-              className="inline-flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-[box-shadow,transform] duration-300 ease-in-out text-black bg-gray-300 py-1.5 px-2.5 mt-4 rounded-md no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-gray-300 px-2.5 py-1.5 font-semibold text-black no-underline shadow-md transition-[box-shadow,transform] duration-300 ease-in-out hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
             >
               View All
             </Link>

@@ -1,35 +1,35 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useAuth } from "@/context/useAuth";
-import { toast } from "react-hot-toast";
-import axios from "axios";
-import Loading from "@/components/Loading";
-import { PageHeader, SectionCard } from "@/components";
-import { 
-  Search, 
-  Download, 
-  Info, 
-  Calendar, 
-  GraduationCap, 
-  Users, 
-  Layers, 
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useAuth } from '@/context/useAuth';
+import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import Loading from '@/components/Loading';
+import { PageHeader, SectionCard } from '@/components';
+import {
+  Search,
+  Download,
+  Info,
+  Calendar,
+  GraduationCap,
+  Users,
+  Layers,
   FileSpreadsheet,
   FileText,
-  X
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { useExams } from "@/queries/exam.queries";
+  X,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { useExams } from '@/queries/exam.queries';
 import {
   useClassMarks,
   useMarksheetGenerationStatus,
   isMarksheetGenComplete,
   hasStaleBundles,
   type StudentMarkResponse,
-} from "@/queries/marks.queries";
-import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
-import { BundleStalePreview } from "@/components/BundleStalePreview";
-import { downloadBlob, openBlobInNewTab } from "@school/common-ui/blob";
+} from '@/queries/marks.queries';
+import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
+import { BundleStalePreview } from '@/components/BundleStalePreview';
+import { downloadBlob, openBlobInNewTab } from '@school/common-ui/blob';
 
 interface TeacherLevel {
   id: number;
@@ -51,7 +51,7 @@ interface ViewMarksFilters {
   group: string;
 }
 
-const VIEW_MARKS_STORAGE_KEY = "viewMarks.filters";
+const VIEW_MARKS_STORAGE_KEY = 'viewMarks.filters';
 
 const loadViewMarksFilters = (): ViewMarksFilters | null => {
   try {
@@ -60,10 +60,10 @@ const loadViewMarksFilters = (): ViewMarksFilters | null => {
     const parsed = JSON.parse(raw) as Partial<ViewMarksFilters>;
     return {
       year: parsed.year ?? String(new Date().getFullYear()),
-      exam: parsed.exam ?? "",
-      className: parsed.className ?? "",
-      section: parsed.section ?? "",
-      group: parsed.group ?? "",
+      exam: parsed.exam ?? '',
+      className: parsed.className ?? '',
+      section: parsed.section ?? '',
+      group: parsed.group ?? '',
     };
   } catch {
     return null;
@@ -80,10 +80,10 @@ const getInitialViewMarksFilters = (): ViewMarksFilters => {
   if (!cachedInitialFilters) {
     cachedInitialFilters = loadViewMarksFilters() ?? {
       year: new Date().getFullYear().toString(),
-      exam: "",
-      className: "",
-      section: "",
-      group: "",
+      exam: '',
+      className: '',
+      section: '',
+      group: '',
     };
   }
   return cachedInitialFilters;
@@ -91,21 +91,21 @@ const getInitialViewMarksFilters = (): ViewMarksFilters => {
 
 const ViewMarks = () => {
   const { user } = useAuth();
-  const [className, setClassName] = useState(
-    () => getInitialViewMarksFilters().className,
-  );
+  const [className, setClassName] = useState(() => getInitialViewMarksFilters().className);
   const [year, setYear] = useState(() => getInitialViewMarksFilters().year);
   const [exam, setExam] = useState(() => getInitialViewMarksFilters().exam);
-  const [section, setSection] = useState(
-    () => getInitialViewMarksFilters().section,
-  );
+  const [section, setSection] = useState(() => getInitialViewMarksFilters().section);
   const [group, setGroup] = useState(() => getInitialViewMarksFilters().group);
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentMarkResponse | null>(null);
 
   // Queries
   const { data: exams = [], isLoading: examsLoading } = useExams();
-  const { data: marksData = [], isLoading: marksLoading } = useClassMarks(className, Number(year), exam);
+  const { data: marksData = [], isLoading: marksLoading } = useClassMarks(
+    className,
+    Number(year),
+    exam,
+  );
 
   // Derived data from exams
   const { examList, classList } = useMemo(() => {
@@ -115,15 +115,13 @@ const ViewMarks = () => {
       classList: currentYearExams.reduce((acc: Record<string, number[]>, e) => {
         acc[e.exam_name] = e.levels || [];
         return acc;
-      }, {})
+      }, {}),
     };
   }, [exams, year]);
 
   const selectedExamId = useMemo(() => {
     if (!exam || !year) return undefined;
-    return exams.find(
-      (e) => e.exam_name === exam && e.exam_year === Number(year),
-    )?.id;
+    return exams.find((e) => e.exam_name === exam && e.exam_year === Number(year))?.id;
   }, [exams, exam, year]);
 
   const { data: genStatus } = useMarksheetGenerationStatus(selectedExamId);
@@ -133,10 +131,8 @@ const ViewMarks = () => {
     const toastId = downloadProgressToastRef.current;
     if (!toastId || !genStatus || genStatus.total === 0) return;
     if (!isMarksheetGenComplete(genStatus)) {
-      const studentBusy =
-        genStatus.pending + genStatus.generating > 0;
-      const bundleBusy =
-        genStatus.bundles.pending + genStatus.bundles.generating > 0;
+      const studentBusy = genStatus.pending + genStatus.generating > 0;
+      const bundleBusy = genStatus.bundles.pending + genStatus.bundles.generating > 0;
       const label =
         bundleBusy && !studentBusy
           ? `Generating class bundles… ${genStatus.bundles.done}/${genStatus.bundles.total}`
@@ -164,9 +160,7 @@ const ViewMarks = () => {
     });
 
     return {
-      subjects: [...subjectPriority.entries()]
-        .sort((a, b) => a[1] - b[1])
-        .map(([name]) => name),
+      subjects: [...subjectPriority.entries()].sort((a, b) => a[1] - b[1]).map(([name]) => name),
       availableSections: Array.from(sections).sort(),
       availableGroups: Array.from(groups).sort(),
     };
@@ -178,9 +172,13 @@ const ViewMarks = () => {
 
   // Handle teacher assignments
   useEffect(() => {
-    if (user?.role === "teacher" && (user as UserWithLevels).levels && ((user as UserWithLevels).levels?.length ?? 0) > 0) {
+    if (
+      user?.role === 'teacher' &&
+      (user as UserWithLevels).levels &&
+      ((user as UserWithLevels).levels?.length ?? 0) > 0
+    ) {
       const assignmentsInYear = (user as UserWithLevels).levels?.filter(
-        (l: TeacherLevel) => l.year === Number(year)
+        (l: TeacherLevel) => l.year === Number(year),
       );
       if (assignmentsInYear && assignmentsInYear.length === 1 && !className) {
         const assignment = assignmentsInYear[0];
@@ -192,38 +190,39 @@ const ViewMarks = () => {
 
   const handleExamChange = (selectedExam: string) => {
     setExam(selectedExam);
-    setClassName("");
-    setSection("");
-    setGroup("");
+    setClassName('');
+    setSection('');
+    setGroup('');
   };
 
   const handleClassChange = (selectedClass: string) => {
     setClassName(selectedClass);
-    setSection("");
-    setGroup("");
+    setSection('');
+    setGroup('');
   };
 
   const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    const loadingToast = toast.loading("Generating transcript...");
+    const loadingToast = toast.loading('Generating transcript...');
     downloadProgressToastRef.current = loadingToast;
-    
+
     // Create new window immediately to bypass popup blockers
-    const newWindow = window.open("", "_blank");
+    const newWindow = window.open('', '_blank');
     if (newWindow) {
-      newWindow.document.write("Loading marksheet... If this takes too long, please check for errors.");
+      newWindow.document.write(
+        'Loading marksheet... If this takes too long, please check for errors.',
+      );
     }
 
     try {
-      const response = await axios.get(
-        `/api/marks/${id}/${year}/${exam}/download`,
-        { responseType: "blob" }
-      );
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const response = await axios.get(`/api/marks/${id}/${year}/${exam}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       openBlobInNewTab(blob, newWindow ?? undefined);
     } catch {
       if (newWindow) newWindow.close();
-      toast.error("Failed to download marksheet");
+      toast.error('Failed to download marksheet');
     } finally {
       downloadProgressToastRef.current = null;
       toast.dismiss(loadingToast);
@@ -232,45 +231,44 @@ const ViewMarks = () => {
 
   const downloadAllExamPDFs = async () => {
     if (!className || !year || !exam) {
-      toast.error("Please select Class, Year and Exam");
+      toast.error('Please select Class, Year and Exam');
       return;
     }
-    const loadingToast = toast.loading("Generating transcript...");
+    const loadingToast = toast.loading('Generating transcript...');
     downloadProgressToastRef.current = loadingToast;
 
-    const newWindow = window.open("", "_blank");
+    const newWindow = window.open('', '_blank');
     if (newWindow) {
-      newWindow.document.write("Loading marksheet... If this takes too long, please check for errors.");
+      newWindow.document.write(
+        'Loading marksheet... If this takes too long, please check for errors.',
+      );
     }
 
     try {
       const response = await axios.get(
         `/api/marks/class-exam/${className}/${year}/${exam}/download`,
         {
-          responseType: "blob",
+          responseType: 'blob',
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
           params: section ? { section } : undefined,
         },
       );
       const blob = response.data as Blob;
-      if (blob.type.includes("json")) {
+      if (blob.type.includes('json')) {
         const { data } = JSON.parse(await blob.text()) as {
           data?: { url?: string };
         };
         const url = data?.url;
-        if (!url) throw new Error("Missing download URL");
+        if (!url) throw new Error('Missing download URL');
         if (newWindow) newWindow.location.href = url;
-        else window.open(url, "_blank");
+        else window.open(url, '_blank');
       } else {
-        openBlobInNewTab(
-          new Blob([blob], { type: "application/pdf" }),
-          newWindow ?? undefined,
-        );
+        openBlobInNewTab(new Blob([blob], { type: 'application/pdf' }), newWindow ?? undefined);
       }
     } catch {
       if (newWindow) newWindow.close();
-      toast.error("Failed to download marksheet");
+      toast.error('Failed to download marksheet');
     } finally {
       downloadProgressToastRef.current = null;
       toast.dismiss(loadingToast);
@@ -279,33 +277,26 @@ const ViewMarks = () => {
 
   const downloadSummaryPDF = async () => {
     if (!className || !year || !exam) {
-      toast.error("Please select Class, Year and Exam");
+      toast.error('Please select Class, Year and Exam');
       return;
     }
-    const loadingToast = toast.loading("Generating summary PDF...");
+    const loadingToast = toast.loading('Generating summary PDF...');
     try {
       const response = await axios.get(
         `/api/marks/class-exam/${className}/${year}/${exam}/summary.pdf`,
         {
-          responseType: "blob",
+          responseType: 'blob',
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
           params: section ? { section } : undefined,
         },
       );
-      const disposition = response.headers["content-disposition"] as
-        | string
-        | undefined;
+      const disposition = response.headers['content-disposition'] as string | undefined;
       const match = disposition?.match(/filename="([^"]+)"/);
-      const filename =
-        match?.[1] ??
-        `${className}${section || "All"}_Summary_${exam}_${year}.pdf`;
-      downloadBlob(
-        new Blob([response.data], { type: "application/pdf" }),
-        filename,
-      );
+      const filename = match?.[1] ?? `${className}${section || 'All'}_Summary_${exam}_${year}.pdf`;
+      downloadBlob(new Blob([response.data], { type: 'application/pdf' }), filename);
     } catch {
-      toast.error("Failed to download summary PDF");
+      toast.error('Failed to download summary PDF');
     } finally {
       toast.dismiss(loadingToast);
     }
@@ -324,44 +315,43 @@ const ViewMarks = () => {
   const filteredData = marksData
     .filter((student) => {
       if (!student.marks || student.marks.length === 0) return false;
-      const hasAnyMarks = student.marks.some(
-        (m) => m.marks !== null && m.marks !== undefined
-      );
+      const hasAnyMarks = student.marks.some((m) => m.marks !== null && m.marks !== undefined);
       if (!hasAnyMarks) return false;
-      const sectionMatch = !section || (student.section || "") === section;
-      const groupMatch = !group || (student.group || "") === group;
+      const sectionMatch = !section || (student.section || '') === section;
+      const groupMatch = !group || (student.group || '') === group;
       return sectionMatch && groupMatch;
     })
     .sort((a, b) => {
-      const secCmp = (a.section || "").localeCompare(b.section || "", undefined, {
+      const secCmp = (a.section || '').localeCompare(b.section || '', undefined, {
         numeric: true,
-        sensitivity: "base",
+        sensitivity: 'base',
       });
       if (secCmp !== 0) return secCmp;
       const rollA = Number(a.roll) || 0;
       const rollB = Number(b.roll) || 0;
       if (rollA !== rollB) return rollA - rollB;
-      return (a.name || "").localeCompare(b.name || "");
+      return (a.name || '').localeCompare(b.name || '');
     });
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader 
-        title="Class Results" 
-        description={className ? `Viewing marks for Class ${className}, ${exam} (${year})` : "Analyze and manage student academic performance."}
+    <div className="space-y-6 p-4 sm:p-6">
+      <PageHeader
+        title="Class Results"
+        description={
+          className
+            ? `Viewing marks for Class ${className}, ${exam} (${year})`
+            : 'Analyze and manage student academic performance.'
+        }
       />
 
-      <SectionCard
-        title="Filter Results"
-        icon={<Search className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <SectionCard title="Filter Results" icon={<Search className="h-5 w-5" />}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Calendar className="w-3 h-3" /> Year
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Calendar className="h-3 w-3" /> Year
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
               value={year}
               onChange={(e) => setYear(e.target.value)}
             >
@@ -374,11 +364,11 @@ const ViewMarks = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <FileSpreadsheet className="w-3 h-3" /> Exam
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <FileSpreadsheet className="h-3 w-3" /> Exam
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
               value={exam}
               onChange={(e) => handleExamChange(e.target.value)}
             >
@@ -392,11 +382,11 @@ const ViewMarks = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <GraduationCap className="w-3 h-3" /> Class
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <GraduationCap className="h-3 w-3" /> Class
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
               value={className}
               onChange={(e) => handleClassChange(e.target.value)}
               disabled={!exam}
@@ -404,10 +394,10 @@ const ViewMarks = () => {
               <option value="">Select Class</option>
               {(classList[exam] || [])
                 .filter((cls) => {
-                  if (user?.role === "admin") return true;
-                  if (user?.role === "teacher" && (user as UserWithLevels).levels) {
+                  if (user?.role === 'admin') return true;
+                  if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
                     return (user as UserWithLevels).levels?.some(
-                      (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year)
+                      (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year),
                     );
                   }
                   return false;
@@ -421,11 +411,11 @@ const ViewMarks = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Users className="w-3 h-3" /> Section
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Users className="h-3 w-3" /> Section
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
               value={section}
               onChange={(e) => setSection(e.target.value)}
               disabled={!className || availableSections.length === 0}
@@ -433,13 +423,13 @@ const ViewMarks = () => {
               <option value="">All Sections</option>
               {availableSections
                 .filter((sec) => {
-                  if (user?.role === "admin") return true;
-                  if (user?.role === "teacher" && (user as UserWithLevels).levels) {
+                  if (user?.role === 'admin') return true;
+                  if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
                     return (user as UserWithLevels).levels?.some(
                       (l: TeacherLevel) =>
                         l.class_name === Number(className) &&
                         l.section === sec &&
-                        l.year === Number(year)
+                        l.year === Number(year),
                     );
                   }
                   return false;
@@ -453,11 +443,11 @@ const ViewMarks = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Layers className="w-3 h-3" /> Group
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Layers className="h-3 w-3" /> Group
             </Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
               value={group}
               onChange={(e) => setGroup(e.target.value)}
               disabled={!className || availableGroups.length === 0}
@@ -477,77 +467,83 @@ const ViewMarks = () => {
         <MarksheetGenProgress status={genStatus} />
       )}
 
-      <SectionCard 
-        noPadding 
+      <SectionCard
+        noPadding
         title="Student Marks"
-        icon={<FileSpreadsheet className="w-5 h-5 text-primary" />}
+        icon={<FileSpreadsheet className="text-primary h-5 w-5" />}
         description={`Showing ${filteredData.length} records`}
         headerAction={
-          className && exam && filteredData.length > 0 && (
-            <div className="flex flex-col items-end gap-2 max-w-md">
-              {genStatus &&
-                hasStaleBundles(genStatus) &&
-                isMarksheetGenComplete(genStatus) && (
+          className &&
+          exam &&
+          filteredData.length > 0 && (
+            <div className="flex max-w-md flex-col items-end gap-2">
+              {genStatus && hasStaleBundles(genStatus) && isMarksheetGenComplete(genStatus) && (
                 <BundleStalePreview
                   items={genStatus.bundles.staleItems}
                   classNum={className}
                   sectionFilter={section || undefined}
                   variant="block"
-                  className="text-left w-full"
+                  className="w-full text-left"
                 />
               )}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   size="sm"
                   onClick={downloadAllExamPDFs}
-                  className="bg-primary text-white hover:bg-primary/90 gap-2 h-9 px-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] shrink-0"
+                  className="bg-primary hover:bg-primary/90 h-9 shrink-0 gap-2 px-4 text-white transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                 >
-                  <Download className="w-4 h-4" />
-                  {section
-                    ? `Download Section ${section} PDFs`
-                    : "Download All Exam PDFs"}
+                  <Download className="h-4 w-4" />
+                  {section ? `Download Section ${section} PDFs` : 'Download All Exam PDFs'}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={downloadSummaryPDF}
-                  className="gap-2 h-9 px-4 shrink-0"
+                  className="h-9 shrink-0 gap-2 px-4"
                 >
-                  <FileText className="w-4 h-4" />
-                  {section
-                    ? `Download Section ${section} Summary`
-                    : "Download Summary PDF"}
+                  <FileText className="h-4 w-4" />
+                  {section ? `Download Section ${section} Summary` : 'Download Summary PDF'}
                 </Button>
               </div>
             </div>
           )
         }
       >
-        <div className="overflow-x-auto min-h-100">
-          <table className="w-full text-sm text-left border-collapse">
+        <div className="min-h-100 overflow-x-auto">
+          <table className="w-full border-collapse text-left text-sm">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-muted/50 border-b border-border shadow-sm">
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Section</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-20 text-center">Roll</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic min-w-50">Student Name</th>
+              <tr className="bg-muted/50 border-border border-b shadow-sm">
+                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Section
+                </th>
+                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Roll
+                </th>
+                <th className="min-w-50 px-6 py-4 font-bold text-gray-900 italic dark:text-gray-100">
+                  Student Name
+                </th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className="px-4 py-4 text-center font-semibold text-gray-900 dark:text-gray-100 italic min-w-25"
+                    className="min-w-25 px-4 py-4 text-center font-semibold text-gray-900 italic dark:text-gray-100"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="px-6 py-4 text-center font-bold text-gray-900 dark:text-gray-100 italic">Actions</th>
+                <th className="px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {marksLoading ? (
                 <tr>
                   <td colSpan={subjects.length + 4} className="py-20">
                     <div className="flex flex-col items-center justify-center gap-4">
                       <Loading />
-                      <p className="text-muted-foreground animate-pulse font-medium">Loading results...</p>
+                      <p className="text-muted-foreground animate-pulse font-medium">
+                        Loading results...
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -555,14 +551,16 @@ const ViewMarks = () => {
                 <tr>
                   <td
                     colSpan={subjects.length + 4}
-                    className="py-20 text-center text-muted-foreground"
+                    className="text-muted-foreground py-20 text-center"
                   >
                     <div className="flex flex-col items-center gap-2 opacity-50">
-                      <Search className="w-10 h-10 mb-2" />
+                      <Search className="mb-2 h-10 w-10" />
                       <p className="text-lg font-medium">
                         {className && exam
-                          ? examsLoading ? "Refreshing exams..." : "No marks found matching these filters."
-                          : "Please select Class and Exam to view results."}
+                          ? examsLoading
+                            ? 'Refreshing exams...'
+                            : 'No marks found matching these filters.'
+                          : 'Please select Class and Exam to view results.'}
                       </p>
                     </div>
                   </td>
@@ -575,45 +573,47 @@ const ViewMarks = () => {
                   });
 
                   return (
-                    <motion.tr 
+                    <motion.tr
                       key={data.student_id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group"
+                      className="hover:bg-muted/30 group transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                     >
-                      <td className="px-6 py-4 text-center font-medium uppercase border-r border-border/50">
-                        {data.section || "—"}
+                      <td className="border-border/50 border-r px-6 py-4 text-center font-medium uppercase">
+                        {data.section || '—'}
                       </td>
-                      <td className="px-6 py-4 text-center font-medium tabular-nums border-r border-border/50">{data.roll}</td>
-                      <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors uppercase border-r border-border/50">
+                      <td className="border-border/50 border-r px-6 py-4 text-center font-medium tabular-nums">
+                        {data.roll}
+                      </td>
+                      <td className="group-hover:text-primary border-border/50 border-r px-6 py-4 font-bold text-gray-800 uppercase transition-colors dark:text-gray-200">
                         {data.name}
                       </td>
                       {subjects.map((subject) => (
                         <td
                           key={`${data.student_id}-${subject}`}
-                          className="px-4 py-4 text-center tabular-nums font-medium"
+                          className="px-4 py-4 text-center font-medium tabular-nums"
                         >
-                          {marksMap[subject] ?? "-"}
+                          {marksMap[subject] ?? '-'}
                         </td>
                       ))}
                       <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-center">
+                        <div className="flex justify-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white border-green-500/20 shadow-none h-8 px-3 gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                            className="h-8 gap-1.5 border-green-500/20 bg-green-500/10 px-3 text-green-600 shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:bg-green-500 hover:text-white"
                             onClick={() => showStudentDetails(data)}
                           >
-                            <Info className="w-3.5 h-3.5" />
+                            <Info className="h-3.5 w-3.5" />
                             Details
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-primary/10 text-primary hover:bg-primary hover:text-white border-primary/20 shadow-none h-8 px-3 gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                            className="bg-primary/10 text-primary hover:bg-primary border-primary/20 h-8 gap-1.5 px-3 shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
                             onClick={(e) => downloadMarksheet(data.student_id, e)}
                           >
-                            <Download className="w-3.5 h-3.5" />
+                            <Download className="h-3.5 w-3.5" />
                             Exam PDF
                           </Button>
                         </div>
@@ -629,52 +629,55 @@ const ViewMarks = () => {
 
       <AnimatePresence>
         {showDetailsPopup && selectedStudent && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-100 p-4">
-            <motion.div 
+          <div className="bg-background/80 fixed inset-0 z-100 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card rounded-2xl border border-border shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+              className="bg-card border-border flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl"
             >
-              <div className="p-6 border-b flex justify-between items-center bg-muted/20">
+              <div className="bg-muted/20 flex items-center justify-between border-b p-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-primary" />
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
+                    <GraduationCap className="text-primary h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold tracking-tight">
-                      Detailed Marks
-                    </h3>
-                    <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                    <h3 className="text-xl font-bold tracking-tight">Detailed Marks</h3>
+                    <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
                       {selectedStudent.name} | Roll: {selectedStudent.roll}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={closeDetailsPopup}
-                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground"
+                  className="hover:bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-8">
+              <div className="space-y-8 overflow-y-auto p-6">
                 <div>
-                  <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary mb-4">
-                    <Info className="w-4 h-4" /> Student Snapshot
+                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+                    <Info className="h-4 w-4" /> Student Snapshot
                   </h4>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
                     {[
-                      { label: "Class", value: selectedStudent.class, icon: GraduationCap },
-                      { label: "Roll", value: selectedStudent.roll, icon: Users },
-                      { label: "Section", value: selectedStudent.section || "N/A", icon: Layers },
-                      { label: "Group", value: selectedStudent.group || "N/A", icon: Info },
+                      { label: 'Class', value: selectedStudent.class, icon: GraduationCap },
+                      { label: 'Roll', value: selectedStudent.roll, icon: Users },
+                      { label: 'Section', value: selectedStudent.section || 'N/A', icon: Layers },
+                      { label: 'Group', value: selectedStudent.group || 'N/A', icon: Info },
                     ].map((item, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-muted/30 border border-border/50 flex items-center gap-3">
-                        <item.icon className="w-4 h-4 text-muted-foreground" />
+                      <div
+                        key={i}
+                        className="bg-muted/30 border-border/50 flex items-center gap-3 rounded-xl border p-3"
+                      >
+                        <item.icon className="text-muted-foreground h-4 w-4" />
                         <div>
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground/70">{item.label}</p>
-                          <p className="font-bold text-sm tracking-tight">{item.value}</p>
+                          <p className="text-muted-foreground/70 text-[10px] font-bold uppercase">
+                            {item.label}
+                          </p>
+                          <p className="text-sm font-bold tracking-tight">{item.value}</p>
                         </div>
                       </div>
                     ))}
@@ -682,74 +685,85 @@ const ViewMarks = () => {
                 </div>
 
                 <div>
-                  <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary mb-4">
-                    <FileSpreadsheet className="w-4 h-4" /> Performance Metrics
+                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+                    <FileSpreadsheet className="h-4 w-4" /> Performance Metrics
                   </h4>
-                  <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="border-border overflow-hidden rounded-xl border shadow-sm">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
+                      <table className="w-full text-left text-sm">
                         <thead>
                           {(() => {
                             const showBreakdown = selectedStudent.marks?.some(
-                              (mark) => mark.subject_info?.marking_scheme === "BREAKDOWN"
+                              (mark) => mark.subject_info?.marking_scheme === 'BREAKDOWN',
                             );
                             return (
-                              <tr className="bg-muted/50 border-b border-border">
-                                <th className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100 italic">Subject</th>
+                              <tr className="bg-muted/50 border-border border-b">
+                                <th className="px-4 py-3 font-bold text-gray-900 italic dark:text-gray-100">
+                                  Subject
+                                </th>
                                 {showBreakdown && (
                                   <>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">CQ</th>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">MCQ</th>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">PRC</th>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                                      CQ
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                                      MCQ
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                                      PRC
+                                    </th>
                                   </>
                                 )}
-                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Total</th>
+                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                                  Total
+                                </th>
                                 {/* <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Status</th> */}
                               </tr>
                             );
                           })()}
                         </thead>
-                        <tbody className="divide-y divide-border">
-                          {Array.isArray(selectedStudent.marks) && selectedStudent.marks.length > 0 ? (
+                        <tbody className="divide-border divide-y">
+                          {Array.isArray(selectedStudent.marks) &&
+                          selectedStudent.marks.length > 0 ? (
                             (() => {
                               const showBreakdownTable = selectedStudent.marks?.some(
-                                (mark) => mark.subject_info?.marking_scheme === "BREAKDOWN"
+                                (mark) => mark.subject_info?.marking_scheme === 'BREAKDOWN',
                               );
                               return selectedStudent.marks
-                                .sort(
-                                  (a, b) =>
-                                    (a.priority ?? 999) - (b.priority ?? 999),
-                                )
+                                .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
                                 .map((mark, index) => {
-                                // const percentage = mark.subject_info?.full_mark && mark.marks !== null
-                                //   ? (mark.marks / mark.subject_info.full_mark) * 100
-                                //   : 0;
+                                  // const percentage = mark.subject_info?.full_mark && mark.marks !== null
+                                  //   ? (mark.marks / mark.subject_info.full_mark) * 100
+                                  //   : 0;
 
-                                return (
-                                  <tr
-                                    key={index}
-                                    className="hover:bg-muted/30 transition-colors"
-                                  >
-                                    <td className="px-4 py-3 font-bold uppercase text-xs tracking-tight">
-                                      {mark.subject}
-                                    </td>
-                                    {showBreakdownTable && (
-                                      <>
-                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
-                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.cq_marks ?? "-") : "-"}
-                                        </td>
-                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
-                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.mcq_marks ?? "-") : "-"}
-                                        </td>
-                                        <td className="px-4 py-3 text-center tabular-nums font-medium">
-                                          {mark.subject_info?.marking_scheme === "BREAKDOWN" ? (mark.practical_marks ?? "-") : "-"}
-                                        </td>
-                                      </>
-                                    )}
-                                    <td className="px-4 py-3 text-center tabular-nums font-bold text-primary">
-                                      {mark.marks ?? "-"}
-                                    </td>
-                                    {/* <td className="px-4 py-3 text-center">
+                                  return (
+                                    <tr key={index} className="hover:bg-muted/30 transition-colors">
+                                      <td className="px-4 py-3 text-xs font-bold tracking-tight uppercase">
+                                        {mark.subject}
+                                      </td>
+                                      {showBreakdownTable && (
+                                        <>
+                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
+                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
+                                              ? (mark.cq_marks ?? '-')
+                                              : '-'}
+                                          </td>
+                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
+                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
+                                              ? (mark.mcq_marks ?? '-')
+                                              : '-'}
+                                          </td>
+                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
+                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
+                                              ? (mark.practical_marks ?? '-')
+                                              : '-'}
+                                          </td>
+                                        </>
+                                      )}
+                                      <td className="text-primary px-4 py-3 text-center font-bold tabular-nums">
+                                        {mark.marks ?? '-'}
+                                      </td>
+                                      {/* <td className="px-4 py-3 text-center">
                                       <span
                                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                                           percentage >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
@@ -761,13 +775,16 @@ const ViewMarks = () => {
                                         {percentage >= 33 ? "Passed" : "Failed"}
                                       </span>
                                     </td> */}
-                                  </tr>
-                                );
-                              });
+                                    </tr>
+                                  );
+                                });
                             })()
                           ) : (
                             <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground opacity-50 italic">
+                              <td
+                                colSpan={6}
+                                className="text-muted-foreground px-4 py-8 text-center italic opacity-50"
+                              >
                                 No records available
                               </td>
                             </tr>
@@ -779,15 +796,18 @@ const ViewMarks = () => {
                 </div>
               </div>
 
-              <div className="p-6 bg-muted/10 border-t flex justify-end gap-3">
+              <div className="bg-muted/10 flex justify-end gap-3 border-t p-6">
                 <Button variant="outline" onClick={closeDetailsPopup}>
                   Close
                 </Button>
-                <Button onClick={(e) => {
-                  downloadMarksheet(selectedStudent.student_id, e);
-                  closeDetailsPopup();
-                }} className="gap-2">
-                  <Download className="w-4 h-4" /> Download Official Transcript
+                <Button
+                  onClick={(e) => {
+                    downloadMarksheet(selectedStudent.student_id, e);
+                    closeDetailsPopup();
+                  }}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" /> Download Official Transcript
                 </Button>
               </div>
             </motion.div>
@@ -799,4 +819,3 @@ const ViewMarks = () => {
 };
 
 export default ViewMarks;
-

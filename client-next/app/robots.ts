@@ -1,8 +1,8 @@
-import type { MetadataRoute } from "next";
-import { getCanonicalSiteUrl, getRequestSiteUrl } from "@/lib/seo";
-import { fetchSchoolConfig } from "@/queries/school.queries";
+import type { MetadataRoute } from 'next';
+import { getCanonicalSiteUrl, getRequestSiteUrl } from '@/lib/seo';
+import { fetchSchoolConfig } from '@/queries/school.queries';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const school = await fetchSchoolConfig();
@@ -10,10 +10,10 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   return {
     rules: {
-      userAgent: "*",
-      allow: school.seo?.noIndex ? undefined : "/",
-      disallow: school.seo?.noIndex ? "/" : undefined,
+      userAgent: '*',
+      allow: school.seo?.noIndex ? undefined : '/',
+      disallow: school.seo?.noIndex ? '/' : undefined,
     },
-    sitemap: new URL("/sitemap.xml", siteUrl).toString(),
+    sitemap: new URL('/sitemap.xml', siteUrl).toString(),
   };
 }

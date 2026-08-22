@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import axios, { AxiosError } from "axios";
-import { toast } from "react-hot-toast";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import axios, { AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
 import {
   FiEdit,
   FiEye,
@@ -11,21 +11,21 @@ import {
   FiExternalLink,
   FiRefreshCw,
   FiTrash2,
-} from "react-icons/fi";
-import Loading from "@/components/Loading";
-import { MarksheetGenProgress } from "@/components/MarksheetGenProgress";
-import { BundleStalePreview } from "@/components/BundleStalePreview";
+} from 'react-icons/fi';
+import Loading from '@/components/Loading';
+import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
+import { BundleStalePreview } from '@/components/BundleStalePreview';
 import {
   isMarksheetGenComplete,
   MARKSHEET_GEN_POLL_MS,
   type MarksheetGenStatus,
-} from "@/queries/marks.queries";
-import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import DeleteConfirmationIcon from "@/components/DeleteConfimationIcon";
-import { uploadToR2 } from "@/lib/uploadToR2";
-import { getFileUrl } from "@/lib/backend";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+} from '@/queries/marks.queries';
+import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import DeleteConfirmationIcon from '@/components/DeleteConfimationIcon';
+import { uploadToR2 } from '@/lib/uploadToR2';
+import { getFileUrl } from '@/lib/backend';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface ExamFormData {
   exam_name: string;
@@ -51,13 +51,13 @@ interface UploadState {
 function ExamPDFRoutine() {
   const { confirm, dialog } = useConfirmDialog();
   const [formData, setFormData] = useState<ExamFormData>({
-    exam_name: "",
+    exam_name: '',
     exam_year: new Date().getFullYear(),
     levels: [],
-    start_date: "",
-    end_date: "",
-    result_date: "",
-    return_date: "",
+    start_date: '',
+    end_date: '',
+    result_date: '',
+    return_date: '',
   });
   const currentYear = new Date().getFullYear();
 
@@ -88,7 +88,7 @@ function ExamPDFRoutine() {
   const fetchGenStatus = async (examId: number) => {
     try {
       const { data } = await axios.get<{ data: MarksheetGenStatus }>(
-        `/api/marks/generation-status/${examId}`
+        `/api/marks/generation-status/${examId}`,
       );
       setGenStatus((prev) => ({ ...prev, [examId]: data.data }));
       if (isMarksheetGenComplete(data.data)) stopPolling(examId);
@@ -140,13 +140,11 @@ function ExamPDFRoutine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examList]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
-    if (type === "checkbox") {
+    if (type === 'checkbox') {
       const level = parseInt(value);
       const updatedLevels = checked
         ? [...formData.levels, level]
@@ -169,32 +167,32 @@ function ExamPDFRoutine() {
     try {
       if (editingExam) {
         await axios.put(`/api/exams/updateExam/${editingExam.id}`, formData);
-        toast.success("Exam updated successfully");
+        toast.success('Exam updated successfully');
       } else {
-        await axios.post("/api/exams/addExam", {
+        await axios.post('/api/exams/addExam', {
           exams: [formData],
         });
-        toast.success("Exam added successfully");
+        toast.success('Exam added successfully');
       }
 
       resetForm();
       fetchExamList();
     } catch (error) {
       const err = error as AxiosError<{ error: string }>;
-      toast.error(err.response?.data?.error || "Operation failed");
+      toast.error(err.response?.data?.error || 'Operation failed');
     }
     setIsSubmitting(false);
   };
 
   const resetForm = () => {
     setFormData({
-      exam_name: "",
+      exam_name: '',
       exam_year: new Date().getFullYear(),
       levels: [],
-      start_date: "",
-      end_date: "",
-      result_date: "",
-      return_date: "",
+      start_date: '',
+      end_date: '',
+      result_date: '',
+      return_date: '',
     });
     setEditingExam(null);
     setIsFormVisible(false);
@@ -203,50 +201,43 @@ function ExamPDFRoutine() {
   const fetchExamList = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data } = await axios.get<{ data: Exam[] }>("/api/exams/getExams");
+      const { data } = await axios.get<{ data: Exam[] }>('/api/exams/getExams');
 
       setExamList(
         data.data
           .filter((exam) => exam.exam_year === currentYear)
-          .sort(
-            (a, b) =>
-              new Date(a.start_date).getTime() -
-              new Date(b.start_date).getTime()
-          )
+          .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()),
       );
     } catch (error) {
-      console.error("Failed to fetch exams:", error);
+      console.error('Failed to fetch exams:', error);
     }
     setIsLoading(false);
   }, [currentYear]);
 
-  const handleVisibilityChange = async (
-    examId: number,
-    newVisibility: boolean
-  ) => {
+  const handleVisibilityChange = async (examId: number, newVisibility: boolean) => {
     try {
       const result = await axios.put<{ success: boolean; queued?: number }>(
         `/api/exams/updateVisibility/${examId}`,
         {
           visible: newVisibility,
-        }
+        },
       );
 
       if (!result.data.success) {
-        toast.error("Error in result publishing");
+        toast.error('Error in result publishing');
         return;
       }
       if (newVisibility) {
         const queued = result.data.queued ?? 0;
         toast.success(
           queued > 0
-            ? `Result published — generating ${queued} marksheet${queued === 1 ? "" : "s"}…`
-            : "Result has been published"
+            ? `Result published — generating ${queued} marksheet${queued === 1 ? '' : 's'}…`
+            : 'Result has been published',
         );
         const status = await fetchGenStatus(examId);
         if (status && !isMarksheetGenComplete(status)) startPolling(examId);
       } else {
-        toast.success("Result has been hidden");
+        toast.success('Result has been hidden');
         const status = await fetchGenStatus(examId);
         if (status && !isMarksheetGenComplete(status)) {
           if (!pollRefs.current[examId]) startPolling(examId);
@@ -261,7 +252,7 @@ function ExamPDFRoutine() {
       }
       fetchExamList();
     } catch {
-      toast.error("Failed to update visibility");
+      toast.error('Failed to update visibility');
     }
   };
 
@@ -270,10 +261,10 @@ function ExamPDFRoutine() {
       exam_name: exam.exam_name,
       exam_year: exam.exam_year,
       levels: exam.levels,
-      start_date: exam.start_date?.split("T")[0] || "",
-      end_date: exam.end_date?.split("T")[0] || "",
-      result_date: exam.result_date?.split("T")[0] || "",
-      return_date: exam.return_date?.split("T")[0] || "",
+      start_date: exam.start_date?.split('T')[0] || '',
+      end_date: exam.end_date?.split('T')[0] || '',
+      result_date: exam.result_date?.split('T')[0] || '',
+      return_date: exam.return_date?.split('T')[0] || '',
     });
     setEditingExam(exam);
     setIsFormVisible(true);
@@ -282,10 +273,10 @@ function ExamPDFRoutine() {
   const confirmDelete = async (examToDelete: number) => {
     try {
       await axios.delete(`/api/exams/deleteExam/${examToDelete}`);
-      toast.success("Exam deleted successfully");
+      toast.success('Exam deleted successfully');
       fetchExamList();
     } catch {
-      toast.error("Failed to delete exam");
+      toast.error('Failed to delete exam');
     }
   };
 
@@ -299,17 +290,15 @@ function ExamPDFRoutine() {
 
     try {
       // Step 1: upload directly to R2
-      const key = await uploadToR2(
-        "/api/exams/presigned-url",
-        file,
-        (pct) => setUploadProgress((prev) => ({ ...prev, [examId]: pct })),
+      const key = await uploadToR2('/api/exams/presigned-url', file, (pct) =>
+        setUploadProgress((prev) => ({ ...prev, [examId]: pct })),
       );
 
       // Step 2: save key to exam record
       await axios.post(`/api/exams/uploadRoutinePDF/${examId}`, { key });
 
       setUploadSuccess((prev) => ({ ...prev, [examId]: true }));
-      toast.success("PDF uploaded successfully");
+      toast.success('PDF uploaded successfully');
       setTimeout(() => {
         setSelectedFiles((prev) => ({ ...prev, [examId]: null }));
         fetchExamList();
@@ -318,9 +307,9 @@ function ExamPDFRoutine() {
       const error = err as AxiosError<{ error: string }>;
       setUploadError((prev) => ({
         ...prev,
-        [examId]: error.response?.data?.error || "Upload failed",
+        [examId]: error.response?.data?.error || 'Upload failed',
       }));
-      toast.error("PDF upload failed");
+      toast.error('PDF upload failed');
     } finally {
       setUploadingExamId(null);
       setTimeout(() => {
@@ -331,20 +320,19 @@ function ExamPDFRoutine() {
     }
   };
 
-
   const handleRemovePDF = async (examId: number) => {
     const ok = await confirm({
-      title: "Remove PDF routine?",
-      msg: "Are you sure you want to remove the PDF routine?",
-      confirmLabel: "Remove PDF",
+      title: 'Remove PDF routine?',
+      msg: 'Are you sure you want to remove the PDF routine?',
+      confirmLabel: 'Remove PDF',
     });
     if (!ok) return;
     try {
       await axios.delete(`/api/exams/removeRoutinePDF/${examId}`);
-      toast.success("PDF routine removed");
+      toast.success('PDF routine removed');
       fetchExamList();
     } catch {
-      toast.error("Failed to remove PDF routine");
+      toast.error('Failed to remove PDF routine');
     }
   };
 
@@ -353,39 +341,37 @@ function ExamPDFRoutine() {
   }, [fetchExamList]);
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
+    <div className="mx-auto max-w-6xl p-4">
       {dialog}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-light ">Exam Management</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-light">Exam Management</h1>
         <Button
           type="button"
-          variant={isFormVisible ? "outline" : undefined}
+          variant={isFormVisible ? 'outline' : undefined}
           onClick={() => setIsFormVisible((prev) => !prev)}
         >
-          {isFormVisible ? "Cancel" : "+ Add New Exam"}
+          {isFormVisible ? 'Cancel' : '+ Add New Exam'}
         </Button>
       </div>
 
       {isFormVisible && (
-        <div className="bg-card rounded-lg shadow-sm border border-gray-100 p-6 mb-8">
-          <h2 className="text-lg font-medium mb-4">
-            {editingExam ? "Edit Exam" : "Create New Exam"}
+        <div className="bg-card mb-8 rounded-lg border border-gray-100 p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-medium">
+            {editingExam ? 'Edit Exam' : 'Create New Exam'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-normal mb-1">
-                  Exam Name
-                </label>
+                <label className="mb-1 block text-sm font-normal">Exam Name</label>
                 <select
                   name="exam_name"
                   value={formData.exam_name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                 >
-                   {["Half Yearly", "Annual", "Pretest", "Annual/Test", "Test"].map((exam) => (
+                  {['Half Yearly', 'Annual', 'Pretest', 'Annual/Test', 'Test'].map((exam) => (
                     <option key={exam} value={`${exam} Examination`}>
                       {exam} Examination
                     </option>
@@ -394,20 +380,20 @@ function ExamPDFRoutine() {
               </div>
 
               <div>
-                <label className="block text-sm font-normal mb-1">Year</label>
+                <label className="mb-1 block text-sm font-normal">Year</label>
                 <input
                   type="number"
                   name="exam_year"
                   value={formData.exam_year}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-normal mb-1">Classes</label>
+              <label className="mb-1 block text-sm font-normal">Classes</label>
               <div className="flex flex-wrap gap-3">
                 {[6, 7, 8, 9, 10].map((level) => (
                   <label key={level} className="inline-flex items-center">
@@ -417,64 +403,56 @@ function ExamPDFRoutine() {
                       value={level}
                       checked={formData.levels.includes(level)}
                       onChange={handleChange}
-                      className="h-4 w-4 text-primary rounded border-border focus:ring-primary/20"
+                      className="text-primary border-border focus:ring-primary/20 h-4 w-4 rounded"
                     />
                     <span className="ml-2 text-sm">Class {level}</span>
                   </label>
                 ))}
               </div>
               {levelError && (
-                <p className="mt-1 text-xs text-red-500">
-                  Please select at least one class
-                </p>
+                <p className="mt-1 text-xs text-red-500">Please select at least one class</p>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <label className="block text-sm font-normal mb-1">
-                  Start Date
-                </label>
+                <label className="mb-1 block text-sm font-normal">Start Date</label>
                 <input
                   type="date"
                   name="start_date"
                   value={formData.start_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 dark:bg-accent py-2 border border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-normal mb-1">
-                  End Date
-                </label>
+                <label className="mb-1 block text-sm font-normal">End Date</label>
                 <input
                   type="date"
                   name="end_date"
                   value={formData.end_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-normal mb-1">
-                  Result Date
-                </label>
+                <label className="mb-1 block text-sm font-normal">Result Date</label>
                 <input
                   type="date"
                   name="result_date"
                   value={formData.result_date}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                  className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-normal mb-1">
+                <label className="mb-1 block text-sm font-normal">
                   Marksheet Return Date <span className="text-muted-foreground">(optional)</span>
                 </label>
                 <div className="flex gap-2">
@@ -483,13 +461,13 @@ function ExamPDFRoutine() {
                     name="return_date"
                     value={formData.return_date}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border dark:bg-accent border-border rounded focus:ring-1 focus:ring-primary/20 focus:border-blue-500"
+                    className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded border px-3 py-2 focus:border-blue-500 focus:ring-1"
                   />
                   {formData.return_date && (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setFormData({ ...formData, return_date: "" })}
+                      onClick={() => setFormData({ ...formData, return_date: '' })}
                     >
                       Clear
                     </Button>
@@ -507,42 +485,38 @@ function ExamPDFRoutine() {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 text-sm"
-              >
-                {editingExam ? "Update Exam" : "Create Exam"}
+              <Button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm">
+                {editingExam ? 'Update Exam' : 'Create Exam'}
               </Button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="rounded-lg shadow-sm border min-w-fit border-gray-100 overflow-hidden">
+      <div className="min-w-fit overflow-hidden rounded-lg border border-gray-100 shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Exam
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Year
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Classes
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Dates
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Published
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   PDF Routine
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium tracking-wider uppercase">
                   Actions
                 </th>
               </tr>
@@ -551,7 +525,7 @@ function ExamPDFRoutine() {
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="py-2">
-                    <div className="flex justify-center items-center w-full h-full">
+                    <div className="flex h-full w-full items-center justify-center">
                       <Loading />
                     </div>
                   </td>
@@ -560,9 +534,7 @@ function ExamPDFRoutine() {
                 examList.map((exam) => (
                   <tr key={exam.id}>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium">
-                        {exam.exam_name}
-                      </div>
+                      <div className="text-sm font-medium">{exam.exam_name}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">{exam.exam_year}</div>
@@ -570,58 +542,41 @@ function ExamPDFRoutine() {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         {exam.levels.map((l) => (
-                          <span
-                            key={l}
-                            className="inline-flex items-center mr-2"
-                          >
+                          <span key={l} className="mr-2 inline-flex items-center">
                             Class {l}
                           </span>
                         ))}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm space-y-1">
+                      <div className="space-y-1 text-sm">
+                        <div>Start: {format(new Date(exam.start_date), 'dd MMM yyyy')}</div>
+                        <div>End: {format(new Date(exam.end_date), 'dd MMM yyyy')}</div>
+                        <div>Result: {format(new Date(exam.result_date), 'dd MMM yyyy')}</div>
                         <div>
-                          Start:{" "}
-                          {format(new Date(exam.start_date), "dd MMM yyyy")}
-                        </div>
-                        <div>
-                          End: {format(new Date(exam.end_date), "dd MMM yyyy")}
-                        </div>
-                        <div>
-                          Result:{" "}
-                          {format(new Date(exam.result_date), "dd MMM yyyy")}
-                        </div>
-                        <div>
-                          Return:{" "}
+                          Return:{' '}
                           {exam.return_date
-                            ? format(new Date(exam.return_date), "dd MMM yyyy")
-                            : "-"}
+                            ? format(new Date(exam.return_date), 'dd MMM yyyy')
+                            : '-'}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <button
-                          onClick={() =>
-                            handleVisibilityChange(exam.id, !exam.visible)
-                          }
-                          className={`p-1 rounded-full ${exam.visible ? "text-green-500" : "text-gray-400"
-                            }`}
+                          onClick={() => handleVisibilityChange(exam.id, !exam.visible)}
+                          className={`rounded-full p-1 ${
+                            exam.visible ? 'text-green-500' : 'text-gray-400'
+                          }`}
                         >
-                          {exam.visible ? (
-                            <FiEye size={18} />
-                          ) : (
-                            <FiEyeOff size={18} />
-                          )}
+                          {exam.visible ? <FiEye size={18} /> : <FiEyeOff size={18} />}
                         </button>
                         <span
-                          className={`ml-2 text-xs px-2 py-0.5 rounded-full ${exam.visible
-                              ? "bg-green-100 text-green-700"
-                              : "dark:bg-card bg-muted"
-                            }`}
+                          className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+                            exam.visible ? 'bg-green-100 text-green-700' : 'dark:bg-card bg-muted'
+                          }`}
                         >
-                          {exam.visible ? "Published" : "Hidden"}
+                          {exam.visible ? 'Published' : 'Hidden'}
                         </span>
                       </div>
                       {(() => {
@@ -634,20 +589,17 @@ function ExamPDFRoutine() {
                             status.bundles.generating > 0);
                         if (!exam.visible) {
                           return (
-                            <p className="text-[10px] text-muted-foreground mt-2 max-w-44 leading-tight">
+                            <p className="text-muted-foreground mt-2 max-w-44 text-[10px] leading-tight">
                               {active
-                                ? "Finishing background jobs…"
-                                : "Hidden — marksheets refresh on publish or download"}
+                                ? 'Finishing background jobs…'
+                                : 'Hidden — marksheets refresh on publish or download'}
                             </p>
                           );
                         }
                         if (!status) return null;
                         return (
                           <div className="flex flex-col gap-1">
-                            <MarksheetGenProgress
-                              status={status}
-                              compact
-                            />
+                            <MarksheetGenProgress status={status} compact />
                             <BundleStalePreview
                               items={status.bundles.staleItems}
                               variant="inline"
@@ -664,7 +616,7 @@ function ExamPDFRoutine() {
                               href={getFileUrl(exam.routine)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-primary hover:text-blue-800 flex items-center"
+                              className="text-primary flex items-center hover:text-blue-800"
                               title="View PDF"
                             >
                               <FiExternalLink size={18} />
@@ -673,7 +625,7 @@ function ExamPDFRoutine() {
                               href={getFileUrl(exam.download_url || exam.routine)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-green-600 hover:text-green-800 flex items-center"
+                              className="flex items-center text-green-600 hover:text-green-800"
                               title="Download PDF"
                             >
                               <FiDownload size={18} />
@@ -682,7 +634,9 @@ function ExamPDFRoutine() {
                               onSubmit={(e) => {
                                 e.preventDefault();
                                 const form = e.target as HTMLFormElement;
-                                const fileInput = form.elements.namedItem(`pdf-${exam.id}`) as HTMLInputElement;
+                                const fileInput = form.elements.namedItem(
+                                  `pdf-${exam.id}`,
+                                ) as HTMLInputElement;
                                 const file = fileInput.files?.[0];
                                 if (file) handlePDFUpload(exam.id, file);
                               }}
@@ -690,7 +644,7 @@ function ExamPDFRoutine() {
                             >
                               <label
                                 htmlFor={`pdf-${exam.id}`}
-                                className="cursor-pointer text-muted-foreground hover:text-primary flex items-center"
+                                className="text-muted-foreground hover:text-primary flex cursor-pointer items-center"
                                 title="Replace PDF"
                               >
                                 <FiRefreshCw size={18} />
@@ -705,30 +659,28 @@ function ExamPDFRoutine() {
                                     const file = e.target.files?.[0];
                                     if (file) {
                                       handlePDFUpload(exam.id, file);
-                                      e.target.value = "";
+                                      e.target.value = '';
                                     }
                                   }}
                                 />
                               </label>
                               {uploadingExamId === exam.id && (
-                                <span className="text-xs text-primary ml-2">
+                                <span className="text-primary ml-2 text-xs">
                                   {uploadProgress[exam.id] || 0}%
                                 </span>
                               )}
                               {uploadSuccess[exam.id] && (
-                                <span className="text-xs text-green-600 ml-2">
-                                  ✓
-                                </span>
+                                <span className="ml-2 text-xs text-green-600">✓</span>
                               )}
                               {uploadError[exam.id] && (
-                                <span className="text-xs text-red-500 ml-2">
+                                <span className="ml-2 text-xs text-red-500">
                                   {uploadError[exam.id]}
                                 </span>
                               )}
                             </form>
                             <button
                               type="button"
-                              className="text-red-500 hover:text-red-700 ml-1"
+                              className="ml-1 text-red-500 hover:text-red-700"
                               title="Remove PDF"
                               onClick={() => handleRemovePDF(exam.id)}
                             >
@@ -740,26 +692,32 @@ function ExamPDFRoutine() {
                             onSubmit={(e) => {
                               e.preventDefault();
                               const form = e.target as HTMLFormElement;
-                              const fileInput = form.elements.namedItem(`pdf-${exam.id}`) as HTMLInputElement;
+                              const fileInput = form.elements.namedItem(
+                                `pdf-${exam.id}`,
+                              ) as HTMLInputElement;
                               const file = fileInput.files?.[0];
                               if (file) handlePDFUpload(exam.id, file);
                             }}
                             className="flex items-center gap-2"
                           >
                             {selectedFiles[exam.id] ? (
-                              <div className="flex items-center gap-2 bg-muted dark:bg-card px-2 py-1 rounded text-xs">
+                              <div className="bg-muted dark:bg-card flex items-center gap-2 rounded px-2 py-1 text-xs">
                                 <FiFileText className="text-primary" />
                                 <span
-                                  className="truncate max-w-30"
-                                  title={typeof selectedFiles[exam.id] === "string" ? (selectedFiles[exam.id] as string) : undefined}
+                                  className="max-w-30 truncate"
+                                  title={
+                                    typeof selectedFiles[exam.id] === 'string'
+                                      ? (selectedFiles[exam.id] as string)
+                                      : undefined
+                                  }
                                 >
                                   {selectedFiles[exam.id] &&
-                                    typeof selectedFiles[exam.id] === "string" &&
-                                    (selectedFiles[exam.id] as string).length > 25
+                                  typeof selectedFiles[exam.id] === 'string' &&
+                                  (selectedFiles[exam.id] as string).length > 25
                                     ? (selectedFiles[exam.id] as string).slice(0, 12) +
-                                    "..." +
-                                    (selectedFiles[exam.id] as string).slice(-10)
-                                    : selectedFiles[exam.id] || ""}
+                                      '...' +
+                                      (selectedFiles[exam.id] as string).slice(-10)
+                                    : selectedFiles[exam.id] || ''}
                                 </span>
                                 <button
                                   type="button"
@@ -790,23 +748,21 @@ function ExamPDFRoutine() {
                                       [exam.id]: file.name,
                                     }));
                                     handlePDFUpload(exam.id, file);
-                                    e.target.value = "";
+                                    e.target.value = '';
                                   }
                                 }}
                               />
                             )}
                             {uploadingExamId === exam.id && (
-                              <span className="text-xs text-primary ml-2">
+                              <span className="text-primary ml-2 text-xs">
                                 {uploadProgress[exam.id] || 0}%
                               </span>
                             )}
                             {uploadSuccess[exam.id] && (
-                              <span className="text-xs text-green-600 ml-2">
-                                ✓
-                              </span>
+                              <span className="ml-2 text-xs text-green-600">✓</span>
                             )}
                             {uploadError[exam.id] && (
-                              <span className="text-xs text-red-500 ml-2">
+                              <span className="ml-2 text-xs text-red-500">
                                 {uploadError[exam.id]}
                               </span>
                             )}
@@ -817,9 +773,9 @@ function ExamPDFRoutine() {
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <button
                         onClick={() => handleEditExam(exam)}
-                        className="text-primary hover:text-blue-900 mr-3"
+                        className="text-primary mr-3 hover:text-blue-900"
                       >
-                        <FiEdit className="sm:w-4 sm:h-4 w-3 h-3" />
+                        <FiEdit className="h-3 w-3 sm:h-4 sm:w-4" />
                       </button>
 
                       <DeleteConfirmationIcon
@@ -831,10 +787,7 @@ function ExamPDFRoutine() {
                 ))
               ) : (
                 <tr>
-                  <td
-                    className="px-6 py-4 whitespace-nowrap text-center"
-                    colSpan={7}
-                  >
+                  <td className="px-6 py-4 text-center whitespace-nowrap" colSpan={7}>
                     No exams found
                   </td>
                 </tr>

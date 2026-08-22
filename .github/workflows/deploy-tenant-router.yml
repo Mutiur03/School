@@ -2,10 +2,10 @@ name: Deploy Tenant Router
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
     paths:
-      - "workers/tenant-router/**"
-      - ".github/workflows/deploy-tenant-router.yml"
+      - 'workers/tenant-router/**'
+      - '.github/workflows/deploy-tenant-router.yml'
   workflow_dispatch:
 
 concurrency:

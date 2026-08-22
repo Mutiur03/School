@@ -1,5 +1,5 @@
-import { prisma } from "@/config/prisma.js";
-import { recordDatabasePoolMetrics } from "@/config/sentry.js";
+import { prisma } from '@/config/prisma.js';
+import { recordDatabasePoolMetrics } from '@/config/sentry.js';
 
 type ConnectionStateRow = {
   state: string | null;
@@ -13,7 +13,7 @@ function getPrismaConnectionLimit(): number | null {
   }
 
   try {
-    const limit = new URL(databaseUrl).searchParams.get("connection_limit");
+    const limit = new URL(databaseUrl).searchParams.get('connection_limit');
     return limit ? Number(limit) : null;
   } catch {
     return null;
@@ -37,16 +37,14 @@ export async function getDatabasePoolStats() {
   ]);
 
   const total = connections[0]?.total ?? 0;
-  const stateCounts = Object.fromEntries(
-    byState.map((row) => [row.state ?? "unknown", row.count]),
-  );
+  const stateCounts = Object.fromEntries(byState.map((row) => [row.state ?? 'unknown', row.count]));
   const active = stateCounts.active ?? 0;
   const idle = stateCounts.idle ?? 0;
   const maxConnections = Number(maxConnectionsRow[0]?.max_connections ?? 0);
   const prismaConnectionLimit = getPrismaConnectionLimit();
 
   const stats = {
-    status: "ok" as const,
+    status: 'ok' as const,
     connections: {
       total,
       active,

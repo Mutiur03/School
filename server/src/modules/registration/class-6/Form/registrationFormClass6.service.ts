@@ -1,14 +1,14 @@
-import { prisma } from "@/config/prisma.js";
-import { getUploadUrl, deleteFromR2, getDownloadUrl } from "@/config/r2.js";
-import path from "path";
-import * as XLSX from "xlsx";
-import archiver from "archiver";
-import fs from "fs";
-import puppeteer from "puppeteer";
-import axios from "axios";
-import QRCode from "qrcode";
-import { removeInitialZeros } from "@school/shared-schemas";
-import { ApiError } from "@/utils/ApiError.js";
+import { prisma } from '@/config/prisma.js';
+import { getUploadUrl, deleteFromR2, getDownloadUrl } from '@/config/r2.js';
+import path from 'path';
+import * as XLSX from 'xlsx';
+import archiver from 'archiver';
+import fs from 'fs';
+import puppeteer from 'puppeteer';
+import axios from 'axios';
+import QRCode from 'qrcode';
+import { removeInitialZeros } from '@school/shared-schemas';
+import { ApiError } from '@/utils/ApiError.js';
 
 const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   const duplicates = [];
@@ -23,7 +23,7 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
       });
       if (existing) {
         duplicates.push({
-          field: "birthRegNo",
+          field: 'birthRegNo',
           message: `একটি নিবন্ধন এই জন্ম নিবন্ধন নম্বর (Birth Reg No) দিয়ে ইতিমধ্যেই বিদ্যমান`,
         });
       }
@@ -41,44 +41,44 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
       });
       if (existing) {
         duplicates.push({
-          field: "rollSection",
+          field: 'rollSection',
           message: `${data.class6_year} শিক্ষাবর্ষে ${data.section} শাখায় এই রোল নম্বর (${data.roll}) ইতিমধ্যেই নিবন্ধিত`,
         });
       }
     }
   } catch (err) {
-    console.warn("checkDuplicates error:", err);
+    console.warn('checkDuplicates error:', err);
   }
   return duplicates;
 };
 
 export const formatDateLong = (dateStr: string) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   let d, m, y;
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-    [d, m, y] = dateStr.split("/");
+    [d, m, y] = dateStr.split('/');
   } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    [y, m, d] = dateStr.split("-");
+    [y, m, d] = dateStr.split('-');
   } else {
     return dateStr;
   }
   const dateObj = new Date(`${y}-${m}-${d}`);
   if (isNaN(dateObj.getTime())) return dateStr;
   return dateObj
-    .toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+    .toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
     })
-    .replace(/(\w+)\s(\d{4})/, "$1, $2");
+    .replace(/(\w+)\s(\d{4})/, '$1, $2');
 };
 
 export class RegistrationFormClass6Service {
   static async createRegistration(data: any) {
     if (data.birth_day && data.birth_month && data.birth_year) {
       data.birth_date = `${data.birth_day}/${data.birth_month}/${data.birth_year}`;
-    } else if (data.birth_date && data.birth_date.includes("/")) {
-      const [d, m, y] = data.birth_date.split("/");
+    } else if (data.birth_date && data.birth_date.includes('/')) {
+      const [d, m, y] = data.birth_date.split('/');
       data.birth_day = d;
       data.birth_month = m;
       data.birth_year = y;
@@ -91,12 +91,12 @@ export class RegistrationFormClass6Service {
     data.class6_year = parseInt(data.class6_year);
 
     if (!data.photo) {
-      throw new ApiError(400, "Student photo is required");
+      throw new ApiError(400, 'Student photo is required');
     }
 
     const duplicates = await checkDuplicates(data);
     if (duplicates.length > 0) {
-      throw new ApiError(400, "Duplicate information found", duplicates as any);
+      throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
 
     const {
@@ -109,7 +109,7 @@ export class RegistrationFormClass6Service {
     return await prisma.student_registration_class6.create({
       data: {
         ...dbData,
-        status: "pending",
+        status: 'pending',
       },
     });
   }
@@ -118,19 +118,19 @@ export class RegistrationFormClass6Service {
     const { class6_year, section, status, search, page, limit } = query;
 
     const isPaginatedRequest =
-      (typeof page === "string" && page.trim().length > 0) ||
-      (typeof limit === "string" && limit.trim().length > 0);
+      (typeof page === 'string' && page.trim().length > 0) ||
+      (typeof limit === 'string' && limit.trim().length > 0);
 
     const where: any = {};
     if (class6_year) where.class6_year = parseInt(class6_year, 10);
     if (section) where.section = section;
-    if (status && status !== "all") where.status = status;
+    if (status && status !== 'all') where.status = status;
     if (search) {
       where.OR = [
-        { student_name_en: { contains: search, mode: "insensitive" } },
-        { student_name_bn: { contains: search, mode: "insensitive" } },
-        { roll: { contains: search, mode: "insensitive" } },
-        { birth_reg_no: { contains: search, mode: "insensitive" } },
+        { student_name_en: { contains: search, mode: 'insensitive' } },
+        { student_name_bn: { contains: search, mode: 'insensitive' } },
+        { roll: { contains: search, mode: 'insensitive' } },
+        { birth_reg_no: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -138,19 +138,16 @@ export class RegistrationFormClass6Service {
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
 
-      const normalizedPage =
-        Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+      const normalizedPage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
       const normalizedLimit =
-        Number.isFinite(limitNum) && limitNum > 0
-          ? Math.min(Math.floor(limitNum), 200)
-          : 20;
+        Number.isFinite(limitNum) && limitNum > 0 ? Math.min(Math.floor(limitNum), 200) : 20;
       const skip = (normalizedPage - 1) * normalizedLimit;
 
       const [total, registrations] = await prisma.$transaction([
         prisma.student_registration_class6.count({ where: { class6_year: Number(class6_year) } }),
         prisma.student_registration_class6.findMany({
           where,
-          orderBy: { created_at: "desc" },
+          orderBy: { created_at: 'desc' },
           skip,
           take: normalizedLimit,
         }),
@@ -171,7 +168,7 @@ export class RegistrationFormClass6Service {
 
     return await prisma.student_registration_class6.findMany({
       where,
-      orderBy: { created_at: "desc" },
+      orderBy: { created_at: 'desc' },
     });
   }
 
@@ -181,7 +178,7 @@ export class RegistrationFormClass6Service {
     });
 
     if (!registration) {
-      throw new ApiError(404, "Registration not found");
+      throw new ApiError(404, 'Registration not found');
     }
     return registration;
   }
@@ -192,12 +189,12 @@ export class RegistrationFormClass6Service {
     });
 
     if (!existing) {
-      throw new ApiError(404, "Registration not found");
+      throw new ApiError(404, 'Registration not found');
     }
 
     const duplicates = await checkDuplicates(data, id);
     if (duplicates.length > 0) {
-      throw new ApiError(400, "Duplicate information found", duplicates as any);
+      throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
 
     if (!data.photo) {
@@ -242,7 +239,7 @@ export class RegistrationFormClass6Service {
     });
 
     if (!existing) {
-      throw new ApiError(404, "Registration not found");
+      throw new ApiError(404, 'Registration not found');
     }
 
     if (existing.photo) {
@@ -259,19 +256,18 @@ export class RegistrationFormClass6Service {
   static async getRegistrationPhotoUploadUrl(data: any) {
     const { filename, filetype, roll, section } = data;
     if (!filename || !filetype) {
-      throw new ApiError(400, "Filename and filetype are required");
+      throw new ApiError(400, 'Filename and filetype are required');
     }
 
     const settings = await prisma.class6_reg.findFirst();
-    const academicYear =
-      settings?.class6_year || new Date().getFullYear().toString();
+    const academicYear = settings?.class6_year || new Date().getFullYear().toString();
 
-    const safeSection = String(section || "X")
+    const safeSection = String(section || 'X')
       .trim()
       .toUpperCase();
-    const safeRoll = String(roll || "00")
+    const safeRoll = String(roll || '00')
       .trim()
-      .padStart(2, "0");
+      .padStart(2, '0');
     const randomId = Date.now();
     const ext = path.extname(filename);
 
@@ -287,25 +283,23 @@ export class RegistrationFormClass6Service {
     const where: any = {};
     if (class6_year) where.class6_year = parseInt(class6_year);
     if (section) where.section = section;
-    if (status && status !== "all") where.status = status;
+    if (status && status !== 'all') where.status = status;
 
     const registrations = await prisma.student_registration_class6.findMany({
       where,
-      orderBy: [{ section: "asc" }, { roll: "asc" }],
+      orderBy: [{ section: 'asc' }, { roll: 'asc' }],
     });
 
     const registrationsForExport = registrations.map((registration) => {
       const orderedRegistration: any = {};
       Object.entries(registration).forEach(([key, value]) => {
         orderedRegistration[key] = value;
-        if (key === "birth_date") {
-          orderedRegistration.birth_date_formatted = formatDateLong(
-            value as string,
-          );
+        if (key === 'birth_date') {
+          orderedRegistration.birth_date_formatted = formatDateLong(value as string);
         }
       });
-      if (!Object.hasOwn(orderedRegistration, "birth_date_formatted")) {
-        orderedRegistration.birth_date_formatted = "";
+      if (!Object.hasOwn(orderedRegistration, 'birth_date_formatted')) {
+        orderedRegistration.birth_date_formatted = '';
       }
       return orderedRegistration;
     });
@@ -322,10 +316,10 @@ export class RegistrationFormClass6Service {
       district: reg.permanent_district,
       dob: reg.birth_date,
       class: 6,
-      roll: reg.roll ? removeInitialZeros(String(reg.roll)) : "",
+      roll: reg.roll ? removeInitialZeros(String(reg.roll)) : '',
       section: reg.section,
-      group: "",
-      has_stipend: "No",
+      group: '',
+      has_stipend: 'No',
       religion: reg.religion,
     }));
 
@@ -333,30 +327,30 @@ export class RegistrationFormClass6Service {
     const importWorksheet = XLSX.utils.json_to_sheet(importFormatData);
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
-    XLSX.utils.book_append_sheet(workbook, importWorksheet, "Student List");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrations');
+    XLSX.utils.book_append_sheet(workbook, importWorksheet, 'Student List');
 
-    return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
 
   static async exportRegistrationPhotos(query: any) {
     const { class6_year, section, status } = query;
 
-    const where: any = { photo: { not: "" } };
+    const where: any = { photo: { not: '' } };
     if (class6_year) where.class6_year = parseInt(class6_year);
     if (section) where.section = section;
-    if (status && status !== "all") where.status = status;
+    if (status && status !== 'all') where.status = status;
 
     const registrations = await prisma.student_registration_class6.findMany({
       where,
-      orderBy: [{ section: "asc" }, { roll: "asc" }],
+      orderBy: [{ section: 'asc' }, { roll: 'asc' }],
     });
 
     if (registrations.length === 0) {
-      throw new ApiError(404, "No photos found for the selected filters");
+      throw new ApiError(404, 'No photos found for the selected filters');
     }
 
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver('zip', { zlib: { level: 9 } });
 
     // Note: The controller will need to pipe this to the response.
     // For simplicity, we can return the archive object or a function to finalize it.
@@ -370,35 +364,33 @@ export class RegistrationFormClass6Service {
     };
   }
 
-  static async downloadRegistrationPDF(id: string, previewParam: string = "") {
+  static async downloadRegistrationPDF(id: string, previewParam: string = '') {
     const isInlinePreview =
-      previewParam === "1" ||
-      previewParam === "true" ||
-      previewParam === "inline";
-    const isHtmlPreview = previewParam === "html";
+      previewParam === '1' || previewParam === 'true' || previewParam === 'inline';
+    const isHtmlPreview = previewParam === 'html';
 
     const registration = await prisma.student_registration_class6.findUnique({
       where: { id },
     });
 
     if (!registration) {
-      throw new ApiError(404, "Registration not found");
+      throw new ApiError(404, 'Registration not found');
     }
 
     let settings = null;
     try {
       settings = await prisma.class6_reg.findFirst();
     } catch (error) {
-      console.warn("Failed to fetch Class 6 settings:", error);
+      console.warn('Failed to fetch Class 6 settings:', error);
     }
 
     const getInstructionsForSection = (section: string) => {
       if (!settings) return null;
       const sectionLower = section?.toLowerCase();
-      if (sectionLower === "a" && settings.instruction_for_a) {
+      if (sectionLower === 'a' && settings.instruction_for_a) {
         return settings.instruction_for_a;
       }
-      if (sectionLower === "b" && settings.instruction_for_b) {
+      if (sectionLower === 'b' && settings.instruction_for_b) {
         return settings.instruction_for_b;
       }
       return null;
@@ -407,59 +399,57 @@ export class RegistrationFormClass6Service {
     const sectionInstructions = getInstructionsForSection(registration.section);
     const attachmentInstructions = settings?.attachment_instruction || null;
 
-    const logoPath = path.join("public", "icon.jpg");
+    const logoPath = path.join('public', 'icon.jpg');
     const logoBase64 = fs.existsSync(logoPath)
-      ? `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString("base64")}`
-      : "";
+      ? `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`
+      : '';
 
-    const solaimanLipiPath = path.join("public", "fonts", "SolaimanLipi.woff2");
-    const timesNewRomanPath = path.join("public", "fonts", "times.ttf");
+    const solaimanLipiPath = path.join('public', 'fonts', 'SolaimanLipi.woff2');
+    const timesNewRomanPath = path.join('public', 'fonts', 'times.ttf');
     const solaimanLipiBase64 = fs.existsSync(solaimanLipiPath)
-      ? fs.readFileSync(solaimanLipiPath).toString("base64")
-      : "";
+      ? fs.readFileSync(solaimanLipiPath).toString('base64')
+      : '';
     const timesNewRomanBase64 = fs.existsSync(timesNewRomanPath)
-      ? fs.readFileSync(timesNewRomanPath).toString("base64")
-      : "";
+      ? fs.readFileSync(timesNewRomanPath).toString('base64')
+      : '';
 
-    let _studentPhotoBase64 = "";
+    let _studentPhotoBase64 = '';
 
     if (registration.photo) {
       try {
         const photoUrl = await getDownloadUrl(registration.photo);
         const response = await axios.get(photoUrl, {
-          responseType: "arraybuffer",
+          responseType: 'arraybuffer',
         });
-        const contentType = response.headers["content-type"];
-        const buffer = Buffer.from(response.data, "binary");
-        _studentPhotoBase64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+        const contentType = response.headers['content-type'];
+        const buffer = Buffer.from(response.data, 'binary');
+        _studentPhotoBase64 = `data:${contentType};base64,${buffer.toString('base64')}`;
       } catch (photoError) {
-        console.warn("Failed to fetch student photo for PDF:", photoError);
+        console.warn('Failed to fetch student photo for PDF:', photoError);
       }
     }
 
     if (!process.env.PUBLIC_FRONTEND_URL) {
-      throw new ApiError(500, "Frontend URL not configured");
+      throw new ApiError(500, 'Frontend URL not configured');
     }
-    const frontendDomain = String(process.env.PUBLIC_FRONTEND_URL)
-      .trim()
-      .replace(/\/$/, "");
+    const frontendDomain = String(process.env.PUBLIC_FRONTEND_URL).trim().replace(/\/$/, '');
 
-    let qrCodeBase64 = "";
+    let qrCodeBase64 = '';
     try {
       const qrData = `${frontendDomain}/preview/class6/${registration.id}`;
       qrCodeBase64 = await QRCode.toDataURL(qrData, {
-        errorCorrectionLevel: "H",
+        errorCorrectionLevel: 'H',
         margin: 1,
         width: 600,
-        color: { dark: "#111111", light: "#FFFFFF" },
+        color: { dark: '#111111', light: '#FFFFFF' },
       });
     } catch (qrError) {
-      console.warn("Failed to generate QR code for PDF:", qrError);
+      console.warn('Failed to generate QR code for PDF:', qrError);
     }
 
     const wrapBnEn = (text: string) => {
-      if (!text) return "";
-      text = text.normalize("NFC");
+      if (!text) return '';
+      text = text.normalize('NFC');
       return text.replace(
         /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (match, bn, nonBn) => {
@@ -471,8 +461,8 @@ export class RegistrationFormClass6Service {
     };
 
     const handleList = (text: string) => {
-      if (!text) return "";
-      let normalizedText = text.normalize("NFC");
+      if (!text) return '';
+      let normalizedText = text.normalize('NFC');
       return normalizedText.replace(
         /([\u0980-\u09FF\u0964-\u096F]+)|([^\u0980-\u09FF\u0964-\u096F]+)/g,
         (_, bn, nonBn) => {
@@ -484,11 +474,11 @@ export class RegistrationFormClass6Service {
     };
 
     const row = (label: string, value: string, rowIndex: number = 0) => {
-      const oddBg = "rgba(224, 231, 239, 0.45)";
-      const evenLabelBg = "rgba(249, 250, 251, 0.35)";
-      const rowBg = rowIndex % 2 === 1 ? oddBg : "transparent";
+      const oddBg = 'rgba(224, 231, 239, 0.45)';
+      const evenLabelBg = 'rgba(249, 250, 251, 0.35)';
+      const rowBg = rowIndex % 2 === 1 ? oddBg : 'transparent';
       const labelBg = rowIndex % 2 === 1 ? oddBg : evenLabelBg;
-      const valueBg = rowIndex % 2 === 1 ? oddBg : "transparent";
+      const valueBg = rowIndex % 2 === 1 ? oddBg : 'transparent';
 
       return `
         <tr style="background:${rowBg};">
@@ -499,50 +489,41 @@ export class RegistrationFormClass6Service {
     };
 
     const joinAddr = (v: any, po: any, pc: any, upz: any, dist: any) =>
-      [v, po ? (pc ? `${po} (${pc})` : po) : "", upz, dist]
+      [v, po ? (pc ? `${po} (${pc})` : po) : '', upz, dist]
         .filter(Boolean)
         .map((s) => s.trim())
         .filter(Boolean)
-        .join(", ");
+        .join(', ');
 
     const studentDetails = [
-      ["ছাত্রের নাম (বাংলায়):", wrapBnEn(registration.student_name_bn || "")],
+      ['ছাত্রের নাম (বাংলায়):', wrapBnEn(registration.student_name_bn || '')],
+      ["Student's Name:", wrapBnEn(registration.student_name_en.toUpperCase() || '')],
+      ['Birth Registration Number:', wrapBnEn(registration.birth_reg_no || '')],
       [
-        "Student's Name:",
-        wrapBnEn(registration.student_name_en.toUpperCase() || ""),
-      ],
-      ["Birth Registration Number:", wrapBnEn(registration.birth_reg_no || "")],
-      [
-        "Date of Birth:",
+        'Date of Birth:',
         wrapBnEn(
           registration.birth_date
             ? `${registration.birth_date} (${formatDateLong(registration.birth_date)})`
-            : "",
+            : '',
         ),
       ],
-      ["Email Address:", wrapBnEn(registration.email || "No")],
-      ["পিতার নাম:", wrapBnEn(registration.father_name_bn || "")],
+      ['Email Address:', wrapBnEn(registration.email || 'No')],
+      ['পিতার নাম:', wrapBnEn(registration.father_name_bn || '')],
+      ["Father's Name:", wrapBnEn(registration.father_name_en.toUpperCase() || '')],
+      ["Father's National ID Number:", wrapBnEn(registration.father_nid || '')],
+      ['মাতার নাম:', wrapBnEn(registration.mother_name_bn || '')],
+      ["Mother's Name:", wrapBnEn(registration.mother_name_en.toUpperCase() || '')],
+      ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || '')],
       [
-        "Father's Name:",
-        wrapBnEn(registration.father_name_en.toUpperCase() || ""),
-      ],
-      ["Father's National ID Number:", wrapBnEn(registration.father_nid || "")],
-      ["মাতার নাম:", wrapBnEn(registration.mother_name_bn || "")],
-      [
-        "Mother's Name:",
-        wrapBnEn(registration.mother_name_en.toUpperCase() || ""),
-      ],
-      ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || "")],
-      [
-        "Mobile Numbers:",
+        'Mobile Numbers:',
         wrapBnEn(
-          [registration.father_phone || "", registration.mother_phone || ""]
+          [registration.father_phone || '', registration.mother_phone || '']
             .filter(Boolean)
-            .join(", ") || "No",
+            .join(', ') || 'No',
         ),
       ],
       [
-        "Permanent Address:",
+        'Permanent Address:',
         wrapBnEn(
           joinAddr(
             registration.permanent_village_road,
@@ -554,7 +535,7 @@ export class RegistrationFormClass6Service {
         ),
       ],
       [
-        "Present Address:",
+        'Present Address:',
         wrapBnEn(
           joinAddr(
             registration.present_village_road,
@@ -566,7 +547,7 @@ export class RegistrationFormClass6Service {
         ),
       ],
       [
-        "Previous School Name & Address:",
+        'Previous School Name & Address:',
         wrapBnEn(
           [
             registration.prev_school_name,
@@ -574,43 +555,35 @@ export class RegistrationFormClass6Service {
             registration.prev_school_district,
           ]
             .filter(Boolean)
-            .join(", "),
+            .join(', '),
         ),
       ],
       [
-        "Previous School Information:",
+        'Previous School Information:',
         wrapBnEn(
           [
             registration.section_in_prev_school
               ? `Section: ${registration.section_in_prev_school}`
-              : "",
-            registration.roll_in_prev_school
-              ? `Roll: ${registration.roll_in_prev_school}`
-              : "",
+              : '',
+            registration.roll_in_prev_school ? `Roll: ${registration.roll_in_prev_school}` : '',
             registration.prev_school_passing_year
               ? `Year: ${registration.prev_school_passing_year}`
-              : "",
+              : '',
           ]
             .filter(Boolean)
-            .join(", "),
+            .join(', '),
         ),
       ],
       [
         "Guardian's Name:",
         wrapBnEn(
           [
-            registration.guardian_name
-              ? `Name: ${registration.guardian_name}`
-              : "Not Applicable",
-            registration.guardian_relation
-              ? `Relation: ${registration.guardian_relation}`
-              : "",
-            registration.guardian_phone
-              ? `Phone: ${registration.guardian_phone}`
-              : "",
+            registration.guardian_name ? `Name: ${registration.guardian_name}` : 'Not Applicable',
+            registration.guardian_relation ? `Relation: ${registration.guardian_relation}` : '',
+            registration.guardian_phone ? `Phone: ${registration.guardian_phone}` : '',
           ]
             .filter(Boolean)
-            .join(", "),
+            .join(', '),
         ),
       ],
       [
@@ -622,40 +595,40 @@ export class RegistrationFormClass6Service {
             registration.guardian_post_code,
             registration.guardian_upazila,
             registration.guardian_district,
-          ) || "Not Applicable",
+          ) || 'Not Applicable',
         ),
       ],
       [
-        "বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:",
-        wrapBnEn(registration.nearby_student_info || "Not Applicable"),
+        'বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:',
+        wrapBnEn(registration.nearby_student_info || 'Not Applicable'),
       ],
     ];
 
-    let tableRows = "";
+    let tableRows = '';
     studentDetails.forEach(([label, value], idx) => {
       tableRows += row(label, value, idx);
     });
 
-    const schoolName = "Panchbibi Lal Bihari Pilot Govt. High School";
-    const schoolAddr = "Panchbibi, Joypurhat";
-    const schoolWeb = "www.lbphs.gov.bd";
-    const class6Year = registration.class6_year || "";
-    const section = registration.section || "";
-    const roll = registration.roll || "";
-    const religion = registration.religion || "";
+    const schoolName = 'Panchbibi Lal Bihari Pilot Govt. High School';
+    const schoolAddr = 'Panchbibi, Joypurhat';
+    const schoolWeb = 'www.lbphs.gov.bd';
+    const class6Year = registration.class6_year || '';
+    const section = registration.section || '';
+    const roll = registration.roll || '';
+    const religion = registration.religion || '';
     const isPendingStatus =
-      String(registration.status || "")
+      String(registration.status || '')
         .trim()
-        .toLowerCase() === "pending";
+        .toLowerCase() === 'pending';
 
     const currentDateTime = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }),
-    ).toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }),
+    ).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
       hour12: true,
     });
 
@@ -668,8 +641,8 @@ export class RegistrationFormClass6Service {
         <title>Class 6 Registration Info</title>
         <style>
           @page { size: A4; margin: 24px; }
-          ${solaimanLipiBase64 ? `@font-face { font-family: 'SolaimanLipi'; src: url('data:font/truetype;charset=utf-8;base64,${solaimanLipiBase64}') format('woff2'); font-weight: normal; font-style: normal; font-display: block; unicode-range: U+0980-U+09FF, U+0964-U+096F; }` : ""}
-          ${timesNewRomanBase64 ? `@font-face { font-family: 'TimesNewRoman'; src: url('data:font/truetype;charset=utf-8;base64,${timesNewRomanBase64}') format('truetype'); font-weight: normal; font-style: normal; font-display: block; unicode-range: U+0020-U+007F, U+00A0-U+00FF; }` : ""}
+          ${solaimanLipiBase64 ? `@font-face { font-family: 'SolaimanLipi'; src: url('data:font/truetype;charset=utf-8;base64,${solaimanLipiBase64}') format('woff2'); font-weight: normal; font-style: normal; font-display: block; unicode-range: U+0980-U+09FF, U+0964-U+096F; }` : ''}
+          ${timesNewRomanBase64 ? `@font-face { font-family: 'TimesNewRoman'; src: url('data:font/truetype;charset=utf-8;base64,${timesNewRomanBase64}') format('truetype'); font-weight: normal; font-style: normal; font-display: block; unicode-range: U+0020-U+007F, U+00A0-U+00FF; }` : ''}
           body, html { height: 100%; margin: 0; padding: 0; page-break-inside: avoid; page-break-after: avoid; font-size: 13px; }
           .page-container { position: relative; min-height: 100vh; height: 100vh; width: 100vw; box-sizing: border-box; font-family: ${solaimanLipiBase64 ? "'SolaimanLipi', 'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'" : "'Noto Sans Bengali', 'Mukti', 'Solaiman Lipi'"}, sans-serif; background: #fff; page-break-inside: avoid; page-break-after: avoid; font-size: 1rem; }
           .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; opacity: 0.14; z-index: 5; pointer-events: none; user-select: none; }
@@ -710,8 +683,8 @@ export class RegistrationFormClass6Service {
       </head>
       <body>
         <div class="page-container">
-          ${logoBase64 ? `<div class="watermark"><img src="${logoBase64}" alt="School Watermark" /></div>` : ""}
-          ${isPendingStatus ? '<div class="pending-watermark"><span class="pending-watermark-text">PENDING</span></div>' : ""}
+          ${logoBase64 ? `<div class="watermark"><img src="${logoBase64}" alt="School Watermark" /></div>` : ''}
+          ${isPendingStatus ? '<div class="pending-watermark"><span class="pending-watermark-text">PENDING</span></div>' : ''}
           <div class="content-area">
             <div class="header">
               <div class="header-top">
@@ -730,7 +703,7 @@ export class RegistrationFormClass6Service {
             <div class="section-row en">Section: <span class="en">${section}</span>, Roll No: <span class="en">${roll}</span>, Religion: <span class="en">${religion}</span></div>
             <table><tbody>${tableRows}</tbody></table>
             <br />
-            ${sectionInstructions ? `<div class="instructions-section"><div class="instructions-content">${wrapBnEn(sectionInstructions)}</div></div>` : ""}
+            ${sectionInstructions ? `<div class="instructions-section"><div class="instructions-content">${wrapBnEn(sectionInstructions)}</div></div>` : ''}
             <div class="footer">
               <div class="note" style="display: flex; align-items: flex-start; gap: 12px;">
                 <div class="document-list" style="flex: 1;">
@@ -740,13 +713,11 @@ export class RegistrationFormClass6Service {
                       ? attachmentInstructions
                           .split(/\r?\n|\r/)
                           .map((line: string) =>
-                            line
-                              ? `<span class="bn">${handleList(line)}</span>`
-                              : "",
+                            line ? `<span class="bn">${handleList(line)}</span>` : '',
                           )
                           .filter(Boolean)
-                          .join("")
-                      : ""
+                          .join('')
+                      : ''
                   }
                 </div>
                 <div class="qr-code" style="flex-shrink: 0; margin-top: 0;">${qrCodeBase64 ? `<img src="${qrCodeBase64}" alt="QR Code" />` : '<div class="qr-placeholder">QR<br/>Unavailable</div>'}</div>
@@ -771,52 +742,46 @@ export class RegistrationFormClass6Service {
     const browser = await puppeteer.launch({
       headless: true,
       args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-font-subpixel-positioning",
-        "--disable-features=TranslateUI",
-        "--disable-ipc-flooding-protection",
-        "--font-render-hinting=medium",
-        "--enable-font-antialiasing",
-        "--disable-extensions",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-default-apps",
-        "--force-device-scale-factor=1",
-        "--disable-lcd-text",
-        "--lang=bn-BD",
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-font-subpixel-positioning',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--font-render-hinting=medium',
+        '--enable-font-antialiasing',
+        '--disable-extensions',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-default-apps',
+        '--force-device-scale-factor=1',
+        '--disable-lcd-text',
+        '--lang=bn-BD',
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
 
     const page = await browser.newPage();
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     );
     await page.setExtraHTTPHeaders({
-      "Accept-Charset": "utf-8",
-      "Accept-Language": "bn-BD,bn;q=0.9,en;q=0.8",
+      'Accept-Charset': 'utf-8',
+      'Accept-Language': 'bn-BD,bn;q=0.9,en;q=0.8',
     });
 
     await page.setContent(html, {
-      waitUntil: isInlinePreview
-        ? ["domcontentloaded"]
-        : ["load", "domcontentloaded"],
+      waitUntil: isInlinePreview ? ['domcontentloaded'] : ['load', 'domcontentloaded'],
     });
 
     await page.evaluate((quickPreview) => {
       /* global document, NodeFilter */
       // @ts-ignore
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        null,
-      );
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
       let node;
       while ((node = walker.nextNode())) {
-        if (node.nodeValue) node.nodeValue = node.nodeValue.normalize("NFC");
+        if (node.nodeValue) node.nodeValue = node.nodeValue.normalize('NFC');
       }
       return new Promise((resolve) => {
         const fallbackDelay = quickPreview ? 80 : 1000;
@@ -832,11 +797,11 @@ export class RegistrationFormClass6Service {
     }, isInlinePreview);
 
     const pdfBuffer = await page.pdf({
-      format: "a4",
+      format: 'a4',
       printBackground: true,
       margin: { top: 24, bottom: 24, left: 24, right: 24 },
       preferCSSPageSize: true,
-      pageRanges: "1",
+      pageRanges: '1',
     });
 
     await browser.close();

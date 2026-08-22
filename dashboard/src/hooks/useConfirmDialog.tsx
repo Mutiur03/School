@@ -1,17 +1,17 @@
-import { useCallback, useRef, useState } from "react";
-import ConfirmationPopup from "@/components/ConfirmationPopup";
+import { useCallback, useRef, useState } from 'react';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 type ConfirmOptions = {
   title?: string;
   msg: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  variant?: "destructive" | "default" | "outline";
+  variant?: 'destructive' | 'default' | 'outline';
 };
 
 export function useConfirmDialog() {
   const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState<ConfirmOptions>({ msg: "" });
+  const [options, setOptions] = useState<ConfirmOptions>({ msg: '' });
   const resolver = useRef<((value: boolean) => void) | null>(null);
 
   const confirm = useCallback((opts: ConfirmOptions) => {
@@ -40,7 +40,7 @@ export function useConfirmDialog() {
       msg={options.msg}
       confirmLabel={options.confirmLabel}
       cancelLabel={options.cancelLabel}
-      variant={options.variant ?? "destructive"}
+      variant={options.variant ?? 'destructive'}
     />
   );
 

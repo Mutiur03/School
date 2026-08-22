@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { toast } from "react-hot-toast";
-import { putFileToPresignedUrl } from "@/lib/uploadToR2";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 
 export interface Event {
   id: string | number;
@@ -16,9 +16,9 @@ export interface Event {
 
 export const useEvents = () => {
   return useQuery<Event[]>({
-    queryKey: ["events"],
+    queryKey: ['events'],
     queryFn: async () => {
-      const response = await axios.get("/api/events/getEvents");
+      const response = await axios.get('/api/events/getEvents');
       return response.data?.data ?? response.data;
     },
   });
@@ -40,11 +40,11 @@ export const useAddEvent = () => {
 
       // 1. Handle image upload
       if (data.image) {
-        const res = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get('/api/events/presigned-url', {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
-            type: "image",
+            type: 'image',
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
@@ -54,11 +54,11 @@ export const useAddEvent = () => {
 
       // 2. Handle file upload
       if (data.file) {
-        const res = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get('/api/events/presigned-url', {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
-            type: "file",
+            type: 'file',
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
@@ -67,7 +67,7 @@ export const useAddEvent = () => {
       }
 
       // 3. Save event record to database
-      const response = await axios.post("/api/events/addEvent", {
+      const response = await axios.post('/api/events/addEvent', {
         title: data.title,
         details: data.details,
         location: data.location,
@@ -78,12 +78,12 @@ export const useAddEvent = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      toast.success("Event created successfully");
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event created successfully');
     },
     onError: (error: any) => {
-      console.error("Error adding event:", error);
-      toast.error(error.response?.data?.error || "Error adding event");
+      console.error('Error adding event:', error);
+      toast.error(error.response?.data?.error || 'Error adding event');
     },
   });
 };
@@ -109,11 +109,11 @@ export const useUpdateEvent = () => {
       let fileKey = undefined;
 
       if (data.image instanceof File) {
-        const res = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get('/api/events/presigned-url', {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
-            type: "image",
+            type: 'image',
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
@@ -122,11 +122,11 @@ export const useUpdateEvent = () => {
       }
 
       if (data.file instanceof File) {
-        const res = await axios.get("/api/events/presigned-url", {
+        const res = await axios.get('/api/events/presigned-url', {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
-            type: "file",
+            type: 'file',
           },
         });
         const { uploadUrl, key } = res.data?.data ?? res.data;
@@ -145,12 +145,12 @@ export const useUpdateEvent = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      toast.success("Event updated successfully");
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event updated successfully');
     },
     onError: (error: any) => {
-      console.error("Error updating event:", error);
-      toast.error(error.response?.data?.error || "Error updating event");
+      console.error('Error updating event:', error);
+      toast.error(error.response?.data?.error || 'Error updating event');
     },
   });
 };
@@ -163,12 +163,12 @@ export const useDeleteEvent = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      toast.success("Event deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event deleted successfully');
     },
     onError: (error: any) => {
-      console.error("Error deleting event:", error);
-      toast.error(error.response?.data?.error || "Error deleting event");
+      console.error('Error deleting event:', error);
+      toast.error(error.response?.data?.error || 'Error deleting event');
     },
   });
 };

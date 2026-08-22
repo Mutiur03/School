@@ -1,34 +1,36 @@
-import type { Metadata } from "next";
-import { headers } from "next/headers";
-import type { SchoolConfig } from "@/types";
-import { cdn, getFileUrl } from "@/lib/cdn";
+import type { Metadata } from 'next';
+import { headers } from 'next/headers';
+import type { SchoolConfig } from '@/types';
+import { cdn, getFileUrl } from '@/lib/cdn';
 
 const staticRoutes = [
-  "/",
-  "/notices",
-  "/gallery",
-  "/teacher-list",
-  "/staff-list",
-  "/message-from-head",
-  "/admission",
-  "/admission/notice",
-  "/admission/results",
-  "/at-a-glance",
-  "/events",
-  "/exam-routine",
+  '/',
+  '/notices',
+  '/gallery',
+  '/teacher-list',
+  '/staff-list',
+  '/message-from-head',
+  '/admission',
+  '/admission/notice',
+  '/admission/results',
+  '/at-a-glance',
+  '/events',
+  '/exam-routine',
 ];
 
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
 
 const clean = (value: string | undefined | null) =>
-  typeof value === "string" && value.trim() ? value.trim() : undefined;
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
 const normalizeUrl = (value: string | undefined | null) => {
   const trimmed = clean(value);
   if (!trimmed) return undefined;
 
   try {
-    return new URL(isAbsoluteUrl(trimmed) ? trimmed : `https://${trimmed}`).toString().replace(/\/$/, "");
+    return new URL(isAbsoluteUrl(trimmed) ? trimmed : `https://${trimmed}`)
+      .toString()
+      .replace(/\/$/, '');
   } catch {
     return undefined;
   }
@@ -37,12 +39,11 @@ const normalizeUrl = (value: string | undefined | null) => {
 export async function getRequestSiteUrl() {
   try {
     const incomingHeaders = await headers();
-    const host = incomingHeaders.get("host");
+    const host = incomingHeaders.get('host');
     if (!host) return undefined;
 
     const protocol =
-      incomingHeaders.get("x-forwarded-proto") ||
-      (host.includes("localhost") ? "http" : "https");
+      incomingHeaders.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
 
     return `${protocol}://${host}`;
   } catch {
@@ -56,7 +57,7 @@ export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string) {
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    "http://localhost:3000"
+    'http://localhost:3000'
   );
 }
 
@@ -71,22 +72,19 @@ export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string) {
     normalizeUrl(school.contact.website) ||
     normalizeUrl(requestUrl) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    "http://localhost:3000"
+    'http://localhost:3000'
   );
 }
 
-export function resolveSeoAssetUrl(
-  value: string | undefined | null,
-  siteUrl: string,
-) {
+export function resolveSeoAssetUrl(value: string | undefined | null, siteUrl: string) {
   const raw = clean(value);
   if (!raw) return undefined;
   if (isAbsoluteUrl(raw)) return raw;
-  if (raw.startsWith("/") && !cdn) return new URL(raw, siteUrl).toString();
+  if (raw.startsWith('/') && !cdn) return new URL(raw, siteUrl).toString();
 
   const fileUrl = getFileUrl(raw);
-  if (!fileUrl || fileUrl.startsWith("undefined/")) {
-    return raw.startsWith("/") ? new URL(raw, siteUrl).toString() : undefined;
+  if (!fileUrl || fileUrl.startsWith('undefined/')) {
+    return raw.startsWith('/') ? new URL(raw, siteUrl).toString() : undefined;
   }
 
   return isAbsoluteUrl(fileUrl) ? fileUrl : new URL(fileUrl, siteUrl).toString();
@@ -115,25 +113,23 @@ function getSeoKeywords(school: SchoolConfig) {
     school.name.shortEn,
     school.contact.upazila,
     school.contact.district,
-    "school",
-    "admission",
-    "notices",
-    "results",
+    'school',
+    'admission',
+    'notices',
+    'results',
   ];
 
   return [...new Set(keywords.map(clean).filter(Boolean) as string[])];
 }
 
-export async function buildSchoolMetadata(
-  school: SchoolConfig,
-): Promise<Metadata> {
+export async function buildSchoolMetadata(school: SchoolConfig): Promise<Metadata> {
   const requestUrl = await getRequestSiteUrl();
   // Tenant data always comes from Host via fetchSchoolConfig(); canonical URL
   // prefers the school's public website so Google indexes one identity per school.
   const siteUrl = getCanonicalSiteUrl(school, requestUrl);
-  const title = clean(school.seo?.title) || school.name.en || "School Website";
+  const title = clean(school.seo?.title) || school.name.en || 'School Website';
   const description = getSeoDescription(school);
-  const iconUrl = getSchoolIconUrl(school, siteUrl) || "/favicon";
+  const iconUrl = getSchoolIconUrl(school, siteUrl) || '/favicon';
   const imageUrl =
     resolveSeoAssetUrl(school.seo?.image, siteUrl) ||
     resolveSeoAssetUrl(school.assets.headerLogo, siteUrl) ||
@@ -148,23 +144,23 @@ export async function buildSchoolMetadata(
     },
     description,
     keywords: getSeoKeywords(school),
-    category: "education",
+    category: 'education',
     icons: {
       icon: iconUrl,
       shortcut: iconUrl,
       apple: iconUrl,
     },
     alternates: {
-      canonical: "/",
+      canonical: '/',
     },
     openGraph: {
-      type: "website",
+      type: 'website',
       url: siteUrl,
       siteName: school.name.en,
       title,
       description,
-      locale: "en_US",
-      alternateLocale: ["bn_BD"],
+      locale: 'en_US',
+      alternateLocale: ['bn_BD'],
       images: imageUrl
         ? [
             {
@@ -175,7 +171,7 @@ export async function buildSchoolMetadata(
         : undefined,
     },
     twitter: {
-      card: imageUrl ? "summary_large_image" : "summary",
+      card: imageUrl ? 'summary_large_image' : 'summary',
       title,
       description,
       images: imageUrl ? [imageUrl] : undefined,
@@ -186,9 +182,9 @@ export async function buildSchoolMetadata(
       googleBot: {
         index: !school.seo?.noIndex,
         follow: !school.seo?.noIndex,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
       },
     },
   };
@@ -204,8 +200,8 @@ export function buildSchoolJsonLd(school: SchoolConfig, siteUrl: string) {
     logo;
 
   return {
-    "@context": "https://schema.org",
-    "@type": "EducationalOrganization",
+    '@context': 'https://schema.org',
+    '@type': 'EducationalOrganization',
     name: school.name.en,
     alternateName: [school.name.bn, school.name.shortEn].filter(Boolean),
     url: siteUrl,
@@ -217,30 +213,30 @@ export function buildSchoolJsonLd(school: SchoolConfig, siteUrl: string) {
     foundingDate: school.history.established,
     identifier: school.identifiers.eiin
       ? {
-          "@type": "PropertyValue",
-          name: "EIIN",
+          '@type': 'PropertyValue',
+          name: 'EIIN',
           value: school.identifiers.eiin,
         }
       : undefined,
     address: {
-      "@type": "PostalAddress",
+      '@type': 'PostalAddress',
       streetAddress: school.contact.address || school.contact.location,
       addressLocality: school.contact.upazila,
       addressRegion: school.contact.district,
-      addressCountry: "BD",
+      addressCountry: 'BD',
     },
   };
 }
 
 export function serializeJsonLd(data: unknown) {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return JSON.stringify(data).replace(/</g, '\\u003c');
 }
 
 export function getStaticSeoRoutes(siteUrl: string) {
   return staticRoutes.map((route) => ({
     url: new URL(route, siteUrl).toString(),
     lastModified: new Date(),
-    changeFrequency: route === "/" ? "daily" as const : "weekly" as const,
-    priority: route === "/" ? 1 : 0.7,
+    changeFrequency: route === '/' ? ('daily' as const) : ('weekly' as const),
+    priority: route === '/' ? 1 : 0.7,
   }));
 }

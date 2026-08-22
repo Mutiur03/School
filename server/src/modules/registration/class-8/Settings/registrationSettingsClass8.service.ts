@@ -1,8 +1,8 @@
-import { prisma } from "@/config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
-import path from "path";
-import { removeInitialZeros } from "@school/shared-schemas";
-import { ApiError } from "@/utils/ApiError.js";
+import { prisma } from '@/config/prisma.js';
+import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import path from 'path';
+import { removeInitialZeros } from '@school/shared-schemas';
+import { ApiError } from '@/utils/ApiError.js';
 
 export class RegistrationSettingsClass8Service {
   static async createOrUpdateClass8Reg(data: any) {
@@ -23,25 +23,18 @@ export class RegistrationSettingsClass8Service {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
       class8_year: class8_year ? parseInt(class8_year, 10) : null,
-      reg_open: reg_open === "true" || reg_open === true,
-      instruction_for_a:
-        instruction_for_a || "Please follow the instructions carefully",
-      instruction_for_b:
-        instruction_for_b || "Please follow the instructions carefully",
-      attachment_instruction:
-        attachment_instruction || "Please attach all required documents",
+      reg_open: reg_open === 'true' || reg_open === true,
+      instruction_for_a: instruction_for_a || 'Please follow the instructions carefully',
+      instruction_for_b: instruction_for_b || 'Please follow the instructions carefully',
+      attachment_instruction: attachment_instruction || 'Please attach all required documents',
       classmates: classmates || null,
-      classmates_source: classmates_source || "default",
+      classmates_source: classmates_source || 'default',
       notice: null,
     };
 
     if (notice_key) {
       const existingRecord = await prisma.class8_reg.findFirst();
-      if (
-        existingRecord &&
-        existingRecord.notice &&
-        existingRecord.notice !== notice_key
-      ) {
+      if (existingRecord && existingRecord.notice && existingRecord.notice !== notice_key) {
         await deleteFromR2(existingRecord.notice);
       }
       updateData.notice = notice_key;
@@ -67,20 +60,20 @@ export class RegistrationSettingsClass8Service {
         b_sec_roll: null,
         class8_year: new Date().getFullYear(),
         reg_open: false,
-        instruction_for_a: "Please follow the instructions carefully",
-        instruction_for_b: "Please follow the instructions carefully",
-        attachment_instruction: "Please attach all required documents",
+        instruction_for_a: 'Please follow the instructions carefully',
+        instruction_for_b: 'Please follow the instructions carefully',
+        attachment_instruction: 'Please attach all required documents',
         notice: null,
         classmates: null,
-        classmates_source: "default",
-        resolvedClassmates: "",
+        classmates_source: 'default',
+        resolvedClassmates: '',
       };
     }
 
     let resolvedClassmates = class8Reg.classmates;
 
     // If classmates_source is 'default', resolve from student enrollments
-    if (class8Reg.classmates_source === "default" && class8Reg.class8_year) {
+    if (class8Reg.classmates_source === 'default' && class8Reg.class8_year) {
       const enrollments = await prisma.student_enrollments.findMany({
         where: {
           year: class8Reg.class8_year as number,
@@ -95,7 +88,7 @@ export class RegistrationSettingsClass8Service {
         },
         orderBy: {
           student: {
-            name: "asc",
+            name: 'asc',
           },
         },
       });
@@ -103,11 +96,11 @@ export class RegistrationSettingsClass8Service {
       resolvedClassmates = enrollments
         .map((en: any) => {
           const name = en.student.name;
-          const section = en.section || "";
-          const roll = en.roll ? removeInitialZeros(String(en.roll)) : "";
+          const section = en.section || '';
+          const roll = en.roll ? removeInitialZeros(String(en.roll)) : '';
           return section && roll ? `${name}/${section}-${roll}` : name;
         })
-        .join(", ");
+        .join(', ');
     }
 
     return {
@@ -120,7 +113,7 @@ export class RegistrationSettingsClass8Service {
     const class8Reg = await prisma.class8_reg.findFirst();
 
     if (!class8Reg || !class8Reg.notice) {
-      throw new ApiError(404, "No notice found to delete");
+      throw new ApiError(404, 'No notice found to delete');
     }
 
     await deleteFromR2(class8Reg.notice);
@@ -136,7 +129,7 @@ export class RegistrationSettingsClass8Service {
   static async getClass8NoticeUploadUrl(data: any) {
     const { filename, filetype } = data;
     if (!filename || !filetype) {
-      throw new ApiError(400, "Filename and filetype are required");
+      throw new ApiError(400, 'Filename and filetype are required');
     }
 
     const ext = path.extname(filename);

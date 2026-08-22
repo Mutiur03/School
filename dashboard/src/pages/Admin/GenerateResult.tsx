@@ -1,38 +1,39 @@
-import { useState, useEffect, useMemo } from "react";
-import axios from "axios";
-import toast from "react-hot-toast";
-import { 
-  Download, 
-  Search, 
-  Users, 
-  Calendar, 
-  GraduationCap, 
+import { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import {
+  Download,
+  Search,
+  Users,
+  Calendar,
+  GraduationCap,
   Layers,
   FileSpreadsheet,
   RefreshCw,
-  Trophy
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { PageHeader, SectionCard } from "@/components";
-import Loading from "@/components/Loading";
-import { motion } from "framer-motion";
-import { useStudents } from "@/queries/students.queries";
-import { 
-  useUpdatePromotionStatus, 
-  useGeneratePromotionRoll 
-} from "@/queries/promotion.queries";
-import { openBlobInNewTab } from "@school/common-ui/blob";
+  Trophy,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { PageHeader, SectionCard } from '@/components';
+import Loading from '@/components/Loading';
+import { motion } from 'framer-motion';
+import { useStudents } from '@/queries/students.queries';
+import { useUpdatePromotionStatus, useGeneratePromotionRoll } from '@/queries/promotion.queries';
+import { openBlobInNewTab } from '@school/common-ui/blob';
 
 const GenerateResult = () => {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
-  const [classSection, setClassSection] = useState<string>("");
-  const [group, setGroup] = useState<string>("");
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [classSection, setClassSection] = useState<string>('');
+  const [group, setGroup] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>('');
 
   // React Queries & Mutations
-  const { data: studentsResponse, isLoading: studentsLoading, error: studentsError } = useStudents({
+  const {
+    data: studentsResponse,
+    isLoading: studentsLoading,
+    error: studentsError,
+  } = useStudents({
     year,
     page: 1,
     limit: 1000, // Fetch all for result generation
@@ -47,10 +48,10 @@ const GenerateResult = () => {
   const loading = studentsLoading || isUpdatingStatus || isGeneratingRoll;
 
   useEffect(() => {
-    const storedYear = sessionStorage.getItem("generateResultYear");
-    const storedClass = sessionStorage.getItem("generateResultClass");
-    const storedSection = sessionStorage.getItem("generateResultSection");
-    const storedGroup = sessionStorage.getItem("generateResultGroup");
+    const storedYear = sessionStorage.getItem('generateResultYear');
+    const storedClass = sessionStorage.getItem('generateResultClass');
+    const storedSection = sessionStorage.getItem('generateResultSection');
+    const storedGroup = sessionStorage.getItem('generateResultGroup');
 
     if (storedYear) setYear(Number(storedYear));
     if (storedClass) setSelectedClass(storedClass);
@@ -60,24 +61,24 @@ const GenerateResult = () => {
 
   const handleYearChange = (value: string) => {
     setYear(Number(value));
-    sessionStorage.setItem("generateResultYear", value);
+    sessionStorage.setItem('generateResultYear', value);
   };
 
   const handleClassChange = (value: string) => {
     setSelectedClass(value);
-    setGroup("");
-    setClassSection("");
-    sessionStorage.setItem("generateResultClass", value);
+    setGroup('');
+    setClassSection('');
+    sessionStorage.setItem('generateResultClass', value);
   };
 
   const handleSectionChange = (value: string) => {
     setClassSection(value);
-    sessionStorage.setItem("generateResultSection", value);
+    sessionStorage.setItem('generateResultSection', value);
   };
 
   const handleGroupChange = (value: string) => {
     setGroup(value);
-    sessionStorage.setItem("generateResultGroup", value);
+    sessionStorage.setItem('generateResultGroup', value);
   };
 
   const handleGenerateResult = () => {
@@ -85,63 +86,71 @@ const GenerateResult = () => {
   };
 
   const handleGenerateRoll = () => {
-    if (!confirm("Are you sure you want to generate roll? This action will overwrite existing roll numbers and cannot be undone.")) return;
+    if (
+      !confirm(
+        'Are you sure you want to generate roll? This action will overwrite existing roll numbers and cannot be undone.',
+      )
+    )
+      return;
     generateRoll(year);
   };
 
   const filteredStudents = useMemo(() => {
     return students
       .filter((s) => !group || s.group === group)
-      .sort((a, b) => (a.section || "").localeCompare(b.section || "") || (Number(a.roll) || 0) - (Number(b.roll) || 0));
+      .sort(
+        (a, b) =>
+          (a.section || '').localeCompare(b.section || '') ||
+          (Number(a.roll) || 0) - (Number(b.roll) || 0),
+      );
   }, [students, group]);
 
   const downloadSessionMarksheet = async (studentId: number) => {
     try {
-      const response = await axios.get(
-        `/api/marks/${studentId}/${year}/download`,
-        { responseType: "blob" }
-      );
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const response = await axios.get(`/api/marks/${studentId}/${year}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       openBlobInNewTab(blob);
     } catch {
-      toast.error("Failed to download session marksheet");
+      toast.error('Failed to download session marksheet');
     }
   };
 
   const downloadAllMarksheetPDF = async () => {
     try {
       const response = await axios.get(`/api/marks/all/${year}`, {
-        responseType: "blob",
+        responseType: 'blob',
       });
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       openBlobInNewTab(blob);
     } catch {
-      toast.error("Failed to download all marksheets");
+      toast.error('Failed to download all marksheets');
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-[1600px] mx-auto overflow-hidden">
-      <PageHeader 
-        title="Generate & Manage Results" 
+    <div className="mx-auto max-w-[1600px] space-y-6 overflow-hidden p-4 sm:p-6">
+      <PageHeader
+        title="Generate & Manage Results"
         description="Automate merit ranking, generate promotional status, and download student marksheets."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SectionCard
           title="Merit & Progress"
-          icon={<Trophy className="w-5 h-5 text-amber-500" />}
+          icon={<Trophy className="h-5 w-5 text-amber-500" />}
           description="Calculate merit positions and generate promotional status (Pass/Fail) for the current year."
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Calendar className="w-3 h-3" /> Select Academic Year
+              <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+                <Calendar className="h-3 w-3" /> Select Academic Year
               </Label>
               <select
                 value={year}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+                className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
               >
                 {Array.from({ length: 5 }, (_, i) => (
                   <option key={i} value={currentYear - i}>
@@ -153,12 +162,16 @@ const GenerateResult = () => {
             <Button
               onClick={handleGenerateResult}
               disabled={isUpdatingStatus}
-              className="w-full h-11 font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
+              className="h-11 w-full font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
             >
-              {isUpdatingStatus ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              {isUpdatingStatus ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Generate Pass/Fail Status
             </Button>
-            <p className="text-[11px] text-muted-foreground italic text-center px-4">
+            <p className="text-muted-foreground px-4 text-center text-[11px] italic">
               Tip: Generate status first, then refine manually in "Customize Result" if needed.
             </p>
           </div>
@@ -166,18 +179,18 @@ const GenerateResult = () => {
 
         <SectionCard
           title="Annual Promotion"
-          icon={<Users className="w-5 h-5 text-indigo-500" />}
+          icon={<Users className="h-5 w-5 text-indigo-500" />}
           description="Finalize transitions by generating new roll numbers for the next academic year."
         >
           <div className="space-y-4">
-             <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Calendar className="w-3 h-3" /> Select Promotion Year
+            <div className="space-y-2">
+              <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+                <Calendar className="h-3 w-3" /> Select Promotion Year
               </Label>
               <select
                 value={year}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+                className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
               >
                 {Array.from({ length: 5 }, (_, i) => (
                   <option key={i} value={currentYear - i}>
@@ -190,31 +203,32 @@ const GenerateResult = () => {
               onClick={handleGenerateRoll}
               disabled={isGeneratingRoll}
               variant="secondary"
-              className="w-full h-11 font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md border border-border"
+              className="border-border h-11 w-full border font-bold shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
             >
-              {isGeneratingRoll ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              {isGeneratingRoll ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Generate Next Year Rolls
             </Button>
-            <p className="text-[11px] text-destructive/80 font-medium text-center px-4">
-               Warning: This will overwrite existing roll numbers for the next year.
+            <p className="text-destructive/80 px-4 text-center text-[11px] font-medium">
+              Warning: This will overwrite existing roll numbers for the next year.
             </p>
           </div>
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="Data Filters"
-        icon={<Search className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <SectionCard title="Data Filters" icon={<Search className="h-5 w-5" />}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Calendar className="w-3 h-3" /> Year
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Calendar className="h-3 w-3" /> Year
             </Label>
             <select
               value={year}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
             >
               {Array.from({ length: 5 }, (_, i) => (
                 <option key={i} value={currentYear - i}>
@@ -225,13 +239,13 @@ const GenerateResult = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <GraduationCap className="w-3 h-3" /> Class
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <GraduationCap className="h-3 w-3" /> Class
             </Label>
             <select
               value={selectedClass}
               onChange={(e) => handleClassChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
             >
               <option value="">All Classes</option>
               {[6, 7, 8, 9, 10].map((num) => (
@@ -243,17 +257,17 @@ const GenerateResult = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Users className="w-3 h-3" /> Section
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Users className="h-3 w-3" /> Section
             </Label>
             <select
               value={classSection}
               onChange={(e) => handleSectionChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
               disabled={!selectedClass}
             >
               <option value="">All Sections</option>
-              {["A", "B", "C", "D"].map((section) => (
+              {['A', 'B', 'C', 'D'].map((section) => (
                 <option key={section} value={section}>
                   {section}
                 </option>
@@ -262,17 +276,17 @@ const GenerateResult = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Layers className="w-3 h-3" /> Group
+            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Layers className="h-3 w-3" /> Group
             </Label>
             <select
               value={group}
               onChange={(e) => handleGroupChange(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary focus:outline-none transition-[color,background-color,border-color,box-shadow,opacity,transform] dark:bg-zinc-900 disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
               disabled={Number(selectedClass) < 9}
             >
               <option value="">All Groups</option>
-              {["Science", "Humanities", "Commerce"].map((dept) => (
+              {['Science', 'Humanities', 'Commerce'].map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -282,39 +296,55 @@ const GenerateResult = () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        noPadding 
+      <SectionCard
+        noPadding
         title="Student Merit List"
-        icon={<FileSpreadsheet className="w-5 h-5 text-primary" />}
-        description={studentsError ? "Failed to load students" : `Showing ${filteredStudents.length} records`}
+        icon={<FileSpreadsheet className="text-primary h-5 w-5" />}
+        description={
+          studentsError ? 'Failed to load students' : `Showing ${filteredStudents.length} records`
+        }
         headerAction={
           filteredStudents.length > 0 && (
             <Button
               size="sm"
               variant="outline"
               onClick={downloadAllMarksheetPDF}
-              className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-none"
+              className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 gap-1.5 px-3 font-medium shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="h-3.5 w-3.5" />
               Download All PDFs
             </Button>
           )
         }
       >
-        <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-sm text-left border-collapse">
+        <div className="min-h-[300px] overflow-x-auto">
+          <table className="w-full border-collapse text-left text-sm">
             <thead>
-              <tr className="bg-muted/50 border-b border-border shadow-sm">
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic w-16 text-center">Merit</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic">Student Name</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-20">Roll</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-24">Section</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-24 bg-primary/5">Next Roll</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-28 bg-primary/5">Next Sec</th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100 italic text-center w-32">Actions</th>
+              <tr className="bg-muted/50 border-border border-b shadow-sm">
+                <th className="w-16 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Merit
+                </th>
+                <th className="px-6 py-4 font-bold text-gray-900 italic dark:text-gray-100">
+                  Student Name
+                </th>
+                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Roll
+                </th>
+                <th className="w-24 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Section
+                </th>
+                <th className="bg-primary/5 w-24 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Next Roll
+                </th>
+                <th className="bg-primary/5 w-28 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Next Sec
+                </th>
+                <th className="w-32 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {loading && students.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-20 text-center">
@@ -323,48 +353,60 @@ const GenerateResult = () => {
                 </tr>
               ) : filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-20 text-center text-muted-foreground italic">
-                    {studentsError ? "An error occurred while fetching students." : "No students matching your filters found."}
+                  <td colSpan={7} className="text-muted-foreground py-20 text-center italic">
+                    {studentsError
+                      ? 'An error occurred while fetching students.'
+                      : 'No students matching your filters found.'}
                   </td>
                 </tr>
               ) : (
                 filteredStudents.map((student, idx) => (
-                  <motion.tr 
+                  <motion.tr
                     key={student.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: Math.min(idx * 0.03, 0.5) }}
-                    className="hover:bg-muted/30 transition-[color,background-color,border-color,box-shadow,opacity,transform] group"
+                    className="hover:bg-muted/30 group transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                   >
-                    <td className="px-6 py-4 text-center border-r border-border/50">
-                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold ${
-                        student.final_merit === 1 ? 'bg-amber-500 text-white' : 
-                        student.final_merit === 2 ? 'bg-zinc-400 text-white' : 
-                        student.final_merit === 3 ? 'bg-amber-700 text-white' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {student.final_merit || "-"}
+                    <td className="border-border/50 border-r px-6 py-4 text-center">
+                      <span
+                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
+                          student.final_merit === 1
+                            ? 'bg-amber-500 text-white'
+                            : student.final_merit === 2
+                              ? 'bg-zinc-400 text-white'
+                              : student.final_merit === 3
+                                ? 'bg-amber-700 text-white'
+                                : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {student.final_merit || '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors border-r border-border/50 uppercase">
-                      {student.name || "N/A"}
+                    <td className="group-hover:text-primary border-border/50 border-r px-6 py-4 font-bold text-gray-800 uppercase transition-colors dark:text-gray-200">
+                      {student.name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-center tabular-nums border-r border-border/50">{student.roll || "N/A"}</td>
-                    <td className="px-6 py-4 text-center font-medium border-r border-border/50">{student.section || "N/A"}</td>
-                    <td className="px-6 py-4 text-center font-bold text-primary bg-primary/5 border-r border-border/50 tabular-nums">
-                      {student.next_year_roll || "N/A"}
+                    <td className="border-border/50 border-r px-6 py-4 text-center tabular-nums">
+                      {student.roll || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-center font-bold text-primary bg-primary/5 border-r border-border/50">
-                      {student.next_year_section || "N/A"}
+                    <td className="border-border/50 border-r px-6 py-4 text-center font-medium">
+                      {student.section || 'N/A'}
+                    </td>
+                    <td className="text-primary bg-primary/5 border-border/50 border-r px-6 py-4 text-center font-bold tabular-nums">
+                      {student.next_year_roll || 'N/A'}
+                    </td>
+                    <td className="text-primary bg-primary/5 border-border/50 border-r px-6 py-4 text-center font-bold">
+                      {student.next_year_section || 'N/A'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 px-3 gap-1.5 font-medium border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-none"
+                          className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 gap-1.5 px-3 font-medium shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
                           onClick={() => downloadSessionMarksheet(student.id)}
                         >
-                          <Download className="w-3.5 h-3.5" />
+                          <Download className="h-3.5 w-3.5" />
                           Session PDF
                         </Button>
                       </div>

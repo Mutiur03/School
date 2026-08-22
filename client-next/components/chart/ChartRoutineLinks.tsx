@@ -1,16 +1,10 @@
-"use client";
+'use client';
 
-import type { MouseEvent } from "react";
-import { useRoutinePDF } from "@/hooks/useSchoolData";
-import { getFileUrl } from "@/lib/cdn";
+import type { MouseEvent } from 'react';
+import { useRoutinePDF } from '@/hooks/useSchoolData';
+import { getFileUrl } from '@/lib/cdn';
 
-const CLASS_LABELS = [
-  "ষষ্ঠ শ্রেণি",
-  "সপ্তম শ্রেণি",
-  "অষ্টম শ্রেণি",
-  "নবম শ্রেণি",
-  "দশম শ্রেণি",
-];
+const CLASS_LABELS = ['ষষ্ঠ শ্রেণি', 'সপ্তম শ্রেণি', 'অষ্টম শ্রেণি', 'নবম শ্রেণি', 'দশম শ্রেণি'];
 
 export function ChartRoutineLinks() {
   const routineQuery = useRoutinePDF();
@@ -19,7 +13,7 @@ export function ChartRoutineLinks() {
     e.preventDefault();
     const pdfUrl = routineQuery.data ?? (await routineQuery.refetch()).data;
     if (pdfUrl) {
-      window.open(getFileUrl(pdfUrl), "_blank", "noopener,noreferrer");
+      window.open(getFileUrl(pdfUrl), '_blank', 'noopener,noreferrer');
     }
   };
 

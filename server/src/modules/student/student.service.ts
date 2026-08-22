@@ -1,18 +1,18 @@
-import generatePassword from "@/utils/pwgenerator.js";
-import * as bcrypt from "bcrypt";
-import { prisma } from "@/config/prisma.js";
-import { deleteFromR2 } from "@/config/r2.js";
-import * as XLSX from "xlsx";
-import { removeInitialZeros, VALID_GROUPS } from "@school/shared-schemas";
-import { ApiError } from "@/utils/ApiError.js";
-import PDFDocument from "pdfkit";
-import EmailService from "@/utils/email.service.js";
-import { env } from "@/config/env.js";
-import type { Prisma } from "@prisma/client";
-import path from "path";
-import fs from "fs";
-import QRCode from "qrcode";
-import sharp from "sharp";
+import generatePassword from '@/utils/pwgenerator.js';
+import * as bcrypt from 'bcrypt';
+import { prisma } from '@/config/prisma.js';
+import { deleteFromR2 } from '@/config/r2.js';
+import * as XLSX from 'xlsx';
+import { removeInitialZeros, VALID_GROUPS } from '@school/shared-schemas';
+import { ApiError } from '@/utils/ApiError.js';
+import PDFDocument from 'pdfkit';
+import EmailService from '@/utils/email.service.js';
+import { env } from '@/config/env.js';
+import type { Prisma } from '@prisma/client';
+import path from 'path';
+import fs from 'fs';
+import QRCode from 'qrcode';
+import sharp from 'sharp';
 const current_year = new Date().getFullYear();
 
 export const sanitizeStudent = (student: any) => {
@@ -48,15 +48,11 @@ export class StudentService {
       levels?: Array<{ class_name: number; section: string; year: number }>;
     },
   ) {
-    const { year, page, limit, level, section, search, religion, roll } =
-      params;
+    const { year, page, limit, level, section, search, religion, roll } = params;
 
-    const normalizedPage =
-      Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const normalizedLimit =
-      Number.isFinite(limit) && limit > 0
-        ? Math.min(Math.floor(limit), 200)
-        : 20;
+      Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const normalizedSection = section?.trim().toUpperCase();
@@ -64,9 +60,7 @@ export class StudentService {
 
     const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
       year,
-      ...(typeof level === "number" && !Number.isNaN(level)
-        ? { class: level }
-        : {}),
+      ...(typeof level === 'number' && !Number.isNaN(level) ? { class: level } : {}),
       ...(normalizedSection ? { section: normalizedSection } : {}),
       ...(!Number.isNaN(roll as number) && roll !== undefined ? { roll } : {}),
     };
@@ -78,22 +72,20 @@ export class StudentService {
     if (normalizedSearch) {
       enrollmentWhere.student = {
         AND: [
-          ...(religion
-            ? [{ religion: { equals: religion, mode: "insensitive" as const } }]
-            : []),
+          ...(religion ? [{ religion: { equals: religion, mode: 'insensitive' as const } }] : []),
           {
             OR: [
-              { name: { contains: normalizedSearch, mode: "insensitive" } },
+              { name: { contains: normalizedSearch, mode: 'insensitive' } },
               {
                 father_phone: {
                   contains: normalizedSearch,
-                  mode: "insensitive",
+                  mode: 'insensitive',
                 },
               },
               {
                 mother_phone: {
                   contains: normalizedSearch,
-                  mode: "insensitive",
+                  mode: 'insensitive',
                 },
               },
             ],
@@ -103,41 +95,38 @@ export class StudentService {
     } else {
       if (religion) {
         enrollmentWhere.student = {
-          religion: { equals: religion, mode: "insensitive" as const },
+          religion: { equals: religion, mode: 'insensitive' as const },
         };
       }
     }
 
-    const [total, filtered, enrollments, allOptions] =
-      await prisma.$transaction([
-        prisma.student_enrollments.count({
-          where: baseWhere,
-        }),
-        prisma.student_enrollments.count({
-          where: enrollmentWhere,
-        }),
-        prisma.student_enrollments.findMany({
-          where: enrollmentWhere,
-          include: { student: true },
-          orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
-          skip,
-          take: normalizedLimit,
-        }),
-        prisma.student_enrollments.findMany({
-          where: baseWhere,
-          select: { class: true, section: true, roll: true },
-        }),
-      ]);
+    const [total, filtered, enrollments, allOptions] = await prisma.$transaction([
+      prisma.student_enrollments.count({
+        where: baseWhere,
+      }),
+      prisma.student_enrollments.count({
+        where: enrollmentWhere,
+      }),
+      prisma.student_enrollments.findMany({
+        where: enrollmentWhere,
+        include: { student: true },
+        orderBy: [{ class: 'asc' }, { section: 'asc' }, { roll: 'asc' }],
+        skip,
+        take: normalizedLimit,
+      }),
+      prisma.student_enrollments.findMany({
+        where: baseWhere,
+        select: { class: true, section: true, roll: true },
+      }),
+    ]);
 
-    const availableClasses = Array.from(
-      new Set(allOptions.map((o) => o.class)),
-    ).sort((a, b) => a - b);
+    const availableClasses = Array.from(new Set(allOptions.map((o) => o.class))).sort(
+      (a, b) => a - b,
+    );
 
-    const availableSections = Array.from(
-      new Set(allOptions.map((o) => o.section)),
-    ).sort();
+    const availableSections = Array.from(new Set(allOptions.map((o) => o.section))).sort();
 
-    const hasLevel = typeof level === "number" && !Number.isNaN(level);
+    const hasLevel = typeof level === 'number' && !Number.isNaN(level);
     const hasSection = !!normalizedSection;
 
     const availableRolls = Array.from(
@@ -145,8 +134,7 @@ export class StudentService {
         allOptions
           .filter(
             (o) =>
-              (!hasLevel || o.class === level) &&
-              (!hasSection || o.section === normalizedSection),
+              (!hasLevel || o.class === level) && (!hasSection || o.section === normalizedSection),
           )
           .map((o) => o.roll),
       ),
@@ -163,8 +151,7 @@ export class StudentService {
       };
     });
 
-    const totalPages =
-      filtered === 0 ? 0 : Math.ceil(filtered / normalizedLimit);
+    const totalPages = filtered === 0 ? 0 : Math.ceil(filtered / normalizedLimit);
 
     return {
       data,
@@ -191,13 +178,13 @@ export class StudentService {
     let result: any[] = [];
     // Admin and teacher both see the full year roster on the student list.
     // Mutate endpoints remain admin-only.
-    if (userOptions.role === "admin" || userOptions.role === "teacher") {
+    if (userOptions.role === 'admin' || userOptions.role === 'teacher') {
       result = await prisma.students.findMany({
         where: { enrollments: { some: { year } } },
         include: {
           enrollments: {
             where: { year },
-            orderBy: { year: "desc" },
+            orderBy: { year: 'desc' },
           },
         },
       });
@@ -214,18 +201,12 @@ export class StudentService {
     });
   }
 
-  static async getAttendanceOverview(params: {
-    year: number;
-    level?: number;
-    section?: string;
-  }) {
+  static async getAttendanceOverview(params: { year: number; level?: number; section?: string }) {
     const { year, level, section } = params;
 
     const where: Prisma.student_enrollmentsWhereInput = {
       year,
-      ...(typeof level === "number" && !Number.isNaN(level)
-        ? { class: level }
-        : {}),
+      ...(typeof level === 'number' && !Number.isNaN(level) ? { class: level } : {}),
       ...(section ? { section } : {}),
     };
 
@@ -242,7 +223,7 @@ export class StudentService {
           },
         },
       },
-      orderBy: [{ class: "asc" }, { section: "asc" }, { roll: "asc" }],
+      orderBy: [{ class: 'asc' }, { section: 'asc' }, { roll: 'asc' }],
     });
 
     return enrollments.map((enrollment) => ({
@@ -265,13 +246,13 @@ export class StudentService {
       where: { id: studentId },
       include: {
         enrollments: {
-          orderBy: { year: "desc" },
+          orderBy: { year: 'desc' },
         },
       },
     });
 
     if (!result) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     const currentEnrollment =
@@ -279,7 +260,7 @@ export class StudentService {
       result.enrollments[0];
 
     if (!currentEnrollment) {
-      throw new ApiError(404, "No enrollment found");
+      throw new ApiError(404, 'No enrollment found');
     }
 
     const studentWithoutPassword = sanitizeStudent(result);
@@ -300,17 +281,14 @@ export class StudentService {
     };
   }
 
-  static async getStudentAttendance(
-    studentId: number,
-    params: { month?: number; year: number },
-  ) {
+  static async getStudentAttendance(studentId: number, params: { month?: number; year: number }) {
     const { month, year } = params;
     const where: Prisma.attendenceWhereInput = { student_id: studentId };
 
     if (month !== undefined && !Number.isNaN(month)) {
-      const startDayString = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const startDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month + 1, 0).getDate();
-      const endDayString = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const endDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       where.date = {
         gte: startDayString,
         lte: endDayString,
@@ -326,22 +304,19 @@ export class StudentService {
         date: true,
         status: true,
       },
-      orderBy: { date: "asc" },
+      orderBy: { date: 'asc' },
     });
 
     const records = rows.map((row) => ({
       ...row,
-      status: typeof row.status === "string" ? row.status.trim() : row.status,
+      status: typeof row.status === 'string' ? row.status.trim() : row.status,
     }));
 
-    const present = records.filter((row) => row.status === "present").length;
-    const absent = records.filter((row) => row.status === "absent").length;
-    const runAwayed = records.filter(
-      (row) => row.status === "run-awayed",
-    ).length;
+    const present = records.filter((row) => row.status === 'present').length;
+    const absent = records.filter((row) => row.status === 'absent').length;
+    const runAwayed = records.filter((row) => row.status === 'run-awayed').length;
     const total = records.length;
-    const attendanceRate =
-      total > 0 ? Math.round((present / total) * 100) : null;
+    const attendanceRate = total > 0 ? Math.round((present / total) * 100) : null;
 
     return {
       records,
@@ -363,14 +338,14 @@ export class StudentService {
       include: {
         enrollments: {
           where: { year: new Date().getFullYear() },
-          orderBy: { year: "desc" },
+          orderBy: { year: 'desc' },
           take: 1,
         },
       },
     });
 
     if (!result || result.enrollments.length === 0) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     const studentWithoutPassword = sanitizeStudent(result);
@@ -392,32 +367,24 @@ export class StudentService {
         const studentYear = student.year || current_year;
         const classNum = Number(removeInitialZeros(String(student.class || 1)));
         const batch = String(studentYear + 11 - classNum);
-        const section = (student.section?.trim() || "A").toUpperCase();
+        const section = (student.section?.trim() || 'A').toUpperCase();
         const roll = Number(removeInitialZeros(String(student.roll || 1)));
         const group = classNum >= 9 ? student.group?.trim() || null : null;
 
-        if (
-          (classNum === 9 || classNum === 10) &&
-          !VALID_GROUPS.includes(group || "")
-        ) {
-          throw new ApiError(
-            400,
-            `Student at index ${i}: Group is required for class 9-10`,
-          );
+        if ((classNum === 9 || classNum === 10) && !VALID_GROUPS.includes(group || '')) {
+          throw new ApiError(400, `Student at index ${i}: Group is required for class 9-10`);
         }
 
         const class6Year = studentYear - (classNum - 6);
         let secValue = 1;
-        if (section >= "A" && section <= "Z") {
+        if (section >= 'A' && section <= 'Z') {
           secValue = section.charCodeAt(0) - 64;
         } else if (!isNaN(Number(section))) {
           secValue = Number(section);
         }
-        const sectionCode = String(secValue).padStart(2, "0");
-        const rollCode = String(roll).padStart(2, "0");
-        const login_id = BigInt(
-          `${String(class6Year).slice(-2)}${sectionCode}${rollCode}`,
-        );
+        const sectionCode = String(secValue).padStart(2, '0');
+        const rollCode = String(roll).padStart(2, '0');
+        const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
 
         return {
           ...student,
@@ -486,7 +453,7 @@ export class StudentService {
     });
 
     const excelData = hashedStudents.map((student) => ({
-      "Login ID": student.login_id.toString(),
+      'Login ID': student.login_id.toString(),
       Name: student.name,
       Password: student.originalPassword,
       Batch: student.batch,
@@ -498,23 +465,23 @@ export class StudentService {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
 
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "buffer",
+      bookType: 'xlsx',
+      type: 'buffer',
     });
 
     EmailService.sendEmailWithAttachment({
       from: env.FROM_EMAIL,
-      to: "mutiur5bb@gmail.com",
-      subject: "New Students Registered - Credentials",
+      to: 'mutiur5bb@gmail.com',
+      subject: 'New Students Registered - Credentials',
       body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${hashedStudents.length} newly registered students.\n\nBest regards,\nSchool Management System`,
       attachment: {
-        filename: "students_credentials.xlsx",
+        filename: 'students_credentials.xlsx',
         content: excelBuffer,
       },
-    }).catch((err) => console.error("Failed to send headmaster email:", err));
+    }).catch((err) => console.error('Failed to send headmaster email:', err));
 
     return {
       data: result,
@@ -538,14 +505,14 @@ export class StudentService {
     });
 
     if (!student) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     await prisma.students.delete({
       where: { id },
     });
 
-    return { message: "Student deleted successfully" };
+    return { message: 'Student deleted successfully' };
   }
 
   static async giveTransferCertificate(id: number) {
@@ -554,7 +521,7 @@ export class StudentService {
     });
 
     if (!student) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     const result = await prisma.students.update({
@@ -571,7 +538,7 @@ export class StudentService {
     });
 
     if (!student) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     const result = await prisma.students.update({
@@ -589,7 +556,7 @@ export class StudentService {
     });
 
     if (students.length === 0) {
-      throw new ApiError(404, "No matching students found");
+      throw new ApiError(404, 'No matching students found');
     }
 
     await prisma.students.deleteMany({
@@ -612,7 +579,7 @@ export class StudentService {
     });
 
     if (students.length === 0) {
-      throw new ApiError(404, "No matching students found");
+      throw new ApiError(404, 'No matching students found');
     }
 
     const processedStudents = await Promise.all(
@@ -660,42 +627,40 @@ export class StudentService {
         religion: string;
         password: string;
       }) => ({
-        "Login ID": student.login_id.toString(),
+        'Login ID': student.login_id.toString(),
         Name: student.name,
         Batch: student.batch,
         Religion: student.religion,
-        "New Password": student.password,
+        'New Password': student.password,
       }),
     );
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rotated Passwords");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Rotated Passwords');
 
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "buffer",
+      bookType: 'xlsx',
+      type: 'buffer',
     });
 
     EmailService.sendEmailWithAttachment({
       from: env.FROM_EMAIL,
-      to: "mutiur5bb@gmail.com",
-      subject: "Student Passwords Rotated - New Credentials",
+      to: 'mutiur5bb@gmail.com',
+      subject: 'Student Passwords Rotated - New Credentials',
       body: `Hello Headmaster,\n\nPlease find attached the new login credentials for the ${rotatedStudents.length} students whose passwords were just rotated.\n\nBest regards,\nSchool Management System`,
       attachment: {
-        filename: "rotated_passwords.xlsx",
+        filename: 'rotated_passwords.xlsx',
         content: excelBuffer,
       },
-    }).catch((err) => console.error("Failed to send headmaster email:", err));
+    }).catch((err) => console.error('Failed to send headmaster email:', err));
 
     return excelBuffer;
   }
 
   static async updateAcademicInfo(enrollmentId: number, updates: any) {
     const parsedEnrollmentId =
-      typeof enrollmentId === "string"
-        ? parseInt(enrollmentId, 10)
-        : enrollmentId;
+      typeof enrollmentId === 'string' ? parseInt(enrollmentId, 10) : enrollmentId;
 
     const classForValidation =
       updates.class ??
@@ -710,76 +675,69 @@ export class StudentService {
       (classForValidation === 9 || classForValidation === 10) &&
       (!updates.group || !VALID_GROUPS.includes(updates.group))
     ) {
-      throw new ApiError(
-        400,
-        "Group is required for class 9-10 and must be valid.",
-      );
+      throw new ApiError(400, 'Group is required for class 9-10 and must be valid.');
     }
 
     if (classForValidation !== 9 && classForValidation !== 10) {
       updates.group = null;
     }
 
-    const result = await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        const enrollment = await tx.student_enrollments.update({
-          where: { id: parsedEnrollmentId },
-          data: updates,
-        });
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const enrollment = await tx.student_enrollments.update({
+        where: { id: parsedEnrollmentId },
+        data: updates,
+      });
 
-        if (!enrollment) throw new ApiError(404, "Enrollment record not found");
+      if (!enrollment) throw new ApiError(404, 'Enrollment record not found');
 
-        const studentInfo = await tx.students.findUnique({
-          where: { id: enrollment.student_id },
-          select: { batch: true, login_id: true, id: true },
-        });
+      const studentInfo = await tx.students.findUnique({
+        where: { id: enrollment.student_id },
+        select: { batch: true, login_id: true, id: true },
+      });
 
-        if (!studentInfo) throw new ApiError(404, "Student not found");
+      if (!studentInfo) throw new ApiError(404, 'Student not found');
 
-        const oldBatch = parseInt(studentInfo.batch);
-        const currentLoginId = studentInfo.login_id;
-        const currentYear = new Date().getFullYear();
-        const newBatch = currentYear + 11 - enrollment.class;
+      const oldBatch = parseInt(studentInfo.batch);
+      const currentLoginId = studentInfo.login_id;
+      const currentYear = new Date().getFullYear();
+      const newBatch = currentYear + 11 - enrollment.class;
 
-        let newLoginId = currentLoginId;
-        let updatedStudent = null;
+      let newLoginId = currentLoginId;
+      let updatedStudent = null;
 
-        if (newBatch !== oldBatch) {
-          const studentYear = enrollment.year || currentYear;
-          const classNum = enrollment.class;
-          const section = (enrollment.section?.trim() || "A").toUpperCase();
-          const roll = enrollment.roll;
+      if (newBatch !== oldBatch) {
+        const studentYear = enrollment.year || currentYear;
+        const classNum = enrollment.class;
+        const section = (enrollment.section?.trim() || 'A').toUpperCase();
+        const roll = enrollment.roll;
 
-          const class6Year = studentYear - (classNum - 6);
-          let secValue = 1;
-          if (section >= "A" && section <= "Z") {
-            secValue = section.charCodeAt(0) - 64;
-          } else if (!isNaN(Number(section))) {
-            secValue = Number(section);
-          }
-          const sectionCode = String(secValue).padStart(2, "0");
-          const rollCode = String(roll).padStart(2, "0");
-          newLoginId = BigInt(
-            `${String(class6Year).slice(-2)}${sectionCode}${rollCode}`,
-          );
-
-          updatedStudent = await tx.students.update({
-            where: { id: enrollment.student_id },
-            data: {
-              batch: String(newBatch),
-              login_id: newLoginId,
-            },
-          });
+        const class6Year = studentYear - (classNum - 6);
+        let secValue = 1;
+        if (section >= 'A' && section <= 'Z') {
+          secValue = section.charCodeAt(0) - 64;
+        } else if (!isNaN(Number(section))) {
+          secValue = Number(section);
         }
+        const sectionCode = String(secValue).padStart(2, '0');
+        const rollCode = String(roll).padStart(2, '0');
+        newLoginId = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
 
-        return {
-          enrollment,
-          updatedStudent,
-          oldLoginId: currentLoginId,
-          newLoginId,
-        };
-      },
-    );
+        updatedStudent = await tx.students.update({
+          where: { id: enrollment.student_id },
+          data: {
+            batch: String(newBatch),
+            login_id: newLoginId,
+          },
+        });
+      }
+
+      return {
+        enrollment,
+        updatedStudent,
+        oldLoginId: currentLoginId,
+        newLoginId,
+      };
+    });
 
     return result.enrollment;
   }
@@ -789,7 +747,7 @@ export class StudentService {
       where: { id: Number(id) },
     });
     if (!existingStudent) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
     if (existingStudent.image) {
       await deleteFromR2(existingStudent.image);
@@ -809,14 +767,14 @@ export class StudentService {
       where: { id: Number(studentId) },
     });
     if (!student) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
     if (!student.password) {
-      throw new ApiError(401, "No password set for this student");
+      throw new ApiError(401, 'No password set for this student');
     }
     const isMatch = await bcrypt.compare(currentPassword, student.password);
     if (!isMatch) {
-      throw new ApiError(400, "Current password is incorrect");
+      throw new ApiError(400, 'Current password is incorrect');
     }
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -836,10 +794,7 @@ export class StudentService {
   ) {
     const currentYear = new Date().getFullYear();
     if (year < 2000 || year > currentYear + 5) {
-      throw new ApiError(
-        400,
-        `Invalid year. Year must be between 2000 and ${currentYear + 5}.`,
-      );
+      throw new ApiError(400, `Invalid year. Year must be between 2000 and ${currentYear + 5}.`);
     }
 
     const result = await prisma.students.findMany({
@@ -847,13 +802,13 @@ export class StudentService {
       include: {
         enrollments: {
           where: { year, class: level },
-          orderBy: { year: "desc" },
+          orderBy: { year: 'desc' },
         },
       },
     });
 
     if (result.length === 0) {
-      throw new ApiError(404, "No students found for the specified year");
+      throw new ApiError(404, 'No students found for the specified year');
     }
 
     return result.flatMap((student: any) => {
@@ -869,47 +824,47 @@ export class StudentService {
 
   static async generateTestimonials(id: number | string) {
     const result = await prisma.students.findUnique({
-      where: { id: typeof id === "string" ? parseInt(id) : id },
+      where: { id: typeof id === 'string' ? parseInt(id) : id },
       include: {
         enrollments: {
-          orderBy: { year: "desc" },
+          orderBy: { year: 'desc' },
           take: 1,
         },
       },
     });
 
     if (!result) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
-    const rawDob = result.dob || "";
+    const rawDob = result.dob || '';
     let formattedDob = rawDob;
     if (/^\d{4}-\d{2}-\d{2}$/.test(rawDob)) {
-      const [y, m, d] = rawDob.split("-");
+      const [y, m, d] = rawDob.split('-');
       formattedDob = `${d}/${m}/${y}`;
     }
 
     const addressParts = [];
     if (result.village)
-      addressParts.push({ title: "Village/ Road No/ House No:", value: result.village });
-    if (result.post_office) addressParts.push({ title: "Post Office:", value: result.post_office });
-    if (result.upazila) addressParts.push({ title: "Upazila/ Thana:", value: result.upazila });
-    if (result.district) addressParts.push({ title: "District:", value: result.district });
+      addressParts.push({ title: 'Village/ Road No/ House No:', value: result.village });
+    if (result.post_office) addressParts.push({ title: 'Post Office:', value: result.post_office });
+    if (result.upazila) addressParts.push({ title: 'Upazila/ Thana:', value: result.upazila });
+    if (result.district) addressParts.push({ title: 'District:', value: result.district });
     const address = addressParts.length > 0 ? addressParts : null;
 
     const data = {
-      school_name: "Panchbibi Lal Bihari Pilot Govt. High School",
-      school_location: "Panchbibi, Joypurhat.",
-      school_website: "https://lbphs.gov.bd",
-      name: result.name || "N/A",
-      father_name: result.father_name || "N/A",
-      mother_name: result.mother_name || "N/A",
-      roll: result.enrollments[0]?.roll || "N/A",
-      class: result.enrollments[0]?.class || "N/A",
-      section: result.enrollments[0]?.section || "N/A",
-      session: result.enrollments[0]?.year || "N/A",
-      dob: formattedDob || "N/A",
-      student_id: result.login_id ? result.login_id.toString() : "N/A",
+      school_name: 'Panchbibi Lal Bihari Pilot Govt. High School',
+      school_location: 'Panchbibi, Joypurhat.',
+      school_website: 'https://lbphs.gov.bd',
+      name: result.name || 'N/A',
+      father_name: result.father_name || 'N/A',
+      mother_name: result.mother_name || 'N/A',
+      roll: result.enrollments[0]?.roll || 'N/A',
+      class: result.enrollments[0]?.class || 'N/A',
+      section: result.enrollments[0]?.section || 'N/A',
+      session: result.enrollments[0]?.year || 'N/A',
+      dob: formattedDob || 'N/A',
+      student_id: result.login_id ? result.login_id.toString() : 'N/A',
       id: result.id,
       imageKey: result.image || null,
       address,
@@ -936,47 +891,46 @@ async function generatePDF(data: {
   address?: { title: string; value: string }[] | null;
 }): Promise<{ pdfBuffer: Buffer; studentName: string }> {
   const classNames: Record<number, string> = {
-    1: "One",
-    2: "Two",
-    3: "Three",
-    4: "Four",
-    5: "Five",
-    6: "Six",
-    7: "Seven",
-    8: "Eight",
-    9: "Nine",
-    10: "Ten",
+    1: 'One',
+    2: 'Two',
+    3: 'Three',
+    4: 'Four',
+    5: 'Five',
+    6: 'Six',
+    7: 'Seven',
+    8: 'Eight',
+    9: 'Nine',
+    10: 'Ten',
   };
   const classStr = classNames[Number(data.class)] || String(data.class);
-  const dhakaDate = () =>
-    new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" });
+  const dhakaDate = () => new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dhaka' });
 
-  const addressStr = data.address ? data.address.map(a => `${a.title} ${a.value}`).join(", ") : "N/A";
+  const addressStr = data.address
+    ? data.address.map((a) => `${a.title} ${a.value}`).join(', ')
+    : 'N/A';
   const qrText = `Name: ${data.name}\nClass: ${classStr}\nSection: ${data.section}\nRoll: ${data.roll}\nAddress: ${addressStr}\nSession: ${data.session}\nSchool: ${data.school_name}`;
   const qrDataUrl = await QRCode.toDataURL(qrText, {
     margin: 1,
     width: 200,
   }).catch(() => null);
 
-  const logoPath = path.join("public", "icon.jpg");
+  const logoPath = path.join('public', 'icon.jpg');
   let logoBuffer: Buffer | null = null;
   if (fs.existsSync(logoPath)) {
     try {
       logoBuffer = await sharp(logoPath).grayscale().toBuffer();
     } catch (e) {
-      console.error("Failed to process watermark logo with sharp:", e);
+      console.error('Failed to process watermark logo with sharp:', e);
     }
   }
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
     const chunks: Buffer[] = [];
 
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () =>
-      resolve({ pdfBuffer: Buffer.concat(chunks), studentName: data.name }),
-    );
-    doc.on("error", reject);
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    doc.on('end', () => resolve({ pdfBuffer: Buffer.concat(chunks), studentName: data.name }));
+    doc.on('error', reject);
 
     const W = doc.page.width;
     const M = 40;
@@ -984,69 +938,66 @@ async function generatePDF(data: {
 
     let y = M - 5;
     const contentWidth = W - M * 2;
-    doc.font("Times-Roman").fontSize(12).fillColor("#000000");
+    doc.font('Times-Roman').fontSize(12).fillColor('#000000');
     doc.text("Government of the People's Republic of Bangladesh", M, y, {
-      align: "center",
+      align: 'center',
       width: contentWidth,
     });
 
     y += 20;
-    doc.fontSize(14).text("The office of the Headmaster", M, y, {
-      align: "center",
+    doc.fontSize(14).text('The office of the Headmaster', M, y, {
+      align: 'center',
       width: contentWidth,
     });
 
     y += 26;
 
     let schoolNameFontSize = 24;
-    doc.font("Times-Bold").fontSize(schoolNameFontSize);
+    doc.font('Times-Bold').fontSize(schoolNameFontSize);
     const maxSchoolNameWidth = contentWidth;
-    while (
-      doc.widthOfString(data.school_name) > maxSchoolNameWidth &&
-      schoolNameFontSize > 10
-    ) {
+    while (doc.widthOfString(data.school_name) > maxSchoolNameWidth && schoolNameFontSize > 10) {
       schoolNameFontSize -= 1;
       doc.fontSize(schoolNameFontSize);
     }
 
-    doc.text(data.school_name, M, y, { align: "center", width: contentWidth });
+    doc.text(data.school_name, M, y, { align: 'center', width: contentWidth });
 
     y += Math.max(schoolNameFontSize + 6, 26);
-    doc.font("Times-Roman").fontSize(14).text(data.school_location, M, y, {
-      align: "center",
+    doc.font('Times-Roman').fontSize(14).text(data.school_location, M, y, {
+      align: 'center',
       width: contentWidth,
     });
 
     y += 20;
     doc.fontSize(13).text(data.school_website, M, y, {
-      align: "center",
+      align: 'center',
       width: contentWidth,
     });
 
     y += 20;
-    doc.fontSize(13).text("EIIN: 121983, School Code: 5100", M, y, {
-      align: "center",
+    doc.fontSize(13).text('EIIN: 121983, School Code: 5100', M, y, {
+      align: 'center',
       width: contentWidth,
     });
 
     y += 26;
 
     const dividerY = y;
-    doc.moveTo(0, y).lineTo(W, y).lineWidth(2).stroke("#000000");
+    doc.moveTo(0, y).lineTo(W, y).lineWidth(2).stroke('#000000');
     doc
       .moveTo(0, y + 3)
       .lineTo(W, y + 3)
       .lineWidth(1)
-      .stroke("#000000");
+      .stroke('#000000');
 
     const textX = M + 20;
     const textWidth = W - (M + 20) * 2;
 
     y += 12;
 
-    doc.font("Times-Bold").fontSize(10).fillColor("#000000");
-    doc.text("Memo No:", textX, y);
-    doc.text(dhakaDate(), textX, y, { align: "right", width: textWidth });
+    doc.font('Times-Bold').fontSize(10).fillColor('#000000');
+    doc.text('Memo No:', textX, y);
+    doc.text(dhakaDate(), textX, y, { align: 'right', width: textWidth });
 
     try {
       doc.save();
@@ -1064,38 +1015,41 @@ async function generatePDF(data: {
     y += 25;
 
     doc
-      .font("Times-Bold")
+      .font('Times-Bold')
       .fontSize(22)
-      .text("Certificate", M, y, { align: "center", width: contentWidth });
+      .text('Certificate', M, y, { align: 'center', width: contentWidth });
 
     y += 35;
 
-    const bodyFont = "Times-Roman";
-    const bodyFontBold = "Times-Bold";
+    const bodyFont = 'Times-Roman';
+    const bodyFontBold = 'Times-Bold';
     const bodySize = 12;
 
     const fragments = [
-      { text: "This is to certify that", font: bodyFont },
+      { text: 'This is to certify that', font: bodyFont },
       { text: data.name, font: bodyFontBold },
-      { text: "son of", font: bodyFont },
+      { text: 'son of', font: bodyFont },
       { text: data.father_name, font: bodyFontBold },
-      { text: "and", font: bodyFont },
+      { text: 'and', font: bodyFont },
       { text: data.mother_name, font: bodyFontBold },
     ];
     if (data.address && data.address.length > 0) {
-      fragments.push({ text: "of", font: bodyFont });
+      fragments.push({ text: 'of', font: bodyFont });
       data.address.forEach((addrPart, index) => {
         fragments.push({ text: addrPart.title, font: bodyFont });
-        const valText = index < data.address!.length - 1 ? addrPart.value + "," : addrPart.value;
+        const valText = index < data.address!.length - 1 ? addrPart.value + ',' : addrPart.value;
         fragments.push({ text: valText, font: bodyFontBold });
       });
     }
-    fragments.push({ text: "is a student of class", font: bodyFont });
-    fragments.push({ text: classStr + ",", font: bodyFontBold });
-    fragments.push({ text: "section", font: bodyFont });
+    fragments.push({ text: 'is a student of class', font: bodyFont });
+    fragments.push({ text: classStr + ',', font: bodyFontBold });
+    fragments.push({ text: 'section', font: bodyFont });
     fragments.push({ text: data.section, font: bodyFontBold });
-    fragments.push({ text: "of this school. According to the admission information his date of birth is", font: bodyFont });
-    fragments.push({ text: data.dob + ".", font: bodyFontBold });
+    fragments.push({
+      text: 'of this school. According to the admission information his date of birth is',
+      font: bodyFont,
+    });
+    fragments.push({ text: data.dob + '.', font: bodyFontBold });
 
     const tokens: { text: string; font: string }[] = [];
     fragments.forEach((frag) => {
@@ -1107,27 +1061,28 @@ async function generatePDF(data: {
 
     let currentLine: { text: string; font: string; width: number }[] = [];
     let currentLineWidth = 0;
-    
-    doc.font(bodyFont).fontSize(bodySize).fillColor("#000000");
-    const defaultSpaceWidth = doc.widthOfString(" ");
+
+    doc.font(bodyFont).fontSize(bodySize).fillColor('#000000');
+    const defaultSpaceWidth = doc.widthOfString(' ');
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
       doc.font(token.font);
       const w = doc.widthOfString(token.text);
-      
+
       const spaceToAdd = currentLine.length === 0 ? 0 : defaultSpaceWidth;
-      
+
       if (currentLineWidth + spaceToAdd + w > textWidth && currentLine.length > 0) {
         const totalWordsWidth = currentLine.reduce((sum, t) => sum + t.width, 0);
-        const spaceWidth = currentLine.length > 1 ? (textWidth - totalWordsWidth) / (currentLine.length - 1) : 0;
-        
+        const spaceWidth =
+          currentLine.length > 1 ? (textWidth - totalWordsWidth) / (currentLine.length - 1) : 0;
+
         let curX = textX;
         currentLine.forEach((t) => {
           doc.font(t.font).text(t.text, curX, y);
           curX += t.width + spaceWidth;
         });
-        
+
         y += doc.currentLineHeight() + 3;
         currentLine = [{ text: token.text, font: token.font, width: w }];
         currentLineWidth = w;
@@ -1152,17 +1107,17 @@ async function generatePDF(data: {
     doc
       .font(bodyFont)
       .text(
-        "To the best of my knowledge, his behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.",
+        'To the best of my knowledge, his behavior is satisfactory. I do not know that he is involved in any kind of activities against the discipline of this school or the state.',
         textX,
         y,
-        { width: textWidth, lineGap: 1.5, align: "justify" },
+        { width: textWidth, lineGap: 1.5, align: 'justify' },
       );
 
     y = doc.y + 6;
-    doc.font(bodyFont).text("I wish his all success in life.", textX, y, {
+    doc.font(bodyFont).text('I wish his all success in life.', textX, y, {
       width: textWidth,
       lineGap: 1.5,
-      align: "left",
+      align: 'left',
     });
 
     const verifiedLineY = studentPartHeight - 75;
@@ -1175,15 +1130,15 @@ async function generatePDF(data: {
       .lineTo(verifiedLineStartX + verifiedLineWidth, verifiedLineY)
       .lineWidth(1)
       .dash(2, { space: 2 })
-      .stroke("#000000")
+      .stroke('#000000')
       .undash();
     doc
-      .font("Times-Roman")
+      .font('Times-Roman')
       .fontSize(11)
-      .fillColor("#000000")
-      .text("Verified by", verifiedLineStartX, verifiedLabelY, {
+      .fillColor('#000000')
+      .text('Verified by', verifiedLineStartX, verifiedLabelY, {
         width: verifiedLineWidth,
-        align: "center",
+        align: 'center',
       });
 
     if (qrDataUrl) {
@@ -1195,85 +1150,72 @@ async function generatePDF(data: {
       .lineTo(W - M - 15, studentPartHeight)
       .lineWidth(1)
       .dash(2, { space: 2 })
-      .stroke("#666666")
+      .stroke('#666666')
       .undash();
-    doc.fillColor("#000000");
+    doc.fillColor('#000000');
 
     const receiptTop = studentPartHeight + 25;
     y = receiptTop + 8;
     doc
-      .font("Times-Bold")
+      .font('Times-Bold')
       .fontSize(14)
-      .fillColor("#000000")
-      .text(data.school_name, M, y, { align: "center", width: contentWidth });
+      .fillColor('#000000')
+      .text(data.school_name, M, y, { align: 'center', width: contentWidth });
     y += 18;
-    doc
-      .font("Times-Roman")
-      .fontSize(11)
-      .text(data.school_location, M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.font('Times-Roman').fontSize(11).text(data.school_location, M, y, {
+      align: 'center',
+      width: contentWidth,
+    });
 
     y += 28;
-    doc
-      .font("Times-Bold")
-      .fontSize(12)
-      .text("Office Copy (Receipt / Acknowledgement)", M, y, {
-        align: "center",
-        width: contentWidth,
-      });
+    doc.font('Times-Bold').fontSize(12).text('Office Copy (Receipt / Acknowledgement)', M, y, {
+      align: 'center',
+      width: contentWidth,
+    });
 
     y += 20;
-    doc.font("Times-Bold").fontSize(9).text("Memo No:", M + 15, y);
+    doc
+      .font('Times-Bold')
+      .fontSize(9)
+      .text('Memo No:', M + 15, y);
 
     y += 18;
     doc.text(`Date: ${dhakaDate()}`, M + 15, y);
 
     y += 18;
-    doc.font("Times-Roman").fontSize(10);
-    doc.text("Name: ", M + 15, y, { continued: true });
-    doc.font("Times-Bold").text(data.name);
+    doc.font('Times-Roman').fontSize(10);
+    doc.text('Name: ', M + 15, y, { continued: true });
+    doc.font('Times-Bold').text(data.name);
     y += 16;
-    doc
-      .font("Times-Roman")
-      .text("Father's Name: ", M + 15, y, { continued: true });
-    doc.font("Times-Bold").text(data.father_name);
+    doc.font('Times-Roman').text("Father's Name: ", M + 15, y, { continued: true });
+    doc.font('Times-Bold').text(data.father_name);
     y += 16;
-    doc
-      .font("Times-Roman")
-      .text("Mother's Name: ", M + 15, y, { continued: true });
-    doc.font("Times-Bold").text(data.mother_name);
+    doc.font('Times-Roman').text("Mother's Name: ", M + 15, y, { continued: true });
+    doc.font('Times-Bold').text(data.mother_name);
 
     y += 16;
-    doc.font("Times-Roman").text("Class: ", M + 15, y, { continued: true });
-    doc
-      .font("Times-Bold")
-      .text(`${classStr} (${data.class})`, { continued: true });
-    doc.font("Times-Roman").text(" | Section: ", { continued: true });
-    doc.font("Times-Bold").text(data.section, { continued: true });
-    doc.font("Times-Roman").text(" | Roll: ", { continued: true });
-    doc.font("Times-Bold").text(String(data.roll));
+    doc.font('Times-Roman').text('Class: ', M + 15, y, { continued: true });
+    doc.font('Times-Bold').text(`${classStr} (${data.class})`, { continued: true });
+    doc.font('Times-Roman').text(' | Section: ', { continued: true });
+    doc.font('Times-Bold').text(data.section, { continued: true });
+    doc.font('Times-Roman').text(' | Roll: ', { continued: true });
+    doc.font('Times-Bold').text(String(data.roll));
     y += 16;
-    doc
-      .font("Times-Roman")
-      .text("Date of Birth: ", M + 15, y, { continued: true });
-    doc.font("Times-Bold").text(data.dob);
+    doc.font('Times-Roman').text('Date of Birth: ', M + 15, y, { continued: true });
+    doc.font('Times-Bold').text(data.dob);
 
     y += 16;
     const labelWidth = 260;
     const rightX = W - M - labelWidth - 15;
-    doc.font("Times-Roman").fontSize(10);
-    doc.text(
-      "Received by: ...........................................",
-      rightX,
-      y,
-      { width: labelWidth, align: "right" },
-    );
-    y += 18;
-    doc.text("Mobile: ...........................................", rightX, y, {
+    doc.font('Times-Roman').fontSize(10);
+    doc.text('Received by: ...........................................', rightX, y, {
       width: labelWidth,
-      align: "right",
+      align: 'right',
+    });
+    y += 18;
+    doc.text('Mobile: ...........................................', rightX, y, {
+      width: labelWidth,
+      align: 'right',
     });
 
     doc.end();

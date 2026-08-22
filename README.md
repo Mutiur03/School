@@ -26,15 +26,15 @@ School/
 
 ### Applications
 
-| App | Purpose | Default dev port |
-|-----|---------|------------------|
-| **server** | REST API, Prisma, Bull workers, PDF generation | `5000` (see `PORT`) |
-| **dashboard** (admin) | School admin panel | `5174` |
-| **dashboard** (student) | Student portal | `5175` |
-| **dashboard** (teacher) | Teacher portal | `5176` |
-| **dashboard** (super_admin) | Platform / multi-school admin | `5177` |
-| **client-next** | Public institutional website | `3000` |
-| **workers/auth-bff** | Cookie/session edge worker | `8787` |
+| App                         | Purpose                                        | Default dev port    |
+| --------------------------- | ---------------------------------------------- | ------------------- |
+| **server**                  | REST API, Prisma, Bull workers, PDF generation | `5000` (see `PORT`) |
+| **dashboard** (admin)       | School admin panel                             | `5174`              |
+| **dashboard** (student)     | Student portal                                 | `5175`              |
+| **dashboard** (teacher)     | Teacher portal                                 | `5176`              |
+| **dashboard** (super_admin) | Platform / multi-school admin                  | `5177`              |
+| **client-next**             | Public institutional website                   | `3000`              |
+| **workers/auth-bff**        | Cookie/session edge worker                     | `8787`              |
 
 ---
 
@@ -100,19 +100,19 @@ flowchart LR
 
 All exam marksheets are rendered **only in a background worker** (PDFKit). HTTP handlers never render inline. Cached PDFs live in **Cloudflare R2** with hash-verified staleness.
 
-| PDF type | Who downloads | Auto background? |
-|----------|---------------|-------------------|
-| **Per-student exam** | Student, teacher, admin, public | Yes on publish, mark save (**if published**), teacher/head/level change, progress UI gap-fill |
-| **Class bundle** | Admin (`ALL`), teacher (section) | On download; auto only on teacher/head/level change |
-| **Session student** | Student, teacher, admin | On download only |
-| **Session year** | Admin | On download only |
+| PDF type             | Who downloads                    | Auto background?                                                                              |
+| -------------------- | -------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Per-student exam** | Student, teacher, admin, public  | Yes on publish, mark save (**if published**), teacher/head/level change, progress UI gap-fill |
+| **Class bundle**     | Admin (`ALL`), teacher (section) | On download; auto only on teacher/head/level change                                           |
+| **Session student**  | Student, teacher, admin          | On download only                                                                              |
+| **Session year**     | Admin                            | On download only                                                                              |
 
 **Publish vs hidden exams**
 
-| Exam state | Save marks | PDF generation |
-|------------|------------|----------------|
-| **Hidden** (`visible = false`) | Saves to DB only | **On download** (any authorized role) |
-| **Published** | Auto-invalidates per-student cache | Normal background + on download |
+| Exam state                     | Save marks                         | PDF generation                        |
+| ------------------------------ | ---------------------------------- | ------------------------------------- |
+| **Hidden** (`visible = false`) | Saves to DB only                   | **On download** (any authorized role) |
+| **Published**                  | Auto-invalidates per-student cache | Normal background + on download       |
 
 **Progress UI** — View Marks and Exam PDF Routine poll `GET /api/marks/generation-status/:examId`, show generation progress, and list **outdated bundles** (`bundles.staleItems`) before download.
 
@@ -143,34 +143,34 @@ Full specification: [`server/docs/marksheet-regeneration.md`](server/docs/marksh
 
 ## Role-based access
 
-| Capability | Admin | Teacher | Student | Public |
-|------------|:-----:|:-------:|:-------:|:------:|
-| Manage exams / levels | ✅ | ❌ | ❌ | ❌ |
-| Enter / edit marks | ✅ | ✅ (assigned) | ❌ | ❌ |
-| View class marks | ✅ | ✅ (assigned) | ❌ | ❌ |
-| Download exam marksheet | ✅ | ✅ | ✅ (own) | ✅ (published only) |
-| Download class bundle | ✅ | ✅ (section) | ❌ | ❌ |
-| Session year PDF | ✅ | ❌ | ❌ | ❌ |
-| Publish results | ✅ | ❌ | ❌ | ❌ |
-| Attendance / SMS | ✅ | ✅ | ❌ | ❌ |
-| Gallery approval | ✅ | ❌ | ❌ | ❌ |
+| Capability              | Admin |    Teacher    | Student  |       Public        |
+| ----------------------- | :---: | :-----------: | :------: | :-----------------: |
+| Manage exams / levels   |  ✅   |      ❌       |    ❌    |         ❌          |
+| Enter / edit marks      |  ✅   | ✅ (assigned) |    ❌    |         ❌          |
+| View class marks        |  ✅   | ✅ (assigned) |    ❌    |         ❌          |
+| Download exam marksheet |  ✅   |      ✅       | ✅ (own) | ✅ (published only) |
+| Download class bundle   |  ✅   | ✅ (section)  |    ❌    |         ❌          |
+| Session year PDF        |  ✅   |      ❌       |    ❌    |         ❌          |
+| Publish results         |  ✅   |      ❌       |    ❌    |         ❌          |
+| Attendance / SMS        |  ✅   |      ✅       |    ❌    |         ❌          |
+| Gallery approval        |  ✅   |      ❌       |    ❌    |         ❌          |
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|------------|
-| **Dashboard** | React 19, Vite, TanStack Query, Tailwind 4, shadcn/Radix, Framer Motion |
-| **Public site** | Next.js 16, React 19, Tailwind 4 |
-| **API** | Node.js, Express (ESM), TypeScript, Zod |
-| **Database** | PostgreSQL, Prisma, RLS per school |
-| **Queue** | Bull, Redis (ioredis) |
-| **Marksheet PDFs** | PDFKit, pdf-to-img rasterization, hash cache on R2 |
-| **Other PDFs** | Puppeteer (admission / registration forms) |
-| **Storage** | Cloudflare R2 (primary), Cloudinary (images) |
-| **Edge** | Cloudflare Workers (tenant routing, auth BFF) |
-| **Observability** | Winston, Sentry (optional) |
+| Layer              | Technology                                                              |
+| ------------------ | ----------------------------------------------------------------------- |
+| **Dashboard**      | React 19, Vite, TanStack Query, Tailwind 4, shadcn/Radix, Framer Motion |
+| **Public site**    | Next.js 16, React 19, Tailwind 4                                        |
+| **API**            | Node.js, Express (ESM), TypeScript, Zod                                 |
+| **Database**       | PostgreSQL, Prisma, RLS per school                                      |
+| **Queue**          | Bull, Redis (ioredis)                                                   |
+| **Marksheet PDFs** | PDFKit, pdf-to-img rasterization, hash cache on R2                      |
+| **Other PDFs**     | Puppeteer (admission / registration forms)                              |
+| **Storage**        | Cloudflare R2 (primary), Cloudinary (images)                            |
+| **Edge**           | Cloudflare Workers (tenant routing, auth BFF)                           |
+| **Observability**  | Winston, Sentry (optional)                                              |
 
 ---
 
@@ -195,11 +195,11 @@ pnpm install
 
 Create env files from samples in each app:
 
-| Path | Purpose |
-|------|---------|
-| `server/.env` | Database, JWT, Redis, R2, SMS, Brevo, Sentry |
-| `dashboard/.env.admin` (and `.teacher`, `.student`, `.super_admin`) | API URL, mode-specific config |
-| `client-next/.env` | Public site API / analytics |
+| Path                                                                | Purpose                                      |
+| ------------------------------------------------------------------- | -------------------------------------------- |
+| `server/.env`                                                       | Database, JWT, Redis, R2, SMS, Brevo, Sentry |
+| `dashboard/.env.admin` (and `.teacher`, `.student`, `.super_admin`) | API URL, mode-specific config                |
+| `client-next/.env`                                                  | Public site API / analytics                  |
 
 **Server — required**
 
@@ -283,27 +283,27 @@ pnpm run build:client:core
 
 ## API overview (marks)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/marks/addMarks` | admin, teacher | Save marks |
-| `GET` | `/api/marks/getClassMarks/:class/:year/:exam` | admin, teacher | Class mark grid |
-| `GET` | `/api/marks/:id/:year/:exam/download` | admin, teacher, student | Per-student exam PDF |
-| `GET` | `/api/marks/class-exam/:class/:year/:exam/download` | admin, teacher | Class bundle PDF |
-| `GET` | `/api/marks/:id/:year/download` | admin, teacher, student | Session student PDF |
-| `GET` | `/api/marks/all/:year` | admin | Session year PDF |
-| `GET` | `/api/marks/generation-status/:examId` | admin, teacher | Progress + stale bundles |
-| `POST` | `/api/marks/public/verify` | public | Public result login |
-| `GET` | `/api/marks/public/download` | public token | Published exam PDF |
+| Method | Path                                                | Auth                    | Description              |
+| ------ | --------------------------------------------------- | ----------------------- | ------------------------ |
+| `POST` | `/api/marks/addMarks`                               | admin, teacher          | Save marks               |
+| `GET`  | `/api/marks/getClassMarks/:class/:year/:exam`       | admin, teacher          | Class mark grid          |
+| `GET`  | `/api/marks/:id/:year/:exam/download`               | admin, teacher, student | Per-student exam PDF     |
+| `GET`  | `/api/marks/class-exam/:class/:year/:exam/download` | admin, teacher          | Class bundle PDF         |
+| `GET`  | `/api/marks/:id/:year/download`                     | admin, teacher, student | Session student PDF      |
+| `GET`  | `/api/marks/all/:year`                              | admin                   | Session year PDF         |
+| `GET`  | `/api/marks/generation-status/:examId`              | admin, teacher          | Progress + stale bundles |
+| `POST` | `/api/marks/public/verify`                          | public                  | Public result login      |
+| `GET`  | `/api/marks/public/download`                        | public token            | Published exam PDF       |
 
 ---
 
 ## Documentation
 
-| Document | Contents |
-|----------|----------|
+| Document                                                                         | Contents                                              |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | [`server/docs/marksheet-regeneration.md`](server/docs/marksheet-regeneration.md) | PDF types, triggers, hashes, worker flow, progress UI |
-| [`dashboard/README.md`](dashboard/README.md) | Dashboard-specific notes |
-| [`client-next/README.md`](client-next/README.md) | Public site notes |
+| [`dashboard/README.md`](dashboard/README.md)                                     | Dashboard-specific notes                              |
+| [`client-next/README.md`](client-next/README.md)                                 | Public site notes                                     |
 
 ---
 

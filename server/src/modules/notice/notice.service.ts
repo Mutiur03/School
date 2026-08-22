@@ -1,10 +1,10 @@
-import { prisma } from "@/config/prisma.js";
-import { redis } from "@/config/redis.js";
+import { prisma } from '@/config/prisma.js';
+import { redis } from '@/config/redis.js';
 
-import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
-import { ApiError } from "@/utils/ApiError.js";
+import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
 
-const noticesKey = (schoolId?: number) => `notices:${schoolId ?? "none"}`;
+const noticesKey = (schoolId?: number) => `notices:${schoolId ?? 'none'}`;
 
 export class NoticeService {
   async getNotices(limit?: number, schoolId?: number) {
@@ -14,11 +14,10 @@ export class NoticeService {
       ? JSON.parse(cached)
       : await prisma.notices.findMany({
           where: { school_id: schoolId },
-          orderBy: { created_at: "desc" },
+          orderBy: { created_at: 'desc' },
         });
 
-    if (!cached)
-      redis.set(key, JSON.stringify(notices), "EX", 120).catch(() => {});
+    if (!cached) redis.set(key, JSON.stringify(notices), 'EX', 120).catch(() => {});
 
     return limit ? notices.slice(0, limit) : notices;
   }
@@ -60,7 +59,7 @@ export class NoticeService {
     const existing = await prisma.notices.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Notice not found");
+    if (!existing) throw new ApiError(404, 'Notice not found');
 
     let updateData: any = { ...data };
     delete updateData.key;
@@ -91,7 +90,7 @@ export class NoticeService {
     const existing = await prisma.notices.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Notice not found");
+    if (!existing) throw new ApiError(404, 'Notice not found');
 
     await prisma.notices.delete({ where: { id } });
     redis.del(noticesKey(schoolId)).catch(() => {});

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { cache } from "react";
-import { unstable_cache } from "next/cache";
-import { headers } from "next/headers";
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
+import { headers } from 'next/headers';
 import {
   getDefaultTenantHost,
   getDevTenantHost,
@@ -11,14 +11,14 @@ import {
   isVercelAppHost,
   resolveBackendBaseUrl,
   serverBackendUrl,
-} from "./resolveBackend";
+} from './resolveBackend';
 
 // Re-exported from cdn.ts so Server Components can still import from one place.
-export { cdn, getFileUrl } from "./cdn";
-export { resolveClientAxiosBaseUrl } from "./resolveBackend";
+export { cdn, getFileUrl } from './cdn';
+export { resolveClientAxiosBaseUrl } from './resolveBackend';
 
-const envBackend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "") || "";
-const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === "true";
+const envBackend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, '') || '';
+const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === 'true';
 
 /** Per-attempt deadline. Serverless + Cloudflare often reset idle keepalives; fail fast and retry. */
 const FETCH_TIMEOUT_MS = Number(process.env.API_FETCH_TIMEOUT_MS || 8_000);
@@ -45,7 +45,7 @@ function logApiRequest(
 ) {
   if (!debugApi) return;
 
-  console.log("[API request]", {
+  console.log('[API request]', {
     method,
     url,
     backend: backendBase,
@@ -53,14 +53,10 @@ function logApiRequest(
   });
 }
 
-function logApiResponse(
-  method: string,
-  url: string,
-  details: Record<string, unknown>,
-) {
+function logApiResponse(method: string, url: string, details: Record<string, unknown>) {
   if (!debugApi) return;
 
-  console.log("[API response]", {
+  console.log('[API response]', {
     method,
     url,
     ...details,
@@ -71,10 +67,10 @@ function previewBody(body: unknown) {
   if (body === undefined || body === null) return body;
 
   try {
-    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const text = typeof body === 'string' ? body : JSON.stringify(body);
     return text.length > 1000 ? `${text.slice(0, 1000)}...` : text;
   } catch {
-    return "[unserializable body]";
+    return '[unserializable body]';
   }
 }
 
@@ -84,7 +80,7 @@ function getFetchErrorCode(error: unknown): string | undefined {
   if (!(error instanceof Error)) return undefined;
 
   const cause = (error as { cause?: unknown }).cause;
-  if (cause && typeof cause === "object" && "code" in cause) {
+  if (cause && typeof cause === 'object' && 'code' in cause) {
     return String((cause as { code?: unknown }).code);
   }
 
@@ -94,10 +90,10 @@ function getFetchErrorCode(error: unknown): string | undefined {
 function isAbortError(error: unknown): boolean {
   return (
     error instanceof Error &&
-    (error.name === "AbortError" ||
-      error.name === "TimeoutError" ||
-      error.message.toLowerCase().includes("aborted") ||
-      error.message.toLowerCase().includes("timeout"))
+    (error.name === 'AbortError' ||
+      error.name === 'TimeoutError' ||
+      error.message.toLowerCase().includes('aborted') ||
+      error.message.toLowerCase().includes('timeout'))
   );
 }
 
@@ -107,18 +103,18 @@ function isRetryableFetchError(error: unknown): boolean {
 
   const code = getFetchErrorCode(error);
   if (
-    code === "ETIMEDOUT" ||
-    code === "ECONNRESET" ||
-    code === "ECONNREFUSED" ||
-    code === "UND_ERR_SOCKET" ||
-    code === "UND_ERR_CONNECT_TIMEOUT" ||
-    code === "UND_ERR_HEADERS_TIMEOUT" ||
-    code === "UND_ERR_BODY_TIMEOUT"
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNRESET' ||
+    code === 'ECONNREFUSED' ||
+    code === 'UND_ERR_SOCKET' ||
+    code === 'UND_ERR_CONNECT_TIMEOUT' ||
+    code === 'UND_ERR_HEADERS_TIMEOUT' ||
+    code === 'UND_ERR_BODY_TIMEOUT'
   ) {
     return true;
   }
 
-  return error.message.toLowerCase().includes("fetch failed");
+  return error.message.toLowerCase().includes('fetch failed');
 }
 
 function mergeAbortSignals(
@@ -127,7 +123,7 @@ function mergeAbortSignals(
   const active = signals.filter((s): s is AbortSignal => Boolean(s));
   if (active.length === 0) return undefined;
   if (active.length === 1) return active[0];
-  if (typeof AbortSignal.any === "function") {
+  if (typeof AbortSignal.any === 'function') {
     return AbortSignal.any(active);
   }
   return active[0];
@@ -138,9 +134,7 @@ function createAttemptSignal(userSignal?: AbortSignal | null): {
   cleanup: () => void;
 } {
   const timeoutSignal =
-    typeof AbortSignal.timeout === "function"
-      ? AbortSignal.timeout(FETCH_TIMEOUT_MS)
-      : undefined;
+    typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(FETCH_TIMEOUT_MS) : undefined;
 
   if (!timeoutSignal && !userSignal) {
     return { signal: undefined, cleanup: () => undefined };
@@ -203,36 +197,35 @@ type RequestContext = {
 /** True when Next threw because headers() was used during static generation. */
 function isDynamicServerUsageError(error: unknown): boolean {
   return (
-    typeof error === "object" &&
+    typeof error === 'object' &&
     error !== null &&
-    "digest" in error &&
-    (error as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE"
+    'digest' in error &&
+    (error as { digest?: string }).digest === 'DYNAMIC_SERVER_USAGE'
   );
 }
 
 const getRequestContext = cache(async (): Promise<RequestContext> => {
   try {
     const incomingHeaders = await headers();
-    const tenantHost = incomingHeaders.get("x-tenant-host")?.trim() || undefined;
+    const tenantHost = incomingHeaders.get('x-tenant-host')?.trim() || undefined;
     const host = (
       tenantHost ||
-      incomingHeaders.get("x-forwarded-host") ||
-      incomingHeaders.get("host") ||
-      ""
+      incomingHeaders.get('x-forwarded-host') ||
+      incomingHeaders.get('host') ||
+      ''
     )
-      .split(",")[0]
+      .split(',')[0]
       ?.trim();
 
-    const forwardedProto = incomingHeaders.get("x-forwarded-proto") || undefined;
+    const forwardedProto = incomingHeaders.get('x-forwarded-proto') || undefined;
     const proto =
-      forwardedProto ||
-      (host?.includes("localhost") ? "http" : host ? "https" : undefined);
+      forwardedProto || (host?.includes('localhost') ? 'http' : host ? 'https' : undefined);
 
     return { host: host || undefined, proto, tenantHost };
   } catch (error) {
     // During `next build` static generation there is no request; fall back to env.
     if (!isDynamicServerUsageError(error)) {
-      console.warn("[backend] failed to read request headers:", error);
+      console.warn('[backend] failed to read request headers:', error);
     }
     return {};
   }
@@ -255,13 +248,10 @@ export async function getBackendBaseUrl(): Promise<string> {
     const { hostname, protocol } = new URL(origin);
     const effectiveHostname =
       isVercelAppHost(hostname) && !isTenantHost(hostname)
-        ? getDefaultTenantHost() ?? hostname
+        ? (getDefaultTenantHost() ?? hostname)
         : hostname;
 
-    return resolveBackendBaseUrl(
-      effectiveHostname,
-      protocol.replace(":", ""),
-    );
+    return resolveBackendBaseUrl(effectiveHostname, protocol.replace(':', ''));
   } catch {
     return envBackend || serverBackendUrl();
   }
@@ -271,11 +261,11 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
   const { host, proto, tenantHost } = await getRequestContext();
 
   if (tenantHost) {
-    const protocol = proto || (tenantHost.includes("localhost") ? "http" : "https");
+    const protocol = proto || (tenantHost.includes('localhost') ? 'http' : 'https');
     return {
       Origin: `${protocol}://${tenantHost}`,
-      "x-forwarded-host": tenantHost,
-      "x-tenant-host": tenantHost,
+      'x-forwarded-host': tenantHost,
+      'x-tenant-host': tenantHost,
     };
   }
 
@@ -284,22 +274,22 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
   try {
     const requestOrigin = `${proto}://${host}`;
     const { hostname, protocol } = new URL(requestOrigin);
-    const resolvedProto = protocol.replace(":", "");
+    const resolvedProto = protocol.replace(':', '');
 
     if (isBareLocalHost(hostname)) {
       const resolvedTenantHost = getDevTenantHost();
       return {
         Origin: `${resolvedProto}://${resolvedTenantHost}`,
-        "x-forwarded-host": resolvedTenantHost,
-        "x-tenant-host": resolvedTenantHost,
+        'x-forwarded-host': resolvedTenantHost,
+        'x-tenant-host': resolvedTenantHost,
       };
     }
 
     if (isTenantLocalDevHost(hostname) || isTenantHost(hostname)) {
       return {
         Origin: `${resolvedProto}://${hostname}`,
-        "x-forwarded-host": hostname,
-        "x-tenant-host": hostname,
+        'x-forwarded-host': hostname,
+        'x-tenant-host': hostname,
       };
     }
 
@@ -308,15 +298,15 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
       if (defaultTenantHost) {
         return {
           Origin: `https://${defaultTenantHost}`,
-          "x-forwarded-host": defaultTenantHost,
-          "x-tenant-host": defaultTenantHost,
+          'x-forwarded-host': defaultTenantHost,
+          'x-tenant-host': defaultTenantHost,
         };
       }
     }
 
     return {
       Origin: requestOrigin,
-      "x-forwarded-host": host,
+      'x-forwarded-host': host,
     };
   } catch {
     return undefined;
@@ -326,10 +316,10 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
 function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
   if (
     payload &&
-    typeof payload === "object" &&
-    "success" in payload &&
-    "message" in payload &&
-    "data" in payload
+    typeof payload === 'object' &&
+    'success' in payload &&
+    'message' in payload &&
+    'data' in payload
   ) {
     const typedPayload = payload as ApiResponse<T>;
     return typedPayload;
@@ -337,7 +327,7 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 
   return {
     success: true,
-    message: "OK",
+    message: 'OK',
     data: payload as T,
   };
 }
@@ -347,12 +337,12 @@ async function get<T>(url: string, options?: any) {
   const backend = await getBackendBaseUrl();
   const { host, tenantHost } = await getRequestContext();
   // Same backend URL is shared across tenants; key cache by tenant host.
-  const tenantKey = (tenantHost || host || "default").toLowerCase();
+  const tenantKey = (tenantHost || host || 'default').toLowerCase();
 
   if (!backend) {
-    logApiRequest("GET", url, backend, {
+    logApiRequest('GET', url, backend, {
       skipped: true,
-      reason: "backend base URL is not set",
+      reason: 'backend base URL is not set',
       params,
     });
     return normalizeApiResponse<T>(null);
@@ -360,25 +350,20 @@ async function get<T>(url: string, options?: any) {
 
   const sanitizedParams = params
     ? Object.fromEntries(
-        Object.entries(params).filter(
-          ([, value]) => value !== undefined && value !== null,
-        ),
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null),
       )
     : undefined;
 
   const query =
     sanitizedParams && Object.keys(sanitizedParams).length > 0
-      ? "?" +
-        new URLSearchParams(
-          sanitizedParams as Record<string, string>,
-        ).toString()
-      : "";
+      ? '?' + new URLSearchParams(sanitizedParams as Record<string, string>).toString()
+      : '';
   const requestUrl = `${backend}${url}${query}`;
   const apiHeaders = await getApiFetchHeaders();
   // Serializable so unstable_cache revalidation does not reuse another tenant's closure.
   const headersJson = JSON.stringify(apiHeaders ?? {});
 
-  logApiRequest("GET", requestUrl, backend, {
+  logApiRequest('GET', requestUrl, backend, {
     params: sanitizedParams,
     revalidate,
     cache: fetchCache,
@@ -394,14 +379,14 @@ async function get<T>(url: string, options?: any) {
     const cachedHeaders = JSON.parse(cachedHeadersJson) as HeadersInit;
     try {
       const res = await fetchWithRetry(cachedUrl, {
-        method: "GET",
+        method: 'GET',
         headers: cachedHeaders,
         // Tenant isolation is via unstable_cache key args, not Next fetch cache.
-        cache: "no-store",
+        cache: 'no-store',
       });
       const text = await res.text();
 
-      logApiResponse("GET", cachedUrl, {
+      logApiResponse('GET', cachedUrl, {
         status: res.status,
         ok: res.ok,
         bodyPreview: previewBody(text),
@@ -417,7 +402,7 @@ async function get<T>(url: string, options?: any) {
       const code = getFetchErrorCode(error);
       const message = error instanceof Error ? error.message : String(error);
       if (debugApi) {
-        logApiResponse("GET", cachedUrl, {
+        logApiResponse('GET', cachedUrl, {
           error: message,
           code,
           tenantKey: cachedTenant,
@@ -431,12 +416,12 @@ async function get<T>(url: string, options?: any) {
     }
   };
 
-  if (fetchCache === "no-store") {
+  if (fetchCache === 'no-store') {
     return runFetch(requestUrl, tenantKey, headersJson);
   }
 
   // Args are part of the cache key → lbphs.gov.bd ≠ other-school.mutiurrahman.com
-  const cachedGet = unstable_cache(runFetch, ["api-get"], {
+  const cachedGet = unstable_cache(runFetch, ['api-get'], {
     revalidate,
     tags: [`tenant:${tenantKey}`, `api:${url}`],
   });
@@ -449,21 +434,21 @@ async function post<T>(url: string, body?: any) {
   const requestUrl = `${backend}${url}`;
   const apiHeaders = await getApiFetchHeaders();
 
-  logApiRequest("POST", requestUrl, backend, {
+  logApiRequest('POST', requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 
   const res = await fetch(requestUrl, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...apiHeaders,
     },
     body: JSON.stringify(body),
   });
   const text = await res.text();
 
-  logApiResponse("POST", requestUrl, {
+  logApiResponse('POST', requestUrl, {
     status: res.status,
     ok: res.ok,
     bodyPreview: previewBody(text),
@@ -477,21 +462,21 @@ async function put<T>(url: string, body?: any) {
   const requestUrl = `${backend}${url}`;
   const apiHeaders = await getApiFetchHeaders();
 
-  logApiRequest("PUT", requestUrl, backend, {
+  logApiRequest('PUT', requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 
   const res = await fetch(requestUrl, {
-    method: "PUT",
+    method: 'PUT',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...apiHeaders,
     },
     body: JSON.stringify(body),
   });
   const text = await res.text();
 
-  logApiResponse("PUT", requestUrl, {
+  logApiResponse('PUT', requestUrl, {
     status: res.status,
     ok: res.ok,
     bodyPreview: previewBody(text),
@@ -505,15 +490,15 @@ async function del<T>(url: string) {
   const requestUrl = `${backend}${url}`;
   const apiHeaders = await getApiFetchHeaders();
 
-  logApiRequest("DELETE", requestUrl, backend);
+  logApiRequest('DELETE', requestUrl, backend);
 
   const res = await fetch(requestUrl, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: apiHeaders,
   });
   const text = await res.text();
 
-  logApiResponse("DELETE", requestUrl, {
+  logApiResponse('DELETE', requestUrl, {
     status: res.status,
     ok: res.ok,
     bodyPreview: previewBody(text),
@@ -527,21 +512,21 @@ async function patch<T>(url: string, body?: any) {
   const requestUrl = `${backend}${url}`;
   const apiHeaders = await getApiFetchHeaders();
 
-  logApiRequest("PATCH", requestUrl, backend, {
+  logApiRequest('PATCH', requestUrl, backend, {
     bodyPreview: previewBody(body),
   });
 
   const res = await fetch(requestUrl, {
-    method: "PATCH",
+    method: 'PATCH',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...apiHeaders,
     },
     body: JSON.stringify(body),
   });
   const text = await res.text();
 
-  logApiResponse("PATCH", requestUrl, {
+  logApiResponse('PATCH', requestUrl, {
     status: res.status,
     ok: res.ok,
     bodyPreview: previewBody(text),

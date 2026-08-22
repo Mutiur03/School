@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import axios, { isAxiosError } from "axios";
-import type { ApiResponse } from "@school/shared-schemas";
-import { useTeacher } from "@/queries/teacher.queries";
-import type { Teacher } from "@/types/teachers";
+import React, { useEffect, useState } from 'react';
+import axios, { isAxiosError } from 'axios';
+import type { ApiResponse } from '@school/shared-schemas';
+import { useTeacher } from '@/queries/teacher.queries';
+import type { Teacher } from '@/types/teachers';
 
 interface HeadData {
   teacher?: Teacher;
@@ -11,28 +11,27 @@ interface HeadData {
 }
 
 const HEAD_ROLE_OPTIONS = [
-  { value: "Headmaster", label: "Headmaster" },
-  { value: "Headmaster (Incharge)", label: "Headmaster (Incharge)" },
+  { value: 'Headmaster', label: 'Headmaster' },
+  { value: 'Headmaster (Incharge)', label: 'Headmaster (Incharge)' },
 ] as const;
-
 
 function Head() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
-  const [headRole, setHeadRole] = useState<string>("Headmaster");
-  const [message, setMessage] = useState<string>("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+  const [headRole, setHeadRole] = useState<string>('Headmaster');
+  const [message, setMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
   const { data: teacherData } = useTeacher({});
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       setLoading(true);
-      setError("");
-      setSuccess("");
-      let fetchError = "";
+      setError('');
+      setSuccess('');
+      let fetchError = '';
 
       try {
         if (isMounted && teacherData) {
@@ -40,28 +39,23 @@ function Head() {
         }
       } catch (e) {
         if (isAxiosError(e))
-          fetchError =
-            e.response?.data?.error || e.message || "Error loading teachers";
+          fetchError = e.response?.data?.error || e.message || 'Error loading teachers';
       }
 
       try {
-        const resHead = await axios.get<ApiResponse<HeadData>>("/api/teachers/head-message");
+        const resHead = await axios.get<ApiResponse<HeadData>>('/api/teachers/head-message');
         const headData = resHead.data?.data || {};
         console.log(headData);
-        
+
         if (isMounted) {
           if (headData?.teacher) setSelectedTeacherId(headData.teacher.id.toString());
-          if (typeof headData?.head_message === "string")
-            setMessage(headData.head_message);
+          if (typeof headData?.head_message === 'string') setMessage(headData.head_message);
           if (headData?.head_role) setHeadRole(headData.head_role);
         }
       } catch (e) {
         if (isAxiosError(e))
           if (!fetchError) {
-            fetchError =
-              e.response?.data?.error ||
-              e.message ||
-              "Error loading head message";
+            fetchError = e.response?.data?.error || e.message || 'Error loading head message';
           }
       }
       if (isMounted && fetchError) setError(fetchError);
@@ -75,19 +69,18 @@ function Head() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
-    setSuccess("");
+    setError('');
+    setSuccess('');
     try {
       const payload: { teacherId?: string; message?: string; headRole?: string } = {};
       if (selectedTeacherId) payload.teacherId = selectedTeacherId;
       if (message.trim()) payload.message = message.trim();
       if (headRole) payload.headRole = headRole;
-      if (Object.keys(payload).length === 0) throw new Error("Nothing to save");
-      await axios.post("/api/teachers/head-message", payload);
-      setSuccess("Saved");
+      if (Object.keys(payload).length === 0) throw new Error('Nothing to save');
+      await axios.post('/api/teachers/head-message', payload);
+      setSuccess('Saved');
     } catch (e) {
-      if (isAxiosError(e))
-        setError(e.response?.data?.error || e.message || "Request failed");
+      if (isAxiosError(e)) setError(e.response?.data?.error || e.message || 'Request failed');
     } finally {
       setLoading(false);
     }
@@ -106,7 +99,7 @@ function Head() {
             value={selectedTeacherId}
             onChange={(e) => setSelectedTeacherId(e.target.value)}
             disabled={loading || teachers.length === 0}
-            className="ml-2 resize-y border border-input rounded p-2 text-sm disabled:opacity-60"
+            className="border-input ml-2 resize-y rounded border p-2 text-sm disabled:opacity-60"
           >
             <option value="">-- Select --</option>
             {teachers.map((teacher) => (
@@ -142,14 +135,14 @@ function Head() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={loading}
-          className="w-full resize-y border border-input rounded p-2 text-sm disabled:opacity-60"
+          className="border-input w-full resize-y rounded border p-2 text-sm disabled:opacity-60"
         />
 
         <div>
           <button
             type="submit"
             disabled={loading || (!selectedTeacherId && !message.trim())}
-            className="px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary/90 disabled:opacity-60"
+            className="bg-primary hover:bg-primary/90 rounded px-3 py-2 text-sm text-white disabled:opacity-60"
           >
             Save All
           </button>

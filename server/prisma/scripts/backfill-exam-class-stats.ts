@@ -18,9 +18,9 @@
  * school_id, which we provide.
  */
 
-import "dotenv/config";
+import 'dotenv/config';
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -30,12 +30,10 @@ declare const process: {
 
 const prisma = new PrismaClient();
 const dryRun =
-  process.env.DRY_RUN === "1" ||
-  process.env.DRY_RUN === "true" ||
-  process.argv.includes("--dry");
+  process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true' || process.argv.includes('--dry');
 
 const GROUPED_CLASSES = new Set([9, 10]);
-const STUDENT_GROUPS = ["Science", "Commerce", "Humanities"] as const;
+const STUDENT_GROUPS = ['Science', 'Commerce', 'Humanities'] as const;
 
 type ClassStatsSnapshot = {
   highestBySubject: Record<number, number>;
@@ -67,7 +65,7 @@ async function computeStats(
 
   const [bySubject, byEnrollmentExam, byEnrollmentAll] = await Promise.all([
     prisma.marks.groupBy({
-      by: ["subject_id"],
+      by: ['subject_id'],
       where: {
         exam_id: examId,
         school_id: schoolId,
@@ -76,17 +74,17 @@ async function computeStats(
       _max: { marks: true },
     }),
     prisma.marks.groupBy({
-      by: ["enrollment_id"],
+      by: ['enrollment_id'],
       where: {
         exam_id: examId,
         school_id: schoolId,
         enrollment: enrollmentWhere,
-        subject: { assessment_type: "exam" },
+        subject: { assessment_type: 'exam' },
       },
       _sum: { marks: true },
     }),
     prisma.marks.groupBy({
-      by: ["enrollment_id"],
+      by: ['enrollment_id'],
       where: {
         exam_id: examId,
         school_id: schoolId,
@@ -101,11 +99,9 @@ async function computeStats(
     highestBySubject[g.subject_id] = Number(g._max.marks ?? 0);
   }
   const examTotals = byEnrollmentExam.map((g) => Number(g._sum.marks ?? 0));
-  const classHighestTotal =
-    examTotals.length > 0 ? Math.max(...examTotals) : 0;
+  const classHighestTotal = examTotals.length > 0 ? Math.max(...examTotals) : 0;
   const grandTotals = byEnrollmentAll.map((g) => Number(g._sum.marks ?? 0));
-  const classHighestGrandTotal =
-    grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
+  const classHighestGrandTotal = grandTotals.length > 0 ? Math.max(...grandTotals) : 0;
 
   return { highestBySubject, classHighestTotal, classHighestGrandTotal };
 }
@@ -134,7 +130,7 @@ async function main() {
   // Distinct (exam, enrollment) pairs that have marks, collapsed to
   // (school, exam, class, year).
   const pairs = await prisma.marks.groupBy({
-    by: ["exam_id", "enrollment_id"],
+    by: ['exam_id', 'enrollment_id'],
   });
 
   const combos = new Map<string, Combo>();
@@ -159,8 +155,8 @@ async function main() {
 
   console.log(
     `${combos.size} (school,exam,class,year) combo(s) to backfill` +
-      (skippedNoSchool ? `, ${skippedNoSchool} pair(s) skipped (null school_id)` : "") +
-      (dryRun ? " (DRY_RUN)" : ""),
+      (skippedNoSchool ? `, ${skippedNoSchool} pair(s) skipped (null school_id)` : '') +
+      (dryRun ? ' (DRY_RUN)' : ''),
   );
   if (dryRun) return;
 
@@ -172,16 +168,8 @@ async function main() {
     let statsByGroup: StatsByGroup | null = null;
 
     if (GROUPED_CLASSES.has(c.klass)) {
-      const grouped = await computeGroupedClassStatsAll(
-        c.schoolId,
-        c.examId,
-        c.klass,
-        c.year,
-      );
-      highestBySubject = grouped.classWide.highestBySubject as Record<
-        string,
-        number
-      >;
+      const grouped = await computeGroupedClassStatsAll(c.schoolId, c.examId, c.klass, c.year);
+      highestBySubject = grouped.classWide.highestBySubject as Record<string, number>;
       classHighestTotal = grouped.classWide.classHighestTotal;
       classHighestGrandTotal = grouped.classWide.classHighestGrandTotal;
       statsByGroup = grouped.byGroup;

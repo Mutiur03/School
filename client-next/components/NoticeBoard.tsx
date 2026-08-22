@@ -1,12 +1,12 @@
-import "./NoticeBoard.css";
-import Link from "@/components/Link";
-import  { getFileUrl } from "@/lib/backend";
-import {  fetchNotices } from "@/queries/notice.queries";
+import './NoticeBoard.css';
+import Link from '@/components/Link';
+import { getFileUrl } from '@/lib/backend';
+import { fetchNotices } from '@/queries/notice.queries';
 
 export async function NoticeBoard() {
   const data = await fetchNotices(5);
   return (
-    <div className="front-notices-area ">
+    <div className="front-notices-area">
       <div className="notices-front">
         <div className="notices-front-board">
           <div className="notices-items">
@@ -15,11 +15,7 @@ export async function NoticeBoard() {
               {(data ?? []).map((notice, index) => (
                 <li key={index} className="notice-item text-left">
                   <div className="notice-title">
-                    <a
-                      href={getFileUrl(notice.file) ?? "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <a href={getFileUrl(notice.file) ?? '#'} target="_blank" rel="noreferrer">
                       {notice.title}
                     </a>
                   </div>

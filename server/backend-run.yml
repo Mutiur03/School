@@ -6,7 +6,7 @@ services:
     image: school_backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${PORT}:${PORT}"
+      - '127.0.0.1:${PORT}:${PORT}'
     volumes:
       - ./uploads:/app/server/uploads
       - ./logs:/app/server/logs

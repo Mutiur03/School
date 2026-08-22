@@ -182,6 +182,7 @@ printf "Avg user: %.2f%% | Avg system: %.2f%% | Avg idle: %.2f%%\n",
 u/n, s/n, i/n
 }'
 ```
+
 ```
 awk '{
 uri=$7; # requested URI
@@ -201,15 +202,17 @@ upstream="-"; # backend address
 
 }' /var/log/nginx/access.log
 ```
+
 ```
 awk '{count[$7]++} END {for (uri in count) print count[uri], uri}' /var/log/nginx/access.log | sort -nr
 ```
+
 ```
 awk '{
     upstream="-";
     for(i=1;i<=NF;i++){
         if($i ~ /^upstream=/){
-            split($i,a,"="); 
+            split($i,a,"=");
             upstream=a[2];
         }
     }
@@ -222,12 +225,10 @@ awk '{
 }' /var/log/nginx/access.log | sort -nr
 ```
 
-
-
-
 ```
 docker exec container-name pg_dump -U user dbname > backup.sql
 ```
+
 ```
 docker run -d \
   --name pg-temp \
@@ -235,26 +236,29 @@ docker run -d \
   -e POSTGRES_PASSWORD=password \
   postgres:17
 ```
+
 ```
 docker exec -it pg-temp pg_dump -U user dbname > backup.sql
 ```
+
 ```
 docker exec -i container-name psql -U user dbname < backup.sql
 ```
+
 ```
 kill $(lsof -t -i:3000)
 ```
 
-
-
 Make sure Postgres is stopped in both old and new containers.
 then to rename volume
+
 ```
 docker run --rm -it \
   -v my_old_volume:/from \
   -v my_new_volume:/to \
   alpine sh -c "cp -a /from/. /to/"
 ```
+
 docker system df
 
 docker system prune -a
@@ -268,6 +272,7 @@ docker build --no-cache -fserver/Dockerfile -t school-server .
 #!/bin/bash
 
 # Configuration
+
 CONTAINER_NAME="lbp-postgres_school-1"
 DB_USER="mutiur"
 DB_NAME="school"
@@ -277,42 +282,49 @@ LOCAL_TMP_DIR="/root/db_temp"
 TIMESTAMP=$(date "+%Y-%m-%d_%H-%M")
 
 # Custom compressed binary format (.dump) handles FK dependencies automatically during restore
+
 BACKUP_FILE="${LOCAL_TMP_DIR}/${DB_NAME}_${TIMESTAMP}.dump"
 
 echo "=== Docker DB Backup Started at $(date) ==="
 
 # 1. Clean up and create temporary workspace
+
 rm -rf "$LOCAL_TMP_DIR"
 mkdir -p "$LOCAL_TMP_DIR"
 
 # 2. Run pg_dump inside the running Docker container
+
 # Using '-F c' (custom format) allows clean restoration without FK order errors
+
 echo "Executing pg_dump inside container..."
 docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" -F c "$DB_NAME" > "$BACKUP_FILE"
 
 # 3. Check if the backup file was successfully created and is not empty
+
 if [ ! -s "$BACKUP_FILE" ]; then
-    echo "ERROR: Backup file is empty or database dump failed!"
-    exit 1
+echo "ERROR: Backup file is empty or database dump failed!"
+exit 1
 fi
 
 # 4. Upload the single .dump file directly to Google Drive
+
 echo "Uploading custom binary dump to Google Drive..."
 rclone copy "$BACKUP_FILE" "${GDRIVE_REMOTE}:PostgresBackups" --quiet
 
 # 5. Clean up local temporary files
+
 echo "Cleaning up local files..."
 rm -rf "$LOCAL_TMP_DIR"
 
 # 6. Automatically delete backups older than 7 days from Google Drive
+
 echo "Cleaning up backups older than 7 days from Google Drive..."
 rclone delete "${GDRIVE_REMOTE}:PostgresBackups" --min-age 7d --rmdirs --quiet
 
 echo "=== Docker DB Backup Completed Successfully at $(date) ==="
 
--- Restore 
+-- Restore
 docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --clean --no-owner < ./school_2026-08-07_10-51.dump
-
 
 -- As superuser/owner
 GRANT USAGE ON SCHEMA app TO school_app;

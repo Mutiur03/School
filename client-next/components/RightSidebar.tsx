@@ -1,12 +1,12 @@
-import "./RightSidebar.css";
-import Link from "@/components/Link";
+import './RightSidebar.css';
+import Link from '@/components/Link';
 
-import { getFileUrl } from "@/lib/backend";
-import { isExternalHref } from "@/lib/links";
-import { fetchSchoolConfig } from "@/queries/school.queries";
-import Image from "next/image";
-import { fetchHeadMasterMsg } from "@/queries/teacher.queries";
-import { HeadMasterMessageVisibility } from "./HeadMasterMessageVisibility";
+import { getFileUrl } from '@/lib/backend';
+import { isExternalHref } from '@/lib/links';
+import { fetchSchoolConfig } from '@/queries/school.queries';
+import Image from 'next/image';
+import { fetchHeadMasterMsg } from '@/queries/teacher.queries';
+import { HeadMasterMessageVisibility } from './HeadMasterMessageVisibility';
 
 type SidebarLink = {
   title: string;
@@ -22,7 +22,6 @@ type SidebarLink = {
 //   };
 // };
 
-
 export async function RightSidebar() {
   const [school, resolvedHeadMasterMsg] = await Promise.all([
     fetchSchoolConfig(),
@@ -31,18 +30,18 @@ export async function RightSidebar() {
   const currentDate = new Date();
 
   const monthNames = [
-    "JANUARY",
-    "FEBRUARY",
-    "MARCH",
-    "APRIL",
-    "MAY",
-    "JUNE",
-    "JULY",
-    "AUGUST",
-    "SEPTEMBER",
-    "OCTOBER",
-    "NOVEMBER",
-    "DECEMBER",
+    'JANUARY',
+    'FEBRUARY',
+    'MARCH',
+    'APRIL',
+    'MAY',
+    'JUNE',
+    'JULY',
+    'AUGUST',
+    'SEPTEMBER',
+    'OCTOBER',
+    'NOVEMBER',
+    'DECEMBER',
   ];
   const sidebarLinks = (school?.sidebarLinks ?? {}) as {
     important?: SidebarLink[];
@@ -76,9 +75,7 @@ export async function RightSidebar() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday =
-        today.getFullYear() === year &&
-        today.getMonth() === month &&
-        today.getDate() === day;
+        today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
 
       currentWeek.push({ day, isToday });
 
@@ -108,8 +105,7 @@ export async function RightSidebar() {
   const teacherImage = resolvedHeadMasterMsg?.teacher?.image;
 
   const teacherImgSrc = getFileUrl(teacherImage ?? null);
-  const normalizedTeacherImgSrc =
-    typeof teacherImgSrc === "string" ? teacherImgSrc.trim() : "";
+  const normalizedTeacherImgSrc = typeof teacherImgSrc === 'string' ? teacherImgSrc.trim() : '';
   const hasTeacherImg = normalizedTeacherImgSrc.length > 0;
 
   return (
@@ -124,24 +120,24 @@ export async function RightSidebar() {
               <div
                 className="aligncenter headmaster-image"
                 style={{
-                  background: "#ffffff",
-                  width: "100%",
-                  aspectRatio: "1 / 1",
-                  display: "block",
-                  position: "relative",
-                  overflow: "hidden",
+                  background: '#ffffff',
+                  width: '100%',
+                  aspectRatio: '1 / 1',
+                  display: 'block',
+                  position: 'relative',
+                  overflow: 'hidden',
                   borderRadius: 2,
                 }}
               >
                 {hasTeacherImg ? (
                   <Image
-                    alt={resolvedHeadMasterMsg?.teacher?.name ?? "Headmaster image"}
+                    alt={resolvedHeadMasterMsg?.teacher?.name ?? 'Headmaster image'}
                     src={normalizedTeacherImgSrc}
                     fill
                     sizes="(max-width: 768px) 100vw, 320px"
                     style={{
-                      objectFit: "cover",
-                      display: "block",
+                      objectFit: 'cover',
+                      display: 'block',
                     }}
                     className="object-cover object-top"
                   />
@@ -150,9 +146,9 @@ export async function RightSidebar() {
                     role="img"
                     aria-label="No headmaster image"
                     style={{
-                      width: "100%",
-                      height: "100%",
-                      backgroundColor: "#f0f0f0",
+                      width: '100%',
+                      height: '100%',
+                      backgroundColor: '#f0f0f0',
                     }}
                   />
                 )}
@@ -208,11 +204,7 @@ export async function RightSidebar() {
             {links.teacherLogin && (
               <li className="menu-item">
                 {isExternalHref(links.teacherLogin) ? (
-                  <a
-                    target="_blank"
-                    href={links.teacherLogin}
-                    rel="noreferrer"
-                  >
+                  <a target="_blank" href={links.teacherLogin} rel="noreferrer">
                     Teacher Log in
                   </a>
                 ) : (
@@ -223,11 +215,7 @@ export async function RightSidebar() {
             {links.studentLogin && (
               <li className="menu-item">
                 {isExternalHref(links.studentLogin) ? (
-                  <a
-                    target="_blank"
-                    href={links.studentLogin}
-                    rel="noreferrer"
-                  >
+                  <a target="_blank" href={links.studentLogin} rel="noreferrer">
                     Student Log in
                   </a>
                 ) : (
@@ -275,21 +263,35 @@ export async function RightSidebar() {
             <caption>{calendarData.monthYear}</caption>
             <thead>
               <tr>
-                <th scope="col" aria-label="Monday">M</th>
-                <th scope="col" aria-label="Tuesday">T</th>
-                <th scope="col" aria-label="Wednesday">W</th>
-                <th scope="col" aria-label="Thursday">T</th>
-                <th scope="col" aria-label="Friday">F</th>
-                <th scope="col" aria-label="Saturday">S</th>
-                <th scope="col" aria-label="Sunday">S</th>
+                <th scope="col" aria-label="Monday">
+                  M
+                </th>
+                <th scope="col" aria-label="Tuesday">
+                  T
+                </th>
+                <th scope="col" aria-label="Wednesday">
+                  W
+                </th>
+                <th scope="col" aria-label="Thursday">
+                  T
+                </th>
+                <th scope="col" aria-label="Friday">
+                  F
+                </th>
+                <th scope="col" aria-label="Saturday">
+                  S
+                </th>
+                <th scope="col" aria-label="Sunday">
+                  S
+                </th>
               </tr>
             </thead>
             <tbody>
               {calendarData.weeks.map((week, weekIndex) => (
                 <tr key={weekIndex}>
                   {week.map((day, dayIndex) => (
-                    <td key={dayIndex} className={day?.isToday ? "today" : ""}>
-                      {day ? day.day : ""}
+                    <td key={dayIndex} className={day?.isToday ? 'today' : ''}>
+                      {day ? day.day : ''}
                     </td>
                   ))}
                 </tr>
@@ -301,14 +303,10 @@ export async function RightSidebar() {
             className="wp-calendar-nav flex justify-between"
           >
             <span className="wp-calendar-nav-prev">
-              <span>
-                « {monthNames[calendarData.prevMonth.getMonth()].slice(0, 3)}
-              </span>
+              <span>« {monthNames[calendarData.prevMonth.getMonth()].slice(0, 3)}</span>
             </span>
             <span className="wp-calendar-nav-next">
-              <span>
-                {monthNames[calendarData.nextMonth.getMonth()].slice(0, 3)} »
-              </span>
+              <span>{monthNames[calendarData.nextMonth.getMonth()].slice(0, 3)} »</span>
             </span>
           </nav>
         </div>
@@ -335,7 +333,7 @@ export async function RightSidebar() {
                   width={600}
                   height={340}
                   sizes="(max-width: 768px) 100vw, 320px"
-                  style={{ width: "100%", height: "auto" }}
+                  style={{ width: '100%', height: 'auto' }}
                 />
               );
             })}

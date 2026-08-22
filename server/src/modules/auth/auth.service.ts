@@ -1,15 +1,15 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import crypto from "crypto";
-import { Request, Response, CookieOptions } from "express";
-import { env } from "@/config/env.js";
-import { prisma } from "@/config/prisma.js";
-import { ApiError } from "@/utils/ApiError.js";
-import { redis } from "@/config/redis.js";
-import EmailService from "@/utils/email.service.js";
-import { SMSService } from "@/utils/sms.service.js";
-import { assertSuperAdminHostAllowed } from "@/utils/superAdminDomain.js";
-import { assertVerifiedTenantSchoolId } from "@/middlewares/access.middleware.js";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import { Request, Response, CookieOptions } from 'express';
+import { env } from '@/config/env.js';
+import { prisma } from '@/config/prisma.js';
+import { ApiError } from '@/utils/ApiError.js';
+import { redis } from '@/config/redis.js';
+import EmailService from '@/utils/email.service.js';
+import { SMSService } from '@/utils/sms.service.js';
+import { assertSuperAdminHostAllowed } from '@/utils/superAdminDomain.js';
+import { assertVerifiedTenantSchoolId } from '@/middlewares/access.middleware.js';
 
 export type AuthUser = {
   id: number;
@@ -25,24 +25,24 @@ export class AuthService {
     await assertSuperAdminHostAllowed(req);
 
     if (!email || !token) {
-      throw new ApiError(400, "Email and token are required");
+      throw new ApiError(400, 'Email and token are required');
     }
 
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const [count, tokenDoc] = await prisma.$transaction([
       prisma.superAdmin.count(),
       prisma.setupToken.findUnique({ where: { tokenHash } }),
     ]);
 
     if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
-      throw new ApiError(403, "Invalid or expired token");
+      throw new ApiError(403, 'Invalid or expired token');
     }
 
-    if (tokenDoc.role === "super_admin" && count > 0) {
-      throw new ApiError(403, "Super admin already exists");
+    if (tokenDoc.role === 'super_admin' && count > 0) {
+      throw new ApiError(403, 'Super admin already exists');
     }
 
-    const randomPassword = crypto.randomBytes(16).toString("hex");
+    const randomPassword = crypto.randomBytes(16).toString('hex');
     const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
     await prisma.superAdmin.create({
@@ -59,15 +59,11 @@ export class AuthService {
     return { email };
   }
 
-  static async loginAdmin(
-    username?: string,
-    password?: string,
-    schoolId?: number,
-  ) {
+  static async loginAdmin(username?: string, password?: string, schoolId?: number) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!username || !password) {
-      throw new ApiError(400, "Username and password are required");
+      throw new ApiError(400, 'Username and password are required');
     }
 
     const user = await prisma.admin.findFirst({
@@ -75,55 +71,51 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ApiError(401, "Admin not found");
+      throw new ApiError(401, 'Admin not found');
     }
 
     if (!user.password) {
-      throw new ApiError(401, "Invalid credentials (no password set)");
+      throw new ApiError(401, 'Invalid credentials (no password set)');
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
-      role: "admin",
+      role: 'admin',
     });
 
     return {
       accessToken,
       refreshToken,
-      user: { id: user.id, role: "admin", username: user.username },
+      user: { id: user.id, role: 'admin', username: user.username },
     };
   }
 
-  static async loginSuperAdmin(
-    req: Request,
-    email?: string,
-    password?: string,
-  ) {
+  static async loginSuperAdmin(req: Request, email?: string, password?: string) {
     await assertSuperAdminHostAllowed(req);
 
     if (!email || !password) {
-      throw new ApiError(400, "Email and password are required");
+      throw new ApiError(400, 'Email and password are required');
     }
 
     const user = await prisma.superAdmin.findUnique({ where: { email } });
 
     if (!user) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
-      role: "super_admin",
+      role: 'super_admin',
     });
 
     return {
@@ -131,26 +123,22 @@ export class AuthService {
       refreshToken,
       user: {
         id: user.id,
-        role: "super_admin",
+        role: 'super_admin',
         email: user.email,
       },
     };
   }
 
-  static async loginStudent(
-    loginId?: string,
-    password?: string,
-    schoolId?: number,
-  ) {
+  static async loginStudent(loginId?: string, password?: string, schoolId?: number) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!loginId || !password) {
-      throw new ApiError(400, "Login ID and password are required");
+      throw new ApiError(400, 'Login ID and password are required');
     }
 
     const loginIdInt = parseInt(loginId, 10);
     if (Number.isNaN(loginIdInt)) {
-      throw new ApiError(400, "Invalid login ID format");
+      throw new ApiError(400, 'Invalid login ID format');
     }
 
     const student = await prisma.students.findFirst({
@@ -158,38 +146,33 @@ export class AuthService {
     });
 
     if (!student) {
-      throw new ApiError(401, "Invalid login id");
+      throw new ApiError(401, 'Invalid login id');
     }
 
     if (!student.password) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const isValidPassword = await bcrypt.compare(password, student.password);
     if (!isValidPassword) {
-      throw new ApiError(401, "Invalid password");
+      throw new ApiError(401, 'Invalid password');
     }
 
     const { accessToken, refreshToken } = AuthService.generateTokens({
       ...student,
-      role: "student",
+      role: 'student',
     });
 
-    const studentAddress = [
-      student.village,
-      student.post_office,
-      student.upazila,
-      student.district,
-    ]
+    const studentAddress = [student.village, student.post_office, student.upazila, student.district]
       .filter(Boolean)
-      .join(", ");
+      .join(', ');
 
     return {
       accessToken,
       refreshToken,
       user: {
         id: student.id,
-        role: "student",
+        role: 'student',
         name: student.name,
         login_id: student.login_id.toString(),
         father_phone: student.father_phone,
@@ -204,15 +187,11 @@ export class AuthService {
     };
   }
 
-  static async loginTeacher(
-    email?: string,
-    password?: string,
-    schoolId?: number,
-  ) {
+  static async loginTeacher(email?: string, password?: string, schoolId?: number) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!email || !password) {
-      throw new ApiError(400, "Email and password are required");
+      throw new ApiError(400, 'Email and password are required');
     }
 
     const user = await prisma.teachers.findFirst({
@@ -227,17 +206,17 @@ export class AuthService {
     });
 
     if (!user || !user.password) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, 'Invalid credentials');
     }
 
     const { accessToken, refreshToken } = AuthService.generateTokens({
       ...user,
-      role: "teacher",
+      role: 'teacher',
     });
 
     return {
@@ -245,7 +224,7 @@ export class AuthService {
       refreshToken,
       user: {
         id: user.id,
-        role: "teacher",
+        role: 'teacher',
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -260,7 +239,7 @@ export class AuthService {
 
   static async refreshToken(req: Request, res: Response, token?: string) {
     if (!token) {
-      throw new ApiError(401, "Unauthorized");
+      throw new ApiError(401, 'Unauthorized');
     }
 
     const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
@@ -269,25 +248,25 @@ export class AuthService {
       payload = jwt.verify(token, secret) as any;
     } catch {
       AuthService.clearRefreshToken(res);
-      throw new ApiError(401, "Unauthorized");
+      throw new ApiError(401, 'Unauthorized');
     }
 
     let user = null;
-    if (payload.role === "super_admin") {
+    if (payload.role === 'super_admin') {
       await assertSuperAdminHostAllowed(req);
       user = await prisma.superAdmin.findUnique({ where: { id: payload.id } });
     } else {
       const verifiedSchoolId = assertVerifiedTenantSchoolId(req.schoolId);
 
-      if (payload.role === "admin") {
+      if (payload.role === 'admin') {
         user = await prisma.admin.findFirst({
           where: { id: payload.id, school_id: verifiedSchoolId },
         });
-      } else if (payload.role === "student") {
+      } else if (payload.role === 'student') {
         user = await prisma.students.findFirst({
           where: { id: payload.id, school_id: verifiedSchoolId },
         });
-      } else if (payload.role === "teacher") {
+      } else if (payload.role === 'teacher') {
         user = await prisma.teachers.findFirst({
           where: { id: payload.id, school_id: verifiedSchoolId },
           include: { levels: { where: { year: new Date().getFullYear() } } },
@@ -296,14 +275,14 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new ApiError(401, "Unauthorized");
+      throw new ApiError(401, 'Unauthorized');
     }
 
     const tokenVersion = payload.version || 0;
     const userVersion = user.tokenVersion || 0;
 
     if (tokenVersion !== userVersion) {
-      throw new ApiError(401, "Unauthorized");
+      throw new ApiError(401, 'Unauthorized');
     }
 
     const { accessToken, refreshToken } = AuthService.generateTokens({
@@ -318,16 +297,16 @@ export class AuthService {
       email: (user as any).email,
     } as any;
 
-    if (payload.role === "admin") {
+    if (payload.role === 'admin') {
       responseUser.username = (user as any).username;
-    } else if (payload.role === "teacher") {
+    } else if (payload.role === 'teacher') {
       responseUser.phone = (user as any).phone;
       responseUser.designation = (user as any).designation;
       responseUser.address = (user as any).address;
       responseUser.image = (user as any).image;
       responseUser.signature = (user as any).signature;
       responseUser.levels = (user as any).levels;
-    } else if (payload.role === "student") {
+    } else if (payload.role === 'student') {
       const student = user as any;
       const studentAddress = [
         student.village,
@@ -336,7 +315,7 @@ export class AuthService {
         student.district,
       ]
         .filter(Boolean)
-        .join(", ");
+        .join(', ');
 
       responseUser.login_id = student.login_id.toString();
       responseUser.phone = student.father_phone;
@@ -364,7 +343,7 @@ export class AuthService {
         (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
       ) as any;
 
-      if (decoded.role === "super_admin") {
+      if (decoded.role === 'super_admin') {
         await prisma.superAdmin.update({
           where: { id: decoded.id },
           data: { tokenVersion: { increment: 1 } },
@@ -374,17 +353,17 @@ export class AuthService {
 
       const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
-      if (decoded.role === "admin") {
+      if (decoded.role === 'admin') {
         await prisma.admin.updateMany({
           where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
         });
-      } else if (decoded.role === "student") {
+      } else if (decoded.role === 'student') {
         await prisma.students.updateMany({
           where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
         });
-      } else if (decoded.role === "teacher") {
+      } else if (decoded.role === 'teacher') {
         await prisma.teachers.updateMany({
           where: { id: decoded.id, school_id: verifiedSchoolId },
           data: { tokenVersion: { increment: 1 } },
@@ -395,30 +374,26 @@ export class AuthService {
     }
   }
 
-  static async addAdmin(
-    username?: string,
-    password?: string,
-    schoolId?: number,
-  ) {
+  static async addAdmin(username?: string, password?: string, schoolId?: number) {
     if (!username || !password) {
-      throw new ApiError(400, "Username and password are required");
+      throw new ApiError(400, 'Username and password are required');
     }
 
     if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
-      throw new ApiError(400, "School ID is required");
+      throw new ApiError(400, 'School ID is required');
     }
 
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
     if (!school) {
-      throw new ApiError(404, "School not found");
+      throw new ApiError(404, 'School not found');
     }
 
     const existing = await prisma.admin.findUnique({
-      where: { username,  },
+      where: { username },
     });
 
     if (existing) {
-      throw new ApiError(409, "Admin username already exists");
+      throw new ApiError(409, 'Admin username already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -426,7 +401,7 @@ export class AuthService {
       data: {
         username,
         password: hashedPassword,
-        role: "admin",
+        role: 'admin',
         school_id: schoolId,
       },
     });
@@ -436,28 +411,28 @@ export class AuthService {
 
   static async listAdminsForSchool(schoolId?: number) {
     if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
-      throw new ApiError(400, "School ID is required");
+      throw new ApiError(400, 'School ID is required');
     }
 
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
     if (!school) {
-      throw new ApiError(404, "School not found");
+      throw new ApiError(404, 'School not found');
     }
 
     return prisma.admin.findMany({
       where: { school_id: schoolId },
       select: { id: true, username: true, role: true },
-      orderBy: { username: "asc" },
+      orderBy: { username: 'asc' },
     });
   }
 
   static async deleteAdmin(adminId?: number, schoolId?: number) {
     if (!adminId || !Number.isInteger(adminId) || adminId <= 0) {
-      throw new ApiError(400, "Admin ID is required");
+      throw new ApiError(400, 'Admin ID is required');
     }
 
     if (!schoolId || !Number.isInteger(schoolId) || schoolId <= 0) {
-      throw new ApiError(400, "School ID is required");
+      throw new ApiError(400, 'School ID is required');
     }
 
     const admin = await prisma.admin.findFirst({
@@ -466,7 +441,7 @@ export class AuthService {
     });
 
     if (!admin) {
-      throw new ApiError(404, "Admin not found for this school");
+      throw new ApiError(404, 'Admin not found for this school');
     }
 
     await prisma.admin.delete({ where: { id: admin.id } });
@@ -478,7 +453,7 @@ export class AuthService {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!email) {
-      throw new ApiError(400, "Email is required");
+      throw new ApiError(400, 'Email is required');
     }
 
     const rateLimitKey = `teacher_reset_rate:${email}`;
@@ -487,10 +462,7 @@ export class AuthService {
     if (existingRequests) {
       const requestCount = parseInt(existingRequests, 10);
       if (requestCount >= 3) {
-        throw new ApiError(
-          429,
-          "Too many reset requests. Please try again after 1 hour.",
-        );
+        throw new ApiError(429, 'Too many reset requests. Please try again after 1 hour.');
       }
     }
 
@@ -503,13 +475,13 @@ export class AuthService {
     });
 
     if (!teacher) {
-      return { message: "If an account exists, a reset code will be sent." };
+      return { message: 'If an account exists, a reset code will be sent.' };
     }
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     const resetKey = `teacher_reset:${email}`;
 
-    await redis.set(resetKey, resetCode, "EX", 900);
+    await redis.set(resetKey, resetCode, 'EX', 900);
     await redis.incr(rateLimitKey);
     await redis.expire(rateLimitKey, 3600);
 
@@ -517,31 +489,31 @@ export class AuthService {
       await EmailService.sendEmail({
         from: env.FROM_EMAIL,
         to: email,
-        subject: "Password Reset Code - School Management System",
+        subject: 'Password Reset Code - School Management System',
         body: `Hello ${teacher.name},\n\nYou requested a password reset. Your 6-digit verification code is:\n\n${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nSchool Management System`,
       });
     } catch (emailError) {
-      console.error("Failed to send reset email:", emailError);
-      throw new ApiError(500, "Failed to send reset email. Please try again.");
+      console.error('Failed to send reset email:', emailError);
+      throw new ApiError(500, 'Failed to send reset email. Please try again.');
     }
 
-    return { message: "Reset code sent to your email." };
+    return { message: 'Reset code sent to your email.' };
   }
 
   static async checkTeacherPasswordResetCode(email?: string, code?: string) {
     if (!email || !code) {
-      throw new ApiError(400, "Email and code are required");
+      throw new ApiError(400, 'Email and code are required');
     }
 
     const resetKey = `teacher_reset:${email}`;
     const storedCode = await redis.get(resetKey);
 
     if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
+      throw new ApiError(400, 'Reset code has expired or is invalid');
     }
 
     if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
+      throw new ApiError(400, 'Invalid reset code');
     }
   }
 
@@ -554,22 +526,22 @@ export class AuthService {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!email || !code || !newPassword) {
-      throw new ApiError(400, "Email, code, and new password are required");
+      throw new ApiError(400, 'Email, code, and new password are required');
     }
 
     if (newPassword.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
+      throw new ApiError(400, 'Password must be at least 8 characters long');
     }
 
     const resetKey = `teacher_reset:${email}`;
     const storedCode = await redis.get(resetKey);
 
     if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
+      throw new ApiError(400, 'Reset code has expired or is invalid');
     }
 
     if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
+      throw new ApiError(400, 'Invalid reset code');
     }
 
     const teacher = await prisma.teachers.findFirst({
@@ -581,7 +553,7 @@ export class AuthService {
     });
 
     if (!teacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -597,19 +569,16 @@ export class AuthService {
     await redis.del(resetKey);
   }
 
-  static async requestStudentPasswordReset(
-    loginId?: string,
-    schoolId?: number,
-  ) {
+  static async requestStudentPasswordReset(loginId?: string, schoolId?: number) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!loginId) {
-      throw new ApiError(400, "Login ID is required");
+      throw new ApiError(400, 'Login ID is required');
     }
 
     const loginIdInt = parseInt(loginId, 10);
     if (Number.isNaN(loginIdInt)) {
-      throw new ApiError(400, "Invalid login ID format");
+      throw new ApiError(400, 'Invalid login ID format');
     }
 
     const rateLimitKey = `student_reset_rate:${loginId}`;
@@ -618,10 +587,7 @@ export class AuthService {
     if (existingRequests) {
       const requestCount = parseInt(existingRequests, 10);
       if (requestCount >= 3) {
-        throw new ApiError(
-          429,
-          "Too many reset requests. Please try again after 1 hour.",
-        );
+        throw new ApiError(429, 'Too many reset requests. Please try again after 1 hour.');
       }
     }
 
@@ -630,51 +596,47 @@ export class AuthService {
     });
 
     if (!student) {
-      return { message: "If an account exists, a reset code will be sent." };
+      return { message: 'If an account exists, a reset code will be sent.' };
     }
 
     if (!student.father_phone) {
       throw new ApiError(
         400,
-        "No phone number associated with this account. Please contact the school administration.",
+        'No phone number associated with this account. Please contact the school administration.',
       );
     }
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     const resetKey = `student_reset:${loginId}`;
 
-    await redis.set(resetKey, resetCode, "EX", 900);
+    await redis.set(resetKey, resetCode, 'EX', 900);
     await redis.incr(rateLimitKey);
     await redis.expire(rateLimitKey, 3600);
 
     try {
-      await SMSService.sendPasswordResetCode(
-        student.father_phone,
-        resetCode,
-        student.name,
-      );
+      await SMSService.sendPasswordResetCode(student.father_phone, resetCode, student.name);
     } catch (smsError) {
-      console.error("Failed to send reset SMS:", smsError);
-      throw new ApiError(500, "Failed to send reset code. Please try again.");
+      console.error('Failed to send reset SMS:', smsError);
+      throw new ApiError(500, 'Failed to send reset code. Please try again.');
     }
 
-    return { message: "Reset code sent to your phone number." };
+    return { message: 'Reset code sent to your phone number.' };
   }
 
   static async checkStudentPasswordResetCode(loginId?: string, code?: string) {
     if (!loginId || !code) {
-      throw new ApiError(400, "Login ID and code are required");
+      throw new ApiError(400, 'Login ID and code are required');
     }
 
     const resetKey = `student_reset:${loginId}`;
     const storedCode = await redis.get(resetKey);
 
     if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
+      throw new ApiError(400, 'Reset code has expired or is invalid');
     }
 
     if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
+      throw new ApiError(400, 'Invalid reset code');
     }
   }
 
@@ -687,27 +649,27 @@ export class AuthService {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!loginId || !code || !newPassword) {
-      throw new ApiError(400, "Login ID, code, and new password are required");
+      throw new ApiError(400, 'Login ID, code, and new password are required');
     }
 
     if (newPassword.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters long");
+      throw new ApiError(400, 'Password must be at least 8 characters long');
     }
 
     const loginIdInt = parseInt(loginId, 10);
     if (Number.isNaN(loginIdInt)) {
-      throw new ApiError(400, "Invalid login ID format");
+      throw new ApiError(400, 'Invalid login ID format');
     }
 
     const resetKey = `student_reset:${loginId}`;
     const storedCode = await redis.get(resetKey);
 
     if (!storedCode) {
-      throw new ApiError(400, "Reset code has expired or is invalid");
+      throw new ApiError(400, 'Reset code has expired or is invalid');
     }
 
     if (storedCode !== code) {
-      throw new ApiError(400, "Invalid reset code");
+      throw new ApiError(400, 'Invalid reset code');
     }
 
     const student = await prisma.students.findFirst({
@@ -715,7 +677,7 @@ export class AuthService {
     });
 
     if (!student) {
-      throw new ApiError(404, "Student not found");
+      throw new ApiError(404, 'Student not found');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -742,37 +704,37 @@ export class AuthService {
         login_id: user.login_id,
       },
       env.JWT_SECRET,
-      { expiresIn: env.NODE_ENV === "development" ? "1m" : "15m" },
+      { expiresIn: env.NODE_ENV === 'development' ? '1m' : '15m' },
     );
     const refreshToken = jwt.sign(
       { id: user.id, role: user.role, version: user.tokenVersion || 0 },
       secret,
-      { expiresIn: "7d" },
+      { expiresIn: '7d' },
     );
     return { accessToken, refreshToken };
   }
 
   static sendRefreshToken(res: Response, token: string) {
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    res.cookie("refreshToken", token, {
+    res.cookie('refreshToken', token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      path: "/",
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
   static clearRefreshToken(res: Response) {
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = process.env.NODE_ENV === 'production';
 
     const variants: (CookieOptions & { partitioned?: boolean })[] = [
       // current config
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-        path: "/",
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
         domain: env.DOMAIN || undefined,
         partitioned: isProduction,
       },
@@ -780,36 +742,36 @@ export class AuthService {
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-        path: "/",
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
         domain: env.DOMAIN || undefined,
       },
       // without domain
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-        path: "/",
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
       },
       // without domain + partitioned
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-        path: "/",
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
         partitioned: isProduction,
       },
       // nuclear - all false
       {
         httpOnly: true,
         secure: false,
-        sameSite: "lax" as const,
-        path: "/",
+        sameSite: 'lax' as const,
+        path: '/',
       },
     ];
 
     variants.forEach((options) => {
-      res.clearCookie("refreshToken", options);
+      res.clearCookie('refreshToken', options);
     });
   }
 }

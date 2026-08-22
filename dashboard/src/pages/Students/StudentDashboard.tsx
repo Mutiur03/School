@@ -1,26 +1,16 @@
-import { Link } from "react-router-dom";
-import { useAuth } from "@/context/useAuth";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { PageHeader, StatsCard } from "@/components";
-import { getFileUrl } from "@/lib/backend";
-import {
-  useStudentProfile,
-  useStudentAttendance,
-} from "@/queries/students.queries";
-import {
-  ClipboardList,
-  User,
-  CalendarDays,
-  CheckCircle2,
-  XCircle,
-  TrendingUp,
-} from "lucide-react";
-import Loading from "@/components/Loading";
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/useAuth';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { PageHeader, StatsCard } from '@/components';
+import { getFileUrl } from '@/lib/backend';
+import { useStudentProfile, useStudentAttendance } from '@/queries/students.queries';
+import { ClipboardList, User, CalendarDays, CheckCircle2, XCircle, TrendingUp } from 'lucide-react';
+import Loading from '@/components/Loading';
 
 function StudentDashboard() {
   const { user } = useAuth();
-  const student = user && user.role === "student" ? user : null;
+  const student = user && user.role === 'student' ? user : null;
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
 
@@ -44,39 +34,30 @@ function StudentDashboard() {
   const stats = attendance?.stats;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader
-        title="Student Dashboard"
-        description="Your classes, records, and quick links."
-      />
+    <div className="space-y-6 p-4 sm:p-6">
+      <PageHeader title="Student Dashboard" description="Your classes, records, and quick links." />
 
-      <section
-        className="rounded-2xl border border-border bg-muted/30 p-6 sm:p-8"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+      <section className="border-border bg-muted/30 rounded-2xl border p-6 sm:p-8">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           {displayProfile?.image || student.image ? (
             <img
-              src={getFileUrl(displayProfile?.image ?? student.image ?? "")}
+              src={getFileUrl(displayProfile?.image ?? student.image ?? '')}
               alt={student.name}
-              className="w-24 aspect-[7/9] object-cover rounded-md border border-border shadow-sm"
+              className="border-border aspect-[7/9] w-24 rounded-md border object-cover shadow-sm"
             />
           ) : (
-            <div className="w-24 aspect-[7/9] rounded-md border border-border bg-muted flex items-center justify-center text-3xl font-bold text-muted-foreground">
+            <div className="border-border bg-muted text-muted-foreground flex aspect-[7/9] w-24 items-center justify-center rounded-md border text-3xl font-bold">
               {student.name.charAt(0).toUpperCase()}
             </div>
           )}
 
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-primary">Welcome back</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
-              {student.name}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Login ID {student.login_id}
-            </p>
+          <div className="min-w-0 flex-1">
+            <p className="text-primary text-sm font-medium">Welcome back</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{student.name}</h2>
+            <p className="text-muted-foreground mt-1 text-sm">Login ID {student.login_id}</p>
 
             {displayProfile ? (
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <Badge variant="secondary">Class {displayProfile.class}</Badge>
                 <Badge variant="secondary">Section {displayProfile.section}</Badge>
                 <Badge variant="secondary">Roll {displayProfile.roll}</Badge>
@@ -87,7 +68,7 @@ function StudentDashboard() {
             ) : null}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button asChild variant="default" className="gap-2">
               <Link to="/student/profile">
                 <User className="h-4 w-4" />
@@ -105,11 +86,11 @@ function StudentDashboard() {
       </section>
 
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <CalendarDays className="h-4 w-4 text-primary" />
+        <div className="mb-3 flex items-center gap-2">
+          <CalendarDays className="text-primary h-4 w-4" />
           <h3 className="text-sm font-semibold">This month&apos;s attendance</h3>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatsCard
             label="Present"
             value={stats?.present ?? 0}
@@ -133,7 +114,7 @@ function StudentDashboard() {
           />
           <StatsCard
             label="Attendance rate"
-            value={stats?.attendanceRate != null ? `${stats.attendanceRate}%` : "—"}
+            value={stats?.attendanceRate != null ? `${stats.attendanceRate}%` : '—'}
             color="indigo"
             icon={<TrendingUp className="h-4 w-4" />}
             loading={attendanceLoading}
@@ -141,20 +122,20 @@ function StudentDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Link
           to="/student/profile"
-          className="group rounded-xl border border-border p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+          className="group border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl border p-5 transition-colors"
         >
           <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <div className="bg-primary/10 text-primary rounded-lg p-2">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-semibold group-hover:text-primary transition-colors">
+              <p className="group-hover:text-primary font-semibold transition-colors">
                 View full profile
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 text-sm">
                 Personal details, parents&apos; contact, and address on file.
               </p>
             </div>
@@ -163,17 +144,17 @@ function StudentDashboard() {
 
         <Link
           to="/student/profile?tab=attendance"
-          className="group rounded-xl border border-border p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+          className="group border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl border p-5 transition-colors"
         >
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">
               <CalendarDays className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-semibold group-hover:text-primary transition-colors">
+              <p className="group-hover:text-primary font-semibold transition-colors">
                 Attendance record
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 text-sm">
                 Monthly calendar and history of marked school days.
               </p>
             </div>

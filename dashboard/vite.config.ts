@@ -1,31 +1,31 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
-import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react(), visualizer({})],
   optimizeDeps: {
-    exclude: ["@school/shared-schemas"],
+    exclude: ['@school/shared-schemas'],
   },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, "..")],
+      allow: [path.resolve(__dirname, '..')],
     },
     watch: {
       followSymlinks: true,
     },
     proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8787",
+      '/api': {
+        target: 'http://127.0.0.1:8787',
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq, req) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
             const host = req.headers.host;
-            if (typeof host === "string" && host.length > 0) {
-              proxyReq.setHeader("x-forwarded-host", host);
+            if (typeof host === 'string' && host.length > 0) {
+              proxyReq.setHeader('x-forwarded-host', host);
             }
           });
         },
@@ -35,7 +35,7 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true,
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 });

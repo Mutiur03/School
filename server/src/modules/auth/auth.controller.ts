@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import { ApiResponse } from "@/utils/ApiResponse.js";
-import asyncHandler from "@/utils/asyncHandler.js";
-import { AuthService } from "./auth.service.js";
+import { Request, Response } from 'express';
+import { ApiResponse } from '@/utils/ApiResponse.js';
+import asyncHandler from '@/utils/asyncHandler.js';
+import { AuthService } from './auth.service.js';
 
 export class AuthController {
   private static getRefreshToken(req: Request) {
@@ -12,9 +12,7 @@ export class AuthController {
     const { email, token } = req.body;
     const data = await AuthService.setupSuperAdmin(req, email, token);
 
-    res
-      .status(201)
-      .json(new ApiResponse(201, data, "Super admin created successfully"));
+    res.status(201).json(new ApiResponse(201, data, 'Super admin created successfully'));
   });
 
   static login = asyncHandler(async (req: Request, res: Response) => {
@@ -27,21 +25,20 @@ export class AuthController {
 
     AuthService.sendRefreshToken(res, refreshToken);
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, { accessToken, user }, "Login successful"));
+    res.status(200).json(new ApiResponse(200, { accessToken, user }, 'Login successful'));
   });
 
   static superAdminLogin = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
-    const { accessToken, refreshToken, user } =
-      await AuthService.loginSuperAdmin(req, email, password);
+    const { accessToken, refreshToken, user } = await AuthService.loginSuperAdmin(
+      req,
+      email,
+      password,
+    );
 
     AuthService.sendRefreshToken(res, refreshToken);
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, { accessToken, user }, "Login successful"));
+    res.status(200).json(new ApiResponse(200, { accessToken, user }, 'Login successful'));
   });
 
   static student_login = asyncHandler(async (req: Request, res: Response) => {
@@ -54,9 +51,7 @@ export class AuthController {
 
     AuthService.sendRefreshToken(res, refreshToken);
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, { accessToken, user }, "Login successful"));
+    res.status(200).json(new ApiResponse(200, { accessToken, user }, 'Login successful'));
   });
 
   static teacher_login = asyncHandler(async (req: Request, res: Response) => {
@@ -69,30 +64,18 @@ export class AuthController {
 
     AuthService.sendRefreshToken(res, refreshToken);
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, { accessToken, user }, "Login successful"));
+    res.status(200).json(new ApiResponse(200, { accessToken, user }, 'Login successful'));
   });
 
   static refresh_token = asyncHandler(async (req: Request, res: Response) => {
     const token = AuthController.getRefreshToken(req);
-    const { accessToken, refreshToken, user } = await AuthService.refreshToken(
-      req,
-      res,
-      token,
-    );
+    const { accessToken, refreshToken, user } = await AuthService.refreshToken(req, res, token);
 
     AuthService.sendRefreshToken(res, refreshToken);
 
     res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { accessToken, user },
-          "Token refreshed successfully",
-        ),
-      );
+      .json(new ApiResponse(200, { accessToken, user }, 'Token refreshed successfully'));
   });
 
   static logout = asyncHandler(async (req: Request, res: Response) => {
@@ -101,135 +84,75 @@ export class AuthController {
     await AuthService.logout(token, req.schoolId);
     AuthService.clearRefreshToken(res);
 
-    res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
+    res.status(200).json(new ApiResponse(200, {}, 'Logged out successfully'));
   });
 
-  static addAdminForSchool = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { username, password } = req.body;
-      const schoolIdRaw = req.params.schoolId;
-      const schoolId = parseInt(
-        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
-        10,
-      );
-      const admin = await AuthService.addAdmin(username, password, schoolId);
+  static addAdminForSchool = asyncHandler(async (req: Request, res: Response) => {
+    const { username, password } = req.body;
+    const schoolIdRaw = req.params.schoolId;
+    const schoolId = parseInt(Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw, 10);
+    const admin = await AuthService.addAdmin(username, password, schoolId);
 
-      res
-        .status(201)
-        .json(new ApiResponse(201, admin, "Admin created successfully"));
-    },
-  );
+    res.status(201).json(new ApiResponse(201, admin, 'Admin created successfully'));
+  });
 
-  static listAdminsForSchool = asyncHandler(
-    async (req: Request, res: Response) => {
-      const schoolIdRaw = req.params.schoolId;
-      const schoolId = parseInt(
-        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
-        10,
-      );
-      const admins = await AuthService.listAdminsForSchool(schoolId);
+  static listAdminsForSchool = asyncHandler(async (req: Request, res: Response) => {
+    const schoolIdRaw = req.params.schoolId;
+    const schoolId = parseInt(Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw, 10);
+    const admins = await AuthService.listAdminsForSchool(schoolId);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, admins, "Admins fetched successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, admins, 'Admins fetched successfully'));
+  });
 
-  static deleteAdminForSchool = asyncHandler(
-    async (req: Request, res: Response) => {
-      const schoolIdRaw = req.params.schoolId;
-      const adminIdRaw = req.params.adminId;
-      const schoolId = parseInt(
-        Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw,
-        10,
-      );
-      const adminId = parseInt(
-        Array.isArray(adminIdRaw) ? adminIdRaw[0] : adminIdRaw,
-        10,
-      );
-      const deleted = await AuthService.deleteAdmin(adminId, schoolId);
+  static deleteAdminForSchool = asyncHandler(async (req: Request, res: Response) => {
+    const schoolIdRaw = req.params.schoolId;
+    const adminIdRaw = req.params.adminId;
+    const schoolId = parseInt(Array.isArray(schoolIdRaw) ? schoolIdRaw[0] : schoolIdRaw, 10);
+    const adminId = parseInt(Array.isArray(adminIdRaw) ? adminIdRaw[0] : adminIdRaw, 10);
+    const deleted = await AuthService.deleteAdmin(adminId, schoolId);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, deleted, "Admin deleted successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, deleted, 'Admin deleted successfully'));
+  });
 
-  static requestTeacherPasswordReset = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { email } = req.body;
-      const result = await AuthService.requestTeacherPasswordReset(
-        email,
-        req.schoolId,
-      );
+  static requestTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    const result = await AuthService.requestTeacherPasswordReset(email, req.schoolId);
 
-      res.status(200).json(new ApiResponse(200, null, result.message));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, result.message));
+  });
 
-  static checkTeacherPasswordResetCode = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { email, code } = req.body;
-      await AuthService.checkTeacherPasswordResetCode(email, code);
+  static checkTeacherPasswordResetCode = asyncHandler(async (req: Request, res: Response) => {
+    const { email, code } = req.body;
+    await AuthService.checkTeacherPasswordResetCode(email, code);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, null, "Code verified successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, 'Code verified successfully'));
+  });
 
-  static verifyTeacherPasswordReset = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { email, code, newPassword } = req.body;
-      await AuthService.verifyTeacherPasswordReset(
-        email,
-        code,
-        newPassword,
-        req.schoolId,
-      );
+  static verifyTeacherPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { email, code, newPassword } = req.body;
+    await AuthService.verifyTeacherPasswordReset(email, code, newPassword, req.schoolId);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, null, "Password reset successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, 'Password reset successfully'));
+  });
 
-  static requestStudentPasswordReset = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { login_id } = req.body;
-      const result = await AuthService.requestStudentPasswordReset(
-        login_id,
-        req.schoolId,
-      );
+  static requestStudentPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { login_id } = req.body;
+    const result = await AuthService.requestStudentPasswordReset(login_id, req.schoolId);
 
-      res.status(200).json(new ApiResponse(200, null, result.message));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, result.message));
+  });
 
-  static checkStudentPasswordResetCode = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { login_id, code } = req.body;
-      await AuthService.checkStudentPasswordResetCode(login_id, code);
+  static checkStudentPasswordResetCode = asyncHandler(async (req: Request, res: Response) => {
+    const { login_id, code } = req.body;
+    await AuthService.checkStudentPasswordResetCode(login_id, code);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, null, "Code verified successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, 'Code verified successfully'));
+  });
 
-  static verifyStudentPasswordReset = asyncHandler(
-    async (req: Request, res: Response) => {
-      const { login_id, code, newPassword } = req.body;
-      await AuthService.verifyStudentPasswordReset(
-        login_id,
-        code,
-        newPassword,
-        req.schoolId,
-      );
+  static verifyStudentPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { login_id, code, newPassword } = req.body;
+    await AuthService.verifyStudentPasswordReset(login_id, code, newPassword, req.schoolId);
 
-      res
-        .status(200)
-        .json(new ApiResponse(200, null, "Password reset successfully"));
-    },
-  );
+    res.status(200).json(new ApiResponse(200, null, 'Password reset successfully'));
+  });
 }

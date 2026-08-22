@@ -1,23 +1,23 @@
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 import {
   createRoutesFromChildren,
   matchRoutes,
   Routes,
   useLocation,
   useNavigationType,
-} from "react-router-dom";
-import { useEffect } from "react";
-import envPreferredRole from "./role";
+} from 'react-router-dom';
+import { useEffect } from 'react';
+import envPreferredRole from './role';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 
 export const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 
 type SentryAuthUser =
-  | { role: "admin"; id: string; username: string; email: string }
-  | { role: "teacher"; id: number; name: string; email: string }
-  | { role: "student"; id: number; name: string; email?: string }
-  | { role: "super_admin"; id: number; email: string };
+  | { role: 'admin'; id: string; username: string; email: string }
+  | { role: 'teacher'; id: number; name: string; email: string }
+  | { role: 'student'; id: number; name: string; email?: string }
+  | { role: 'super_admin'; id: number; email: string };
 
 export function syncSentryUser(user: SentryAuthUser | null) {
   if (!sentryDsn) {
@@ -29,23 +29,23 @@ export function syncSentryUser(user: SentryAuthUser | null) {
     return;
   }
 
-  Sentry.setTag("role", user.role);
+  Sentry.setTag('role', user.role);
 
   switch (user.role) {
-    case "admin":
+    case 'admin':
       Sentry.setUser({ id: user.id, username: user.username, email: user.email });
       break;
-    case "teacher":
+    case 'teacher':
       Sentry.setUser({ id: String(user.id), username: user.name, email: user.email });
       break;
-    case "student":
+    case 'student':
       Sentry.setUser({
         id: String(user.id),
         username: user.name,
         ...(user.email ? { email: user.email } : {}),
       });
       break;
-    case "super_admin":
+    case 'super_admin':
       Sentry.setUser({ id: String(user.id), email: user.email });
       break;
   }
@@ -54,7 +54,7 @@ export function syncSentryUser(user: SentryAuthUser | null) {
 export function initSentry() {
   if (!sentryDsn) {
     if (import.meta.env.PROD) {
-      console.error("[Sentry] VITE_SENTRY_DSN missing in production build");
+      console.error('[Sentry] VITE_SENTRY_DSN missing in production build');
     }
     return;
   }
@@ -78,7 +78,7 @@ export function initSentry() {
     replaysOnErrorSampleRate: 1,
     initialScope: {
       tags: {
-        app: "dashboard",
+        app: 'dashboard',
         ...(envPreferredRole ? { role: envPreferredRole } : {}),
       },
     },

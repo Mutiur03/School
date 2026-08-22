@@ -1,8 +1,8 @@
-import { prisma } from "@/config/prisma.js";
-import { SMSService } from "@/utils/sms.service.js";
-import { SmsSettingsService } from "../sms-settings/sms-settings.service.js";
-import { SmsLogsService, SmsLogInfo } from "../sms-logs/sms-logs.service.js";
-import { AttendanceSheetService } from "./attendence-sheet.service.js";
+import { prisma } from '@/config/prisma.js';
+import { SMSService } from '@/utils/sms.service.js';
+import { SmsSettingsService } from '../sms-settings/sms-settings.service.js';
+import { SmsLogsService, SmsLogInfo } from '../sms-logs/sms-logs.service.js';
+import { AttendanceSheetService } from './attendence-sheet.service.js';
 
 export class AttendenceService {
   static async getAllAttendence(filters: {
@@ -16,9 +16,9 @@ export class AttendenceService {
     const where: any = {};
 
     if (year !== undefined && month !== undefined) {
-      const startDayString = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const startDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month + 1, 0).getDate();
-      const endDayString = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const endDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       where.date = {
         gte: startDayString,
         lte: endDayString,
@@ -53,13 +53,13 @@ export class AttendenceService {
         created_at: true,
         school_id: true,
       },
-      orderBy: [{ date: "desc" }, { student_id: "asc" }],
+      orderBy: [{ date: 'desc' }, { student_id: 'asc' }],
     });
 
     // Normalize status whitespace so "run-awayed" comparisons never miss.
     return rows.map((r) => ({
       ...r,
-      status: typeof r.status === "string" ? r.status.trim() : r.status,
+      status: typeof r.status === 'string' ? r.status.trim() : r.status,
     }));
   }
 
@@ -75,11 +75,11 @@ export class AttendenceService {
 
       const prepared = records.map((record) => {
         const { studentId, date, status } = record;
-        const formattedDate = new Date(date).toLocaleDateString("en-CA", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          timeZone: "Asia/Dhaka",
+        const formattedDate = new Date(date).toLocaleDateString('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          timeZone: 'Asia/Dhaka',
         });
         return { studentId, status, formattedDate };
       });
@@ -119,8 +119,8 @@ export class AttendenceService {
         }
 
         innerProcessed.push({ studentId, date: formattedDate, status });
-        if (status === "absent") innerAbsentCount++;
-        else if (status === "present") innerPresentCount++;
+        if (status === 'absent') innerAbsentCount++;
+        else if (status === 'present') innerPresentCount++;
       }
       return {
         processed: innerProcessed,
@@ -152,19 +152,19 @@ export class AttendenceService {
 
     const smsSettings = await SmsSettingsService.getSettings();
     if (!smsSettings.is_active) {
-      throw new Error("SMS service is currently disabled in settings.");
+      throw new Error('SMS service is currently disabled in settings.');
     }
 
-    const SCHOOL_NAME = "Panchbibi Lal Bihari Pilot Govt. High School";
+    const SCHOOL_NAME = 'Panchbibi Lal Bihari Pilot Govt. High School';
 
     const interpolate = (template: string, data: any) => {
       return template
-        .replace(/{student_name}/g, data.student_name || "")
-        .replace(/{login_id}/g, data.login_id || "")
-        .replace(/{date}/g, data.date || "")
-        .replace(/{class}/g, data.class || "")
-        .replace(/{section}/g, data.section || "")
-        .replace(/{roll}/g, data.roll || "")
+        .replace(/{student_name}/g, data.student_name || '')
+        .replace(/{login_id}/g, data.login_id || '')
+        .replace(/{date}/g, data.date || '')
+        .replace(/{class}/g, data.class || '')
+        .replace(/{section}/g, data.section || '')
+        .replace(/{roll}/g, data.roll || '')
         .replace(/{school_name}/g, SCHOOL_NAME);
     };
 
@@ -188,7 +188,7 @@ export class AttendenceService {
     });
 
     if (enrollments.length === 0) {
-      throw new Error("No students found for the selected class and section.");
+      throw new Error('No students found for the selected class and section.');
     }
 
     const studentIds = enrollments.map((e) => e.student_id);
@@ -202,7 +202,7 @@ export class AttendenceService {
     });
 
     if (attendanceRecords.length === 0) {
-      return { message: "No pending attendance SMS to send for this date." };
+      return { message: 'No pending attendance SMS to send for this date.' };
     }
 
     const recordsMap = new Map(attendanceRecords.map((r) => [r.student_id, r]));
@@ -215,23 +215,19 @@ export class AttendenceService {
       if (!attendance) continue;
 
       const { status } = attendance;
-      const shouldSendPresent =
-        status === "present" && smsSettings.send_to_present;
-      const shouldSendAbsent =
-        status === "absent" && smsSettings.send_to_absent;
-      const shouldSendRunAwayed =
-        status === "run-awayed" && smsSettings.send_to_run_awayed;
+      const shouldSendPresent = status === 'present' && smsSettings.send_to_present;
+      const shouldSendAbsent = status === 'absent' && smsSettings.send_to_absent;
+      const shouldSendRunAwayed = status === 'run-awayed' && smsSettings.send_to_run_awayed;
 
       if (
         (shouldSendPresent || shouldSendAbsent || shouldSendRunAwayed) &&
         enrollment.student.father_phone
       ) {
         let template = smsSettings.present_template;
-        if (status === "absent") template = smsSettings.absent_template;
-        else if (status === "run-awayed")
-          template = smsSettings.run_awayed_template;
+        if (status === 'absent') template = smsSettings.absent_template;
+        else if (status === 'run-awayed') template = smsSettings.run_awayed_template;
 
-        const formattedDisplayDate = date.split("-").reverse().join("/");
+        const formattedDisplayDate = date.split('-').reverse().join('/');
 
         const message = interpolate(template, {
           student_name: enrollment.student.name,
@@ -251,35 +247,34 @@ export class AttendenceService {
             phone_number: enrollment.student.father_phone,
             message: message,
             attendance_date: date,
-            status: "pending",
+            status: 'pending',
             sms_count: smsCount,
           },
         });
 
-        const phoneKey = SMSService.formatPhoneNumber(
-          enrollment.student.father_phone,
-        );
-        orderedBatches.push([{
-          smsLogId: smsLog.id,
-          studentId: enrollment.student_id,
-          attendanceDate: date,
-          studentName: enrollment.student.name,
-        }]);
+        const phoneKey = SMSService.formatPhoneNumber(enrollment.student.father_phone);
+        orderedBatches.push([
+          {
+            smsLogId: smsLog.id,
+            studentId: enrollment.student_id,
+            attendanceDate: date,
+            studentName: enrollment.student.name,
+          },
+        ]);
 
         smsMessages.push({ Number: phoneKey, Text: message });
       }
     }
 
     if (smsMessages.length === 0) {
-      return { message: "No messages to send based on current SMS settings." };
+      return { message: 'No messages to send based on current SMS settings.' };
     }
 
-    const isReserved =
-      await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
+    const isReserved = await SmsSettingsService.reserveBalance(totalSegmentsNeeded);
     if (!isReserved) {
       const logIds = orderedBatches.flat().map((l) => l.smsLogId);
       await prisma.sms_logs.deleteMany({ where: { id: { in: logIds } } });
-      throw new Error("Insufficient SMS balance.");
+      throw new Error('Insufficient SMS balance.');
     }
 
     let smsSuccessCount = 0;
@@ -301,7 +296,7 @@ export class AttendenceService {
 
       if (!processRes.delivered) {
         await SmsSettingsService.updateBalance(totalSegmentsNeeded);
-        throw new Error(bulkSmsResponse.message || "Failed to send SMS");
+        throw new Error(bulkSmsResponse.message || 'Failed to send SMS');
       }
 
       let totalActualUsed = 0;
@@ -317,7 +312,7 @@ export class AttendenceService {
         await SmsSettingsService.updateBalance(totalSegmentsNeeded);
         await SmsLogsService.handleCatastrophicFailure(
           orderedBatches,
-          error.message || "Unknown SMS Error",
+          error.message || 'Unknown SMS Error',
         );
       }
       throw error;
@@ -344,11 +339,11 @@ export class AttendenceService {
     // Hint scopes the PDF invalidate (addAttendence already fired a best-effort
     // invalidateFromRecords; this ensures the known class/section is covered).
     const formatted = records.map((r) => {
-      const formattedDate = new Date(r.date).toLocaleDateString("en-CA", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        timeZone: "Asia/Dhaka",
+      const formattedDate = new Date(r.date).toLocaleDateString('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Dhaka',
       });
       return { studentId: r.studentId, date: formattedDate };
     });
@@ -367,7 +362,7 @@ export class AttendenceService {
       return {
         ...saved,
         sms: null,
-        smsError: error?.message || "Failed to send attendance SMS",
+        smsError: error?.message || 'Failed to send attendance SMS',
       };
     }
   }
@@ -394,7 +389,7 @@ export class AttendenceService {
 
     const [attendanceStats, smsLogsStats] = await Promise.all([
       prisma.attendence.groupBy({
-        by: ["status"],
+        by: ['status'],
         where: {
           date: date,
           student_id: { in: studentIds },
@@ -402,7 +397,7 @@ export class AttendenceService {
         _count: { status: true },
       }),
       prisma.sms_logs.groupBy({
-        by: ["status"],
+        by: ['status'],
         where: {
           attendance_date: date,
           student_id: { in: studentIds },
@@ -416,7 +411,7 @@ export class AttendenceService {
         acc[curr.status] = curr._count.status;
         return acc;
       },
-      { present: 0, absent: 0, "run-awayed": 0 },
+      { present: 0, absent: 0, 'run-awayed': 0 },
     );
 
     const smsSummary = smsLogsStats.reduce(
@@ -430,7 +425,7 @@ export class AttendenceService {
     return {
       present: attendanceSummary.present,
       absent: attendanceSummary.absent,
-      runAwayed: attendanceSummary["run-awayed"] || 0,
+      runAwayed: attendanceSummary['run-awayed'] || 0,
       sms: {
         successful: smsSummary.sent,
         failed: smsSummary.failed,

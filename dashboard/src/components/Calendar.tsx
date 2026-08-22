@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface CalendarProps {
   onDateSelect?: (date: Date | null) => void;
   initialDate?: Date;
@@ -80,10 +80,10 @@ export function Calendar({
       if (onDateSelect) {
         onDateSelect(null);
       }
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
 
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const isToday = (date: Date) => {
@@ -105,38 +105,35 @@ export function Calendar({
   };
 
   const getModifierClassNames = (date: Date) => {
-    if (!modifiers || !modifiersClassNames) return "";
+    if (!modifiers || !modifiersClassNames) return '';
     return Object.keys(modifiers)
       .filter((key) => modifiers[key](date))
       .map((key) => modifiersClassNames[key])
-      .join(" ");
+      .join(' ');
   };
 
   return (
-    <div
-      className={`w-full max-w-xs bg-card mx-auto p-5 rounded-lg shadow-lg ${className}`}
-    >
+    <div className={`bg-card mx-auto w-full max-w-xs rounded-lg p-5 shadow-lg ${className}`}>
       <div className="flex items-center justify-between p-4">
         <button
           onClick={handlePreviousMonth}
-          className="p-1.5 text-muted-foreground hover:text-gray-900 border dark:border-gray-600 border-border dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
+          className="text-muted-foreground border-border rounded-lg border p-1.5 hover:bg-gray-300 hover:text-gray-900 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
         >
           <ChevronLeft size={16} />
         </button>
         <div className="text-md font-medium">
-          {currentDate.toLocaleString("default", { month: "long" })}{" "}
-          {currentYear}
+          {currentDate.toLocaleString('default', { month: 'long' })} {currentYear}
         </div>
         <button
           onClick={handleNextMonth}
-          className="p-1.5 text-muted-foreground hover:text-gray-900 border dark:border-gray-600 border-border dark:hover:bg-gray-600 hover:bg-gray-300 dark:text-white rounded-lg"
+          className="text-muted-foreground border-border rounded-lg border p-1.5 hover:bg-gray-300 hover:text-gray-900 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
         >
           <ChevronRight size={16} />
         </button>
       </div>
       <div className="grid grid-cols-7 text-center text-sm font-medium">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-          <div key={day} className="py-2 text-gray-400 dark:text-muted-foreground">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+          <div key={day} className="dark:text-muted-foreground py-2 text-gray-400">
             {day}
           </div>
         ))}
@@ -147,24 +144,17 @@ export function Calendar({
             {week.map((day, dayIndex) => (
               <div
                 key={dayIndex}
-                className={`flex items-center justify-center h-9 rounded-lg text-sm cursor-pointer
-                  ${getModifierClassNames(day.date)}
-                  ${!day.isCurrentMonth
-                    ? "text-gray-400 dark:text-muted-foreground"
-                    : ""
-                  }
-                  ${isToday(day.date) ? "bg-gray-200 dark:bg-gray-700" : ""}
-                  
-                  ${day.isCurrentMonth && !isSelected(day.date)
-                    ? "hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-                    : ""
-                  }
-                  
-                  ${(dayIndex === 5 || dayIndex === 6) && day.isCurrentMonth
-                    ? "text-red-500 dark:text-red-400"
-                    : ""
-                  }
-                `}
+                className={`flex h-9 cursor-pointer items-center justify-center rounded-lg text-sm ${getModifierClassNames(day.date)} ${
+                  !day.isCurrentMonth ? 'dark:text-muted-foreground text-gray-400' : ''
+                } ${isToday(day.date) ? 'bg-gray-200 dark:bg-gray-700' : ''} ${
+                  day.isCurrentMonth && !isSelected(day.date)
+                    ? 'hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+                    : ''
+                } ${
+                  (dayIndex === 5 || dayIndex === 6) && day.isCurrentMonth
+                    ? 'text-red-500 dark:text-red-400'
+                    : ''
+                } `}
                 onClick={() => {
                   if (day.isCurrentMonth) {
                     handleDateClick(day.date);

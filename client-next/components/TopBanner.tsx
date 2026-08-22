@@ -1,14 +1,12 @@
-import { fetchNotices } from "@/queries/notice.queries";
-import { getFileUrl } from "@/lib/backend";
-import Link from "@/components/Link";
+import { fetchNotices } from '@/queries/notice.queries';
+import { getFileUrl } from '@/lib/backend';
+import Link from '@/components/Link';
 
 export async function TopBanner() {
   const data = await fetchNotices(5);
   const duration = 5 * (data?.length ?? 0);
   return (
-    <div
-      className="w-full mt-2 bg-gray-50 border-t border-b border-gray-100"
-    >
+    <div className="mt-2 w-full border-t border-b border-gray-100 bg-gray-50">
       <style>{`
         @keyframes marquee-scroll {
           0%   { transform: translateX(0); }
@@ -31,25 +29,23 @@ export async function TopBanner() {
         }
       `}</style>
 
-      <div className="max-w-6xl mx-auto px-4 py-1 flex items-center justify-between gap-3">
-        <div className="flex-1 overflow-hidden min-w-0">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           {!data || data.length === 0 ? (
-            <span className="text-gray-500 text-sm leading-6">
-              কোনো নোটিশ নেই
-            </span>
+            <span className="text-sm leading-6 text-gray-500">কোনো নোটিশ নেই</span>
           ) : (
             <div
               className="marquee-track text-sm leading-6"
-              style={{ animationDuration: `${duration}s`, animationDelay: "5s" }}
+              style={{ animationDuration: `${duration}s`, animationDelay: '5s' }}
             >
               {data.map((notice, i) => (
                 <a
                   key={i}
-                  href={getFileUrl(notice.file) || "#"}
+                  href={getFileUrl(notice.file) || '#'}
                   target="_blank"
                   rel="noreferrer"
-                  title={notice.title || ""}
-                  className="inline-flex items-center min-h-6 mr-8 text-gray-900 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 before:content-['▶'] before:mr-1 before:font-bold before:text-xs before:text-[#609513]"
+                  title={notice.title || ''}
+                  className="mr-8 inline-flex min-h-6 items-center text-gray-900 before:mr-1 before:text-xs before:font-bold before:text-[#609513] before:content-['▶'] hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   {notice.title}
                 </a>
@@ -61,7 +57,7 @@ export async function TopBanner() {
         <div className="shrink-0">
           <Link
             href="/notices"
-            className="inline-flex items-center px-3 py-1.5 border border-gray-400 text-gray-700 rounded text-sm bg-transparent hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="inline-flex items-center rounded border border-gray-400 bg-transparent px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             সকল
           </Link>

@@ -1,6 +1,6 @@
-import { prisma } from "@/config/prisma.js";
-import { getUploadUrl, deleteFromR2 } from "@/config/r2.js";
-import { ApiError } from "@/utils/ApiError.js";
+import { prisma } from '@/config/prisma.js';
+import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
 
 const buildImageData = (image: any) => ({
   id: image.id,
@@ -11,10 +11,8 @@ const buildImageData = (image: any) => ({
   category: image.category?.category ?? null,
   category_id: image.category?.id ?? image.category_id ?? null,
   created_at: image.created_at,
-  student_name:
-    image.uploader_type !== "admin" ? image.uploader?.name ?? null : null,
-  student_batch:
-    image.uploader_type !== "admin" ? image.uploader?.batch ?? null : null,
+  student_name: image.uploader_type !== 'admin' ? (image.uploader?.name ?? null) : null,
+  student_batch: image.uploader_type !== 'admin' ? (image.uploader?.batch ?? null) : null,
   uploader_type: image.uploader_type,
   status: image.status,
 });
@@ -44,12 +42,8 @@ const galleryInclude = {
 };
 
 export class GalleryService {
-  static async getPresignedUploadUrl(
-    filename: string,
-    contentType: string,
-    schoolId?: number,
-  ) {
-    const folder = schoolId ? `gallery/${schoolId}` : "gallery";
+  static async getPresignedUploadUrl(filename: string, contentType: string, schoolId?: number) {
+    const folder = schoolId ? `gallery/${schoolId}` : 'gallery';
     const key = `${folder}/${Date.now()}-${filename}`;
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
@@ -67,14 +61,12 @@ export class GalleryService {
     uploaderType: string,
     schoolId?: number,
   ) {
-    if (!data.keys?.length) throw new ApiError(400, "No image keys provided");
+    if (!data.keys?.length) throw new ApiError(400, 'No image keys provided');
 
     const eventId =
-      data.eventId !== undefined && data.eventId !== ""
-        ? parseInt(String(data.eventId), 10)
-        : null;
+      data.eventId !== undefined && data.eventId !== '' ? parseInt(String(data.eventId), 10) : null;
     const categoryId =
-      data.category !== undefined && data.category !== ""
+      data.category !== undefined && data.category !== ''
         ? parseInt(String(data.category), 10)
         : null;
 
@@ -82,11 +74,11 @@ export class GalleryService {
       data: data.keys.map((key) => ({
         event_id: eventId,
         category_id: categoryId,
-        uploader_id: uploaderType === "student" ? uploaderId : null,
+        uploader_id: uploaderType === 'student' ? uploaderId : null,
         uploader_type: uploaderType,
         image_path: key,
         caption: data.caption ?? null,
-        status: data.status ?? "pending",
+        status: data.status ?? 'pending',
         ...(schoolId ? { school_id: schoolId } : {}),
       })),
     });
@@ -107,14 +99,12 @@ export class GalleryService {
     const existing = await prisma.gallery.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Image not found");
+    if (!existing) throw new ApiError(404, 'Image not found');
 
     const eventId =
-      data.eventId !== undefined && data.eventId !== ""
-        ? parseInt(String(data.eventId), 10)
-        : null;
+      data.eventId !== undefined && data.eventId !== '' ? parseInt(String(data.eventId), 10) : null;
     const categoryId =
-      data.category !== undefined && data.category !== ""
+      data.category !== undefined && data.category !== ''
         ? parseInt(String(data.category), 10)
         : null;
 
@@ -134,7 +124,7 @@ export class GalleryService {
 
   static async getGalleries(schoolId?: number) {
     const images = await prisma.gallery.findMany({
-      where: { status: "approved", ...(schoolId ? { school_id: schoolId } : {}) },
+      where: { status: 'approved', ...(schoolId ? { school_id: schoolId } : {}) },
       include: galleryInclude,
     });
     return groupImages(images);
@@ -142,7 +132,7 @@ export class GalleryService {
 
   static async getPending(schoolId?: number) {
     const images = await prisma.gallery.findMany({
-      where: { status: "pending", ...(schoolId ? { school_id: schoolId } : {}) },
+      where: { status: 'pending', ...(schoolId ? { school_id: schoolId } : {}) },
       include: galleryInclude,
     });
     return groupImages(images);
@@ -150,22 +140,18 @@ export class GalleryService {
 
   static async getRejected(schoolId?: number) {
     const images = await prisma.gallery.findMany({
-      where: { status: "rejected", ...(schoolId ? { school_id: schoolId } : {}) },
+      where: { status: 'rejected', ...(schoolId ? { school_id: schoolId } : {}) },
       include: galleryInclude,
     });
     return groupImages(images);
   }
 
-  static async getStudentGalleries(
-    studentId: number,
-    status: string,
-    schoolId?: number,
-  ) {
+  static async getStudentGalleries(studentId: number, status: string, schoolId?: number) {
     const images = await prisma.gallery.findMany({
       where: {
         status,
         uploader_id: studentId,
-        uploader_type: "student",
+        uploader_type: 'student',
         ...(schoolId ? { school_id: schoolId } : {}),
       },
       include: galleryInclude,
@@ -177,7 +163,7 @@ export class GalleryService {
     const images = await prisma.gallery.findMany({
       where: {
         event_id: eventId,
-        status: "approved",
+        status: 'approved',
         ...(schoolId ? { school_id: schoolId } : {}),
       },
       include: galleryInclude,
@@ -189,7 +175,7 @@ export class GalleryService {
     const images = await prisma.gallery.findMany({
       where: {
         category_id: categoryId,
-        status: "approved",
+        status: 'approved',
         ...(schoolId ? { school_id: schoolId } : {}),
       },
       include: galleryInclude,
@@ -201,7 +187,7 @@ export class GalleryService {
     const existing = await prisma.gallery.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Image not found");
+    if (!existing) throw new ApiError(404, 'Image not found');
     return prisma.gallery.update({ where: { id }, data: { status } });
   }
 
@@ -218,7 +204,7 @@ export class GalleryService {
         category_id: categoryId,
         ...(schoolId ? { school_id: schoolId } : {}),
       },
-      data: { status: "rejected" },
+      data: { status: 'rejected' },
     });
   }
 
@@ -226,7 +212,7 @@ export class GalleryService {
     const existing = await prisma.gallery.findFirst({
       where: schoolId ? { id, school_id: schoolId } : { id },
     });
-    if (!existing) throw new ApiError(404, "Image not found");
+    if (!existing) throw new ApiError(404, 'Image not found');
     await prisma.gallery.delete({ where: { id } });
     if (existing.image_path) await deleteFromR2(existing.image_path);
   }
@@ -239,9 +225,7 @@ export class GalleryService {
       where: { id: { in: ids }, ...(schoolId ? { school_id: schoolId } : {}) },
     });
     await Promise.all(
-      existing
-        .filter((img) => img.image_path)
-        .map((img) => deleteFromR2(img.image_path!)),
+      existing.filter((img) => img.image_path).map((img) => deleteFromR2(img.image_path!)),
     );
   }
 
@@ -259,9 +243,7 @@ export class GalleryService {
       },
     });
     await Promise.all(
-      existing
-        .filter((img) => img.image_path)
-        .map((img) => deleteFromR2(img.image_path!)),
+      existing.filter((img) => img.image_path).map((img) => deleteFromR2(img.image_path!)),
     );
   }
 
@@ -281,30 +263,22 @@ export class GalleryService {
     });
   }
 
-  static async setCategoryThumbnail(
-    categoryId: number,
-    imageId: number,
-    schoolId?: number,
-  ) {
+  static async setCategoryThumbnail(categoryId: number, imageId: number, schoolId?: number) {
     const image = await prisma.gallery.findFirst({
       where: schoolId ? { id: imageId, school_id: schoolId } : { id: imageId },
     });
-    if (!image) throw new ApiError(404, "Image not found");
+    if (!image) throw new ApiError(404, 'Image not found');
     return prisma.categories.update({
       where: { id: categoryId },
       data: { thumbnail: image.image_path },
     });
   }
 
-  static async setEventThumbnail(
-    eventId: number,
-    imageId: number,
-    schoolId?: number,
-  ) {
+  static async setEventThumbnail(eventId: number, imageId: number, schoolId?: number) {
     const image = await prisma.gallery.findFirst({
       where: schoolId ? { id: imageId, school_id: schoolId } : { id: imageId },
     });
-    if (!image) throw new ApiError(404, "Image not found");
+    if (!image) throw new ApiError(404, 'Image not found');
     return prisma.events.update({
       where: { id: eventId },
       data: { thumbnail: image.image_path, image: image.image_path },

@@ -1,74 +1,71 @@
-import "./instrument.js";
-import express from "express";
-import "dotenv/config";
-import { env } from "./config/env.js";
+import './instrument.js';
+import express from 'express';
+import 'dotenv/config';
+import { env } from './config/env.js';
 
-process.env.TZ = "Asia/Dhaka";
+process.env.TZ = 'Asia/Dhaka';
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
-import cors from "cors";
-import compression from "compression";
-import { detailedRequestLogger } from "./middlewares/requestLogger.js";
-import logger from "./utils/logger.js";
-import examRouter from "./routes/examRoutes.js";
-import marksRouter from "./modules/marks/marks.route.js";
-import promotionRouter from "./routes/promotionRoutes.js";
+import cors from 'cors';
+import compression from 'compression';
+import { detailedRequestLogger } from './middlewares/requestLogger.js';
+import logger from './utils/logger.js';
+import examRouter from './routes/examRoutes.js';
+import marksRouter from './modules/marks/marks.route.js';
+import promotionRouter from './routes/promotionRoutes.js';
 import {
   sharedAuthSessionRouter,
   superAdminAuthRouter,
   tenantAuthRouter,
-} from "./modules/auth/auth.route.js";
-import cookieParser from "cookie-parser";
-import levelRouter from "./modules/level/level.route.js";
-import attendenceRouter from "./modules/attendence/attendence.route.js";
-import smsSettingsRoute from "./modules/sms-settings/sms-settings.route.js";
-import noticeRouter from "./modules/notice/notice.route.js";
-import holidayRouter from "./routes/holidayRoutes.js";
-import eventsRouter from "./modules/events/events.route.js";
-import galleryRouter from "./modules/gallery/gallery.route.js";
-import dashboardRouter from "./modules/dashboard/dashboard.route.js";
-import path from "path";
-import fs from "fs";
-import syllabusRoutes from "./routes/syllabusRoutes.js";
-import classRoutineRouter from "./routes/classRoutineRoutes.js";
-import citizenCharterRouter from "./modules/citizen-charter/citizen-charter.route.js";
-import staffRouter from "./modules/staff/staff.route.js";
-import admissionRouter from "./modules/admission/admission.route.js";
-import admissionFormRouter from "./modules/admission/form/admission-form.route.js";
-import admissionResultRouter from "./modules/admission/result/admission-result.route.js";
-import smsRouter from "./modules/sms-logs/sms-logs.route.js";
-import registrationSettingsClass6Router from "./modules/registration/class-6/Settings/registrationSettingsClass6.route.js";
-import registrationFormClass6Router from "./modules/registration/class-6/Form/registrationFormClass6.route.js";
-import registrationSettingsClass8Router from "./modules/registration/class-8/Settings/registrationSettingsClass8.route.js";
-import registrationFormClass8Router from "./modules/registration/class-8/Form/registrationFormClass8.route.js";
-import registrationSettingsClass9Router from "./modules/registration/class-9/Settings/registrationSettingsClass9.route.js";
-import registrationFormClass9Router from "./modules/registration/class-9/Form/registrationFormClass9.route.js";
-import { check } from "./config/redis.js";
-import { startMarksheetWorker, drainMarksheetQueue } from "./modules/marks/marksheet.worker.js";
+} from './modules/auth/auth.route.js';
+import cookieParser from 'cookie-parser';
+import levelRouter from './modules/level/level.route.js';
+import attendenceRouter from './modules/attendence/attendence.route.js';
+import smsSettingsRoute from './modules/sms-settings/sms-settings.route.js';
+import noticeRouter from './modules/notice/notice.route.js';
+import holidayRouter from './routes/holidayRoutes.js';
+import eventsRouter from './modules/events/events.route.js';
+import galleryRouter from './modules/gallery/gallery.route.js';
+import dashboardRouter from './modules/dashboard/dashboard.route.js';
+import path from 'path';
+import fs from 'fs';
+import syllabusRoutes from './routes/syllabusRoutes.js';
+import classRoutineRouter from './routes/classRoutineRoutes.js';
+import citizenCharterRouter from './modules/citizen-charter/citizen-charter.route.js';
+import staffRouter from './modules/staff/staff.route.js';
+import admissionRouter from './modules/admission/admission.route.js';
+import admissionFormRouter from './modules/admission/form/admission-form.route.js';
+import admissionResultRouter from './modules/admission/result/admission-result.route.js';
+import smsRouter from './modules/sms-logs/sms-logs.route.js';
+import registrationSettingsClass6Router from './modules/registration/class-6/Settings/registrationSettingsClass6.route.js';
+import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
+import registrationSettingsClass8Router from './modules/registration/class-8/Settings/registrationSettingsClass8.route.js';
+import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
+import registrationSettingsClass9Router from './modules/registration/class-9/Settings/registrationSettingsClass9.route.js';
+import registrationFormClass9Router from './modules/registration/class-9/Form/registrationFormClass9.route.js';
+import { check } from './config/redis.js';
+import { startMarksheetWorker, drainMarksheetQueue } from './modules/marks/marksheet.worker.js';
 import {
   startAttendanceSheetWorker,
   drainAttendanceSheetQueue,
-} from "./modules/attendence/attendence-sheet.worker.js";
-import rateLimit from "express-rate-limit";
-import { MemoryStore } from "express-rate-limit";
-import AuthMiddleware from "./middlewares/auth.middleware.js";
-import {
-  superAdminSchoolRouter,
-  tenantSchoolRouter,
-} from "./modules/school/school.route.js";
-import studentRouter from "./modules/student/student.route.js";
-import routerTeacher from "./modules/teacher/teacher.route.js";
-import generateToken from "@/utils/generateSetupToken.js";
-import subjectRouter from "./modules/result/subject/subject.route.js";
-import { schoolContextMiddleware } from "./middlewares/tenant.middleware.js";
-import { requireSchoolContextMiddleware } from "./middlewares/access.middleware.js";
+} from './modules/attendence/attendence-sheet.worker.js';
+import rateLimit from 'express-rate-limit';
+import { MemoryStore } from 'express-rate-limit';
+import AuthMiddleware from './middlewares/auth.middleware.js';
+import { superAdminSchoolRouter, tenantSchoolRouter } from './modules/school/school.route.js';
+import studentRouter from './modules/student/student.route.js';
+import routerTeacher from './modules/teacher/teacher.route.js';
+import generateToken from '@/utils/generateSetupToken.js';
+import subjectRouter from './modules/result/subject/subject.route.js';
+import { schoolContextMiddleware } from './middlewares/tenant.middleware.js';
+import { requireSchoolContextMiddleware } from './middlewares/access.middleware.js';
 import {
   initRlsContextMiddleware,
   syncRlsSchoolContextMiddleware,
-} from "./middlewares/rlsContext.middleware.js";
-import { captureServerException } from "./config/sentry.js";
-import { getDatabasePoolStats } from "./utils/dbMetrics.js";
+} from './middlewares/rlsContext.middleware.js';
+import { captureServerException } from './config/sentry.js';
+import { getDatabasePoolStats } from './utils/dbMetrics.js';
 
 const app = express();
 const PORT = env.PORT || 5000;
@@ -76,14 +73,14 @@ const PORT = env.PORT || 5000;
 /** Behind nginx-proxy / load balancer in production — required for rate-limit IP keys. */
 const resolveTrustProxy = (): boolean | number => {
   const raw = env.TRUST_PROXY?.trim().toLowerCase();
-  if (raw === "false" || raw === "0") return false;
-  if (raw === "true") return true;
+  if (raw === 'false' || raw === '0') return false;
+  if (raw === 'true') return true;
   if (raw && /^\d+$/.test(raw)) return Number(raw);
-  return env.NODE_ENV === "production" ? 1 : false;
+  return env.NODE_ENV === 'production' ? 1 : false;
 };
-app.set("trust proxy", resolveTrustProxy());
-const configuredOrigins = (env.ALLOWED_ORIGINS || "")
-  .split(",")
+app.set('trust proxy', resolveTrustProxy());
+const configuredOrigins = (env.ALLOWED_ORIGINS || '')
+  .split(',')
   .map((origin) => origin.trim().toLowerCase())
   .filter(Boolean);
 
@@ -93,16 +90,12 @@ const isAllowedOrigin = (origin?: string) => {
   try {
     const hostname = new URL(origin).hostname.toLowerCase();
 
-    if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".localhost")
-    ) {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost')) {
       return true;
     }
 
     if (
-      hostname.endsWith(".mutiurrahman.com") ||
+      hostname.endsWith('.mutiurrahman.com') ||
       configuredOrigins.includes(origin.toLowerCase()) ||
       configuredOrigins.includes(hostname)
     ) {
@@ -110,7 +103,7 @@ const isAllowedOrigin = (origin?: string) => {
     }
 
     // Allow custom domains in production if they hit this backend directly.
-    return hostname.includes(".");
+    return hostname.includes('.');
   } catch {
     return false;
   }
@@ -123,49 +116,50 @@ const corsOptions: cors.CorsOptions = {
       return;
     }
 
-    callback(new Error("CORS blocked for this origin"));
+    callback(new Error('CORS blocked for this origin'));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
 app.use(compression());
-app.get("/api/health", async (_req, res) => {
-  let database: Awaited<ReturnType<typeof getDatabasePoolStats>> | {
-    status: "unavailable";
-    error: string;
-  };
+app.get('/api/health', async (_req, res) => {
+  let database:
+    | Awaited<ReturnType<typeof getDatabasePoolStats>>
+    | {
+        status: 'unavailable';
+        error: string;
+      };
 
   try {
     database = await getDatabasePoolStats();
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Database check failed";
-    logger.warn("Health check database stats unavailable", { error: message });
-    database = { status: "unavailable", error: message };
+    const message = error instanceof Error ? error.message : 'Database check failed';
+    logger.warn('Health check database stats unavailable', { error: message });
+    database = { status: 'unavailable', error: message };
   }
 
   res.json({
     success: true,
-    message: "Server is running",
+    message: 'Server is running',
     timestamp: new Date().toISOString(),
     database,
   });
 });
 app.use(detailedRequestLogger);
-app.options("*", cors(corsOptions));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.options('*', cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(initRlsContextMiddleware);
 const limitStore = new MemoryStore();
 const LimitReq = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: process.env.NODE_ENV === "development" ? 5000 : 1000,
+  max: process.env.NODE_ENV === 'development' ? 5000 : 1000,
   message: {
-    message: "Too many requests, please try again after an hour",
+    message: 'Too many requests, please try again after an hour',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -173,24 +167,20 @@ const LimitReq = rateLimit({
   skip: (req) => {
     const url = req.originalUrl || req.url;
     return (
-      url.includes("/api/sms-settings/public") ||
-      url.includes("/api/health") ||
-      url.includes("/api/marks/generation-status")
+      url.includes('/api/sms-settings/public') ||
+      url.includes('/api/health') ||
+      url.includes('/api/marks/generation-status')
     );
   },
 });
 app.use(LimitReq);
-app.get(
-  "/api/resetLimit",
-  AuthMiddleware.authenticate(["admin"]),
-  (_req, res) => {
-    limitStore.resetAll();
-    res.json({
-      success: true,
-      message: "Rate limit reset successfully",
-    });
-  },
-);
+app.get('/api/resetLimit', AuthMiddleware.authenticate(['admin']), (_req, res) => {
+  limitStore.resetAll();
+  res.json({
+    success: true,
+    message: 'Rate limit reset successfully',
+  });
+});
 
 app.use(superAdminAuthRouter);
 app.use(superAdminSchoolRouter);
@@ -201,10 +191,10 @@ app.use(requireSchoolContextMiddleware);
 
 app.use(studentRouter);
 app.use(tenantSchoolRouter);
-app.use("/api/exams", examRouter);
+app.use('/api/exams', examRouter);
 app.use(subjectRouter);
 app.use(marksRouter);
-app.use("/api/promotion", promotionRouter);
+app.use('/api/promotion', promotionRouter);
 app.use(routerTeacher);
 app.use(staffRouter);
 app.use(tenantAuthRouter);
@@ -212,12 +202,12 @@ app.use(levelRouter);
 app.use(attendenceRouter);
 app.use(noticeRouter);
 app.use(smsSettingsRoute);
-app.use("/api/holidays", holidayRouter);
+app.use('/api/holidays', holidayRouter);
 app.use(eventsRouter);
-app.use("/api/gallery", galleryRouter);
+app.use('/api/gallery', galleryRouter);
 app.use(dashboardRouter);
-app.use("/api/syllabus", syllabusRoutes);
-app.use("/api/class-routine", classRoutineRouter);
+app.use('/api/syllabus', syllabusRoutes);
+app.use('/api/class-routine', classRoutineRouter);
 app.use(citizenCharterRouter);
 app.use(registrationSettingsClass9Router);
 app.use(registrationFormClass9Router);
@@ -230,68 +220,59 @@ app.use(admissionFormRouter);
 app.use(admissionResultRouter);
 
 app.use(smsRouter);
-app.use("*", (_req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
+    message: 'Route not found',
   });
 });
-app.use(
-  (
-    error: any,
-    req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction,
-  ) => {
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Internal server error";
+app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const statusCode = error.statusCode || 500;
+  const message = error.message || 'Internal server error';
 
-    const logMethod = statusCode >= 500 ? "error" : "warn";
-    const logTitle =
-      statusCode >= 500 ? "Unhandled server error" : "Client error response";
+  const logMethod = statusCode >= 500 ? 'error' : 'warn';
+  const logTitle = statusCode >= 500 ? 'Unhandled server error' : 'Client error response';
 
-    if (statusCode >= 500) {
-      captureServerException(error);
-    }
+  if (statusCode >= 500) {
+    captureServerException(error);
+  }
 
-    (logger as any)[logMethod](logTitle, {
-      status: statusCode,
-      message,
-      stack: statusCode >= 500 ? error.stack : undefined,
-      url: req.originalUrl,
-      method: req.method,
-      ip:
-        (
-          (Array.isArray(req.headers["x-forwarded-for"])
-            ? req.headers["x-forwarded-for"][0]
-            : req.headers["x-forwarded-for"]) || ""
-        )
-          .split(",")[0]
-          .trim() || req.socket?.remoteAddress,
-    });
+  (logger as any)[logMethod](logTitle, {
+    status: statusCode,
+    message,
+    stack: statusCode >= 500 ? error.stack : undefined,
+    url: req.originalUrl,
+    method: req.method,
+    ip:
+      (
+        (Array.isArray(req.headers['x-forwarded-for'])
+          ? req.headers['x-forwarded-for'][0]
+          : req.headers['x-forwarded-for']) || ''
+      )
+        .split(',')[0]
+        .trim() || req.socket?.remoteAddress,
+  });
 
-    res.status(statusCode).json({
-      success: false,
-      message: message,
-      errors: error.errors || [],
-      error: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  },
-);
+  res.status(statusCode).json({
+    success: false,
+    message: message,
+    errors: error.errors || [],
+    error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+  });
+});
 generateToken();
 const httpServer = app.listen(PORT, () => {
-  const logsPath = path.resolve("logs");
+  const logsPath = path.resolve('logs');
   fs.mkdir(logsPath, { recursive: true }, (err) => {
     if (err) {
-      logger.error("Error creating logs directory", { error: err.message });
+      logger.error('Error creating logs directory', { error: err.message });
     } else {
-      logger.info("Logs directory ready", {
+      logger.info('Logs directory ready', {
         path: logsPath,
       });
     }
   });
-  const mode =
-    process.env.NODE_ENV === "production" ? "production" : "development";
+  const mode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
   logger.info(`Server started`, {
     port: PORT,
     mode,
@@ -311,14 +292,14 @@ const gracefulShutdown = async (signal: string) => {
   try {
     await Promise.all([drainMarksheetQueue(), drainAttendanceSheetQueue()]);
   } catch (e) {
-    logger.warn("Queue drain error during shutdown", {
+    logger.warn('Queue drain error during shutdown', {
       error: e instanceof Error ? e.message : String(e),
     });
   }
 
   await new Promise<void>((resolve) => {
     httpServer.close(() => {
-      logger.info("HTTP server closed");
+      logger.info('HTTP server closed');
       resolve();
     });
   });
@@ -326,11 +307,11 @@ const gracefulShutdown = async (signal: string) => {
   process.exit(0);
 };
 
-process.on("SIGTERM", () => {
-  void gracefulShutdown("SIGTERM");
+process.on('SIGTERM', () => {
+  void gracefulShutdown('SIGTERM');
 });
-process.on("SIGINT", () => {
-  void gracefulShutdown("SIGINT");
+process.on('SIGINT', () => {
+  void gracefulShutdown('SIGINT');
 });
 
 export default app;

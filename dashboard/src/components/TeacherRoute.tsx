@@ -1,26 +1,26 @@
-import { Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
-import { useAuth } from "@/context/useAuth";
-import Loading from "./Loading";
-import ServerOffline from "@/pages/Common/ServerOffline";
+import { Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useAuth } from '@/context/useAuth';
+import Loading from './Loading';
+import ServerOffline from '@/pages/Common/ServerOffline';
 
 const TeacherRoute = ({ element }: { element: ReactNode }) => {
-    const { user, loading, isTeacher, serverOffline } = useAuth();
+  const { user, loading, isTeacher, serverOffline } = useAuth();
 
-    if (loading && !user) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <Loading />
-            </div>
-        );
-    }
-
+  if (loading && !user) {
     return (
-        <>
-            {serverOffline && <ServerOffline isOverlay />}
-            {user && isTeacher() ? element : <Navigate to="/teacher/login" />}
-        </>
+      <div className="flex h-screen items-center justify-center">
+        <Loading />
+      </div>
     );
+  }
+
+  return (
+    <>
+      {serverOffline && <ServerOffline isOverlay />}
+      {user && isTeacher() ? element : <Navigate to="/teacher/login" />}
+    </>
+  );
 };
 
 export default TeacherRoute;

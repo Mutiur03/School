@@ -1,15 +1,15 @@
-import type { NextConfig } from "next";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import type { NextConfig } from 'next';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
-const monorepoRoot = join(projectRoot, "..");
+const monorepoRoot = join(projectRoot, '..');
 const require = createRequire(import.meta.url);
 
 // Dual deploy: same next.config for Vercel + OpenNext/Cloudflare.
 // OpenNext sets OPEN_NEXT=1 via scripts/run-with-open-next.mjs.
-const isOpenNextBuild = process.env.OPEN_NEXT === "1";
+const isOpenNextBuild = process.env.OPEN_NEXT === '1';
 
 /**
  * Vercel (monorepo): trace from repo root so hoisted next/@swc/helpers land in /var/task.
@@ -17,15 +17,15 @@ const isOpenNextBuild = process.env.OPEN_NEXT === "1";
  * `.next/standalone/client-next/.next/...`, which OpenNext resolves via getPackagePath().
  */
 const vercelTracingIncludes = [
-  "../node_modules/next/dist/**/*",
-  "../node_modules/next/setup-node-env.js",
-  "../node_modules/next/package.json",
-  "../node_modules/next/node_modules/@swc/helpers/**/*",
-  "../node_modules/@swc/helpers/**/*",
-  "node_modules/next/dist/**/*",
-  "node_modules/next/setup-node-env.js",
-  "node_modules/next/node_modules/@swc/helpers/**/*",
-  "node_modules/@swc/helpers/**/*",
+  '../node_modules/next/dist/**/*',
+  '../node_modules/next/setup-node-env.js',
+  '../node_modules/next/package.json',
+  '../node_modules/next/node_modules/@swc/helpers/**/*',
+  '../node_modules/@swc/helpers/**/*',
+  'node_modules/next/dist/**/*',
+  'node_modules/next/setup-node-env.js',
+  'node_modules/next/node_modules/@swc/helpers/**/*',
+  'node_modules/@swc/helpers/**/*',
 ];
 
 const nextConfig: NextConfig = {
@@ -38,26 +38,26 @@ const nextConfig: NextConfig = {
   // Turbopack safe to use there.
   ...(isOpenNextBuild
     ? {
-        output: "standalone",
+        output: 'standalone',
         outputFileTracingRoot: monorepoRoot,
         // Monorepo NFT includes for OpenNext esbuild bundle (next-build.mjs also copies full packages).
         outputFileTracingIncludes: {
-          "/*": [
-            "../node_modules/next/dist/**/*",
-            "../node_modules/@swc/helpers/**/*",
-            "../node_modules/styled-jsx/**/*",
-            "node_modules/@swc/helpers/**/*",
-            "node_modules/styled-jsx/**/*",
+          '/*': [
+            '../node_modules/next/dist/**/*',
+            '../node_modules/@swc/helpers/**/*',
+            '../node_modules/styled-jsx/**/*',
+            'node_modules/@swc/helpers/**/*',
+            'node_modules/styled-jsx/**/*',
           ],
         },
       }
     : {
         outputFileTracingRoot: monorepoRoot,
         outputFileTracingIncludes: {
-          "/*": vercelTracingIncludes,
+          '/*': vercelTracingIncludes,
         },
       }),
-  transpilePackages: ["@school/common-ui"],
+  transpilePackages: ['@school/common-ui'],
   turbopack: {
     // Keep in sync with tracing root when set (Next warns if they diverge).
     root: isOpenNextBuild ? projectRoot : monorepoRoot,
@@ -68,63 +68,63 @@ const nextConfig: NextConfig = {
     ...(isOpenNextBuild ? { unoptimized: true } : {}),
     // Slightly lower default quality reduces LCP bytes on both platforms.
     qualities: [45, 50, 75],
-    formats: ["image/avif", "image/webp"],
+    formats: ['image/avif', 'image/webp'],
     // minimumCacheTTL: 60 * 60 * 24 * 7,
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "**",
+        protocol: 'https',
+        hostname: '**',
       },
       {
-        protocol: "http",
-        hostname: "**",
+        protocol: 'http',
+        hostname: '**',
       },
     ],
   },
   async headers() {
     return [
       {
-        source: "/:path*",
+        source: '/:path*',
         headers: [
           {
-            key: "Link",
-            value: "</bg.png>; rel=preload; as=image; fetchpriority=high",
+            key: 'Link',
+            value: '</bg.png>; rel=preload; as=image; fetchpriority=high',
           },
         ],
       },
       {
-        source: "/fonts/:path*",
+        source: '/fonts/:path*',
         headers: [
           {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
       {
-        source: "/bg.png",
+        source: '/bg.png',
         headers: [
           {
-            key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },
       {
-        source: "/logo.png",
+        source: '/logo.png',
         headers: [
           {
-            key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },
       {
-        source: "/header.png",
+        source: '/header.png',
         headers: [
           {
-            key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },
@@ -133,23 +133,22 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const rewrites = [
       {
-        source: "/favicon.ico",
-        destination: "/favicon",
+        source: '/favicon.ico',
+        destination: '/favicon',
       },
     ];
 
-    if (process.env.NODE_ENV !== "development") {
+    if (process.env.NODE_ENV !== 'development') {
       return rewrites;
     }
 
     const tenantRouter =
-      process.env.TENANT_ROUTER_URL?.replace(/\/+$/, "") ||
-      "http://127.0.0.1:8787";
+      process.env.TENANT_ROUTER_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:8787';
 
     return [
       ...rewrites,
       {
-        source: "/api/:path*",
+        source: '/api/:path*',
         destination: `${tenantRouter}/api/:path*`,
       },
     ];
@@ -159,6 +158,6 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 
 // Keep OpenNext out of the Vercel production config graph — load only for local CF preview.
-if (process.env.NODE_ENV === "development") {
-  require("@opennextjs/cloudflare").initOpenNextCloudflareForDev();
+if (process.env.NODE_ENV === 'development') {
+  require('@opennextjs/cloudflare').initOpenNextCloudflareForDev();
 }

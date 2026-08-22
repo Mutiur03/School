@@ -1,15 +1,15 @@
-import { Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
-import { useAuth } from "@/context/useAuth";
-import Loading from "./Loading";
-import ServerOffline from "@/pages/Common/ServerOffline";
+import { Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useAuth } from '@/context/useAuth';
+import Loading from './Loading';
+import ServerOffline from '@/pages/Common/ServerOffline';
 
 const SuperAdminRoute = ({ element }: { element: ReactNode }) => {
   const { user, loading, isSuperAdmin, serverOffline } = useAuth();
 
   if (loading && !user) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <Loading />
       </div>
     );

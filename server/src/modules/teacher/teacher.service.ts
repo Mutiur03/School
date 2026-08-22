@@ -1,15 +1,15 @@
-import generatePassword from "@/utils/pwgenerator.js";
-import * as bcrypt from "bcrypt";
-import { prisma } from "@/config/prisma.js";
-import { deleteFromR2 } from "@/config/r2.js";
-import * as XLSX from "xlsx";
-import { teacherFormSchema } from "@school/shared-schemas";
-import { ApiError } from "@/utils/ApiError.js";
-import EmailService from "@/utils/email.service.js";
-import { env } from "@/config/env.js";
-import { redis } from "@/config/redis.js";
-import { LONG_TERM_CACHE_TTL } from "@/utils/globalVars.js";
-import type { Prisma } from "@prisma/client";
+import generatePassword from '@/utils/pwgenerator.js';
+import * as bcrypt from 'bcrypt';
+import { prisma } from '@/config/prisma.js';
+import { deleteFromR2 } from '@/config/r2.js';
+import * as XLSX from 'xlsx';
+import { teacherFormSchema } from '@school/shared-schemas';
+import { ApiError } from '@/utils/ApiError.js';
+import EmailService from '@/utils/email.service.js';
+import { env } from '@/config/env.js';
+import { redis } from '@/config/redis.js';
+import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import type { Prisma } from '@prisma/client';
 
 export const sanitizeTeacher = (teacher: any) => {
   const { password: _password, ...rest } = teacher;
@@ -18,30 +18,24 @@ export const sanitizeTeacher = (teacher: any) => {
 
 async function invalidateMarksheetsForTeacher(teacherId: number): Promise<void> {
   try {
-    const { MarksheetService } = await import(
-      "../marks/marksheet.service.js"
-    );
+    const { MarksheetService } = await import('../marks/marksheet.service.js');
     await MarksheetService.invalidateForTeacherProfile(teacherId);
   } catch (err) {
     console.warn(
-      "Marksheet invalidation failed after teacher profile change:",
+      'Marksheet invalidation failed after teacher profile change:',
       err instanceof Error ? err.message : err,
     );
   }
 }
 
-async function invalidateMarksheetsForSchoolHead(
-  schoolId: number | undefined,
-): Promise<void> {
+async function invalidateMarksheetsForSchoolHead(schoolId: number | undefined): Promise<void> {
   if (!schoolId) return;
   try {
-    const { MarksheetService } = await import(
-      "../marks/marksheet.service.js"
-    );
+    const { MarksheetService } = await import('../marks/marksheet.service.js');
     await MarksheetService.invalidateForSchoolSignatureChange(schoolId);
   } catch (err) {
     console.warn(
-      "Marksheet invalidation failed after head message change:",
+      'Marksheet invalidation failed after head message change:',
       err instanceof Error ? err.message : err,
     );
   }
@@ -54,12 +48,13 @@ export class TeacherService {
       limit: number;
       search?: string;
     },
-    _userOptions: { role?: string } = {}
+    _userOptions: { role?: string } = {},
   ) {
     const { page, limit, search } = params;
 
     const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
-    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
+    const normalizedLimit =
+      Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const normalizedSearch = search?.trim();
@@ -68,11 +63,11 @@ export class TeacherService {
 
     if (normalizedSearch) {
       where.OR = [
-        { name: { contains: normalizedSearch, mode: "insensitive" } },
-        { email: { contains: normalizedSearch, mode: "insensitive" } },
-        { phone: { contains: normalizedSearch, mode: "insensitive" } },
-        { designation: { contains: normalizedSearch, mode: "insensitive" } },
-        { address: { contains: normalizedSearch, mode: "insensitive" } },
+        { name: { contains: normalizedSearch, mode: 'insensitive' } },
+        { email: { contains: normalizedSearch, mode: 'insensitive' } },
+        { phone: { contains: normalizedSearch, mode: 'insensitive' } },
+        { designation: { contains: normalizedSearch, mode: 'insensitive' } },
+        { address: { contains: normalizedSearch, mode: 'insensitive' } },
       ];
     }
 
@@ -80,7 +75,7 @@ export class TeacherService {
       prisma.teachers.count({ where: { available: true } }),
       prisma.teachers.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: { id: 'asc' },
         skip,
         take: normalizedLimit,
       }),
@@ -114,7 +109,7 @@ export class TeacherService {
     });
 
     if (!teacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
 
     return sanitizeTeacher(teacher);
@@ -127,7 +122,7 @@ export class TeacherService {
     const uniqueEmails = new Set(emails);
 
     if (uniqueEmails.size !== emails.length) {
-      throw new ApiError(400, "Duplicate emails found in the provided list");
+      throw new ApiError(400, 'Duplicate emails found in the provided list');
     }
 
     const existingTeachers = await prisma.teachers.findMany({
@@ -138,7 +133,7 @@ export class TeacherService {
     });
 
     if (existingTeachers.length > 0) {
-      const existingEmails = existingTeachers.map((t) => t.email).join(", ");
+      const existingEmails = existingTeachers.map((t) => t.email).join(', ');
       throw new ApiError(400, `Teachers with following emails already exist: ${existingEmails}`);
     }
 
@@ -166,9 +161,7 @@ export class TeacherService {
     }
 
     await prisma.teachers.createMany({
-      data: processedTeachers.map(
-        ({ originalPassword: _originalPassword, ...data }) => data,
-      ),
+      data: processedTeachers.map(({ originalPassword: _originalPassword, ...data }) => data),
     });
 
     const createdTeachers = await prisma.teachers.findMany({
@@ -190,23 +183,23 @@ export class TeacherService {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Teachers");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Teachers');
 
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "buffer",
+      bookType: 'xlsx',
+      type: 'buffer',
     });
 
     EmailService.sendEmailWithAttachment({
       from: env.FROM_EMAIL,
-      to: "mutiur5bb@gmail.com",
-      subject: "New Teachers Registered - Credentials",
+      to: 'mutiur5bb@gmail.com',
+      subject: 'New Teachers Registered - Credentials',
       body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${processedTeachers.length} newly registered teachers.\n\nBest regards,\nSchool Management System`,
       attachment: {
-        filename: "teachers_credentials.xlsx",
+        filename: 'teachers_credentials.xlsx',
         content: excelBuffer,
       },
-    }).catch((err) => console.error("Failed to send headmaster email:", err));
+    }).catch((err) => console.error('Failed to send headmaster email:', err));
 
     return {
       data: createdTeachers.map(sanitizeTeacher),
@@ -220,7 +213,7 @@ export class TeacherService {
     if (!parsed.success) {
       throw new ApiError(
         400,
-        parsed.error.issues[0]?.message || "Invalid teacher data",
+        parsed.error.issues[0]?.message || 'Invalid teacher data',
         parsed.error.issues,
       );
     }
@@ -236,7 +229,7 @@ export class TeacherService {
     });
 
     // Clear head message cache
-    const key = "head_msg_cache";
+    const key = 'head_msg_cache';
     await redis.del(key);
 
     if (existingTeacher && existingTeacher.name !== parsed.data.name) {
@@ -252,7 +245,7 @@ export class TeacherService {
     });
 
     if (!teacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
 
     await prisma.teachers.update({
@@ -261,10 +254,10 @@ export class TeacherService {
     });
 
     // Clear head message cache
-    const key = "head_msg_cache";
+    const key = 'head_msg_cache';
     await redis.del(key);
 
-    return { message: "Teacher deleted successfully" };
+    return { message: 'Teacher deleted successfully' };
   }
 
   static async saveTeacherImage(id: number, key: string | null) {
@@ -272,7 +265,7 @@ export class TeacherService {
       where: { id },
     });
     if (!existingTeacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
     if (existingTeacher.image) {
       await deleteFromR2(existingTeacher.image);
@@ -283,7 +276,7 @@ export class TeacherService {
     });
 
     // Clear head message cache
-    const cacheKey = "head_msg_cache";
+    const cacheKey = 'head_msg_cache';
     await redis.del(cacheKey);
 
     return result;
@@ -294,14 +287,11 @@ export class TeacherService {
       where: { id },
     });
     if (!existingTeacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
     // Only delete the previous object when the key actually changes — same-key
     // re-upload already overwrote R2; deleting would remove the new file.
-    if (
-      existingTeacher.signature &&
-      existingTeacher.signature !== (key || null)
-    ) {
+    if (existingTeacher.signature && existingTeacher.signature !== (key || null)) {
       await deleteFromR2(existingTeacher.signature);
     }
     const result = await prisma.teachers.update({
@@ -319,18 +309,18 @@ export class TeacherService {
       where: { id: teacherId },
     });
     if (!teacher) {
-      throw new ApiError(404, "Teacher not found");
+      throw new ApiError(404, 'Teacher not found');
     }
     if (!teacher.password) {
-      throw new ApiError(401, "No password set for this teacher");
+      throw new ApiError(401, 'No password set for this teacher');
     }
     const isMatch = await bcrypt.compare(currentPassword, teacher.password);
     if (!isMatch) {
-      throw new ApiError(400, "Current password is incorrect");
+      throw new ApiError(400, 'Current password is incorrect');
     }
 
     if (newPassword.length < 8) {
-      throw new ApiError(400, "Password must be at least 8 characters");
+      throw new ApiError(400, 'Password must be at least 8 characters');
     }
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -347,7 +337,7 @@ export class TeacherService {
     });
 
     if (teachers.length === 0) {
-      throw new ApiError(404, "No matching teachers found");
+      throw new ApiError(404, 'No matching teachers found');
     }
 
     const processedTeachers = await Promise.all(
@@ -359,7 +349,7 @@ export class TeacherService {
           password,
           hashedPassword,
         };
-      })
+      }),
     );
 
     const rotatedTeachers: Array<{
@@ -378,46 +368,41 @@ export class TeacherService {
 
         rotatedTeachers.push({
           name: teacher.name,
-          email: teacher.email || "N/A",
-          designation: teacher.designation || "N/A",
+          email: teacher.email || 'N/A',
+          designation: teacher.designation || 'N/A',
           password: teacher.password,
         });
       }
     });
 
     const excelData = rotatedTeachers.map(
-      (teacher: {
-        name: string;
-        email: string;
-        designation: string;
-        password: string;
-      }) => ({
+      (teacher: { name: string; email: string; designation: string; password: string }) => ({
         Name: teacher.name,
         Email: teacher.email,
         Designation: teacher.designation,
-        "New Password": teacher.password,
+        'New Password': teacher.password,
       }),
     );
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rotated Passwords");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Rotated Passwords');
 
     const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "buffer",
+      bookType: 'xlsx',
+      type: 'buffer',
     });
 
     EmailService.sendEmailWithAttachment({
       from: env.FROM_EMAIL,
-      to: "mutiur5bb@gmail.com",
-      subject: "Teacher Passwords Rotated - New Credentials",
+      to: 'mutiur5bb@gmail.com',
+      subject: 'Teacher Passwords Rotated - New Credentials',
       body: `Hello Headmaster,\n\nPlease find attached the new login credentials for the ${rotatedTeachers.length} teachers whose passwords were just rotated.\n\nBest regards,\nSchool Management System`,
       attachment: {
-        filename: "rotated_passwords.xlsx",
+        filename: 'rotated_passwords.xlsx',
         content: excelBuffer,
       },
-    }).catch((err) => console.error("Failed to send headmaster email:", err));
+    }).catch((err) => console.error('Failed to send headmaster email:', err));
 
     return excelBuffer;
   }
@@ -436,12 +421,10 @@ export class TeacherService {
 
     const existing = await prisma.head_msg.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { updated_at: "desc" },
+      orderBy: { updated_at: 'desc' },
     });
 
-    const headIdentityChanged =
-      teacherId != null ||
-      headRole !== undefined;
+    const headIdentityChanged = teacherId != null || headRole !== undefined;
 
     if (existing) {
       await prisma.head_msg.update({
@@ -450,31 +433,31 @@ export class TeacherService {
       });
     } else {
       if (!teacherId) {
-        throw new ApiError(400, "teacherId is required to create head message");
+        throw new ApiError(400, 'teacherId is required to create head message');
       }
       await prisma.head_msg.create({
         data: {
           head_id: parseInt(teacherId.toString()),
           head_message: message ?? null,
-          head_role: headRole ?? "Headmaster",
+          head_role: headRole ?? 'Headmaster',
           ...(schoolId ? { school_id: schoolId } : {}),
         },
       });
     }
 
     // Clear cache
-    const key = `head_msg_cache_${schoolId ?? "global"}`;
+    const key = `head_msg_cache_${schoolId ?? 'global'}`;
     await redis.del(key);
 
     if (headIdentityChanged) {
       await invalidateMarksheetsForSchoolHead(schoolId);
     }
 
-    return { message: "Head message updated successfully" };
+    return { message: 'Head message updated successfully' };
   }
 
   static async getHeadMessage(schoolId?: number) {
-    const key = `head_msg_cache_${schoolId ?? "global"}`;
+    const key = `head_msg_cache_${schoolId ?? 'global'}`;
     const cachedHeadMsg = await redis.get(key);
     if (cachedHeadMsg) {
       return JSON.parse(cachedHeadMsg);
@@ -482,13 +465,13 @@ export class TeacherService {
 
     const headMsg = await prisma.head_msg.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
-      orderBy: { updated_at: "desc" },
+      orderBy: { updated_at: 'desc' },
       include: {
         teacher: { select: { id: true, name: true, image: true } },
       },
     });
 
-    await redis.set(key, JSON.stringify(headMsg), "EX", LONG_TERM_CACHE_TTL);
+    await redis.set(key, JSON.stringify(headMsg), 'EX', LONG_TERM_CACHE_TTL);
     return headMsg;
   }
 }

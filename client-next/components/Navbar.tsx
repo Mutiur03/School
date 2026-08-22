@@ -1,12 +1,12 @@
-"use client";
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import "./Navbar.css";
-import Link from "@/components/Link";
-import type { MenuItem } from "../types";
-import { useRoutinePDF } from "@/hooks/useSchoolData";
-import { getFileUrl } from "@/lib/cdn";
-import { isExternalHref } from "@/lib/links";
+'use client';
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import './Navbar.css';
+import Link from '@/components/Link';
+import type { MenuItem } from '../types';
+import { useRoutinePDF } from '@/hooks/useSchoolData';
+import { getFileUrl } from '@/lib/cdn';
+import { isExternalHref } from '@/lib/links';
 
 export type NavbarProps = {
   menuItems?: MenuItem[];
@@ -23,23 +23,20 @@ export type NavbarProps = {
 export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(
-    null,
-  );
+  const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null);
   const routineQuery = useRoutinePDF();
-  const handleRoutineClick =
-    (async (e: React.MouseEvent) => {
-      e.preventDefault();
-      const cachedUrl = routineQuery.data ?? null;
-      const pdfUrl = cachedUrl ?? (await routineQuery.refetch()).data ?? null;
-      if (pdfUrl) {
-        window.open(getFileUrl(pdfUrl), "_blank");
-      }
-    });
+  const handleRoutineClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const cachedUrl = routineQuery.data ?? null;
+    const pdfUrl = cachedUrl ?? (await routineQuery.refetch()).data ?? null;
+    if (pdfUrl) {
+      window.open(getFileUrl(pdfUrl), '_blank');
+    }
+  };
 
   const isExternalLink = (href?: string | null) => {
     if (!href) return false;
-    if (typeof window === "undefined") return isExternalHref(href);
+    if (typeof window === 'undefined') return isExternalHref(href);
     try {
       const url = new URL(href, window.location.href);
       return url.origin !== window.location.origin;
@@ -66,12 +63,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   };
 
   const closeNavbarIfMobile = (href?: string | null) => {
-    const isRealHref = !!href && href.trim() !== "" && href.trim() !== "#";
-    if (
-      typeof window !== "undefined" &&
-      window.innerWidth <= 768 &&
-      isRealHref
-    ) {
+    const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
+    if (typeof window !== 'undefined' && window.innerWidth <= 768 && isRealHref) {
       setIsNavOpen(false);
       setActiveDropdown(null);
       setActiveSubDropdown(null);
@@ -82,230 +75,226 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   const loginDropdown = [
     portalLinks.teacherLogin
       ? {
-        id: "menu-item-3548",
-        href: portalLinks.teacherLogin,
-        text: "Teacher",
-      }
+          id: 'menu-item-3548',
+          href: portalLinks.teacherLogin,
+          text: 'Teacher',
+        }
       : null,
     portalLinks.studentLogin
       ? {
-        id: "menu-item-3549",
-        href: portalLinks.studentLogin,
-        text: "Student",
-      }
+          id: 'menu-item-3549',
+          href: portalLinks.studentLogin,
+          text: 'Student',
+        }
       : null,
   ].filter((item) => item !== null);
 
-  const menuItems: MenuItem[] =
-    menuItemsProp ??
-    [
-      {
-        id: "menu-item-home-icon",
-        className:
-          "nav_home menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-3390 current_page_item active menu-item-3392 nav-item",
-        href: "/",
-        text: "",
-        icon: "fa fa-home",
-        isHome: true,
-      },
-      {
-        id: "menu-item-3340",
-        className:
-          "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3340 nav-item",
-        href: "#",
-        text: "About",
-        dropdown: [
-          { id: "menu-item-3342", href: "/at-a-glance", text: "At a glance" },
-          { id: "menu-item-3341", href: "/at-a-glance", text: "Aims & Goals" },
-          { id: "menu-item-3385", href: "/gallery", text: "Photo Gallery" },
-          { id: "menu-item-3348", href: "/at-a-glance", text: "Seat Capacity" },
-          // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
-        ],
-      },
-      {
-        id: "menu-item-3349",
-        className:
-          "nav_red menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3349 nav-item",
-        href: "#",
-        text: "Information",
-        dropdown: [
-          { id: "menu-item-3350", href: "#", text: "Administration" },
-          { id: "menu-item-3657", href: "/teacher-list", text: "Teacher List" },
-          { id: "menu-item-3357", href: "/staff-list", text: "Staff Info" },
-        ],
-      },
-      // {
-      //     id: "menu-item-3670",
-      //     className: "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3670 nav-item",
-      //     href: "#",
-      //     text: "Departments",
-      //     dropdown: [
-      //         { id: "menu-item-3671", href: "#", text: "Department of Bangla" },
-      //         { id: "menu-item-3708", href: "#", text: "Department of English" },
-      //         { id: "menu-item-3707", href: "#", text: "Department of Mathematics" },
-      //         { id: "menu-item-3706", href: "#", text: "Department of Social Science" },
-      //         { id: "menu-item-3705", href: "#", text: "Department of Religion" },
-      //         { id: "menu-item-3704", href: "#", text: "Department of Physics" },
-      //         { id: "menu-item-3703", href: "#", text: "Department of Chemistry" },
-      //         { id: "menu-item-3702", href: "#", text: "Department of Biology" },
-      //         { id: "menu-item-3701", href: "#", text: "Department of Business Studies" },
-      //         { id: "menu-item-3700", href: "#", text: "Department of Geography" },
-      //         { id: "menu-item-3699", href: "#", text: "Department of Agriculture" },
-      //         { id: "menu-item-3698", href: "#", text: "Department of Physical Education" },
-      //         { id: "menu-item-3697", href: "#", text: "Department of Arts and Crafts" }
-      //     ]
-      // },
-      {
-        id: "menu-item-3358",
-        className:
-          "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3358 nav-item",
-        href: "#",
-        text: "Activities",
-        dropdown: [
+  const menuItems: MenuItem[] = menuItemsProp ?? [
+    {
+      id: 'menu-item-home-icon',
+      className:
+        'nav_home menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-3390 current_page_item active menu-item-3392 nav-item',
+      href: '/',
+      text: '',
+      icon: 'fa fa-home',
+      isHome: true,
+    },
+    {
+      id: 'menu-item-3340',
+      className:
+        'nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3340 nav-item',
+      href: '#',
+      text: 'About',
+      dropdown: [
+        { id: 'menu-item-3342', href: '/at-a-glance', text: 'At a glance' },
+        { id: 'menu-item-3341', href: '/at-a-glance', text: 'Aims & Goals' },
+        { id: 'menu-item-3385', href: '/gallery', text: 'Photo Gallery' },
+        { id: 'menu-item-3348', href: '/at-a-glance', text: 'Seat Capacity' },
+        // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
+      ],
+    },
+    {
+      id: 'menu-item-3349',
+      className:
+        'nav_red menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3349 nav-item',
+      href: '#',
+      text: 'Information',
+      dropdown: [
+        { id: 'menu-item-3350', href: '#', text: 'Administration' },
+        { id: 'menu-item-3657', href: '/teacher-list', text: 'Teacher List' },
+        { id: 'menu-item-3357', href: '/staff-list', text: 'Staff Info' },
+      ],
+    },
+    // {
+    //     id: "menu-item-3670",
+    //     className: "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3670 nav-item",
+    //     href: "#",
+    //     text: "Departments",
+    //     dropdown: [
+    //         { id: "menu-item-3671", href: "#", text: "Department of Bangla" },
+    //         { id: "menu-item-3708", href: "#", text: "Department of English" },
+    //         { id: "menu-item-3707", href: "#", text: "Department of Mathematics" },
+    //         { id: "menu-item-3706", href: "#", text: "Department of Social Science" },
+    //         { id: "menu-item-3705", href: "#", text: "Department of Religion" },
+    //         { id: "menu-item-3704", href: "#", text: "Department of Physics" },
+    //         { id: "menu-item-3703", href: "#", text: "Department of Chemistry" },
+    //         { id: "menu-item-3702", href: "#", text: "Department of Biology" },
+    //         { id: "menu-item-3701", href: "#", text: "Department of Business Studies" },
+    //         { id: "menu-item-3700", href: "#", text: "Department of Geography" },
+    //         { id: "menu-item-3699", href: "#", text: "Department of Agriculture" },
+    //         { id: "menu-item-3698", href: "#", text: "Department of Physical Education" },
+    //         { id: "menu-item-3697", href: "#", text: "Department of Arts and Crafts" }
+    //     ]
+    // },
+    {
+      id: 'menu-item-3358',
+      className:
+        'nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3358 nav-item',
+      href: '#',
+      text: 'Activities',
+      dropdown: [
+        {
+          id: 'menu-item-3360',
+          href: '#',
+          text: 'Sports',
+          // hasChildren: true,
+          subDropdown: [{ id: 'menu-item-3361', href: '#', text: 'Cultural activities' }],
+        },
+        { id: 'menu-item-3368', href: '#', text: 'Scout' },
+        { id: 'menu-item-3365', href: '#', text: 'Red Crescent' },
+        { id: 'menu-item-3359', href: '#', text: 'Cultural activities' },
+        { id: 'menu-item-3362', href: '#', text: 'Debating club' },
+      ],
+    },
+    {
+      id: 'menu-item-3370',
+      className:
+        'nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3370 nav-item',
+      href: '#',
+      text: 'Academic',
+      dropdown: [
+        { id: 'menu-item-3374', href: '#', text: 'Creative Learning' },
+        { id: 'menu-item-3376', href: '/exam-routine', text: 'Exam schedule' },
+        {
+          id: 'menu-item-3371',
+          href: '#',
+          text: 'Academic Calender',
+        },
+        { id: 'menu-item-3382', href: '#', text: 'Vacation Calendar' },
+        { id: 'menu-item-3378', href: '#', text: 'Library' },
+        { id: 'menu-item-3377', href: '#', text: 'Laboratory' },
+      ],
+    },
+    {
+      id: 'menu-item-3545',
+      className:
+        'nav_darkred menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3545 nav-item',
+      href: '#',
+      text: 'Notices',
+      dropdown: [
+        {
+          id: 'menu-item-3543',
+          href: '/notices',
+          text: 'Official Notices',
+          className:
+            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item',
+        },
+        {
+          id: 'menu-item-3544',
+          href: '/events',
+          text: 'Events',
+          className:
+            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item',
+        },
+      ],
+    },
+    {
+      id: 'menu-item-3386',
+      className:
+        'nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item',
+      href: '#',
+      text: 'Admission',
+      dropdown: [
+        {
+          id: 'menu-item-3387',
+          href: '/admission/notice',
+          text: 'Admission Notice',
+        },
+        { id: 'menu-item-3388', href: '/admission', text: 'Admission Form' },
+        {
+          id: 'menu-item-3389',
+          href: '/admission/results',
+          text: 'Admission Result',
+          hasChildren: true,
+          subDropdown: [
+            {
+              id: 'menu-item-all-admission-results',
+              href: '/admission/results',
+              text: 'All Results',
+            },
+            {
+              id: 'menu-item-3393',
+              href: '/admission/result/6',
+              text: 'Class 6',
+            },
+            {
+              id: 'menu-item-3394',
+              href: '/admission/result/7',
+              text: 'Class 7',
+            },
+            {
+              id: 'menu-item-3395',
+              href: '/admission/result/8',
+              text: 'Class 8',
+            },
+            {
+              id: 'menu-item-3396',
+              href: '/admission/result/9',
+              text: 'Class 9',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'menu-item-3540',
+      className:
+        'nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3540 nav-item',
+      href: '#',
+      text: 'Registration',
+      dropdown: [
+        { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
+        { id: 'menu-item-3548', href: '/registration/class-8', text: 'Class Eight' },
+        { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
+      ],
+    },
+    {
+      id: 'menu-item-3541',
+      className:
+        'nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item',
+      href: portalLinks.results ?? '/result',
+      text: 'Results',
+    },
+    {
+      id: 'menu-item-3384',
+      className:
+        'nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item',
+      href: '/at-a-glance',
+      text: 'Contact',
+    },
+    ...(loginDropdown.length
+      ? [
           {
-            id: "menu-item-3360",
-            href: "#",
-            text: "Sports",
-            // hasChildren: true,
-            subDropdown: [
-              { id: "menu-item-3361", href: "#", text: "Cultural activities" },
-            ],
-          },
-          { id: "menu-item-3368", href: "#", text: "Scout" },
-          { id: "menu-item-3365", href: "#", text: "Red Crescent" },
-          { id: "menu-item-3359", href: "#", text: "Cultural activities" },
-          { id: "menu-item-3362", href: "#", text: "Debating club" },
-        ],
-      },
-      {
-        id: "menu-item-3370",
-        className:
-          "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3370 nav-item",
-        href: "#",
-        text: "Academic",
-        dropdown: [
-          { id: "menu-item-3374", href: "#", text: "Creative Learning" },
-          { id: "menu-item-3376", href: "/exam-routine", text: "Exam schedule" },
-          {
-            id: "menu-item-3371",
-            href: "#",
-            text: "Academic Calender",
-          },
-          { id: "menu-item-3382", href: "#", text: "Vacation Calendar" },
-          { id: "menu-item-3378", href: "#", text: "Library" },
-          { id: "menu-item-3377", href: "#", text: "Laboratory" },
-        ],
-      },
-      {
-        id: "menu-item-3545",
-        className:
-          "nav_darkred menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3545 nav-item",
-        href: "#",
-        text: "Notices",
-        dropdown: [
-          {
-            id: "menu-item-3543",
-            href: "/notices",
-            text: "Official Notices",
+            id: 'menu-item-3542',
             className:
-              "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item",
-          },
-          {
-            id: "menu-item-3544",
-            href: "/events",
-            text: "Events",
-            className:
-              "menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item",
-          },
-        ],
-      },
-      {
-        id: "menu-item-3386",
-        className:
-          "nav_purple menu-item menu-item-type-post_type menu-item-object-page menu-item-3386 nav-item",
-        href: "#",
-        text: "Admission",
-        dropdown: [
-          {
-            id: "menu-item-3387",
-            href: "/admission/notice",
-            text: "Admission Notice",
-          },
-          { id: "menu-item-3388", href: "/admission", text: "Admission Form" },
-          {
-            id: "menu-item-3389",
-            href: "/admission/results",
-            text: "Admission Result",
-            hasChildren: true,
-            subDropdown: [
-              {
-                id: "menu-item-all-admission-results",
-                href: "/admission/results",
-                text: "All Results",
-              },
-              {
-                id: "menu-item-3393",
-                href: "/admission/result/6",
-                text: "Class 6",
-              },
-              {
-                id: "menu-item-3394",
-                href: "/admission/result/7",
-                text: "Class 7",
-              },
-              {
-                id: "menu-item-3395",
-                href: "/admission/result/8",
-                text: "Class 8",
-              },
-              {
-                id: "menu-item-3396",
-                href: "/admission/result/9",
-                text: "Class 9",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "menu-item-3540",
-        className:
-          "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children dropdown menu-item-3540 nav-item",
-        href: "#",
-        text: "Registration",
-        dropdown: [
-          { id: "menu-item-3547", href: "/registration/class-9", text: "Class Nine" },
-          { id: "menu-item-3548", href: "/registration/class-8", text: "Class Eight" },
-          { id: "menu-item-3549", href: "/registration/class-6", text: "Class Six" },
-        ],
-      },
-      {
-        id: "menu-item-3541",
-        className:
-          "nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item",
-        href: portalLinks.results ?? "/result",
-        text: "Results",
-      },
-      {
-        id: "menu-item-3384",
-        className:
-          "nav_orange menu-item menu-item-type-post_type menu-item-object-page menu-item-3384 nav-item",
-        href: "/at-a-glance",
-        text: "Contact",
-      },
-      ...(loginDropdown.length
-        ? [
-          {
-            id: "menu-item-3542",
-            className:
-              "nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left",
-            href: "#",
-            text: "Login",
+              'nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-3542 nav-item dropdown-left',
+            href: '#',
+            text: 'Login',
             dropdown: loginDropdown,
           },
         ]
-        : []),
-    ];
+      : []),
+  ];
 
   return (
     <nav
@@ -315,7 +304,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
     >
       <div className="navbar-header">
         <button
-          className={`navbar-toggler ${isNavOpen ? "active" : ""}`}
+          className={`navbar-toggler ${isNavOpen ? 'active' : ''}`}
           type="button"
           onClick={toggleNav}
           aria-controls="TF-Navbar"
@@ -329,33 +318,37 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
           </div>
         </button>
       </div>
-      <div
-        id="TF-Navbar"
-        className={`navbar-collapse col-md-12 ${isNavOpen ? "show" : ""}`}
-      >
+      <div id="TF-Navbar" className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}>
         <ul id="primary-menu" className="nav navbar-nav primary-menu">
           {menuItems.map((item) => (
             <li
               key={item.id}
               id={item.id}
-              className={`${item.className} ${activeDropdown === item.id ? "show" : ""}`}
+              className={`${item.className} ${activeDropdown === item.id ? 'show' : ''}`}
             >
               {isExternalLink(item.href) && !item.dropdown ? (
                 <a
-                  href={item.href || "#"}
+                  href={item.href || '#'}
                   className="nav-link"
-                  aria-label={item.isHome ? "Home" : undefined}
+                  aria-label={item.isHome ? 'Home' : undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <span className="menu-text">
                     {item.isHome ? (
                       // <Home size={16} aria-hidden="true" className="hover:text-white!" />
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 576 512"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
                         <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
                       </svg>
-                      // <i className="fa fa-home hover:text-white!" aria-hidden="true"></i>
                     ) : (
+                      // <i className="fa fa-home hover:text-white!" aria-hidden="true"></i>
                       item.text
                     )}
                   </span>
@@ -367,11 +360,11 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                 </a>
               ) : (
                 <Link
-                  href={item.href || "#"}
+                  href={item.href || '#'}
                   className="nav-link"
-                  aria-label={item.isHome ? "Home" : undefined}
+                  aria-label={item.isHome ? 'Home' : undefined}
                   aria-expanded={item.dropdown ? activeDropdown === item.id : undefined}
-                  aria-haspopup={item.dropdown ? "menu" : undefined}
+                  aria-haspopup={item.dropdown ? 'menu' : undefined}
                   onClick={(e) => {
                     if (item.dropdown) {
                       e.preventDefault();
@@ -382,7 +375,14 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                   <span className="menu-text">
                     {item.isHome ? (
                       // <Home size={16} aria-hidden="true" className="hover:text-white!" />
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 576 512"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
                         <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
                       </svg>
                     ) : (
@@ -402,19 +402,19 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                   className="dropdown-menu"
                   role="menu"
                   style={{
-                    display: activeDropdown === item.id ? "block" : undefined,
+                    display: activeDropdown === item.id ? 'block' : undefined,
                   }}
                 >
                   {item.dropdown.map((subItem) => (
                     <li
                       key={subItem.id}
                       id={subItem.id}
-                      className={`${subItem.className || "menu-item menu-item-type-post_type menu-item-object-page nav-item"} ${activeSubDropdown === subItem.id ? "show" : ""}`}
+                      className={`${subItem.className || 'menu-item menu-item-type-post_type menu-item-object-page nav-item'} ${activeSubDropdown === subItem.id ? 'show' : ''}`}
                     >
                       {subItem.subDropdown ? (
                         isExternalLink(subItem.href) ? (
                           <a
-                            href={subItem.href || "#"}
+                            href={subItem.href || '#'}
                             className="dropdown-item"
                             onClick={(e) => {
                               e.preventDefault();
@@ -423,16 +423,14 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                             aria-expanded={activeSubDropdown === subItem.id}
                             aria-controls={`${subItem.id}-submenu`}
                           >
-                            <span className="menu-text">
-                              {subItem.text}
-                            </span>
+                            <span className="menu-text">{subItem.text}</span>
                             <span className="dropdown-icon">
                               <ChevronDown size={14} />
                             </span>
                           </a>
                         ) : (
                           <Link
-                            href={subItem.href || "#"}
+                            href={subItem.href || '#'}
                             className="dropdown-item"
                             onClick={(e) => {
                               e.preventDefault();
@@ -441,9 +439,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                             aria-expanded={activeSubDropdown === subItem.id}
                             aria-controls={`${subItem.id}-submenu`}
                           >
-                            <span className="menu-text">
-                              {subItem.text}
-                            </span>
+                            <span className="menu-text">{subItem.text}</span>
                             <span className="dropdown-icon">
                               <ChevronDown size={14} />
                             </span>
@@ -451,15 +447,13 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                         )
                       ) : isExternalLink(subItem.href) ? (
                         <a
-                          href={subItem.href || "#"}
+                          href={subItem.href || '#'}
                           className="dropdown-item"
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => closeNavbarIfMobile(subItem.href)}
                         >
-                          <span className="menu-text">
-                            {subItem.text}
-                          </span>
+                          <span className="menu-text">{subItem.text}</span>
                           {subItem.hasChildren && (
                             <span className="dropdown-icon">
                               <ChevronDown size={14} />
@@ -468,18 +462,16 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                         </a>
                       ) : (
                         <Link
-                          href={subItem.href || "#"}
+                          href={subItem.href || '#'}
                           className="dropdown-item"
                           onClick={(e) => {
-                            if (subItem.id === "menu-item-3371") {
+                            if (subItem.id === 'menu-item-3371') {
                               handleRoutineClick(e);
                             }
                             closeNavbarIfMobile(subItem.href);
                           }}
                         >
-                          <span className="menu-text">
-                            {subItem.text}
-                          </span>
+                          <span className="menu-text">{subItem.text}</span>
                           {subItem.hasChildren && (
                             <span className="dropdown-icon">
                               <ChevronDown size={14} />
@@ -491,13 +483,10 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                       {subItem.subDropdown && (
                         <ul
                           id={`${subItem.id}-submenu`}
-                          className={`dropdown-menu ${activeSubDropdown === subItem.id ? "show" : ""}`}
+                          className={`dropdown-menu ${activeSubDropdown === subItem.id ? 'show' : ''}`}
                           role="menu"
                           style={{
-                            display:
-                              activeSubDropdown === subItem.id
-                                ? "block"
-                                : undefined,
+                            display: activeSubDropdown === subItem.id ? 'block' : undefined,
                           }}
                         >
                           {subItem.subDropdown.map((nestedItem) => (
@@ -508,29 +497,21 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                             >
                               {isExternalLink(nestedItem.href) ? (
                                 <a
-                                  href={nestedItem.href || "#"}
+                                  href={nestedItem.href || '#'}
                                   className="dropdown-item"
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={() =>
-                                    closeNavbarIfMobile(nestedItem.href)
-                                  }
+                                  onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                 >
-                                  <span className="menu-text">
-                                    {nestedItem.text}
-                                  </span>
+                                  <span className="menu-text">{nestedItem.text}</span>
                                 </a>
                               ) : (
                                 <Link
-                                  href={nestedItem.href || "#"}
+                                  href={nestedItem.href || '#'}
                                   className="dropdown-item"
-                                  onClick={() =>
-                                    closeNavbarIfMobile(nestedItem.href)
-                                  }
+                                  onClick={() => closeNavbarIfMobile(nestedItem.href)}
                                 >
-                                  <span className="menu-text">
-                                    {nestedItem.text}
-                                  </span>
+                                  <span className="menu-text">{nestedItem.text}</span>
                                 </Link>
                               )}
                             </li>

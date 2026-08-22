@@ -1,26 +1,20 @@
-import { useState, useMemo, useEffect, useCallback, memo } from "react";
-import { Button } from "@/components/ui/button";
-import { toast } from "react-hot-toast";
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'react-hot-toast';
 import {
   useAttendance,
   useAttendanceOverview,
   useSmsSettings,
   useSaveAndSendAttendance,
-} from "@/queries/attendence.queries.js";
-import useNavigationStore from "@/store/navigation.Store";
-import PageHeader from "@/components/PageHeader.js";
-import SectionCard from "@/components/SectionCard.js";
-import StatsCard from "@/components/StatsCard.js";
-import {
-  Users,
-  CheckCircle2,
-  Filter,
-  Save,
-  AlertTriangle,
-} from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
-import { calculateSMSCount } from "@school/shared-schemas";
+} from '@/queries/attendence.queries.js';
+import useNavigationStore from '@/store/navigation.Store';
+import PageHeader from '@/components/PageHeader.js';
+import SectionCard from '@/components/SectionCard.js';
+import StatsCard from '@/components/StatsCard.js';
+import { Users, CheckCircle2, Filter, Save, AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { calculateSMSCount } from '@school/shared-schemas';
 
 interface StudentOverview {
   id: number;
@@ -47,12 +41,12 @@ const StudentRow = memo(
     currentStatus: string;
     onToggle: (id: number, checked: boolean) => void;
   }) => {
-    const isRunAwayed = currentStatus === "run-awayed";
-    const isAbsent = persistedStatus === "absent";
+    const isRunAwayed = currentStatus === 'run-awayed';
+    const isAbsent = persistedStatus === 'absent';
 
     return (
       <tr
-        className={`hover:bg-muted/30 transition-colors ${isRunAwayed ? "bg-amber-50/30" : ""} ${isAbsent ? "opacity-40 grayscale-[0.5]" : ""}`}
+        className={`hover:bg-muted/30 transition-colors ${isRunAwayed ? 'bg-amber-50/30' : ''} ${isAbsent ? 'opacity-40 grayscale-[0.5]' : ''}`}
       >
         <td className="px-6 py-4 text-sm font-medium">{student.roll}</td>
         <td className="px-6 py-4">
@@ -60,11 +54,9 @@ const StudentRow = memo(
             <Checkbox
               id={`run-away-${student.id}`}
               checked={isRunAwayed}
-              onCheckedChange={(checked) =>
-                !isAbsent && onToggle(student.id, !!checked)
-              }
+              onCheckedChange={(checked) => !isAbsent && onToggle(student.id, !!checked)}
               disabled={isAbsent}
-              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? "border-muted opacity-50" : isRunAwayed ? "bg-amber-500 border-amber-600 scale-110 shadow-md" : "border-slate-400 bg-white hover:border-amber-500 hover:scale-110 shadow-sm"}`}
+              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? 'border-muted opacity-50' : isRunAwayed ? 'scale-110 border-amber-600 bg-amber-500 shadow-md' : 'border-slate-400 bg-white shadow-sm hover:scale-110 hover:border-amber-500'}`}
             />
           </div>
         </td>
@@ -73,7 +65,7 @@ const StudentRow = memo(
             <span className="text-sm font-semibold">{student.name}</span>
             <div className="flex items-center gap-2">
               {isAbsent && (
-                <span className="text-[9px] bg-red-100 text-red-600 px-1 py-0 rounded font-bold uppercase tracking-tight">
+                <span className="rounded bg-red-100 px-1 py-0 text-[9px] font-bold tracking-tight text-red-600 uppercase">
                   Initially Absent
                 </span>
               )}
@@ -85,14 +77,14 @@ const StudentRow = memo(
   },
 );
 
-StudentRow.displayName = "StudentRow";
+StudentRow.displayName = 'StudentRow';
 
 function StayCheck() {
   const currentDate = new Date();
-  const [selectedClass, setSelectedClass] = useState<number | "">("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<number | ''>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
   const [localAttendance, setLocalAttendance] = useState<
-    Record<string, "present" | "absent" | "run-awayed">
+    Record<string, 'present' | 'absent' | 'run-awayed'>
   >({});
   const { setDirty, resetDirty } = useNavigationStore();
   const { data: smsSettings } = useSmsSettings(selectedSection);
@@ -101,27 +93,26 @@ function StayCheck() {
   const selectedMonth = currentDate.getMonth();
   const selectedYear = currentDate.getFullYear();
 
-  const todayIso = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`;
+  const todayIso = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
 
   const { data: attendanceRecords, isLoading: recordsLoading } = useAttendance({
     month: selectedMonth,
     year: selectedYear,
-    level: selectedClass === "" ? undefined : selectedClass,
+    level: selectedClass === '' ? undefined : selectedClass,
     section: selectedSection || undefined,
   });
 
-  const { data: studentsData, isLoading: studentsLoading } =
-    useAttendanceOverview({
-      year: selectedYear,
-      level: selectedClass === "" ? undefined : selectedClass,
-      section: selectedSection || undefined,
-    });
+  const { data: studentsData, isLoading: studentsLoading } = useAttendanceOverview({
+    year: selectedYear,
+    level: selectedClass === '' ? undefined : selectedClass,
+    section: selectedSection || undefined,
+  });
 
   const saveAndSendMutation = useSaveAndSendAttendance();
   const students = (studentsData?.data || []) as StudentOverview[];
 
   const { attendanceMap, sentMap } = useMemo(() => {
-    const aMap: Record<string, "present" | "absent" | "run-awayed"> = {};
+    const aMap: Record<string, 'present' | 'absent' | 'run-awayed'> = {};
     const sMap: Record<string, boolean> = {};
 
     if (!attendanceRecords?.data) return { attendanceMap: aMap, sentMap: sMap };
@@ -137,16 +128,16 @@ function StayCheck() {
 
   const getStatus = useCallback(
     (studentId: number) => {
-      return localAttendance[studentId] || attendanceMap[studentId] || "absent";
+      return localAttendance[studentId] || attendanceMap[studentId] || 'absent';
     },
     [localAttendance, attendanceMap],
   );
 
   const handleToggleRunAway = useCallback(
     (studentId: number, isChecked: boolean) => {
-      const newStatus = isChecked ? "run-awayed" : "present";
+      const newStatus = isChecked ? 'run-awayed' : 'present';
       setLocalAttendance((prev) => {
-        const currentPersistedStatus = attendanceMap[studentId] || "present";
+        const currentPersistedStatus = attendanceMap[studentId] || 'present';
         if (newStatus === currentPersistedStatus) {
           const { [studentId]: _removed, ...rest } = prev;
           return rest;
@@ -172,9 +163,9 @@ function StayCheck() {
 
     activeStudents.forEach((s) => {
       const status = getStatus(s.id);
-      if (status === "present") present++;
-      else if (status === "absent") absent++;
-      else if (status === "run-awayed") runAwayed++;
+      if (status === 'present') present++;
+      else if (status === 'absent') absent++;
+      else if (status === 'run-awayed') runAwayed++;
     });
 
     return { present, absent, runAwayed, total: activeStudents.length };
@@ -183,29 +174,26 @@ function StayCheck() {
   const initiallyPresentCount = useMemo(() => {
     return students.filter(
       (s) =>
-        s.available &&
-        (attendanceMap[s.id] === "present" ||
-          attendanceMap[s.id] === "run-awayed"),
+        s.available && (attendanceMap[s.id] === 'present' || attendanceMap[s.id] === 'run-awayed'),
     ).length;
   }, [students, attendanceMap]);
 
   const smsEstimateCsv = useMemo(() => {
-    if (!smsSettings || !smsSettings.is_active || students.length === 0)
-      return 0;
+    if (!smsSettings || !smsSettings.is_active || students.length === 0) return 0;
     let segments = 0;
     students.forEach((s) => {
       const status = getStatus(s.id);
       const alreadySent = sentMap[s.id];
       if (alreadySent || !s.available) return;
 
-      if (status === "run-awayed" && smsSettings.send_to_run_awayed) {
+      if (status === 'run-awayed' && smsSettings.send_to_run_awayed) {
         const template = smsSettings.run_awayed_template;
-        const formattedDisplayDate = todayIso.split("-").reverse().join("/");
+        const formattedDisplayDate = todayIso.split('-').reverse().join('/');
         const message = template
           .replace(/{student_name}/g, s.name)
-          .replace(/{login_id}/g, s.login_id?.toString() || "")
+          .replace(/{login_id}/g, s.login_id?.toString() || '')
           .replace(/{date}/g, formattedDisplayDate)
-          .replace(/{school_name}/g, "School");
+          .replace(/{school_name}/g, 'School');
         segments += calculateSMSCount(message).count;
       }
     });
@@ -214,7 +202,7 @@ function StayCheck() {
 
   const saveAndSendStayCheck = async () => {
     if (!selectedClass || !selectedSection) {
-      toast.error("Please select both class and section");
+      toast.error('Please select both class and section');
       return;
     }
 
@@ -222,7 +210,7 @@ function StayCheck() {
     // of run-awayed back to present/absent if the map is stale.
     const dirtyIds = Object.keys(localAttendance);
     if (dirtyIds.length === 0) {
-      toast.error("No changes to save");
+      toast.error('No changes to save');
       return;
     }
 
@@ -250,10 +238,10 @@ function StayCheck() {
   };
 
   const classes = [6, 7, 8, 9, 10];
-  const sections = ["A", "B"];
+  const sections = ['A', 'B'];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-400 mx-auto space-y-8">
+    <div className="mx-auto max-w-400 space-y-8 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Running Away"
         description="Daily monitoring for student departures. Check the box if a student has left without permission."
@@ -261,7 +249,7 @@ function StayCheck() {
         <div className="flex flex-col items-end gap-2">
           {smsEstimateCsv > 0 && (
             <div
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${smsSettings?.sms_balance < smsEstimateCsv ? "bg-red-100 text-red-700 animate-pulse" : "bg-primary/10 text-primary"}`}
+              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${smsSettings?.sms_balance < smsEstimateCsv ? 'animate-pulse bg-red-100 text-red-700' : 'bg-primary/10 text-primary'}`}
             >
               Est. Running Away SMS Cost: {smsEstimateCsv} credits
             </div>
@@ -277,53 +265,46 @@ function StayCheck() {
                 Object.keys(localAttendance).length === 0
               }
             >
-              <Save className="w-4 h-4 mr-2" />
-              {saveAndSendMutation.isPending
-                ? "Saving & Sending..."
-                : "Save & Send SMS"}
+              <Save className="mr-2 h-4 w-4" />
+              {saveAndSendMutation.isPending ? 'Saving & Sending...' : 'Save & Send SMS'}
             </Button>
           </div>
         </div>
       </PageHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatsCard
           label="Initially Present"
           value={initiallyPresentCount}
-          icon={<Users className="w-5 h-5" />}
+          icon={<Users className="h-5 w-5" />}
           color="indigo"
           loading={studentsLoading}
         />
         <StatsCard
           label="Still Here"
           value={stats.present}
-          icon={<CheckCircle2 className="w-5 h-5" />}
+          icon={<CheckCircle2 className="h-5 w-5" />}
           color="emerald"
           loading={studentsLoading}
         />
         <StatsCard
           label="Running Away"
           value={stats.runAwayed}
-          icon={<AlertTriangle className="w-5 h-5" />}
+          icon={<AlertTriangle className="h-5 w-5" />}
           color="amber"
           loading={studentsLoading}
         />
       </div>
 
-      <SectionCard
-        title="Filter Selection"
-        icon={<Filter className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <SectionCard title="Filter Selection" icon={<Filter className="h-5 w-5" />}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium">Class</label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary shadow-sm"
+              className="border-input bg-background focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:ring-2"
               value={selectedClass}
               onChange={(e) => {
-                setSelectedClass(
-                  e.target.value ? parseInt(e.target.value) : "",
-                );
+                setSelectedClass(e.target.value ? parseInt(e.target.value) : '');
                 setLocalAttendance({});
               }}
             >
@@ -338,7 +319,7 @@ function StayCheck() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Section</label>
             <select
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary shadow-sm"
+              className="border-input bg-background focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:ring-2"
               value={selectedSection}
               onChange={(e) => {
                 setSelectedSection(e.target.value);
@@ -362,22 +343,22 @@ function StayCheck() {
         description="Select the checkbox if a student is running away. Students marked absent in the morning are disabled."
         noPadding
       >
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="min-h-[400px] overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[80px]">
+              <tr className="bg-muted/50 border-border border-b">
+                <th className="text-muted-foreground w-[80px] px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase">
                   Roll
                 </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">
+                <th className="text-muted-foreground w-[100px] px-6 py-4 text-center text-xs font-semibold tracking-wider uppercase">
                   Running Away?
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="text-muted-foreground px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase">
                   Student Name
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {studentsLoading || recordsLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
@@ -388,10 +369,7 @@ function StayCheck() {
                 ))
               ) : students.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={3}
-                    className="px-6 py-12 text-center text-muted-foreground italic"
-                  >
+                  <td colSpan={3} className="text-muted-foreground px-6 py-12 text-center italic">
                     No students found or filters not applied.
                   </td>
                 </tr>
@@ -400,7 +378,7 @@ function StayCheck() {
                   <StudentRow
                     key={s.id}
                     student={s}
-                    persistedStatus={attendanceMap[s.id] || "absent"}
+                    persistedStatus={attendanceMap[s.id] || 'absent'}
                     currentStatus={getStatus(s.id)}
                     onToggle={handleToggleRunAway}
                   />

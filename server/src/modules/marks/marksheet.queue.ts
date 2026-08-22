@@ -1,11 +1,11 @@
-import Bull from "bull";
+import Bull from 'bull';
 
-const host = process.env.REDIS_HOST || "127.0.0.1";
+const host = process.env.REDIS_HOST || '127.0.0.1';
 
 // Per-student marksheet. `kind` is optional for backward compatibility with
 // jobs enqueued before bundles existed (absent kind => student).
 export type StudentJob = {
-  kind?: "student";
+  kind?: 'student';
   studentId: number;
   examId: number;
   examName: string;
@@ -15,7 +15,7 @@ export type StudentJob = {
 
 // Whole-class or section-scoped exam bundle (one PDF for class+exam).
 export type BundleJob = {
-  kind: "bundle";
+  kind: 'bundle';
   examId: number;
   examName: string;
   year: number;
@@ -26,30 +26,26 @@ export type BundleJob = {
 };
 
 export type SessionStudentJob = {
-  kind: "session-student";
+  kind: 'session-student';
   studentId: number;
   year: number;
   schoolId: number;
 };
 
 export type SessionYearJob = {
-  kind: "session-year";
+  kind: 'session-year';
   year: number;
   schoolId: number;
 };
 
-export type MarksheetJob =
-  | StudentJob
-  | BundleJob
-  | SessionStudentJob
-  | SessionYearJob;
+export type MarksheetJob = StudentJob | BundleJob | SessionStudentJob | SessionYearJob;
 
 // Individual student marksheet pre-generation. Separate queue so PDF work
 // does not contend with other Bull queues on the same Redis.
 // PDF render can exceed Bull's default 30s lock; without a longer lock the
 // job is marked stalled and fails with "job stalled more than allowable limit"
 // even though the worker is still working.
-export const marksheetQueue = new Bull<MarksheetJob>("marksheetQueue", {
+export const marksheetQueue = new Bull<MarksheetJob>('marksheetQueue', {
   redis: { host, port: 6379 },
   settings: {
     lockDuration: 5 * 60 * 1000, // 5 min — cover slow PDF + R2 upload
@@ -66,7 +62,7 @@ export const PRIORITY_BACKFILL = 2;
 export const defaultJobOpts = (priority: number): Bull.JobOptions => ({
   priority,
   attempts: 3,
-  backoff: { type: "fixed", delay: 5000 },
+  backoff: { type: 'fixed', delay: 5000 },
   removeOnComplete: true,
   removeOnFail: 200,
 });
@@ -76,10 +72,7 @@ export const defaultJobOpts = (priority: number): Bull.JobOptions => ({
  * waiting as backfill, remove + re-add so it jumps ahead of the bulk queue.
  * Active jobs are left alone (almost done).
  */
-export async function enqueueUserPriority(
-  data: MarksheetJob,
-  id: string,
-): Promise<void> {
+export async function enqueueUserPriority(data: MarksheetJob, id: string): Promise<void> {
   const opts = { jobId: id, ...defaultJobOpts(PRIORITY_USER) };
   const existing = await marksheetQueue.getJob(id);
 
@@ -89,16 +82,12 @@ export async function enqueueUserPriority(
   }
 
   const state = await existing.getState();
-  if (state === "active") {
+  if (state === 'active') {
     return;
   }
 
   const currentPriority = existing.opts?.priority ?? PRIORITY_BACKFILL;
-  if (
-    state === "failed" ||
-    state === "completed" ||
-    currentPriority > PRIORITY_USER
-  ) {
+  if (state === 'failed' || state === 'completed' || currentPriority > PRIORITY_USER) {
     try {
       await existing.remove();
     } catch {
@@ -131,7 +120,7 @@ export async function ensureJobQueued(
   }
 
   const state = await existing.getState();
-  if (state === "active" || state === "waiting" || state === "delayed") {
+  if (state === 'active' || state === 'waiting' || state === 'delayed') {
     return false;
   }
 
@@ -166,8 +155,8 @@ export async function ensureJobQueuedAfterDefer(
       if (existing) {
         const state = await existing.getState();
         // Still the finishing handler — wait; do not treat as successfully queued.
-        if (state === "active") continue;
-        if (state === "waiting" || state === "delayed") return true;
+        if (state === 'active') continue;
+        if (state === 'waiting' || state === 'delayed') return true;
       }
       const added = await ensureJobQueued(data, id, priority);
       if (added) return true;
@@ -178,16 +167,11 @@ export async function ensureJobQueuedAfterDefer(
   return false;
 }
 
-export const jobId = (examId: number, studentId: number) =>
-  `ms:${examId}:${studentId}`;
+export const jobId = (examId: number, studentId: number) => `ms:${examId}:${studentId}`;
 
-export const bundleJobId = (
-  examId: number,
-  cls: number,
-  bundleSection = "ALL",
-) => `msb:${examId}:${cls}:${bundleSection}`;
+export const bundleJobId = (examId: number, cls: number, bundleSection = 'ALL') =>
+  `msb:${examId}:${cls}:${bundleSection}`;
 
-export const sessionStudentJobId = (year: number, studentId: number) =>
-  `mss:${year}:${studentId}`;
+export const sessionStudentJobId = (year: number, studentId: number) => `mss:${year}:${studentId}`;
 
 export const sessionYearJobId = (year: number) => `msy:${year}`;
