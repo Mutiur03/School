@@ -69,15 +69,15 @@ fi
 
 # Generate Prisma client (in case it's not generated during build)
 echo "Generating Prisma client..."
-npx prisma generate || echo "Prisma client generation failed or already exists"
+pnpm exec prisma generate || echo "Prisma client generation failed or already exists"
 
 # Run database migrations
 echo "Running database migrations..."
-npx prisma migrate deploy
+pnpm exec prisma migrate deploy
 
 # Seed the database (optional, will not fail if already seeded)
 echo "Seeding database..."
-npx prisma db seed || echo "Seeding completed or skipped"
+pnpm exec prisma db seed || echo "Seeding completed or skipped"
 
 # Verify server file exists
 if [ ! -f "server.js" ]; then

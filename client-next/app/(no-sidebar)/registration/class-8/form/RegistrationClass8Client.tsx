@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
     useForm,
     useWatch,
+    type Control,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getUpazilasByDistrict } from "@school/shared-schemas";
@@ -833,7 +834,7 @@ export default function RegistrationClass8Client({
                 <GuardianSection
                     register={register}
                     errors={errors}
-                    control={control}
+                    control={control as Control<any>}
                     setValue={setValue}
                     isRequired={isRequired}
                     permanentAddress={permanentAddress}

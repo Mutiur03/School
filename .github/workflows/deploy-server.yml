@@ -6,11 +6,17 @@ on:
     paths:
       - "server/**"
       - "packages/shared-schemas/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/deploy-server.yml"
   pull_request:
     paths:
       - "server/**"
       - "packages/shared-schemas/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
@@ -30,24 +36,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
-        run: npm ci --prefer-offline --include=optional --ignore-scripts=false --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       - name: Build shared-schemas
-        run: npm run build -w @school/shared-schemas
+        run: pnpm --filter @school/shared-schemas build
 
       - name: Lint
-        run: npm run lint -w server
+        run: pnpm --filter server lint
 
       - name: Type-check / build
-        run: npm run build -w server
+        run: pnpm --filter server build
 
       # PRs stop here — no image push, no deploy.
       - name: Set up Docker Buildx
@@ -162,10 +173,10 @@ jobs:
             export ENV_FILE="$ENV_FILE"
 
             echo "Running database migrations..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate deploy; else npx prisma migrate deploy; fi'
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma migrate deploy; else pnpm exec prisma migrate deploy; fi'
 
             echo "Seeding database..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma db seed; else npx prisma db seed; fi'
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma db seed; else pnpm exec prisma db seed; fi'
 
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs

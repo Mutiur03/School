@@ -38,7 +38,7 @@ if (build.status) {
 
 /**
  * OpenNext esbuild-bundles next-server.js from the traced standalone copy.
- * In npm workspaces NFT often copies an incomplete `next` package (only a few
+ * In pnpm workspaces NFT often copies an incomplete `next` package (only a few
  * files), which then fails with "Could not resolve ./node-environment".
  * Copy the full hoisted `next` into every standalone node_modules/next slot.
  */

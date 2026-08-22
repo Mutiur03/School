@@ -8,7 +8,8 @@ on:
       - "packages/common-ui/**"
       - "packages/shared-schemas/**"
       - "package.json"
-      - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "vercel.json"
       - ".github/workflows/deploy-client-next-cf.yml"
   workflow_dispatch:
@@ -28,16 +29,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           # OpenNext bundling is reliable on Linux; Node 22 matches local tooling.
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
-        run: npm ci --prefer-offline --include=optional --ignore-scripts=false --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       # Reuse Next.js's incremental (webpack) compiler cache across deploys so
       # unchanged modules aren't recompiled. Keyed on the lockfile + client-next
@@ -46,9 +52,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: client-next/.next/cache
-          key: nextjs-cf-${{ hashFiles('package-lock.json') }}-${{ hashFiles('client-next/app/**', 'client-next/components/**', 'client-next/hooks/**', 'client-next/lib/**', 'client-next/queries/**', 'client-next/types/**', 'client-next/next.config.ts') }}
+          key: nextjs-cf-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('client-next/app/**', 'client-next/components/**', 'client-next/hooks/**', 'client-next/lib/**', 'client-next/queries/**', 'client-next/types/**', 'client-next/next.config.ts') }}
           restore-keys: |
-            nextjs-cf-${{ hashFiles('package-lock.json') }}-
+            nextjs-cf-${{ hashFiles('pnpm-lock.yaml') }}-
             nextjs-cf-
 
       - name: Write client-next build env
@@ -80,7 +86,7 @@ jobs:
           echo "Wrote client-next/.env.production (values redacted)."
 
       - name: Build OpenNext bundle
-        run: npm run build:client:cf
+        run: pnpm run build:client:cf
         env:
           OPEN_NEXT: "1"
           # Also expose for Next config / tooling that reads process.env in CI.
@@ -92,7 +98,7 @@ jobs:
 
       - name: Deploy Worker school-client
         working-directory: client-next
-        run: npx opennextjs-cloudflare deploy
+        run: pnpm exec opennextjs-cloudflare deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

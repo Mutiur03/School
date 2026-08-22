@@ -13,8 +13,7 @@ const isOpenNextBuild = process.env.OPEN_NEXT === "1";
 
 /**
  * Vercel (monorepo): trace from repo root so hoisted next/@swc/helpers land in /var/task.
- * OpenNext: do NOT set monorepo tracing root — client-next has its own package-lock, so
- * OpenNext's packagePath is "" and expects flat `.next/standalone/.next/...`. Nesting under
+ * OpenNext: do NOT set monorepo tracing root — OpenNext's packagePath is "" and expects flat `.next/standalone/.next/...`. Nesting under
  * `client-next/` (via monorepo tracing root) breaks the CF build with missing pages-manifest.
  */
 const vercelTracingIncludes = [

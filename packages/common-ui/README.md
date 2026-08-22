@@ -39,11 +39,11 @@ export function Demo() {
 ## Development
 
 ```bash
-npm run dev -w @school/common-ui
+pnpm --filter @school/common-ui dev
 ```
 
 ## Build
 
 ```bash
-npm run build -w @school/common-ui
+pnpm --filter @school/common-ui build
 ```

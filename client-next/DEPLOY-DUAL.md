@@ -13,7 +13,7 @@ Same `client-next` codebase. Platform-specific files do not block each other.
 ## Vercel (unchanged)
 
 ```bash
-npm run build:client:core
+pnpm run build:client:core
 ```
 
 Env: Vercel project settings.
@@ -22,15 +22,15 @@ Env: Vercel project settings.
 
 ```bash
 # from repo root (builds shared packages first)
-npm run build:client:cf
-npm run preview:client:cf
-npm run deploy:client:cf
+pnpm run build:client:cf
+pnpm run preview:client:cf
+pnpm run deploy:client:cf
 ```
 
 Or after deps are built:
 
 ```bash
-npm run deploy:cf -w client-next
+pnpm --filter client-next deploy:cf
 ```
 
 ### Env on Cloudflare
@@ -62,9 +62,9 @@ Manual run: GitHub → Actions → **Deploy School Client (Cloudflare)** → Run
 
 ```bash
 # from repo root (builds shared packages first)
-npm run build:client:cf
-npm run preview:client:cf
-npm run deploy:client:cf
+pnpm run build:client:cf
+pnpm run preview:client:cf
+pnpm run deploy:client:cf
 ```
 
 Prefer **WSL2 / Linux** locally — OpenNext warns native Windows builds can fail.

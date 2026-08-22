@@ -6,7 +6,7 @@ A multi-tenant school management platform: public website, role-based dashboards
 
 ## Monorepo layout
 
-Built with **npm workspaces**. Shared packages keep validation and UI consistent across apps.
+Built with **pnpm workspaces**. Shared packages keep validation and UI consistent across apps.
 
 ```
 School/
@@ -188,7 +188,7 @@ Full specification: [`server/docs/marksheet-regeneration.md`](server/docs/marksh
 ```bash
 git clone https://github.com/Mutiur03/School.git
 cd School
-npm install
+pnpm install
 ```
 
 ### Environment
@@ -231,16 +231,16 @@ MARKSHEET_SERVE_POLL_MS=500
 
 ```bash
 cd server
-npx prisma generate
-npx prisma migrate dev
-npm run db:seed
+pnpm exec prisma generate
+pnpm exec prisma migrate dev
+pnpm run db:seed
 ```
 
 Useful maintenance scripts:
 
 ```bash
-npm run stats:backfill -w server          # exam_class_stats backfill
-npm run marksheets:backfill -w server   # pre-queue marksheets (dry: --dry)
+pnpm --filter server run stats:backfill          # exam_class_stats backfill
+pnpm --filter server run marksheets:backfill   # pre-queue marksheets (dry: --dry)
 ```
 
 ### Run development
@@ -256,15 +256,15 @@ Starts server, client-next, shared package watchers, dashboard modes (admin, tea
 **Minimal (root package.json):**
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 **Individual:**
 
 ```bash
-npm run dev:server -w server
-npm run dev:admin -w dashboard
-npm run dev:client-next -w client-next
+pnpm run dev:server
+pnpm --filter dashboard dev:admin
+pnpm run dev:client-next
 ```
 
 Ensure **Redis is running** before starting the server — the marksheet worker registers on boot.
@@ -272,11 +272,11 @@ Ensure **Redis is running** before starting the server — the marksheet worker 
 ### Production build
 
 ```bash
-npm run build
+pnpm run build
 # or separately:
-npm run build:server
-npm run build:dashboard
-npm run build:client:core
+pnpm run build:server
+pnpm run build:dashboard
+pnpm run build:client:core
 ```
 
 ---

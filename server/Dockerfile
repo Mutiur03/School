@@ -33,45 +33,51 @@ FROM ${NODE_IMAGE} AS builder
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-WORKDIR /app/packages/shared-schemas
-COPY packages/shared-schemas/package.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --ignore-scripts
+RUN corepack enable
+
+WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/shared-schemas/package.json packages/shared-schemas/
+COPY server/package.json server/
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter server...
+
+COPY packages/shared-schemas packages/shared-schemas
+COPY server server
+
+RUN pnpm --filter @school/shared-schemas build
 
 WORKDIR /app/server
-COPY server/package*.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --ignore-scripts
-
-COPY packages/shared-schemas /app/packages/shared-schemas
-COPY server /app/server
-
-WORKDIR /app/packages/shared-schemas
-RUN npm run build && npm prune --omit=dev
-
-WORKDIR /app/server
-RUN npx prisma generate && npm run build
+RUN pnpm exec prisma generate && pnpm run build
 
 # ---------------- RUNTIME STAGE ----------------
 FROM runtime-base AS runtime
 
 ENV NODE_ENV=production
 
-WORKDIR /app/server
+RUN corepack enable
 
-COPY --from=builder /app/server/package*.json ./
-COPY --from=builder /app/packages/shared-schemas/package.json /app/packages/shared-schemas/
+WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/shared-schemas/package.json packages/shared-schemas/
+COPY server/package.json server/
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter server...
+
 COPY --from=builder /app/packages/shared-schemas/dist /app/packages/shared-schemas/dist
-COPY --from=builder /app/packages/shared-schemas/node_modules /app/packages/shared-schemas/node_modules
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/server/prisma ./prisma
-COPY --from=builder /app/server/public ./public
-COPY --from=builder /app/server/setup-network.sh ./
+COPY --from=builder /app/server/dist /app/server/dist
+COPY --from=builder /app/server/prisma /app/server/prisma
+COPY --from=builder /app/server/public /app/server/public
+COPY --from=builder /app/server/setup-network.sh /app/server/setup-network.sh
+
+WORKDIR /app/server
 
 RUN mkdir -p logs && chmod +x setup-network.sh
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev --ignore-scripts && \
-    npx prisma generate
+RUN pnpm exec prisma generate
 
 CMD ["node", "--import", "./dist/instrument.js", "dist/server.js"]

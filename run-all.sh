@@ -2,15 +2,15 @@
 
 # ─── Define your servers here ───────────────────────────────────────────────
 declare -A SERVERS=(
-  ["server"]="cd server && npm run dev"
-  ["client-next"]="npm run dev -w client-next"
-  ["common-ui"]="npm run dev:common:ui"
-  ["shared-schemas"]="npm run dev:shared-schemas"
-  ["auth-bff"]="cd workers/auth-bff && npx wrangler dev --port 8787"
-  ["admin"]="cd dashboard && npm run dev:admin"
-  ["super_admin"]="cd dashboard && npm run dev:super_admin"
-  ["teacher"]="cd dashboard && npm run dev:teacher"
-  # ["student"]="cd dashboard && npm run dev:student"
+  ["server"]="pnpm --filter server dev"
+  ["client-next"]="pnpm --filter client-next dev"
+  ["common-ui"]="pnpm run dev:common:ui"
+  ["shared-schemas"]="pnpm run dev:shared-schemas"
+  ["auth-bff"]="pnpm --filter school-auth-bff dev"
+  ["admin"]="pnpm --filter dashboard dev:admin"
+  ["super_admin"]="pnpm --filter dashboard dev:super_admin"
+  ["teacher"]="pnpm --filter dashboard dev:teacher"
+  # ["student"]="pnpm --filter dashboard dev:student"
 )
 PORTS=(3001 3000 5174 5175 5176 5177 5178 5179 5180 8787)
 # ────────────────────────────────────────────────────────────────────────────

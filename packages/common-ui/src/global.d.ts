@@ -1,3 +1,7 @@
+declare module "*.css" {
+  const content: string;
+  export default content;
+}
 
 interface ImportMetaEnv {
   readonly VITE_BACKEND_URL?: string;
