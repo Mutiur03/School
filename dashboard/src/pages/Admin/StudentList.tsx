@@ -5,7 +5,17 @@ import { Search, UserMinus, RotateCw, User, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as XLSX from 'xlsx';
 import Loading from '@/components/Loading';
-import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup, TabNav } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  Popup,
+  ConfirmationPopup,
+  TabNav,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
 import { useForm } from 'react-hook-form';
@@ -1571,90 +1581,83 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
           loading={loading}
         />
       </div>
-      <SectionCard className="mb-6">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="min-w-60 flex-1">
-            <label className="mb-1 block text-sm font-medium">Search</label>
-            <div className="relative">
-              <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search by name or phone…"
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                }}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Class</label>
-            <select
-              className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-              value={classFilter}
+      <FilterSelection className="mb-6">
+        <FilterField label="Search" wide>
+          <div className="relative">
+            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by name or phone…"
+              className="pl-10"
+              value={searchQuery}
               onChange={(e) => {
-                setClassFilter(e.target.value);
+                setSearchQuery(e.target.value);
               }}
-            >
-              <option value="">All Classes</option>
-              {sortedUniqueClasses.map((classNum: number) => (
-                <option key={classNum} value={classNum}>
-                  Class {classNum}
-                </option>
-              ))}
-            </select>
+            />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Section</label>
-            <select
-              className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-              value={sectionFilter}
-              onChange={(e) => {
-                setSectionFilter(e.target.value);
-              }}
-            >
-              <option value="">All Sections</option>
-              {sortedUniqueSections.map((section: string) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Roll</label>
-            <select
-              className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-              value={rollFilter}
-              onChange={(e) => setRollFilter(e.target.value)}
-            >
-              <option value="">All Rolls</option>
-              {sortedUniqueRolls.map((roll: number) => (
-                <option key={roll} value={roll}>
-                  {roll}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Year</label>
-            <select
-              value={year}
-              onChange={(e) => {
-                setYear(Number(e.target.value));
-              }}
-              className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-            >
-              {Array.from({ length: 3 }, (_, i) => (
-                <option key={i} value={currentYear - 1 + i}>
-                  {currentYear - 1 + i}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </SectionCard>
+        </FilterField>
+        <FilterField label="Class">
+          <select
+            className={filterSelectClassName}
+            value={classFilter}
+            onChange={(e) => {
+              setClassFilter(e.target.value);
+            }}
+          >
+            <option value="">All Classes</option>
+            {sortedUniqueClasses.map((classNum: number) => (
+              <option key={classNum} value={classNum}>
+                Class {classNum}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Section">
+          <select
+            className={filterSelectClassName}
+            value={sectionFilter}
+            onChange={(e) => {
+              setSectionFilter(e.target.value);
+            }}
+          >
+            <option value="">All Sections</option>
+            {sortedUniqueSections.map((section: string) => (
+              <option key={section} value={section}>
+                {section}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Roll">
+          <select
+            className={filterSelectClassName}
+            value={rollFilter}
+            onChange={(e) => setRollFilter(e.target.value)}
+          >
+            <option value="">All Rolls</option>
+            {sortedUniqueRolls.map((roll: number) => (
+              <option key={roll} value={roll}>
+                {roll}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Year">
+          <select
+            value={year}
+            onChange={(e) => {
+              setYear(Number(e.target.value));
+            }}
+            className={filterSelectClassName}
+          >
+            {Array.from({ length: 3 }, (_, i) => (
+              <option key={i} value={currentYear - 1 + i}>
+                {currentYear - 1 + i}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </FilterSelection>
       {!readOnly && (
         <>
           <Popup

@@ -1,8 +1,22 @@
 import React, { useState, useEffect, type JSX } from 'react';
 import axios, { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
+import {
+  Upload,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Pencil,
+  Trash2,
+  Loader2,
+} from 'lucide-react';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { PageHeader, SectionCard, TabNav } from '@/components';
+import type { TabItem } from '@/components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface AdmissionResult {
   id: number;
@@ -330,501 +344,262 @@ function AdmissionResult() {
 
   const getFileStatus = (fileUrl: string | null): JSX.Element => {
     return fileUrl ? (
-      <div className="text-chart-4 flex items-center gap-1">
-        <svg
-          className="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
+      <div className="flex items-center gap-1 text-emerald-600">
+        <CheckCircle2 className="h-4 w-4" />
         <span className="text-xs">Uploaded</span>
       </div>
     ) : (
       <div className="text-muted-foreground flex items-center gap-1">
-        <svg
-          className="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
+        <XCircle className="h-4 w-4" />
         <span className="text-xs">Not uploaded</span>
       </div>
     );
   };
 
-  return (
-    <div className="mx-auto mt-10 max-w-7xl px-4 pb-10">
-      {dialog}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="mb-1 text-3xl font-bold">Admission Results</h1>
-          <p className="text-muted-foreground text-sm">
-            Upload 1st Result List and waiting lists for classes 6-9
+  const classTabs: TabItem[] = classes.map((cls) => ({
+    id: cls,
+    label: `Class ${cls}`,
+  }));
+
+  const renderFileField = (
+    label: string,
+    field: 'merit_list' | 'waiting_list_1' | 'waiting_list_2',
+    inputRef: React.RefObject<HTMLInputElement | null>,
+  ) => {
+    const value = formData[field];
+    return (
+      <div className="border-border bg-muted/40 rounded-lg border p-4">
+        <label className="mb-2 block text-sm font-medium">{label}</label>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf"
+          onChange={(e) => handleFileChange(e, field)}
+          className="border-border bg-background file:bg-muted file:text-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
+        />
+        {value && (
+          <p className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            {typeof value === 'string'
+              ? `Current file: ${value.split('/').pop()}`
+              : `Selected: ${value.name}`}
           </p>
-        </div>
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 transition-opacity hover:opacity-90"
-          >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Upload Result
-          </button>
         )}
       </div>
+    );
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      {dialog}
+      <PageHeader
+        title="Admission Results"
+        description="Upload 1st Result List and waiting lists for classes 6-9."
+      >
+        {!showForm && (
+          <Button type="button" onClick={() => setShowForm(true)}>
+            <Upload className="h-4 w-4" />
+            Upload Result
+          </Button>
+        )}
+      </PageHeader>
 
       {showForm && (
-        <div className="bg-card border-border mb-6 rounded-lg border shadow">
-          <div className="border-border border-b p-5">
-            <h2 className="flex items-center gap-2 text-xl font-semibold">
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              {isEditing ? 'Edit Admission Result' : 'Upload Admission Result'}
-            </h2>
-          </div>
-          <div className="p-5">
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Class *</label>
-                  <select
-                    className="border-border bg-card text-card-foreground focus:ring-ring w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
-                    value={formData.class_name}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        class_name: e.target.value,
-                        merit_list: null,
-                        waiting_list_1: null,
-                        waiting_list_2: null,
-                      }));
-                      if (meritListRef.current) meritListRef.current.value = '';
-                      if (waitingList1Ref.current) waitingList1Ref.current.value = '';
-                      if (waitingList2Ref.current) waitingList2Ref.current.value = '';
-                    }}
-                    required
-                  >
-                    {classes.map((cls) => (
-                      <option key={cls} value={cls}>
-                        Class {cls}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Admission Year *</label>
-                  <input
-                    className="border-border text-foreground focus:ring-ring w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                    maxLength={4}
-                    minLength={4}
-                    value={formData.admission_year}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        admission_year: parseInt(e.target.value),
-                      }))
-                    }
-                    required
-                  />
-                </div>
+        <SectionCard
+          title={isEditing ? 'Edit Admission Result' : 'Upload Admission Result'}
+          icon={<FileText size={20} />}
+          className="mb-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Class *</label>
+                <select
+                  className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+                  value={formData.class_name}
+                  onChange={(e) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      class_name: e.target.value,
+                      merit_list: null,
+                      waiting_list_1: null,
+                      waiting_list_2: null,
+                    }));
+                    if (meritListRef.current) meritListRef.current.value = '';
+                    if (waitingList1Ref.current) waitingList1Ref.current.value = '';
+                    if (waitingList2Ref.current) waitingList2Ref.current.value = '';
+                  }}
+                  required
+                >
+                  {classes.map((cls) => (
+                    <option key={cls} value={cls}>
+                      Class {cls}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="border-border mb-6 border-t pt-4">
-                <h3 className="mb-2 text-lg font-semibold">Upload PDF Files</h3>
-                <p className="text-muted-foreground mb-4 text-sm">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Admission Year *</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  maxLength={4}
+                  minLength={4}
+                  value={formData.admission_year}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      admission_year: parseInt(e.target.value),
+                    }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="border-border space-y-4 border-t pt-4">
+              <div>
+                <h3 className="text-base font-semibold">Upload PDF Files</h3>
+                <p className="text-muted-foreground text-sm">
                   Upload one or more result lists (PDF format, max 10MB each)
                 </p>
-
-                <div className="border-border bg-accent mb-4 rounded-lg border p-4">
-                  <label className="mb-2 block text-base font-medium">1st Result List</label>
-                  <input
-                    ref={meritListRef}
-                    className="border-background text-foreground focus:ring-ring mb-2 w-full rounded-md border-2 px-3 py-2 focus:ring-2 focus:outline-none"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => handleFileChange(e, 'merit_list')}
-                  />
-                  {formData.merit_list && (
-                    <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                      {typeof formData.merit_list === 'string' ? (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Current file: {formData.merit_list.split('/').pop()}
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Selected: {formData.merit_list.name}
-                        </>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div className="border-border bg-accent mb-4 rounded-lg border p-4">
-                  <label className="mb-2 block text-base font-medium">Waiting List 1</label>
-                  <input
-                    ref={waitingList1Ref}
-                    className="border-background text-foreground focus:ring-ring mb-2 w-full rounded-md border-2 px-3 py-2 focus:ring-2 focus:outline-none"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => handleFileChange(e, 'waiting_list_1')}
-                  />
-                  {formData.waiting_list_1 && (
-                    <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                      {typeof formData.waiting_list_1 === 'string' ? (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Current file: {formData.waiting_list_1.split('/').pop()}
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Selected: {formData.waiting_list_1.name}
-                        </>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <div className="border-border bg-accent mb-4 rounded-lg border p-4">
-                  <label className="mb-2 block text-base font-medium">Waiting List 2</label>
-                  <input
-                    ref={waitingList2Ref}
-                    className="border-background text-foreground focus:ring-ring mb-2 w-full rounded-md border-2 px-3 py-2 focus:ring-2 focus:outline-none"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => handleFileChange(e, 'waiting_list_2')}
-                  />
-                  {formData.waiting_list_2 && (
-                    <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                      {typeof formData.waiting_list_2 === 'string' ? (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Current file: {formData.waiting_list_2.split('/').pop()}
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            className="text-chart-4 h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                          </svg>
-                          Selected: {formData.waiting_list_2.name}
-                        </>
-                      )}
-                    </p>
-                  )}
-                </div>
               </div>
+              {renderFileField('1st Result List', 'merit_list', meritListRef)}
+              {renderFileField('Waiting List 1', 'waiting_list_1', waitingList1Ref)}
+              {renderFileField('Waiting List 2', 'waiting_list_2', waitingList2Ref)}
+            </div>
 
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg
-                        className="h-4 w-4 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <line x1="12" y1="2" x2="12" y2="6"></line>
-                        <line x1="12" y1="18" x2="12" y2="22"></line>
-                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                        <line x1="2" y1="12" x2="6" y2="12"></line>
-                        <line x1="18" y1="12" x2="22" y2="12"></line>
-                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                      </svg>
-                      {isEditing ? 'Updating...' : 'Uploading...'}
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                      </svg>
-                      {isEditing ? 'Update Result' : 'Upload Result'}
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="border-border bg-card text-card-foreground hover:bg-accent rounded-md border px-4 py-2 transition-colors"
-                  onClick={() => {
-                    resetForm();
-                    setShowForm(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="flex gap-3">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {isEditing ? 'Updating...' : 'Uploading...'}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    {isEditing ? 'Update Result' : 'Upload Result'}
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </SectionCard>
       )}
 
-      <div className="bg-card border-border rounded-lg border shadow">
-        <div className="border-border border-b p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold">Uploaded Results</h2>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Filter by Admission Year</label>
-              <select
-                className="border-border bg-card text-card-foreground focus:ring-ring rounded-md border px-4 py-2 focus:ring-2 focus:outline-none"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              >
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="p-5">
-          <div className="border-border mb-6 border-b">
-            <div className="flex">
-              {classes.map((cls) => (
-                <button
-                  key={cls}
-                  className={`flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                    activeTab === cls
-                      ? 'text-primary border-primary'
-                      : 'text-muted-foreground hover:text-foreground border-transparent'
-                  }`}
-                  onClick={() => setActiveTab(cls)}
-                >
-                  Class {cls}
-                </button>
+      <SectionCard
+        title="Uploaded Results"
+        headerAction={
+          <div>
+            <label className="mb-1 block text-sm font-medium">Filter by Admission Year</label>
+            <select
+              className="border-input bg-background rounded-md border px-3 py-2 text-sm"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
+        }
+      >
+        <TabNav
+          tabs={classTabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          className="mb-6"
+        />
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <svg
-                className="text-primary h-8 w-8 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="12" y1="2" x2="12" y2="6"></line>
-                <line x1="12" y1="18" x2="12" y2="22"></line>
-                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                <line x1="2" y1="12" x2="6" y2="12"></line>
-                <line x1="18" y1="12" x2="22" y2="12"></line>
-                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-              </svg>
-            </div>
-          ) : getResultsByClass(activeTab).length === 0 ? (
-            <div className="text-muted-foreground py-10 text-center">
-              <svg
-                className="mx-auto mb-3 h-12 w-12 opacity-50"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              <p>No results uploaded for Class {activeTab}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {getResultsByClass(activeTab).map((result) => (
-                <div
-                  key={result.id}
-                  className="bg-card border-border border-l-primary rounded-lg border border-l-4 shadow"
-                >
-                  <div className="p-5">
-                    <div className="mb-4 flex items-start justify-between">
-                      <div>
-                        <h3 className="mb-1 text-lg font-semibold">
-                          Class {result.class_name} - {result.admission_year}
-                        </h3>
-                        <p className="text-muted-foreground text-sm">
-                          Uploaded on: {new Date(result.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          className="border-border bg-card hover:bg-accent rounded-md border p-2 transition-colors"
-                          onClick={() => handleEdit(result)}
-                        >
-                          <svg
-                            className="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                        </button>
-                        <button
-                          className="border-destructive text-destructive hover:bg-accent rounded-md border p-2 transition-colors"
-                          onClick={() => handleDelete(result.id)}
-                        >
-                          <svg
-                            className="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      {listTypes.map((listType) => (
-                        <div
-                          key={listType.key}
-                          className="border-border bg-accent rounded-lg border p-4"
-                        >
-                          <div className="mb-2 flex items-start justify-between">
-                            <h4 className="text-sm font-medium">{listType.label}</h4>
-                            {getFileStatus(result[listType.key])}
-                          </div>
-                          {result[listType.key] && (
-                            <a
-                              href={getFileUrl(result[listType.key])}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary mt-2 flex items-center gap-2 text-sm hover:underline"
-                            >
-                              <svg
-                                className="h-4 w-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                              </svg>
-                              View PDF
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="text-primary h-8 w-8 animate-spin" />
+          </div>
+        ) : getResultsByClass(activeTab).length === 0 ? (
+          <div className="text-muted-foreground py-10 text-center">
+            <FileText className="mx-auto mb-3 h-12 w-12 opacity-50" />
+            <p>No results uploaded for Class {activeTab}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {getResultsByClass(activeTab).map((result) => (
+              <div key={result.id} className="border-border rounded-xl border p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="mb-1 text-lg font-semibold">
+                      Class {result.class_name} - {result.admission_year}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      Uploaded on: {new Date(result.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => handleEdit(result)}
+                      aria-label="Edit result"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="border-destructive text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(result.id)}
+                      aria-label="Delete result"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {listTypes.map((listType) => (
+                    <div
+                      key={listType.key}
+                      className="border-border bg-muted/40 rounded-lg border p-4"
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <h4 className="text-sm font-medium">{listType.label}</h4>
+                        {getFileStatus(result[listType.key])}
+                      </div>
+                      {result[listType.key] && (
+                        <a
+                          href={getFileUrl(result[listType.key])}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary mt-2 inline-flex items-center gap-2 text-sm hover:underline"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View PDF
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

@@ -12,6 +12,8 @@ import {
 } from '@school/shared-schemas';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
+import { PageHeader, SectionCard } from '@/components';
+import { Button } from '@/components/ui/button';
 
 interface Notice {
   notice_key: string | null;
@@ -203,26 +205,13 @@ function AdmissionSettings() {
   const currentNoticeUrl = currentNotice?.url || (noticeKey ? getFileUrl(noticeKey) : null);
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            Admission Settings
-          </h1>
-          <p className="text-muted-foreground text-sm dark:text-gray-400">
-            Configure admission options and notices
-          </p>
-        </div>
-        <div>
-          <button
-            onClick={handleRefresh}
-            className="bg-primary hover:bg-primary inline-flex items-center gap-2 rounded-lg px-3 py-2 text-white transition-colors focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader title="Admission Settings" description="Configure admission options and notices">
+        <Button type="button" onClick={handleRefresh} variant="outline">
+          <RefreshCw size={16} />
+          Refresh
+        </Button>
+      </PageHeader>
 
       {formMessage && (
         <div
@@ -236,12 +225,10 @@ function AdmissionSettings() {
         </div>
       )}
 
-      <div className="bg-card text-card-foreground border-border mt-4 rounded-xl border p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="text-foreground mb-6 text-lg font-medium dark:text-gray-100">
-          <Settings size={16} className="mr-2 inline" />
-          {isEdit ? 'Update Configuration' : 'Create Configuration'}
-        </h2>
-
+      <SectionCard
+        title={isEdit ? 'Update Configuration' : 'Create Configuration'}
+        icon={<Settings size={20} />}
+      >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="bg-primary/10 border-primary rounded-lg border p-4 dark:border-blue-700 dark:bg-blue-900/20">
             <div className="flex items-center gap-3">
@@ -596,11 +583,7 @@ function AdmissionSettings() {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <Button type="submit" disabled={formLoading}>
                 {formLoading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
@@ -611,11 +594,11 @@ function AdmissionSettings() {
                 ) : (
                   'Create'
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </form>
-      </div>
+      </SectionCard>
     </div>
   );
 }

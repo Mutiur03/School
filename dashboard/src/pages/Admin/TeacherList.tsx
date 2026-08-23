@@ -5,7 +5,15 @@ import { Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ErrorMessage from '@/components/ErrorMessage';
-import { PageHeader, SectionCard, StatsCard, Popup, ConfirmationPopup } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  Popup,
+  ConfirmationPopup,
+  FilterSelection,
+  FilterField,
+} from '@/components';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { teacherFormSchema, type TeacherFormSchemaData } from '@school/shared-schemas';
@@ -616,18 +624,20 @@ const TeacherList = () => {
         />
       </div>
 
-      <SectionCard className="mb-6">
-        <div className="relative">
-          <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by name, subject or email..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </div>
-      </SectionCard>
+      <FilterSelection className="mb-6">
+        <FilterField label="Search" wide>
+          <div className="relative">
+            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by name, subject or email..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+        </FilterField>
+      </FilterSelection>
 
       <SectionCard noPadding className="mb-6">
         {selectedTeacherIds.size > 0 && (

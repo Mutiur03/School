@@ -21,7 +21,18 @@ import { getFileUrl } from '@/lib/backend';
 import { downloadBlob } from '@school/common-ui/blob';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { keepPreviousData } from '@tanstack/react-query';
-import { PageHeader, TabNav, StatsCard, StatusBadge, SectionCard, Popup } from '@/components';
+import {
+  PageHeader,
+  TabNav,
+  StatsCard,
+  StatusBadge,
+  SectionCard,
+  Popup,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+  filterInputClassName,
+} from '@/components';
 import type { TabItem } from '@/components';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import { Input } from '@/components/ui/input';
@@ -527,79 +538,8 @@ const Class9RegForm = () => {
             />
           </div>
 
-          <SectionCard>
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="min-w-60 flex-1">
-                <label className="mb-1 block text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
-                  <Input
-                    type="text"
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                    placeholder="Search by name, roll, birth reg..."
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                  className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Section</label>
-                <select
-                  value={filters.section}
-                  onChange={(e) => handleFilterChange('section', e.target.value)}
-                  className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                >
-                  <option value="">All Sections</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">SSC Batch</label>
-                <select
-                  value={filters.year}
-                  onChange={(e) => handleFilterChange('year', e.target.value)}
-                  className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                >
-                  {(() => {
-                    const currentBatchYear = Number(
-                      settingsData?.ssc_year || settingsData?.ssc_batch || new Date().getFullYear(),
-                    );
-                    const years = [];
-                    // Current and previous 5 batches (total 6 years)
-                    for (let i = 0; i < 6; i++) {
-                      years.push(currentBatchYear - i);
-                    }
-
-                    const settingsYearValue = Number(settingsForm.ssc_year);
-                    if (
-                      settingsForm.ssc_year &&
-                      !isNaN(settingsYearValue) &&
-                      !years.includes(settingsYearValue)
-                    ) {
-                      years.push(settingsYearValue);
-                      years.sort((a, b) => b - a);
-                    }
-                    return years.map((y) => (
-                      <option key={y} value={y.toString()}>
-                        {y}
-                      </option>
-                    ));
-                  })()}
-                </select>
-              </div>
+          <FilterSelection
+            headerAction={
               <div className="flex gap-2">
                 <button
                   onClick={() => handleExport('sheet')}
@@ -616,8 +556,78 @@ const Class9RegForm = () => {
                   <span>Export Photos</span>
                 </button>
               </div>
-            </div>
-          </SectionCard>
+            }
+          >
+            <FilterField label="Search" wide>
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+                />
+                <Input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  placeholder="Search by name, roll, birth reg..."
+                  className={`${filterInputClassName} pl-9`}
+                />
+              </div>
+            </FilterField>
+            <FilterField label="Status">
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className={filterSelectClassName}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+              </select>
+            </FilterField>
+            <FilterField label="Section">
+              <select
+                value={filters.section}
+                onChange={(e) => handleFilterChange('section', e.target.value)}
+                className={filterSelectClassName}
+              >
+                <option value="">All Sections</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+              </select>
+            </FilterField>
+            <FilterField label="SSC Batch">
+              <select
+                value={filters.year}
+                onChange={(e) => handleFilterChange('year', e.target.value)}
+                className={filterSelectClassName}
+              >
+                {(() => {
+                  const currentBatchYear = Number(
+                    settingsData?.ssc_year || settingsData?.ssc_batch || new Date().getFullYear(),
+                  );
+                  const years = [];
+                  for (let i = 0; i < 6; i++) {
+                    years.push(currentBatchYear - i);
+                  }
+
+                  const settingsYearValue = Number(settingsForm.ssc_year);
+                  if (
+                    settingsForm.ssc_year &&
+                    !isNaN(settingsYearValue) &&
+                    !years.includes(settingsYearValue)
+                  ) {
+                    years.push(settingsYearValue);
+                    years.sort((a, b) => b - a);
+                  }
+                  return years.map((y) => (
+                    <option key={y} value={y.toString()}>
+                      {y}
+                    </option>
+                  ));
+                })()}
+              </select>
+            </FilterField>
+          </FilterSelection>
 
           <SectionCard noPadding className="mb-6">
             <div className="hidden overflow-x-auto lg:block">

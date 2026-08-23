@@ -93,7 +93,7 @@ function Result() {
   const noPublishedExams = !examsLoading && examOptions.length === 0;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="My results"
         description="Published exam marks for your session. Download the official marksheet PDF when ready."

@@ -6,7 +6,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { levelFormSchema, type LevelFormSchemaData } from '@school/shared-schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { PageHeader, SectionCard, StatsCard, ErrorMessage } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  ErrorMessage,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+  filterInputClassName,
+} from '@/components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ActionButton from '@/components/ActionButton';
@@ -247,53 +256,42 @@ const AddLevel = () => {
         />
       </div>
 
-      <SectionCard className="mb-6">
-        <div className="flex flex-col items-end gap-4 md:flex-row">
-          <div className="min-w-[300px] flex-1">
-            <label className="text-muted-foreground mb-1.5 block text-sm font-medium">
-              Search Assignments
-            </label>
-            <div className="relative">
-              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-              <Input
-                placeholder="Search by teacher or class..."
-                className="border-border bg-background/50 hover:bg-background h-10 pl-10 transition-colors"
-                value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setSearchQuery(e.target.value)
-                }
-              />
-            </div>
+      <FilterSelection className="mb-6">
+        <FilterField label="Search" wide>
+          <div className="relative">
+            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              placeholder="Search by teacher or class..."
+              className={`${filterInputClassName} pl-10`}
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            />
           </div>
+        </FilterField>
 
-          <div className="w-full md:w-48">
-            <label className="text-muted-foreground mb-1.5 block text-sm font-medium">
-              Academic Year
-            </label>
-            <div className="relative">
-              <select
-                value={filterYear}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setFilterYear(Number(e.target.value))
-                }
-                className="border-border bg-background/50 ring-offset-background focus-visible:ring-ring hover:bg-background flex h-10 w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                {[0, 1, 2].map((offset) => {
-                  const yr = new Date().getFullYear() - offset + 1;
-                  return (
-                    <option key={yr} value={yr}>
-                      {yr}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
+        <FilterField label="Academic Year">
+          <select
+            value={filterYear}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setFilterYear(Number(e.target.value))
+            }
+            className={filterSelectClassName}
+          >
+            {[0, 1, 2].map((offset) => {
+              const yr = new Date().getFullYear() - offset + 1;
+              return (
+                <option key={yr} value={yr}>
+                  {yr}
+                </option>
+              );
+            })}
+          </select>
+        </FilterField>
+      </FilterSelection>
 
       <SectionCard noPadding>
-        <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        {/* Desktop table */}
+        <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
           <table className="w-full min-w-[640px] border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
@@ -343,6 +341,47 @@ const AddLevel = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {isLevelsLoading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <Loader2 className="text-primary h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm">Loading assignments…</p>
+            </div>
+          ) : filteredLevels.length > 0 ? (
+            <ul className="space-y-3 p-4">
+              {filteredLevels.map((level: Level) => (
+                <li
+                  key={level.id}
+                  className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">
+                        Class {level.class_name} · Section {level.section}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 truncate text-sm">
+                        {level.teacher_name || 'Unknown'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <ActionButton action="edit" onClick={() => handleEdit(level)} />
+                      <DeleteConfirmation
+                        onDelete={() => deleteMutation.mutate(level.id)}
+                        msg={`Are you sure you want to remove ${level.teacher_name} from Class ${level.class_name} Section ${level.section}?`}
+                      />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm font-medium">
+              No teacher assignments found for the current filters.
+            </p>
+          )}
         </div>
       </SectionCard>
     </div>

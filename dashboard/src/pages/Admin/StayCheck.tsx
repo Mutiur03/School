@@ -9,6 +9,11 @@ import {
 } from '@/queries/attendence.queries.js';
 import useNavigationStore from '@/store/navigation.Store';
 import PageHeader from '@/components/PageHeader.js';
+import {
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components/FilterSelection.js';
 import SectionCard from '@/components/SectionCard.js';
 import StatsCard from '@/components/StatsCard.js';
 import { Users, CheckCircle2, Filter, Save, AlertTriangle } from 'lucide-react';
@@ -80,6 +85,53 @@ const StudentRow = memo(
 );
 
 StudentRow.displayName = 'StudentRow';
+
+const StudentCard = memo(
+  ({
+    student,
+    persistedStatus,
+    currentStatus,
+    onToggle,
+  }: {
+    student: StudentOverview;
+    persistedStatus: string;
+    currentStatus: string;
+    onToggle: (id: number, checked: boolean) => void;
+  }) => {
+    const isRunAwayed = currentStatus === 'run-awayed';
+    const isAbsent = persistedStatus === 'absent';
+
+    return (
+      <li
+        className={`border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm ${isRunAwayed ? 'bg-amber-50/30' : ''} ${isAbsent ? 'opacity-40 grayscale-[0.5]' : ''}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold wrap-break-word">{student.name}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">Roll {student.roll}</p>
+            {isAbsent && (
+              <span className="mt-1 inline-block rounded bg-red-100 px-1 py-0 text-[9px] font-bold tracking-tight text-red-600 uppercase">
+                Initially Absent
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-muted-foreground text-[10px] font-medium">Running Away?</span>
+            <Checkbox
+              id={`run-away-mobile-${student.id}`}
+              checked={isRunAwayed}
+              onCheckedChange={(checked) => !isAbsent && onToggle(student.id, !!checked)}
+              disabled={isAbsent}
+              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? 'border-muted opacity-50' : isRunAwayed ? 'scale-110 border-amber-600 bg-amber-500 shadow-md' : 'border-slate-400 bg-white shadow-sm hover:scale-110 hover:border-amber-500'}`}
+            />
+          </div>
+        </div>
+      </li>
+    );
+  },
+);
+
+StudentCard.displayName = 'StudentCard';
 
 function StayCheck() {
   const currentDate = new Date();
@@ -243,7 +295,7 @@ function StayCheck() {
   const sections = ['A', 'B'];
 
   return (
-    <div className="mx-auto max-w-400 space-y-8 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Running Away"
         description="Daily monitoring for student departures. Check the box if a student has left without permission."
@@ -274,7 +326,7 @@ function StayCheck() {
         </div>
       </PageHeader>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatsCard
           label="Initially Present"
           value={initiallyPresentCount}
@@ -298,54 +350,51 @@ function StayCheck() {
         />
       </div>
 
-      <SectionCard title="Filter Selection" icon={<Filter className="h-5 w-5" />}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Class</label>
-            <select
-              className="border-input bg-background focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:ring-2"
-              value={selectedClass}
-              onChange={(e) => {
-                setSelectedClass(e.target.value ? parseInt(e.target.value) : '');
-                setLocalAttendance({});
-              }}
-            >
-              <option value="">Select Class</option>
-              {classes.map((c) => (
-                <option key={c} value={c}>
-                  Class {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Section</label>
-            <select
-              className="border-input bg-background focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:ring-2"
-              value={selectedSection}
-              onChange={(e) => {
-                setSelectedSection(e.target.value);
-                setLocalAttendance({});
-              }}
-              disabled={!selectedClass}
-            >
-              <option value="">Select Section</option>
-              {sections.map((s) => (
-                <option key={s} value={s}>
-                  Section {s}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </SectionCard>
+      <FilterSelection>
+        <FilterField label="Class">
+          <select
+            className={filterSelectClassName}
+            value={selectedClass}
+            onChange={(e) => {
+              setSelectedClass(e.target.value ? parseInt(e.target.value) : '');
+              setLocalAttendance({});
+            }}
+          >
+            <option value="">Select Class</option>
+            {classes.map((c) => (
+              <option key={c} value={c}>
+                Class {c}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Section">
+          <select
+            className={filterSelectClassName}
+            value={selectedSection}
+            onChange={(e) => {
+              setSelectedSection(e.target.value);
+              setLocalAttendance({});
+            }}
+            disabled={!selectedClass}
+          >
+            <option value="">Select Section</option>
+            {sections.map((s) => (
+              <option key={s} value={s}>
+                Section {s}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </FilterSelection>
 
       <SectionCard
         title="Running Away List"
         description="Select the checkbox if a student is running away. Students marked absent in the morning are disabled."
         noPadding
       >
-        <div className="min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        {/* Desktop table */}
+        <div className="hidden min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
           <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
@@ -388,6 +437,33 @@ function StayCheck() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {studentsLoading || recordsLoading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : students.length === 0 ? (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm italic">
+              No students found or filters not applied.
+            </p>
+          ) : (
+            <ul className="space-y-3 p-4">
+              {students.map((s) => (
+                <StudentCard
+                  key={s.id}
+                  student={s}
+                  persistedStatus={attendanceMap[s.id] || 'absent'}
+                  currentStatus={getStatus(s.id)}
+                  onToggle={handleToggleRunAway}
+                />
+              ))}
+            </ul>
+          )}
         </div>
       </SectionCard>
     </div>

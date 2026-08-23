@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Eye, Download, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { BookOpen, Eye, Download, Pencil, Trash2, Loader2, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
+import { PageHeader, SectionCard, FilterSelection, FilterField } from '@/components';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
 
@@ -77,7 +78,6 @@ function Syllabus() {
     else setUploading(true);
 
     try {
-      // Upload the new PDF to R2 if one was selected
       let key: string | undefined;
       if (form.pdf) {
         key = await uploadToR2('/api/syllabus/presigned-url', form.pdf, setProgress);
@@ -145,36 +145,85 @@ function Syllabus() {
 
   const filteredSyllabuses = syllabuses.filter((s) => String(s.year) === String(yearFilter));
 
+  const actionButtons = (s: Syllabus) => (
+    <div className="flex flex-wrap gap-2">
+      <a
+        href={getFileUrl(s.pdf_url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
+        title="View"
+      >
+        <Eye className="h-4 w-4" />
+      </a>
+      <a
+        href={getFileUrl(s.download_url)}
+        download
+        className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
+        title="Download"
+      >
+        <Download className="h-4 w-4" />
+      </a>
+      <button
+        type="button"
+        onClick={() => handleEdit(s)}
+        className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
+        title="Edit"
+        disabled={uploading || updating || Boolean(deletingId)}
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleDelete(s.id)}
+        className={`flex items-center rounded border border-red-100 bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100 ${
+          deletingId === s.id ? 'pointer-events-none opacity-50' : ''
+        }`}
+        title="Delete"
+        disabled={deletingId === s.id || uploading || updating}
+      >
+        {deletingId === s.id ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Trash2 className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="mx-auto max-w-6xl p-2 sm:p-4">
-      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-        <h1 className="text-xl font-light sm:text-2xl">Syllabus Management</h1>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Syllabus Management"
+        description="Upload and manage class syllabus PDFs by year."
+      >
         {!isFormVisible && (
           <Button
             type="button"
-            variant={isFormVisible ? 'outline' : 'default'}
-            onClick={() => setIsFormVisible((prev) => !prev)}
+            onClick={() => setIsFormVisible(true)}
             disabled={uploading || updating}
-            className="w-full sm:w-auto"
           >
-            {isFormVisible ? 'Cancel' : '+ Add New Syllabus'}
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Syllabus
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {error && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 p-2 text-red-600">{error}</div>
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
       )}
 
       {isFormVisible && (
-        <div className="bg-card mb-8 rounded-lg border border-gray-100 p-4 shadow-sm sm:p-6">
-          <h2 className="mb-4 text-base font-medium sm:text-lg">
-            {editingId ? 'Edit Syllabus' : 'Upload Syllabus PDF'}
-          </h2>
+        <SectionCard
+          title={editingId ? 'Edit Syllabus' : 'Upload Syllabus PDF'}
+          icon={<BookOpen size={20} />}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-normal">Class</label>
+                <label className="mb-1 block text-sm font-medium">Class</label>
                 <Select
                   name="class"
                   value={String(form.class)}
@@ -194,7 +243,7 @@ function Syllabus() {
                 </Select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-normal">Year</label>
+                <label className="mb-1 block text-sm font-medium">Year</label>
                 <Select
                   name="year"
                   value={String(form.year)}
@@ -215,13 +264,14 @@ function Syllabus() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-normal">PDF File</label>
+              <label className="mb-1 block text-sm font-medium">PDF File</label>
               <Input
                 name="pdf"
                 type="file"
                 accept="application/pdf"
                 onChange={handleChange}
                 disabled={uploading || updating}
+                className="text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
               />
               {editingId &&
                 syllabuses.length > 0 &&
@@ -240,21 +290,16 @@ function Syllabus() {
                   return null;
                 })()}
             </div>
-            <div className="flex flex-col justify-end space-y-2 pt-2 sm:flex-row sm:space-y-0 sm:space-x-3">
+            <div className="flex flex-col justify-end gap-2 pt-2 sm:flex-row sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCancelEdit}
-                className="px-4 py-2 text-sm"
                 disabled={uploading || updating}
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="flex items-center px-4 py-2 text-sm"
-                disabled={uploading || updating}
-              >
+              <Button type="submit" disabled={uploading || updating}>
                 {(uploading || updating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingId
                   ? updating
@@ -266,30 +311,31 @@ function Syllabus() {
               </Button>
             </div>
           </form>
-        </div>
+        </SectionCard>
       )}
 
-      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <label className="mr-2 text-sm font-medium">Filter by Year:</label>
-        <Select value={String(yearFilter)} onValueChange={setYearFilter} disabled={loading}>
-          <SelectTrigger className="w-full sm:w-[120px]">
-            <SelectValue placeholder="Select year" />
-          </SelectTrigger>
-          <SelectContent>
-            {limitedYears.map((y) => (
-              <SelectItem key={y} value={y}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <FilterSelection>
+        <FilterField label="Year">
+          <Select value={String(yearFilter)} onValueChange={setYearFilter} disabled={loading}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {limitedYears.map((y) => (
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+      </FilterSelection>
 
-      <div className="min-w-fit overflow-x-auto rounded-lg border border-gray-100 shadow-sm">
-        <div className="hidden overflow-x-auto sm:block">
+      <SectionCard noPadding title="Syllabus List" icon={<BookOpen size={20} />}>
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[400px] table-fixed divide-y divide-gray-200 text-sm">
             <thead>
-              <tr>
+              <tr className="bg-muted/40">
                 <th className="w-1/4 px-3 py-3 text-center text-xs font-medium tracking-wider uppercase sm:px-6">
                   Class
                 </th>
@@ -313,54 +359,14 @@ function Syllabus() {
                   <tr key={s.id}>
                     <td className="w-1/4 px-3 py-4 text-center sm:px-6">{s.class}</td>
                     <td className="w-1/4 px-3 py-4 text-center sm:px-6">{s.year}</td>
-                    <td className="w-2/4 px-3 py-4 text-center sm:px-6">
-                      <div className="flex flex-wrap justify-center gap-2">
-                        <a
-                          href={getFileUrl(s.pdf_url)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                          title="View"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </a>
-                        <a
-                          href={getFileUrl(s.download_url)}
-                          download
-                          className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                          title="Download"
-                        >
-                          <Download className="h-4 w-4" />
-                        </a>
-                        <button
-                          onClick={() => handleEdit(s)}
-                          className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                          title="Edit"
-                          disabled={uploading || updating || Boolean(deletingId)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(s.id)}
-                          className={`flex items-center rounded border border-red-100 bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100 ${
-                            deletingId === s.id ? 'pointer-events-none opacity-50' : ''
-                          }`}
-                          title="Delete"
-                          disabled={deletingId === s.id || uploading || updating}
-                        >
-                          {deletingId === s.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
+                    <td className="w-2/4 px-3 py-4">
+                      <div className="flex justify-center">{actionButtons(s)}</div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="px-6 py-4 text-center whitespace-nowrap" colSpan={3}>
+                  <td className="text-muted-foreground px-6 py-4 text-center" colSpan={3}>
                     No syllabuses found
                   </td>
                 </tr>
@@ -368,72 +374,33 @@ function Syllabus() {
             </tbody>
           </table>
         </div>
-        <div className="block sm:hidden">
+
+        <div className="lg:hidden">
           {loading ? (
             <div className="py-8 text-center">
               <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
             </div>
           ) : filteredSyllabuses.length > 0 ? (
-            filteredSyllabuses.map((s) => (
-              <div key={s.id} className="flex flex-col gap-2 border-b px-2 py-4 last:border-b-0">
-                <div className="flex justify-between">
-                  <span className="font-medium">Class:</span>
-                  <span>{s.class}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Year:</span>
-                  <span>{s.year}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <a
-                    href={getFileUrl(s.pdf_url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                    title="View"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </a>
-                  <a
-                    href={getFileUrl(s.download_url)}
-                    download
-                    className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                    title="Download"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
-                  <button
-                    onClick={() => handleEdit(s)}
-                    className="text-primary flex items-center rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs hover:bg-blue-100"
-                    title="Edit"
-                    disabled={uploading || updating || Boolean(deletingId)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    className={`flex items-center rounded border border-red-100 bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100 ${
-                      deletingId === s.id ? 'pointer-events-none opacity-50' : ''
-                    }`}
-                    title="Delete"
-                    disabled={deletingId === s.id || uploading || updating}
-                  >
-                    {deletingId === s.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))
+            <ul className="divide-border divide-y">
+              {filteredSyllabuses.map((s) => (
+                <li key={s.id} className="space-y-3 p-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Class</span>
+                    <span className="font-medium">{s.class}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Year</span>
+                    <span className="font-medium">{s.year}</span>
+                  </div>
+                  {actionButtons(s)}
+                </li>
+              ))}
+            </ul>
           ) : (
-            <div className="text-muted-foreground py-4 text-center text-sm">
-              No syllabuses found
-            </div>
+            <p className="text-muted-foreground py-8 text-center text-sm">No syllabuses found</p>
           )}
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }

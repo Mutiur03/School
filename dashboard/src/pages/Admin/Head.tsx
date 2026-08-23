@@ -3,6 +3,10 @@ import axios, { isAxiosError } from 'axios';
 import type { ApiResponse } from '@school/shared-schemas';
 import { useTeacher } from '@/queries/teacher.queries';
 import type { Teacher } from '@/types/teachers';
+import { UserRound } from 'lucide-react';
+import { PageHeader, SectionCard } from '@/components';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 interface HeadData {
   teacher?: Teacher;
@@ -14,6 +18,9 @@ const HEAD_ROLE_OPTIONS = [
   { value: 'Headmaster', label: 'Headmaster' },
   { value: 'Headmaster (Incharge)', label: 'Headmaster (Incharge)' },
 ] as const;
+
+const selectClassName =
+  'border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';
 
 function Head() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -87,67 +94,75 @@ function Head() {
   };
 
   return (
-    <div className="p-4">
-      {loading && <div className="text-muted-foreground">Loading...</div>}
-      {error && <div className="text-red-600">{error}</div>}
-      {success && <div className="text-green-600">{success}</div>}
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Head Message"
+        description="Select the headmaster and update the message displayed on the public site."
+      />
 
-      <form onSubmit={handleSubmit} className="mt-3 grid max-w-2xl gap-3">
-        <label className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
-          <span className="shrink-0 text-sm font-medium">Teacher:</span>
-          <select
-            value={selectedTeacherId}
-            onChange={(e) => setSelectedTeacherId(e.target.value)}
-            disabled={loading || teachers.length === 0}
-            className="border-input w-full min-w-0 rounded border p-2 text-sm disabled:opacity-60 sm:ml-2"
-          >
-            <option value="">-- Select --</option>
-            {teachers.map((teacher) => (
-              <option key={teacher.id} value={teacher.id}>
-                {`${teacher.name} (${teacher.designation})`}
-              </option>
-            ))}
-          </select>
-        </label>
+      {loading && <div className="text-muted-foreground mb-4 text-sm">Loading...</div>}
+      {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+      {success && <div className="mb-4 text-sm text-green-600">{success}</div>}
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Headmaster Role</legend>
-          <div className="flex flex-wrap gap-4">
-            {HEAD_ROLE_OPTIONS.map((option) => (
-              <label key={option.value} className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="headRole"
-                  value={option.value}
-                  checked={headRole === option.value}
-                  onChange={(e) => setHeadRole(e.target.value)}
-                  disabled={loading}
-                />
-                {option.label}
-              </label>
-            ))}
+      <SectionCard title="Headmaster Details" icon={<UserRound size={20} />}>
+        <form onSubmit={handleSubmit} className="grid max-w-2xl gap-4">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Teacher</span>
+            <select
+              value={selectedTeacherId}
+              onChange={(e) => setSelectedTeacherId(e.target.value)}
+              disabled={loading || teachers.length === 0}
+              className={selectClassName}
+            >
+              <option value="">-- Select --</option>
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {`${teacher.name} (${teacher.designation})`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Headmaster Role</legend>
+            <div className="flex flex-wrap gap-4">
+              {HEAD_ROLE_OPTIONS.map((option) => (
+                <label key={option.value} className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="headRole"
+                    value={option.value}
+                    checked={headRole === option.value}
+                    onChange={(e) => setHeadRole(e.target.value)}
+                    disabled={loading}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="space-y-1.5">
+            <label htmlFor="head-message" className="text-sm font-medium">
+              Message
+            </label>
+            <Textarea
+              id="head-message"
+              rows={5}
+              placeholder="Write a message from the head..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              disabled={loading}
+            />
           </div>
-        </fieldset>
 
-        <textarea
-          rows={5}
-          placeholder="Write a message from the head..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          disabled={loading}
-          className="border-input w-full resize-y rounded border p-2 text-sm disabled:opacity-60"
-        />
-
-        <div>
-          <button
-            type="submit"
-            disabled={loading || (!selectedTeacherId && !message.trim())}
-            className="bg-primary hover:bg-primary/90 rounded px-3 py-2 text-sm text-white disabled:opacity-60"
-          >
-            Save All
-          </button>
-        </div>
-      </form>
+          <div>
+            <Button type="submit" disabled={loading || (!selectedTeacherId && !message.trim())}>
+              Save All
+            </Button>
+          </div>
+        </form>
+      </SectionCard>
     </div>
   );
 }

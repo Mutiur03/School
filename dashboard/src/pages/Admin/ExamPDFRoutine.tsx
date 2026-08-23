@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
 import {
-  FiEdit,
-  FiEye,
-  FiEyeOff,
-  FiX,
-  FiDownload,
-  FiFileText,
-  FiExternalLink,
-  FiRefreshCw,
-  FiTrash2,
-} from 'react-icons/fi';
+  Pencil,
+  Eye,
+  EyeOff,
+  X,
+  Download,
+  FileText,
+  ExternalLink,
+  RefreshCw,
+  Trash2,
+  ClipboardList,
+} from 'lucide-react';
 import Loading from '@/components/Loading';
 import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
 import { BundleStalePreview } from '@/components/BundleStalePreview';
@@ -26,6 +27,7 @@ import DeleteConfirmationIcon from '@/components/DeleteConfimationIcon';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { PageHeader, SectionCard } from '@/components';
 
 interface ExamFormData {
   exam_name: string;
@@ -341,10 +343,12 @@ function ExamPDFRoutine() {
   }, [fetchExamList]);
 
   return (
-    <div className="mx-auto max-w-6xl p-4">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       {dialog}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-light">Exam Management</h1>
+      <PageHeader
+        title="Exam Management"
+        description="Create exams, publish results, and manage PDF routines."
+      >
         <Button
           type="button"
           variant={isFormVisible ? 'outline' : undefined}
@@ -352,14 +356,14 @@ function ExamPDFRoutine() {
         >
           {isFormVisible ? 'Cancel' : '+ Add New Exam'}
         </Button>
-      </div>
+      </PageHeader>
 
       {isFormVisible && (
-        <div className="bg-card mb-8 rounded-lg border border-gray-100 p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-medium">
-            {editingExam ? 'Edit Exam' : 'Create New Exam'}
-          </h2>
-
+        <SectionCard
+          title={editingExam ? 'Edit Exam' : 'Create New Exam'}
+          icon={<ClipboardList size={20} />}
+          className="mb-8"
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -490,11 +494,12 @@ function ExamPDFRoutine() {
               </Button>
             </div>
           </form>
-        </div>
+        </SectionCard>
       )}
 
-      <div className="min-w-fit overflow-hidden rounded-lg border border-gray-100 shadow-sm">
-        <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+      <SectionCard title="Exams" noPadding>
+        {/* Desktop table */}
+        <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
           <table className="w-full min-w-[640px] divide-y divide-gray-200">
             <thead>
               <tr>
@@ -569,7 +574,7 @@ function ExamPDFRoutine() {
                             exam.visible ? 'text-green-500' : 'text-gray-400'
                           }`}
                         >
-                          {exam.visible ? <FiEye size={18} /> : <FiEyeOff size={18} />}
+                          {exam.visible ? <Eye size={18} /> : <EyeOff size={18} />}
                         </button>
                         <span
                           className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
@@ -619,7 +624,7 @@ function ExamPDFRoutine() {
                               className="text-primary flex items-center hover:text-blue-800"
                               title="View PDF"
                             >
-                              <FiExternalLink size={18} />
+                              <ExternalLink size={18} />
                             </a>
                             <a
                               href={getFileUrl(exam.download_url || exam.routine)}
@@ -628,7 +633,7 @@ function ExamPDFRoutine() {
                               className="flex items-center text-green-600 hover:text-green-800"
                               title="Download PDF"
                             >
-                              <FiDownload size={18} />
+                              <Download size={18} />
                             </a>
                             <form
                               onSubmit={(e) => {
@@ -647,7 +652,7 @@ function ExamPDFRoutine() {
                                 className="text-muted-foreground hover:text-primary flex cursor-pointer items-center"
                                 title="Replace PDF"
                               >
-                                <FiRefreshCw size={18} />
+                                <RefreshCw size={18} />
                                 <input
                                   type="file"
                                   id={`pdf-${exam.id}`}
@@ -684,7 +689,7 @@ function ExamPDFRoutine() {
                               title="Remove PDF"
                               onClick={() => handleRemovePDF(exam.id)}
                             >
-                              <FiTrash2 size={18} />
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         ) : (
@@ -702,7 +707,7 @@ function ExamPDFRoutine() {
                           >
                             {selectedFiles[exam.id] ? (
                               <div className="bg-muted dark:bg-card flex items-center gap-2 rounded px-2 py-1 text-xs">
-                                <FiFileText className="text-primary" />
+                                <FileText className="text-primary" />
                                 <span
                                   className="max-w-30 truncate"
                                   title={
@@ -730,7 +735,7 @@ function ExamPDFRoutine() {
                                     }))
                                   }
                                 >
-                                  <FiX />
+                                  <X />
                                 </button>
                               </div>
                             ) : (
@@ -775,7 +780,7 @@ function ExamPDFRoutine() {
                         onClick={() => handleEditExam(exam)}
                         className="text-primary mr-3 hover:text-blue-900"
                       >
-                        <FiEdit className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
                       </button>
 
                       <DeleteConfirmationIcon
@@ -795,7 +800,142 @@ function ExamPDFRoutine() {
             </tbody>
           </table>
         </div>
-      </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loading />
+            </div>
+          ) : examList.length > 0 ? (
+            <ul className="space-y-3 p-4">
+              {examList.map((exam) => {
+                const status = genStatus[exam.id];
+                const active =
+                  !!status &&
+                  (status.pending > 0 ||
+                    status.generating > 0 ||
+                    status.bundles.pending > 0 ||
+                    status.bundles.generating > 0);
+                return (
+                  <li
+                    key={exam.id}
+                    className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold wrap-break-word">{exam.exam_name}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                          Year {exam.exam_year}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditExam(exam)}
+                          aria-label={`Edit ${exam.exam_name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <DeleteConfirmationIcon
+                          onDelete={() => confirmDelete(exam.id)}
+                          msg="This action cannot be undone. This will permanently delete the item from your database."
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-muted-foreground text-xs">
+                      {exam.levels.map((l) => `Class ${l}`).join(', ')}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleVisibilityChange(exam.id, !exam.visible)}
+                        className={`rounded-full p-1 ${
+                          exam.visible ? 'text-green-500' : 'text-gray-400'
+                        }`}
+                        aria-label={exam.visible ? 'Hide result' : 'Publish result'}
+                      >
+                        {exam.visible ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          exam.visible ? 'bg-green-100 text-green-700' : 'dark:bg-card bg-muted'
+                        }`}
+                      >
+                        {exam.visible ? 'Published' : 'Hidden'}
+                      </span>
+                    </div>
+
+                    {!exam.visible ? (
+                      <p className="text-muted-foreground text-[10px] leading-tight">
+                        {active
+                          ? 'Finishing background jobs…'
+                          : 'Hidden — marksheets refresh on publish or download'}
+                      </p>
+                    ) : status ? (
+                      <div className="flex flex-col gap-1">
+                        <MarksheetGenProgress status={status} compact />
+                        <BundleStalePreview items={status.bundles.staleItems} variant="inline" />
+                      </div>
+                    ) : null}
+
+                    {exam.routine ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <a
+                          href={getFileUrl(exam.routine)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary inline-flex items-center gap-1 text-xs"
+                        >
+                          <ExternalLink size={16} /> View
+                        </a>
+                        <a
+                          href={getFileUrl(exam.download_url || exam.routine)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-green-600"
+                        >
+                          <Download size={16} /> Download
+                        </a>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs text-red-500"
+                          onClick={() => handleRemovePDF(exam.id)}
+                        >
+                          <Trash2 size={16} /> Remove PDF
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="text-muted-foreground block text-xs">
+                        Upload PDF routine
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="mt-1 block w-full text-xs"
+                          disabled={uploadingExamId === exam.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handlePDFUpload(exam.id, file);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">No exams found</p>
+          )}
+        </div>
+      </SectionCard>
     </div>
   );
 }

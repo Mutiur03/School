@@ -15,6 +15,11 @@ import PageHeader from '@/components/PageHeader.js';
 import SectionCard from '@/components/SectionCard.js';
 import StatsCard from '@/components/StatsCard.js';
 import {
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components/FilterSelection.js';
+import {
   Calendar as CalendarIcon,
   Save,
   RefreshCcw,
@@ -456,7 +461,7 @@ function Attendance() {
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
       {dialog}
       <PageHeader
         title="Attendance Management"
@@ -532,7 +537,7 @@ function Attendance() {
             Today&apos;s Attendance Overview
           </h3>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
           <StatsCard
             label="Total Students"
             value={realtimeStats.total}
@@ -585,144 +590,130 @@ function Attendance() {
         </div>
       </div>
 
-      <SectionCard title="Search & Filters" icon={<Filter className="h-5 w-5" />}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <label htmlFor="attendance-month" className="text-sm font-medium">
-              Month
-            </label>
-            <select
-              id="attendance-month"
-              name="month"
-              autoComplete="off"
-              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
-              value={selectedMonth}
-              onChange={(e) => handleMonthChange(parseInt(e.target.value))}
-            >
-              {months.map((month, index) => (
-                <option key={month} value={index}>
-                  {month}
-                </option>
-              ))}
-            </select>
-          </div>
+      <FilterSelection>
+        <FilterField label="Month" htmlFor="attendance-month">
+          <select
+            id="attendance-month"
+            name="month"
+            autoComplete="off"
+            className={filterSelectClassName}
+            value={selectedMonth}
+            onChange={(e) => handleMonthChange(parseInt(e.target.value))}
+          >
+            {months.map((month, index) => (
+              <option key={month} value={index}>
+                {month}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <label htmlFor="attendance-year" className="text-sm font-medium">
-              Year
-            </label>
-            <select
-              id="attendance-year"
-              name="year"
-              autoComplete="off"
-              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
-              value={selectedYear}
-              onChange={(e) => handleYearChange(parseInt(e.target.value))}
-            >
-              {[
-                currentDate.getFullYear() - 1,
-                currentDate.getFullYear(),
-                currentDate.getFullYear() + 1,
-              ].map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
+        <FilterField label="Year" htmlFor="attendance-year">
+          <select
+            id="attendance-year"
+            name="year"
+            autoComplete="off"
+            className={filterSelectClassName}
+            value={selectedYear}
+            onChange={(e) => handleYearChange(parseInt(e.target.value))}
+          >
+            {[
+              currentDate.getFullYear() - 1,
+              currentDate.getFullYear(),
+              currentDate.getFullYear() + 1,
+            ].map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <label htmlFor="attendance-class" className="text-sm font-medium">
-              Class
-            </label>
-            <select
-              id="attendance-class"
-              name="class"
-              autoComplete="off"
-              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
-              value={selectedClass}
-              onChange={(e) => {
-                handleClassChange(e.target.value ? parseInt(e.target.value) : '');
-              }}
-            >
-              <option value="">Select Class</option>
-              {classes.map((c) => (
-                <option key={c} value={c}>
-                  Class {c}
-                </option>
-              ))}
-            </select>
-          </div>
+        <FilterField label="Class" htmlFor="attendance-class">
+          <select
+            id="attendance-class"
+            name="class"
+            autoComplete="off"
+            className={filterSelectClassName}
+            value={selectedClass}
+            onChange={(e) => {
+              handleClassChange(e.target.value ? parseInt(e.target.value) : '');
+            }}
+          >
+            <option value="">Select Class</option>
+            {classes.map((c) => (
+              <option key={c} value={c}>
+                Class {c}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <label htmlFor="attendance-section" className="text-sm font-medium">
-              Section
-            </label>
-            <select
-              id="attendance-section"
-              name="section"
-              autoComplete="off"
-              className="border-input bg-background focus-visible:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus-visible:ring-2"
-              value={selectedSection}
-              onChange={(e) => handleSectionChange(e.target.value)}
-              disabled={!selectedClass}
+        <FilterField label="Section" htmlFor="attendance-section">
+          <select
+            id="attendance-section"
+            name="section"
+            autoComplete="off"
+            className={filterSelectClassName}
+            value={selectedSection}
+            onChange={(e) => handleSectionChange(e.target.value)}
+            disabled={!selectedClass}
+          >
+            <option value="">Select Section</option>
+            {sections.map((s: string) => (
+              <option key={s} value={s}>
+                Section {s}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </FilterSelection>
+
+      <SectionCard className="mt-6">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <label className="text-foreground/80 flex items-center gap-2 text-sm font-semibold">
+            <CalendarIcon className="text-primary h-4 w-4" />
+            Toggle Visible Days
+          </label>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={selectAllDays}
+              className="h-8 flex-1 text-xs sm:flex-none"
             >
-              <option value="">Select Section</option>
-              {sections.map((s: string) => (
-                <option key={s} value={s}>
-                  Section {s}
-                </option>
-              ))}
-            </select>
+              <Eye className="mr-1.5 h-3 w-3" />
+              Select All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetVisibleDays}
+              className="h-8 flex-1 text-xs sm:flex-none"
+            >
+              <EyeOff className="mr-1.5 h-3 w-3" />
+              Reset
+            </Button>
           </div>
         </div>
-
-        <div className="mt-6 space-y-4">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <label className="text-foreground/80 flex items-center gap-2 text-sm font-semibold">
-              <CalendarIcon className="text-primary h-4 w-4" />
-              Toggle Visible Days
-            </label>
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={selectAllDays}
-                className="h-8 flex-1 text-xs sm:flex-none"
+        <div className="max-w-full overflow-hidden">
+          <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 flex scrollbar-thin scrollbar-track-transparent flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleVisibleDay(day)}
+                aria-label={`Toggle day ${day}`}
+                aria-pressed={visibleDays.includes(day)}
+                className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:ring-2 focus-visible:outline-none ${
+                  visibleDays.includes(day)
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-background text-muted-foreground border-input hover:border-primary/50'
+                }`}
               >
-                <Eye className="mr-1.5 h-3 w-3" />
-                Select All
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={resetVisibleDays}
-                className="h-8 flex-1 text-xs sm:flex-none"
-              >
-                <EyeOff className="mr-1.5 h-3 w-3" />
-                Reset
-              </Button>
-            </div>
-          </div>
-          <div className="max-w-full overflow-hidden">
-            <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 flex scrollbar-thin scrollbar-track-transparent flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => toggleVisibleDay(day)}
-                  aria-label={`Toggle day ${day}`}
-                  aria-pressed={visibleDays.includes(day)}
-                  className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:ring-2 focus-visible:outline-none ${
-                    visibleDays.includes(day)
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                      : 'bg-background text-muted-foreground border-input hover:border-primary/50'
-                  }`}
-                >
-                  {day}
-                </button>
-              ))}
-            </div>
+                {day}
+              </button>
+            ))}
           </div>
         </div>
       </SectionCard>
@@ -752,7 +743,8 @@ function Attendance() {
             <span className="w-3.5 text-center">—</span> Not marked
           </span>
         </div>
-        <div className="min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        {/* Desktop table */}
+        <div className="hidden min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
           <table className="w-max min-w-full border-separate border-spacing-0">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
@@ -881,6 +873,91 @@ function Attendance() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {studentsLoading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="border-border space-y-3 rounded-xl border p-4">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : students.length === 0 ? (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+              No students found. Please select a class and section.
+            </p>
+          ) : (
+            <ul className="space-y-3 p-4">
+              {students.map((student) => (
+                <li
+                  key={student.id}
+                  className={`border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm ${!student.available ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold wrap-break-word">{student.name}</p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        Sec {student.section} · Roll {student.roll}
+                      </p>
+                    </div>
+                    {!student.available && (
+                      <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {visibleDays.map((day) => {
+                      const isToday =
+                        day === currentDate.getDate() &&
+                        selectedMonth === currentDate.getMonth() &&
+                        selectedYear === currentDate.getFullYear();
+                      const recorded = getRecordedStatus(student.id, day);
+                      const status = recorded || 'absent';
+                      return (
+                        <div
+                          key={day}
+                          className="border-border bg-muted/30 flex min-w-12 flex-col items-center gap-1 rounded-lg border px-2 py-1.5"
+                        >
+                          <span className="text-muted-foreground text-[10px] font-semibold tabular-nums">
+                            {day}
+                          </span>
+                          {isToday && recorded !== 'run-awayed' ? (
+                            <input
+                              type="checkbox"
+                              checked={status === 'present'}
+                              disabled={!student.available}
+                              aria-label={`Mark ${student.name} present on day ${day}`}
+                              onChange={(e) =>
+                                handleAttendanceChange(student.id, day, e.target.checked)
+                              }
+                              className="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                          ) : recorded === 'present' ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+                          ) : recorded === 'run-awayed' ? (
+                            <AlertTriangle
+                              className="h-4 w-4 stroke-[2.75] text-amber-500"
+                              aria-hidden="true"
+                            />
+                          ) : recorded === 'absent' ? (
+                            <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
+                          ) : (
+                            <span className="text-muted-foreground/50 text-xs">—</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </SectionCard>
     </div>

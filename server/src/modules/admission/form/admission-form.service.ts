@@ -134,8 +134,71 @@ export class AdmissionFormService {
     };
   }
 
-  static async getForms() {
+  static async getForms(query: Record<string, any> = {}) {
+    const { status, search, admission_year, class: admissionClass, page, limit } = query;
+
+    const isPaginatedRequest =
+      (typeof page === 'string' && page.trim().length > 0) ||
+      (typeof limit === 'string' && limit.trim().length > 0) ||
+      (typeof page === 'number' && page > 0) ||
+      (typeof limit === 'number' && limit > 0);
+
+    const where: Record<string, any> = {};
+    if (status && status !== 'all') where.status = status;
+    if (admission_year) where.admission_year = Number(admission_year);
+    if (admissionClass) where.admission_class = admissionClass;
+    if (search && String(search).trim()) {
+      const s = String(search).trim();
+      where.OR = [
+        { student_name_en: { contains: s, mode: 'insensitive' } },
+        { student_name_bn: { contains: s, mode: 'insensitive' } },
+        { serial_no: { contains: s, mode: 'insensitive' } },
+        { admission_user_id: { contains: s, mode: 'insensitive' } },
+        { roll: { contains: s, mode: 'insensitive' } },
+        { birth_reg_no: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    if (isPaginatedRequest) {
+      const pageNum = typeof page === 'number' ? page : parseInt(String(page ?? ''), 10);
+      const limitNum = typeof limit === 'number' ? limit : parseInt(String(limit ?? ''), 10);
+      const normalizedPage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+      const normalizedLimit =
+        Number.isFinite(limitNum) && limitNum > 0 ? Math.min(Math.floor(limitNum), 200) : 50;
+      const skip = (normalizedPage - 1) * normalizedLimit;
+
+      const statsWhere = { ...where };
+      delete statsWhere.status;
+
+      const [total, pending, approved, forms] = await prisma.$transaction([
+        prisma.admission_form.count({ where }),
+        prisma.admission_form.count({ where: { ...statsWhere, status: 'pending' } }),
+        prisma.admission_form.count({ where: { ...statsWhere, status: 'approved' } }),
+        prisma.admission_form.findMany({
+          where,
+          orderBy: { created_at: 'desc' },
+          skip,
+          take: normalizedLimit,
+        }),
+      ]);
+
+      const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+
+      return {
+        data: forms,
+        meta: {
+          total,
+          pending,
+          approved,
+          page: normalizedPage,
+          limit: normalizedLimit,
+          totalPages,
+        },
+      };
+    }
+
     return prisma.admission_form.findMany({
+      where,
       orderBy: { created_at: 'desc' },
     });
   }

@@ -30,6 +30,9 @@ import {
 } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { PageHeader, SectionCard } from '@/components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface SchoolData {
   id?: number;
@@ -496,43 +499,30 @@ function SchoolManagement() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {dialog}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Building2 className="text-primary" />
-            School Management
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Create and manage multiple schools from the super admin panel.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={fetchSchools}
-          disabled={fetching}
-          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-        >
-          <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+      <PageHeader
+        title="School Management"
+        description="Create and manage multiple schools from the super admin panel."
+      >
+        <Button type="button" variant="outline" onClick={fetchSchools} disabled={fetching}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
           Refresh
-        </button>
-      </div>
+        </Button>
+      </PageHeader>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <aside className="bg-card space-y-3 rounded-xl border p-4 lg:col-span-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Schools ({sortedSchools.length})</h2>
-            <button
-              type="button"
-              onClick={startNewSchool}
-              className="bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium"
-            >
-              <Plus className="h-3.5 w-3.5" />
+        <SectionCard
+          className="lg:col-span-4"
+          title={`Schools (${sortedSchools.length})`}
+          icon={<Building2 size={20} />}
+          headerAction={
+            <Button type="button" size="sm" onClick={startNewSchool}>
+              <Plus className="mr-1 h-3.5 w-3.5" />
               New
-            </button>
-          </div>
-
+            </Button>
+          }
+        >
           <div className="max-h-130 space-y-2 overflow-y-auto pr-1">
             {sortedSchools.length === 0 && (
               <p className="text-muted-foreground text-sm">No schools found yet.</p>
@@ -559,18 +549,16 @@ function SchoolManagement() {
               );
             })}
           </div>
-        </aside>
+        </SectionCard>
 
-        <section className="bg-card rounded-xl border p-5 lg:col-span-8">
+        <SectionCard
+          className="lg:col-span-8"
+          title={
+            selectedSchoolId !== 'new' ? `Edit: ${schoolName || 'School'}` : 'Create New School'
+          }
+          icon={<Building2 size={20} />}
+        >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {selectedSchoolId !== 'new'
-                  ? `Edit: ${schoolName || 'School'}`
-                  : 'Create New School'}
-              </h2>
-            </div>
-
             {selectedSchoolId !== 'new' && (
               <div className="bg-muted/40 rounded-lg border p-4">
                 <p className="text-sm font-medium">Student Actions</p>
@@ -610,7 +598,7 @@ function SchoolManagement() {
 
             <div className="space-y-6">
               {/* Section 1: General & Board Info */}
-              <div className="bg-card/50 space-y-4 rounded-lg border p-4">
+              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
                 <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
                   <Building2 className="h-4 w-4" />
                   General & Board Identification
@@ -719,7 +707,7 @@ function SchoolManagement() {
               </div>
 
               {/* Section 2: Contact & Physical Location */}
-              <div className="bg-card/50 space-y-4 rounded-lg border p-4">
+              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
                 <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
                   <MapPin className="h-4 w-4" />
                   Contact & Location
@@ -841,7 +829,7 @@ function SchoolManagement() {
               </div>
 
               {/* Section 3: Subdomains & Portal Links */}
-              <div className="bg-card/50 space-y-4 rounded-lg border p-4">
+              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
                 <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
                   <Building2 className="h-4 w-4" />
                   Routing & Portal Links
@@ -941,7 +929,7 @@ function SchoolManagement() {
               </div>
 
               {/* Section 4: Logos & Branding */}
-              <div className="bg-card/50 space-y-4 rounded-lg border p-4">
+              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
                 <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
                   <Building2 className="h-4 w-4" />
                   Logos & Graphics
@@ -949,12 +937,12 @@ function SchoolManagement() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-sm font-medium">Main School Logo</label>
-                    <input
+                    <Input
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
                       disabled={logoUploading}
-                      className="w-full rounded-md border px-3 py-2"
+                      className="text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
                     />
                     {logoPreviewUrl && (
                       <div className="text-muted-foreground mt-2 flex items-center gap-3 text-xs">
@@ -1024,37 +1012,36 @@ function SchoolManagement() {
             </div>
 
             <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving || logoUploading}
-                className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 font-medium"
-              >
+              <Button type="submit" disabled={saving || logoUploading}>
                 {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Save className="h-4 w-4" />
+                  <Save className="mr-2 h-4 w-4" />
                 )}
                 {selectedSchoolId !== 'new' ? 'Update School' : 'Create School'}
-              </button>
+              </Button>
             </div>
           </form>
 
           {selectedSchoolId !== 'new' && (
-            <div className="mt-8 space-y-4 rounded-xl border p-5">
+            <div className="bg-muted/40 mt-8 space-y-4 rounded-xl border p-5">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-lg font-semibold">
                   <UserCog className="text-primary h-5 w-5" />
                   School Admins ({schoolAdmins.length})
                 </h3>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => fetchSchoolAdmins(selectedSchoolId)}
                   disabled={fetchingAdmins}
-                  className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${fetchingAdmins ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`mr-1 h-3.5 w-3.5 ${fetchingAdmins ? 'animate-spin' : ''}`}
+                  />
                   Refresh
-                </button>
+                </Button>
               </div>
 
               {fetchingAdmins ? (
@@ -1122,23 +1109,19 @@ function SchoolManagement() {
                   )}
                 </div>
                 <div className="flex items-end">
-                  <button
-                    type="submit"
-                    disabled={addingAdmin || fetchingAdmins}
-                    className="bg-primary text-primary-foreground inline-flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-                  >
+                  <Button type="submit" disabled={addingAdmin || fetchingAdmins} className="w-full">
                     {addingAdmin ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <Plus className="h-4 w-4" />
+                      <Plus className="mr-2 h-4 w-4" />
                     )}
                     Add Admin
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </div>
   );

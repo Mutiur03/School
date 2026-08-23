@@ -7,6 +7,15 @@ export { default as StatsCard } from './StatsCard';
 export { default as StatusBadge } from './StatusBadge';
 export { default as TabNav } from './TabNav';
 export { default as SectionCard } from './SectionCard';
+export {
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+  filterInputClassName,
+  filterGridClassName,
+  filterFieldClassName,
+  filterFieldWideClassName,
+} from './FilterSelection';
 export { default as ActionButton } from './ActionButton';
 export { default as DeleteConfirmation } from './DeleteConfimation';
 export type { TabItem } from './TabNav';

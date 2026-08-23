@@ -12,11 +12,14 @@ import { Eye, EyeOff } from 'lucide-react';
 type UserRole = 'admin' | 'teacher' | 'student' | 'super_admin';
 
 const roleTabClass = (active: boolean) =>
-  `flex-1 py-3 text-sm font-black rounded-md transition-[background-color,color,transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+  `flex flex-1 items-center justify-center rounded-md py-2.5 text-center text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
     active
-      ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]'
-      : 'text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50'
+      ? 'bg-primary text-white shadow-sm'
+      : 'text-muted-foreground hover:bg-white/70 hover:text-foreground dark:hover:bg-slate-700/50 dark:hover:text-primary'
   }`;
+
+const solidPrimaryBtnClass =
+  'bg-primary hover:bg-primary/90 text-primary-foreground h-12 w-full rounded-md font-semibold shadow-sm transition-colors active:scale-[0.99]';
 
 function Login() {
   const {
@@ -270,45 +273,15 @@ function Login() {
         <Card className="border-b-primary/20 overflow-hidden rounded-3xl border border-white/40 bg-white/95 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] backdrop-blur-3xl transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-500 dark:border-white/5 dark:bg-gray-900/90 dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)]">
           <CardContent className="px-6 pt-10 pb-8 sm:px-10">
             <div className="mb-8 flex justify-center">
-              <div className="bg-muted/80 border-border flex w-full rounded-md border p-1.5 shadow-inner dark:border-slate-700/30 dark:bg-slate-800/50">
+              <div className="bg-muted/80 border-border flex w-full items-center justify-center gap-1 rounded-lg border p-1 dark:border-slate-700/30 dark:bg-slate-800/50">
                 {!showPasswordReset ? (
                   envPreferredRole ? (
-                    <>
-                      <button
-                        // onClick={() => navigate("/admin/login")}
-                        // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/admin")
-                        //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        //   }`}
-                        className="text-muted-foreground hover:text-primary dark:hover:text-primary flex-1 rounded-md py-3 text-sm font-black transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 hover:bg-white/60 dark:hover:bg-slate-700/50"
-                      >
-                        {/* Admin */}
-                      </button>
-                      <button
-                        // onClick={() => navigate("/teacher/login")}
-                        // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/teacher")
-                        //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        //   }`}
-                        className="bg-primary shadow-primary/30 flex-1 scale-[1.02] rounded-md py-3 text-sm font-black text-white shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300"
-                      >
-                        {/* Teacher */}
-                        {location.pathname.startsWith('/super_admin') && 'Super Admin'}
-                        {location.pathname.startsWith('/admin') && 'Admin'}
-                        {location.pathname.startsWith('/teacher') && 'Teacher'}
-                        {location.pathname.startsWith('/student') && 'Student'}
-                      </button>
-                      <button
-                        // onClick={() => navigate("/student/login")}
-                        // className={`flex-1 py-3 text-sm font-black rounded-md transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${location.pathname.includes("/student")
-                        //   ? "bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]"
-                        //   : "text-muted-foreground hover:text-primary dark:hover:text-primary hover:bg-white/60 dark:hover:bg-slate-700/50"
-                        //   }`}
-                        className="text-muted-foreground hover:text-primary dark:hover:text-primary flex-1 rounded-md py-3 text-sm font-black transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 hover:bg-white/60 dark:hover:bg-slate-700/50"
-                      >
-                        {/* Student */}
-                      </button>
-                    </>
+                    <div className="bg-primary inline-flex items-center justify-center rounded-md px-6 py-2.5 text-sm font-semibold text-white shadow-sm">
+                      {location.pathname.startsWith('/super_admin') && 'Super Admin'}
+                      {location.pathname.startsWith('/admin') && 'Admin'}
+                      {location.pathname.startsWith('/teacher') && 'Teacher'}
+                      {location.pathname.startsWith('/student') && 'Student'}
+                    </div>
                   ) : (
                     <>
                       <Link
@@ -332,8 +305,8 @@ function Login() {
                     </>
                   )
                 ) : (
-                  <div className="text-primary dark:text-primary-foreground border-primary/10 dark:border-primary/20 w-full rounded-md border bg-white/50 py-3 text-center text-sm font-black tracking-wider shadow-sm dark:bg-slate-800/50">
-                    RESETTING {role.toUpperCase()}
+                  <div className="text-primary inline-flex items-center justify-center rounded-md px-6 py-2.5 text-sm font-semibold">
+                    Resetting {role.replace('_', ' ')}
                   </div>
                 )}
               </div>
@@ -500,11 +473,7 @@ function Login() {
                         />
                       )}
                     </div>
-                    <Button
-                      type="submit"
-                      disabled={isResetting}
-                      className="from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-primary/20 h-12 w-full transform rounded-md bg-linear-to-r font-black text-white shadow-lg transition-[transform,opacity] duration-300 active:scale-[0.98]"
-                    >
+                    <Button type="submit" disabled={isResetting} className={solidPrimaryBtnClass}>
                       {isResetting ? (
                         <div className="flex items-center justify-center">
                           <svg
@@ -562,7 +531,7 @@ function Login() {
                     <Button
                       onClick={handleCodeVerify}
                       disabled={isResetting}
-                      className="from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-primary/20 h-12 w-full transform rounded-md bg-linear-to-r font-black text-white shadow-lg transition-[transform,opacity] duration-300 active:scale-[0.98]"
+                      className={solidPrimaryBtnClass}
                     >
                       {isResetting ? 'Verifying…' : 'Verify Code'}
                     </Button>
@@ -644,11 +613,7 @@ function Login() {
                         </button>
                       </div>
                     </div>
-                    <Button
-                      type="submit"
-                      disabled={isResetting}
-                      className="from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-primary/20 h-12 w-full transform rounded-md bg-linear-to-r font-black text-white shadow-lg transition-[transform,opacity] duration-300 active:scale-[0.98]"
-                    >
+                    <Button type="submit" disabled={isResetting} className={solidPrimaryBtnClass}>
                       {isResetting ? (
                         'Updating…'
                       ) : (
@@ -966,7 +931,9 @@ function Login() {
                     </div>
                   </div>
                 )}
-                <Button className="from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground shadow-primary/20 flex h-12 w-full transform items-center justify-center gap-2 rounded-md bg-linear-to-r font-black shadow-lg transition-[transform,opacity] duration-300 active:scale-[0.98]">
+                <Button
+                  className={`${solidPrimaryBtnClass} flex items-center justify-center gap-2`}
+                >
                   <span>Sign In</span>
                   <svg
                     className="h-5 w-5 opacity-80"

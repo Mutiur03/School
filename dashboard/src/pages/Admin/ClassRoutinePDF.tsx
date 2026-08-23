@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { FileText, Upload, Loader2 } from 'lucide-react';
+import { PageHeader, SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
@@ -17,11 +19,18 @@ function ClassRoutinePDF() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPDF = async (): Promise<void> => {
-    const res = await axios.get('/api/class-routine/pdf');
-    setPDF(res.data.data[0] || null);
+    try {
+      const res = await axios.get('/api/class-routine/pdf');
+      setPDF(res.data.data[0] || null);
+    } catch {
+      setPDF(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -79,113 +88,148 @@ function ClassRoutinePDF() {
     fetchPDF();
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const selected = event.target.files?.[0];
+    if (selected && selected.type === 'application/pdf') {
+      setFile(selected);
+    } else if (selected) {
+      alert('Please select a valid PDF file');
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } else {
+      setFile(null);
+    }
+  };
+
+  const previewUrl = pdf ? getFileUrl(pdf.pdf_url) : '';
+  const downloadUrl = pdf ? getFileUrl(pdf.download_url) : '';
+
   return (
-    <div className="bg-background border-border mx-auto mt-10 max-w-md rounded-xl border p-8 shadow-lg">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {dialog}
-      <h2 className="text-primary mb-6 text-2xl font-bold tracking-tight">Class Routine PDF</h2>
-      {!pdf ? (
-        <form onSubmit={handleUpload} className="mb-5 flex flex-col gap-3">
-          <label htmlFor="routine-upload" className="text-foreground mb-1 block font-medium">
-            Upload Routine PDF
-          </label>
-          <input
-            id="routine-upload"
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            ref={fileInputRef}
-            className="hidden"
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-secondary text-secondary-foreground border-border hover:bg-accent rounded-md border px-4 py-2 font-semibold shadow-sm transition"
+      <PageHeader
+        title="Class Routine PDF"
+        description="Upload and preview the class routine PDF for public display."
+      />
+
+      <SectionCard
+        title={pdf ? 'Update Class Routine PDF' : 'Upload Class Routine PDF'}
+        icon={<Upload size={20} />}
+      >
+        <form onSubmit={pdf ? handleUpdate : handleUpload} className="space-y-4">
+          <div>
+            <label htmlFor="routine-upload" className="mb-2 block text-sm font-medium">
+              Select PDF File
+            </label>
+            <input
+              ref={fileInputRef}
+              id="routine-upload"
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileSelect}
               disabled={uploading}
-            >
-              Choose File
-            </button>
-            <span className="text-muted-foreground text-sm">
-              {file ? file.name : 'No file chosen'}
-            </span>
+              className="text-muted-foreground block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+            />
           </div>
-          <button
-            type="submit"
-            disabled={uploading || !file}
-            className={`bg-primary text-primary-foreground mt-2 rounded-md px-6 py-2 font-semibold shadow-sm transition ${
-              uploading || !file ? 'cursor-not-allowed opacity-60' : 'hover:bg-primary/90'
-            }`}
-          >
-            {uploading ? `Uploading ${progress}%...` : 'Upload'}
-          </button>
-        </form>
-      ) : (
-        <div className="bg-background border-border mb-5 rounded-lg border p-5">
-          <div className="mb-2">
-            <b className="text-primary">Current Routine PDF:</b>
-          </div>
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <a
-              href={getFileUrl(pdf.pdf_url)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary font-medium underline"
-            >
-              View
-            </a>
-            <a
-              href={getFileUrl(pdf.download_url)}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-              className="text-input font-medium underline"
-            >
-              Download
-            </a>
-          </div>
-          <form onSubmit={handleUpdate} className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                ref={fileInputRef}
-                className="hidden"
-              />
+
+          {file && (
+            <div className="text-muted-foreground text-sm">
+              Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+            </div>
+          )}
+
+          {uploading && progress > 0 && (
+            <div className="text-muted-foreground text-sm">Uploading: {progress}%</div>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="submit" disabled={!file || uploading} className="w-full sm:w-auto">
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading {progress}%...
+                </>
+              ) : pdf ? (
+                'Update PDF'
+              ) : (
+                'Upload PDF'
+              )}
+            </Button>
+            {pdf && (
               <Button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-secondary text-secondary-foreground border-border hover:bg-accent rounded-md border px-4 py-2 font-semibold transition"
+                variant="destructive"
+                onClick={handleDelete}
                 disabled={uploading}
+                className="w-full sm:w-auto"
               >
-                Choose File
-              </Button>
-              <span className="text-muted-foreground min-w-[80px] self-center text-sm">
-                {file ? file.name : 'No file chosen'}
-              </span>
-            </div>
-            <div className="ml-auto flex items-center gap-3">
-              <Button
-                type="submit"
-                disabled={uploading || !file}
-                className={`bg-primary text-primary-foreground rounded-md px-4 py-2 font-semibold transition ${
-                  uploading || !file ? 'cursor-not-allowed opacity-60' : 'hover:bg-primary/90'
-                }`}
-              >
-                {uploading ? `Uploading ${progress}%...` : 'Update'}
-              </Button>
-              <Button variant="destructive" type="button" onClick={handleDelete}>
                 Delete
               </Button>
+            )}
+          </div>
+        </form>
+      </SectionCard>
+
+      <SectionCard title="Current Class Routine" icon={<FileText size={20} />}>
+        {isLoading ? (
+          <div className="bg-muted/40 flex h-96 items-center justify-center rounded-lg">
+            <div className="text-muted-foreground">Loading...</div>
+          </div>
+        ) : pdf ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-3 text-sm">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-medium underline"
+                >
+                  View
+                </a>
+                <a
+                  href={downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="text-primary font-medium underline"
+                >
+                  Download
+                </a>
+              </div>
+              <Button asChild variant="default" className="bg-green-600 hover:bg-green-700">
+                <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                  Download PDF
+                </a>
+              </Button>
             </div>
-          </form>
-        </div>
-      )}
-      {!pdf && (
-        <div className="text-muted-foreground mt-6 text-center text-base">
-          No routine PDF uploaded yet.
-        </div>
-      )}
+
+            <div className="overflow-hidden rounded-lg border">
+              <iframe
+                src={previewUrl}
+                width="100%"
+                height="600"
+                title="Class Routine PDF"
+                className="h-[min(70vh,600px)] min-h-[240px] w-full border-0"
+              >
+                <p>
+                  Your browser doesn't support PDFs.{' '}
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                    Download the PDF
+                  </a>
+                </p>
+              </iframe>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-muted/40 flex h-96 items-center justify-center rounded-lg">
+            <div className="text-muted-foreground text-center">
+              <FileText className="mx-auto mb-4 h-12 w-12" />
+              <p>No routine PDF uploaded yet</p>
+            </div>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

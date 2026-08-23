@@ -4,7 +4,6 @@ import { getFileUrl } from '@/lib/backend';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import toast from 'react-hot-toast';
@@ -13,20 +12,21 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import {
-  FiChevronLeft,
-  FiChevronRight,
-  FiX,
-  FiUpload,
-  FiImage,
-  FiCalendar,
-  FiTag,
-  FiEdit3,
-  FiChevronDown,
-  FiChevronUp,
-  FiTrash2,
-} from 'react-icons/fi';
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Upload,
+  Image as ImageIcon,
+  Calendar,
+  Tag,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { PageHeader, SectionCard } from '@/components';
 
 interface Event {
   id: number;
@@ -402,15 +402,15 @@ export default function Gallery() {
         >
           <div className="flex items-center gap-4">
             <motion.div animate={{ rotate: isFolded ? 0 : 180 }} transition={{ duration: 0.2 }}>
-              <FiChevronDown className="text-muted-foreground dark:text-gray-300" />
+              <ChevronDown className="text-muted-foreground dark:text-gray-300" />
             </motion.div>
             <motion.h2 className="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-gray-100">
-              <FiImage className="text-primary" />
+              <ImageIcon className="text-primary" />
               {title} <span className="text-muted-foreground text-sm">({images.length})</span>
             </motion.h2>
           </div>
           <div className="flex items-center gap-4">
-            <FiTrash2
+            <Trash2
               onClick={(e) => {
                 e.stopPropagation();
                 if (images[0].event_id) {
@@ -487,10 +487,9 @@ export default function Gallery() {
   );
 
   return (
-    <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-8">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       {dialog}
-      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h1 className="text-2xl font-bold sm:text-3xl md:text-4xl">Gallery</h1>
+      <PageHeader title="Gallery" description="Upload and organize school gallery images.">
         <div className="flex w-full gap-2 sm:w-auto sm:gap-3">
           {galleryData && (
             <Button
@@ -519,12 +518,12 @@ export default function Gallery() {
               {Object.values(foldedCategories).length > 0 &&
               Object.values(foldedCategories).every((v) => v) ? (
                 <>
-                  <FiChevronDown className="transition-transform" />
+                  <ChevronDown className="transition-transform" />
                   <span className="hidden sm:inline">Show All</span>
                 </>
               ) : (
                 <>
-                  <FiChevronUp className="transition-transform" />
+                  <ChevronUp className="transition-transform" />
                   <span className="hidden sm:inline">Hide All</span>
                 </>
               )}
@@ -532,13 +531,13 @@ export default function Gallery() {
           )}
           {!showForm && (
             <Button onClick={() => setShowForm(true)} className="flex-1 sm:flex-none">
-              <FiUpload className="mr-0 sm:mr-2" />
+              <Upload className="mr-0 sm:mr-2" />
               <span className="hidden sm:inline">Upload Image</span>
               <span className="sm:hidden">Upload</span>
             </Button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {showForm && (
         <motion.div
@@ -547,158 +546,151 @@ export default function Gallery() {
           transition={{ duration: 0.4 }}
           className="mb-10 sm:mb-16"
         >
-          <Card className="mx-auto w-full overflow-hidden rounded-xl border-0 shadow-lg sm:rounded-2xl">
-            <CardContent className="space-y-4 p-4 sm:space-y-6 sm:p-6">
-              <div className="mb-3 flex items-center justify-between sm:mb-4">
-                <div className="flex items-center gap-2">
-                  <FiUpload className="text-lg sm:text-xl" />
-                  <h2 className="text-lg font-bold sm:text-xl">
-                    {isEditing ? 'Edit Image' : 'Upload Images'}
-                  </h2>
+          <SectionCard
+            title={isEditing ? 'Edit Image' : 'Upload Images'}
+            icon={<Upload size={20} />}
+          >
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="images" className="flex items-center gap-2">
+                  <ImageIcon size={16} /> Select Images
+                </Label>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <Input
+                    id="images"
+                    name="images"
+                    type="file"
+                    accept="image/*"
+                    multiple={!isEditing}
+                    ref={fileref}
+                    onChange={handleFileChange}
+                    className="border-border hover:border-primary cursor-pointer rounded-lg border-2 border-dashed transition-colors"
+                  />
                 </div>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="images" className="flex items-center gap-2">
-                    <FiImage /> Select Images
-                  </Label>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <Input
-                      id="images"
-                      name="images"
-                      type="file"
-                      accept="image/*"
-                      multiple={!isEditing}
-                      ref={fileref}
-                      onChange={handleFileChange}
-                      className="border-border hover:border-primary cursor-pointer rounded-lg border-2 border-dashed transition-colors"
+                {files.length > 0 && (
+                  <p className="text-muted-foreground text-xs sm:text-sm">
+                    {files.length} file{files.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+                {isEditing && formValues.image && (
+                  <div className="mt-2">
+                    <p className="text-muted-foreground text-xs sm:text-sm">Current image:</p>
+                    <img
+                      src={getFileUrl(formValues.image)}
+                      alt="Current"
+                      className="mt-1 h-16 w-16 rounded-md object-cover sm:h-20 sm:w-20"
                     />
                   </div>
-                  {files.length > 0 && (
-                    <p className="text-muted-foreground text-xs sm:text-sm">
-                      {files.length} file{files.length !== 1 ? 's' : ''} selected
-                    </p>
-                  )}
-                  {isEditing && formValues.image && (
-                    <div className="mt-2">
-                      <p className="text-muted-foreground text-xs sm:text-sm">Current image:</p>
-                      <img
-                        src={getFileUrl(formValues.image)}
-                        alt="Current"
-                        className="mt-1 h-16 w-16 rounded-md object-cover sm:h-20 sm:w-20"
-                      />
-                    </div>
-                  )}
-                </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="caption" className="flex items-center gap-2">
+                  <ImageIcon /> Caption (optional)
+                </Label>
+                <Input
+                  id="caption"
+                  name="caption"
+                  type="text"
+                  value={formValues.caption}
+                  onChange={(e) => {
+                    setFormValues({
+                      ...formValues,
+                      caption: e.target.value,
+                    });
+                  }}
+                  placeholder="Enter caption"
+                  className="dark:bg-accent border-border focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base dark:border-gray-700"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="caption" className="flex items-center gap-2">
-                    <FiImage /> Caption (optional)
+                  <Label htmlFor="eventId" className="flex items-center gap-2">
+                    <Calendar /> Event (optional)
                   </Label>
-                  <Input
-                    id="caption"
-                    name="caption"
-                    type="text"
-                    value={formValues.caption}
+                  <select
+                    id="eventId"
+                    name="eventId"
+                    value={formValues.eventId}
                     onChange={(e) => {
                       setFormValues({
                         ...formValues,
-                        caption: e.target.value,
+                        eventId: e.target.value,
+                        category: e.target.value ? '1' : '',
                       });
                     }}
-                    placeholder="Enter caption"
-                    className="dark:bg-accent border-border focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base dark:border-gray-700"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="eventId" className="flex items-center gap-2">
-                      <FiCalendar /> Event (optional)
-                    </Label>
-                    <select
-                      id="eventId"
-                      name="eventId"
-                      value={formValues.eventId}
-                      onChange={(e) => {
-                        setFormValues({
-                          ...formValues,
-                          eventId: e.target.value,
-                          category: e.target.value ? '1' : '',
-                        });
-                      }}
-                      className="dark:bg-accent focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base"
-                    >
-                      <option value="">Select an event</option>
-                      {events.map((event) => (
-                        <option key={event.id} value={event.id}>
-                          {event.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="flex items-center gap-2">
-                      <FiTag /> Category
-                    </Label>
-                    <select
-                      id="category"
-                      name="category"
-                      value={formValues.category}
-                      onChange={(e) =>
-                        setFormValues({
-                          ...formValues,
-                          category: e.target.value,
-                          eventId: e.target.value === '1' ? formValues.eventId : '',
-                        })
-                      }
-                      className="dark:bg-accent focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {uploadProgress > 0 && uploadProgress < 100 && (
-                  <div className="space-y-2">
-                    <Label>Upload Progress</Label>
-                    <div className="h-2.5 w-full rounded-full bg-gray-200">
-                      <div
-                        className="bg-primary h-2.5 rounded-full"
-                        style={{ width: `${uploadProgress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-muted-foreground text-right text-xs sm:text-sm">
-                      {uploadProgress}% complete
-                    </p>
-                  </div>
-                )}
-                <div className="flex justify-between gap-3">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 sm:flex-none"
+                    className="dark:bg-accent focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base"
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={uploadProgress > 0 && uploadProgress < 100}
-                    className="flex-1 sm:flex-none"
-                  >
-                    {isEditing
-                      ? 'Update Image'
-                      : uploadProgress > 0 && uploadProgress < 100
-                        ? 'Uploading...'
-                        : 'Upload Images'}
-                  </Button>
+                    <option value="">Select an event</option>
+                    {events.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="flex items-center gap-2">
+                    <Tag /> Category
+                  </Label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formValues.category}
+                    onChange={(e) =>
+                      setFormValues({
+                        ...formValues,
+                        category: e.target.value,
+                        eventId: e.target.value === '1' ? formValues.eventId : '',
+                      })
+                    }
+                    className="dark:bg-accent focus:ring-primary w-full rounded-lg border px-3 py-2 text-sm focus:border-transparent focus:ring-2 sm:text-base"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="space-y-2">
+                  <Label>Upload Progress</Label>
+                  <div className="h-2.5 w-full rounded-full bg-gray-200">
+                    <div
+                      className="bg-primary h-2.5 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-muted-foreground text-right text-xs sm:text-sm">
+                    {uploadProgress}% complete
+                  </p>
+                </div>
+              )}
+              <div className="flex justify-between gap-3">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 sm:flex-none"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={uploadProgress > 0 && uploadProgress < 100}
+                  className="flex-1 sm:flex-none"
+                >
+                  {isEditing
+                    ? 'Update Image'
+                    : uploadProgress > 0 && uploadProgress < 100
+                      ? 'Uploading...'
+                      : 'Upload Images'}
+                </Button>
+              </div>
+            </form>
+          </SectionCard>
         </motion.div>
       )}
 
@@ -713,7 +705,7 @@ export default function Gallery() {
               transition={{ delay: 0.2 }}
             >
               <h1 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800 sm:gap-3 sm:text-2xl md:text-3xl dark:text-gray-100">
-                <FiCalendar className="text-primary" />
+                <Calendar className="text-primary" />
                 Event Galleries
               </h1>
               {galleryData.events && Object.keys(galleryData.events).length > 0 ? (
@@ -733,7 +725,7 @@ export default function Gallery() {
               transition={{ delay: 0.4 }}
             >
               <h1 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800 sm:gap-3 sm:text-2xl md:text-3xl dark:text-gray-100">
-                <FiTag className="text-primary" />
+                <Tag className="text-primary" />
                 Category Galleries
               </h1>
               {galleryData.categories && Object.keys(galleryData.categories).length > 0 ? (
@@ -777,7 +769,7 @@ export default function Gallery() {
                         );
                       }}
                     >
-                      <FiChevronLeft size={24} />
+                      <ChevronLeft size={24} />
                     </button>
                     <button
                       className="absolute top-1/2 right-4 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-3 text-white transition-colors hover:bg-black/80"
@@ -788,7 +780,7 @@ export default function Gallery() {
                         );
                       }}
                     >
-                      <FiChevronRight size={24} />
+                      <ChevronRight size={24} />
                     </button>
                   </>
                 )}
@@ -800,7 +792,7 @@ export default function Gallery() {
                     setDirection(0);
                   }}
                 >
-                  <FiX size={20} />
+                  <X size={20} />
                 </button>
                 <button
                   className="absolute top-4 left-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
@@ -821,7 +813,7 @@ export default function Gallery() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 >
-                  <FiEdit3 size={20} />
+                  <Pencil size={20} />
                 </button>
                 <div className="bg-card relative flex h-full w-full items-center justify-center">
                   <AnimatePresence custom={direction}>

@@ -17,8 +17,9 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import DateRangePickerF from '@/components/DateRangePickerF';
 import { useHolidayStore } from '@/store';
-import { Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import type { Holiday, HolidayFormData } from '@/store/holiday.Store';
+import { PageHeader, SectionCard } from '@/components';
 
 type HolidayForm = HolidayFormData;
 
@@ -119,11 +120,13 @@ const HolidayCalendar = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Holiday Calendar</h2>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Holiday Calendar"
+        description="View and manage school holidays on the calendar."
+      >
         <Button onClick={() => setOpen(true)}>Add Holiday</Button>
-      </div>
+      </PageHeader>
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
@@ -131,29 +134,33 @@ const HolidayCalendar = () => {
           <span className="ml-2">Loading holidays...</span>
         </div>
       ) : holidays.length === 0 ? (
-        <div className="py-8 text-center">
-          <p className="text-muted-foreground text-lg">No holidays available</p>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Click the "Add Holiday" button to add new holidays
-          </p>
-        </div>
+        <SectionCard>
+          <div className="py-8 text-center">
+            <p className="text-muted-foreground text-lg">No holidays available</p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Click the "Add Holiday" button to add new holidays
+            </p>
+          </div>
+        </SectionCard>
       ) : (
         <>
-          <Calendar
-            onDateSelect={(date: Date | null) => {
-              if (date) {
-                setSelectedDate(date);
-                setDateDialogOpen(true);
-              }
-            }}
-            modifiers={{
-              holiday: (date: Date) => isHoliday(date),
-            }}
-            modifiersClassNames={{
-              holiday:
-                'bg-red-500 text-white dark:text-white dark:bg-red-500 dark:hover:bg-red-600 hover:bg-red-600 hover:text-white',
-            }}
-          />
+          <SectionCard title="Calendar" icon={<CalendarIcon size={20} />}>
+            <Calendar
+              onDateSelect={(date: Date | null) => {
+                if (date) {
+                  setSelectedDate(date);
+                  setDateDialogOpen(true);
+                }
+              }}
+              modifiers={{
+                holiday: (date: Date) => isHoliday(date),
+              }}
+              modifiersClassNames={{
+                holiday:
+                  'bg-red-500 text-white dark:text-white dark:bg-red-500 dark:hover:bg-red-600 hover:bg-red-600 hover:text-white',
+              }}
+            />
+          </SectionCard>
 
           <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
             <DialogContent>
@@ -192,25 +199,27 @@ const HolidayCalendar = () => {
             </DialogContent>
           </Dialog>
 
-          <ul className="space-y-2">
-            {holidays.map((holiday: Holiday) => (
-              <li
-                key={holiday.id}
-                className="flex items-center justify-between rounded-xl border p-2"
-              >
-                <div>
-                  <p className="font-medium">{holiday.title}</p>
-                  <p className="text-muted-foreground text-sm">
-                    {holiday.start_date} - {holiday.end_date}
-                  </p>
-                </div>
-                <div className="space-x-2">
-                  <Button onClick={() => handleEdit(holiday)}>Edit</Button>
-                  <DeleteConfirmation onDelete={() => deleteHoliday(holiday.id)} />
-                </div>
-              </li>
-            ))}
-          </ul>
+          <SectionCard title="All Holidays">
+            <ul className="space-y-2">
+              {holidays.map((holiday: Holiday) => (
+                <li
+                  key={holiday.id}
+                  className="flex flex-col gap-3 rounded-xl border p-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{holiday.title}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {holiday.start_date} - {holiday.end_date}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button onClick={() => handleEdit(holiday)}>Edit</Button>
+                    <DeleteConfirmation onDelete={() => deleteHoliday(holiday.id)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
         </>
       )}
 

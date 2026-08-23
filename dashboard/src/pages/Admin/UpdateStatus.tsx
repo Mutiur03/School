@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { Users } from 'lucide-react';
+import {
+  PageHeader,
+  SectionCard,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+  filterInputClassName,
+} from '@/components';
+import { Input } from '@/components/ui/input';
 
 interface Student {
   id: string;
@@ -79,32 +89,28 @@ function UpdateStatus() {
   );
 
   return (
-    <div className="p-3 font-sans sm:p-5">
-      <h1 className="mb-5 text-center text-xl font-semibold text-balance underline sm:text-2xl">
-        Student Status
-      </h1>
-      <div className="mb-5 flex flex-col flex-wrap justify-center gap-3 sm:flex-row sm:gap-4">
-        <div>
-          <label htmlFor="year" className="mb-1 block font-medium">
-            Select Year:
-          </label>
-          <input
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Student Status"
+        description="Filter students and update pass, fail, or pending status."
+      />
+
+      <FilterSelection>
+        <FilterField label="Select Year" htmlFor="year">
+          <Input
             id="year"
             type="number"
+            className={filterInputClassName}
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="border-border dark:bg-accent w-full rounded-md border p-2"
           />
-        </div>
-        <div>
-          <label htmlFor="selectedClass" className="mb-1 block font-medium">
-            Class:
-          </label>
+        </FilterField>
+        <FilterField label="Class" htmlFor="selectedClass">
           <select
             id="selectedClass"
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="border-border dark:bg-accent w-full rounded-md border p-2"
+            className={filterSelectClassName}
           >
             <option value="">Select Class</option>
             {[...Array(5).keys()].map((num) => (
@@ -113,108 +119,111 @@ function UpdateStatus() {
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label htmlFor="classSection" className="mb-1 block font-medium">
-            Section:
-          </label>
+        </FilterField>
+        <FilterField label="Section" htmlFor="classSection">
           <select
             id="classSection"
             value={classSection}
             onChange={(e) => setClassSection(e.target.value)}
-            className="border-border dark:bg-accent w-full rounded-md border p-2"
+            className={filterSelectClassName}
             disabled={!selectedClass}
           >
-            <option value="">All Sections</option>
+            <option value="">Select Section</option>
             {['A', 'B'].map((section) => (
               <option key={section} value={section}>
                 {section}
               </option>
             ))}
           </select>
-        </div>
+        </FilterField>
         {parseInt(selectedClass) > 8 && (
-          <div>
-            <label htmlFor="group" className="mb-1 block font-medium">
-              Group:
-            </label>
+          <FilterField label="Group" htmlFor="group">
             <select
               id="group"
               value={group}
               onChange={(e) => setGroup(e.target.value)}
-              className="border-border dark:bg-accent w-full rounded-md border p-2"
+              className={filterSelectClassName}
               disabled={!selectedClass}
             >
-              <option value="">All Groups</option>
+              <option value="">Select Group</option>
               {['Science', 'Humanities', 'Commerce'].map((grp) => (
                 <option key={grp} value={grp}>
                   {grp}
                 </option>
               ))}
             </select>
-          </div>
+          </FilterField>
         )}
-      </div>
-      {errorMessage && <p className="mb-5 text-center text-red-500">{errorMessage}</p>}
+      </FilterSelection>
+
+      {errorMessage && <p className="text-center text-sm text-red-500">{errorMessage}</p>}
 
       {filteredStudents.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-          No students available.
-        </p>
+        <SectionCard>
+          <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
+            No students available.
+          </p>
+        </SectionCard>
       ) : (
-        <>
+        <SectionCard title="Students" icon={<Users size={20} />} noPadding>
           {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-lg border border-gray-100 shadow-sm lg:block">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border">
-                <thead className="bg-popover">
-                  <tr>
-                    <th className="p-3 text-left">Name</th>
-                    <th className="p-3 text-left">Status</th>
-                    <th className="p-3 text-left">Fail Count</th>
-                    <th className="p-3 text-left">Change Status</th>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    Name
+                  </th>
+                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    Status
+                  </th>
+                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    Fail Count
+                  </th>
+                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    Change Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map((student) => (
+                  <tr key={student.id} className="border-border border-b">
+                    <td className="p-3">{student.name || 'N/A'}</td>
+                    <td className="p-3">
+                      {student.status === 'Passed' && (
+                        <span className="font-bold text-green-600">✔ Passed</span>
+                      )}
+                      {student.status === 'Failed' && (
+                        <span className="font-bold text-red-600">✘ Failed</span>
+                      )}
+                      {student.status === 'Pending' && (
+                        <span className="font-bold text-orange-500">⏳ Pending</span>
+                      )}
+                    </td>
+                    <td className="p-3 tabular-nums">{student.fail_count || 0}</td>
+                    <td className="p-3">
+                      <select
+                        value={student.status || ''}
+                        onChange={(e) =>
+                          handleStatusChange(student.id, e.target.value as Student['status'])
+                        }
+                        className={filterSelectClassName}
+                        aria-label={`Change status for ${student.name || 'student'}`}
+                      >
+                        <option value="">Select Status</option>
+                        <option value="Passed">Passed</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Pending">Pending</option>
+                      </select>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((student) => (
-                    <tr key={student.id}>
-                      <td className="p-3">{student.name || 'N/A'}</td>
-                      <td className="p-3">
-                        {student.status === 'Passed' && (
-                          <span className="font-bold text-green-600">✔ Passed</span>
-                        )}
-                        {student.status === 'Failed' && (
-                          <span className="font-bold text-red-600">✘ Failed</span>
-                        )}
-                        {student.status === 'Pending' && (
-                          <span className="font-bold text-orange-500">⏳ Pending</span>
-                        )}
-                      </td>
-                      <td className="p-3 tabular-nums">{student.fail_count || 0}</td>
-                      <td className="p-3">
-                        <select
-                          value={student.status || ''}
-                          onChange={(e) =>
-                            handleStatusChange(student.id, e.target.value as Student['status'])
-                          }
-                          className="border-border dark:bg-accent rounded-md border p-2"
-                          aria-label={`Change status for ${student.name || 'student'}`}
-                        >
-                          <option value="">Select Status</option>
-                          <option value="Passed">Passed</option>
-                          <option value="Failed">Failed</option>
-                          <option value="Pending">Pending</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* Mobile cards */}
-          <ul className="space-y-3 lg:hidden">
+          <ul className="space-y-3 p-4 lg:hidden">
             {filteredStudents.map((student) => (
               <li
                 key={student.id}
@@ -246,7 +255,7 @@ function UpdateStatus() {
                     onChange={(e) =>
                       handleStatusChange(student.id, e.target.value as Student['status'])
                     }
-                    className="border-border dark:bg-accent w-full rounded-md border p-2.5 text-sm"
+                    className={filterSelectClassName}
                   >
                     <option value="">Select Status</option>
                     <option value="Passed">Passed</option>
@@ -257,7 +266,7 @@ function UpdateStatus() {
               </li>
             ))}
           </ul>
-        </>
+        </SectionCard>
       )}
     </div>
   );

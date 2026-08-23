@@ -34,7 +34,7 @@ function StudentDashboard() {
   const stats = attendance?.stats;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader title="Student Dashboard" description="Your classes, records, and quick links." />
 
       <section className="border-border bg-muted/30 rounded-2xl border p-6 sm:p-8">

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail -n admin,student,teacher,super -c blue,green,magenta,yellow \"vite --mode admin --port 5174 --clearScreen false\" \"vite --mode student --port 5175 --clearScreen false\" \"vite --mode teacher --port 5176 --clearScreen false\" \"vite --mode super_admin --port 5177 --clearScreen false\"",
-    "dev:single": "vite --mode admin --port 5174 --clearScreen false",
+    "dev:dashboard": "vite --mode dashboard --port 5178 --clearScreen false",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "dev:admin": "vite --mode admin --port 5174 --clearScreen false",

@@ -1,8 +1,24 @@
 import { getFileUrl } from '@/lib/backend';
 import { downloadBlob } from '@school/common-ui/blob';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useDeferredValue } from 'react';
 import { toast } from 'react-hot-toast';
+import { Search, Image as ImageIcon, FileText, Users, Loader2 } from 'lucide-react';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  StatusBadge,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+  filterInputClassName,
+} from '@/components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import ActionButton from '@/components/ActionButton';
+import DeleteConfirmation from '@/components/DeleteConfimation';
+import { formatDateWithTime } from '@/lib/utils';
 interface AdmissionData {
   id: string | number;
   status: string;
@@ -72,7 +88,11 @@ interface Filters {
   class: string;
   admission_year: string;
   search: string;
+}
+
+interface AdmissionSettingsMeta {
   class_list?: string | string[];
+  admission_year?: string | number;
 }
 
 interface EditFormData {
@@ -85,23 +105,62 @@ interface EditFormData {
 
 function Admission() {
   const [items, setItems] = useState<AdmissionData[]>([]);
-  const [limit] = useState<number>(20);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [meta, setMeta] = useState<{
+    total: number;
+    pending: number;
+    approved: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [year, setYear] = useState<string>('');
+  const [settingsMeta, setSettingsMeta] = useState<AdmissionSettingsMeta>({});
   const [filters, setFilters] = useState<Filters>({
     status: 'all',
     class: '',
     admission_year: '',
     search: '',
   });
+  const deferredFilters = useDeferredValue(filters);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [selectedAdmission, setSelectedAdmission] = useState<AdmissionData | null>(null);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<EditFormData>({});
-  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [deleteTargetAdmission, setDeleteTargetAdmission] = useState<AdmissionData | null>(null);
   const [pdfDownloading, setPdfDownloading] = useState<boolean>(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSettings() {
+      try {
+        const res = await axios.get(`/api/admission/`);
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data ?? {};
+        setSettingsMeta({
+          class_list: data.class_list,
+          admission_year: data.admission_year,
+        });
+        if (data.admission_year) {
+          setFilters((prev) =>
+            prev.admission_year ? prev : { ...prev, admission_year: String(data.admission_year) },
+          );
+        }
+      } catch {
+        /* settings optional for list */
+      }
+    }
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredFilters]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,14 +168,30 @@ function Admission() {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`/api/admission/`);
-        setFilters((prev) => ({ ...(prev || {}), ...(res.data || {}) }));
-        setYear((res.data && res.data.admission_year) || '');
-        const resp = await axios.get(`/api/admission/form/`);
-        const json = resp.data;
-        const data = json.data || [];
-        setItems(data);
+        const resp = await axios.get(`/api/admission/form/`, {
+          signal: controller.signal,
+          params: {
+            page,
+            limit,
+            status: deferredFilters.status,
+            class: deferredFilters.class || undefined,
+            admission_year: deferredFilters.admission_year || undefined,
+            search: deferredFilters.search.trim() || undefined,
+          },
+        });
+        const payload = resp.data?.data;
+        if (payload && Array.isArray(payload.data) && payload.meta) {
+          setItems(payload.data);
+          setMeta(payload.meta);
+        } else if (Array.isArray(payload)) {
+          setItems(payload);
+          setMeta(null);
+        } else {
+          setItems([]);
+          setMeta(null);
+        }
       } catch (err: unknown) {
+        if (axios.isCancel(err) || (err as { name?: string }).name === 'CanceledError') return;
         if ((err as { name?: string }).name !== 'AbortError')
           setError((err as Error).message || 'Failed');
       } finally {
@@ -125,92 +200,32 @@ function Admission() {
     }
     fetchPage();
     return () => controller.abort();
-  }, [limit]);
+  }, [page, limit, deferredFilters, refreshKey]);
 
-  function formatDate(d: string | undefined, includeTime = true): string {
-    if (!d) return '-';
-    try {
-      const dt = new Date(d);
-      if (isNaN(dt.getTime())) return d;
-      const dd = String(dt.getDate()).padStart(2, '0');
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const yyyy = dt.getFullYear();
-      if (!includeTime) return `${dd}/${mm}/${yyyy}`;
-      let hours = dt.getHours();
-      const minutes = String(dt.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12;
-      if (hours === 0) hours = 12;
-      const hh = String(hours).padStart(2, '0');
-      return `${dd}/${mm}/${yyyy} ${hh}:${minutes} ${ampm}`;
-    } catch {
-      return d;
-    }
-  }
+  const year = settingsMeta.admission_year ? String(settingsMeta.admission_year) : '';
 
-  const filteredAdmissions = items.filter((r) => {
-    if (!r) return false;
-    if (filters.status && filters.status !== 'all' && r.status !== filters.status) return false;
-    if (filters.class) {
-      const cls = r.admission_class || r.section || r.class;
-      if (cls !== filters.class) return false;
-    }
-    if (filters.admission_year) {
-      let ay: number | string | null =
-        r.admission_year || r.prev_school_passing_year || r.year || null;
-      if (!ay) {
-        const dateStr = r.submission_date || r.created_at || null;
-        if (dateStr) {
-          const d = new Date(dateStr);
-          if (!isNaN(d.getTime())) ay = d.getFullYear();
-        }
-      }
-      if (!ay || String(ay) !== String(filters.admission_year)) return false;
-    }
-    if (filters.search) {
-      const s = filters.search.toLowerCase();
-      const hay = [
-        r.student_name_en,
-        r.student_name_bn,
-        r.serial_no,
-        r.admission_user_id,
-        r.roll,
-        r.birth_reg_no,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      if (!hay.includes(s)) return false;
-    }
-    return true;
-  });
-
-  const yearStats = (() => {
-    const year = filters.admission_year && String(filters.admission_year).trim();
-    const arr = items.filter((r) => {
-      if (!year) return true;
-      let ay: number | string | null =
-        r.admission_year || r.prev_school_passing_year || r.year || null;
-      if (!ay) {
-        const dateStr = r.submission_date || r.created_at || null;
-        if (dateStr) {
-          try {
-            const d = new Date(dateStr);
-            if (!isNaN(d.getTime())) ay = d.getFullYear();
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      }
-      return ay != null && String(ay) === String(year);
-    });
-
+  const stats = useMemo(() => {
+    const pageItems = items || [];
     return {
-      total: arr.length,
-      pending: arr.filter((d) => d && d.status === 'pending').length,
-      approved: arr.filter((d) => d && d.status === 'approved').length,
+      total: {
+        filtered: pageItems.length,
+        all: meta?.total ?? pageItems.length,
+      },
+      pending: {
+        filtered: pageItems.filter((r) => r.status === 'pending').length,
+        all: meta?.pending ?? 0,
+      },
+      approved: {
+        filtered: pageItems.filter((r) => r.status === 'approved').length,
+        all: meta?.approved ?? 0,
+      },
     };
-  })();
+  }, [items, meta]);
+
+  const renderCount = (filtered: number, total: number) => {
+    if (!total || filtered === total) return total || filtered;
+    return `${filtered} / ${total}`;
+  };
 
   const formatQuota = (q: string | undefined): string | null => {
     if (!q) return null;
@@ -255,22 +270,7 @@ function Admission() {
   };
 
   function getStatusBadge(st: string) {
-    return (
-      <span
-        className={
-          `inline-block rounded-full px-2 py-1 text-xs font-semibold ` +
-          (st === 'approved'
-            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40'
-            : st === 'pending'
-              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30'
-              : st === 'rejected'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/30'
-                : 'bg-gray-200 text-gray-800 dark:bg-slate-700/30')
-        }
-      >
-        {st || 'unknown'}
-      </span>
-    );
+    return <StatusBadge status={st || 'unknown'} />;
   }
 
   function handleExport() {
@@ -349,11 +349,8 @@ function Admission() {
       if (editFormData.status === 'pending')
         await axios.put(`/api/admission/form/${editFormData.id}/pending`);
       else await axios.put(`/api/admission/form/${editFormData.id}/approve`);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === editFormData.id ? { ...it, status: editFormData.status || it.status } : it,
-        ),
-      );
+      setRefreshKey((k) => k + 1);
+      toast.success('Status updated');
     } catch (err: unknown) {
       console.error(err);
       setError('Failed to update status');
@@ -363,17 +360,11 @@ function Admission() {
     }
   }
 
-  function confirmDelete(admission: AdmissionData) {
-    setDeleteTargetAdmission(admission);
-    setShowDeleteModal(true);
-  }
-
   async function handleDelete(id: string | number) {
     try {
       setLoading(true);
       await axios.delete(`/api/admission/form/${id}`);
-      setItems((prev) => prev.filter((it) => it.id !== id));
-      setDeleteTargetAdmission(null);
+      setRefreshKey((k) => k + 1);
       toast.success('Admission deleted successfully');
     } catch (err: unknown) {
       console.error(err);
@@ -381,394 +372,281 @@ function Admission() {
         setError(err.response?.data?.message || 'Failed to delete admission');
     } finally {
       setLoading(false);
-      setShowDeleteModal(false);
     }
   }
 
   return (
-    <div className="min-h-screen p-4">
-      <header className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl font-semibold">Admissions</h1>
-      </header>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Admissions"
+        description="Review and manage student admission applications."
+      />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="mb-1 text-sm">Total</div>
-          <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            {(() => {
-              const f = filteredAdmissions.length;
-              const t = yearStats.total || 0;
-              if (f == t) return t;
-              return `${f} / ${t}`;
-            })()}
-          </div>
-        </div>
-
-        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="mb-1 text-sm">Pending</div>
-          <div className="text-2xl font-semibold text-amber-600">
-            {(() => {
-              const f = filteredAdmissions.filter((a) => a.status === 'pending').length;
-              const t = yearStats.pending || 0;
-              if (filteredAdmissions.length == yearStats.total) return t;
-              return `${f} / ${t}`;
-            })()}{' '}
-          </div>
-        </div>
-
-        <div className="border-border rounded-xl border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="mb-1 text-sm">Approved</div>
-          <div className="text-2xl font-semibold text-emerald-600">
-            {(() => {
-              const f = filteredAdmissions.filter((a) => a.status === 'approved').length;
-              const t = yearStats.approved || 0;
-              if (filteredAdmissions.length == yearStats.total) return t;
-              return `${f} / ${t}`;
-            })()}{' '}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatsCard
+          label="Total Applications"
+          value={renderCount(stats.total.filtered, stats.total.all)}
+          loading={loading}
+        />
+        <StatsCard
+          label="Pending"
+          value={renderCount(stats.pending.filtered, stats.pending.all)}
+          color="amber"
+          loading={loading}
+        />
+        <StatsCard
+          label="Approved"
+          value={renderCount(stats.approved.filtered, stats.approved.all)}
+          color="emerald"
+          loading={loading}
+        />
       </div>
 
-      <div className="border-border mb-6 rounded-xl border bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="mb-4 flex items-center gap-2">
-          <svg
-            className="text-muted-foreground h-5 w-5 dark:text-gray-300"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              d="M21 21l-4.35-4.35"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      <FilterSelection
+        headerAction={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <FileText size={18} />
+              <span>Export Sheet</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportImages}
+              disabled={loading}
+              className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-white shadow-sm transition-colors disabled:opacity-50"
+            >
+              <ImageIcon size={18} />
+              <span>Export Photos</span>
+            </button>
+          </div>
+        }
+      >
+        <FilterField label="Search" wide>
+          <div className="relative">
+            <Search
+              size={16}
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
             />
-          </svg>
-          <h3 className="font-medium text-gray-900 dark:text-gray-100">Filters</h3>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((prev) => ({ ...prev, status: v }));
-              }}
-              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-            </select>
+            <Input
+              type="text"
+              placeholder="Search by name, roll, birth reg..."
+              value={filters.search}
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              className={`${filterInputClassName} pl-9`}
+            />
           </div>
+        </FilterField>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Class</label>
-            <select
-              value={filters.class}
-              onChange={(e) => setFilters((prev) => ({ ...prev, class: e.target.value }))}
-              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
-            >
-              {(() => {
-                const raw = filters.class_list || '';
-                let formList: string[] = [];
+        <FilterField label="Status">
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+            className={filterSelectClassName}
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+          </select>
+        </FilterField>
 
-                if (Array.isArray(raw)) {
-                  formList = raw;
-                } else if (typeof raw === 'string' && raw.trim()) {
-                  const rows = raw
-                    .split(/\r?\n/)
-                    .map((r) => r.trim())
+        <FilterField label="Class">
+          <select
+            value={filters.class}
+            onChange={(e) => setFilters((prev) => ({ ...prev, class: e.target.value }))}
+            className={filterSelectClassName}
+          >
+            {(() => {
+              const raw = settingsMeta.class_list || '';
+              let formList: string[] = [];
+
+              if (Array.isArray(raw)) {
+                formList = raw;
+              } else if (typeof raw === 'string' && raw.trim()) {
+                const rows = raw
+                  .split(/\r?\n/)
+                  .map((r) => r.trim())
+                  .filter(Boolean);
+
+                if (rows.length === 1) {
+                  formList = rows[0]
+                    .split(/[,;]+/)
+                    .map((s) => s.trim())
                     .filter(Boolean);
-
-                  if (rows.length === 1) {
-                    formList = rows[0]
-                      .split(/[,;]+/)
-                      .map((s) => s.trim())
-                      .filter(Boolean);
-                  } else {
-                    formList = rows
-                      .map((r) => {
-                        const cols = r
-                          .split(/[,;]+/)
-                          .map((c) => c.trim())
-                          .filter(Boolean);
-                        return cols.length ? cols[0] : null;
-                      })
-                      .filter((item): item is string => item !== null);
-                  }
+                } else {
+                  formList = rows
+                    .map((r) => {
+                      const cols = r
+                        .split(/[,;]+/)
+                        .map((c) => c.trim())
+                        .filter(Boolean);
+                      return cols.length ? cols[0] : null;
+                    })
+                    .filter((item): item is string => item !== null);
                 }
-                formList = Array.from(new Set(formList));
-
-                const allList = Array.from(
-                  new Set((items || []).map((a) => a.admission_class || '').filter(Boolean)),
-                ).sort();
-
-                return (
-                  <>
-                    <option value="">All Classes</option>
-                    {formList.map((cls) => (
-                      <option key={`form-${cls}`} value={cls}>
-                        {cls}
-                      </option>
-                    ))}
-
-                    {allList.filter((c) => !formList.includes(c)).length > 0 && (
-                      <optgroup
-                        label={`Other classes (${
-                          allList.filter((c) => !formList.includes(c)).length
-                        })`}
-                      >
-                        {allList
-                          .filter((c) => !formList.includes(c))
-                          .map((cls) => (
-                            <option key={`all-${cls}`} value={cls}>
-                              {cls}
-                            </option>
-                          ))}
-                      </optgroup>
-                    )}
-                  </>
-                );
-              })()}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Admission Year</label>
-            <select
-              value={filters.admission_year}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  admission_year: e.target.value,
-                }))
               }
-              className="dark:bg-accent border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2"
-            >
-              <option value="">All Years</option>
-              {(() => {
-                let currentYear = null;
-                if (filters && year) {
-                  const parsed = Number(year);
-                  currentYear = !isNaN(parsed) ? parsed : null;
-                }
-                if (!currentYear) currentYear = new Date().getFullYear();
+              formList = Array.from(new Set(formList));
 
-                const years = [];
-                for (let i = 0; i <= 5; i++) years.push(currentYear - i);
-                return years.map((y) => (
-                  <option key={y} value={String(y)}>
-                    {y}
-                  </option>
-                ));
-              })()}
-            </select>
-          </div>
+              const allList = Array.from(
+                new Set((items || []).map((a) => a.admission_class || '').filter(Boolean)),
+              ).sort();
 
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium">Search</label>
-            <div className="relative">
-              <svg
-                className="absolute top-2.5 left-3 h-4 w-4 text-gray-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M21 21l-4.35-4.35"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search by name, roll, birth reg, admission..."
-                value={filters.search}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setFilters((prev) => ({ ...prev, search: v }));
-                }}
-                className="dark:bg-accent text-input border-border focus:ring-primary/20 w-full rounded-lg border py-2 pr-3 pl-10 focus:border-blue-500 focus:ring-2"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+              return (
+                <>
+                  <option value="">All Classes</option>
+                  {formList.map((cls) => (
+                    <option key={`form-${cls}`} value={cls}>
+                      {cls}
+                    </option>
+                  ))}
+                  {allList.filter((c) => !formList.includes(c)).length > 0 && (
+                    <optgroup
+                      label={`Other classes (${
+                        allList.filter((c) => !formList.includes(c)).length
+                      })`}
+                    >
+                      {allList
+                        .filter((c) => !formList.includes(c))
+                        .map((cls) => (
+                          <option key={`all-${cls}`} value={cls}>
+                            {cls}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                </>
+              );
+            })()}
+          </select>
+        </FilterField>
+
+        <FilterField label="Admission Year">
+          <select
+            value={filters.admission_year}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                admission_year: e.target.value,
+              }))
+            }
+            className={filterSelectClassName}
+          >
+            <option value="">All Years</option>
+            {(() => {
+              let currentYear = null;
+              if (year) {
+                const parsed = Number(year);
+                currentYear = !isNaN(parsed) ? parsed : null;
+              }
+              if (!currentYear) currentYear = new Date().getFullYear();
+
+              const years = [];
+              for (let i = 0; i <= 5; i++) years.push(currentYear - i);
+              return years.map((y) => (
+                <option key={y} value={String(y)}>
+                  {y}
+                </option>
+              ));
+            })()}
+          </select>
+        </FilterField>
+      </FilterSelection>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
-          {error}
-        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
       )}
 
-      <div className="bg-card text-card-foreground border-border overflow-hidden rounded-xl border shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="border-border bg-card border-b px-6 py-4 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900 dark:text-gray-100">Admissions</h3>
-              <p className="text-muted-foreground mt-1 text-sm dark:text-gray-400">
-                Showing {filteredAdmissions.length} of {items.length} students
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleExport}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-700 dark:bg-blue-900/10 dark:text-blue-200"
-              >
-                <svg
-                  className="h-4 w-4 text-blue-700 dark:text-blue-200"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path
-                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M7 10l5-5 5 5"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path d="M12 5v12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Excel
-              </button>
-              <button
-                onClick={handleExportImages}
-                disabled={loading}
-                title="Export student images as ZIP"
-                className="bg-muted/50 border-border hover:bg-muted inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800/10 dark:text-gray-200"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M7 10l5-5 5 5"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Images
-              </button>
-            </div>
-          </div>
-        </div>
-
+      <SectionCard noPadding className="mb-0">
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-border border-b dark:border-gray-600 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-muted border-border border-b">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Student
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
+                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
                   Class
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
-                  Admission User ID
+                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                  User ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase dark:text-gray-200">
+                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-border divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex justify-center">
-                      <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 dark:border-blue-300"></div>
+                  <td colSpan={6} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="text-primary h-8 w-8 animate-spin" />
+                      <p className="text-muted-foreground text-sm">Loading admissions...</p>
                     </div>
                   </td>
                 </tr>
-              ) : filteredAdmissions.length === 0 ? (
+              ) : items.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="text-muted-foreground px-6 py-12 text-center dark:text-gray-400"
-                  >
+                  <td colSpan={6} className="text-muted-foreground py-12 text-center">
                     No admissions found
                   </td>
                 </tr>
               ) : (
-                filteredAdmissions.map((admission) => (
-                  <tr key={admission.id} className="hover:bg-muted/50 dark:hover:bg-gray-700">
+                items.map((admission) => (
+                  <tr key={admission.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        {admission.photo_path && (
+                        {admission.photo_path ? (
                           <img
-                            className="border-border h-10 w-10 rounded-full border object-cover dark:border-gray-600"
+                            className="border-border h-10 w-10 rounded-full border object-cover"
                             src={`${getFileUrl(admission.photo_path)}`}
                             alt=""
                           />
+                        ) : (
+                          <div className="bg-muted text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
+                            <Users size={18} />
+                          </div>
                         )}
                         <div>
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                          <div className="text-foreground font-medium">
                             {admission.student_name_en}
                           </div>
-                          <div className="text-muted-foreground text-sm dark:text-gray-400">
+                          <div className="text-muted-foreground text-sm">
                             {admission.student_name_bn}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                        Class {admission.admission_class || admission.section || '-'}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                        {admission.admission_class || admission.section || '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100">
-                        {admission.admission_user_id ||
-                          admission.roll ||
-                          admission.serial_no ||
-                          '-'}
-                      </span>
+                    <td className="text-muted-foreground px-6 py-4 text-center font-mono font-medium">
+                      {admission.admission_user_id || admission.roll || admission.serial_no || '-'}
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(admission.status)}</td>
-                    <td className="text-muted-foreground px-6 py-4 text-sm dark:text-gray-400">
-                      {formatDate(admission.created_at || admission.submission_date)}
+                    <td className="text-muted-foreground px-6 py-4 text-sm">
+                      {formatDateWithTime(admission.created_at || admission.submission_date || '')}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
+                      <div className="flex justify-end gap-2">
+                        <ActionButton
+                          action="view"
                           onClick={() => handleViewDetails(admission.id)}
-                          className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleEdit(admission.id)}
-                          className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => confirmDelete(admission)}
-                          className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
-                        >
-                          Delete
-                        </button>
+                        />
+                        <ActionButton action="edit" onClick={() => handleEdit(admission.id)} />
+                        <DeleteConfirmation onDelete={() => handleDelete(admission.id)} />
                       </div>
                     </td>
                   </tr>
@@ -778,78 +656,154 @@ function Admission() {
           </table>
         </div>
 
-        <div className="space-y-3 p-4 lg:hidden">
+        <div className="lg:hidden">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 dark:border-blue-300"></div>
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <Loader2 className="text-primary h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm">Loading admissions...</p>
             </div>
-          ) : filteredAdmissions.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center dark:text-gray-400">
+          ) : items.length === 0 ? (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
               No admissions found
             </p>
           ) : (
-            filteredAdmissions.map((admission) => (
-              <div
-                key={admission.id}
-                className="border-border rounded-lg border bg-white p-4 dark:border-gray-600 dark:bg-gray-800"
-              >
-                <div className="flex items-start gap-3">
-                  {admission.photo_path && (
-                    <img
-                      className="border-border h-12 w-12 shrink-0 rounded-full border object-cover dark:border-gray-600"
-                      src={`${getFileUrl(admission.photo_path)}`}
-                      alt=""
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {admission.student_name_en}
+            <ul className="-mx-0">
+              {items.map((admission) => (
+                <li
+                  key={admission.id}
+                  className="border-border space-y-3 border-b p-4 last:border-b-0"
+                >
+                  <div className="flex items-start gap-3">
+                    {admission.photo_path ? (
+                      <img
+                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
+                        src={`${getFileUrl(admission.photo_path)}`}
+                        alt=""
+                      />
+                    ) : (
+                      <div className="bg-muted text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
+                        <Users size={20} />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground font-medium">{admission.student_name_en}</div>
+                      <div className="text-muted-foreground text-sm">
+                        {admission.student_name_bn}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                          Class {admission.admission_class || admission.section || '-'}
+                        </span>
+                        <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-xs font-medium">
+                          {admission.admission_user_id ||
+                            admission.roll ||
+                            admission.serial_no ||
+                            '-'}
+                        </span>
+                        {getStatusBadge(admission.status)}
+                      </div>
+                      <p className="text-muted-foreground mt-2 text-sm">
+                        {formatDateWithTime(
+                          admission.created_at || admission.submission_date || '',
+                        )}
+                      </p>
                     </div>
-                    <div className="text-muted-foreground text-sm dark:text-gray-400">
-                      {admission.student_name_bn}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                        Class {admission.admission_class || admission.section || '-'}
-                      </span>
-                      <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100">
-                        {admission.admission_user_id ||
-                          admission.roll ||
-                          admission.serial_no ||
-                          '-'}
-                      </span>
-                      {getStatusBadge(admission.status)}
-                    </div>
-                    <p className="text-muted-foreground mt-2 text-sm dark:text-gray-400">
-                      {formatDate(admission.created_at || admission.submission_date)}
-                    </p>
                   </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    onClick={() => handleViewDetails(admission.id)}
-                    className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleEdit(admission.id)}
-                    className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => confirmDelete(admission)}
-                    className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+                  <div className="flex justify-end gap-2">
+                    <ActionButton action="view" onClick={() => handleViewDetails(admission.id)} />
+                    <ActionButton action="edit" onClick={() => handleEdit(admission.id)} />
+                    <DeleteConfirmation onDelete={() => handleDelete(admission.id)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-      </div>
+      </SectionCard>
+
+      <SectionCard>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-muted-foreground text-sm">
+            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
+            {meta?.total != null ? (
+              <span className="text-muted-foreground/80"> · {meta.total} total</span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-sm">Rows</span>
+              <select
+                className={filterSelectClassName}
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                {[50, 100, 200].map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(() => {
+              const totalPages = meta?.totalPages ?? 0;
+              const currentPage = page;
+              const maxVisible = 7;
+              if (totalPages <= 0) return null;
+              if (totalPages <= maxVisible) {
+                return Array.from({ length: totalPages }, (_, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    variant={i + 1 === currentPage ? 'default' : 'outline'}
+                    onClick={() => setPage(i + 1)}
+                    disabled={loading}
+                  >
+                    {i + 1}
+                  </Button>
+                ));
+              }
+              const pages: (number | string)[] = [];
+              const half = Math.floor(maxVisible / 2);
+              let start = Math.max(1, currentPage - half);
+              const end = Math.min(totalPages, start + maxVisible - 1);
+              if (end - start < maxVisible - 1) {
+                start = Math.max(1, end - maxVisible + 1);
+              }
+              if (start > 1) {
+                pages.push(1);
+                if (start > 2) pages.push('...');
+              }
+              for (let i = start; i <= end; i++) {
+                pages.push(i);
+              }
+              if (end < totalPages) {
+                if (end < totalPages - 1) pages.push('...');
+                pages.push(totalPages);
+              }
+              return pages.map((p, idx) =>
+                p === '...' ? (
+                  <span key={idx} className="text-muted-foreground px-2">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={idx}
+                    type="button"
+                    variant={p === currentPage ? 'default' : 'outline'}
+                    onClick={() => setPage(p as number)}
+                    disabled={loading}
+                  >
+                    {p}
+                  </Button>
+                ),
+              );
+            })()}
+          </div>
+        </div>
+      </SectionCard>
 
       {showModal && selectedAdmission && (
         <div
@@ -1322,7 +1276,7 @@ function Admission() {
                         <td className="bg-muted/50 px-4 py-2 font-medium">Submission Date:</td>
                         <td className="px-4 py-2">
                           {selectedAdmission.submission_date ? (
-                            formatDate(selectedAdmission.submission_date)
+                            formatDateWithTime(selectedAdmission.submission_date || '')
                           ) : (
                             <span className="text-gray-400">Not available</span>
                           )}
@@ -1430,59 +1384,6 @@ function Admission() {
               >
                 Update Status
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteModal && deleteTargetAdmission && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowDeleteModal(false);
-          }}
-        >
-          <div className="relative top-20 mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
-            <div className="mt-3 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                <svg
-                  className="h-6 w-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-              <h3 className="mt-2 text-lg leading-6 font-medium text-gray-900">Delete Admission</h3>
-              <div className="mt-2 px-7 py-3">
-                <p className="text-muted-foreground text-sm">
-                  Are you sure you want to delete the admission for{' '}
-                  <strong>{deleteTargetAdmission.student_name_en}</strong>? This action cannot be
-                  undone.
-                </p>
-              </div>
-              <div className="px-4 py-3">
-                <div className="flex justify-between">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="rounded-md bg-gray-300 px-4 py-2 text-base font-medium shadow-sm hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleDelete(deleteTargetAdmission.id)}
-                    className="rounded-md bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

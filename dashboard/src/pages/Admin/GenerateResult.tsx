@@ -1,20 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import {
-  Download,
-  Search,
-  Users,
-  Calendar,
-  GraduationCap,
-  Layers,
-  FileSpreadsheet,
-  RefreshCw,
-  Trophy,
-} from 'lucide-react';
+import { Download, Users, Calendar, FileSpreadsheet, RefreshCw, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { PageHeader, SectionCard } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components';
 import Loading from '@/components/Loading';
 import { motion } from 'framer-motion';
 import { useStudents } from '@/queries/students.queries';
@@ -130,7 +126,7 @@ const GenerateResult = () => {
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 overflow-hidden p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Generate & Manage Results"
         description="Automate merit ranking, generate promotional status, and download student marksheets."
@@ -219,82 +215,68 @@ const GenerateResult = () => {
         </SectionCard>
       </div>
 
-      <SectionCard title="Data Filters" icon={<Search className="h-5 w-5" />}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Calendar className="h-3 w-3" /> Year
-            </Label>
-            <select
-              value={year}
-              onChange={(e) => handleYearChange(e.target.value)}
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
-            >
-              {Array.from({ length: 5 }, (_, i) => (
-                <option key={i} value={currentYear - i}>
-                  {currentYear - i}
-                </option>
-              ))}
-            </select>
-          </div>
+      <FilterSelection>
+        <FilterField label="Year">
+          <select
+            value={year}
+            onChange={(e) => handleYearChange(e.target.value)}
+            className={filterSelectClassName}
+          >
+            {Array.from({ length: 5 }, (_, i) => (
+              <option key={i} value={currentYear - i}>
+                {currentYear - i}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <GraduationCap className="h-3 w-3" /> Class
-            </Label>
-            <select
-              value={selectedClass}
-              onChange={(e) => handleClassChange(e.target.value)}
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
-            >
-              <option value="">All Classes</option>
-              {[6, 7, 8, 9, 10].map((num) => (
-                <option key={num} value={num}>
-                  {num}
-                </option>
-              ))}
-            </select>
-          </div>
+        <FilterField label="Class">
+          <select
+            value={selectedClass}
+            onChange={(e) => handleClassChange(e.target.value)}
+            className={filterSelectClassName}
+          >
+            <option value="">All Classes</option>
+            {[6, 7, 8, 9, 10].map((num) => (
+              <option key={num} value={num}>
+                {num}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Users className="h-3 w-3" /> Section
-            </Label>
-            <select
-              value={classSection}
-              onChange={(e) => handleSectionChange(e.target.value)}
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
-              disabled={!selectedClass}
-            >
-              <option value="">All Sections</option>
-              {['A', 'B', 'C', 'D'].map((section) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))}
-            </select>
-          </div>
+        <FilterField label="Section">
+          <select
+            value={classSection}
+            onChange={(e) => handleSectionChange(e.target.value)}
+            className={filterSelectClassName}
+            disabled={!selectedClass}
+          >
+            <option value="">All Sections</option>
+            {['A', 'B', 'C', 'D'].map((section) => (
+              <option key={section} value={section}>
+                {section}
+              </option>
+            ))}
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Layers className="h-3 w-3" /> Group
-            </Label>
-            <select
-              value={group}
-              onChange={(e) => handleGroupChange(e.target.value)}
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
-              disabled={Number(selectedClass) < 9}
-            >
-              <option value="">All Groups</option>
-              {['Science', 'Humanities', 'Commerce'].map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </SectionCard>
+        <FilterField label="Group">
+          <select
+            value={group}
+            onChange={(e) => handleGroupChange(e.target.value)}
+            className={filterSelectClassName}
+            disabled={Number(selectedClass) < 9}
+          >
+            <option value="">All Groups</option>
+            {['Science', 'Humanities', 'Commerce'].map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </FilterSelection>
 
       <SectionCard
         noPadding

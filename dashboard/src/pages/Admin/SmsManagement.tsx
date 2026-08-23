@@ -45,7 +45,14 @@ import {
   calculateSMSCount,
   PHONE_NUMBER,
 } from '@school/shared-schemas';
-import { PageHeader, TabNav, SectionCard, StatsCard } from '@/components';
+import {
+  PageHeader,
+  TabNav,
+  SectionCard,
+  StatsCard,
+  FilterSelection,
+  FilterField,
+} from '@/components';
 import {
   BarChart,
   Bar,
@@ -1446,76 +1453,8 @@ function SmsManagement() {
             />
           </div>
 
-          <SectionCard title="Filters & Actions" icon={<Filter className="h-5 w-5" />}>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <Label
-                    htmlFor="status-filter"
-                    className="text-muted-foreground dark:text-slate-400"
-                  >
-                    Status
-                  </Label>
-                  <Select
-                    value={filters.status}
-                    onValueChange={(value) => handleFilterChange('status', value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label
-                    htmlFor="date-filter"
-                    className="text-muted-foreground dark:text-slate-400"
-                  >
-                    Date
-                  </Label>
-                  <div className="relative">
-                    <Calendar className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="date-filter"
-                      type="date"
-                      value={toDateInputValue(filters.date)}
-                      onChange={(e) => {
-                        handleFilterChange('date', formatIsoToDisplayDate(e.target.value));
-                      }}
-                      className="w-full cursor-pointer pl-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label
-                    htmlFor="limit-filter"
-                    className="text-muted-foreground dark:text-slate-400"
-                  >
-                    Per Page
-                  </Label>
-                  <Select
-                    value={filters.limit.toString()}
-                    onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
+          <FilterSelection
+            headerAction={
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   onClick={handleRetrySelected}
@@ -1554,8 +1493,56 @@ function SmsManagement() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-            </div>
-          </SectionCard>
+            }
+          >
+            <FilterField label="Status" htmlFor="status-filter">
+              <Select
+                value={filters.status}
+                onValueChange={(value) => handleFilterChange('status', value)}
+              >
+                <SelectTrigger id="status-filter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
+
+            <FilterField label="Date" htmlFor="date-filter">
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="date-filter"
+                  type="date"
+                  value={toDateInputValue(filters.date)}
+                  onChange={(e) => {
+                    handleFilterChange('date', formatIsoToDisplayDate(e.target.value));
+                  }}
+                  className="w-full cursor-pointer pl-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+                />
+              </div>
+            </FilterField>
+
+            <FilterField label="Per Page" htmlFor="limit-filter">
+              <Select
+                value={filters.limit.toString()}
+                onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
+              >
+                <SelectTrigger id="limit-filter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
+          </FilterSelection>
 
           <SectionCard
             title="SMS Logs"

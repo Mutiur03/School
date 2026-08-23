@@ -5,7 +5,14 @@ import { Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ErrorMessage from '@/components/ErrorMessage';
-import { PageHeader, SectionCard, StatsCard, Popup } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  Popup,
+  FilterSelection,
+  FilterField,
+} from '@/components';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { staffFormSchema, type StaffFormData, type StaffFormInput } from '@school/shared-schemas';
@@ -397,18 +404,20 @@ const StaffList = () => {
         />
       </div>
 
-      <SectionCard className="mb-6">
-        <div className="relative">
-          <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by name, phone, email or designation..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </div>
-      </SectionCard>
+      <FilterSelection className="mb-6">
+        <FilterField label="Search" wide>
+          <div className="relative">
+            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by name, phone, email or designation..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+        </FilterField>
+      </FilterSelection>
 
       <SectionCard noPadding className="mb-6">
         {/* Desktop table */}

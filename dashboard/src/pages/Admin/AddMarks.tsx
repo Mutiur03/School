@@ -3,7 +3,14 @@ import { useAuth } from '@/context/useAuth';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import ErrorMessage from '@/components/ErrorMessage';
-import { PageHeader, SectionCard, StatsCard } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components';
 import { Button } from '@/components/ui/button';
 import { useSubjects } from '@/queries/subject.queries';
 import { useExams } from '@/queries/exam.queries';
@@ -315,7 +322,7 @@ const AddMarks = () => {
         description="Enter and manage student marks for different examinations."
       />
 
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-4 lg:gap-6">
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:mb-6 sm:grid-cols-3 sm:gap-4 lg:gap-6">
         <StatsCard
           label="Selected Class"
           value={level ? `Class ${level}` : 'None'}
@@ -340,137 +347,129 @@ const AddMarks = () => {
         })}
         className="space-y-6"
       >
-        <SectionCard className="mb-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Academic Year</label>
-              <select
-                {...register('year', { required: true, valueAsNumber: true })}
-                className="bg-card border-border text-foreground focus:ring-primary/20 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                disabled={isLoadingExams}
-              >
-                {Array.from({ length: 10 }, (_, i) => (
-                  <option key={i} value={2020 + i}>
-                    {2020 + i}
-                  </option>
-                ))}
-              </select>
-              <ErrorMessage message={errors.year?.message} />
-            </div>
+        <FilterSelection className="mb-6">
+          <FilterField label="Academic Year">
+            <select
+              {...register('year', { required: true, valueAsNumber: true })}
+              className={filterSelectClassName}
+              disabled={isLoadingExams}
+            >
+              {Array.from({ length: 10 }, (_, i) => (
+                <option key={i} value={2020 + i}>
+                  {2020 + i}
+                </option>
+              ))}
+            </select>
+            <ErrorMessage message={errors.year?.message} />
+          </FilterField>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Examination</label>
-              <select
-                {...register('examName', { required: true })}
-                className="bg-card border-border text-foreground focus:ring-primary/20 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                disabled={!year || isLoadingExams}
-              >
-                <option value="">Select Exam</option>
-                {examList.map((exam, index) => (
-                  <option key={index} value={exam}>
-                    {exam}
-                  </option>
-                ))}
-              </select>
-              <ErrorMessage message={errors.examName?.message} />
-            </div>
+          <FilterField label="Examination">
+            <select
+              {...register('examName', { required: true })}
+              className={filterSelectClassName}
+              disabled={!year || isLoadingExams}
+            >
+              <option value="">Select Exam</option>
+              {examList.map((exam, index) => (
+                <option key={index} value={exam}>
+                  {exam}
+                </option>
+              ))}
+            </select>
+            <ErrorMessage message={errors.examName?.message} />
+          </FilterField>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Class/Grade</label>
-              <select
-                {...register('level', { required: true })}
-                className="bg-card border-border text-foreground focus:ring-primary/20 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                disabled={!examName || isLoadingExams}
-                value={level}
-              >
-                <option value="">Select Class</option>
-                {examName &&
-                  (classListMap[examName] || [])
-                    .slice()
-                    .sort((a, b) => a - b)
-                    .filter((cls) => {
-                      if (user?.role === 'admin') return true;
-                      if (user?.role === 'teacher') {
-                        return user.levels?.some(
-                          (l: { class_name: number; year: number }) =>
-                            l.class_name === Number(cls) && l.year === Number(year),
-                        );
-                      }
-                      return false;
-                    })
-                    .map((cls, index) => (
-                      <option key={index} value={cls}>
-                        Class {cls}
-                      </option>
-                    ))}
-              </select>
-              <ErrorMessage message={errors.level?.message} />
-            </div>
-
-            {Number(level) >= 9 && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Group</label>
-                <select
-                  {...register('group')}
-                  className="bg-card border-border text-foreground focus:ring-primary/20 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                  disabled={!level || isLoadingExams}
-                >
-                  {['', 'Science', 'Humanities', 'Commerce'].map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept ? dept : 'All Groups'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Section</label>
-              <select
-                {...register('section')}
-                className="bg-card border-border text-foreground focus:ring-primary/20 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-                disabled={!level || isLoadingExams}
-              >
-                <option value="">All Sections</option>
-                {sections
-                  .filter((sec) => {
+          <FilterField label="Class">
+            <select
+              {...register('level', { required: true })}
+              className={filterSelectClassName}
+              disabled={!examName || isLoadingExams}
+              value={level}
+            >
+              <option value="">Select Class</option>
+              {examName &&
+                (classListMap[examName] || [])
+                  .slice()
+                  .sort((a, b) => a - b)
+                  .filter((cls) => {
                     if (user?.role === 'admin') return true;
                     if (user?.role === 'teacher') {
                       return user.levels?.some(
-                        (l: { class_name: number; year: number; section: string }) =>
-                          l.class_name === Number(level) &&
-                          l.section === sec &&
-                          l.year === Number(year),
+                        (l: { class_name: number; year: number }) =>
+                          l.class_name === Number(cls) && l.year === Number(year),
                       );
                     }
                     return false;
                   })
-                  .map((sec) => (
-                    <option key={sec} value={sec}>
-                      Section {sec}
+                  .map((cls, index) => (
+                    <option key={index} value={cls}>
+                      Class {cls}
                     </option>
                   ))}
-              </select>
-            </div>
+            </select>
+            <ErrorMessage message={errors.level?.message} />
+          </FilterField>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Subject</label>
+          {Number(level) >= 9 && (
+            <FilterField label="Group">
               <select
-                {...register('specific', { valueAsNumber: true })}
-                className="bg-card border-border text-foreground focus:ring-primary/20 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                {...register('group')}
+                className={filterSelectClassName}
                 disabled={!level || isLoadingExams}
               >
-                <option value="0">Select Subject</option>
-                {examName &&
-                  subjectsForClass.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
+                {['', 'Science', 'Humanities', 'Commerce'].map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept ? dept : 'All Groups'}
+                  </option>
+                ))}
               </select>
-            </div>
-          </div>
-        </SectionCard>
+            </FilterField>
+          )}
+
+          <FilterField label="Section">
+            <select
+              {...register('section')}
+              className={filterSelectClassName}
+              disabled={!level || isLoadingExams}
+            >
+              <option value="">Select Section</option>
+              {sections
+                .filter((sec) => {
+                  if (user?.role === 'admin') return true;
+                  if (user?.role === 'teacher') {
+                    return user.levels?.some(
+                      (l: { class_name: number; year: number; section: string }) =>
+                        l.class_name === Number(level) &&
+                        l.section === sec &&
+                        l.year === Number(year),
+                    );
+                  }
+                  return false;
+                })
+                .map((sec) => (
+                  <option key={sec} value={sec}>
+                    Section {sec}
+                  </option>
+                ))}
+            </select>
+          </FilterField>
+
+          <FilterField label="Subject">
+            <select
+              {...register('specific', { valueAsNumber: true })}
+              className={filterSelectClassName}
+              disabled={!level || isLoadingExams}
+            >
+              <option value="0">Select Subject</option>
+              {examName &&
+                subjectsForClass.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
+                  </option>
+                ))}
+            </select>
+          </FilterField>
+        </FilterSelection>
 
         {isLoading ? (
           <SectionCard className="flex h-40 flex-col items-center justify-center sm:h-64">

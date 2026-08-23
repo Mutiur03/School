@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import Loading from '@/components/Loading';
+import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Loading, PageHeader, SectionCard } from '@/components';
+import { Button } from '@/components/ui/button';
 import { openBlobInNewTab } from '@school/common-ui/blob';
 
 interface ExamMarks {
@@ -63,8 +65,29 @@ function ShowMarkSheet() {
     }
   };
 
+  const examNames =
+    marksheet && marksheet.length > 0 && marksheet[0]?.exam_marks
+      ? Object.keys(marksheet[0].exam_marks)
+      : [];
+
   return (
-    <div className="font-outfit mx-auto max-w-4xl p-4">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Academic Marksheet"
+        description="Preview student marks and download the official PDF."
+      >
+        {marksheet && marksheet.length > 0 && (
+          <Button onClick={handleDownloadPDF} disabled={pdfLoading}>
+            {pdfLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {pdfLoading ? 'Downloading...' : 'Download PDF'}
+          </Button>
+        )}
+      </PageHeader>
+
       {loading ? (
         <div className="flex h-64 flex-col items-center justify-center">
           <Loading />
@@ -74,19 +97,18 @@ function ShowMarkSheet() {
           <p className="text-destructive text-center">{error}</p>
         </div>
       ) : marksheet && marksheet.length > 0 ? (
-        <div className="bg-card text-card-foreground border-border rounded-lg border p-6 shadow-lg">
+        <SectionCard icon={<FileSpreadsheet size={20} />}>
           <div className="mb-6 text-center">
-            <h1 className="text-primary text-2xl font-bold">
+            <h2 className="text-primary text-xl font-bold sm:text-2xl">
               Panchbibi Lal Bihari Pilot Govt. High School
-            </h1>
-            <h3 className="text-muted-foreground">Panchbibi, Joypurhat</h3>
-            <div className="border-border my-4 border-t"></div>
-            <h2 className="text-xl font-semibold">Academic Marksheet</h2>
+            </h2>
+            <h3 className="text-muted-foreground text-sm">Panchbibi, Joypurhat</h3>
+            <div className="border-border my-4 border-t" />
+            <p className="text-lg font-semibold">Academic Marksheet</p>
           </div>
 
-          {/* Student Info */}
-          <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg p-4 md:grid-cols-2">
-            <div>
+          <div className="bg-muted/40 mb-6 grid grid-cols-1 gap-4 rounded-lg p-4 md:grid-cols-2">
+            <div className="space-y-1">
               <p className="font-medium">
                 <span className="text-muted-foreground">Name:</span>{' '}
                 <span className="text-foreground">{marksheet[0]?.student_name || 'N/A'}</span>
@@ -96,7 +118,7 @@ function ShowMarkSheet() {
                 <span className="text-foreground">{marksheet[0]?.roll || 'N/A'}</span>
               </p>
             </div>
-            <div>
+            <div className="space-y-1">
               <p className="font-medium">
                 <span className="text-muted-foreground">Class:</span>{' '}
                 <span className="text-foreground">{marksheet[0]?.class || 'N/A'}</span>
@@ -112,7 +134,6 @@ function ShowMarkSheet() {
             </div>
           </div>
 
-          {/* Merit Display */}
           {marksheet[0]?.final_merit && (
             <div className="mb-6 text-center">
               <span className="bg-primary/10 text-primary inline-block rounded-full px-4 py-2 font-semibold">
@@ -121,20 +142,19 @@ function ShowMarkSheet() {
             </div>
           )}
 
-          {/* Marks Table */}
-          <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-            <table className="border-input w-full min-w-[320px] border-collapse overflow-hidden rounded-lg border">
+          {/* Desktop / print-friendly table */}
+          <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block print:block">
+            <table className="border-input w-full min-w-[320px] border-collapse rounded-lg border">
               <thead className="bg-popover border-b border-gray-400">
                 <tr className="bg-popover">
                   <th className="bg-popover sticky left-0 z-20 border-r px-3 py-3 text-center font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:px-4">
                     Subject
                   </th>
-                  {marksheet[0]?.exam_marks &&
-                    Object.keys(marksheet[0].exam_marks).map((exam) => (
-                      <th key={exam} className="px-4 py-3 text-center font-semibold">
-                        {exam}
-                      </th>
-                    ))}
+                  {examNames.map((exam) => (
+                    <th key={exam} className="px-4 py-3 text-center font-semibold">
+                      {exam}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-400">
@@ -165,68 +185,51 @@ function ShowMarkSheet() {
             </table>
           </div>
 
-          {/* Footer */}
-          <div className="border-border mt-8 flex justify-end border-t pt-4">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={pdfLoading}
-              className={`rounded-md px-6 py-2 font-medium transition-colors ${
-                pdfLoading
-                  ? 'bg-primary/80 cursor-not-allowed'
-                  : 'bg-primary hover:bg-ring text-primary-foreground'
-              } flex items-center gap-2`}
-            >
-              {pdfLoading ? (
-                <>
-                  <svg
-                    className="h-5 w-5 animate-spin"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                  Download as PDF
-                </>
-              )}
-            </button>
+          {/* Mobile stacked view — screen only, does not affect print layout */}
+          <div className="space-y-3 lg:hidden print:hidden">
+            {marksheet.map((entry, index) => (
+              <div key={index} className="bg-muted/40 space-y-2 rounded-lg border p-3">
+                <p className="font-semibold">{entry.subject}</p>
+                <dl className="grid grid-cols-2 gap-2 text-sm">
+                  {Object.entries(entry.exam_marks || {}).map(([exam, marks]) => (
+                    <div key={exam}>
+                      <dt className="text-muted-foreground text-xs">{exam}</dt>
+                      <dd className="font-medium tabular-nums">{marks}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+            {marksheet[0]?.total_marks_per_exam && (
+              <div className="bg-muted/40 space-y-2 rounded-lg border p-3 font-semibold">
+                <p>Total</p>
+                <dl className="grid grid-cols-2 gap-2 text-sm">
+                  {Object.entries(marksheet[0].total_marks_per_exam).map(([exam, marks]) => (
+                    <div key={exam}>
+                      <dt className="text-muted-foreground text-xs font-normal">{exam}</dt>
+                      <dd className="tabular-nums">{marks}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
           </div>
-        </div>
+
+          <div className="border-border mt-8 flex justify-end border-t pt-4 lg:hidden print:hidden">
+            <Button onClick={handleDownloadPDF} disabled={pdfLoading}>
+              {pdfLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {pdfLoading ? 'Downloading...' : 'Download as PDF'}
+            </Button>
+          </div>
+        </SectionCard>
       ) : (
-        <div className="bg-card border-border rounded-lg border p-6 text-center shadow">
-          <p className="text-muted-foreground">No marksheet data available.</p>
-        </div>
+        <SectionCard>
+          <p className="text-muted-foreground text-center">No marksheet data available.</p>
+        </SectionCard>
       )}
     </div>
   );

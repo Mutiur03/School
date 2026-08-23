@@ -6,18 +6,19 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import {
-  FiChevronLeft,
-  FiChevronRight,
-  FiX,
-  FiTrash2,
-  FiCalendar,
-  FiTag,
-  FiCheck,
-  FiClock,
-  FiAlertCircle,
-  FiChevronDown,
-  FiChevronUp,
-} from 'react-icons/fi';
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Trash2,
+  Calendar,
+  Tag,
+  Check,
+  Clock,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { PageHeader } from '@/components';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
@@ -204,15 +205,15 @@ export default function PendingGalleries() {
     return (
       <div key={groupKey} className="mb-8">
         <motion.div
-          className="bg-muted flex cursor-pointer items-center justify-between rounded-lg p-4 dark:bg-gray-800"
+          className="bg-muted/40 flex cursor-pointer items-center justify-between rounded-lg p-4 dark:bg-gray-800"
           onClick={() => toggleFoldCategory(title)}
         >
           <div className="flex items-center gap-4">
             <motion.div animate={{ rotate: isFolded ? 0 : 180 }} transition={{ duration: 0.2 }}>
-              <FiChevronDown className="text-muted-foreground dark:text-gray-300" />
+              <ChevronDown className="text-muted-foreground dark:text-gray-300" />
             </motion.div>
             <motion.h2 className="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-gray-100">
-              <FiClock className="text-yellow-500" />
+              <Clock className="text-yellow-500" />
               {title} <span className="text-muted-foreground text-sm">({images.length})</span>
             </motion.h2>
           </div>
@@ -226,7 +227,7 @@ export default function PendingGalleries() {
                 handleRejectAll(images);
               }}
             >
-              <FiTrash2 className="mr-1" />
+              <Trash2 className="mr-1" />
               Reject All
             </Button>
             <Badge
@@ -304,55 +305,53 @@ export default function PendingGalleries() {
   const hasCategories = Object.keys(groupedGalleries.categories).length > 0;
   const hasAnyPending = hasEvents || hasCategories;
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {dialog}
-      <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-center text-3xl font-bold md:text-left md:text-4xl">
-          Pending Gallery Approvals
-        </h1>
-        <div className="flex w-full justify-center gap-3 md:w-auto md:justify-end">
-          {hasAnyPending && (
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => {
-                const totalCategories = [
+      <PageHeader
+        title="Pending Gallery Approvals"
+        description="Review and approve or reject student gallery submissions."
+      >
+        {hasAnyPending && (
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => {
+              const totalCategories = [
+                ...Object.keys(groupedGalleries.events),
+                ...Object.keys(groupedGalleries.categories),
+              ].length;
+
+              const currentlyFolded = Object.values(foldedCategories).filter(Boolean).length;
+
+              if (currentlyFolded < totalCategories) {
+                const allFolded: Record<string, boolean> = {};
+                [
                   ...Object.keys(groupedGalleries.events),
                   ...Object.keys(groupedGalleries.categories),
-                ].length;
-
-                const currentlyFolded = Object.values(foldedCategories).filter(Boolean).length;
-
-                if (currentlyFolded < totalCategories) {
-                  const allFolded: Record<string, boolean> = {};
-                  [
-                    ...Object.keys(groupedGalleries.events),
-                    ...Object.keys(groupedGalleries.categories),
-                  ].forEach((title) => {
-                    allFolded[title] = true;
-                  });
-                  setFoldedCategories(allFolded);
-                } else {
-                  setFoldedCategories({});
-                }
-              }}
-            >
-              {Object.values(foldedCategories).length > 0 &&
-              Object.values(foldedCategories).every((v) => v) ? (
-                <>
-                  <FiChevronDown className="transition-transform" />
-                  Show All
-                </>
-              ) : (
-                <>
-                  <FiChevronUp className="transition-transform" />
-                  Hide All
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
+                ].forEach((title) => {
+                  allFolded[title] = true;
+                });
+                setFoldedCategories(allFolded);
+              } else {
+                setFoldedCategories({});
+              }
+            }}
+          >
+            {Object.values(foldedCategories).length > 0 &&
+            Object.values(foldedCategories).every((v) => v) ? (
+              <>
+                <ChevronDown className="transition-transform" />
+                Show All
+              </>
+            ) : (
+              <>
+                <ChevronUp className="transition-transform" />
+                Hide All
+              </>
+            )}
+          </Button>
+        )}
+      </PageHeader>
 
       <div className="space-y-16">
         {isLoading ? (
@@ -365,7 +364,7 @@ export default function PendingGalleries() {
               transition={{ delay: 0.2 }}
             >
               <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <FiCalendar className="text-yellow-500" />
+                <Calendar className="text-yellow-500" />
                 Event Submissions
               </h1>
               {Object.entries(groupedGalleries.events).map(([title, images]) =>
@@ -379,7 +378,7 @@ export default function PendingGalleries() {
               transition={{ delay: 0.4 }}
             >
               <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <FiTag className="text-yellow-500" />
+                <Tag className="text-yellow-500" />
                 Category Submissions
               </h1>
               {Object.entries(groupedGalleries.categories).map(([title, images]) =>
@@ -394,7 +393,7 @@ export default function PendingGalleries() {
             className="flex flex-col items-center justify-center py-12 text-center"
           >
             <div className="relative mb-6">
-              <FiAlertCircle className="h-12 w-12 text-yellow-500" />
+              <AlertCircle className="h-12 w-12 text-yellow-500" />
             </div>
             <h3 className="mb-2 text-lg font-medium md:text-xl">No pending approvals</h3>
             <p className="text-muted-foreground max-w-md text-sm md:text-base">
@@ -424,13 +423,13 @@ export default function PendingGalleries() {
                       className="absolute top-1/2 left-2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:left-4 md:p-3"
                       onClick={() => navigateImage(-1)}
                     >
-                      <FiChevronLeft size={20} />
+                      <ChevronLeft size={20} />
                     </button>
                     <button
                       className="absolute top-1/2 right-2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:right-4 md:p-3"
                       onClick={() => navigateImage(1)}
                     >
-                      <FiChevronRight size={20} />
+                      <ChevronRight size={20} />
                     </button>
                   </>
                 )}
@@ -442,7 +441,7 @@ export default function PendingGalleries() {
                     setDirection(0);
                   }}
                 >
-                  <FiX size={20} />
+                  <X size={20} />
                 </button>
                 <div className="bg-card relative flex h-full w-full items-center justify-center">
                   <AnimatePresence custom={direction}>
@@ -492,10 +491,10 @@ export default function PendingGalleries() {
                               variant="destructive"
                               onClick={() => handleReject(selectedGroup[currentIndex].id)}
                             >
-                              <FiX className="mr-2" /> Reject
+                              <X className="mr-2" /> Reject
                             </Button>
                             <Button onClick={() => handleApprove(selectedGroup[currentIndex].id)}>
-                              <FiCheck className="mr-2" /> Approve
+                              <Check className="mr-2" /> Approve
                             </Button>
                           </div>
                         </div>

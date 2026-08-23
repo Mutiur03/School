@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'react-hot-toast';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import { format } from 'date-fns';
 import { getFileUrl } from '@/lib/backend';
+import { Calendar } from 'lucide-react';
+import { PageHeader, SectionCard } from '@/components';
 import {
   useEvents,
   useAddEvent,
@@ -133,184 +134,177 @@ const Events: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto mt-10 max-w-6xl px-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Events</h1>
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <PageHeader title="Events" description="Create and manage school events.">
         {!showForm && (
-          <Button
-            onClick={() => setShowForm((prev) => !prev)}
-            className={`bg-primary hover:bg-opacity-90 rounded-md px-4 py-2 text-white`}
-          >
+          <Button type="button" onClick={() => setShowForm((prev) => !prev)}>
             + Create Event
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {(showForm || isEditing) && (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle>{isEditing ? 'Edit Event' : 'Upload Event'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <SectionCard
+          title={isEditing ? 'Edit Event' : 'Upload Event'}
+          icon={<Calendar size={20} />}
+          className="mb-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="title">
+                Event Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
+                name="title"
+                placeholder="Enter event title"
+                value={formValues.title}
+                onChange={(e) => setFormValues({ ...formValues, title: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="details">
+                Event Details <span className="font-normal text-gray-400">(Optional)</span>
+              </Label>
+              <Textarea
+                id="details"
+                name="details"
+                placeholder="Enter detailed event text"
+                maxLength={100}
+                value={formValues.details}
+                onChange={(e) => setFormValues({ ...formValues, details: e.target.value })}
+                className="resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-1">
-                <Label htmlFor="title">
-                  Event Title <span className="text-red-500">*</span>
+                <Label htmlFor="file">
+                  Upload PDF Notice <span className="font-normal text-gray-400">(Optional)</span>
                 </Label>
                 <Input
-                  id="title"
-                  name="title"
-                  placeholder="Enter event title"
-                  value={formValues.title}
-                  onChange={(e) => setFormValues({ ...formValues, title: e.target.value })}
-                  required
+                  id="file"
+                  type="file"
+                  name="file"
+                  accept=".pdf"
+                  ref={fileref}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      file: e.target.files?.[0] || null,
+                    })
+                  }
                 />
+                {formValues.file && (
+                  <p className="text-muted-foreground text-sm">
+                    {formValues.file instanceof File
+                      ? 'Selected file: ' + formValues.file.name.slice(0, 20) + '...'
+                      : 'Uploaded file: ' + (formValues.file as string).slice(0, 20) + '...'}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="details">
-                  Event Details <span className="font-normal text-gray-400">(Optional)</span>
+                <Label htmlFor="image">
+                  Upload Photo <span className="font-normal text-gray-400">(Optional)</span>
                 </Label>
-                <Textarea
-                  id="details"
-                  name="details"
-                  placeholder="Enter detailed event text"
-                  maxLength={100}
-                  value={formValues.details}
-                  onChange={(e) => setFormValues({ ...formValues, details: e.target.value })}
-                  className="resize-none"
+                <Input
+                  id="image"
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  ref={imageref}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      image: e.target.files?.[0] || null,
+                    })
+                  }
+                />
+                {formValues.image && (
+                  <p className="text-muted-foreground text-sm">
+                    {formValues.image instanceof File
+                      ? 'Selected file: ' + formValues.image.name.slice(0, 20) + '...'
+                      : 'Uploaded file: ' + (formValues.image as string).slice(0, 20) + '...'}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="date">
+                  Event Date <span className="text-red-500">*</span>
+                </Label>
+                <input
+                  id="date"
+                  type="date"
+                  name="date"
+                  required
+                  value={(() => {
+                    const d = formValues.date;
+                    if (!d) return '';
+                    // DB stores as MM-DD-YYYY (from en-US toLocaleDateString)
+                    const mmddyyyy = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                    if (mmddyyyy) return `${mmddyyyy[3]}-${mmddyyyy[1]}-${mmddyyyy[2]}`;
+                    // ISO format fallback
+                    return d.slice(0, 10);
+                  })()}
+                  onChange={(e) => {
+                    setFormValues({ ...formValues, date: e.target.value || null });
+                    setDateError(null);
+                  }}
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                />
+                {dateError && <p className="text-sm text-red-500">{dateError}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="location">
+                  Event Location <span className="font-normal text-gray-400">(Optional)</span>
+                </Label>
+                <Input
+                  id="location"
+                  name="location"
+                  placeholder="Enter event location"
+                  value={formValues.location}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      location: e.target.value,
+                    })
+                  }
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="file">
-                    Upload PDF Notice <span className="font-normal text-gray-400">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="file"
-                    type="file"
-                    name="file"
-                    accept=".pdf"
-                    ref={fileref}
-                    onChange={(e) =>
-                      setFormValues({
-                        ...formValues,
-                        file: e.target.files?.[0] || null,
-                      })
-                    }
-                  />
-                  {formValues.file && (
-                    <p className="text-muted-foreground text-sm">
-                      {formValues.file instanceof File
-                        ? 'Selected file: ' + formValues.file.name.slice(0, 20) + '...'
-                        : 'Uploaded file: ' + (formValues.file as string).slice(0, 20) + '...'}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="image">
-                    Upload Photo <span className="font-normal text-gray-400">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="image"
-                    type="file"
-                    name="image"
-                    accept="image/*"
-                    ref={imageref}
-                    onChange={(e) =>
-                      setFormValues({
-                        ...formValues,
-                        image: e.target.files?.[0] || null,
-                      })
-                    }
-                  />
-                  {formValues.image && (
-                    <p className="text-muted-foreground text-sm">
-                      {formValues.image instanceof File
-                        ? 'Selected file: ' + formValues.image.name.slice(0, 20) + '...'
-                        : 'Uploaded file: ' + (formValues.image as string).slice(0, 20) + '...'}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="date">
-                    Event Date <span className="text-red-500">*</span>
-                  </Label>
-                  <input
-                    id="date"
-                    type="date"
-                    name="date"
-                    required
-                    value={(() => {
-                      const d = formValues.date;
-                      if (!d) return '';
-                      // DB stores as MM-DD-YYYY (from en-US toLocaleDateString)
-                      const mmddyyyy = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-                      if (mmddyyyy) return `${mmddyyyy[3]}-${mmddyyyy[1]}-${mmddyyyy[2]}`;
-                      // ISO format fallback
-                      return d.slice(0, 10);
-                    })()}
-                    onChange={(e) => {
-                      setFormValues({ ...formValues, date: e.target.value || null });
-                      setDateError(null);
-                    }}
-                    className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                  />
-                  {dateError && <p className="text-sm text-red-500">{dateError}</p>}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="location">
-                    Event Location <span className="font-normal text-gray-400">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    placeholder="Enter event location"
-                    value={formValues.location}
-                    onChange={(e) =>
-                      setFormValues({
-                        ...formValues,
-                        location: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              <div className="flex justify-between gap-4">
-                <Button variant="outline" type="button" onClick={handleCancel}>
-                  {isEditing ? 'Cancel Update' : 'Cancel'}
-                </Button>
-                <Button type="submit" disabled={submitting} className="">
-                  {submitting
-                    ? isEditing
-                      ? 'Updating...'
-                      : 'Creating...'
-                    : isEditing
-                      ? 'Update Event'
-                      : 'Create Event'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
+            <div className="flex justify-between gap-4">
+              <Button variant="outline" type="button" onClick={handleCancel}>
+                {isEditing ? 'Cancel Update' : 'Cancel'}
+              </Button>
+              <Button type="submit" disabled={submitting} className="">
+                {submitting
+                  ? isEditing
+                    ? 'Updating...'
+                    : 'Creating...'
+                  : isEditing
+                    ? 'Update Event'
+                    : 'Create Event'}
+              </Button>
+            </div>
+          </form>
+        </SectionCard>
       )}
       {isLoading ? (
-        <div className="mx-auto mt-10 max-w-6xl px-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="bg-card animate-pulse overflow-hidden rounded-lg text-center shadow-md transition-shadow hover:shadow-lg"
-              >
-                <div className="relative h-40 bg-gray-300"></div>
-                <div className="p-4">
-                  <div className="mb-2 h-4 rounded bg-gray-300"></div>
-                  <div className="mx-auto h-3 w-1/2 rounded bg-gray-300"></div>
-                </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="bg-card border-border animate-pulse overflow-hidden rounded-xl border text-center shadow-sm"
+            >
+              <div className="relative h-40 bg-gray-300"></div>
+              <div className="p-4">
+                <div className="mb-2 h-4 rounded bg-gray-300"></div>
+                <div className="mx-auto h-3 w-1/2 rounded bg-gray-300"></div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -318,7 +312,7 @@ const Events: React.FC = () => {
             events.map((event) => (
               <div
                 key={event.id}
-                className="bg-card overflow-hidden rounded-lg text-center shadow-md transition-shadow hover:shadow-lg"
+                className="bg-card border-border overflow-hidden rounded-xl border text-center shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="relative h-40">
                   <img

@@ -77,7 +77,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
   return (
     <nav
       ref={ref}
-      className="navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between gap-2 border-b px-3 shadow-md backdrop-blur-xl sm:px-5"
+      className="navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between gap-2 border-b px-3 shadow-sm backdrop-blur-xl sm:px-5"
     >
       <ConfirmationPopup
         open={leaveOpen}
@@ -111,7 +111,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           onClick={(e) => {
             if (!requestLeave(e, '/admin')) return;
           }}
-          className="flex items-center text-xl text-nowrap"
+          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
         >
           Admin
         </Link>
@@ -122,7 +122,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           onClick={(e) => {
             if (!requestLeave(e, '/super_admin')) return;
           }}
-          className="flex items-center text-xl text-nowrap"
+          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
         >
           Super Admin
         </Link>
@@ -133,9 +133,10 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           onClick={(e) => {
             if (!requestLeave(e, '/teacher')) return;
           }}
-          className="flex items-center text-xl text-nowrap"
+          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
         >
-          Teacher&apos;s Dashboard
+          <span className="sm:hidden">Teacher</span>
+          <span className="hidden sm:inline">Teacher&apos;s Dashboard</span>
         </Link>
       )}
       {user && user.role === 'student' && (
@@ -144,12 +145,13 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
           onClick={(e) => {
             if (!requestLeave(e, '/student')) return;
           }}
-          className="flex items-center text-xl text-nowrap"
+          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
         >
-          Student&apos;s Dashboard
+          <span className="sm:hidden">Student</span>
+          <span className="hidden sm:inline">Student&apos;s Dashboard</span>
         </Link>
       )}
-      <div className="flex items-center justify-between">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {user &&
           user.role === 'teacher' &&
           (user?.image ? (

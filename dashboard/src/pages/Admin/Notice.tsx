@@ -3,8 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { FiSearch, FiFileText, FiCalendar, FiExternalLink, FiX, FiPlus } from 'react-icons/fi';
-import { Loader2, Inbox, List as ListIcon } from 'lucide-react';
+import {
+  Loader2,
+  Inbox,
+  List as ListIcon,
+  Search,
+  FileText,
+  Calendar,
+  ExternalLink,
+  X,
+  Plus,
+} from 'lucide-react';
 import {
   Loading,
   PageHeader,
@@ -142,11 +151,11 @@ const NoticeUploadPage = () => {
         >
           {showForm ? (
             <>
-              <FiX className="h-4 w-4" /> Cancel
+              <X className="h-4 w-4" /> Cancel
             </>
           ) : (
             <>
-              <FiPlus className="h-4 w-4" /> Publish Notice
+              <Plus className="h-4 w-4" /> Publish Notice
             </>
           )}
         </Button>
@@ -157,7 +166,7 @@ const NoticeUploadPage = () => {
           label="Total Notices"
           value={notices.length}
           loading={isLoading}
-          icon={<FiFileText className="text-primary h-5 w-5" />}
+          icon={<FileText className="text-primary h-5 w-5" />}
           color="blue"
         />
       </div>
@@ -249,14 +258,14 @@ const NoticeUploadPage = () => {
                             rel="noopener noreferrer"
                             className="group hover:bg-primary/5 mr-2 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors"
                           >
-                            <FiFileText className="group-hover:text-primary h-5 w-5 text-slate-400 transition-colors" />
+                            <FileText className="group-hover:text-primary h-5 w-5 text-slate-400 transition-colors" />
                             <span className="group-hover:text-primary hidden text-sm font-bold text-slate-600 transition-colors sm:inline dark:text-slate-400">
                               Current Notice
                             </span>
                           </a>
                         ) : (
                           <div className="pr-4">
-                            <FiFileText className="h-5 w-5 text-slate-400" />
+                            <FileText className="h-5 w-5 text-slate-400" />
                           </div>
                         )}
                       </div>
@@ -304,7 +313,7 @@ const NoticeUploadPage = () => {
         noPadding
         headerAction={
           <div className="relative w-full max-w-sm">
-            <FiSearch className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               type="text"
               placeholder="Search notices..."
@@ -363,7 +372,7 @@ const NoticeUploadPage = () => {
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3">
                           <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-110">
-                            <FiFileText size={18} />
+                            <FileText size={18} />
                           </div>
                           <span
                             className="group-hover:text-primary max-w-md truncate font-bold text-gray-900 transition-colors dark:text-white"
@@ -375,7 +384,7 @@ const NoticeUploadPage = () => {
                       </td>
                       <td className="p-4">
                         <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                          <FiCalendar className="h-4 w-4" />
+                          <Calendar className="h-4 w-4" />
                           {notice.created_at.split('T')[0]}
                         </div>
                       </td>
@@ -429,14 +438,14 @@ const NoticeUploadPage = () => {
                   >
                     <div className="flex items-start gap-3">
                       <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                        <FiFileText size={20} />
+                        <FileText size={20} />
                       </div>
                       <div className="flex-1 space-y-1">
                         <h4 className="line-clamp-2 text-sm leading-snug font-bold">
                           {notice.title}
                         </h4>
                         <div className="text-muted-foreground flex items-center gap-2 text-[10px] font-medium tracking-wider uppercase">
-                          <FiCalendar className="h-3 w-3" />
+                          <Calendar className="h-3 w-3" />
                           {notice.created_at.split('T')[0]}
                         </div>
                       </div>
@@ -472,7 +481,7 @@ const NoticeUploadPage = () => {
                         rel="noopener noreferrer"
                         className="text-primary flex items-center gap-1 text-[10px] font-bold tracking-tight uppercase hover:underline"
                       >
-                        DIRECT Link <FiExternalLink size={10} />
+                        DIRECT Link <ExternalLink size={10} />
                       </a>
                     </div>
                   </motion.div>

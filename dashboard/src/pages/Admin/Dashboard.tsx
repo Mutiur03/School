@@ -11,7 +11,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Users, UserCheck, Calendar, Bell, GraduationCap, ClipboardList } from 'lucide-react';
-import { PageHeader, SectionCard, StatsCard } from '@/components';
+import { PageHeader, SectionCard, StatsCard, TabNav } from '@/components';
+import type { TabItem } from '@/components';
+import { Button } from '@/components/ui/button';
 import { getFileUrl } from '@/lib/backend';
 import {
   ATTENDANCE_RANGES,
@@ -19,12 +21,6 @@ import {
   useDashboardAttendance,
   useDashboardOverview,
 } from '@/queries/dashboard.queries';
-
-interface Tab {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-}
 
 const COLORS = {
   present: '#3b82f6', // Blue
@@ -59,7 +55,7 @@ function Dashboard() {
   const events = dashboardData?.events ?? [];
   const examSchedule = dashboardData?.examSchedule ?? [];
 
-  const tabs: Tab[] = [
+  const tabs: TabItem[] = [
     {
       id: 'overview',
       label: 'Overview',
@@ -85,19 +81,17 @@ function Dashboard() {
 
   if (overviewPending) {
     return (
-      <div className="min-h-screen animate-pulse p-4 text-gray-500 sm:p-6 lg:p-8">
-        <div className="mx-auto max-w-7xl space-y-8">
-          <div className="bg-muted h-12 w-64 rounded-lg"></div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-muted h-32 rounded-xl"></div>
-            ))}
-          </div>
-          <div className="bg-muted h-10 w-full max-w-md rounded-lg"></div>
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <div className="bg-muted h-96 rounded-xl"></div>
-            <div className="bg-muted h-96 rounded-xl"></div>
-          </div>
+      <div className="mx-auto max-w-7xl animate-pulse space-y-8 p-4 text-gray-500 sm:p-6 lg:p-8">
+        <div className="bg-muted h-12 w-64 rounded-lg"></div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-muted h-32 rounded-xl"></div>
+          ))}
+        </div>
+        <div className="bg-muted h-10 w-full max-w-md rounded-lg"></div>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="bg-muted h-96 rounded-xl"></div>
+          <div className="bg-muted h-96 rounded-xl"></div>
         </div>
       </div>
     );
@@ -113,12 +107,9 @@ function Dashboard() {
           <div className="text-destructive mb-4 text-6xl">⚠️</div>
           <h2 className="mb-2 text-xl font-bold">Something went wrong</h2>
           <p className="text-muted-foreground mb-6">{errorMessage}</p>
-          <button
-            onClick={() => refetchOverview()}
-            className="bg-primary rounded-lg px-6 py-2 text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-lg"
-          >
+          <Button type="button" onClick={() => refetchOverview()}>
             Try Again
-          </button>
+          </Button>
         </SectionCard>
       </div>
     );
@@ -465,8 +456,8 @@ function Dashboard() {
         );
       case 'exams':
         return (
-          <SectionCard title="Examination Schedule">
-            <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <SectionCard title="Examination Schedule" noPadding>
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[640px]">
                 <thead className="bg-muted/50">
                   <tr>
@@ -519,6 +510,36 @@ function Dashboard() {
                 <div className="text-muted-foreground py-12 text-center">No exams scheduled.</div>
               )}
             </div>
+            <ul className="space-y-3 p-4 lg:hidden">
+              {examSchedule.length === 0 ? (
+                <li className="text-muted-foreground py-8 text-center text-sm">
+                  No exams scheduled.
+                </li>
+              ) : (
+                examSchedule.map((exam, index) => {
+                  const now = new Date();
+                  const start = new Date(exam.start_date);
+                  const end = new Date(exam.end_date);
+                  const isUpcoming = start > now;
+                  const isOngoing = now >= start && now <= end;
+                  return (
+                    <li key={index} className="border-border space-y-2 rounded-xl border p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold">{exam.name}</p>
+                        <span
+                          className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase ${isOngoing ? 'bg-green-500/10 text-green-500' : isUpcoming ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {isOngoing ? 'Ongoing' : isUpcoming ? 'Upcoming' : 'Completed'}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {start.toLocaleDateString()} – {end.toLocaleDateString()}
+                      </p>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
           </SectionCard>
         );
       default:
@@ -527,58 +548,41 @@ function Dashboard() {
   };
 
   return (
-    <div className="bg-muted/10 min-h-screen p-4 sm:p-6 lg:p-10 dark:bg-zinc-950/20">
-      <div className="mx-auto max-w-7xl space-y-8 lg:space-y-10">
-        <PageHeader
-          title="Campus Dashboard"
-          description={`Welcome back, Administrator. Last updated: ${new Date().toLocaleTimeString()}.`}
+    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Campus Dashboard"
+        description={`Welcome back, Administrator. Last updated: ${new Date().toLocaleTimeString()}.`}
+      />
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <StatsCard
+          label="Total Students"
+          value={quickStats.students}
+          icon={<Users className="h-6 w-6" />}
+          color="blue"
+          loading={false}
         />
+        <StatsCard
+          label="Active Faculty"
+          value={quickStats.teachers}
+          icon={<UserCheck className="h-6 w-6" />}
+          color="emerald"
+          loading={false}
+        />
+        <StatsCard
+          label="Scheduled Events"
+          value={quickStats.events}
+          icon={<Calendar className="h-6 w-6" />}
+          color="amber"
+          loading={false}
+        />
+      </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <StatsCard
-            label="Total Students"
-            value={quickStats.students}
-            icon={<Users className="h-6 w-6" />}
-            color="blue"
-            loading={false}
-          />
-          <StatsCard
-            label="Active Faculty"
-            value={quickStats.teachers}
-            icon={<UserCheck className="h-6 w-6" />}
-            color="emerald"
-            loading={false}
-          />
-          <StatsCard
-            label="Scheduled Events"
-            value={quickStats.events}
-            icon={<Calendar className="h-6 w-6" />}
-            color="amber"
-            loading={false}
-          />
-        </div>
+      <div className="space-y-6">
+        <TabNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <div className="space-y-6">
-          <div className="bg-muted/50 scrollbar-hide flex w-fit max-w-full gap-2 overflow-x-auto rounded-xl p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] sm:px-6 ${
-                  activeTab === tab.id
-                    ? 'bg-card text-primary border-border border shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted-foreground/5'
-                }`}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div key={activeTab} className="animate-fade-in-up">
-            {renderTabContent()}
-          </div>
+        <div key={activeTab} className="animate-fade-in-up">
+          {renderTabContent()}
         </div>
       </div>
     </div>

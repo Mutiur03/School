@@ -5,7 +5,15 @@ import * as XLSX from 'xlsx';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageHeader, SectionCard, StatsCard, Popup } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  StatsCard,
+  Popup,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
 import Loading from '@/components/Loading';
@@ -220,7 +228,6 @@ const SubjectFilters = React.memo(
     setFilterType,
     searchTerm,
     setSearchTerm,
-    onReset,
   }: {
     filterYear: number;
     setFilterYear: (v: number) => void;
@@ -232,30 +239,27 @@ const SubjectFilters = React.memo(
     setFilterType: (v: string | 'all') => void;
     searchTerm: string;
     setSearchTerm: (v: string) => void;
-    onReset: () => void;
   }) => (
-    <div className="mb-6 flex flex-wrap items-end gap-4">
-      <div className="w-full sm:w-40">
-        <label className="mb-1.5 block text-sm font-medium">Year</label>
+    <>
+      <FilterField label="Year">
         <select
           value={filterYear}
           onChange={(e) => setFilterYear(Number(e.target.value))}
-          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          className={filterSelectClassName}
         >
           <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
           <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
           <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
         </select>
-      </div>
+      </FilterField>
 
-      <div className="w-full sm:w-40">
-        <label className="mb-1.5 block text-sm font-medium">Class</label>
+      <FilterField label="Class">
         <select
           value={filterClass}
           onChange={(e) =>
             setFilterClass(e.target.value === 'all' ? 'all' : Number(e.target.value))
           }
-          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          className={filterSelectClassName}
         >
           <option value="all">All Classes</option>
           {[6, 7, 8, 9, 10].map((c) => (
@@ -264,15 +268,14 @@ const SubjectFilters = React.memo(
             </option>
           ))}
         </select>
-      </div>
+      </FilterField>
 
-      <div className="w-full sm:w-40">
-        <label className="mb-1.5 block text-sm font-medium">Group</label>
+      <FilterField label="Group">
         <select
           value={filterGroup}
           disabled={filterClass !== 'all' && (filterClass as number) < 9}
           onChange={(e) => setFilterGroup(e.target.value)}
-          className="bg-card border-border text-foreground focus:ring-primary/30 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          className={filterSelectClassName}
         >
           <option value="all">All Groups</option>
           <option value="">General</option>
@@ -282,24 +285,22 @@ const SubjectFilters = React.memo(
             </option>
           ))}
         </select>
-      </div>
+      </FilterField>
 
-      <div className="w-full sm:w-40">
-        <label className="mb-1.5 block text-sm font-medium">Type</label>
+      <FilterField label="Type">
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          className={filterSelectClassName}
         >
           <option value="all">All Types</option>
           <option value="main">Main (Groups)</option>
           <option value="paper">Paper (Parts)</option>
           <option value="single">Single Subject</option>
         </select>
-      </div>
+      </FilterField>
 
-      <div className="min-w-[200px] flex-1">
-        <label className="mb-1.5 block text-sm font-medium">Search Subject</label>
+      <FilterField label="Search Subject" wide>
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
@@ -309,14 +310,8 @@ const SubjectFilters = React.memo(
             className="h-10 pl-9"
           />
         </div>
-      </div>
-
-      <div className="flex h-10 items-end pb-0.5">
-        <Button variant="outline" size="sm" onClick={onReset} className="h-9 text-xs">
-          Reset
-        </Button>
-      </div>
-    </div>
+      </FilterField>
+    </>
   ),
 );
 
@@ -1480,7 +1475,14 @@ const NewSubject: React.FC = () => {
         loading={isLoading}
       />
 
-      <SectionCard className="mb-6">
+      <FilterSelection
+        className="mb-6"
+        headerAction={
+          <Button variant="outline" size="sm" onClick={onResetFilters} className="h-9 text-xs">
+            Reset
+          </Button>
+        }
+      >
         <SubjectFilters
           filterYear={filterYear}
           setFilterYear={setFilterYear}
@@ -1492,9 +1494,10 @@ const NewSubject: React.FC = () => {
           setFilterType={setFilterType}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          onReset={onResetFilters}
         />
+      </FilterSelection>
 
+      <SectionCard className="mb-6">
         {/* Mobile cards — avoid sticky/min-width table crush */}
         <div className="block xl:hidden">
           {isLoading ? (

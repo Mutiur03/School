@@ -82,10 +82,10 @@ html {
   --popover-foreground: #0f172a;
   --primary: #0f172a;
   --primary-foreground: #ffffff;
-  --secondary: #0f172a;
-  --secondary-foreground: #ffffff;
-  --accent: #0f172a;
-  --accent-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --destructive: oklch(0.577 0.245 27.325);

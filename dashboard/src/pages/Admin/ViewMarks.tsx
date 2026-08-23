@@ -3,12 +3,17 @@ import { useAuth } from '@/context/useAuth';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Loading from '@/components/Loading';
-import { PageHeader, SectionCard } from '@/components';
+import {
+  PageHeader,
+  SectionCard,
+  FilterSelection,
+  FilterField,
+  filterSelectClassName,
+} from '@/components';
 import {
   Search,
   Download,
   Info,
-  Calendar,
   GraduationCap,
   Users,
   Layers,
@@ -18,7 +23,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { useExams } from '@/queries/exam.queries';
 import {
   useClassMarks,
@@ -334,7 +338,7 @@ const ViewMarks = () => {
     });
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Class Results"
         description={
@@ -344,124 +348,107 @@ const ViewMarks = () => {
         }
       />
 
-      <SectionCard title="Filter Results" icon={<Search className="h-5 w-5" />}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Calendar className="h-3 w-3" /> Year
-            </Label>
-            <select
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-            >
-              {Array.from({ length: 5 }, (_, i) => (
-                <option key={i} value={new Date().getFullYear() - i}>
-                  {new Date().getFullYear() - i}
+      <FilterSelection>
+        <FilterField label="Year">
+          <select
+            className={filterSelectClassName}
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+          >
+            {Array.from({ length: 5 }, (_, i) => (
+              <option key={i} value={new Date().getFullYear() - i}>
+                {new Date().getFullYear() - i}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+
+        <FilterField label="Exam">
+          <select
+            className={filterSelectClassName}
+            value={exam}
+            onChange={(e) => handleExamChange(e.target.value)}
+          >
+            <option value="">Select Exam</option>
+            {examList.map((exam, index) => (
+              <option key={index} value={exam}>
+                {exam}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+
+        <FilterField label="Class">
+          <select
+            className={filterSelectClassName}
+            value={className}
+            onChange={(e) => handleClassChange(e.target.value)}
+            disabled={!exam}
+          >
+            <option value="">Select Class</option>
+            {(classList[exam] || [])
+              .filter((cls) => {
+                if (user?.role === 'admin') return true;
+                if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
+                  return (user as UserWithLevels).levels?.some(
+                    (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year),
+                  );
+                }
+                return false;
+              })
+              .map((cls, index) => (
+                <option key={index} value={cls}>
+                  {`Class ${cls}`}
                 </option>
               ))}
-            </select>
-          </div>
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <FileSpreadsheet className="h-3 w-3" /> Exam
-            </Label>
-            <select
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none dark:bg-zinc-900"
-              value={exam}
-              onChange={(e) => handleExamChange(e.target.value)}
-            >
-              <option value="">Select Exam</option>
-              {examList.map((exam, index) => (
-                <option key={index} value={exam}>
-                  {exam}
+        <FilterField label="Section">
+          <select
+            className={filterSelectClassName}
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            disabled={!className || availableSections.length === 0}
+          >
+            <option value="">All Sections</option>
+            {availableSections
+              .filter((sec) => {
+                if (user?.role === 'admin') return true;
+                if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
+                  return (user as UserWithLevels).levels?.some(
+                    (l: TeacherLevel) =>
+                      l.class_name === Number(className) &&
+                      l.section === sec &&
+                      l.year === Number(year),
+                  );
+                }
+                return false;
+              })
+              .map((sec, index) => (
+                <option key={index} value={sec}>
+                  {sec}
                 </option>
               ))}
-            </select>
-          </div>
+          </select>
+        </FilterField>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <GraduationCap className="h-3 w-3" /> Class
-            </Label>
-            <select
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
-              value={className}
-              onChange={(e) => handleClassChange(e.target.value)}
-              disabled={!exam}
-            >
-              <option value="">Select Class</option>
-              {(classList[exam] || [])
-                .filter((cls) => {
-                  if (user?.role === 'admin') return true;
-                  if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
-                    return (user as UserWithLevels).levels?.some(
-                      (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year),
-                    );
-                  }
-                  return false;
-                })
-                .map((cls, index) => (
-                  <option key={index} value={cls}>
-                    {`Class ${cls}`}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Users className="h-3 w-3" /> Section
-            </Label>
-            <select
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
-              value={section}
-              onChange={(e) => setSection(e.target.value)}
-              disabled={!className || availableSections.length === 0}
-            >
-              <option value="">All Sections</option>
-              {availableSections
-                .filter((sec) => {
-                  if (user?.role === 'admin') return true;
-                  if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
-                    return (user as UserWithLevels).levels?.some(
-                      (l: TeacherLevel) =>
-                        l.class_name === Number(className) &&
-                        l.section === sec &&
-                        l.year === Number(year),
-                    );
-                  }
-                  return false;
-                })
-                .map((sec, index) => (
-                  <option key={index} value={sec}>
-                    {sec}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
-              <Layers className="h-3 w-3" /> Group
-            </Label>
-            <select
-              className="border-input bg-background ring-offset-background focus:ring-primary flex h-10 w-full rounded-md border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none disabled:opacity-50 dark:bg-zinc-900"
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              disabled={!className || availableGroups.length === 0}
-            >
-              <option value="">All Groups</option>
-              {availableGroups.map((grp, index) => (
-                <option key={index} value={grp}>
-                  {grp}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </SectionCard>
+        <FilterField label="Group">
+          <select
+            className={filterSelectClassName}
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            disabled={!className || availableGroups.length === 0}
+          >
+            <option value="">All Groups</option>
+            {availableGroups.map((grp, index) => (
+              <option key={index} value={grp}>
+                {grp}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </FilterSelection>
 
       {exam && genStatus && !isMarksheetGenComplete(genStatus) && (
         <MarksheetGenProgress status={genStatus} />

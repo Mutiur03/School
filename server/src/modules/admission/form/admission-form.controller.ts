@@ -35,9 +35,9 @@ export class AdmissionFormController {
     },
   );
 
-  static getForms = asyncHandler(async (_req: Request, res: Response) => {
-    const items = await AdmissionFormService.getForms();
-    res.status(200).json({ success: true, data: items });
+  static getForms = asyncHandler(async (req: Request, res: Response) => {
+    const result = await AdmissionFormService.getForms(req.query);
+    res.status(200).json({ success: true, data: result });
   });
 
   static getFormById = asyncHandler(async (req: Request, res: Response) => {

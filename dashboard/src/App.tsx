@@ -161,8 +161,11 @@ function App() {
     );
   }
 
-  const contentShellClass =
-    'content-area relative min-w-0 flex-1 overflow-x-clip overflow-y-auto px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 transition-[margin,width] duration-100 sm:px-4 md:ml-60 md:w-[calc(100%-15rem)]';
+  const contentShellClass = [
+    'content-area relative min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto',
+    'pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-[margin,width] duration-200',
+    sidebarExpanded ? 'md:ml-[250px] md:w-[calc(100%-250px)]' : 'md:ml-16 md:w-[calc(100%-4rem)]',
+  ].join(' ');
 
   return (
     <>
@@ -301,7 +304,7 @@ function App() {
                 element={
                   <TeacherRoute
                     element={
-                      <div className="flex flex-col">
+                      <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
@@ -339,7 +342,7 @@ function App() {
                 element={
                   <StudentRoute
                     element={
-                      <div className="flex flex-col">
+                      <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
@@ -373,7 +376,7 @@ function App() {
                 element={
                   <PrivateRoute
                     element={
-                      <div className="flex flex-col">
+                      <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
@@ -439,7 +442,7 @@ function App() {
                 element={
                   <SuperAdminRoute
                     element={
-                      <div className="flex flex-col">
+                      <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
