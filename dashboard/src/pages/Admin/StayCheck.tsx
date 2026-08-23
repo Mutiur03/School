@@ -16,7 +16,7 @@ import {
 } from '@/components/FilterSelection.js';
 import SectionCard from '@/components/SectionCard.js';
 import StatsCard from '@/components/StatsCard.js';
-import { Users, CheckCircle2, Filter, Save, AlertTriangle } from 'lucide-react';
+import { Users, CheckCircle2, Save, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { calculateSMSCount } from '@school/shared-schemas';
