@@ -2,7 +2,7 @@ name: Deploy Auth BFF Worker
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'staging']
     paths:
       - 'workers/auth-bff/**'
       - '.github/workflows/deploy-auth-bff.yml'
@@ -58,8 +58,13 @@ jobs:
       - name: Lint, format, and typecheck
         run: pnpm run check:auth-bff
 
+      - name: Wrangler dry-run
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        working-directory: workers/auth-bff
+        run: pnpm run check
+
       - name: Deploy worker
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         working-directory: workers/auth-bff
         run: pnpm exec wrangler deploy
         env:

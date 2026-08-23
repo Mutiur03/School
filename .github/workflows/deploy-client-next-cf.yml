@@ -2,7 +2,7 @@ name: Deploy School Client (Cloudflare)
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'staging']
     paths:
       - 'client-next/**'
       - 'packages/common-ui/**'
@@ -133,7 +133,7 @@ jobs:
           NEXT_PUBLIC_DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
 
       - name: Deploy Worker school-client
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         working-directory: client-next
         run: pnpm exec opennextjs-cloudflare deploy
         env:

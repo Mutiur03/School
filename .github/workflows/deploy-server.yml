@@ -2,7 +2,7 @@ name: Deploy Server
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'staging']
     paths:
       - 'server/**'
       - 'packages/shared-schemas/**'
@@ -77,20 +77,20 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build --filter=server
 
-      # PRs stop here — no image push, no deploy.
+      # Production deploy only on main (staging + PRs stop after build).
       - name: Set up Docker Buildx
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub (To prevent rate limits)
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to the Container registry
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -98,12 +98,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase Repository Name
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         id: repo
         run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -114,7 +114,7 @@ jobs:
             latest
 
       - name: Build and push Docker image
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -127,7 +127,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=school-server
 
       - name: Prepare server and pull image
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -162,7 +162,7 @@ jobs:
             docker image prune -f
 
       - name: Deploy via SSH
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}

@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'staging']
     paths:
       - 'dashboard/**'
       - 'packages/**'
@@ -91,7 +91,7 @@ jobs:
 
   deploy-pages:
     needs: build-shared
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -193,6 +193,7 @@ jobs:
         run: pnpm exec turbo run ${{ matrix.app.build_script }} --filter=dashboard
 
       - name: Deploy ${{ matrix.app.name }}
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: pnpm exec wrangler pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -211,7 +212,7 @@ jobs:
   purge-cdn:
     name: Purge Cloudflare CDN
     needs: deploy-pages
-    if: success()
+    if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Purge Cloudflare zones
