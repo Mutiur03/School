@@ -1,3 +1,9 @@
+# Deploy Server
+#
+# Promote flow: staging runs check + build and pushes a sha-tagged image to GHCR.
+# main looks up ghcr.io/<repo>:sha-<short> for github.sha (and merge 2nd parent) —
+# on hit, retag as latest and SSH deploy only; on miss, rebuild then deploy.
+
 name: Deploy Server
 
 on:
@@ -36,14 +42,74 @@ concurrency:
   group: deploy-server-${{ github.ref }}
 
 jobs:
-  deploy:
+  promote-meta:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      is_main_deploy: ${{ steps.meta.outputs.is_main_deploy }}
+      hit: ${{ steps.meta.outputs.hit }}
+      image: ${{ steps.meta.outputs.image }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+    steps:
+      - name: Resolve promote metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          REPO="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          IS_MAIN_DEPLOY=false
+          HIT=false
+          IMAGE="ghcr.io/${REPO}:sha-${SHORT_SHA}"
+
+          if [ '${{ github.ref }}' = 'refs/heads/main' ] && \
+             { [ '${{ github.event_name }}' = 'push' ] || [ '${{ github.event_name }}' = 'workflow_dispatch' ]; }; then
+            IS_MAIN_DEPLOY=true
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Prefer this commit; for merge commits also try 2nd parent (staging tip).
+            CANDIDATES=("$GITHUB_SHA")
+            while IFS= read -r parent; do
+              [ -n "$parent" ] && CANDIDATES+=("$parent")
+            done < <(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}" \
+              --jq '.parents[1:][].sha // empty')
+
+            for cand in "${CANDIDATES[@]}"; do
+              CAND_SHORT="${cand:0:7}"
+              CAND_IMAGE="ghcr.io/${REPO}:sha-${CAND_SHORT}"
+              if docker manifest inspect "$CAND_IMAGE" >/dev/null 2>&1; then
+                HIT=true
+                SHORT_SHA="$CAND_SHORT"
+                IMAGE="$CAND_IMAGE"
+                echo "Promote hit: $CAND_IMAGE (from $cand)"
+                break
+              fi
+              echo "No image at $CAND_IMAGE"
+            done
+
+            if [ "$HIT" != true ]; then
+              echo "Promote miss — will rebuild."
+            fi
+          fi
+
+          {
+            echo "is_main_deploy=$IS_MAIN_DEPLOY"
+            echo "hit=$HIT"
+            echo "image=$IMAGE"
+            echo "short_sha=$SHORT_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: promote-meta
+    if: needs.promote-meta.outputs.hit != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     env:
-      PROJECT_PATH: 'School'
-      ENV_FILE: '.env.lbp'
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
@@ -77,20 +143,26 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build --filter=server
 
-      # Production deploy only on main (staging + PRs stop after build).
+      # Push sha-tagged image on staging (for later promote) and on main rebuild fallback.
       - name: Set up Docker Buildx
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub (To prevent rate limits)
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to the Container registry
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -98,23 +170,29 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase Repository Name
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         id: repo
         run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ steps.repo.outputs.name }}
           tags: |
-            type=ref,event=branch
             type=sha,prefix=sha-,format=short
-            latest
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: |
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -126,8 +204,41 @@ jobs:
           cache-from: type=gha,scope=school-server
           cache-to: type=gha,mode=max,scope=school-server
 
+  deploy:
+    needs: [promote-meta, ci]
+    if: |
+      always() && !cancelled() &&
+      needs.promote-meta.outputs.is_main_deploy == 'true' &&
+      (needs.promote-meta.outputs.hit == 'true' || needs.ci.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PROJECT_PATH: 'School'
+      ENV_FILE: '.env.lbp'
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote sha image to latest
+        if: needs.promote-meta.outputs.hit == 'true'
+        env:
+          IMAGE_SHA: ${{ needs.promote-meta.outputs.image }}
+        run: |
+          set -euo pipefail
+          REPO="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          IMAGE_LATEST="ghcr.io/${REPO}:latest"
+          docker pull "$IMAGE_SHA"
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_LATEST"
+          echo "Promoted $IMAGE_SHA → $IMAGE_LATEST"
+
       - name: Prepare server and pull image
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -162,7 +273,6 @@ jobs:
             docker image prune -f
 
       - name: Deploy via SSH
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}

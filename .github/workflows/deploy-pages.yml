@@ -1,3 +1,9 @@
+# Deploy Frontend (Cloudflare Pages)
+#
+# Promote flow: staging builds all dashboard apps and uploads dist artifacts.
+# main looks up a successful staging run for github.sha (and merge 2nd parent) —
+# on hit, download dists and wrangler deploy only; on miss, rebuild.
+
 name: Deploy Frontend
 
 on:
@@ -37,7 +43,82 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  promote-meta:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      is_main_deploy: ${{ steps.meta.outputs.is_main_deploy }}
+      hit: ${{ steps.meta.outputs.hit }}
+      run_id: ${{ steps.meta.outputs.run_id }}
+    steps:
+      - name: Resolve promote metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          IS_MAIN_DEPLOY=false
+          HIT=false
+          RUN_ID=
+
+          if [ '${{ github.ref }}' = 'refs/heads/main' ] && \
+             { [ '${{ github.event_name }}' = 'push' ] || [ '${{ github.event_name }}' = 'workflow_dispatch' ]; }; then
+            IS_MAIN_DEPLOY=true
+
+            CANDIDATES=("$GITHUB_SHA")
+            while IFS= read -r parent; do
+              [ -n "$parent" ] && CANDIDATES+=("$parent")
+            done < <(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}" \
+              --jq '.parents[1:][].sha // empty')
+
+            for cand in "${CANDIDATES[@]}"; do
+              CAND_RUN="$(gh run list \
+                --repo '${{ github.repository }}' \
+                --branch staging \
+                --commit "$cand" \
+                --workflow 'Deploy Frontend' \
+                --status success \
+                --limit 20 \
+                --json databaseId,headSha \
+                --jq "[.[] | select(.headSha == \"$cand\")][0].databaseId // empty")"
+              if [ -z "$CAND_RUN" ]; then
+                echo "No staging Deploy Frontend run for $cand"
+                continue
+              fi
+              NAMES="$(gh api \
+                "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
+                --jq '[.artifacts[].name] | join(" ")')"
+              MISSING=false
+              for required in pages-lbp-dashboard pages-lbp-admin pages-lbp-teacher pages-lbp-student pages-school-superadmin; do
+                if ! echo " $NAMES " | grep -q " $required "; then
+                  echo "Staging run $CAND_RUN missing artifact: $required"
+                  MISSING=true
+                fi
+              done
+              if [ "$MISSING" = false ]; then
+                HIT=true
+                RUN_ID="$CAND_RUN"
+                echo "Promote hit: staging run $RUN_ID for $cand"
+                break
+              fi
+            done
+
+            if [ "$HIT" != true ]; then
+              echo "Promote miss: no complete staging Deploy Frontend artifacts — will rebuild."
+            fi
+          fi
+
+          {
+            echo "is_main_deploy=$IS_MAIN_DEPLOY"
+            echo "hit=$HIT"
+            echo "run_id=$RUN_ID"
+          } >> "$GITHUB_OUTPUT"
+
   build-shared:
+    needs: promote-meta
+    if: needs.promote-meta.outputs.hit != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,10 +171,14 @@ jobs:
           retention-days: 1
 
   deploy-pages:
-    needs: build-shared
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [promote-meta, build-shared]
+    if: |
+      always() && !cancelled() &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (needs.promote-meta.outputs.hit == 'true' || needs.build-shared.result == 'success')
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       packages: read
     env:
@@ -142,10 +227,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download promoted dist for ${{ matrix.app.name }}
+        if: needs.promote-meta.outputs.hit == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-${{ matrix.app.project_name }}
+          path: ./${{ matrix.app.directory }}/dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.promote-meta.outputs.run_id }}
+
       - name: Install pnpm
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: pnpm/action-setup@v4
 
       - name: Set up Node.js
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -153,11 +249,13 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
+        if: needs.promote-meta.outputs.hit != 'true'
         run: pnpm install --frozen-lockfile
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache Turborepo
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: actions/cache@v4
         with:
           path: .turbo
@@ -166,12 +264,14 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Download shared package builds
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: shared-packages-dist
           path: packages
 
       - name: Validate Sentry DSN secret
+        if: needs.promote-meta.outputs.hit != 'true'
         run: |
           if [ -z "${{ secrets.VITE_SENTRY_DSN }}" ]; then
             echo "::error::GitHub secret VITE_SENTRY_DSN is empty. Frontend Sentry will not send events."
@@ -179,6 +279,7 @@ jobs:
           fi
 
       - name: Write production env for ${{ matrix.app.name }}
+        if: needs.promote-meta.outputs.hit != 'true'
         run: |
           {
             echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
@@ -190,11 +291,34 @@ jobs:
           } > ./${{ matrix.app.directory }}/${{ matrix.app.env_file }}
 
       - name: Build ${{ matrix.app.name }}
+        if: needs.promote-meta.outputs.hit != 'true'
         run: pnpm exec turbo run ${{ matrix.app.build_script }} --filter=dashboard
 
+      - name: Upload dist artifact for ${{ matrix.app.name }}
+        if: github.ref == 'refs/heads/staging'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-${{ matrix.app.project_name }}
+          path: ./${{ matrix.app.directory }}/dist
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Set up Node.js for promote deploy
+        if: |
+          needs.promote-meta.outputs.is_main_deploy == 'true' &&
+          needs.promote-meta.outputs.hit == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Deploy ${{ matrix.app.name }}
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: pnpm exec wrangler pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
+        if: needs.promote-meta.outputs.is_main_deploy == 'true'
+        run: |
+          if [ '${{ needs.promote-meta.outputs.hit }}' = 'true' ]; then
+            npx --yes wrangler@4 pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
+          else
+            pnpm exec wrangler pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -211,8 +335,11 @@ jobs:
   # - CF_PURGE_ZONE_IDS still works as an explicit override if set.
   purge-cdn:
     name: Purge Cloudflare CDN
-    needs: deploy-pages
-    if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [promote-meta, deploy-pages]
+    if: |
+      always() && !cancelled() &&
+      needs.promote-meta.outputs.is_main_deploy == 'true' &&
+      needs.deploy-pages.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Purge Cloudflare zones

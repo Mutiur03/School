@@ -1,3 +1,9 @@
+# Deploy School Client (Cloudflare / OpenNext)
+#
+# Promote flow: staging runs check + OpenNext build and uploads client-next/.open-next.
+# main looks up a successful staging run for github.sha (and merge 2nd parent) —
+# on hit, download .open-next and run opennextjs-cloudflare deploy only; on miss, rebuild.
+
 name: Deploy School Client (Cloudflare)
 
 on:
@@ -41,9 +47,78 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  promote-meta:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
+      contents: read
+    outputs:
+      is_main_deploy: ${{ steps.meta.outputs.is_main_deploy }}
+      hit: ${{ steps.meta.outputs.hit }}
+      run_id: ${{ steps.meta.outputs.run_id }}
+    steps:
+      - name: Resolve promote metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          IS_MAIN_DEPLOY=false
+          HIT=false
+          RUN_ID=
+
+          if [ '${{ github.ref }}' = 'refs/heads/main' ] && \
+             { [ '${{ github.event_name }}' = 'push' ] || [ '${{ github.event_name }}' = 'workflow_dispatch' ]; }; then
+            IS_MAIN_DEPLOY=true
+
+            CANDIDATES=("$GITHUB_SHA")
+            while IFS= read -r parent; do
+              [ -n "$parent" ] && CANDIDATES+=("$parent")
+            done < <(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}" \
+              --jq '.parents[1:][].sha // empty')
+
+            for cand in "${CANDIDATES[@]}"; do
+              CAND_RUN="$(gh run list \
+                --repo '${{ github.repository }}' \
+                --branch staging \
+                --commit "$cand" \
+                --workflow 'Deploy School Client (Cloudflare)' \
+                --status success \
+                --limit 20 \
+                --json databaseId,headSha \
+                --jq "[.[] | select(.headSha == \"$cand\")][0].databaseId // empty")"
+              if [ -z "$CAND_RUN" ]; then
+                echo "No staging client-next run for $cand"
+                continue
+              fi
+              HAS_ARTIFACT="$(gh api \
+                "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
+                --jq '[.artifacts[].name] | index("client-next-cf") != null')"
+              if [ "$HAS_ARTIFACT" = 'true' ]; then
+                HIT=true
+                RUN_ID="$CAND_RUN"
+                echo "Promote hit: staging run $RUN_ID for $cand"
+                break
+              fi
+              echo "Staging run $CAND_RUN missing client-next-cf artifact"
+            done
+
+            if [ "$HIT" != true ]; then
+              echo "Promote miss: no staging OpenNext artifact — will rebuild."
+            fi
+          fi
+
+          {
+            echo "is_main_deploy=$IS_MAIN_DEPLOY"
+            echo "hit=$HIT"
+            echo "run_id=$RUN_ID"
+          } >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: promote-meta
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
       contents: read
     timeout-minutes: 30
     env:
@@ -53,6 +128,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download promoted OpenNext bundle
+        if: needs.promote-meta.outputs.hit == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: client-next-cf
+          path: client-next/.open-next
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.promote-meta.outputs.run_id }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -69,6 +153,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Cache Turborepo
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: actions/cache@v4
         with:
           path: .turbo
@@ -80,6 +165,7 @@ jobs:
       # unchanged modules aren't recompiled. Keyed on the lockfile + client-next
       # sources; falls back to the newest partial cache via restore-keys.
       - name: Cache Next.js build cache
+        if: needs.promote-meta.outputs.hit != 'true'
         uses: actions/cache@v4
         with:
           path: client-next/.next/cache
@@ -89,10 +175,11 @@ jobs:
             nextjs-cf-
 
       - name: Lint, format, and typecheck
+        if: needs.promote-meta.outputs.hit != 'true'
         run: pnpm run check:client-next
 
       - name: Write client-next build env
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && needs.promote-meta.outputs.hit != 'true'
         working-directory: client-next
         env:
           BACKEND_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
@@ -121,7 +208,7 @@ jobs:
           echo "Wrote client-next/.env.production (values redacted)."
 
       - name: Build OpenNext bundle
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && needs.promote-meta.outputs.hit != 'true'
         run: pnpm run build:client:cf
         env:
           OPEN_NEXT: '1'
@@ -132,8 +219,19 @@ jobs:
           NEXT_PUBLIC_CDN_URL: ${{ secrets.CLIENT_NEXT_CDN_URL || secrets.LBP_VITE_CDN_URL }}
           NEXT_PUBLIC_DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
 
+      - name: Upload OpenNext artifact
+        if: |
+          github.ref == 'refs/heads/staging' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-next-cf
+          path: client-next/.open-next
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Deploy Worker school-client
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: needs.promote-meta.outputs.is_main_deploy == 'true'
         working-directory: client-next
         run: pnpm exec opennextjs-cloudflare deploy
         env:
