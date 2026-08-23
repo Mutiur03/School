@@ -53,8 +53,8 @@ function Syllabus() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get<Syllabus[]>('/api/syllabus');
-      setSyllabuses(res.data);
+      const res = await axios.get('/api/syllabus');
+      setSyllabuses(res.data.data);
     } catch {
       setError('Failed to fetch syllabuses.');
     }

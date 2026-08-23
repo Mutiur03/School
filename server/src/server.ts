@@ -11,9 +11,9 @@ import cors from 'cors';
 import compression from 'compression';
 import { detailedRequestLogger } from './middlewares/requestLogger.js';
 import logger from './utils/logger.js';
-import examRouter from './routes/examRoutes.js';
+import examRouter from './modules/exam/exam.route.js';
 import marksRouter from './modules/marks/marks.route.js';
-import promotionRouter from './routes/promotionRoutes.js';
+import promotionRouter from './modules/promotion/promotion.route.js';
 import {
   sharedAuthSessionRouter,
   superAdminAuthRouter,
@@ -24,14 +24,14 @@ import levelRouter from './modules/level/level.route.js';
 import attendenceRouter from './modules/attendence/attendence.route.js';
 import smsSettingsRoute from './modules/sms-settings/sms-settings.route.js';
 import noticeRouter from './modules/notice/notice.route.js';
-import holidayRouter from './routes/holidayRoutes.js';
+import holidayRouter from './modules/holiday/holiday.route.js';
 import eventsRouter from './modules/events/events.route.js';
 import galleryRouter from './modules/gallery/gallery.route.js';
 import dashboardRouter from './modules/dashboard/dashboard.route.js';
 import path from 'path';
 import fs from 'fs';
-import syllabusRoutes from './routes/syllabusRoutes.js';
-import classRoutineRouter from './routes/classRoutineRoutes.js';
+import syllabusRouter from './modules/syllabus/syllabus.route.js';
+import classRoutineRouter from './modules/class-routine/class-routine.route.js';
 import citizenCharterRouter from './modules/citizen-charter/citizen-charter.route.js';
 import staffRouter from './modules/staff/staff.route.js';
 import admissionRouter from './modules/admission/admission.route.js';
@@ -191,10 +191,10 @@ app.use(requireSchoolContextMiddleware);
 
 app.use(studentRouter);
 app.use(tenantSchoolRouter);
-app.use('/api/exams', examRouter);
+app.use(examRouter);
 app.use(subjectRouter);
 app.use(marksRouter);
-app.use('/api/promotion', promotionRouter);
+app.use(promotionRouter);
 app.use(routerTeacher);
 app.use(staffRouter);
 app.use(tenantAuthRouter);
@@ -202,12 +202,12 @@ app.use(levelRouter);
 app.use(attendenceRouter);
 app.use(noticeRouter);
 app.use(smsSettingsRoute);
-app.use('/api/holidays', holidayRouter);
+app.use(holidayRouter);
 app.use(eventsRouter);
 app.use('/api/gallery', galleryRouter);
 app.use(dashboardRouter);
-app.use('/api/syllabus', syllabusRoutes);
-app.use('/api/class-routine', classRoutineRouter);
+app.use(syllabusRouter);
+app.use(classRoutineRouter);
 app.use(citizenCharterRouter);
 app.use(registrationSettingsClass9Router);
 app.use(registrationFormClass9Router);
@@ -281,6 +281,17 @@ const httpServer = app.listen(PORT, () => {
   check();
   startMarksheetWorker();
   startAttendanceSheetWorker();
+});
+
+httpServer.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    logger.error(
+      `Port ${PORT} is already in use — stop the other process or run "pnpm clean:ports" from the repo root`,
+    );
+  } else {
+    logger.error('HTTP server failed to start', { error: err.message, code: err.code });
+  }
+  process.exit(1);
 });
 
 let shuttingDown = false;

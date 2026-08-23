@@ -1,14 +1,15 @@
 {
   "exec": "node --import tsx/esm --import ./src/instrument.ts src/server.ts",
   "ext": "js,ts,json",
-  "watch": ["./", "../packages/shared-schemas"],
-  "delay": "2500",
+  "watch": ["src", "../packages/shared-schemas/dist"],
+  "delay": "1000",
   "ignore": [
-    "node_modules/",
-    "dist/",
-    "uploads/",
-    "prisma/migrations/",
-    "../packages/*/dist/",
-    "../packages/*/node_modules/"
+    "node_modules/**",
+    "dist/**",
+    "uploads/**",
+    "logs/**",
+    "**/*.log",
+    "prisma/migrations/**",
+    "../packages/**/node_modules/**"
   ]
 }

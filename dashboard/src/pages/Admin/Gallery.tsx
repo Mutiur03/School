@@ -141,8 +141,7 @@ export default function Gallery() {
   const fetchEvents = async () => {
     try {
       const response = await axios.get('/api/events/getEvents');
-      const data = response.data?.data ?? response.data;
-      setEvents(Array.isArray(data) ? data : []);
+      setEvents(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       console.error('Error fetching events:', error);
     }

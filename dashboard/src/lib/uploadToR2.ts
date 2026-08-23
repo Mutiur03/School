@@ -43,7 +43,7 @@ export async function uploadToR2(
     params: { filename: file.name, contentType: file.type, ...params },
   });
 
-  const { uploadUrl, key } = body?.data ?? body;
+  const { uploadUrl, key } = body.data;
 
   if (!uploadUrl || !key) {
     throw new Error('Invalid presigned URL response from server');

@@ -20,8 +20,8 @@ function ClassRoutinePDF() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPDF = async (): Promise<void> => {
-    const res = await axios.get<PDFData[]>('/api/class-routine/pdf');
-    setPDF(res.data[0] || null);
+    const res = await axios.get('/api/class-routine/pdf');
+    setPDF(res.data.data[0] || null);
   };
 
   useEffect(() => {

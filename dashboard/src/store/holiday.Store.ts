@@ -40,9 +40,10 @@ const useHolidayStore = create<HolidayState>()(
     addHoliday: async (formData) => {
       set({ isSubmitting: true });
       try {
-        const response = await axios.post<Holiday>('/api/holidays/addHoliday', formData);
+        const response = await axios.post('/api/holidays/addHoliday', formData);
+        const holiday = response.data.data;
         set((state) => ({
-          holidays: [...state.holidays, response.data],
+          holidays: [...state.holidays, holiday],
         }));
         toast.success('Holiday added successfully');
       } catch (error) {
@@ -55,8 +56,8 @@ const useHolidayStore = create<HolidayState>()(
     fetchHolidays: async () => {
       set({ isLoading: true });
       try {
-        const res = await axios.get<Holiday[]>('/api/holidays/getHolidays');
-        set({ holidays: res.data });
+        const res = await axios.get('/api/holidays/getHolidays');
+        set({ holidays: res.data.data });
       } catch {
         toast.error('Error fetching holidays');
       } finally {
@@ -81,9 +82,10 @@ const useHolidayStore = create<HolidayState>()(
     updateHoliday: async (id, formData) => {
       set({ isSubmitting: true });
       try {
-        const response = await axios.put<Holiday>(`/api/holidays/updateHoliday/${id}`, formData);
+        const response = await axios.put(`/api/holidays/updateHoliday/${id}`, formData);
+        const holiday = response.data.data;
         set((state) => ({
-          holidays: state.holidays.map((holiday) => (holiday.id === id ? response.data : holiday)),
+          holidays: state.holidays.map((h) => (h.id === id ? holiday : h)),
         }));
         toast.success('Holiday updated successfully');
       } catch (error) {

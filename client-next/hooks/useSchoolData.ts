@@ -9,7 +9,7 @@ export const useRoutinePDF = () => {
     queryFn: async () => {
       try {
         const res = await axios.get('/api/class-routine/pdf');
-        return res?.data?.[0]?.pdf_url || null;
+        return res.data.data?.[0]?.pdf_url || null;
       } catch {
         return null;
       }
@@ -24,7 +24,7 @@ export const useSyllabuses = () => {
     queryFn: async () => {
       try {
         const res = await axios.get('/api/syllabus');
-        return res.data;
+        return res.data.data;
       } catch {
         return [];
       }

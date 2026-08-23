@@ -19,7 +19,7 @@ export const useEvents = () => {
     queryKey: ['events'],
     queryFn: async () => {
       const response = await axios.get('/api/events/getEvents');
-      return response.data?.data ?? response.data;
+      return response.data.data;
     },
   });
 };
@@ -47,7 +47,7 @@ export const useAddEvent = () => {
             type: 'image',
           },
         });
-        const { uploadUrl, key } = res.data?.data ?? res.data;
+        const { uploadUrl, key } = res.data.data;
         await putFileToPresignedUrl(uploadUrl, data.image, data.image.type);
         imageKey = key;
       }
@@ -61,7 +61,7 @@ export const useAddEvent = () => {
             type: 'file',
           },
         });
-        const { uploadUrl, key } = res.data?.data ?? res.data;
+        const { uploadUrl, key } = res.data.data;
         await putFileToPresignedUrl(uploadUrl, data.file, data.file.type);
         fileKey = key;
       }
@@ -116,7 +116,7 @@ export const useUpdateEvent = () => {
             type: 'image',
           },
         });
-        const { uploadUrl, key } = res.data?.data ?? res.data;
+        const { uploadUrl, key } = res.data.data;
         await putFileToPresignedUrl(uploadUrl, data.image, data.image.type);
         imageKey = key;
       }
@@ -129,7 +129,7 @@ export const useUpdateEvent = () => {
             type: 'file',
           },
         });
-        const { uploadUrl, key } = res.data?.data ?? res.data;
+        const { uploadUrl, key } = res.data.data;
         await putFileToPresignedUrl(uploadUrl, data.file, data.file.type);
         fileKey = key;
       }
