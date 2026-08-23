@@ -131,7 +131,7 @@ jobs:
 
       - name: Download promoted OpenNext bundle
         if: needs.promote-meta.outputs.hit == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: client-next-cf
           path: client-next/.open-next
@@ -209,7 +209,8 @@ jobs:
 
       - name: Build OpenNext bundle
         if: github.event_name != 'pull_request' && needs.promote-meta.outputs.hit != 'true'
-        run: pnpm run build:client:cf
+        # Bypass stale turbo cache so .open-next is always produced for promote artifacts.
+        run: pnpm exec turbo run build:cf --filter=client-next --force
         env:
           OPEN_NEXT: '1'
           # Also expose for Next config / tooling that reads process.env in CI.
@@ -219,16 +220,34 @@ jobs:
           NEXT_PUBLIC_CDN_URL: ${{ secrets.CLIENT_NEXT_CDN_URL || secrets.LBP_VITE_CDN_URL }}
           NEXT_PUBLIC_DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
 
+      - name: Verify OpenNext output
+        if: |
+          github.ref == 'refs/heads/staging' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        run: |
+          set -euo pipefail
+          if [ ! -f client-next/.open-next/worker.js ]; then
+            echo "::error::Expected client-next/.open-next/worker.js after build:cf — open-next output missing."
+            ls -la client-next || true
+            ls -la client-next/.open-next || true
+            exit 1
+          fi
+          echo "OpenNext bundle OK:"
+          du -sh client-next/.open-next
+          ls client-next/.open-next | head -n 20
+
       - name: Upload OpenNext artifact
         if: |
           github.ref == 'refs/heads/staging' &&
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: client-next-cf
           path: client-next/.open-next
           retention-days: 14
           if-no-files-found: error
+          # Required: .open-next is a hidden directory (dot-prefixed).
+          include-hidden-files: true
 
       - name: Deploy Worker school-client
         if: needs.promote-meta.outputs.is_main_deploy == 'true'
