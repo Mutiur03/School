@@ -27,7 +27,10 @@ window.addEventListener('vite:preloadError', (event) => {
 
 window.addEventListener('unhandledrejection', (event) => {
   if (!isStaleChunkError(event.reason)) return;
-  if (reloadOnceForStaleChunk()) event.preventDefault();
+  // Always preventDefault so Sentry/global handlers don't treat stale-chunk
+  // recoveries (or a second failure after one reload) as app crashes.
+  event.preventDefault();
+  reloadOnceForStaleChunk();
 });
 
 window.addEventListener('load', () => {

@@ -16,5 +16,6 @@ export function registerRoutePrefetchers(routes: Record<string, { prefetch: Pref
 export function prefetchRoute(path: string | undefined | null): void {
   if (!path) return;
   const run = byPath.get(path);
-  if (run) void run();
+  // Prefetch must never produce unhandledrejections (e.g. stale chunks after deploy).
+  if (run) void run().catch(() => {});
 }

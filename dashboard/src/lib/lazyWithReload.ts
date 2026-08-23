@@ -2,9 +2,17 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 
 const CHUNK_RELOAD_KEY = 'chunk-load-reload';
 
+export class StaleChunkError extends TypeError {
+  constructor(message = "Cannot read properties of undefined (reading 'default')") {
+    super(message);
+    this.name = 'StaleChunkError';
+  }
+}
+
 /** True when a dynamic import failed because of a stale deploy / missing chunk. */
 export function isStaleChunkError(reason: unknown): boolean {
   if (!reason) return false;
+  if (reason instanceof StaleChunkError) return true;
   const err = reason as { message?: string; name?: string; cause?: unknown };
   const msg = String(err.message ?? reason ?? '');
   const causeMsg =
@@ -18,7 +26,8 @@ export function isStaleChunkError(reason: unknown): boolean {
     /error loading dynamically imported module/i.test(combined) ||
     /Loading chunk [\d]+ failed/i.test(combined) ||
     /ChunkLoadError/i.test(combined) ||
-    (/TypeError/i.test(String(err.name ?? '')) && /reading ['"]default['"]/i.test(combined))
+    (/TypeError|StaleChunkError/i.test(String(err.name ?? '')) &&
+      /reading ['"]default['"]/i.test(combined))
   );
 }
 
@@ -85,7 +94,7 @@ export function lazyWithReload<T extends ComponentType<any>>(
         // instead of rejecting — the crash is then a plain "reading 'default'"
         // TypeError past any .catch. Treat it as a stale chunk too.
         if (!mod || typeof mod.default === 'undefined') {
-          return recover(new TypeError("Cannot read properties of undefined (reading 'default')"));
+          return recover(new StaleChunkError());
         }
         return mod;
       }, recover);
@@ -94,8 +103,13 @@ export function lazyWithReload<T extends ComponentType<any>>(
   };
 
   const Comp = lazy(load) as PrefetchableLazyComponent<T>;
+  // Hover prefetch is best-effort: never surface as unhandledrejection (Sentry noise).
   Comp.prefetch = async () => {
-    await load();
+    try {
+      await load();
+    } catch {
+      /* stale chunk already attempted reload via recover(); ignore for prefetch */
+    }
   };
   return Comp;
 }
