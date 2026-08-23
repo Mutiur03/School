@@ -4,10 +4,6 @@ import {
   getExamsController,
   updateExamController,
   updateExamVisibilityController,
-  addExamRoutineController,
-  getExamRoutinesController,
-  updateExamRoutineController,
-  deleteExamRoutineController,
   uploadExamRoutinePDFController,
   removeExamRoutinePDFController,
   getExamRoutinePresignedUrl,
@@ -31,25 +27,7 @@ examRouter.delete(
   deleteExamController,
 );
 
-// Exam Routine routes
-examRouter.post(
-  '/addExamRoutine',
-  AuthMiddleware.authenticate(['admin']),
-  addExamRoutineController,
-);
-examRouter.get('/getExamRoutines', getExamRoutinesController);
-examRouter.put(
-  '/updateExamRoutine/:routineId',
-  AuthMiddleware.authenticate(['admin']),
-  updateExamRoutineController,
-);
-examRouter.delete(
-  '/deleteExamRoutine/:routineId',
-  AuthMiddleware.authenticate(['admin']),
-  deleteExamRoutineController,
-);
-
-// Exam Routine PDF upload route
+// Exam routine PDF upload
 examRouter.get(
   '/presigned-url',
   AuthMiddleware.authenticate(['admin']),

@@ -36,7 +36,10 @@
     "check:client-next": "node scripts/ci-check.mjs client-next",
     "check:dashboard": "node scripts/ci-check.mjs dashboard",
     "check:auth-bff": "node scripts/ci-check.mjs auth-bff",
-    "check:tenant-router": "node scripts/ci-check.mjs tenant-router"
+    "check:tenant-router": "node scripts/ci-check.mjs tenant-router",
+    "db:migrate": "pnpm --filter server exec prisma migrate dev",
+    "db:migrate:prod": "pnpm --filter server exec prisma migrate deploy",
+    "db:seed": "pnpm --filter server run db:seed"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

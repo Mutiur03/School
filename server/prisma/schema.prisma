@@ -58,8 +58,6 @@ model School {
   events           events[]
   admission        admission[]
   syllabus         syllabus[]
-  class_slots      class_slot_time[]
-  class_routine    class_routine[]
   charters         CitizenCharter[]
   routines_pdf     class_routine_pdf[]
   ssc_reg          ssc_reg[]
@@ -75,7 +73,6 @@ model School {
   levels           levels[]
   marks            marks[]
   galleries        gallery[]
-  exam_routines    exam_routines[]
   head_msgs        head_msg[]
   sms_logs         sms_logs[]
   sms_settings     sms_settings?
@@ -234,7 +231,6 @@ model exams {
   routine       String?
   download_url  String?
   public_id     String?
-  exam_routines exam_routines[]
   marks         marks[]
   class_stats   exam_class_stats[]
   school_id     Int @default(dbgenerated("app.current_school_id()"))
@@ -630,49 +626,6 @@ model syllabus {
   school_id    Int @default(dbgenerated("app.current_school_id()"))
   school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@index([school_id])
-}
-
-model class_slot_time {
-  id         Int             @id @default(autoincrement())
-  start_time String          @db.VarChar(8)
-  end_time   String          @db.VarChar(8)
-  created_at DateTime        @default(now())
-  routines   class_routine[]
-  school_id  Int @default(dbgenerated("app.current_school_id()"))
-  school     School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
-
-  @@index([school_id])
-}
-
-model class_routine {
-  id         Int             @id @default(autoincrement())
-  class      Int
-  slot_id    Int
-  day        String          @db.VarChar(10)
-  subject    String          @db.VarChar(100)
-  created_at DateTime        @default(now())
-  slot       class_slot_time @relation(fields: [slot_id], references: [id], onDelete: Cascade)
-  school_id  Int @default(dbgenerated("app.current_school_id()"))
-  school     School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
-
-  @@unique([class, slot_id, day, school_id], name: "unique_class_slot_day")
-  @@index([school_id])
-}
-
-model exam_routines {
-  id         Int      @id @default(autoincrement())
-  exam_id    Int
-  class      Int
-  date       String   @db.VarChar(10)
-  day        String   @db.VarChar(10)
-  subject    String   @db.VarChar(100)
-  created_at DateTime @default(now())
-  exam       exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  school_id  Int @default(dbgenerated("app.current_school_id()"))
-  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
-
-  @@index([exam_id, class])
   @@index([school_id])
 }
 

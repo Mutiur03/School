@@ -236,13 +236,6 @@ pnpm exec prisma migrate dev
 pnpm run db:seed
 ```
 
-Useful maintenance scripts:
-
-```bash
-pnpm --filter server run stats:backfill          # exam_class_stats backfill
-pnpm --filter server run marksheets:backfill   # pre-queue marksheets (dry: --dry)
-```
-
 ### Run development
 
 **All services (recommended on Linux/macOS):**
