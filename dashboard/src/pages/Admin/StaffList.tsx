@@ -411,7 +411,8 @@ const StaffList = () => {
       </SectionCard>
 
       <SectionCard noPadding className="mb-6">
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
@@ -431,7 +432,7 @@ const StaffList = () => {
                   <td colSpan={4} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                      <p className="text-muted-foreground text-sm">Loading staff...</p>
+                      <p className="text-muted-foreground text-sm">Loading staff…</p>
                     </div>
                   </td>
                 </tr>
@@ -484,6 +485,60 @@ const StaffList = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <Loader2 className="text-primary h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm">Loading staff…</p>
+            </div>
+          ) : staff.length > 0 ? (
+            <ul className="divide-border divide-y">
+              {staff.map((member) => (
+                <li key={member.id} className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    {member.image ? (
+                      <img
+                        src={getFileUrl(member.image)}
+                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold">
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-foreground truncate font-medium">{member.name}</p>
+                      <p className="text-muted-foreground truncate text-sm">
+                        {member.email || '—'}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {member.designation || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <ActionButton
+                      action="view"
+                      onClick={() => setPopup({ visible: true, type: 'view', staff: member })}
+                    />
+                    <ActionButton action="edit" onClick={() => handleEdit(member)} />
+                    <DeleteConfirmation
+                      onDelete={() => handleDelete(member)}
+                      msg={`Are you sure you want to delete ${member.name}?`}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+              {errorMessage || 'No staff found matching your criteria.'}
+            </p>
+          )}
         </div>
       </SectionCard>
 

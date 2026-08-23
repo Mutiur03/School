@@ -122,11 +122,13 @@ function ShowMarkSheet() {
           )}
 
           {/* Marks Table */}
-          <div className="overflow-x-auto">
-            <table className="border-input w-full border-collapse overflow-hidden rounded-lg border">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+            <table className="border-input w-full min-w-[320px] border-collapse overflow-hidden rounded-lg border">
               <thead className="bg-popover border-b border-gray-400">
                 <tr className="bg-popover">
-                  <th className="px-4 py-3 text-center font-semibold">Subject</th>
+                  <th className="bg-popover sticky left-0 z-20 border-r px-3 py-3 text-center font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:px-4">
+                    Subject
+                  </th>
                   {marksheet[0]?.exam_marks &&
                     Object.keys(marksheet[0].exam_marks).map((exam) => (
                       <th key={exam} className="px-4 py-3 text-center font-semibold">
@@ -138,7 +140,9 @@ function ShowMarkSheet() {
               <tbody className="divide-y divide-gray-400">
                 {marksheet.map((entry, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-3 font-medium">{entry.subject}</td>
+                    <td className="bg-card sticky left-0 z-10 border-r px-3 py-3 font-medium shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:px-4">
+                      {entry.subject}
+                    </td>
                     {Object.keys(entry.exam_marks || {}).map((exam, idx) => (
                       <td key={idx} className="px-4 py-3 text-center">
                         {entry.exam_marks[exam]}
@@ -147,7 +151,9 @@ function ShowMarkSheet() {
                   </tr>
                 ))}
                 <tr className="bg-muted/50 text-center font-semibold dark:bg-slate-800">
-                  <td className="px-4 py-3">Total</td>
+                  <td className="bg-muted/50 sticky left-0 z-10 border-r px-3 py-3 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:px-4 dark:bg-slate-800">
+                    Total
+                  </td>
                   {marksheet[0]?.total_marks_per_exam &&
                     Object.keys(marksheet[0].total_marks_per_exam).map((exam) => (
                       <td key={exam} className="px-4 py-3 text-center">

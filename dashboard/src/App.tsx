@@ -162,7 +162,7 @@ function App() {
   }
 
   const contentShellClass =
-    'content-area flex-1 overflow-y-auto relative px-4 transition-[margin,width] duration-100 md:ml-60 md:w-[calc(100%-15rem)]';
+    'content-area relative min-w-0 flex-1 overflow-x-clip overflow-y-auto px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 transition-[margin,width] duration-100 sm:px-4 md:ml-60 md:w-[calc(100%-15rem)]';
 
   return (
     <>

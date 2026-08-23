@@ -309,7 +309,7 @@ const GenerateResult = () => {
               size="sm"
               variant="outline"
               onClick={downloadAllMarksheetPDF}
-              className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 gap-1.5 px-3 font-medium shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
+              className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 w-full gap-1.5 px-3 font-medium shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white sm:w-auto"
             >
               <Download className="h-3.5 w-3.5" />
               Download All PDFs
@@ -317,34 +317,103 @@ const GenerateResult = () => {
           )
         }
       >
-        <div className="min-h-[300px] overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="bg-muted/50 border-border border-b shadow-sm">
-                <th className="w-16 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {loading && students.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16">
+              <Loading />
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="text-muted-foreground px-4 py-16 text-center italic">
+              {studentsError
+                ? 'An error occurred while fetching students.'
+                : 'No students matching your filters found.'}
+            </div>
+          ) : (
+            <ul className="divide-border divide-y">
+              {filteredStudents.map((student) => (
+                <li key={student.id} className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                        student.final_merit === 1
+                          ? 'bg-amber-500 text-white'
+                          : student.final_merit === 2
+                            ? 'bg-zinc-400 text-white'
+                            : student.final_merit === 3
+                              ? 'bg-amber-700 text-white'
+                              : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {student.final_merit || '-'}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-foreground truncate font-semibold uppercase">
+                        {student.name || 'N/A'}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                        Roll {student.roll || 'N/A'} · Sec {student.section || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <div className="bg-primary/5 min-w-0 rounded-md px-2 py-1.5">
+                      <dt className="text-muted-foreground">Next Roll</dt>
+                      <dd className="text-primary font-semibold tabular-nums">
+                        {student.next_year_roll || 'N/A'}
+                      </dd>
+                    </div>
+                    <div className="bg-primary/5 min-w-0 rounded-md px-2 py-1.5">
+                      <dt className="text-muted-foreground">Next Sec</dt>
+                      <dd className="text-primary font-semibold">
+                        {student.next_year_section || 'N/A'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 w-full gap-1.5 px-3 font-medium shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
+                    onClick={() => downloadSessionMarksheet(student.id)}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Session PDF
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Desktop table — sticky via Tailwind left-* only (no inline left) */}
+        <div className="hidden min-h-[300px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
+          <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-muted/50 border-border">
+                <th className="bg-muted/50 sticky left-0 z-30 w-14 min-w-14 border-r border-b px-3 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Merit
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-muted/50 sticky left-14 z-30 min-w-40 border-r border-b px-3 py-4 font-bold text-gray-900 italic shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] dark:text-gray-100">
                   Student Name
                 </th>
-                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="w-20 border-b px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Roll
                 </th>
-                <th className="w-24 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="w-24 border-b px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Section
                 </th>
-                <th className="bg-primary/5 w-24 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-primary/5 w-24 border-b px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Next Roll
                 </th>
-                <th className="bg-primary/5 w-28 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-primary/5 w-28 border-b px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Next Sec
                 </th>
-                <th className="w-32 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="w-32 border-b px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-border divide-y">
+            <tbody>
               {loading && students.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-20 text-center">
@@ -368,7 +437,7 @@ const GenerateResult = () => {
                     transition={{ delay: Math.min(idx * 0.03, 0.5) }}
                     className="hover:bg-muted/30 group transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                   >
-                    <td className="border-border/50 border-r px-6 py-4 text-center">
+                    <td className="bg-card border-border/50 sticky left-0 z-10 w-14 min-w-14 border-r px-3 py-4 text-center">
                       <span
                         className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
                           student.final_merit === 1
@@ -383,7 +452,7 @@ const GenerateResult = () => {
                         {student.final_merit || '-'}
                       </span>
                     </td>
-                    <td className="group-hover:text-primary border-border/50 border-r px-6 py-4 font-bold text-gray-800 uppercase transition-colors dark:text-gray-200">
+                    <td className="group-hover:text-primary bg-card border-border/50 sticky left-14 z-10 min-w-40 border-r px-3 py-4 font-bold text-gray-800 uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] transition-colors dark:text-gray-200">
                       {student.name || 'N/A'}
                     </td>
                     <td className="border-border/50 border-r px-6 py-4 text-center tabular-nums">

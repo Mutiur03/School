@@ -668,7 +668,7 @@ function Admission() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full">
             <thead className="bg-muted/50 border-border border-b dark:border-gray-600 dark:bg-gray-700">
               <tr>
@@ -777,6 +777,78 @@ function Admission() {
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 p-4 lg:hidden">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 dark:border-blue-300"></div>
+            </div>
+          ) : filteredAdmissions.length === 0 ? (
+            <p className="text-muted-foreground py-12 text-center dark:text-gray-400">
+              No admissions found
+            </p>
+          ) : (
+            filteredAdmissions.map((admission) => (
+              <div
+                key={admission.id}
+                className="border-border rounded-lg border bg-white p-4 dark:border-gray-600 dark:bg-gray-800"
+              >
+                <div className="flex items-start gap-3">
+                  {admission.photo_path && (
+                    <img
+                      className="border-border h-12 w-12 shrink-0 rounded-full border object-cover dark:border-gray-600"
+                      src={`${getFileUrl(admission.photo_path)}`}
+                      alt=""
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {admission.student_name_en}
+                    </div>
+                    <div className="text-muted-foreground text-sm dark:text-gray-400">
+                      {admission.student_name_bn}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                        Class {admission.admission_class || admission.section || '-'}
+                      </span>
+                      <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                        {admission.admission_user_id ||
+                          admission.roll ||
+                          admission.serial_no ||
+                          '-'}
+                      </span>
+                      {getStatusBadge(admission.status)}
+                    </div>
+                    <p className="text-muted-foreground mt-2 text-sm dark:text-gray-400">
+                      {formatDate(admission.created_at || admission.submission_date)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleViewDetails(admission.id)}
+                    className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-200 dark:hover:bg-blue-800"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleEdit(admission.id)}
+                    className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-200 dark:hover:bg-emerald-800"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(admission)}
+                    className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/10 dark:text-red-200 dark:hover:bg-red-800"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {showModal && selectedAdmission && (
@@ -821,7 +893,7 @@ function Admission() {
                 <span className="ml-auto">Status: {getStatusBadge(selectedAdmission.status)}</span>
               </div>
               <div className="border-border overflow-hidden rounded-lg border bg-white">
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto">
                   <table className="w-full text-sm">
                     <tbody>
                       <tr>

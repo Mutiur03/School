@@ -476,6 +476,16 @@ const Sidebar = ({
     };
   }, [open, onClose, navbarRef]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!open || window.innerWidth >= 768) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const toggleDropdown = (dropdownId: string | null) => {
     if (sidebarExpanded) {
       setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
@@ -518,145 +528,154 @@ const Sidebar = ({
         cancelLabel="Stay"
         variant="destructive"
       />
+      {open ? (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={onClose}
+        />
+      ) : null}
       <motion.aside
         initial={false}
         animate={{
           width: sidebarExpanded ? '250px' : '64px',
-          left: window.innerWidth < 768 ? (open ? '0' : '-260px') : '0',
+          left:
+            typeof window !== 'undefined' && window.innerWidth < 768
+              ? open
+                ? '0'
+                : '-260px'
+              : '0',
         }}
         ref={sidebarRef}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`bg-sidebar border-border fixed top-14 z-50 flex h-[calc(100vh-3.5rem)] flex-col border-r shadow-sm backdrop-blur-sm`}
+        className="bg-sidebar border-border fixed top-14 right-auto bottom-0 z-50 flex w-[250px] flex-col overscroll-contain border-r pb-[env(safe-area-inset-bottom,0px)] shadow-sm backdrop-blur-sm md:w-auto"
       >
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="scrollbar scrollbar-hide min-h-full [&::-webkit-scrollbar]:hidden">
-              <div className="scrollbar-hide h-[calc(100vh-4rem)] flex-1 scrollbar-thin overflow-x-hidden py-4 [&::-webkit-scrollbar]:hidden">
-                <ul className="space-y-1 px-2">
-                  {sidebarItems.map((item) => (
-                    <li key={item.id}>
-                      {!item.dropdown ? (
-                        <NavLink
-                          to={item.link as string}
-                          className={() =>
-                            `text-md flex w-full items-center rounded-sm px-3 py-2 font-medium transition-[color,background-color,box-shadow] duration-200 ${
-                              isPathActive(item.link)
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            } ${sidebarExpanded ? 'gap-3' : 'justify-center'}`
-                          }
-                          onMouseEnter={() => prefetchRoute(item.link)}
-                          onFocus={() => prefetchRoute(item.link)}
-                          onClick={(e) => {
-                            if (!requestNavigate(e, item.link as string)) return;
-                            setOpenDropdown(null);
-                            if (window.innerWidth < 768 && onClose) {
-                              onClose();
-                            }
-                          }}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <nav className="min-h-0 flex-1 [scrollbar-width:none] overflow-x-hidden overflow-y-auto overscroll-contain py-4 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+            <ul className="space-y-1 px-2">
+              {sidebarItems.map((item) => (
+                <li key={item.id}>
+                  {!item.dropdown ? (
+                    <NavLink
+                      to={item.link as string}
+                      className={() =>
+                        `text-md flex w-full items-center rounded-sm px-3 py-2 font-medium transition-[color,background-color,box-shadow] duration-200 ${
+                          isPathActive(item.link)
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        } ${sidebarExpanded ? 'gap-3' : 'justify-center'}`
+                      }
+                      onMouseEnter={() => prefetchRoute(item.link)}
+                      onFocus={() => prefetchRoute(item.link)}
+                      onClick={(e) => {
+                        if (!requestNavigate(e, item.link as string)) return;
+                        setOpenDropdown(null);
+                        if (window.innerWidth < 768 && onClose) {
+                          onClose();
+                        }
+                      }}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {sidebarExpanded && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="overflow-hidden text-ellipsis whitespace-nowrap"
                         >
+                          {item.label}
+                        </motion.span>
+                      )}
+                    </NavLink>
+                  ) : (
+                    <div>
+                      <button
+                        className={`text-md flex w-full items-center rounded-sm px-3 py-2 font-medium transition-[color,background-color,box-shadow] duration-200 ${
+                          sidebarExpanded ? 'justify-between gap-3' : 'justify-center'
+                        } ${
+                          openDropdown === item.id
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        }`}
+                        type="button"
+                        onClick={() => toggleDropdown(item.id)}
+                        onMouseEnter={() => {
+                          item.items?.forEach((sub) => prefetchRoute(sub.link));
+                        }}
+                      >
+                        <div className={`flex items-center ${sidebarExpanded ? 'gap-3' : ''}`}>
                           <item.icon className="h-4 w-4 shrink-0" />
                           {sidebarExpanded && (
                             <motion.span
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="overflow-hidden text-ellipsis whitespace-nowrap"
+                              className="overflow-hidden text-left text-ellipsis whitespace-nowrap"
                             >
                               {item.label}
                             </motion.span>
                           )}
-                        </NavLink>
-                      ) : (
-                        <div>
-                          <button
-                            className={`text-md flex w-full items-center rounded-sm px-3 py-2 font-medium transition-[color,background-color,box-shadow] duration-200 ${
-                              sidebarExpanded ? 'justify-between gap-3' : 'justify-center'
-                            } ${
-                              openDropdown === item.id
-                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            }`}
-                            type="button"
-                            onClick={() => toggleDropdown(item.id)}
-                            onMouseEnter={() => {
-                              item.items?.forEach((sub) => prefetchRoute(sub.link));
-                            }}
-                          >
-                            <div className={`flex items-center ${sidebarExpanded ? 'gap-3' : ''}`}>
-                              <item.icon className="h-4 w-4 shrink-0" />
-                              {sidebarExpanded && (
-                                <motion.span
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="overflow-hidden text-left text-ellipsis whitespace-nowrap"
-                                >
-                                  {item.label}
-                                </motion.span>
-                              )}
-                            </div>
-                            {sidebarExpanded && (
-                              <motion.div
-                                animate={{
-                                  rotate: openDropdown === item.id ? 180 : 0,
-                                }}
-                                transition={{ duration: 0.2 }}
-                              >
-                                <ChevronDown className="text-muted-foreground h-4 w-4" />
-                              </motion.div>
-                            )}
-                          </button>
-
-                          {sidebarExpanded && (
-                            <AnimatePresence>
-                              {openDropdown === item.id && (
-                                <motion.ul
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{
-                                    height: 'auto',
-                                    opacity: 1,
-                                    transition: { duration: 0.2 },
-                                  }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  className="border-border ml-4 space-y-1 overflow-visible border-l pl-7"
-                                >
-                                  {item.items?.map((subItem) => (
-                                    <li key={subItem.id}>
-                                      <NavLink
-                                        to={subItem.link}
-                                        className={({ isActive }: { isActive: boolean }) =>
-                                          `text-md flex w-full items-center rounded-sm px-3 py-1.5 transition-[color,background-color,box-shadow] duration-200 ${
-                                            isActive
-                                              ? 'bg-primary text-primary-foreground font-medium shadow-sm'
-                                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                                          }`
-                                        }
-                                        onMouseEnter={() => prefetchRoute(subItem.link)}
-                                        onFocus={() => prefetchRoute(subItem.link)}
-                                        onClick={(e) => {
-                                          if (!requestNavigate(e, subItem.link)) return;
-                                          if (window.innerWidth < 768 && onClose) {
-                                            onClose();
-                                          }
-                                        }}
-                                      >
-                                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                                          {subItem.label}
-                                        </span>
-                                      </NavLink>
-                                    </li>
-                                  ))}
-                                </motion.ul>
-                              )}
-                            </AnimatePresence>
-                          )}
                         </div>
+                        {sidebarExpanded && (
+                          <motion.div
+                            animate={{
+                              rotate: openDropdown === item.id ? 180 : 0,
+                            }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown className="text-muted-foreground h-4 w-4" />
+                          </motion.div>
+                        )}
+                      </button>
+
+                      {sidebarExpanded && (
+                        <AnimatePresence>
+                          {openDropdown === item.id && (
+                            <motion.ul
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{
+                                height: 'auto',
+                                opacity: 1,
+                                transition: { duration: 0.2 },
+                              }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="border-border ml-4 space-y-1 overflow-visible border-l pl-7"
+                            >
+                              {item.items?.map((subItem) => (
+                                <li key={subItem.id}>
+                                  <NavLink
+                                    to={subItem.link}
+                                    className={({ isActive }: { isActive: boolean }) =>
+                                      `text-md flex w-full items-center rounded-sm px-3 py-1.5 transition-[color,background-color,box-shadow] duration-200 ${
+                                        isActive
+                                          ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                                      }`
+                                    }
+                                    onMouseEnter={() => prefetchRoute(subItem.link)}
+                                    onFocus={() => prefetchRoute(subItem.link)}
+                                    onClick={(e) => {
+                                      if (!requestNavigate(e, subItem.link)) return;
+                                      if (window.innerWidth < 768 && onClose) {
+                                        onClose();
+                                      }
+                                    }}
+                                  >
+                                    <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                                      {subItem.label}
+                                    </span>
+                                  </NavLink>
+                                </li>
+                              ))}
+                            </motion.ul>
+                          )}
+                        </AnimatePresence>
                       )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
       </motion.aside>
     </>

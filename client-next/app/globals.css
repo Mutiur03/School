@@ -10,6 +10,13 @@
 html,
 body {
   font-family: 'Kalpurush', sans-serif;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+html {
+  scroll-padding-top: 1rem;
 }
 
 /* Button reset so an onClick control can look like an inline link
@@ -136,26 +143,44 @@ body {
 #site-navigation {
   width: 100%;
   margin: 0 auto;
-  padding: 0 15px;
+  padding: 0 max(15px, env(safe-area-inset-left)) 0 max(15px, env(safe-area-inset-right));
   position: relative;
+  box-sizing: border-box;
+}
+
+.content-part-1,
+.content-part-2,
+.main-content,
+.main-content-full {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 1200px) {
   .container,
   .front-notices-area,
-  .main-content-container,
-  #site-navigation {
+  .main-content-container {
     max-width: 1140px;
     padding: 0;
+  }
+
+  /* Nav needs more room than page content — don't cap it at 1140 */
+  #site-navigation {
+    max-width: 1360px;
+    padding: 0 12px;
   }
 }
 
 @media (min-width: 768px) and (max-width: 1199px) {
   .container,
   .front-notices-area,
-  .main-content-container,
-  #site-navigation {
+  .main-content-container {
     max-width: 960px;
+    padding: 0 15px;
+  }
+
+  #site-navigation {
+    max-width: 100%;
     padding: 0 15px;
   }
 }
@@ -174,7 +199,7 @@ body {
   .front-notices-area,
   .main-content-container,
   #site-navigation {
-    padding: 0 10px;
+    padding: 0 max(10px, env(safe-area-inset-left)) 0 max(10px, env(safe-area-inset-right));
   }
 }
 

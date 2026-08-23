@@ -405,7 +405,7 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 6"
                 className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
               />
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="list_type_class6" className="mb-1 block text-xs font-medium">
                     List Type (Class 6)
@@ -444,7 +444,7 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 7"
                 className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
               />
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="list_type_class7" className="mb-1 block text-xs font-medium">
                     List Type (Class 7)
@@ -483,7 +483,7 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 8"
                 className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
               />
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="list_type_class8" className="mb-1 block text-xs font-medium">
                     List Type (Class 8)
@@ -522,7 +522,7 @@ function AdmissionSettings() {
                 placeholder="Comma separated user ids for class 9"
                 className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
               />
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="list_type_class9" className="mb-1 block text-xs font-medium">
                     List Type (Class 9)

@@ -64,7 +64,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   const closeNavbarIfMobile = (href?: string | null) => {
     const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
-    if (typeof window !== 'undefined' && window.innerWidth <= 768 && isRealHref) {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1399 && isRealHref) {
       setIsNavOpen(false);
       setActiveDropdown(null);
       setActiveSubDropdown(null);

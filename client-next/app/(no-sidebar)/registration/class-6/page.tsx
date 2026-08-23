@@ -13,8 +13,8 @@ export default async function Class6RegistrationNoticePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4">
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow-md sm:p-6">
+          <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
             Class Six Registration Notice
           </h1>
 
@@ -29,7 +29,7 @@ export default async function Class6RegistrationNoticePage() {
               <div className="overflow-hidden rounded-lg border">
                 <iframe
                   src={`${noticeUrl}#navpanes=0&scrollbar=0`}
-                  className="h-250 w-full"
+                  className="h-[min(70vh,900px)] min-h-[280px] w-full"
                   title="Class Six Registration Notice"
                 />
               </div>
@@ -55,7 +55,7 @@ export default async function Class6RegistrationNoticePage() {
             {data?.reg_open ? (
               <Link
                 href="/registration/class-6/form"
-                className="inline-block rounded-lg bg-green-600 px-8 py-3 text-lg font-bold text-white! transition-colors duration-200 hover:bg-green-700"
+                className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
               >
                 Proceed to Registration Form
               </Link>
@@ -63,7 +63,7 @@ export default async function Class6RegistrationNoticePage() {
               <div className="text-center">
                 <button
                   disabled
-                  className="cursor-not-allowed rounded-lg bg-gray-400 px-8 py-3 text-lg font-bold text-white"
+                  className="inline-block w-full max-w-sm cursor-not-allowed rounded-lg bg-gray-400 px-6 py-3 text-center text-base font-bold text-white sm:w-auto sm:px-8 sm:text-lg"
                 >
                   Registration Closed
                 </button>

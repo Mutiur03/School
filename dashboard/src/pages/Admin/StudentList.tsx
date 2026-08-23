@@ -186,6 +186,145 @@ const StudentRow = React.memo(
     prev.readOnly === next.readOnly,
 );
 
+const StudentCard = React.memo(
+  ({
+    student,
+    isSelected,
+    onToggleSelect,
+    onImageUpload,
+    onEdit,
+    onView,
+    onDelete,
+    allSubjects,
+    onFourthSubjectChange,
+    isUpdatingFourthSubject,
+    showSeniorColumns,
+    readOnly,
+  }: {
+    student: Student;
+    isSelected: boolean;
+    onToggleSelect: (studentId: number) => void;
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, student: Student) => void;
+    onEdit: (student: Student) => void;
+    onView: (student: Student) => void;
+    onDelete: (student: Student) => void;
+    allSubjects: Subject[];
+    onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
+    isUpdatingFourthSubject?: boolean;
+    showSeniorColumns?: boolean;
+    readOnly?: boolean;
+  }) => {
+    return (
+      <li
+        className={`border-border space-y-3 border-b p-4 last:border-b-0 ${isSelected ? 'bg-sidebar-accent' : ''}`}
+      >
+        <div className="flex items-start gap-3">
+          {!readOnly && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(student.id)}
+              aria-label={`Select ${student.name}`}
+              className="mt-1 h-4 w-4 shrink-0"
+            />
+          )}
+          {student.image ? (
+            <img
+              src={getFileUrl(student.image)}
+              alt=""
+              className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
+            />
+          ) : (
+            <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+              {student.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-foreground truncate font-medium">{student.name}</p>
+              {!student.available && (
+                <span className="text-destructive bg-destructive/10 rounded-sm px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                  Inactive
+                </span>
+              )}
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs tabular-nums">
+              Roll {student.roll} · Class {student.class} · Sec {student.section}
+              {showSeniorColumns && student.group ? ` · ${student.group}` : ''}
+            </p>
+          </div>
+        </div>
+
+        {showSeniorColumns && Number(student.class) >= 9 && !readOnly ? (
+          <label className="block space-y-1">
+            <span className="text-muted-foreground text-xs font-medium">4th Subject</span>
+            <select
+              className="bg-card focus:ring-primary w-full rounded border px-2 py-2 text-sm outline-none focus:ring-1"
+              value={student.fourth_subject_id || ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                onFourthSubjectChange(student.id, val);
+              }}
+              disabled={isUpdatingFourthSubject}
+            >
+              <option value="">None</option>
+              {allSubjects
+                .filter((s: Subject) => s.subject_type !== 'main')
+                .filter((s: Subject) => s.class === Number(student.class))
+                .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
+                .map((sub: Subject) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : null}
+
+        {showSeniorColumns && Number(student.class) >= 9 && readOnly ? (
+          <p className="text-muted-foreground text-xs">
+            4th: {allSubjects.find((s) => s.id === student.fourth_subject_id)?.name || '—'}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {!readOnly && (
+            <>
+              <ActionButton action="photo" asLabel htmlFor={`file-upload-mobile-${student.id}`} />
+              <input
+                type="file"
+                id={`file-upload-mobile-${student.id}`}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onImageUpload(e, student)}
+              />
+            </>
+          )}
+          <ActionButton action="view" onClick={() => onView(student)} />
+          {!readOnly && (
+            <>
+              <ActionButton action="edit" onClick={() => onEdit(student)} />
+              <DeleteConfirmation
+                onDelete={() => onDelete(student)}
+                msg={`Are you sure you want to delete ${student.name}?`}
+              />
+            </>
+          )}
+        </div>
+      </li>
+    );
+  },
+  (prev, next) =>
+    prev.isSelected === next.isSelected &&
+    prev.student === next.student &&
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.allSubjects === next.allSubjects &&
+    prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
+    prev.onFourthSubjectChange === next.onFourthSubjectChange &&
+    prev.showSeniorColumns === next.showSeniorColumns &&
+    prev.readOnly === next.readOnly,
+);
+
 const defaultFormValues: StudentFormData = {
   name: '',
   father_name: '',
@@ -1684,7 +1823,8 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
             />
           </div>
         )}
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
@@ -1765,6 +1905,50 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {loading ? (
+            <div className="py-12 text-center">
+              <Loading />
+            </div>
+          ) : students.length > 0 ? (
+            <ul>
+              {students.map((student) => (
+                <StudentCard
+                  key={student.id}
+                  student={student}
+                  isSelected={selectedStudentIds.has(student.id)}
+                  onToggleSelect={onToggleSelect}
+                  onImageUpload={handleIndivisualImageUpload}
+                  onEdit={handleEdit}
+                  onView={onViewStudent}
+                  onDelete={handleDelete}
+                  allSubjects={allSubjectsData}
+                  onFourthSubjectChange={(studentId, subjectId) => {
+                    updateFourthSubjectMutation.mutate(
+                      {
+                        studentId,
+                        year,
+                        subjectId,
+                      },
+                      {
+                        onSuccess: () => refetchStudents(),
+                      },
+                    );
+                  }}
+                  isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
+                  showSeniorColumns={showSeniorColumns}
+                  readOnly={readOnly}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm dark:text-gray-400">
+              {errorMessage || 'No students found matching your criteria.'}
+            </p>
+          )}
         </div>
       </SectionCard>
 

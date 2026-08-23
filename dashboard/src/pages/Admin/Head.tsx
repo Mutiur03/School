@@ -92,14 +92,14 @@ function Head() {
       {error && <div className="text-red-600">{error}</div>}
       {success && <div className="text-green-600">{success}</div>}
 
-      <form onSubmit={handleSubmit} className="mt-3 grid gap-2">
-        <label className="inline-flex items-center">
-          <span>Teacher:</span>
+      <form onSubmit={handleSubmit} className="mt-3 grid max-w-2xl gap-3">
+        <label className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+          <span className="shrink-0 text-sm font-medium">Teacher:</span>
           <select
             value={selectedTeacherId}
             onChange={(e) => setSelectedTeacherId(e.target.value)}
             disabled={loading || teachers.length === 0}
-            className="border-input ml-2 resize-y rounded border p-2 text-sm disabled:opacity-60"
+            className="border-input w-full min-w-0 rounded border p-2 text-sm disabled:opacity-60 sm:ml-2"
           >
             <option value="">-- Select --</option>
             {teachers.map((teacher) => (

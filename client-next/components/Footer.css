@@ -45,8 +45,8 @@ footer.site-footer.footer {
 /* Scroll to top button */
 #scroll-top {
   position: fixed;
-  bottom: 50px;
-  right: 50px;
+  bottom: calc(50px + env(safe-area-inset-bottom, 0px));
+  right: calc(50px + env(safe-area-inset-right, 0px));
   width: 50px;
   height: 50px;
   background-color: rgba(1, 134, 240, 0.61);
@@ -82,8 +82,8 @@ footer.site-footer.footer {
   }
 
   #scroll-top {
-    bottom: 20px;
-    right: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    right: calc(20px + env(safe-area-inset-right, 0px));
     width: 40px;
     height: 40px;
     font-size: 18px;

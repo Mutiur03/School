@@ -79,9 +79,11 @@ function UpdateStatus() {
   );
 
   return (
-    <div className="p-5 font-sans">
-      <h1 className="mb-5 text-center text-2xl font-semibold underline">Student Status</h1>
-      <div className="mb-5 flex flex-wrap justify-center gap-4">
+    <div className="p-3 font-sans sm:p-5">
+      <h1 className="mb-5 text-center text-xl font-semibold text-balance underline sm:text-2xl">
+        Student Status
+      </h1>
+      <div className="mb-5 flex flex-col flex-wrap justify-center gap-3 sm:flex-row sm:gap-4">
         <div>
           <label htmlFor="year" className="mb-1 block font-medium">
             Select Year:
@@ -154,61 +156,109 @@ function UpdateStatus() {
         )}
       </div>
       {errorMessage && <p className="mb-5 text-center text-red-500">{errorMessage}</p>}
-      <div className="overflow-hidden rounded-lg border border-gray-100 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 border">
-            <thead className="bg-popover">
-              <tr>
-                <th className="p-3 text-left">Name</th>
-                <th className="p-3 text-left">Status</th>
-                <th className="p-3 text-left">Fail Count</th>
-                <th className="p-3 text-left">Change Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
-                  <tr key={student.id}>
-                    <td className="p-3">{student.name || 'N/A'}</td>
-                    <td className="p-3">
-                      {student.status === 'Passed' && (
-                        <span className="font-bold text-green-600">✔ Passed</span>
-                      )}
-                      {student.status === 'Failed' && (
-                        <span className="font-bold text-red-600">✘ Failed</span>
-                      )}
-                      {student.status === 'Pending' && (
-                        <span className="font-bold text-orange-500">⏳ Pending</span>
-                      )}
-                    </td>
-                    <td className="p-3">{student.fail_count || 0}</td>
-                    <td className="p-3">
-                      <select
-                        value={student.status || ''}
-                        onChange={(e) =>
-                          handleStatusChange(student.id, e.target.value as Student['status'])
-                        }
-                        className="border-border dark:bg-accent rounded-md border p-2"
-                      >
-                        <option value="">Select Status</option>
-                        <option value="Passed">Passed</option>
-                        <option value="Failed">Failed</option>
-                        <option value="Pending">Pending</option>
-                      </select>
-                    </td>
+
+      {filteredStudents.length === 0 ? (
+        <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
+          No students available.
+        </p>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-lg border border-gray-100 shadow-sm lg:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 border">
+                <thead className="bg-popover">
+                  <tr>
+                    <th className="p-3 text-left">Name</th>
+                    <th className="p-3 text-left">Status</th>
+                    <th className="p-3 text-left">Fail Count</th>
+                    <th className="p-3 text-left">Change Status</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="text-muted-foreground p-3 text-center">
-                    No students available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((student) => (
+                    <tr key={student.id}>
+                      <td className="p-3">{student.name || 'N/A'}</td>
+                      <td className="p-3">
+                        {student.status === 'Passed' && (
+                          <span className="font-bold text-green-600">✔ Passed</span>
+                        )}
+                        {student.status === 'Failed' && (
+                          <span className="font-bold text-red-600">✘ Failed</span>
+                        )}
+                        {student.status === 'Pending' && (
+                          <span className="font-bold text-orange-500">⏳ Pending</span>
+                        )}
+                      </td>
+                      <td className="p-3 tabular-nums">{student.fail_count || 0}</td>
+                      <td className="p-3">
+                        <select
+                          value={student.status || ''}
+                          onChange={(e) =>
+                            handleStatusChange(student.id, e.target.value as Student['status'])
+                          }
+                          className="border-border dark:bg-accent rounded-md border p-2"
+                          aria-label={`Change status for ${student.name || 'student'}`}
+                        >
+                          <option value="">Select Status</option>
+                          <option value="Passed">Passed</option>
+                          <option value="Failed">Failed</option>
+                          <option value="Pending">Pending</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile cards */}
+          <ul className="space-y-3 lg:hidden">
+            {filteredStudents.map((student) => (
+              <li
+                key={student.id}
+                className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 flex-1 text-sm font-semibold wrap-break-word">
+                    {student.name || 'N/A'}
+                  </p>
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    Fails: {student.fail_count || 0}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {student.status === 'Passed' && (
+                    <span className="text-sm font-bold text-green-600">✔ Passed</span>
+                  )}
+                  {student.status === 'Failed' && (
+                    <span className="text-sm font-bold text-red-600">✘ Failed</span>
+                  )}
+                  {student.status === 'Pending' && (
+                    <span className="text-sm font-bold text-orange-500">⏳ Pending</span>
+                  )}
+                </div>
+                <label className="block space-y-1">
+                  <span className="text-muted-foreground text-xs font-medium">Change Status</span>
+                  <select
+                    value={student.status || ''}
+                    onChange={(e) =>
+                      handleStatusChange(student.id, e.target.value as Student['status'])
+                    }
+                    className="border-border dark:bg-accent w-full rounded-md border p-2.5 text-sm"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Passed">Passed</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

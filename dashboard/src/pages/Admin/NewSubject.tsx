@@ -66,7 +66,9 @@ const SubjectTableRow = React.memo(
     <tr
       className={`hover:bg-muted/30 transition-colors ${subject.subject_type === 'paper' ? 'bg-muted/10' : ''} ${isFirstChild && subject.subject_type !== 'paper' ? 'border-border/50 border-t-2' : ''}`}
     >
-      <td className="px-4 py-3 text-sm font-medium">
+      <td
+        className={`border-border/50 border-r px-4 py-3 text-sm font-medium ${subject.subject_type === 'paper' ? 'bg-muted/10' : 'bg-card'}`}
+      >
         <div className="flex items-center gap-2">
           {subject.subject_type === 'paper' && (
             <div className="border-border/50 ml-2 h-4 w-4 shrink-0 rounded-bl-md border-b-2 border-l-2" />
@@ -120,6 +122,89 @@ const SubjectTableRow = React.memo(
         </div>
       </td>
     </tr>
+  ),
+);
+
+const SubjectMobileCard = React.memo(
+  ({
+    subject,
+    onShowInfo,
+    onEdit,
+    onDelete,
+  }: {
+    subject: Subject;
+    onShowInfo: (s: Subject) => void;
+    onEdit: (s: Subject) => void;
+    onDelete: (id: number) => void;
+  }) => (
+    <li
+      className={`border-border space-y-3 border-b p-4 ${subject.subject_type === 'paper' ? 'bg-muted/10' : ''}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {subject.subject_type === 'paper' && (
+              <div className="border-border/50 h-3 w-3 shrink-0 rounded-bl-md border-b-2 border-l-2" />
+            )}
+            <p className="text-foreground truncate text-sm font-semibold">{subject.name}</p>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+              Class {subject.class}
+            </span>
+            {subject.group ? (
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                {subject.group}
+              </span>
+            ) : null}
+            {subject.subject_type === 'main' ? (
+              <span className="text-primary text-[10px] font-bold tracking-wider uppercase">
+                Main
+              </span>
+            ) : subject.subject_type === 'paper' ? (
+              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
+                Paper
+              </span>
+            ) : (
+              <span className="text-muted-foreground/50 text-[10px] capitalize italic">Single</span>
+            )}
+            {subject.assessment_type === 'continuous' ? (
+              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-tighter text-blue-600 uppercase">
+                CAS
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-1.5">
+          <ActionButton action="view" onClick={() => onShowInfo(subject)} />
+          <ActionButton action="edit" onClick={() => onEdit(subject)} />
+          <DeleteConfirmation
+            onDelete={() => onDelete(subject.id)}
+            msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
+          />
+        </div>
+      </div>
+      <dl className="grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+            Full Mark
+          </dt>
+          <dd className="font-medium">{subject.full_mark}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+            Pass Mark
+          </dt>
+          <dd className="font-medium text-emerald-600">{subject.pass_mark}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+            Priority
+          </dt>
+          <dd className="font-medium">{subject.priority > 0 ? subject.priority : '—'}</dd>
+        </div>
+      </dl>
+    </li>
   ),
 );
 
@@ -1280,9 +1365,12 @@ const NewSubject: React.FC = () => {
     setSearchTerm('');
   }, []);
 
-  const handleEdit = useCallback((subject: Subject) => editSubject(subject), [subjects]); // Simplified for brevity in this replace
-  const handleDelete = useCallback((id: number) => deleteSubject(id), []);
-  const handleShowInfo = useCallback((subject: Subject) => showSubjectInfo(subject), []);
+  const handleEdit = useCallback((subject: Subject) => editSubject(subject), [editSubject]);
+  const handleDelete = useCallback((id: number) => deleteSubject(id), [deleteSubject]);
+  const handleShowInfo = useCallback(
+    (subject: Subject) => showSubjectInfo(subject),
+    [showSubjectInfo],
+  );
 
   const handleClone = useCallback(async () => {
     const fromYear = filterYear - 1;
@@ -1407,14 +1495,40 @@ const NewSubject: React.FC = () => {
           onReset={onResetFilters}
         />
 
-        <div className="-mx-4 overflow-x-auto sm:mx-0">
+        {/* Mobile cards — avoid sticky/min-width table crush */}
+        <div className="block xl:hidden">
+          {isLoading ? (
+            <div className="text-muted-foreground py-20 text-center">
+              <Loading />
+            </div>
+          ) : filteredSubjects.length > 0 ? (
+            <ul className="-mx-4 sm:mx-0">
+              {filteredSubjects.map((subject) => (
+                <SubjectMobileCard
+                  key={subject.id}
+                  subject={subject}
+                  onShowInfo={handleShowInfo}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+              No subjects found with the selected filters. Try adjusting your filters or adding a
+              new subject.
+            </p>
+          )}
+        </div>
+
+        <div className="-mx-4 hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] sm:mx-0 xl:block">
           <table className="w-full min-w-[800px] border-collapse text-left">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
                 {['Subject', 'Type', 'Class', 'Full Mark', 'Pass Mark', 'Actions'].map((h) => (
                   <th
                     key={h}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${h === 'Actions' ? 'text-center' : ''}`}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${h === 'Actions' ? 'text-center' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
                   >
                     {h}
                   </th>

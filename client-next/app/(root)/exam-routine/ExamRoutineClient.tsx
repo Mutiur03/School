@@ -1,7 +1,8 @@
 'use client';
 
 import { getFileUrl } from '@/lib/cdn';
-import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 interface Exam {
   id: number;
@@ -32,6 +33,60 @@ export default function ExamRoutineClient({
   }, [exams, initialSelectedId]);
 
   const [selectedExam, setSelectedExam] = useState<Exam | null>(initialSelectedExam);
+  const [open, setOpen] = useState(false);
+  const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && rootRef.current && !rootRef.current.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const selectedIndex = Math.max(
+      0,
+      exams.findIndex((exam) => exam.id === selectedExam?.id),
+    );
+    optionRefs.current[selectedIndex]?.focus();
+  }, [open, exams, selectedExam?.id]);
+
+  const selectExam = (exam: Exam | null) => {
+    setSelectedExam(exam);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  const moveFocus = (fromIndex: number, delta: number) => {
+    if (exams.length === 0) return;
+    const next = (fromIndex + delta + exams.length) % exams.length;
+    optionRefs.current[next]?.focus();
+  };
 
   return (
     <div className="py-12">
@@ -42,57 +97,96 @@ export default function ExamRoutineClient({
             {loadError}
           </p>
         ) : null}
-        {/* Exam selection */}
-        <div className="mb-6">
-          <select
-            className="focus:ring-primary focus:border-primary rounded-xs border px-3 py-2 transition focus:ring-2"
-            value={selectedExam?.id ?? ''}
-            onChange={(e) => {
-              const exam = exams.find((ex) => ex.id === Number(e.target.value));
-              setSelectedExam(exam ?? null);
-            }}
+
+        <div className="relative mb-6 max-w-full min-w-0 sm:max-w-md" ref={rootRef}>
+          <button
+            ref={buttonRef}
+            type="button"
+            className="border-border bg-background text-foreground focus:ring-primary focus:border-primary flex w-full items-center justify-between gap-3 rounded-xs border px-3 py-2.5 text-left text-base transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-controls={listboxId}
+            aria-label="Select an exam"
             disabled={exams.length === 0}
+            onClick={() => setOpen((prev) => !prev)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setOpen(true);
+              }
+            }}
           >
-            <option value="" disabled>
-              Select an exam
-            </option>
-            {exams.map((exam) => (
-              <option key={exam.id} value={exam.id}>
-                {exam.exam_name}
-              </option>
-            ))}
-          </select>
+            <span className="min-w-0 truncate">{selectedExam?.exam_name ?? 'Select an exam'}</span>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
+          </button>
+
+          {open ? (
+            <ul
+              id={listboxId}
+              role="listbox"
+              aria-label="Exams"
+              className="border-border bg-background absolute top-full right-0 left-0 z-40 mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-xs border shadow-md"
+            >
+              {exams.map((exam, index) => {
+                const selected = selectedExam?.id === exam.id;
+                return (
+                  <li key={exam.id} role="presentation">
+                    <button
+                      ref={(el) => {
+                        optionRefs.current[index] = el;
+                      }}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={`block w-full truncate px-3 py-2.5 text-left text-base transition-colors ${
+                        selected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-foreground hover:bg-muted'
+                      }`}
+                      onClick={() => selectExam(exam)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault();
+                          moveFocus(index, 1);
+                        } else if (event.key === 'ArrowUp') {
+                          event.preventDefault();
+                          moveFocus(index, -1);
+                        } else if (event.key === 'Home') {
+                          event.preventDefault();
+                          optionRefs.current[0]?.focus();
+                        } else if (event.key === 'End') {
+                          event.preventDefault();
+                          optionRefs.current[exams.length - 1]?.focus();
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault();
+                          setOpen(false);
+                          buttonRef.current?.focus();
+                        }
+                      }}
+                    >
+                      {exam.exam_name}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
+
         <div className="mt-8 flex flex-col items-center">
-          {/* PDF Routine section */}
           {selectedExam?.routine ? (
-            <>
-              <div className="flex w-full justify-center">
-                <div
-                  className="border-border flex w-full items-center justify-center overflow-hidden rounded-lg border bg-gray-100 shadow"
-                  style={{
-                    maxWidth: 1200,
-                    width: '100%',
-                    height: '80vh', // responsive viewport-based height
-                    minHeight: 600, // ensure reasonable minimum
-                    maxHeight: 1000, // cap height on very tall screens
-                    // overflow: "auto" // allow the embedded viewer to scroll inside
-                  }}
-                >
-                  <iframe
-                    src={getFileUrl(selectedExam.routine)}
-                    title="Exam Routine PDF"
-                    className="block h-full w-full"
-                    style={{
-                      border: 'none',
-                      width: '100%',
-                      height: '100%',
-                      minHeight: '600px',
-                    }}
-                  />
-                </div>
+            <div className="flex w-full justify-center px-0 sm:px-0">
+              <div className="border-border flex h-[min(70vh,900px)] min-h-[280px] w-full max-w-[1200px] items-center justify-center overflow-hidden rounded-lg border bg-gray-100 shadow sm:min-h-[420px]">
+                <iframe
+                  src={getFileUrl(selectedExam.routine)}
+                  title="Exam Routine PDF"
+                  className="block h-full w-full border-0"
+                />
               </div>
-            </>
+            </div>
           ) : (
             <div className="rounded-lg bg-gray-50 p-8 text-center">
               <h3 className="text-xl font-medium text-gray-600">Exam Routine</h3>

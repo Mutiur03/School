@@ -221,24 +221,28 @@ const HolidayCalendar = () => {
             <DialogDescription>Fill in the holiday details below.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4 sm:gap-4">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                className="w-[325%]"
+                className="w-full min-w-0 sm:col-span-3"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4 sm:gap-4">
               <Label>Date Range</Label>
-              <DateRangePickerF date={dateRange} setDate={setDateRange} className="w-[325%]" />
+              <DateRangePickerF
+                date={dateRange}
+                setDate={setDateRange}
+                className="w-full min-w-0 sm:col-span-3"
+              />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4 sm:gap-4">
               <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
-                className="w-[325%]"
+                className="w-full min-w-0 sm:col-span-3"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />

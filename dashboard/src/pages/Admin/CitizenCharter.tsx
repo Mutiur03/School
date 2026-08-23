@@ -207,7 +207,7 @@ function CitizenCharter() {
                   width="100%"
                   height="600"
                   title="Citizen Charter PDF"
-                  className="border-0"
+                  className="h-[min(70vh,600px)] min-h-[240px] w-full border-0"
                 >
                   <p>
                     Your browser doesn't support PDFs.{' '}

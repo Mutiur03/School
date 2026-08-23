@@ -51,48 +51,53 @@ const TabNav: React.FC<TabNavProps> = ({ tabs, activeTab, onTabChange, className
   const currentUrl = location.pathname + location.search;
 
   return (
-    <div className={`border-border flex gap-4 border-b dark:border-gray-700 ${className}`}>
-      {tabs.map((tab) => {
-        const inner = (
-          <div className="flex items-center gap-2">
-            {tab.icon}
-            {tab.label}
-            {tab.badge !== undefined && (
-              <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                {tab.badge}
-              </span>
-            )}
-          </div>
-        );
+    <div
+      className={`border-border -mx-1 overflow-x-auto overscroll-x-contain border-b px-1 dark:border-gray-700 ${className}`}
+    >
+      <div className="flex min-w-max gap-3 sm:gap-4">
+        {tabs.map((tab) => {
+          const inner = (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              {tab.icon}
+              {tab.label}
+              {tab.badge !== undefined && (
+                <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 tabular-nums dark:bg-blue-900/30 dark:text-blue-300">
+                  {tab.badge}
+                </span>
+              )}
+            </div>
+          );
 
-        if (tab.href) {
-          const isActive = currentUrl === tab.href;
+          if (tab.href) {
+            const isActive = currentUrl === tab.href;
+            return (
+              <Link
+                key={tab.id}
+                to={tab.href}
+                onClick={() => onTabChange(tab.id)}
+                className={`relative shrink-0 px-1 pb-2 text-sm font-medium transition-colors ${
+                  isActive ? activeClass : inactiveClass
+                }`}
+              >
+                {inner}
+              </Link>
+            );
+          }
+
           return (
-            <Link
+            <button
               key={tab.id}
-              to={tab.href}
+              type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`relative px-1 pb-2 text-sm font-medium transition-colors ${
-                isActive ? activeClass : inactiveClass
+              className={`relative shrink-0 px-1 pb-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id ? activeClass : inactiveClass
               }`}
             >
               {inner}
-            </Link>
+            </button>
           );
-        }
-
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`relative px-1 pb-2 text-sm font-medium transition-colors ${
-              activeTab === tab.id ? activeClass : inactiveClass
-            }`}
-          >
-            {inner}
-          </button>
-        );
-      })}
+        })}
+      </div>
     </div>
   );
 };

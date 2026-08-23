@@ -14,6 +14,18 @@
   font-family: 'MixedFont', sans-serif;
 }
 
+html,
+body,
+#root {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -137,6 +149,17 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

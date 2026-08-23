@@ -620,7 +620,7 @@ const Class9RegForm = () => {
           </SectionCard>
 
           <SectionCard noPadding className="mb-6">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="bg-muted border-border border-b">
@@ -726,6 +726,77 @@ const Class9RegForm = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="lg:hidden">
+              {registrationsLoading ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-12">
+                  <Loader2 className="text-primary h-8 w-8 animate-spin" />
+                  <p className="text-muted-foreground text-sm dark:text-gray-400">
+                    Loading registrations...
+                  </p>
+                </div>
+              ) : registrations.length > 0 ? (
+                <ul className="divide-border divide-y">
+                  {registrations.map((reg: Registration) => (
+                    <li key={reg.id} className="space-y-3 p-4">
+                      <div className="flex items-start gap-3">
+                        {reg.photo_path ? (
+                          <img
+                            src={getFileUrl(reg.photo_path)}
+                            className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
+                            alt=""
+                          />
+                        ) : (
+                          <div className="bg-muted text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
+                            <Users size={18} />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-foreground truncate font-medium">
+                            {reg.student_name_en}
+                          </p>
+                          <p className="text-muted-foreground truncate text-sm">
+                            {reg.student_name_bn}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                              {reg.section || '-'}
+                            </span>
+                            <span className="text-muted-foreground font-mono text-xs font-medium">
+                              Roll {reg.roll || '-'}
+                            </span>
+                            <StatusBadge status={reg.status} />
+                          </div>
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            {formatDateWithTime(reg.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <ActionButton
+                          action="view"
+                          onClick={() => {
+                            setSelectedReg(reg);
+                            setShowDetails(true);
+                          }}
+                        />
+                        <ActionButton
+                          action="edit"
+                          onClick={() => {
+                            setEditFormData({ id: reg.id, status: reg.status });
+                            setShowEditModal(true);
+                          }}
+                        />
+                        <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+                  {errorMessage || 'No registrations found'}
+                </p>
+              )}
             </div>
           </SectionCard>
 

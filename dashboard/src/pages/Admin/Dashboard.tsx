@@ -466,11 +466,11 @@ function Dashboard() {
       case 'exams':
         return (
           <SectionCard title="Examination Schedule">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="bg-muted/50 border-border/50 sticky left-0 z-20 border-r px-6 py-4 text-left text-xs font-bold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                       Exam Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold tracking-wider uppercase">
@@ -494,7 +494,9 @@ function Dashboard() {
 
                     return (
                       <tr key={index} className="hover:bg-muted/20 transition-colors">
-                        <td className="px-6 py-4 text-sm font-semibold">{exam.name}</td>
+                        <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-6 py-4 text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                          {exam.name}
+                        </td>
                         <td className="text-muted-foreground px-6 py-4 text-sm">
                           {start.toLocaleDateString()}
                         </td>

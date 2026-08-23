@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Providers from './providers';
 import { Analytics } from '@/components/Analytics';
@@ -24,6 +24,12 @@ import governmentLogoImage from '../assets/images/gov-logo.png';
  * API GETs are cached per tenant host (see lib/backend.ts).
  */
 export const revalidate = 60;
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const school = await fetchSchoolConfig();

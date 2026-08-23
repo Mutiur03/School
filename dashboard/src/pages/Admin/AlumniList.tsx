@@ -50,22 +50,25 @@ function AlumniList() {
     .sort((a, b) => a.batch.localeCompare(b.batch));
 
   return (
-    <div className="p-6">
-      <h1 className="mb-4 text-2xl font-bold">Alumni List</h1>
+    <div className="p-4 sm:p-6">
+      <h1 className="mb-4 text-xl font-bold text-balance sm:text-2xl">Alumni List</h1>
 
       <input
-        type="text"
-        placeholder="Search students..."
+        type="search"
+        name="alumni-search"
+        placeholder="Search students…"
+        autoComplete="off"
         className="mb-4 w-full rounded-lg border px-3 py-2"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <select
-          className="rounded-lg border px-3 py-2"
+          className="w-full rounded-lg border px-3 py-2 sm:w-auto"
           value={batchFilter}
           onChange={(e) => setBatchFilter(e.target.value)}
+          aria-label="Filter by batch"
         >
           <option value="">All Batches</option>
           {[...new Set(students.map((s) => s.batch))]
@@ -78,9 +81,10 @@ function AlumniList() {
         </select>
 
         <select
-          className="rounded-lg border px-3 py-2"
+          className="w-full rounded-lg border px-3 py-2 sm:w-auto"
           value={sectionFilter}
           onChange={(e) => setSectionFilter(e.target.value)}
+          aria-label="Filter by section"
         >
           <option value="">All Sections</option>
           {[...new Set(students.map((s) => s.section))].map((section) => (
@@ -92,40 +96,86 @@ function AlumniList() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading alumni...</p>
+        <p className="text-muted-foreground">Loading alumni…</p>
       ) : loadError ? (
         <p className="text-destructive">{loadError}</p>
       ) : filteredStudents.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="border-border min-w-full border">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="border-border border px-4 py-2 text-left">Name</th>
-                <th className="border-border border px-4 py-2 text-left">Phone</th>
-                <th className="border-border border px-4 py-2 text-left">Roll</th>
-                <th className="border-border border px-4 py-2 text-left">Batch</th>
-                <th className="border-border border px-4 py-2 text-left">Section</th>
-                <th className="border-border border px-4 py-2 text-left">Address</th>
-                <th className="border-border border px-4 py-2 text-left">DOB</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="even:bg-muted">
-                  <td className="border-border border px-4 py-2">{student.name}</td>
-                  <td className="border-border border px-4 py-2">
-                    {student.phone ? `0${student.phone}` : '—'}
-                  </td>
-                  <td className="border-border border px-4 py-2">{student.roll}</td>
-                  <td className="border-border border px-4 py-2">{student.batch}</td>
-                  <td className="border-border border px-4 py-2">{student.section}</td>
-                  <td className="border-border border px-4 py-2">{student.address}</td>
-                  <td className="border-border border px-4 py-2">{student.dob?.slice(0, 10)}</td>
+        <>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="border-border min-w-full border">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="border-border border px-4 py-2 text-left">Name</th>
+                  <th className="border-border border px-4 py-2 text-left">Phone</th>
+                  <th className="border-border border px-4 py-2 text-left">Roll</th>
+                  <th className="border-border border px-4 py-2 text-left">Batch</th>
+                  <th className="border-border border px-4 py-2 text-left">Section</th>
+                  <th className="border-border border px-4 py-2 text-left">Address</th>
+                  <th className="border-border border px-4 py-2 text-left">DOB</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredStudents.map((student) => (
+                  <tr key={student.id} className="even:bg-muted">
+                    <td className="border-border border px-4 py-2">{student.name}</td>
+                    <td className="border-border border px-4 py-2">
+                      {student.phone ? `0${student.phone}` : '—'}
+                    </td>
+                    <td className="border-border border px-4 py-2 tabular-nums">{student.roll}</td>
+                    <td className="border-border border px-4 py-2">{student.batch}</td>
+                    <td className="border-border border px-4 py-2">{student.section}</td>
+                    <td className="border-border max-w-xs border px-4 py-2 break-words">
+                      {student.address}
+                    </td>
+                    <td className="border-border border px-4 py-2 whitespace-nowrap">
+                      {student.dob?.slice(0, 10)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="space-y-3 lg:hidden">
+            {filteredStudents.map((student) => (
+              <li
+                key={student.id}
+                className="border-border bg-card space-y-2 rounded-xl border p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 text-sm font-semibold wrap-break-word">
+                    {student.name}
+                  </p>
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    Roll {student.roll}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">Phone</dt>
+                    <dd>{student.phone ? `0${student.phone}` : '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Batch</dt>
+                    <dd>{student.batch || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Section</dt>
+                    <dd>{student.section || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">DOB</dt>
+                    <dd>{student.dob?.slice(0, 10) || '—'}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-muted-foreground">Address</dt>
+                    <dd className="wrap-break-word">{student.address || '—'}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
         <p className="text-muted-foreground">No alumni found.</p>
       )}

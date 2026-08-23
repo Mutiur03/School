@@ -494,11 +494,11 @@ function ExamPDFRoutine() {
       )}
 
       <div className="min-w-fit overflow-hidden rounded-lg border border-gray-100 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <table className="w-full min-w-[640px] divide-y divide-gray-200">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                <th className="bg-card border-border/50 sticky left-0 z-20 border-r px-6 py-3 text-left text-xs font-medium tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                   Exam
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
@@ -533,7 +533,7 @@ function ExamPDFRoutine() {
               ) : examList.length > 0 ? (
                 examList.map((exam) => (
                   <tr key={exam.id}>
-                    <td className="px-6 py-4">
+                    <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-6 py-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                       <div className="text-sm font-medium">{exam.exam_name}</div>
                     </td>
                     <td className="px-6 py-4">

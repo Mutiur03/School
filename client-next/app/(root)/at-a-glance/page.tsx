@@ -165,13 +165,32 @@ export default async function At_a_glance() {
   };
 
   return (
-    <div className="py-12">
+    <div className="py-8 sm:py-12">
       <div className="mx-auto max-w-6xl px-4">
-        <h2 className="text-4xl">At a glance</h2>
+        <h2 className="text-2xl text-balance sm:text-3xl md:text-4xl">At a glance</h2>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <div className="overflow-hidden rounded-xs bg-white shadow">
-            <table className="min-w-full border-collapse text-sm">
+            {/* Mobile: stacked definition list */}
+            <dl className="divide-y divide-gray-300 border border-gray-300 md:hidden">
+              {allRows.map((row, idx) => {
+                const isEven = idx % 2 === 0;
+                return (
+                  <div
+                    key={row.label}
+                    className={`px-3 py-3 sm:px-4 sm:py-4 ${isEven ? 'bg-gray-50' : 'bg-white'}`}
+                  >
+                    <dt className="text-sm font-semibold text-gray-900">{row.label}</dt>
+                    <dd className="mt-1 min-w-0 text-sm break-words text-gray-700">
+                      {renderCellValue(row.value)}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+
+            {/* Desktop: table */}
+            <table className="hidden min-w-full border-collapse text-sm md:table">
               <tbody className="border border-gray-300">
                 {allRows.map((row, idx) => {
                   const isEven = idx % 2 === 0;
@@ -183,7 +202,7 @@ export default async function At_a_glance() {
                       <td className="w-12 border-b border-gray-300 px-2 py-4 text-center align-top">
                         :
                       </td>
-                      <td className="border-b border-gray-300 px-4 py-4">
+                      <td className="min-w-0 border-b border-gray-300 px-4 py-4 break-words">
                         {renderCellValue(row.value)}
                       </td>
                     </tr>

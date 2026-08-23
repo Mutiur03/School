@@ -22,9 +22,12 @@ export async function ExtraHome({ galleryPath = '/gallery' }: ExtraHomeProps) {
           </div>
 
           <div>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-40 w-40 overflow-hidden rounded-sm bg-gray-100">
+                <div
+                  key={i}
+                  className="aspect-square w-full overflow-hidden rounded-sm bg-gray-100"
+                >
                   <Image
                     src={placeholderImage}
                     alt=""
@@ -62,7 +65,7 @@ export async function ExtraHome({ galleryPath = '/gallery' }: ExtraHomeProps) {
                 title="School location on Google Maps"
                 width="100%"
                 height="450"
-                style={{ border: 0 }}
+                className="h-[min(50vh,450px)] min-h-[220px] w-full border-0"
                 allowFullScreen={true}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"

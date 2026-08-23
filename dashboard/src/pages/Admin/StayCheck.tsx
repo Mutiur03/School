@@ -48,7 +48,9 @@ const StudentRow = memo(
       <tr
         className={`hover:bg-muted/30 transition-colors ${isRunAwayed ? 'bg-amber-50/30' : ''} ${isAbsent ? 'opacity-40 grayscale-[0.5]' : ''}`}
       >
-        <td className="px-6 py-4 text-sm font-medium">{student.roll}</td>
+        <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-6 py-4 text-sm font-medium shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+          {student.roll}
+        </td>
         <td className="px-6 py-4">
           <div className="flex items-center justify-center">
             <Checkbox
@@ -343,11 +345,11 @@ function StayCheck() {
         description="Select the checkbox if a student is running away. Students marked absent in the morning are disabled."
         noPadding
       >
-        <div className="min-h-[400px] overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div className="min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground w-[80px] px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground bg-muted/50 border-border/50 sticky left-0 z-20 w-[80px] border-r px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                   Roll
                 </th>
                 <th className="text-muted-foreground w-[100px] px-6 py-4 text-center text-xs font-semibold tracking-wider uppercase">

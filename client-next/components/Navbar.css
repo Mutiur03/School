@@ -60,36 +60,63 @@ header#masthead {
   overflow: visible;
 }
 
+/* Mobile-first: hamburger until 1400px. Prevents Login wrapping on mid widths. */
 .navbar-header {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 15px;
+  background-color: transparent;
+  height: auto;
+  min-height: 50px;
 }
 
 #TF-Navbar {
-  background-color: transparent !important;
+  background-color: #ffffff !important;
+  display: none !important;
+  visibility: hidden;
+  max-width: 100%;
+  max-height: min(70vh, 560px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: 0;
+  width: 100%;
+  clear: both;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+#TF-Navbar.show {
   display: block !important;
   visibility: visible !important;
-  max-width: 100%;
-  border-radius: 8px;
-  z-index: 1000;
 }
 
 #TF-Navbar > ul {
   max-width: 100%;
   text-align: left;
-  display: block !important;
+  display: flex !important;
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
   visibility: visible !important;
+  width: 100%;
 }
 
 #TF-Navbar > ul > li {
   float: none !important;
-  display: inline-block !important;
+  display: block !important;
   position: relative;
   visibility: visible !important;
-  flex-shrink: 1;
-  min-width: 0;
+  width: 100%;
+  border-bottom: 1px solid #eee;
   z-index: 1;
 }
 
@@ -321,7 +348,7 @@ header#masthead {
   z-index: 1;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1400px) {
   #TF-Navbar > ul > li.show > .dropdown-menu,
   #TF-Navbar > ul > li:focus-within > .dropdown-menu,
   #TF-Navbar > ul > li:hover > .dropdown-menu {
@@ -356,8 +383,24 @@ header#masthead {
     display: none !important;
   }
 
+  #TF-Navbar {
+    background-color: transparent !important;
+    display: block !important;
+    visibility: visible !important;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    border-radius: 8px;
+    clear: none;
+  }
+
   #TF-Navbar > ul {
     display: flex !important;
+    flex-direction: row;
     flex-wrap: nowrap;
     justify-content: space-between;
     align-items: center;
@@ -365,11 +408,15 @@ header#masthead {
     overflow: visible;
     position: relative;
     z-index: 1;
+    gap: 0;
   }
 
   #TF-Navbar > ul > li {
-    flex: 0 1 auto;
-    min-width: 0;
+    display: block !important;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: auto;
+    border-bottom: none;
     position: relative;
     z-index: 1000;
   }
@@ -380,7 +427,7 @@ header#masthead {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1399px) {
   .header-branding {
     display: block;
   }
@@ -460,8 +507,11 @@ header#masthead {
 
   #TF-Navbar {
     background-color: #ffffff !important;
-    max-height: none;
-    overflow: visible;
+    max-height: min(70vh, 560px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     margin: 0;
     display: none !important;
     width: 100%;
@@ -645,13 +695,16 @@ header#masthead {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1400px) {
   #site-navigation {
-    max-width: 980px;
+    max-width: 1360px;
+    width: 100%;
+    padding: 0 12px;
     position: relative;
     margin: 0 auto;
     z-index: 1000;
     overflow: visible;
+    box-sizing: border-box;
   }
 
   #TF-Navbar {
@@ -663,6 +716,11 @@ header#masthead {
     overflow: visible;
   }
 
+  #TF-Navbar > ul {
+    padding: 0 4px;
+    gap: 2px;
+  }
+
   .navbar-collapse {
     display: block !important;
     width: 100%;
@@ -672,22 +730,7 @@ header#masthead {
   }
 }
 
-@media (min-width: 1200px) {
-  #site-navigation {
-    max-width: 940px;
-    position: relative;
-    margin: 0 auto;
-    z-index: 1000;
-    overflow: visible;
-  }
-
-  #TF-Navbar > ul > li > a {
-    padding: 10px 8px;
-    font-size: 14px;
-  }
-}
-
-@media (min-width: 1400px) {
+@media (min-width: 1600px) {
   #TF-Navbar > ul > li > a {
     padding: 10px 12px;
     font-size: 15px;
@@ -721,7 +764,7 @@ header#masthead {
   text-align: center;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1399px) {
   .col-md-3,
   .col-md-12 {
     flex: 0 0 100%;

@@ -6,10 +6,10 @@ import { getInitials } from '@/lib/utils';
 export default function TeacherProfile() {
   const { user } = useAuth();
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-4xl p-4 sm:p-6">
       {user && user.role === 'teacher' && (
-        <Card className="border-border flex flex-col gap-6 rounded-2xl border p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl md:flex-row">
-          <div className="border-border h-56 w-56 overflow-hidden rounded-full border-4 shadow-sm">
+        <Card className="border-border flex flex-col items-center gap-6 rounded-2xl border p-4 shadow-xl transition-shadow duration-300 hover:shadow-2xl sm:p-6 md:flex-row md:items-start">
+          <div className="border-border h-32 w-32 shrink-0 overflow-hidden rounded-full border-4 shadow-sm sm:h-44 sm:w-44 md:h-56 md:w-56">
             {user?.image ? (
               <img
                 src={getFileUrl(user.image)}

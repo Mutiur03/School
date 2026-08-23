@@ -77,7 +77,7 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
   return (
     <nav
       ref={ref}
-      className="navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between border-b px-5 shadow-md backdrop-blur-xl"
+      className="navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between gap-2 border-b px-3 shadow-md backdrop-blur-xl sm:px-5"
     >
       <ConfirmationPopup
         open={leaveOpen}

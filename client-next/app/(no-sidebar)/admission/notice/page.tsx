@@ -7,13 +7,15 @@ async function pages() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
-          <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Admission Notice</h1>
+          <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
+            Admission Notice
+          </h1>
           {preview_url ? (
             <div className="mb-6">
               <div className="overflow-hidden rounded-lg border">
                 <iframe
                   src={`${getFileUrl(preview_url)}#navpanes=0&scrollbar=0`}
-                  className="h-250 w-full"
+                  className="h-[min(70vh,900px)] min-h-[280px] w-full"
                   title="Admission Notice"
                 />
               </div>

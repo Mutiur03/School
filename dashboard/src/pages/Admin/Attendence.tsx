@@ -752,17 +752,14 @@ function Attendance() {
             <span className="w-3.5 text-center">—</span> Not marked
           </span>
         </div>
-        <div className="min-h-[400px] overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div className="min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <table className="w-max min-w-full border-separate border-spacing-0">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Sec
                 </th>
-                <th
-                  className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase"
-                  style={{ left: '64px' }}
-                >
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-16 z-20 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                   Roll
                 </th>
                 {visibleDays.map((day) => (
@@ -773,10 +770,7 @@ function Attendance() {
                     {day}
                   </th>
                 ))}
-                <th
-                  className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]"
-                  style={{ left: '128px' }}
-                >
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-32 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
                   Student Name
                 </th>
               </tr>
@@ -785,13 +779,10 @@ function Attendance() {
               {studentsLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td className="bg-background sticky left-0 z-10 max-w-[64px] min-w-[64px] px-4 py-3">
+                    <td className="bg-background sticky left-0 z-10 w-16 max-w-16 min-w-16 px-4 py-3">
                       <Skeleton className="h-4 w-8" />
                     </td>
-                    <td
-                      className="bg-background sticky left-0 z-10 max-w-[64px] min-w-[64px] px-4 py-3"
-                      style={{ left: '64px' }}
-                    >
+                    <td className="bg-background sticky left-16 z-10 w-16 max-w-16 min-w-16 px-4 py-3">
                       <Skeleton className="h-4 w-8" />
                     </td>
                     {visibleDays.map((d) => (
@@ -799,10 +790,7 @@ function Attendance() {
                         <Skeleton className="mx-auto h-4 w-4" />
                       </td>
                     ))}
-                    <td
-                      className="bg-background sticky left-0 z-10 min-w-[150px] px-4 py-3 sm:min-w-[200px]"
-                      style={{ left: '128px' }}
-                    >
+                    <td className="bg-background sticky left-32 z-10 min-w-[150px] px-4 py-3 sm:min-w-[200px]">
                       <Skeleton className="ml-auto h-4 w-40" />
                     </td>
                   </tr>
@@ -822,13 +810,10 @@ function Attendance() {
                     key={student.id}
                     className={`hover:bg-muted/30 transition-colors ${!student.available ? 'bg-muted/20 opacity-60' : ''}`}
                   >
-                    <td className="bg-background border-border/50 sticky left-0 z-10 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-sm font-medium">
+                    <td className="bg-background border-border/50 sticky left-0 z-10 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-sm font-medium">
                       {student.section}
                     </td>
-                    <td
-                      className="text-muted-foreground bg-background border-border/50 sticky left-0 z-10 max-w-[64px] min-w-[64px] border-r px-4 py-3 text-sm"
-                      style={{ left: '64px' }}
-                    >
+                    <td className="text-muted-foreground bg-background border-border/50 sticky left-16 z-10 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-sm">
                       {student.roll}
                     </td>
                     {visibleDays.map((day) => {
@@ -881,10 +866,7 @@ function Attendance() {
                         </td>
                       );
                     })}
-                    <td
-                      className="bg-background border-border/50 sticky left-0 z-10 min-w-[150px] border-l px-4 py-3 text-left text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]"
-                      style={{ left: '128px' }}
-                    >
+                    <td className="bg-background border-border/50 sticky left-32 z-10 min-w-[150px] border-l px-4 py-3 text-left text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
                       <div className="flex flex-col items-start gap-0.5">
                         <span>{student.name}</span>
                         {!student.available && (

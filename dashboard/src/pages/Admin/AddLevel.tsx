@@ -293,14 +293,14 @@ const AddLevel = () => {
       </SectionCard>
 
       <SectionCard noPadding>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <table className="w-full min-w-[640px] border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
                 {['Class', 'Section', 'Assigned Teacher', 'Actions'].map((head) => (
                   <th
                     key={head}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${head === 'Actions' ? 'text-right' : ''}`}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${head === 'Actions' ? 'text-right' : ''} ${head === 'Class' ? 'bg-muted border-border/50 sticky left-0 z-20 border-r shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]' : ''}`}
                   >
                     {head}
                   </th>
@@ -318,7 +318,9 @@ const AddLevel = () => {
               ) : filteredLevels.length > 0 ? (
                 filteredLevels.map((level: Level) => (
                   <tr key={level.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-4 font-medium">Class {level.class_name}</td>
+                    <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-4 py-4 font-medium shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                      Class {level.class_name}
+                    </td>
                     <td className="px-4 py-4">{level.section}</td>
                     <td className="px-4 py-4">{level.teacher_name || 'Unknown'}</td>
                     <td className="px-4 py-4 text-right">

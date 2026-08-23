@@ -7,13 +7,15 @@ async function AdmissionFormNotice() {
   return (
     <div className="mx-auto max-w-4xl px-4">
       <div className="rounded-lg bg-white p-6 shadow-md">
-        <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">Admission Notice</h1>
+        <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
+          Admission Notice
+        </h1>
         {preview_url ? (
           <div className="mb-6">
             <div className="overflow-hidden rounded-lg border">
               <iframe
                 src={`${getFileUrl(preview_url)}#navpanes=0&scrollbar=0`}
-                className="h-250 w-full"
+                className="h-[min(70vh,900px)] min-h-[280px] w-full"
                 title="Admission Notice"
               />
             </div>
@@ -39,7 +41,7 @@ async function AdmissionFormNotice() {
           {admission_open ? (
             <Link
               href="/admission/form"
-              className="rounded-lg bg-green-600 px-8 py-3 text-lg font-bold text-white! transition-colors duration-200 hover:bg-green-700"
+              className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
             >
               Proceed to Admission Form
             </Link>

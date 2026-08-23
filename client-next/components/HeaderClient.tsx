@@ -110,7 +110,7 @@ export function Header({
       <div id="banner" className="banner slider-header"></div>
       <div className="carousel slide"></div>
 
-      <div className="relative h-70 overflow-hidden md:h-80">
+      <div className="relative h-48 overflow-hidden sm:h-64 md:h-80">
         <div
           className="flex h-full transition-transform duration-500 ease-in-out motion-reduce:transition-none"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
@@ -135,9 +135,9 @@ export function Header({
           ))}
         </div>
 
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-2 sm:px-0">
           {headerLogo ? (
-            <div className="relative h-32 w-[95%] max-w-245 md:h-40">
+            <div className="relative h-20 w-[95%] max-w-245 sm:h-32 md:h-40">
               <Image
                 src={headerLogo}
                 alt="Header"
@@ -147,22 +147,26 @@ export function Header({
               />
             </div>
           ) : (
-            <div className="flex w-full max-w-245 items-center justify-between gap-3 px-4 md:px-5">
+            <div className="flex w-full max-w-245 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:px-5">
               {leftLogo ? (
                 <Image
                   src={leftLogo}
                   alt="School logo"
                   width={96}
                   height={96}
-                  className="h-20 w-20 shrink-0 object-contain md:h-24 md:w-24"
+                  className="h-12 w-12 shrink-0 object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
                 />
               ) : null}
-              <div className="text-center text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.65)]">
+              <div className="min-w-0 flex-1 text-center text-balance text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.65)]">
                 {titleBn ? (
-                  <h2 className="m-0 text-2xl leading-tight font-medium md:text-4xl">{titleBn}</h2>
+                  <h2 className="m-0 text-base leading-tight font-medium sm:text-2xl md:text-4xl">
+                    {titleBn}
+                  </h2>
                 ) : null}
                 {titleEn ? (
-                  <h3 className="mt-2 text-3xl leading-tight font-normal md:text-5xl">{titleEn}</h3>
+                  <h3 className="mt-1 text-lg leading-tight font-normal sm:mt-2 sm:text-3xl md:text-5xl">
+                    {titleEn}
+                  </h3>
                 ) : null}
               </div>
               {rightLogo ? (
@@ -171,7 +175,7 @@ export function Header({
                   alt="Government logo"
                   width={96}
                   height={96}
-                  className="h-20 w-20 shrink-0 object-contain md:h-24 md:w-24"
+                  className="h-12 w-12 shrink-0 object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
                 />
               ) : null}
             </div>

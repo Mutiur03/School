@@ -656,7 +656,8 @@ const TeacherList = () => {
             </div>
           </div>
         )}
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
@@ -689,11 +690,11 @@ const TeacherList = () => {
             <tbody className="divide-border divide-y">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center">
+                  <td colSpan={5} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Loader2 className="text-primary h-8 w-8 animate-spin" />
                       <p className="text-muted-foreground text-sm dark:text-gray-400">
-                        Loading teachers...
+                        Loading teachers…
                       </p>
                     </div>
                   </td>
@@ -757,6 +758,68 @@ const TeacherList = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <Loader2 className="text-primary h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm">Loading teachers…</p>
+            </div>
+          ) : filteredTeachers.length > 0 ? (
+            <ul className="divide-border divide-y">
+              {filteredTeachers.map((teacher: Teacher) => (
+                <li
+                  key={teacher.id}
+                  className={`space-y-3 p-4 ${selectedTeacherIds.has(teacher.id) ? 'bg-sidebar-accent' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedTeacherIds.has(teacher.id)}
+                      onChange={() => onToggleSelect(teacher.id)}
+                      aria-label={`Select ${teacher.name}`}
+                      className="mt-1 h-4 w-4 shrink-0"
+                    />
+                    {teacher.image ? (
+                      <img
+                        src={getFileUrl(teacher.image)}
+                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold">
+                        {teacher.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-foreground truncate font-medium">{teacher.name}</p>
+                      <p className="text-muted-foreground truncate text-sm">{teacher.email}</p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {teacher.designation || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pl-7">
+                    <ActionButton
+                      action="view"
+                      onClick={() => setPopup({ visible: true, type: 'view', teacher })}
+                    />
+                    <ActionButton action="edit" onClick={() => handleEdit(teacher)} />
+                    <DeleteConfirmation
+                      onDelete={() => handleDelete(teacher)}
+                      msg={`Are you sure you want to delete ${teacher.name}?`}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
+              {errorMessage || 'No teachers found matching your criteria.'}
+            </p>
+          )}
         </div>
       </SectionCard>
 

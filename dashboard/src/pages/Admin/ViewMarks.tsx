@@ -476,7 +476,7 @@ const ViewMarks = () => {
           className &&
           exam &&
           filteredData.length > 0 && (
-            <div className="flex max-w-md flex-col items-end gap-2">
+            <div className="flex w-full flex-col gap-2">
               {genStatus && hasStaleBundles(genStatus) && isMarksheetGenComplete(genStatus) && (
                 <BundleStalePreview
                   items={genStatus.bundles.staleItems}
@@ -486,11 +486,11 @@ const ViewMarks = () => {
                   className="w-full text-left"
                 />
               )}
-              <div className="flex flex-wrap justify-end gap-2">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <Button
                   size="sm"
                   onClick={downloadAllExamPDFs}
-                  className="bg-primary hover:bg-primary/90 h-9 shrink-0 gap-2 px-4 text-white transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                  className="bg-primary hover:bg-primary/90 h-9 w-full shrink-0 gap-2 px-4 text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
                   {section ? `Download Section ${section} PDFs` : 'Download All Exam PDFs'}
@@ -499,7 +499,7 @@ const ViewMarks = () => {
                   size="sm"
                   variant="outline"
                   onClick={downloadSummaryPDF}
-                  className="h-9 shrink-0 gap-2 px-4"
+                  className="h-9 w-full shrink-0 gap-2 px-4 sm:w-auto"
                 >
                   <FileText className="h-4 w-4" />
                   {section ? `Download Section ${section} Summary` : 'Download Summary PDF'}
@@ -509,40 +509,118 @@ const ViewMarks = () => {
           )
         }
       >
-        <div className="min-h-100 overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-muted/50 border-border border-b shadow-sm">
-                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
-                  Section
+        {/* Mobile cards */}
+        <div className="lg:hidden">
+          {marksLoading ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16">
+              <Loading />
+              <p className="text-muted-foreground animate-pulse text-sm font-medium">
+                Loading results…
+              </p>
+            </div>
+          ) : filteredData.length === 0 ? (
+            <div className="text-muted-foreground flex flex-col items-center gap-2 px-4 py-16 text-center opacity-50">
+              <Search className="mb-2 h-10 w-10" />
+              <p className="text-base font-medium">
+                {className && exam
+                  ? examsLoading
+                    ? 'Refreshing exams…'
+                    : 'No marks found matching these filters.'
+                  : 'Please select Class and Exam to view results.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-border divide-y">
+              {filteredData.map((data) => {
+                const marksMap: { [key: string]: number | null } = {};
+                data.marks?.forEach((subject) => {
+                  marksMap[subject.subject] = subject.marks;
+                });
+                return (
+                  <li key={data.student_id} className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground truncate font-semibold uppercase">
+                          {data.name}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                          Sec {data.section || '—'} · Roll {data.roll}
+                        </p>
+                      </div>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-3">
+                      {subjects.map((subject) => (
+                        <div
+                          key={`${data.student_id}-m-${subject}`}
+                          className="bg-muted/40 min-w-0 rounded-md px-2 py-1.5"
+                        >
+                          <dt className="text-muted-foreground truncate">{subject}</dt>
+                          <dd className="font-semibold tabular-nums">{marksMap[subject] ?? '—'}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 flex-1 gap-1.5 border-green-500/20 bg-green-500/10 px-3 text-green-600 shadow-none sm:flex-none"
+                        onClick={() => showStudentDetails(data)}
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-primary/10 text-primary hover:bg-primary border-primary/20 h-8 flex-1 gap-1.5 px-3 shadow-none hover:text-white sm:flex-none"
+                        onClick={(e) => downloadMarksheet(data.student_id, e)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Exam PDF
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Desktop table — no multi-col sticky (breaks on narrow viewports) */}
+        <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
+          <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-muted border-border">
+                <th className="bg-muted sticky left-0 z-30 w-16 min-w-16 border-r border-b px-3 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
+                  Sec
                 </th>
-                <th className="w-20 px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-muted sticky left-16 z-30 w-16 min-w-16 border-r border-b px-3 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
                   Roll
                 </th>
-                <th className="min-w-50 px-6 py-4 font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-muted sticky left-32 z-30 min-w-48 border-r border-b px-4 py-3 text-xs font-bold tracking-wider text-gray-900 uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] dark:text-gray-100">
                   Student Name
                 </th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className="min-w-25 px-4 py-4 text-center font-semibold text-gray-900 italic dark:text-gray-100"
+                    className="bg-muted min-w-28 border-b px-4 py-3 text-center text-xs font-semibold tracking-wider whitespace-nowrap text-gray-900 uppercase dark:text-gray-100"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="px-6 py-4 text-center font-bold text-gray-900 italic dark:text-gray-100">
+                <th className="bg-muted min-w-44 border-b px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-border divide-y">
+            <tbody>
               {marksLoading ? (
                 <tr>
                   <td colSpan={subjects.length + 4} className="py-20">
                     <div className="flex flex-col items-center justify-center gap-4">
                       <Loading />
                       <p className="text-muted-foreground animate-pulse font-medium">
-                        Loading results...
+                        Loading results…
                       </p>
                     </div>
                   </td>
@@ -558,7 +636,7 @@ const ViewMarks = () => {
                       <p className="text-lg font-medium">
                         {className && exam
                           ? examsLoading
-                            ? 'Refreshing exams...'
+                            ? 'Refreshing exams…'
                             : 'No marks found matching these filters.'
                           : 'Please select Class and Exam to view results.'}
                       </p>
@@ -573,30 +651,28 @@ const ViewMarks = () => {
                   });
 
                   return (
-                    <motion.tr
+                    <tr
                       key={data.student_id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-muted/30 group transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                      className="hover:bg-muted/30 group border-border border-b transition-colors"
                     >
-                      <td className="border-border/50 border-r px-6 py-4 text-center font-medium uppercase">
+                      <td className="bg-card sticky left-0 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium uppercase">
                         {data.section || '—'}
                       </td>
-                      <td className="border-border/50 border-r px-6 py-4 text-center font-medium tabular-nums">
+                      <td className="bg-card sticky left-16 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium tabular-nums">
                         {data.roll}
                       </td>
-                      <td className="group-hover:text-primary border-border/50 border-r px-6 py-4 font-bold text-gray-800 uppercase transition-colors dark:text-gray-200">
+                      <td className="group-hover:text-primary bg-card sticky left-32 z-10 min-w-48 border-r px-4 py-3 font-bold text-gray-800 uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] transition-colors dark:text-gray-200">
                         {data.name}
                       </td>
                       {subjects.map((subject) => (
                         <td
                           key={`${data.student_id}-${subject}`}
-                          className="px-4 py-4 text-center font-medium tabular-nums"
+                          className="min-w-28 px-4 py-3 text-center font-medium tabular-nums"
                         >
-                          {marksMap[subject] ?? '-'}
+                          {marksMap[subject] ?? '—'}
                         </td>
                       ))}
-                      <td className="px-6 py-4">
+                      <td className="min-w-44 px-4 py-3">
                         <div className="flex justify-center gap-2">
                           <Button
                             size="sm"
@@ -618,7 +694,7 @@ const ViewMarks = () => {
                           </Button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })
               )}
