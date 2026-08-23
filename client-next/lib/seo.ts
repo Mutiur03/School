@@ -54,13 +54,14 @@ export async function getRequestSiteUrl() {
 const siteUrlFallback = () =>
   process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000';
 
-export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string) {
+export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string): string {
   return (
     normalizeUrl(requestUrl) ||
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    siteUrlFallback()
+    siteUrlFallback() ||
+    'http://localhost:3000'
   );
 }
 
@@ -69,13 +70,14 @@ export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string) {
  * Prefer configured school website so backup hosts (e.g. backup.lbphs.gov.bd)
  * do not publish a second canonical logo/site identity.
  */
-export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string) {
+export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string): string {
   return (
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
     normalizeUrl(requestUrl) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    siteUrlFallback()
+    siteUrlFallback() ||
+    'http://localhost:3000'
   );
 }
 
@@ -127,11 +129,7 @@ function getSeoKeywords(school: SchoolConfig) {
 
 export async function buildSchoolMetadata(school: SchoolConfig): Promise<Metadata> {
   const requestUrl = await getRequestSiteUrl();
-  const siteUrl =
-    getCanonicalSiteUrl(school, requestUrl) ??
-    requestUrl ??
-    siteUrlFallback() ??
-    'http://localhost:3000';
+  const siteUrl = getCanonicalSiteUrl(school, requestUrl);
   const title = clean(school.seo?.title) || school.name.en || 'School Website';
   const description = getSeoDescription(school);
   const iconUrl = getSchoolIconUrl(school, siteUrl) || '/favicon';
