@@ -1570,11 +1570,6 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
       <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
         <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />
         <StatsCard
-          label="Showing Results / Filtered Results"
-          value={`${students.length} / ${meta?.filtered ?? 0}`}
-          loading={loading}
-        />
-        <StatsCard
           label="With Stipend"
           value={students.filter((s) => s.has_stipend).length}
           color="emerald"

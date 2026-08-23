@@ -610,18 +610,6 @@ const TeacherList = () => {
 
       <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
         <StatsCard label="Total Teachers" value={meta?.total ?? 0} loading={isLoading} />
-        <StatsCard
-          label="Showing"
-          value={`${filteredTeachers.length} / ${meta?.total ?? 0}`}
-          color="blue"
-          loading={isLoading}
-        />
-        <StatsCard
-          label="Available"
-          value={filteredTeachers.length}
-          color="emerald"
-          loading={isLoading}
-        />
       </div>
 
       <FilterSelection className="mb-6">

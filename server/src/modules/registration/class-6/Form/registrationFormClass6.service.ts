@@ -144,8 +144,21 @@ export class RegistrationFormClass6Service {
         Number.isFinite(limitNum) && limitNum > 0 ? Math.min(Math.floor(limitNum), 200) : 20;
       const skip = (normalizedPage - 1) * normalizedLimit;
 
-      const [total, registrations] = await prisma.$transaction([
+      const statsWhere: any = {};
+      if (class6_year) statsWhere.class6_year = parseInt(class6_year, 10);
+      if (section) statsWhere.section = section;
+      if (search) {
+        statsWhere.OR = where.OR;
+      }
+
+      const [total, pending, approved, registrations] = await prisma.$transaction([
         prisma.student_registration_class6.count({ where: { class6_year: Number(class6_year) } }),
+        prisma.student_registration_class6.count({
+          where: { ...statsWhere, status: 'pending' },
+        }),
+        prisma.student_registration_class6.count({
+          where: { ...statsWhere, status: 'approved' },
+        }),
         prisma.student_registration_class6.findMany({
           where,
           orderBy: { created_at: 'desc' },
@@ -160,6 +173,8 @@ export class RegistrationFormClass6Service {
         data: registrations,
         meta: {
           total,
+          pending,
+          approved,
           page: normalizedPage,
           limit: normalizedLimit,
           totalPages,

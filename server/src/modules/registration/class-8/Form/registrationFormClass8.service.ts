@@ -116,8 +116,14 @@ export class RegistrationFormClass8Service {
         { birth_reg_no: { contains: search } },
       ];
     }
-    console.log(where);
-    const [data, total] = await Promise.all([
+    const statsWhere: any = {};
+    if (class8_year) statsWhere.class8_year = parseInt(class8_year, 10);
+    if (section) statsWhere.section = section;
+    if (search) {
+      statsWhere.OR = where.OR;
+    }
+
+    const [data, total, pending, approved] = await prisma.$transaction([
       prisma.student_registration_class8.findMany({
         where,
         skip,
@@ -127,13 +133,20 @@ export class RegistrationFormClass8Service {
       prisma.student_registration_class8.count({
         where: { class8_year: Number(class8_year) },
       }),
+      prisma.student_registration_class8.count({
+        where: { ...statsWhere, status: 'pending' },
+      }),
+      prisma.student_registration_class8.count({
+        where: { ...statsWhere, status: 'approved' },
+      }),
     ]);
-    console.log(total);
 
     return {
       data,
       meta: {
         total,
+        pending,
+        approved,
         page: parseInt(page, 10),
         limit: parseInt(limit, 10),
         totalPages: Math.ceil(total / limit),

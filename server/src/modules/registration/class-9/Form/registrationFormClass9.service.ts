@@ -120,7 +120,14 @@ export class RegistrationFormClass9Service {
       ];
     }
 
-    const [registrations, total] = await Promise.all([
+    const statsWhere: any = {};
+    if (ssc_batch) statsWhere.ssc_batch = String(ssc_batch);
+    if (section) statsWhere.section = section;
+    if (search) {
+      statsWhere.OR = where.OR;
+    }
+
+    const [registrations, total, pending, approved] = await prisma.$transaction([
       prisma.student_registration_ssc.findMany({
         where,
         skip,
@@ -129,6 +136,12 @@ export class RegistrationFormClass9Service {
       }),
       prisma.student_registration_ssc.count({
         where: { ssc_batch: ssc_batch ? String(ssc_batch) : undefined },
+      }),
+      prisma.student_registration_ssc.count({
+        where: { ...statsWhere, status: 'pending' },
+      }),
+      prisma.student_registration_ssc.count({
+        where: { ...statsWhere, status: 'approved' },
       }),
     ]);
 
@@ -141,6 +154,8 @@ export class RegistrationFormClass9Service {
       data,
       meta: {
         total,
+        pending,
+        approved,
         page: parseInt(page, 10),
         limit: parseInt(limit, 10),
         totalPages: Math.ceil(total / limit),

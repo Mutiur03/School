@@ -394,14 +394,8 @@ const StaffList = () => {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
         <StatsCard label="Total Staff" value={meta?.total ?? 0} loading={isLoading} />
-        <StatsCard
-          label="Showing"
-          value={`${staff.length} / ${meta?.total ?? 0}`}
-          color="blue"
-          loading={isLoading}
-        />
       </div>
 
       <FilterSelection className="mb-6">

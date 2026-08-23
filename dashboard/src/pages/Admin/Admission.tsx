@@ -204,28 +204,13 @@ function Admission() {
 
   const year = settingsMeta.admission_year ? String(settingsMeta.admission_year) : '';
 
-  const stats = useMemo(() => {
-    const pageItems = items || [];
-    return {
-      total: {
-        filtered: pageItems.length,
-        all: meta?.total ?? pageItems.length,
-      },
-      pending: {
-        filtered: pageItems.filter((r) => r.status === 'pending').length,
-        all: meta?.pending ?? 0,
-      },
-      approved: {
-        filtered: pageItems.filter((r) => r.status === 'approved').length,
-        all: meta?.approved ?? 0,
-      },
-    };
-  }, [items, meta]);
-
-  const renderCount = (filtered: number, total: number) => {
-    if (!total || filtered === total) return total || filtered;
-    return `${filtered} / ${total}`;
-  };
+  const stats = useMemo(
+    () => ({
+      total: meta?.total ?? 0,
+      pending: meta?.pending ?? 0,
+    }),
+    [meta],
+  );
 
   const formatQuota = (q: string | undefined): string | null => {
     if (!q) return null;
@@ -383,23 +368,10 @@ function Admission() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatsCard
-          label="Total Applications"
-          value={renderCount(stats.total.filtered, stats.total.all)}
-          loading={loading}
-        />
-        <StatsCard
-          label="Pending"
-          value={renderCount(stats.pending.filtered, stats.pending.all)}
-          color="amber"
-          loading={loading}
-        />
-        <StatsCard
-          label="Approved"
-          value={renderCount(stats.approved.filtered, stats.approved.all)}
-          color="emerald"
-          loading={loading}
-        />
+        <StatsCard label="Total Applications" value={stats.total} loading={loading} />
+        {stats.pending > 0 && (
+          <StatsCard label="Pending" value={stats.pending} color="amber" loading={loading} />
+        )}
       </div>
 
       <FilterSelection

@@ -179,28 +179,13 @@ const Class9RegForm = () => {
     setPage(1);
   }, [deferredFilters]);
 
-  const stats = useMemo(() => {
-    const filteredData: Registration[] = registrations || [];
-    return {
-      total: {
-        filtered: filteredData.length,
-        all: meta?.total ?? 0,
-      },
-      pending: {
-        filtered: filteredData.filter((r: Registration) => r.status === 'pending').length,
-        all: 0,
-      },
-      approved: {
-        filtered: filteredData.filter((r: Registration) => r.status === 'approved').length,
-        all: 0,
-      },
-    };
-  }, [registrations, meta]);
-
-  const renderCount = (filtered: number, total: number) => {
-    if (filtered === total) return total;
-    return `${filtered} / ${total}`;
-  };
+  const stats = useMemo(
+    () => ({
+      total: meta?.total ?? 0,
+      pending: meta?.pending ?? 0,
+    }),
+    [meta],
+  );
 
   useEffect(() => {
     if (settingsData?.ssc_year) {
@@ -521,21 +506,17 @@ const Class9RegForm = () => {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <StatsCard
               label="Total Registrations"
-              value={renderCount(stats.total.filtered, stats.total.all)}
+              value={stats.total}
               loading={registrationsLoading}
             />
-            <StatsCard
-              label="Pending"
-              value={renderCount(stats.pending.filtered, stats.pending.all)}
-              color="amber"
-              loading={registrationsLoading}
-            />
-            <StatsCard
-              label="Approved"
-              value={renderCount(stats.approved.filtered, stats.approved.all)}
-              color="emerald"
-              loading={registrationsLoading}
-            />
+            {stats.pending > 0 && (
+              <StatsCard
+                label="Pending"
+                value={stats.pending}
+                color="amber"
+                loading={registrationsLoading}
+              />
+            )}
           </div>
 
           <FilterSelection
